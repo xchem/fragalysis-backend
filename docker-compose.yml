@@ -9,10 +9,15 @@ services:
       - "5442:5432"
   jupyter:
     image: abradle/rdjupyter
+    user: root
     ports:
       - "8888:8888"
     volumes:
       - /home/ec2-user/notebooks:/home/jovyan/notebooks
+    command: start-notebook.sh --NotebookApp.token=''
+    environment:
+      - NB_UID=1000
+      - GRANT_SUDO=yes
   graph:
     image: neo4j
     ports:
