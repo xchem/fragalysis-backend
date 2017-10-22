@@ -18,8 +18,8 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      - /home/ec2-user/notebooks:/home/jovyan/notebooks
-    command: start-notebook.sh --NotebookApp.token=''
+      - /home/ec2-user/notebooks:/data/notebooks
+    command: start-notebook.sh --NotebookApp.token='' --NotebookApp.base_url=/data
     environment:
       - NB_UID=500
       - GRANT_SUDO=yes
