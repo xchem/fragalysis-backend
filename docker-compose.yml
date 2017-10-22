@@ -16,7 +16,7 @@ services:
       - /home/ec2-user/notebooks:/home/jovyan/notebooks
     command: start-notebook.sh --NotebookApp.token=''
     environment:
-      - NB_UID=1000
+      - NB_UID=500
       - GRANT_SUDO=yes
   graph:
     image: neo4j
