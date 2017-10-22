@@ -42,4 +42,4 @@ services:
     depends_on:
       - db
       - graph
-      - jupyter
+      - cartridge
