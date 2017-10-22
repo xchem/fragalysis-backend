@@ -12,7 +12,7 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      - /home/ec2-user/notebooks:/home/jovyan
+      - /home/ec2-user/notebooks:/home/jovyan/notebooks
   graph:
     image: neo4j
     ports:
