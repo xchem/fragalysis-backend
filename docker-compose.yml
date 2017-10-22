@@ -8,6 +8,8 @@ services:
   cartridge: 
     image: informaticsmatters/rdkit_cartridge:Release_2016_03_1
     user: root
+    environment:
+      - POSTGRES_PASSWORD=password
     volumes:
       - /home/ec2-user/cartridge_data:/var/lib/postgresql/data
   jupyter:
