@@ -8,8 +8,7 @@ ADD . /code/
 RUN apt-get update -y
 RUN apt-get install -y nginx
 # Copy entrypoint script into the image
-COPY docker-entrypoint.sh /
 COPY django_nginx.conf /etc/nginx/sites-available/
 RUN ln -s /etc/nginx/sites-available/django_nginx.conf /etc/nginx/sites-enabled
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/code/docker-entrypoint.sh"]
