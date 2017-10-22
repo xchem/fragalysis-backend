@@ -26,6 +26,7 @@ services:
   graph:
     image: neo4j
     ports:
+# Comment these two out in produciton
       - "7474:7474"
       - "7687:7687"
     volumes:
@@ -34,7 +35,6 @@ services:
       - NEO4J_AUTH=none
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/code
     ports:
