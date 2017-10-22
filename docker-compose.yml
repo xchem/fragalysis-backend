@@ -38,6 +38,8 @@ services:
     command: /bin/bash /code/docker-entrypoint.sh
     volumes:
       - .:/code
+      - /home/ec2-user/logs:/srv/logs/
+      - /home/ec2-user/media:/srv/media/
     ports:
       - "8010:8000"
     depends_on:
