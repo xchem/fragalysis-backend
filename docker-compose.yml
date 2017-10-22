@@ -4,11 +4,11 @@ services:
   db:
     image: postgres
     volumes:
-     - django_data:/var/lib/postgresql/data
+     - /home/ec2-user/django_data:/var/lib/postgresql/data
   cartridge: 
     image: informaticsmatters/rdkit_cartridge
     volumes:
-      - cartridge_data:/var/lib/postgresql/data
+      - /home/ec2-user/cartridge_data:/var/lib/postgresql/data
   jupyter:
     image: abradle/rdjupyter
     user: root
