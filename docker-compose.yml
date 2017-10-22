@@ -7,6 +7,7 @@ services:
      - /home/ec2-user/django_data:/var/lib/postgresql/data
   cartridge: 
     image: informaticsmatters/rdkit_cartridge
+    user: postgres
     volumes:
       - /home/ec2-user/cartridge_data:/var/lib/postgresql/data
   jupyter:
