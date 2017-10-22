@@ -11,6 +11,8 @@ services:
     image: abradle/rdjupyter
     ports:
       - "8888:8888"
+    volumes:
+      - /home/ec2-user/notebooks:/home/jovyan
   graph:
     image: neo4j
     ports:
