@@ -9,8 +9,8 @@ tail -n 0 -f /srv/logs/*.log &
 echo Starting nginx 
 # Start Gunicorn processes
 echo Starting Gunicorn.
-exec gunicorn cv_django_merchandising.wsgi:application \
-    --name cv_django_merchandising \
+exec gunicorn fragalysis.wsgi:application \
+    --name fragalysis \
     --bind unix:django_app.sock \
     --workers 3 \
     --log-level=info \
