@@ -2,12 +2,7 @@ version: '3'
 
 services:
   db: 
-    image: postgres
-
-  cartridge:
     image: informaticsmatters/rdkit_cartridge
-    ports:
-      - "5442:5432"
   jupyter:
     image: abradle/rdjupyter
     user: root
