@@ -41,7 +41,7 @@ services:
       - /home/ec2-user/logs:/srv/logs/
       - /home/ec2-user/media:/srv/media/
     ports:
-      - "8010:8000"
+      - "8010:80"
     depends_on:
       - db
       - graph
