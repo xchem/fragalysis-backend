@@ -3,6 +3,23 @@ version: '3'
 services:
   db:
     image: postgres
+  cartridge:
+    image: informaticsmatters/rdkit_cartridge
+    ports:
+      - "5442:5432"
+  jupyter:
+    image: abradle/rdjupyter
+    ports:
+      - "8888:8888"
+  graph:
+    image: neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - /home/ec2-user:/data
+    environment:
+      - NEO4J_AUTH=none
   web:
     build: .
     command: python manage.py runserver 0.0.0.0:8000
