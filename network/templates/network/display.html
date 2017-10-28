@@ -8,12 +8,23 @@
 {# Display django.contrib.messages as Bootstrap alerts #}
 {% bootstrap_messages %}
 
-{# Display a form #}
-<form action="/query/" method="get" class="form">
-  {% csrf_token %}
-  {% buttons %}
-    <button type="submit" class="btn btn-primary">
-      {% bootstrap_icon "star" %} Submit
-    </button>
-  {% endbuttons %}
-</form>
+<script>
+    function myFunction() {
+        var smiles= document.getElementById("smiles").value;
+        var num_picks = document.getElementById("num_picks").value;
+        $.get('/network/query/', {smiles: smiles, num_picks: num_picks},
+                function(data){
+           alert(data);
+});
+    }
+    
+</script>
+
+
+<label for="smiles">Smiles:</label>
+<input type="text" class="form-control" id="smiles">
+{% buttons %}
+<button onclick="myFunction()" class="btn btn-primary">
+  {% bootstrap_icon "eye-open" %} Submit
+</button>
+{% endbuttons %}
