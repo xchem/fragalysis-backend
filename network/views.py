@@ -2,7 +2,7 @@ from django.http import HttpResponse
 import json
 from frag.network.query import get_picks
 
-def index(request):
+def query(request):
     if "smiles" in request.GET \
             and "num_picks" in request.GET:
         smiles = request.GET["smiles"]
@@ -11,3 +11,7 @@ def index(request):
         return HttpResponse(json.dumps(out_dict))
     else:
         return HttpResponse("Please insert SMILES")
+
+
+def display(request):
+    return HttpResponse("Main display")

@@ -54,6 +54,8 @@ INSTALLED_APPS = [
 
     # My own apps
     'network',
+    # My utility apps
+    'bootstrap3',
 ]
 
 MIDDLEWARE = [
