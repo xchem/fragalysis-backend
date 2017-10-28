@@ -1,6 +1,8 @@
 from django.http import HttpResponse
 import json
 from frag.network.query import get_picks
+from django.shortcuts import render
+
 
 def query(request):
     if "smiles" in request.GET \
@@ -14,4 +16,4 @@ def query(request):
 
 
 def display(request):
-    return HttpResponse("Main display")
+    return render(request, 'network/display.html', {})
