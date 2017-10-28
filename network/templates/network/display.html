@@ -9,7 +9,6 @@
 
 {# Display django.contrib.messages as Bootstrap alerts #}
 {% bootstrap_messages %}
-
 <script>
     function myFunction() {
         var smiles= document.getElementById("smiles").value;
@@ -23,12 +22,16 @@
 </script>
 
 
-<label for="smiles">Smiles:</label>
-<input type="text" class="form-control" id="smiles">
-<label for="num_picks">Number of picks:</label>
-<input type="text" class="form-control" id="num_picks">
-{% buttons %}
-<button onclick="myFunction()" class="btn btn-primary">
-  {% bootstrap_icon "eye-open" %} Submit
-</button>
-{% endbuttons %}
+
+<div class="row">
+    <div class="col-xs-11 col-md-3"><label for="smiles">Smiles:</label>
+        <input type="text" class="form-control" id="smiles">
+        <label for="num_picks">Number of picks:</label>
+        <input type="text" class="form-control" id="num_picks">
+        {% buttons %}
+        <button onclick="myFunction()" class="btn btn-primary">
+          {% bootstrap_icon "eye-open" %} Submit
+        </button>
+        {% endbuttons %}
+    </div>
+</div>
