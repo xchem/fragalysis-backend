@@ -15,7 +15,9 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), ".."),
+)
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
@@ -57,6 +59,7 @@ INSTALLED_APPS = [
     # My utility apps
     'bootstrap3',
     'django_cas_ng',
+    'django-bower',
 ]
 
 MIDDLEWARE = [
@@ -75,11 +78,20 @@ AUTHENTICATION_BACKENDS = (
 )
 
 
+STATICFILES_FINDERS = ('djangobower.finders.BowerFinder',)
+
 # CAS parameters
 CAS_SERVER_URL = "https://auth.diamond.ac.uk:443/cas/"
 CAS_REDIRECT_URL = "/network/display/"
 
 ROOT_URLCONF = 'fragalysis.urls'
+
+BOWER_INSTALLED_APPS = (
+    'nprogress'
+)
+STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
+BOWER_COMPONENTS_ROOT = os.path.join(PROJECT_ROOT, 'components')
+
 
 TEMPLATES = [
     {
