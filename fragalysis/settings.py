@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'network',
     # My utility apps
     'bootstrap3',
+    'django_cas_ng',
 ]
 
 MIDDLEWARE = [
@@ -68,6 +69,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'django_cas_ng.backends.CASBackend',
+)
+
+
+CAS_SERVER_URL = "https://auth.diamond.ac.uk:443/cas/"
 ROOT_URLCONF = 'fragalysis.urls'
 
 TEMPLATES = [
