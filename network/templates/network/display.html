@@ -10,10 +10,10 @@
 {# Display django.contrib.messages as Bootstrap alerts #}
 {% bootstrap_messages %}
 <script>
-    function myFunction() {
+    function myFunction(url) {
         var smiles= document.getElementById("smiles").value;
         var num_picks = document.getElementById("num_picks").value;
-        $.get('/network/query/', {smiles: smiles, num_picks: num_picks},
+        $.get(, {smiles: smiles, num_picks: num_picks},
                 function(data){
                    document.getElementById("output").innerHTML=data;
                 });
@@ -31,12 +31,15 @@
         <label for="num_picks">Number of picks:</label>
         <input type="text" class="form-control" id="num_picks">
         {% buttons %}
-        <button onclick="myFunction()" class="btn btn-primary">
-          {% bootstrap_icon "eye-open" %} Submit
+        <button onclick="myFunction('/network/full_graph/')" class="btn btn-primary">
+          {% bootstrap_icon "eye-open" %} Full Graph
+        </button>
+            <button onclick="myFunction('/network/pick_mols/')" class="btn btn-primary">
+          {% bootstrap_icon "star" %} Pick Mols
         </button>
         {% endbuttons %}
     </div>
     <div class="col-xs-6 col-md-3" id="output">
-
+        
     </div>
 </div>
