@@ -3,3 +3,5 @@ psycopg2
 gunicorn 
 requests
 django-bootstrap3
+django-bower
+django-cas-ng
