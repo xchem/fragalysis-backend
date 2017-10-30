@@ -59,7 +59,7 @@ INSTALLED_APPS = [
     # My utility apps
     'bootstrap3',
     'django_cas_ng',
-    'django-bower',
+    'djangobower',
 ]
 
 MIDDLEWARE = [
