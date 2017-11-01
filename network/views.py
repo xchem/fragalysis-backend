@@ -11,7 +11,10 @@ def pick_mols(request):
     if "smiles" in request.GET \
             and "num_picks" in request.GET:
         smiles = request.GET["smiles"]
-        num_picks = int(request.GET["num_picks"])
+        if "num_picks" in request.GET and request.GET["num_picks"]:
+            num_picks = int(request.GET["num_picks"])
+        else:
+            num_picks = 20
         out_dict = get_picks(smiles, num_picks)
         return HttpResponse(json.dumps(out_dict))
     else:
