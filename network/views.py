@@ -8,8 +8,7 @@ from network.functions import get_conn,ret_png,ret_svg
 ret_type = {u'json': json.dumps, u'png': ret_png, u'svg': ret_svg}
 
 def pick_mols(request):
-    if "smiles" in request.GET \
-            and "num_picks" in request.GET:
+    if "smiles" in request.GET in request.GET:
         smiles = request.GET["smiles"]
         if "num_picks" in request.GET and request.GET["num_picks"]:
             num_picks = int(request.GET["num_picks"])
@@ -24,7 +23,7 @@ def full_graph(request):
     if "smiles" in request.GET:
         smiles = request.GET["smiles"]
         out_dict = get_full_graph(smiles)
-        return HttpResponse(json.dumps(out_dict))
+        return HttpResponse(json.dumps(out_dict,"graph"))
     else:
         return HttpResponse("Please insert SMILES")
 
