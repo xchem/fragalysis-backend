@@ -9,10 +9,8 @@ RUN pip install -r /usr/local/fragalysis/requirements.txt
 RUN pip install /usr/local/fragalysis
 RUN apt-get update -y
 RUN apt-get install -y nginx
-RUN apt-get install -y python-software-properties python g++ make
-RUN add-apt-repository ppa:chris-lea/node.js
-RUN apt-get update
-RUN apt-get install nodejs
+RUN curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+RUN apt-get install -y nodejs
 RUN npm install -g bower
 # Copy entrypoint script into the image
 COPY django_nginx.conf /etc/nginx/sites-available/
