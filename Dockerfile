@@ -9,6 +9,7 @@ RUN pip install -r /usr/local/fragalysis/requirements.txt
 RUN pip install /usr/local/fragalysis
 RUN apt-get update -y
 RUN apt-get install -y nginx
+RUN apt-get install -y python-software-properties python g++ make
 RUN add-apt-repository ppa:chris-lea/node.js
 RUN apt-get update
 RUN apt-get install nodejs
