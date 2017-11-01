@@ -25,8 +25,8 @@ def full_graph(request):
 
 
 def query_db(request):
-    if 'limit' in request.GET:
-        limit = request.GET['limit']
+    if 'num_picks' in request.GET:
+        limit = request.GET['num_picks']
     else:
         limit = 100
     if "smiles" in request.GET:
@@ -35,5 +35,6 @@ def query_db(request):
         curs.execute('select * from get_mfp2_neighbors(%s) limit '+str(limit),
                      (request.GET['smiles'],))
         return HttpResponse(json.dumps(curs.fetchall()))
+
 def display(request):
     return render(request, 'network/display.html', {})
