@@ -8,8 +8,8 @@ RUN git clone https://github.com/xchem/fragalysis /usr/local/fragalysis
 RUN pip install -r /usr/local/fragalysis/requirements.txt
 RUN pip install /usr/local/fragalysis
 RUN apt-get update -y
-RUN apt-get install -y nginx
-RUN curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+RUN apt-get install -y nginx curl
+RUN curl -sL https://deb.nodesource.com/setup_6.x | bash -
 RUN apt-get install -y nodejs
 RUN npm install -g bower
 # Copy entrypoint script into the image
