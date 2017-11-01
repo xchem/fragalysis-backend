@@ -21,8 +21,7 @@ def pick_mols(request):
         return HttpResponse("Please insert SMILES")
 
 def full_graph(request):
-    if "smiles" in request.GET \
-            and "num_picks" in request.GET:
+    if "smiles" in request.GET:
         smiles = request.GET["smiles"]
         out_dict = get_full_graph(smiles)
         return HttpResponse(json.dumps(out_dict))
