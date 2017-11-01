@@ -40,11 +40,10 @@ def query_db(request):
         curs.execute('select * from get_mfp2_neighbors(%s) limit '+str(limit),
                      (request.GET['smiles'],))
         results = curs.fetchall()
+        ret_func = ret_type['json']
         if 'return' in request.GET:
             if request.GET['return'] in ret_type:
                 ret_func = ret_type[request.GET['return']]
-            else:
-                ret_func = ret_type['json']
         return HttpResponse(ret_func(results))
     else:
         return HttpResponse("Please insert SMILES")

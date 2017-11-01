@@ -15,7 +15,7 @@
     function myFunction(url) {
         var smiles= document.getElementById("smiles").value;
         var num_picks = document.getElementById("num_picks").value;
-        $.get(url, {smiles: smiles, num_picks: num_picks},
+        $.get(url, {smiles: smiles, num_picks: num_picks, return: "svg"},
                 function(data){
                    document.getElementById("output").innerHTML=data;
                 });
