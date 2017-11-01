@@ -8,7 +8,7 @@ RUN git clone https://github.com/xchem/fragalysis /usr/local/fragalysis
 RUN pip install -r /usr/local/fragalysis/requirements.txt
 RUN pip install /usr/local/fragalysis
 RUN apt-get update -y
-RUN apt-get install -y nginx nodejs
+RUN apt-get install -y nginx npm nodejs
 RUN npm install -g bower
 # Copy entrypoint script into the image
 COPY django_nginx.conf /etc/nginx/sites-available/
