@@ -5,3 +5,4 @@ requests
 django-bootstrap3
 django-bower
 django-cas-ng
+image
