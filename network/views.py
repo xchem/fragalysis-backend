@@ -5,7 +5,7 @@ from django.shortcuts import render
 from network.functions import get_conn,ret_png,ret_svg
 
 
-ret_type = {'json': json.dumps, 'png': ret_png, 'svg': ret_svg}
+ret_type = {u'json': json.dumps, u'png': ret_png, u'svg': ret_svg}
 
 def pick_mols(request):
     if "smiles" in request.GET \

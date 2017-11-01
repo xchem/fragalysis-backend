@@ -8,7 +8,7 @@ def get_conn():
 
 
 def get_mol_list(results):
-    mols = [Chem.MolFromSmiles(x) for x in results]
+    mols = [Chem.MolFromSmiles(x[1]) for x in results]
     legends = [" ".join([x[0],x[2]]) for x in results]
     return mols,legends
 
