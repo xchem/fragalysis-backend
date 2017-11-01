@@ -27,6 +27,8 @@ def full_graph(request):
 def query_db(request):
     if 'num_picks' in request.GET:
         limit = request.GET['num_picks']
+        if not limit:
+            limit = 100
     else:
         limit = 100
     if "smiles" in request.GET:
