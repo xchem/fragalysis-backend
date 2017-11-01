@@ -2,7 +2,10 @@ from django.http import HttpResponse
 import json
 from frag.network.query import get_picks,get_full_graph
 from django.shortcuts import render
-from network.functions import get_conn
+from network.functions import get_conn,ret_png,ret_svg
+
+
+ret_type = {'json': json.dumps, 'png': ret_png, 'svg': ret_svg}
 
 def pick_mols(request):
     if "smiles" in request.GET \
@@ -36,7 +39,15 @@ def query_db(request):
         curs = conn.cursor()
         curs.execute('select * from get_mfp2_neighbors(%s) limit '+str(limit),
                      (request.GET['smiles'],))
-        return HttpResponse(json.dumps(curs.fetchall()))
+        results = curs.fetchall()
+        if 'return' in request.GET:
+            if request.GET['return'] in ret_type:
+                ret_func = ret_type[request.GET['return']]
+            else:
+                ret_func = ret_type['json']
+        return HttpResponse(ret_func(results))
+    else:
+        return HttpResponse("Please insert SMILES")
 
 def display(request):
     return render(request, 'network/display.html', {})
