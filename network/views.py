@@ -29,6 +29,8 @@ def full_graph(request):
         if 'return' in request.GET:
             if request.GET['return'] in graph_type:
                 ret_func = graph_type[request.GET['return']]
+        if not out_dict:
+            return HttpResponse("EMPTY RESULT SET")
         return HttpResponse(ret_func(out_dict))
     else:
         return HttpResponse("Please insert SMILES")
