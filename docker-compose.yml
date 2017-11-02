@@ -26,6 +26,7 @@ services:
       - NB_UID=500
       - GRANT_SUDO=yes
   graph:
+    container_name: neo4j
     image: neo4j
     ports:
 # Comment these two out in produciton
