@@ -56,6 +56,7 @@ INSTALLED_APPS = [
 
     # My own apps
     'network',
+    'viewer',
     # My utility apps
     'bootstrap3',
     'django_cas_ng',
