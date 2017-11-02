@@ -47,6 +47,7 @@ def draw_mol(smiles):
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return "None Mol"
-    drawer = Draw.MolDraw2DSVG()
+    drawer = Draw.MolDraw2DSVG(200,200)
     drawer.DrawMolecule(mol)
+    drawer.FinishDrawing()
     return drawer.GetDrawingText()
