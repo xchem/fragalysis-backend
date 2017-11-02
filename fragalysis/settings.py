@@ -80,7 +80,7 @@ AUTHENTICATION_BACKENDS = (
 )
 
 
-STATICFILES_FINDERS = ('djangobower.finders.BowerFinder',)
+STATICFILES_FINDERS = ('npm.finders.NpmFinder',)
 
 # CAS parameters
 CAS_SERVER_URL = "https://auth.diamond.ac.uk:443/cas/"
@@ -88,11 +88,8 @@ CAS_REDIRECT_URL = "/viewer/display/"
 
 ROOT_URLCONF = 'fragalysis.urls'
 
-BOWER_INSTALLED_APPS = (
-    'nprogress'
-)
+
 STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
-BOWER_COMPONENTS_ROOT = os.path.join(PROJECT_ROOT, 'components')
 
 
 TEMPLATES = [
@@ -126,7 +123,7 @@ DATABASES = {
         'PORT': 5432,
     }
 }
-
+NPM_ROOT_PATH=PROJECT_ROOT
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators

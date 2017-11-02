@@ -11,7 +11,6 @@ RUN apt-get update -y
 RUN apt-get install -y nginx curl
 RUN curl -sL https://deb.nodesource.com/setup_6.x | bash -
 RUN apt-get install -y nodejs
-RUN npm install -g bower
 # Copy entrypoint script into the image
 COPY django_nginx.conf /etc/nginx/sites-available/
 RUN ln -s /etc/nginx/sites-available/django_nginx.conf /etc/nginx/sites-enabled

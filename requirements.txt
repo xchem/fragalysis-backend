@@ -3,6 +3,6 @@ psycopg2
 gunicorn 
 requests
 django-bootstrap3
-django-bower
+django-npm
 django-cas-ng
 image
