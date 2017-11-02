@@ -16,6 +16,7 @@ Including another URLconf
 from django.conf.urls import include, url
 from django.contrib import admin
 import django_cas_ng.views
+from django.views.generic import RedirectView
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -24,4 +25,6 @@ urlpatterns = [
     url(r'^accounts/login$', django_cas_ng.views.login, name='cas_ng_login'),
     url(r'^accounts/logout$', django_cas_ng.views.logout, name='cas_ng_logout'),
     url(r'^accounts/callback$', django_cas_ng.views.callback, name='cas_ng_proxy_callback'),
+    url(r'^$', RedirectView.as_view(url='/accounts/login/'),
+)
 ]
