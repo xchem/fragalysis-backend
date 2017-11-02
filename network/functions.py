@@ -4,7 +4,7 @@ from rdkit.Chem import Draw,AllChem
 
 
 def get_conn():
-    conn = psycopg2.connect(database='dsi',port=5433,host='52.91.71.182',user="postgres")
+    conn = psycopg2.connect(database='dsi',port=5432,host='cartridge',user="postgres")
     return conn
 
 def get_mol_list(results):

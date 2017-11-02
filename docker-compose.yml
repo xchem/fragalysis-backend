@@ -8,8 +8,6 @@ services:
   cartridge: 
     image: informaticsmatters/rdkit_cartridge:Release_2017_09_1
     user: root
-    ports:
-      - "5433:5432"
     environment:
       - POSTGRES_PASSWORD=password
     volumes:
