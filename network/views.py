@@ -2,10 +2,12 @@ from django.http import HttpResponse
 import json
 from frag.network.query import get_picks,get_full_graph
 from django.shortcuts import render
-from network.functions import get_conn,ret_png,ret_svg
+from network.functions import get_conn,ret_png,ret_svg,ret_graph_svg
 
 
 ret_type = {u'json': json.dumps, u'png': ret_png, u'svg': ret_svg}
+
+graph_type = {u'json': json.dumps, u'svg': ret_graph_svg}
 
 def pick_mols(request):
     if "smiles" in request.GET:
@@ -23,7 +25,11 @@ def full_graph(request):
     if "smiles" in request.GET:
         smiles = request.GET["smiles"]
         out_dict = get_full_graph(smiles)
-        return HttpResponse(json.dumps(out_dict,"graph"))
+        ret_func = json.dumps
+        if 'return' in request.GET:
+            if request.GET['return'] in graph_type:
+                ret_func = graph_type[request.GET['return']]
+        return HttpResponse(ret_func(out_dict))
     else:
         return HttpResponse("Please insert SMILES")
 

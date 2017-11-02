@@ -1,11 +1,11 @@
 import psycopg2,StringIO
 from rdkit import Chem
 from rdkit.Chem import Draw
+
+
 def get_conn():
     conn = psycopg2.connect(database='dsi',port=5433,host='52.91.71.182',user="postgres")
     return conn
-
-
 
 def get_mol_list(results):
     mols = [Chem.MolFromSmiles(x[1]) for x in results]
@@ -23,4 +23,22 @@ def ret_png(results):
 def ret_svg(results):
     mols,legends = get_mol_list(results)
     img = Draw.MolsToGridImage(mols,legends=legends,molsPerRow=3,useSVG=True)
+    return img
+
+
+def get_graph_mol_list(results):
+    mols = []
+    legends = []
+    for key in results:
+        mol = Chem.MolFromSmiles(key.split("_")[0])
+        mols.append(mol)
+        legends.append("NODE")
+        for m in results[key]:
+            mols.append(Chem.MolFromSmiles(m))
+            legends.append(key)
+    return mols,legends
+
+def ret_graph_svg(results):
+    mols,legends = get_graph_mol_list(results)
+    img = Draw.MolsToGridImage(mols, legends=legends, molsPerRow=3, useSVG=True)
     return img
