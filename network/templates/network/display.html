@@ -1,5 +1,6 @@
 {% load static %}
-<script type="text/javascript" src='{% static 'nprogress/dist/nprogress.js' %}'></script>
+<script type="text/javascript" src='{% static 'nprogress/nprogress.js' %}'></script>
+<link rel='stylesheet' href='{% static 'nprogress/nprogress.css' %}'/>
 {# Load the tag library #}
 {% load bootstrap3 %}
 
@@ -16,8 +17,8 @@
 
 
     function myFunction(url) {
+        NProgress.start();
         var smiles = document.getElementById("smiles").value;
-
         var num_picks = document.getElementById("num_picks").value;
         document.getElementById("output").innerHTML = '<?xml version="1.0" standalone="no"?>' +
                 '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"> ' +
@@ -41,6 +42,7 @@
         $.get(url, {smiles: smiles, num_picks: num_picks, return: "svg"},
                 function (data) {
                     document.getElementById("output").innerHTML = data;
+                    NProgress.done();
                 });
         $.get("/viewer/mol_view", {smiles: smiles, return: "svg"},
         function (data) {
