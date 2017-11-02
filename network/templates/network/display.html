@@ -17,6 +17,7 @@
 
     function myFunction(url) {
         var smiles = document.getElementById("smiles").value;
+
         var num_picks = document.getElementById("num_picks").value;
         document.getElementById("output").innerHTML = '<?xml version="1.0" standalone="no"?>' +
                 '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"> ' +
@@ -41,6 +42,11 @@
                 function (data) {
                     document.getElementById("output").innerHTML = data;
                 });
+        $.get("/viewer/mol_view", {smiles: smiles, return: "svg"},
+        function (data) {
+            document.getElementById("query_mol").innerHTML = data;
+        });
+
     }
 </script>
 
@@ -68,6 +74,9 @@
           {% bootstrap_icon "star" %} Query Db
         </button>
         {% endbuttons %}
+    <div id="query_mol">
+
+    </div>
     </div>
     <div class="col-xs-6 col-md-3" style="max-width: 100%; max-height: 100%" id="output">
 

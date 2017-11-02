@@ -42,3 +42,9 @@ def ret_graph_svg(results):
     mols,legends = get_graph_mol_list(results)
     img = Draw.MolsToGridImage(mols, legends=legends, molsPerRow=3, useSVG=True)
     return img
+
+def draw_mol(smiles):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return "None Mol"
+    return Draw.MolDraw2DSVG(mol).GetDrawingText()
