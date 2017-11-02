@@ -8,7 +8,7 @@ from network.functions import get_conn,ret_png,ret_svg
 ret_type = {u'json': json.dumps, u'png': ret_png, u'svg': ret_svg}
 
 def pick_mols(request):
-    if "smiles" in request.GET in request.GET:
+    if "smiles" in request.GET:
         smiles = request.GET["smiles"]
         if "num_picks" in request.GET and request.GET["num_picks"]:
             num_picks = int(request.GET["num_picks"])
