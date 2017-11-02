@@ -14,7 +14,7 @@ def get_mol_list(results):
 
 def ret_png(results):
     mols,legends = get_mol_list(results)
-    img = Draw.MolsToGridImage(mols,legends=legends,molsPerRow=6)
+    img = Draw.MolsToGridImage(mols,legends=legends,molsPerRow=3)
     output = StringIO.StringIO()
     img.save(output, format="PNG")
     return output.getvalue()
@@ -22,5 +22,5 @@ def ret_png(results):
 
 def ret_svg(results):
     mols,legends = get_mol_list(results)
-    img = Draw.MolsToGridImage(mols,legends=legends,molsPerRow=6,useSVG=True)
+    img = Draw.MolsToGridImage(mols,legends=legends,molsPerRow=3,useSVG=True)
     return img
