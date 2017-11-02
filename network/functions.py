@@ -1,6 +1,6 @@
 import psycopg2,StringIO
 from rdkit import Chem
-from rdkit.Chem import Draw
+from rdkit.Chem import Draw,AllChem
 
 
 def get_conn():
@@ -45,6 +45,7 @@ def ret_graph_svg(results):
 
 def draw_mol(smiles):
     mol = Chem.MolFromSmiles(smiles)
+    AllChem.Compute2DCoords(mol)
     if mol is None:
         return "None Mol"
     drawer = Draw.MolDraw2DSVG(200,200)
