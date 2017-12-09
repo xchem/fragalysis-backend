@@ -12,17 +12,6 @@ services:
       - POSTGRES_PASSWORD=password
     volumes:
       - /home/ec2-user/cartridge_data:/var/lib/postgresql/data
-  jupyter:
-    image: abradle/rdjupyter
-    user: root
-    ports:
-      - "8888:8888"
-    volumes:
-      - /home/ec2-user/notebooks:/home/jovyan/
-    command: start-notebook.sh --NotebookApp.token=''
-    environment:
-      - NB_UID=500
-      - GRANT_SUDO=yes
   graph:
     container_name: neo4j
     image: neo4j
@@ -30,10 +19,16 @@ services:
 # Comment these two out in produciton
       - "7474:7474"
       - "7687:7687"
+    ulimits:
+      nofile: 
+        soft: 40000
+        hard: 40000
     volumes:
-      - /home/ec2-user:/data
+      - /home/ec2-user/neo4j/data:/data
+      - /home/ec2-user/neo4j/logs:/logs
     environment:
       - NEO4J_AUTH=none
+      - NEO4J_dbms_memory_pagecache_size=4G
   web:
     build: .
     command: /bin/bash /code/docker-entrypoint.sh
