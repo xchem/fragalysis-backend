@@ -2,7 +2,7 @@
 <script type="text/javascript" src='{% static 'nprogress/nprogress.js' %}'></script>
 <script type="text/javascript" src='{% static '@shopify/draggable/lib/draggable.bundle.js' %}'></script>
 
-<script type="text/javascript" src="https://unpkg.com/isotope-layout@3/dist/isotope.pkgd.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/isotope-layout@3/dist/isotope.pkgd.js"></script>
 
 <link rel='stylesheet' href='{% static 'nprogress/nprogress.css' %}'/>
 {# Load the tag library #}
@@ -17,10 +17,7 @@
 {# Display django.contrib.messages as Bootstrap alerts #}
 {% bootstrap_messages %}
 <script>
-
-
-
-// init Isotope
+    // init Isotope
 var $grid = $('.grid').isotope({
   itemSelector: '.element-item',
   layoutMode: 'fitRows',
