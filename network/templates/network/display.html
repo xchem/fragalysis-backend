@@ -61,6 +61,7 @@
                NProgress.start();
            $.getJSON(query_url, input_data,
                    function (data) {
+                           $("div.compound").remove();
 
                        var data_div = $(document.getElementById("data_grid"));
                        tot_data = data;
