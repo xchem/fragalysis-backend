@@ -70,5 +70,6 @@ def order_stuctures(results):
         if depth not in out_d:
             out_d[depth] = {}
         if type not in out_d[depth]:
-            out_d[depth][type] = {position: results[key]}
+            out_d[depth][type] = {}
+        out_d[depth][type] = {position: results[key]}
     return json.dumps(out_d)
