@@ -152,7 +152,9 @@
                            var smiles_list = tot_data[depth][data_category][sub_mol];
                            var counter = 0;
                            var data_div = $(document.getElementById("cmpd_grid"));
-                           data_div.innerHTML="";
+                           while (data_div.firstChild) {
+                               data_div.removeChild(data_div.firstChild);
+                           }
                            for (var index in smiles_list){
                                var compoundDiv = document.createElement("div")
                                var div_id = "smiles_"+counter;
