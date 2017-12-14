@@ -62,7 +62,7 @@
                                    var compoundDiv = document.createElement("div");
                                    compoundDiv.id = div_id;
                                    data_div.append(compoundDiv);
-                                   data_div.setAttribute('class',sub_type+" depth_"+depth)
+                                   compoundDiv.setAttribute('class',sub_type+" depth_"+depth)
 
                                    fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,false);
                                    // Onclick it moves all the molecules into a viewer div
