@@ -30,12 +30,26 @@
                    });
 
        }
+       function getData(query_url,input_data,nprogress)
+       {
+           if (nprogress==true){
+               NProgress.start();
+           }
+           $.get(query_url, input_data,
+                   function (data) {
+                       alert(data);
+                       if (nprogress==true){
+                           NProgress.done();
+                       }
+                   });
+
+       }
 
     function makeQuery(url) {
         var smiles = document.getElementById("smiles").value;
         var num_picks = document.getElementById("num_picks").value;
         fillDiv("/viewer/mol_view",{smiles: smiles, return: "svg"},"query_mol",nprogress=false);
-        fillDiv(url,{smiles: smiles, num_picks: num_picks, return: "svg"},"output",nprogress=true);
+        getData(url,{smiles: smiles, num_picks: num_picks, return: "json"},nprogress=true);
 
     }
 </script>
