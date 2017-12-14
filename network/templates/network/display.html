@@ -16,11 +16,17 @@
 {% bootstrap_messages %}
 <script>
 
-       function fillDiv(query_url,input_data,div_id)
+       function fillDiv(query_url,input_data,div_id,nprogress)
        {
+           if (nprogress==true){
+               NProgress.start();
+           }
            $.get(query_url, input_data,
                    function (data) {
                        document.getElementById(div_id).innerHTML = data;
+                       if (nprogress==true){
+                           NProgress.done();
+                       }
                    });
 
        }
@@ -28,10 +34,8 @@
     function makeQuery(url) {
         var smiles = document.getElementById("smiles").value;
         var num_picks = document.getElementById("num_picks").value;
-        NProgress.start();
-        fillDiv("/viewer/mol_view",{smiles: smiles, return: "svg"},"query_mol");
-        fillDiv(url,{smiles: smiles, num_picks: num_picks, return: "svg"},"output");
-        NProgress.done();
+        fillDiv("/viewer/mol_view",{smiles: smiles, return: "svg"},"query_mol",nprogress=false);
+        fillDiv(url,{smiles: smiles, num_picks: num_picks, return: "svg"},"output",nprogress=true);
 
     }
 </script>
