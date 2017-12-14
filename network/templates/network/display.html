@@ -37,7 +37,7 @@
 <script>
 
 
-
+        var tot_data;
 
        function fillDiv(query_url,input_data,div_id,nprogress)
        {
@@ -60,6 +60,7 @@
                    function (data) {
 
                        var data_div = $(document.getElementById("data_grid"));
+                       tot_data = data;
 
                        for (var depth in data){
                            // Add this as a depth option
@@ -146,7 +147,10 @@
                         });
 
                        $('.compound').click(function (evt) {
-                            alert(evt.target.getAttribute("sub-mol"));
+                           var data_category = this.getAttribute("data-category");
+                           var depth = this.getAttribute("depth");
+                           var sub_mol = this.getAttribute("sub-mol");
+                           alert(tot_data[depth][data_category][sub_mol]);
                        });
 
 
