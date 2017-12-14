@@ -147,7 +147,6 @@
 
 </div>
 <div class="row">
-    <div class="col-xs-0 col-md-0 col-lg-1"></div>
     <div class="col-xs-6 col-md-3">
         <label for="smiles">Smiles:</label>
         <input type="text" placeholder="O=C(COC=1C=CC=CC1)NC2CCCCC2" class="form-control" id="smiles">
@@ -168,15 +167,15 @@
 
     </div>
     </div>
-    <div class="col-xs-6 col-md-3" style="max-width: 100%; max-height: 100%" id="output">
+    <div class="col-xs-6 col-md-9" style="max-width: 100%; max-height: 100%" id="output">
         <h2>Filter</h2>
         <div id="filters" class="button-group">
         <button class="button is-checked" data-filter="*">show all</button>
         <button class="button" data-filter=".ADDITION">Addition</button>
         <button class="button" data-filter=".DELETION">Deletion</button>
         <button class="button" data-filter=".LINKER">Linker</button>
-        <button class="button" data-filter=".depth_0">Depth 0</button>
         <button class="button" data-filter=".depth_1">Depth 1</button>
+        <button class="button" data-filter=".depth_2">Depth 2</button>
             </div>
         <h2>Sort</h2>
         <div id="sorts" class="button-group">
