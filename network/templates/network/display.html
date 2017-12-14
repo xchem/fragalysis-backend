@@ -37,7 +37,38 @@
            }
            $.get(query_url, input_data,
                    function (data) {
-                       alert(data);
+                       data_div = $(document.getElementById("output"))
+
+                       for (var depth in data){
+
+                           // Generate a div
+                           var div_id = depth+"DATA";
+
+                           var depthDiv = document.createElement(div_id);
+                           data_div.appendChild(depthDiv)
+                           for (var sub_type in data[depth]) {
+
+                               // Generate a div within this (ADDITION, DELETION, LINKER)
+                               var div_id = depth+"_"+sub_type;
+                               var typeDiv = document.createElement(div_id);
+                               depthDiv.appendChild(typeDiv);
+
+                               for (var sub_mol in data[depth][sub_type]){
+
+                                   // Generate a div within with an image of the molecule
+                                   var div_id = depth+"_"+sub_type+"_"+sub_mol
+                                   var compoundDiv = document.createElement(div_id);
+                                   typeDiv.appendChild(compoundDiv);
+
+                                   fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,nprogress=false);
+                                   // Onclick it moves all the molecules into a viewer div
+
+                               }
+
+                           }
+
+                       }
+                       // Then mark this as done
                        if (nprogress==true){
                            NProgress.done();
                        }
