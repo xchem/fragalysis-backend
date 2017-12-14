@@ -200,16 +200,16 @@
     <div class="col-xs-0 col-md-1"></div>
     <div class="col-xs-6 col-md-2">
         <label for="smiles">Smiles:</label>
-        <input type="text" placeholder="O=C(COC=1C=CC=CC1)NC2CCCCC2" class="form-control" id="smiles">
-        <label for="num_picks">Number of picks:</label>
-        <input type="text" class="form-control" id="num_picks">
+        <input type="text" class="form-control" id="smiles">
+{#        <label for="num_picks">Number of picks:</label>#}
+{#        <input type="text" class="form-control" id="num_picks">#}
         {% buttons %}
-        <button onclick="makeQuery('/network/full_graph/')" class="btn btn-primary">
-          {% bootstrap_icon "eye-open" %} Full Graph
-        </button>
-            <button onclick="makeQuery('/network/pick_mols/')" class="btn btn-primary">
-          {% bootstrap_icon "star" %} Pick Mols
-        </button>
+{#        <button onclick="makeQuery('/network/full_graph/')" class="btn btn-primary">#}
+{#          {% bootstrap_icon "eye-open" %} Full Graph#}
+{#        </button>#}
+{#            <button onclick="makeQuery('/network/pick_mols/')" class="btn btn-primary">#}
+{#          {% bootstrap_icon "star" %} Pick Mols#}
+{#        </button>#}
             <button onclick="makeQuery('/network/query_db/')" class="btn btn-primary">
           {% bootstrap_icon "star" %} Query Db
         </button>
