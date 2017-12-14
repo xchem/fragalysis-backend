@@ -53,3 +53,22 @@ def draw_mol(smiles):
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
     return drawer.GetDrawingText().replace('svg:','')
+
+
+def order_stuctures(results):
+    """
+    Order the data
+    :param results:
+    :return:
+    """
+    import json
+    out_d = {}
+    for key in results:
+        depth = key.split("_")[1]
+        type = key.split("_")[2]
+        position = key.split("_")[0]
+        if depth not in out_d:
+            out_d[depth] = {}
+        if type not in out_d[depth]:
+            out_d[depth][type] = {position: results[key]}
+    return json.dumps(out_d)

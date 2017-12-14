@@ -2,12 +2,12 @@ from django.http import HttpResponse
 import json
 from frag.network.query import get_picks,get_full_graph
 from django.shortcuts import render
-from network.functions import get_conn,ret_png,ret_svg,ret_graph_svg
+from network.functions import get_conn,ret_png,ret_svg,ret_graph_svg,order_stuctures
 
 
 ret_type = {u'json': json.dumps, u'png': ret_png, u'svg': ret_svg}
 
-graph_type = {u'json': json.dumps, u'svg': ret_graph_svg}
+graph_type = {u'json': order_stuctures, u'svg': ret_graph_svg}
 
 def pick_mols(request):
     if "smiles" in request.GET:
