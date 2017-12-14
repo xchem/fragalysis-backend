@@ -183,9 +183,9 @@
 
     function makeQuery(url) {
         var smiles = document.getElementById("smiles").value;
-        var num_picks = document.getElementById("num_picks").value;
+{#        var num_picks = document.getElementById("num_picks").value;#}
         fillDiv("/viewer/mol_view",{smiles: smiles, return: "svg"},"query_mol",nprogress=false);
-        getData(url,{smiles: smiles, num_picks: num_picks, return: "json"},nprogress=true);
+        getData(url,{smiles: smiles, num_picks: 0, return: "json"},nprogress=true);
 
     }
 </script>
