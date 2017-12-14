@@ -45,7 +45,8 @@
                            // Generate a div
                            var div_id = "DATA_"+depth;
 
-                           var depthDiv = document.createElement(div_id);
+                           var depthDiv = document.createElement("div");
+                           depthDiv.id = div_id;
                            data_div.append(depthDiv)
 
                            var new_loop = data[depth]
@@ -54,7 +55,8 @@
 
                                // Generate a div within this (ADDITION, DELETION, LINKER)
                                var div_id = sub_type+"_"+depth;
-                               var typeDiv = document.createElement(div_id);
+                               var typeDiv = document.createElement("div");
+                               typeDiv.id = div_id;
                                depthDiv.append(typeDiv);
                                 var newer_loop = new_loop[sub_type];
                                var counter = 0;
@@ -63,7 +65,8 @@
                                    // Generate a div within with an image of the molecule
                                    var div_id = sub_type+"_"+depth+"_"+counter;
                                    counter +=1;
-                                   var compoundDiv = document.createElement(div_id);
+                                   var compoundDiv = document.createElement("div");
+                                   compoundDiv.id = div_id;
                                    typeDiv.append(compoundDiv);
 
                                    fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,nprogress=false);
