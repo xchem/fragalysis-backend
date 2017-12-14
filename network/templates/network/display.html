@@ -156,6 +156,7 @@
                            for (var index in smiles_list){
                                var compoundDiv = document.createElement("div")
                                var div_id = "smiles_"+counter;
+                               counter+=1;
                                compoundDiv.id = div_id;
                                data_div.append(compoundDiv);
                                fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
@@ -223,8 +224,8 @@
         <button class="button btn btn-primary" data-filter=".depth_1">Depth 1</button>
         <button class="button btn btn-primary" data-filter=".depth_2">Depth 2</button>
             </div>
-        <div id="data_grid" style="overflow:scroll; max-width: 100%; max-height: 400px" class="grid col-lg-12"></div>
-        <div id="cmpd_grid" style=""class="col-lg-12"></div>
+        <div id="data_grid" style="overflow:scroll; max-width: 100%; max-height: 400px" class="grid col-lg-3"></div>
+        <div id="cmpd_grid" style=""class="col-lg-9"></div>
         </div>
     </div>
 </div>
