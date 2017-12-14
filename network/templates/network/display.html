@@ -37,9 +37,7 @@
 <script>
 
 
-        function run_funct(ele){
-            alert($(el).attr("sub-mol"));
-        }
+
 
        function fillDiv(query_url,input_data,div_id,nprogress)
        {
@@ -91,7 +89,6 @@
                                    compoundDiv.setAttribute('sub-mol',sub_mol);
 
                                    // Set the onclick method
-                                   compoundDiv.onclick = 'run_funct(this);'
 
                                    fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,false);
                                    // Onclick it moves all the molecules into a viewer div
@@ -147,6 +144,11 @@
                           var sortByValue = $(this).attr('data-sort-by');
                           $grid.isotope({ sortBy: sortByValue });
                         });
+
+                       $('.compound').click(function (evt) {
+                            alert(evt.target.getAttribute("sub-mol"));
+                       });
+
 
                         // change is-checked class on buttons
                         $('.button-group').each( function( i, buttonGroup ) {
