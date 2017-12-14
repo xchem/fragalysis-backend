@@ -16,22 +16,22 @@
 {% bootstrap_messages %}
 <script>
 
+       function fillDiv(query_url,input_data,div_id)
+       {
+           NProgress.start();
+           $.get(query_url, input_data,
+                   function (data) {
+                       document.getElementById(div_id).innerHTML = data;
+                   });
+           NProgress.done();
 
+       }
 
-    function myFunction(url) {
-        NProgress.start();
+    function makeQuery(url) {
         var smiles = document.getElementById("smiles").value;
         var num_picks = document.getElementById("num_picks").value;
-        $.get(url, {smiles: smiles, num_picks: num_picks, return: "svg"},
-                function (data) {
-                    document.getElementById("output").innerHTML = data;
-                    NProgress.done();
-                });
-        $.get("/viewer/mol_view", {smiles: smiles, return: "svg"},
-        function (data) {
-            document.getElementById("query_mol").innerHTML = data;
-        });
-
+        fillDiv(url,{smiles: smiles, num_picks: num_picks, return: "svg"},"output");
+        fillDiv("/viewer/mol_view",{smiles: smiles, return: "svg"},"query_mol");
     }
 </script>
 
@@ -49,13 +49,13 @@
         <label for="num_picks">Number of picks:</label>
         <input type="text" class="form-control" id="num_picks">
         {% buttons %}
-        <button onclick="myFunction('/network/full_graph/')" class="btn btn-primary">
+        <button onclick="makeQuery('/network/full_graph/')" class="btn btn-primary">
           {% bootstrap_icon "eye-open" %} Full Graph
         </button>
-            <button onclick="myFunction('/network/pick_mols/')" class="btn btn-primary">
+            <button onclick="makeQuery('/network/pick_mols/')" class="btn btn-primary">
           {% bootstrap_icon "star" %} Pick Mols
         </button>
-            <button onclick="myFunction('/network/query_db/')" class="btn btn-primary">
+            <button onclick="makeQuery('/network/query_db/')" class="btn btn-primary">
           {% bootstrap_icon "star" %} Query Db
         </button>
         {% endbuttons %}
