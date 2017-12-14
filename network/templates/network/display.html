@@ -100,7 +100,8 @@ $('.button-group').each( function( i, buttonGroup ) {
                                    var compoundDiv = document.createElement("div");
                                    compoundDiv.id = div_id;
                                    data_div.append(compoundDiv);
-                                   compoundDiv.setAttribute('class',sub_type+" compound depth_"+depth)
+                                   compoundDiv.setAttribute('class',sub_type+" compound depth "+depth);
+                                   compoundDiv.setAttribute('data-category',sub_type);
 
                                    fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,false);
                                    // Onclick it moves all the molecules into a viewer div
