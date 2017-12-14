@@ -92,7 +92,6 @@
                                    // Set the onclick method
 
                                    fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,false);
-                                   // Onclick it moves all the molecules into a viewer div
 
 
                                }
@@ -151,6 +150,16 @@
                            var depth = this.getAttribute("depth");
                            var sub_mol = this.getAttribute("sub-mol");
                            var smiles_list = tot_data[depth][data_category][sub_mol];
+                           var counter = 0;
+                           var data_div = $(document.getElementById("data_grid"));
+                           data_div.innerHTML="";
+                           for (var smiles in smiles_list){
+                               var compoundDiv = document.createElement("div")
+                               var div_id = "smiles_"+counter;
+                               compoundDiv.id = div_id;
+                               data_div.append(compoundDiv);
+                               fillDiv("/viewer/mol_view",{smiles: smiles, return: "svg"},div_id,false);
+                           }
 
                        });
 
