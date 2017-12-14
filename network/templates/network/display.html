@@ -152,14 +152,13 @@
                            var smiles_list = tot_data[depth][data_category][sub_mol];
                            var counter = 0;
                            var data_div = $(document.getElementById("cmpd_grid"));
-                           while (data_div.firstChild) {
-                               data_div.removeChild(data_div.firstChild);
-                           }
+                           $("div.newcomp").remove();
                            for (var index in smiles_list){
                                var compoundDiv = document.createElement("div")
                                var div_id = "smiles_"+counter;
                                counter+=1;
                                compoundDiv.id = div_id;
+                               compoundDiv.setAttribute('class','newcomp')
                                data_div.append(compoundDiv);
                                fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
                            }
