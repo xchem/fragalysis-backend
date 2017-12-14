@@ -30,8 +30,8 @@
     function makeQuery(url) {
         var smiles = document.getElementById("smiles").value;
         var num_picks = document.getElementById("num_picks").value;
-        fillDiv(url,{smiles: smiles, num_picks: num_picks, return: "svg"},"output");
         fillDiv("/viewer/mol_view",{smiles: smiles, return: "svg"},"query_mol");
+        fillDiv(url,{smiles: smiles, num_picks: num_picks, return: "svg"},"output");
     }
 </script>
 
