@@ -35,8 +35,9 @@
            if (nprogress==true){
                NProgress.start();
            }
-           $.get(query_url, input_data,
+           $.getJSON(query_url, input_data,
                    function (data) {
+
                        var data_div = $(document.getElementById("output"));
 
                        for (var depth in data){
