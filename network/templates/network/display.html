@@ -2,6 +2,8 @@
 <script type="text/javascript" src='{% static 'nprogress/nprogress.js' %}'></script>
 <script type="text/javascript" src='{% static '@shopify/draggable/lib/draggable.bundle.js' %}'></script>
 
+<script type="text/javascript" src="https://unpkg.com/isotope-layout@3/dist/isotope.pkgd.min.js"></script>
+
 <link rel='stylesheet' href='{% static 'nprogress/nprogress.css' %}'/>
 {# Load the tag library #}
 {% load bootstrap3 %}
@@ -30,46 +32,39 @@
                    });
 
        }
-       function getData(query_url,input_data,nprogress)
+       function getData(query_url,input_data)
        {
-           if (nprogress==true){
                NProgress.start();
-           }
            $.getJSON(query_url, input_data,
                    function (data) {
 
                        var data_div = $(document.getElementById("output"));
 
                        for (var depth in data){
-
-                           // Generate a div
-                           var div_id = "DATA_"+depth;
-
-                           var depthDiv = document.createElement("div");
-                           depthDiv.id = div_id;
-                           data_div.append(depthDiv)
+                           // Add this as a depth option
 
                            var new_loop = data[depth]
 
                            for (var sub_type in new_loop) {
 
+                               // Add this as sub_type option
+
+                                   // Add this filter
                                // Generate a div within this (ADDITION, DELETION, LINKER)
-                               var div_id = sub_type+"_"+depth;
-                               var typeDiv = document.createElement("div");
-                               typeDiv.id = div_id;
-                               depthDiv.append(typeDiv);
-                                var newer_loop = new_loop[sub_type];
+                               var newer_loop = new_loop[sub_type];
                                var counter = 0;
                                for (var sub_mol in newer_loop){
+
 
                                    // Generate a div within with an image of the molecule
                                    var div_id = sub_type+"_"+depth+"_"+counter;
                                    counter +=1;
                                    var compoundDiv = document.createElement("div");
                                    compoundDiv.id = div_id;
-                                   typeDiv.append(compoundDiv);
+                                   data_div.append(compoundDiv);
+                                   data_div.setAttribute('class',sub_type+" depth_"+depth)
 
-                                   fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,nprogress=false);
+                                   fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,false);
                                    // Onclick it moves all the molecules into a viewer div
 
                                }
@@ -77,10 +72,7 @@
                            }
 
                        }
-                       // Then mark this as done
-                       if (nprogress==true){
-                           NProgress.done();
-                       }
+                       NProgress.done();
                    });
 
        }
@@ -123,6 +115,18 @@
     </div>
     </div>
     <div class="col-xs-6 col-md-3" style="max-width: 100%; max-height: 100%" id="output">
-
+        <h2>Filter</h2>
+        <div id="filters" class="button-group">
+        <button class="button is-checked" data-filter="*">show all</button>
+        <button class="button" data-filter=".ADDITION">Addition</button>
+        <button class="button" data-filter=".DELETION">Deletion</button>
+        <button class="button" data-filter=".LINKER">Linker</button>
+        <button class="button" data-filter=".depth_0">Depth 0</button>
+        <button class="button" data-filter=".depth_1">Depth 1</button>
+            </div>
+        <h2>Sort</h2>
+        <div id="sorts" class="button-group">
+            <button class="button is-checked" data-sort-by="original-order">original order</button>
+        </div>
     </div>
 </div>
