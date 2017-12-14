@@ -37,6 +37,10 @@
 <script>
 
 
+        function run_funct(ele){
+            alert($(el).attr("sub-mol"));
+        }
+
        function fillDiv(query_url,input_data,div_id,nprogress)
        {
            if (nprogress==true){
@@ -83,10 +87,11 @@
                                    data_div.append(compoundDiv);
                                    compoundDiv.setAttribute('class',sub_type+" compound depth_"+depth);
                                    compoundDiv.setAttribute('data-category',sub_type);
+                                   compoundDiv.setAttribute('depth',depth);
+                                   compoundDiv.setAttribute('sub-mol',sub_mol);
+
                                    // Set the onclick method
-                                   compoundDiv.onclick = function () {
-                                       alert(newer_loop[sub_mol]);
-                                   }
+                                   compoundDiv.onclick = 'run_funct(this);'
 
                                    fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,false);
                                    // Onclick it moves all the molecules into a viewer div
