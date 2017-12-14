@@ -16,44 +16,6 @@
 {# Display django.contrib.messages as Bootstrap alerts #}
 {% bootstrap_messages %}
 <script>
-    // init Isotope
-var $grid = $('.grid').isotope({
-  itemSelector: '.compound',
-  layoutMode: 'fitRows',
-  getSortData: {
-    name: '.name',
-    symbol: '.symbol',
-    number: '.number parseInt',
-    category: '[data-category]',
-    weight: function( itemElem ) {
-      var weight = $( itemElem ).find('.weight').text();
-      return parseFloat( weight.replace( /[\(\)]/g, '') );
-    }
-  }
-});
-
-// bind filter button click
-$('#filters').on( 'click', 'button', function() {
-  var filterValue = $( this ).attr('data-filter');
-  // use filterFn if matches value
-  filterValue = filterFns[ filterValue ] || filterValue;
-  $grid.isotope({ filter: filterValue });
-});
-
-// bind sort button click
-$('#sorts').on( 'click', 'button', function() {
-  var sortByValue = $(this).attr('data-sort-by');
-  $grid.isotope({ sortBy: sortByValue });
-});
-
-// change is-checked class on buttons
-$('.button-group').each( function( i, buttonGroup ) {
-  var $buttonGroup = $( buttonGroup );
-  $buttonGroup.on( 'click', 'button', function() {
-    $buttonGroup.find('.is-checked').removeClass('is-checked');
-    $( this ).addClass('is-checked');
-  });
-});
 
 
        function fillDiv(query_url,input_data,div_id,nprogress)
@@ -100,7 +62,7 @@ $('.button-group').each( function( i, buttonGroup ) {
                                    var compoundDiv = document.createElement("div");
                                    compoundDiv.id = div_id;
                                    data_div.append(compoundDiv);
-                                   compoundDiv.setAttribute('class',sub_type+" compound depth "+depth);
+                                   compoundDiv.setAttribute('class',sub_type+" compound depth_"+depth);
                                    compoundDiv.setAttribute('data-category',sub_type);
 
                                    fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,false);
@@ -112,6 +74,44 @@ $('.button-group').each( function( i, buttonGroup ) {
 
                        }
                        NProgress.done();
+                           // init Isotope
+                        var $grid = $('.grid').isotope({
+                          itemSelector: '.compound',
+                          layoutMode: 'fitRows',
+                          getSortData: {
+                            name: '.name',
+                            symbol: '.symbol',
+                            number: '.number parseInt',
+                            category: '[data-category]',
+                            weight: function( itemElem ) {
+                              var weight = $( itemElem ).find('.weight').text();
+                              return parseFloat( weight.replace( /[\(\)]/g, '') );
+                            }
+                          }
+                        });
+
+                        // bind filter button click
+                        $('#filters').on( 'click', 'button', function() {
+                          var filterValue = $( this ).attr('data-filter');
+                          // use filterFn if matches value
+                          filterValue = filterFns[ filterValue ] || filterValue;
+                          $grid.isotope({ filter: filterValue });
+                        });
+
+                        // bind sort button click
+                        $('#sorts').on( 'click', 'button', function() {
+                          var sortByValue = $(this).attr('data-sort-by');
+                          $grid.isotope({ sortBy: sortByValue });
+                        });
+
+                        // change is-checked class on buttons
+                        $('.button-group').each( function( i, buttonGroup ) {
+                          var $buttonGroup = $( buttonGroup );
+                          $buttonGroup.on( 'click', 'button', function() {
+                            $buttonGroup.find('.is-checked').removeClass('is-checked');
+                            $( this ).addClass('is-checked');
+                          });
+                        });
                    });
 
        }
