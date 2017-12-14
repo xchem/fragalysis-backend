@@ -1,18 +1,16 @@
 {% load static %}
 <script type="text/javascript" src='{% static 'nprogress/nprogress.js' %}'></script>
 <script type="text/javascript" src='{% static '@shopify/draggable/lib/draggable.bundle.js' %}'></script>
-{# Load CSS and JavaScript #}
-{% bootstrap_css %}
 <script src="{% bootstrap_jquery_url %}" type="text/javascript"></script>
-{% bootstrap_javascript %}
-
 <script type="text/javascript" src="https://unpkg.com/isotope-layout@3/dist/isotope.pkgd.js"></script>
 
 <link rel='stylesheet' href='{% static 'nprogress/nprogress.css' %}'/>
 {# Load the tag library #}
 {% load bootstrap3 %}
 
-
+{# Load CSS and JavaScript #}
+{% bootstrap_css %}
+{% bootstrap_javascript %}
 
 
 {# Display django.contrib.messages as Bootstrap alerts #}
