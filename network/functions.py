@@ -54,6 +54,19 @@ def draw_mol(smiles):
     drawer.FinishDrawing()
     return drawer.GetDrawingText().replace('svg:','')
 
+def add_keys(out_d,depth,type):
+    if depth not in out_d:
+        out_d[depth] = {}
+    if type not in out_d[depth]:
+        out_d[depth][type] = {}
+    return out_d
+
+def add_empty(out_d,tot_position,this_list,depth,this_type,annotation):
+    for item in this_list:
+        if item not in tot_position:
+            out_d = add_keys(out_d, depth, this_type)
+            out_d[depth][type][item] = {"smiles": [],"annotation":annotation}
+    return out_d
 
 def order_stuctures(results,decoration_list):
     """
@@ -63,14 +76,13 @@ def order_stuctures(results,decoration_list):
     """
     import json
     out_d = {}
+    tot_position = []
     for key in results:
         depth = key.split("_")[1]
-        type = key.split("_")[2]
+        this_type = key.split("_")[2]
         position = key.split("_")[0]
-        if depth not in out_d:
-            out_d[depth] = {}
-        if type not in out_d[depth]:
-            out_d[depth][type] = {}
+        tot_position.append(position)
+        out_d = add_keys(out_d,depth,this_type)
         annotation = "BLANK"
         if position in decoration_list[0]:
             annotation = "ADD_DEC"
@@ -78,6 +90,9 @@ def order_stuctures(results,decoration_list):
             annotation = "DEL_DEC"
         if position in decoration_list[2]:
             annotation = "LINK_DEC"
-
-        out_d[depth][type][position] = {"smiles": results[key],"annotation":annotation}
+        out_d[depth][this_type][position] = {"smiles": results[key],"annotation":annotation}
+    depth = -1
+    out_d=add_empty(out_d,tot_position,decoration_list[0],depth,"ADDITION","ADD_DEC")
+    out_d=add_empty(out_d, tot_position, decoration_list[1], depth, "DELETION","DEL_DEC")
+    out_d=add_empty(out_d, tot_position, decoration_list[2], depth, "LINKER","LINK_DEC")
     return json.dumps(out_d)
