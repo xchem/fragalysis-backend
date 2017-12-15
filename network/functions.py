@@ -65,7 +65,7 @@ def add_empty(out_d,tot_position,this_list,depth,this_type,annotation):
     for item in this_list:
         if item not in tot_position:
             out_d = add_keys(out_d, depth, this_type)
-            out_d[depth][type][item] = {"smiles": [],"annotation":annotation}
+            out_d[depth][this_type][item] = {"smiles": [],"annotation":annotation}
     return out_d
 
 def order_stuctures(results,decoration_list):
@@ -92,7 +92,7 @@ def order_stuctures(results,decoration_list):
             annotation = "LINK_DEC"
         out_d[depth][this_type][position] = {"smiles": results[key],"annotation":annotation}
     depth = -1
-    out_d=add_empty(out_d,tot_position,decoration_list[0],depth,"ADDITION","ADD_DEC")
-    out_d=add_empty(out_d, tot_position, decoration_list[1], depth, "DELETION","DEL_DEC")
-    out_d=add_empty(out_d, tot_position, decoration_list[2], depth, "LINKER","LINK_DEC")
+    out_d=add_empty(out_d,tot_position,decoration_list[0],depth,"ADDITION","ADD_MISS")
+    out_d=add_empty(out_d, tot_position, decoration_list[1], depth, "DELETION","DEL_MISS")
+    out_d=add_empty(out_d, tot_position, decoration_list[2], depth, "LINKER","LINK_MISS")
     return json.dumps(out_d)
