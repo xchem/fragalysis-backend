@@ -61,8 +61,7 @@
                NProgress.start();
            $.getJSON(query_url, input_data,
                    function (data) {
-                           $("div.compound").remove();
-
+                       $("div.compound").remove();
                        var data_div = $(document.getElementById("data_grid"));
                        tot_data = data;
 
@@ -88,10 +87,13 @@
                                    var compoundDiv = document.createElement("div");
                                    compoundDiv.id = div_id;
                                    data_div.append(compoundDiv);
-                                   compoundDiv.setAttribute('class',sub_type+" compound depth_"+depth);
+                                   var annotation = tot_data[depth][sub_type][sub_mol]["annotation"];
+
+                                   compoundDiv.setAttribute('class',sub_type+" "+annotation+" compound depth_"+depth);
                                    compoundDiv.setAttribute('data-category',sub_type);
                                    compoundDiv.setAttribute('depth',depth);
                                    compoundDiv.setAttribute('sub-mol',sub_mol);
+                                   compoundDiv.setAttribute('annotation',annotation);
 
                                    // Set the onclick method
 
@@ -153,7 +155,7 @@
                            var data_category = this.getAttribute("data-category");
                            var depth = this.getAttribute("depth");
                            var sub_mol = this.getAttribute("sub-mol");
-                           var smiles_list = tot_data[depth][data_category][sub_mol];
+                           var smiles_list = tot_data[depth][data_category][sub_mol]["smiles"];
                            var counter = 0;
                            var data_div = $(document.getElementById("cmpd_grid"));
                            $("div.newcomp").remove();
@@ -162,7 +164,7 @@
                                var div_id = "smiles_"+counter;
                                counter+=1;
                                compoundDiv.id = div_id;
-                               compoundDiv.setAttribute('class','newcomp')
+                               compoundDiv.setAttribute('class','newcomp');
                                data_div.append(compoundDiv);
                                fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
                            }
@@ -227,10 +229,14 @@
         <button class="button btn btn-primary" data-filter=".DELETION">Deletion</button>
         <button class="button btn btn-primary" data-filter=".LINKER">Linker</button>
             <button class="button btn btn-primary" data-filter=".REPLACE">Replace</button>
+        <button class="button btn btn-primary" data-filter=".ADD_DEC">Linker</button>
+        <button class="button btn btn-primary" data-filter=".DEL_DEC">Linker</button>
+        <button class="button btn btn-primary" data-filter=".LINK_DEC">Linker</button>
         <button class="button btn btn-primary" data-filter=".depth_1">Depth 1</button>
         <button class="button btn btn-primary" data-filter=".depth_2">Depth 2</button>
             </div>
         <div id="data_grid" style="max-width: 100%; max-height: 100%" class="grid col-lg-8"></div>
+
         <div id="cmpd_grid" style=""class="col-lg-4"></div>
         </div>
     </div>

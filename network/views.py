@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 import json
 from frag.network.query import get_picks,get_full_graph
+from frag.network.decorate import get_add_del_link
 from django.shortcuts import render
 from network.functions import get_conn,ret_png,ret_svg,ret_graph_svg,order_stuctures
 
@@ -31,13 +32,14 @@ def full_graph(request):
     if "smiles" in request.GET:
         smiles = request.GET["smiles"]
         out_dict = get_full_graph(smiles)
+        decoration_list = get_add_del_link(smiles)
         ret_func = json.dumps
         if 'return' in request.GET:
             if request.GET['return'] in graph_type:
                 ret_func = graph_type[request.GET['return']]
         if not out_dict:
             return HttpResponse("EMPTY RESULT SET")
-        return HttpResponse(ret_func(out_dict))
+        return HttpResponse(ret_func(out_dict,decoration_list))
     else:
         return HttpResponse("Please insert SMILES")
 

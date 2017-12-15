@@ -1,7 +1,7 @@
 import psycopg2,StringIO
 from rdkit import Chem
 from rdkit.Chem import Draw,AllChem
-
+from frag.network.decorate import get_add_del_link
 
 def get_conn():
     conn = psycopg2.connect(database='dsi',port=5432,host='cartridge',user="postgres")
@@ -55,7 +55,7 @@ def draw_mol(smiles):
     return drawer.GetDrawingText().replace('svg:','')
 
 
-def order_stuctures(results):
+def order_stuctures(results,decoration_list):
     """
     Order the data
     :param results:
@@ -71,5 +71,11 @@ def order_stuctures(results):
             out_d[depth] = {}
         if type not in out_d[depth]:
             out_d[depth][type] = {}
-        out_d[depth][type][position] = results[key]
+        if position in decoration_list[0]:
+            annotation = "ADD_DEC"
+        if position in decoration_list[1]:
+            annotation = "DEL_DEC"
+        if position in decoration_list[2]:
+            annotation = "LINK_DEC"
+        out_d[depth][type][position] = {"smiles": results[key],"annotation":annotation}
     return json.dumps(out_d)
