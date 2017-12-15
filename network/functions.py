@@ -71,11 +71,13 @@ def order_stuctures(results,decoration_list):
             out_d[depth] = {}
         if type not in out_d[depth]:
             out_d[depth][type] = {}
+        annotation = "BLANK"
         if position in decoration_list[0]:
             annotation = "ADD_DEC"
         if position in decoration_list[1]:
             annotation = "DEL_DEC"
         if position in decoration_list[2]:
             annotation = "LINK_DEC"
+
         out_d[depth][type][position] = {"smiles": results[key],"annotation":annotation}
     return json.dumps(out_d)
