@@ -1,0 +1,244 @@
+{% load static %}
+
+{# Load the tag library #}
+{% load bootstrap3 %}
+
+{# Load CSS and JavaScript #}
+{% bootstrap_css %}
+<script src="{% bootstrap_jquery_url %}" type="text/javascript"></script>
+{% bootstrap_javascript %}
+
+<script type="text/javascript" src='{% static 'nprogress/nprogress.js' %}'></script>
+<script type="text/javascript" src='{% static '@shopify/draggable/lib/draggable.bundle.js' %}'></script>
+<script type="text/javascript" src="https://unpkg.com/isotope-layout@3/dist/isotope.pkgd.js"></script>
+<link rel='stylesheet' href='{% static 'nprogress/nprogress.css' %}'/>
+
+{# Display django.contrib.messages as Bootstrap alerts #}
+{% bootstrap_messages %}
+
+
+<style>
+
+
+    .compound {
+
+}
+    .compound.linker {
+    border: 5px solid #bfbed8;
+}
+    .compound.addition{
+    border: 5px solid #e0ffdc;
+}
+    .compound.deletion {
+    border: 5px solid #e2a8a8;
+}
+    .compound.replace {
+    border: 5px solid #3809f3;
+}
+
+</style>
+<script>
+
+
+        var tot_data;
+
+       function fillDiv(query_url,input_data,div_id,nprogress)
+       {
+           if (nprogress==true){
+               NProgress.start();
+           }
+           $.get(query_url, input_data,
+                   function (data) {
+                       document.getElementById(div_id).innerHTML = data;
+                       if (nprogress==true){
+                           NProgress.done();
+                       }
+                   });
+
+       }
+       function getData(query_url,input_data)
+       {
+               NProgress.start();
+           $.getJSON(query_url, input_data,
+                   function (data) {
+                       $("div.compound").remove();
+                       var data_div = $(document.getElementById("data_grid"));
+                       tot_data = data;
+
+                       for (var depth in data){
+                           // Add this as a depth option
+
+                           var new_loop = data[depth]
+
+                           for (var sub_type in new_loop) {
+
+                               // Add this as sub_type option
+
+                                   // Add this filter
+                               // Generate a div within this (ADDITION, DELETION, LINKER)
+                               var newer_loop = new_loop[sub_type];
+                               var counter = 0;
+                               for (var sub_mol in newer_loop){
+
+
+                                   // Generate a div within with an image of the molecule
+                                   var div_id = sub_type+"_"+depth+"_"+counter;
+                                   counter +=1;
+                                   var compoundDiv = document.createElement("div");
+                                   compoundDiv.id = div_id;
+                                   data_div.append(compoundDiv);
+                                   var annotation = tot_data[depth][sub_type][sub_mol]["annotation"];
+
+                                   compoundDiv.setAttribute('class',sub_type+" "+annotation+" compound depth_"+depth);
+                                   compoundDiv.setAttribute('data-category',sub_type);
+                                   compoundDiv.setAttribute('depth',depth);
+                                   compoundDiv.setAttribute('sub-mol',sub_mol);
+                                   compoundDiv.setAttribute('annotation',annotation);
+
+                                   // Set the onclick method
+
+                                   fillDiv("/viewer/mol_view",{smiles: sub_mol, return: "svg"},div_id,false);
+
+
+                               }
+
+                           }
+
+                       }
+                       NProgress.done();
+                           // init Isotope
+                        var $grid = $('.grid').isotope({
+                          itemSelector: '.compound',
+                          layoutMode: 'fitRows',
+                          getSortData: {
+                            name: '.name',
+                            symbol: '.symbol',
+                            number: '.number parseInt',
+                            category: '[data-category]',
+                            weight: function( itemElem ) {
+                              var weight = $( itemElem ).find('.weight').text();
+                              return parseFloat( weight.replace( /[\(\)]/g, '') );
+                            }
+                          }
+                        });
+
+                       // filter functions
+                        var filterFns = {
+                          // show if number is greater than 50
+                          numberGreaterThan50: function() {
+                            var number = $(this).find('.number').text();
+                            return parseInt( number, 10 ) > 50;
+                          },
+                          // show if name ends with -ium
+                          ium: function() {
+                            var name = $(this).find('.name').text();
+                            return name.match( /ium$/ );
+                          }
+                        };
+
+
+                        // bind filter button click
+                        $('#filters').on( 'click', 'button', function() {
+                          var filterValue = $( this ).attr('data-filter');
+                          // use filterFn if matches value
+                          filterValue = filterFns[ filterValue ] || filterValue;
+                          $grid.isotope({ filter: filterValue });
+                        });
+
+                        // bind sort button click
+                        $('#sorts').on( 'click', 'button', function() {
+                          var sortByValue = $(this).attr('data-sort-by');
+                          $grid.isotope({ sortBy: sortByValue });
+                        });
+
+                       $('.compound').click(function (evt) {
+                           var data_category = this.getAttribute("data-category");
+                           var depth = this.getAttribute("depth");
+                           var sub_mol = this.getAttribute("sub-mol");
+                           var smiles_list = tot_data[depth][data_category][sub_mol]["smiles"];
+                           var counter = 0;
+                           var data_div = $(document.getElementById("cmpd_grid"));
+                           $("div.newcomp").remove();
+                           for (var index in smiles_list){
+                               var compoundDiv = document.createElement("div")
+                               var div_id = "smiles_"+counter;
+                               counter+=1;
+                               compoundDiv.id = div_id;
+                               compoundDiv.setAttribute('class','newcomp');
+                               data_div.append(compoundDiv);
+                               fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
+                           }
+
+                       });
+
+
+                        // change is-checked class on buttons
+                        $('.button-group').each( function( i, buttonGroup ) {
+                          var $buttonGroup = $( buttonGroup );
+                          $buttonGroup.on( 'click', 'button', function() {
+                            $buttonGroup.find('.is-checked').removeClass('is-checked');
+                            $( this ).addClass('is-checked');
+                          });
+                        });
+                   });
+
+       }
+
+    function makeQuery(url) {
+        var smiles = document.getElementById("smiles").value;
+{#        var num_picks = document.getElementById("num_picks").value;#}
+        fillDiv("/viewer/mol_view",{smiles: smiles, return: "svg"},"query_mol",nprogress=false);
+        getData(url,{smiles: smiles, num_picks: 0, return: "json"},nprogress=true);
+
+    }
+</script>
+
+
+<div class="row">
+        <div class="col-12">
+            </div>
+
+</div>
+<div class="row">
+    <div class="col-xs-0 col-md-1"></div>
+    <div class="col-xs-6 col-md-2">
+        <label for="smiles">Smiles:</label>
+        <input type="text" class="form-control" id="smiles">
+{#        <label for="num_picks">Number of picks:</label>#}
+{#        <input type="text" class="form-control" id="num_picks">#}
+        {% buttons %}
+        <button onclick="makeQuery('/network/full_graph/')" class="btn btn-primary">
+          {% bootstrap_icon "eye-open" %} Full Graph
+        </button>
+{#            <button onclick="makeQuery('/network/pick_mols/')" class="btn btn-primary">#}
+{#          {% bootstrap_icon "star" %} Pick Mols#}
+{#        </button>#}
+{#            <button onclick="makeQuery('/network/query_db/')" class="btn btn-primary">#}
+{#          {% bootstrap_icon "star" %} Query Db#}
+{#        </button>#}
+        {% endbuttons %}
+    <div id="query_mol">
+
+    </div>
+    </div>
+    <div class="col-xs-6 col-md-9" style="max-width: 100%; max-height: 100%" id="output">
+        <h2>Filter</h2>
+        <div id="filters" class="button-group">
+        <button class="button is-checked btn btn-primary" data-filter="*">All</button>
+        <button class="button btn btn-success" data-filter=".ADD_DEC">Simple Addition</button>
+        <button class="button btn btn-success" data-filter=".DEL_DEC">Simple Deletion</button>
+        <button class="button btn btn-success" data-filter=".LINK_DEC">Simple Linker</button>
+        <button class="button btn btn-warning" data-filter=".DEL_MISS, .LINK_MISS, .ADD_MISS">Missing Fragments</button>
+            <button class="button btn btn-primary" data-filter=".ADDITION">Addition</button>
+        <button class="button btn btn-primary" data-filter=".DELETION">Deletion</button>
+            <button class="button btn btn-primary" data-filter=".REPLACE">Replace</button>
+        <button class="button btn btn-primary" data-filter=".LINKER">Linker</button>
+        <button class="button btn btn-primary" data-filter=".depth_1">Depth 1</button>
+        <button class="button btn btn-primary" data-filter=".depth_2">Depth 2</button>
+            </div>
+        <div id="data_grid" style="max-width: 100%; max-height: 100%" class="grid col-lg-8"></div>
+
+        <div id="cmpd_grid" style=""class="col-lg-4"></div>
+        </div>
+    </div>
+</div>

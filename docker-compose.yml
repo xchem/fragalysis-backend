@@ -3,6 +3,8 @@ version: '3'
 services:
   db:
     image: postgres
+    networks:
+      - django_network
     volumes:
      - /home/ec2-user/django_data:/var/lib/postgresql/data
   cartridge: 
@@ -15,6 +17,8 @@ services:
   graph:
     container_name: neo4j
     image: neo4j
+    networks:
+      - django_network
     ports:
 # Comment these two out in produciton
       - "7474:7474"
@@ -32,6 +36,8 @@ services:
   web:
     build: .
     command: /bin/bash /code/docker-entrypoint.sh
+    networks:
+      - django_network
     volumes:
       - .:/code
       - /home/ec2-user/logs:/srv/logs/
@@ -42,3 +48,6 @@ services:
       - db
       - graph
       - cartridge
+networks:
+  django_network:
+    driver: bridge
