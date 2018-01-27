@@ -1,4 +1,8 @@
-import psycopg2,StringIO
+import psycopg2
+try:
+    import StringIO
+except:
+    from io import StringIO
 from rdkit import Chem
 from rdkit.Chem import Draw,AllChem
 from frag.network.decorate import get_add_del_link
