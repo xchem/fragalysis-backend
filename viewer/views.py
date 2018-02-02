@@ -1,10 +1,7 @@
 from django.http import HttpResponse
 from network.functions import draw_mol
 from django.shortcuts import render
-from django.http import JsonResponse
-from django.views import View
-from .models import Protein,ViewScene
-from .forms import PDBForm
+from .models import ViewScene
 from uuid import uuid4
 
 def display(request):
