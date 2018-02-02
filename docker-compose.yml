@@ -6,7 +6,7 @@ services:
     networks:
       - django_network
     volumes:
-     - django_data:/var/lib/postgresql/data
+     - /home/ec2-user/django_data:/var/lib/postgresql/data
   cartridge:
     image: informaticsmatters/rdkit_cartridge:Release_2017_09_1
     user: root
