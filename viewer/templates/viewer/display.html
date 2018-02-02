@@ -6,7 +6,57 @@
 {# Load CSS and JavaScript #}
 {% bootstrap_css %}
 <script src="{% bootstrap_jquery_url %}" type="text/javascript"></script>
+
+<script>
+
+    function getJsonView() {
+        // Get component (path) -> representation (parameters)
+        var out_data = new Array()
+        state.stage.eachComponent(function (component) {
+            var component_data = {"file_path": component.object.path,
+            "repr": new Array(),
+            "file_ext": component.parameters["ext"]};
+            component.eachRepresentation(function (repr) {
+                var my_params = {"data": repr.getParameters()};
+                my_params["name"] = repr["parameters"]["name"];
+               component_data["repr"].push(my_params);
+            })
+            out_data.push(component_data)
+        });
+        return out_data
+    }
+
+    function setJsonView(input_json){
+        var obj = JSON.parse(input_json);
+        // Loop through dict
+        for (index = 0; index < obj.length; ++index)
+        {
+        // Generate the ey value pairs
+            var propt = obj[index];
+            state.stage.loadFile(propt["file_path"],{ ext: propt["file_ext"] })
+                    .then( function( comp ){
+                        for (j=0; j<propt["repr"].length; ++j) {
+                            comp.addRepresentation(propt["repr"][j]["name"], propt["repr"][j]["data"]);
+                        }
+                    } );
+        }
+    }
+
+    function post_view(title){
+        var scene  = getJsonView();
+        $.ajax({
+          type: "POST",
+          url: "viewer/post_view",
+          data: {"title": title,
+          "scene": scene},
+          success: function(response){ $( ".result" ).html( response); }
+        }).fail(function() { alert( "error" ); });
+    }
+
+</script>
 {% bootstrap_javascript %}
+
+
 
 
 HELLO TO THE DISPLAY FOR THE 3D VIEWER

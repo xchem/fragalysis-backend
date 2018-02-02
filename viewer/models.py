@@ -9,7 +9,6 @@ class Project(models.Model):
     # The date it was made
     init_date = models.DateTimeField(auto_now_add=True)
 
-
 class Target(models.Model):
     """A Django model to define a given protein target"""
     # The title of the project_id -> userdefined
@@ -21,16 +20,16 @@ class Target(models.Model):
     # Indicates the uniprot_id id for the target. Is a unique key
     uniprot_id = models.CharField(max_length=100, null=True)
 
-
 class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
     # code for this protein
     code = models.CharField(max_length=50,unique=True, db_index=True)
     target_id = models.ForeignKey(Target)
     apo_holo = models.NullBooleanField()
-    pdb_info = models.FileField(upload_to='pdb', null=True, max_length=10000000)
+    pdb_info = models.FileField(upload_to='pdbs/', null=True, max_length=10000000)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
     init_date = models.DateTimeField(auto_now_add=True)
-    cif_info = models.FileField(upload_to='cif', null=True, max_length=10000000)
+    cif_info = models.FileField(upload_to='cifs/', null=True, max_length=10000000)
     aligned = models.NullBooleanField()
     aligned_to = models.ForeignKey('self', null=True)
     has_eds = models.NullBooleanField()
@@ -82,8 +81,6 @@ class Molecule(models.Model):
     class Meta:
         unique_together = ('prot_id', 'cmpd_id', 'sdf_info', )
 
-
-
 class ActivityPoint(models.Model):
     """A Django model to hold the activity information for a given compound"""
     # This should encompass the activity type too
@@ -105,3 +102,14 @@ class ActivityPoint(models.Model):
 
     class Meta:
         unique_together = ('target_id', 'activity', 'cmpd_id', 'units', )
+
+class ViewScene(models.Model):
+    """
+    A Django Model for a given view.
+    """
+    # The uuid that will enable this to be shared
+    uuid = models.UUIDField(unique=True)
+    # The title - optional
+    title = models.CharField(max_length=200,default="NA")
+    # The JSON describing the data
+    scene = models.TextField()

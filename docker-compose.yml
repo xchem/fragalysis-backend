@@ -6,8 +6,8 @@ services:
     networks:
       - django_network
     volumes:
-     - /home/ec2-user/django_data:/var/lib/postgresql/data
-  cartridge: 
+     - django_data:/var/lib/postgresql/data
+  cartridge:
     image: informaticsmatters/rdkit_cartridge:Release_2017_09_1
     user: root
     environment:
@@ -24,7 +24,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     ulimits:
-      nofile: 
+      nofile:
         soft: 40000
         hard: 40000
     volumes:
