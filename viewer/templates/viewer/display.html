@@ -110,11 +110,16 @@
 {% bootstrap_javascript %}
 
 
-{% for mol in mols %}
-        <div id="molecule_{{ mol.pk }}" onclick="load_mol({{ mol.pk }})"
-        ondblclick="load_prot({{ mol.prot_id_id }})">
-            {{ mol.smiles }}
-        </div>
+<div class="row">
+        <div class="col-4">
+            {% for mol in mols %}
+             <div id="molecule_{{ mol.pk }}" onclick="load_mol({{ mol.pk }})"
+                  ondblclick="load_prot({{ mol.prot_id_id }})">
+                 { mol.smiles }}
+             </div>
 {% endfor %}
-
-<div id="viewport"></div>
+        </div>
+    <div class="col-8">
+        <div id="viewport"></div>
+    </div>
+</div>
