@@ -33,7 +33,6 @@ def prot_from_pk(request,pk):
     return  HttpResponse(pdb_info)
 
 
-
 def post_view(request):
     """
     Post the view for a given scene
@@ -53,7 +52,7 @@ def get_view(request):
     :param request:
     :return:
     """
-    uuid = request.GET["uuid"]
+    uuid = request.POST["uuid"]
     this_view = ViewScene.objects.get(uuid=uuid)
     return HttpResponse({"title": this_view.title,
                          "scene": this_view.scene})
