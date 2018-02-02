@@ -23,7 +23,7 @@ def add_prot(file_path,code,target):
     :param target_pk:
     :return:
     """
-    new_prot = Protein.objects.get_or_create(code=code,target_id=target)
+    new_prot = Protein.objects.get_or_create(code=code,target_id=target)[0]
     new_prot.apo_holo = True
     new_prot.pdb_info = file_path
     new_prot.save()
@@ -98,7 +98,7 @@ def add_mol(mol_sd,prot):
         return None
     # Get the reference compound
     comp_ref = add_new_comp(rd_mol)
-    new_mol = Molecule.objects.get_or_create(prot_id=prot,comp_id=comp_ref)
+    new_mol = Molecule.objects.get_or_create(prot_id=prot,comp_id=comp_ref)[0]
     # Make a protein object by which it is related in the DB
     new_mol.sdf_info = Chem.MolToMolBlock(rd_mol)
     new_mol.smiles = Chem.MolToSmiles(rd_mol, isomericSmiles=True)
