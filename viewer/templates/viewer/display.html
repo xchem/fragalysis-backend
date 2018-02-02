@@ -90,15 +90,16 @@
     }
 
     function load_prot(prot_pk) {
-        stage.loadFile("/viewer/prot_from_pk?pk="+prot_pk.toString(),  {ext: "pdb" }).then(function (o) {
-            o.addRepresentation("cartoon", {  })
+        stage.loadFile("/viewer/prot_from_pk?pk=" + prot_pk.toString(), {ext: "pdb"}).then(function (o) {
+            o.addRepresentation("cartoon", {})
             o.autoView()
-})
+        })
+    }
 
     // Create NGL Stage object
     var stage = new NGL.Stage( "viewport" );
     // Handle window resizing
-    window.addEventListener( "resize", function( event ){ stage.handleResize();}, false )
+    window.addEventListener( "resize", function( event ){ stage.handleResize();}, false );
 
 </script>
 {% bootstrap_javascript %}
