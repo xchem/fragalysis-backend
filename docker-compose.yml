@@ -40,8 +40,8 @@ services:
       - django_network
     volumes:
       - .:/code
-      - /home/ec2-user/logs:/srv/logs/
-      - /home/ec2-user/media:/srv/media/
+      - /home/ec2-user/logs:/code/logs/
+      - /home/ec2-user/media:/code/media/
     ports:
       - "80:80"
     depends_on:
