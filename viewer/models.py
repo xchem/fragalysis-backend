@@ -61,14 +61,14 @@ class Molecule(models.Model):
     """A Django model to hold the information for a molecule -> a 3D set of
     co-ordinates"""
     # Character attributes
-    smiles = models.CharField(max_length=500, db_index=True)
-    lig_id = models.CharField(max_length=5)
-    chain_id = models.CharField(max_length=1)
+    smiles = models.CharField(max_length=500, db_index=True,null=True)
+    lig_id = models.CharField(max_length=5,null=True)
+    chain_id = models.CharField(max_length=1,null=True)
     # Textfield
-    sdf_info = models.TextField()
+    sdf_info = models.TextField(null=True)
     # Float attributes
     rscc = models.FloatField(null=True)
-    occupancy = models.FloatField()
+    occupancy = models.FloatField(null=True)
     x_com = models.FloatField(null=True)
     y_com = models.FloatField(null=True)
     z_com = models.FloatField(null=True)
