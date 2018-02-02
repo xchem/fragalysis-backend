@@ -15,7 +15,7 @@
     function getJsonView() {
         // Get component (path) -> representation (parameters)
         var out_data = new Array()
-        state.stage.eachComponent(function (component) {
+        stage.eachComponent(function (component) {
             var component_data = {"file_path": component.object.path,
             "repr": new Array(),
             "file_ext": component.parameters["ext"]};
@@ -36,7 +36,7 @@
         {
         // Generate the ey value pairs
             var propt = obj[index];
-            state.stage.loadFile(propt["file_path"],{ ext: propt["file_ext"] })
+            stage.loadFile(propt["file_path"],{ ext: propt["file_ext"] })
                     .then( function( comp ){
                         for (j=0; j<propt["repr"].length; ++j) {
                             comp.addRepresentation(propt["repr"][j]["name"], propt["repr"][j]["data"]);
@@ -113,9 +113,9 @@
 <div class="container-fluid">
 
 <div class="row">
-        <div class="col-xs-6 col-md-4">
+        <div class="col-xs-6 col-md-4" style="height: 600px; overflow: scroll">
             {% for mol in mols %}
-                <div class="col-xs-6" style="height: 600px; overflow: scroll">
+                <div class="col-xs-6" >
                      <div id="molecule_{{ mol.pk }}" onclick="load_mol({{ mol.pk }})"
                           ondblclick="load_prot({{ mol.prot_id_id }})">
                          { mol.smiles }}
