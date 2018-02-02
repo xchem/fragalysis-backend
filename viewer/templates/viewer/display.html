@@ -77,7 +77,7 @@ HELLO TO THE DISPLAY FOR THE 3D VIEWER
 <ul>
 {% for mol in mols %}
     <li>
-        <img src="/viewer/mol_view/?smiles={{ mol.smiles }}" alt="{{ mol.smiles }}"/>
+        <img src="/viewer/mol_view/?smiles={{ mol.smiles | escapejs }}.svg" alt="{{ mol.smiles }}"/>
     </li>
         And click on protein to see in NGL viewer.
 

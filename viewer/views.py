@@ -12,7 +12,7 @@ def display(request):
 
 def mol_view(request):
     if "smiles" in request.GET:
-        smiles = request.GET["smiles"]
+        smiles = request.GET["smiles"].rstrip(".svg")
         return  HttpResponse(draw_mol(smiles))
     else:
         return HttpResponse("Please insert SMILES")
