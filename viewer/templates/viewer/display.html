@@ -21,7 +21,7 @@
             };
             component.eachRepresentation(function (repr) {
                 var my_params = {"data": repr.getParameters()};
-                my_params["name"] = repr["parameters"]["name"];
+                my_params["name"] = repr.name;
                component_data["repr"].push(my_params);
             })
             out_data.push(component_data)
