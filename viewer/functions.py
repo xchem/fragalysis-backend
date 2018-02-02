@@ -1,5 +1,7 @@
 
 from rdkit import Chem
+from rdkit.Chem import Lipinski,Descriptors,AllChem
+
 # Contribution to the RDKit from Hans de Winter
 def _InitialiseNeutralisationReactions():
     """Contribution from Hans de Winter"""

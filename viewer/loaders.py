@@ -3,8 +3,7 @@ from .models import Target,Protein,Molecule,Compound
 from .functions import NeutraliseCharges,desalt_compound
 from django.core.exceptions import ValidationError
 from rdkit import Chem
-from rdkit.Chem import Lipinski
-from rdkit.Chem import Descriptors
+from rdkit.Chem import Lipinski,Descriptors
 
 def add_target(title):
     """
