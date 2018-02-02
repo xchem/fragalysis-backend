@@ -16,7 +16,7 @@
         // Get component (path) -> representation (parameters)
         var out_data = new Array()
         stage.eachComponent(function (component) {
-            var component_data = {"file_path": component.object.path,
+            var component_data = {"file_path": component.structure.path,
             "repr": new Array(),
             "file_ext": component.parameters["ext"]};
             component.eachRepresentation(function (repr) {
