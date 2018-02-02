@@ -97,7 +97,7 @@ def add_mol(mol_sd,prot):
         return None
     # Get the reference compound
     comp_ref = add_new_comp(rd_mol)
-    new_mol = Molecule.objects.get_or_create(prot_id=prot,comp_id=comp_ref)[0]
+    new_mol = Molecule.objects.get_or_create(prot_id=prot,cmp_id=comp_ref)[0]
     # Make a protein object by which it is related in the DB
     new_mol.sdf_info = Chem.MolToMolBlock(rd_mol)
     new_mol.smiles = Chem.MolToSmiles(rd_mol, isomericSmiles=True)
