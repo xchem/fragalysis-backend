@@ -56,7 +56,7 @@
         var scene  = getJsonView();
         $.ajax({
           type: "POST",
-          url: "/viewer/post_view",
+          url: "/viewer/post_view/",
           data: {"title": title,
           "scene": scene},
           success: function(response){ alert(response) }
