@@ -46,12 +46,27 @@
         var scene  = getJsonView();
         $.ajax({
           type: "POST",
-          url: "viewer/post_view",
+          url: "/viewer/post_view",
           data: {"title": title,
           "scene": scene},
           success: function(response){ $( ".result" ).html( response); }
         }).fail(function() { alert( "error" ); });
     }
+
+    function fillDiv(query_url,input_data,div_id,nprogress)
+       {
+           if (nprogress==true){
+               NProgress.start();
+           }
+           $.get(query_url, input_data,
+                   function (data) {
+                       document.getElementById(div_id).innerHTML = data;
+                       if (nprogress==true){
+                           NProgress.done();
+                       }
+                   });
+
+       }
 
 </script>
 {% bootstrap_javascript %}
@@ -59,9 +74,12 @@
 
 HELLO TO THE DISPLAY FOR THE 3D VIEWER
 
-
 <ul>
 {% for mol in mols %}
-    <li>{{ mol.smiles }}</li>
+    <li>
+        <img src="/viewer/mol_view?{{ mol.smiles }}" alt="{{ mol.smiles }}"/>
+    </li>
+        And click on protein to see in NGL viewer.
+
 {% endfor %}
 </ul>
