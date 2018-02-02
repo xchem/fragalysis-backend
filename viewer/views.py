@@ -17,6 +17,12 @@ def mol_view(request):
     else:
         return HttpResponse("Please insert SMILES")
 
+def img_from_pk(request):
+    if "pk" in request.GET:
+        smiles = Molecule.objects.get(pk=request.GET["pk"]).smiles
+        return  HttpResponse(draw_mol(smiles))
+    else:
+        return HttpResponse("Please insert PK")
 
 def post_view(request):
     """
