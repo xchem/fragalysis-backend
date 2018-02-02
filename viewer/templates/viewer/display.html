@@ -59,7 +59,7 @@
           url: "/viewer/post_view",
           data: {"title": title,
           "scene": scene},
-          success: function(response){ $( ".result" ).html( response); }
+          success: function(response){ alert(response) }
         }).fail(function() { alert( "error" ); });
     }
 
