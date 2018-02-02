@@ -41,8 +41,8 @@ def post_view(request):
     :return:
     """
     new_view = ViewScene()
-    new_view.title = request.POST["data"]["title"]
-    new_view.scene = request.POST["data"]["title"]
+    new_view.title = request.POST["title"]
+    new_view.scene = request.POST["scene"]
     new_view.uuid = str(uuid4())
     new_view.save()
     return HttpResponse(new_view.uuid)
