@@ -1,12 +1,14 @@
 from django.http import HttpResponse
 from network.functions import draw_mol
 from django.shortcuts import render
-from .models import ViewScene
+from .models import ViewScene,Molecule,Protein
 from uuid import uuid4
 
 def display(request):
     # Define the proteins, targets and molecules to be displayed / have options for displaying
-    return render(request, 'viewer/display.html', {})
+    target_title = request.GET["target_title"]
+    mols = Molecule.objects.filter(prot_id__target_id__title=target_title)
+    return render(request, 'viewer/display.html', {"mols":mols})
 
 def mol_view(request):
     if "smiles" in request.GET:

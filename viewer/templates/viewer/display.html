@@ -57,6 +57,11 @@
 {% bootstrap_javascript %}
 
 
-
-
 HELLO TO THE DISPLAY FOR THE 3D VIEWER
+
+
+<ul>
+{% for mol in mols %}
+    <li>{{ mol.smiles }}</li>
+{% endfor %}
+</ul>
