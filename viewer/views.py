@@ -3,6 +3,7 @@ from network.functions import draw_mol
 from django.shortcuts import render
 from .models import ViewScene,Molecule,Protein
 from uuid import uuid4
+import json
 
 def display(request):
     # Define the proteins, targets and molecules to be displayed / have options for displaying
@@ -54,8 +55,8 @@ def get_view(request):
     """
     uuid = request.POST["uuid"]
     this_view = ViewScene.objects.get(uuid=uuid)
-    return HttpResponse({"title": this_view.title,
-                         "scene": this_view.scene})
+    return HttpResponse(json.dumps({"title": this_view.title,
+                         "scene": this_view.scene}))
 
 
 # POST AND GETS FOR ALL THE OTHER FILE TYPES.
