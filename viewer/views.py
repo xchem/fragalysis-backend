@@ -33,7 +33,7 @@ def mol_from_pk(request):
 
 def prot_from_pk(request):
     if "pk" in request.GET:
-        pdb_info = Protein.objects.get(pk=request.GET["pk"]).pdb_info
+        pdb_info = open(Protein.objects.get(pk=request.GET["pk"]).pdb_info).read()
         return  HttpResponse(pdb_info)
     else:
         return HttpResponse("Please insert PK")
