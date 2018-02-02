@@ -15,7 +15,7 @@ def add_target(title):
     new_target = Target.objects.get_or_create(title=title)[0]
     return new_target
 
-def add_prot(file_path,code,target_pk):
+def add_prot(file_path,code,target):
     """
     Add a protein
     :param file_path:
@@ -23,7 +23,7 @@ def add_prot(file_path,code,target_pk):
     :param target_pk:
     :return:
     """
-    new_prot = Protein.objects.get_or_create(code=code,target_id=target_pk)
+    new_prot = Protein.objects.get_or_create(code=code,target_id=target)
     new_prot.apo_holo = True
     new_prot.pdb_info = file_path
     new_prot.save()
@@ -91,16 +91,15 @@ def add_new_comp(mol, option=None, comp_id=None):
         elif option == "LIG":
             return (Compound.objects.get(inchi=inchi), smiles)
 
-def add_mol(mol_sd,prot_pk,target_pk):
+def add_mol(mol_sd,prot):
 
     rd_mol = Chem.MolFromMolFile(mol_sd)
     if rd_mol is None:
         return None
     # Get the reference compound
     comp_ref = add_new_comp(rd_mol)
-    new_mol = Molecule.objects.get_or_create(prot_id=prot_pk,comp_id=comp_ref)
+    new_mol = Molecule.objects.get_or_create(prot_id=prot,comp_id=comp_ref)
     # Make a protein object by which it is related in the DB
-    new_mol.prot_id = prot_pk
     new_mol.sdf_info = Chem.MolToMolBlock(rd_mol)
     new_mol.smiles = Chem.MolToSmiles(rd_mol, isomericSmiles=True)
     # Find out how to add this information from Proasis
@@ -126,7 +125,7 @@ def load_from_dir(target_name, dir_path):
     directories = os.listdir(dir_path)
     for xtal in directories:
         new_path = os.path.join(dir_path, xtal)
-        new_prot = add_prot(os.path.join(new_path,xtal+"_apo.pdb"),xtal,new_target.pk)
-        new_mol = add_mol(os.path.join(new_path,xtal+".mol"), new_prot.pk,new_target.pk)
+        new_prot = add_prot(os.path.join(new_path,xtal+"_apo.pdb"),xtal,new_target)
+        new_mol = add_mol(os.path.join(new_path,xtal+".mol"), new_prot)
         if not new_mol:
             print("NONE MOL: "+xtal)
