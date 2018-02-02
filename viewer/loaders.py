@@ -23,8 +23,7 @@ def add_prot(file_path,code,target_pk):
     :param target_pk:
     :return:
     """
-    new_prot = Protein.objects.get_or_create(code=code)
-    new_prot.target_id = target_pk
+    new_prot = Protein.objects.get_or_create(code=code,target_id=target_pk)
     new_prot.apo_holo = True
     new_prot.pdb_info = file_path
     new_prot.save()
@@ -94,12 +93,12 @@ def add_new_comp(mol, option=None, comp_id=None):
 
 def add_mol(mol_sd,prot_pk,target_pk):
 
-    new_mol = Molecule()
     rd_mol = Chem.MolFromMolFile(mol_sd)
     if rd_mol is None:
         return None
     # Get the reference compound
     comp_ref = add_new_comp(rd_mol)
+    new_mol = Molecule.objects.get_or_create(prot_id=prot_pk,comp_id=comp_ref)
     # Make a protein object by which it is related in the DB
     new_mol.prot_id = prot_pk
     new_mol.sdf_info = Chem.MolToMolBlock(rd_mol)
@@ -112,12 +111,9 @@ def add_mol(mol_sd,prot_pk,target_pk):
     # correct molecule. I.e. if it fails where does it go???
     # Now link that compound back
     new_mol.cmpd_id = comp_ref
-    try:
-        new_mol.validate_unique()
-        new_mol.save()
-        return new_mol
-    except ValidationError:
-        return Molecule.objects.get(prot_id=prot_pk,cmpd_id=comp_ref,sdf_info=Chem.MolToMolBlock(rd_mol))
+    new_mol.save()
+    return new_mol
+
 
 def load_from_dir(target_name, dir_path):
     """

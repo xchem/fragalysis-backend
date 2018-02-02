@@ -16,7 +16,7 @@ class Target(models.Model):
     # The date it was made
     init_date = models.DateTimeField(auto_now_add=True)
     # A field to link projects and targets together
-    project_id = models.ManyToManyField(Project, null=True)
+    project_id = models.ManyToManyField(Project)
     # Indicates the uniprot_id id for the target. Is a unique key
     uniprot_id = models.CharField(max_length=100, null=True)
 
@@ -79,7 +79,7 @@ class Molecule(models.Model):
 
     # Unique constraints
     class Meta:
-        unique_together = ('prot_id', 'cmpd_id', 'sdf_info', )
+        unique_together = ('prot_id', 'cmpd_id', )
 
 class ActivityPoint(models.Model):
     """A Django model to hold the activity information for a given compound"""
