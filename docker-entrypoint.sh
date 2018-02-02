@@ -2,6 +2,7 @@
 npm install
 python manage.py makemigrations
 python manage.py migrate        # Apply database migrations
+python loader.py
 python manage.py collectstatic --clear --noinput # clearstatic files
 python manage.py collectstatic --noinput  # collect static files
 # Prepare log files and start outputting logs to stdout
