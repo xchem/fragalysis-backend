@@ -53,11 +53,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
     # My own apps
     'network',
     'viewer',
-
     # My utility apps
     'bootstrap3',
     'django_cas_ng',
