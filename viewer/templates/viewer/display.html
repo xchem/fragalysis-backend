@@ -91,8 +91,8 @@ $.ajaxSetup({
 
     function display_view(response){
         var res = JSON.parse(response);
-        var title = response["title"];
-        setJsonView(response["scene"]);
+        var title = res["title"];
+        setJsonView(res["scene"]);
     }
 
     function fillDiv(query_url,input_data,div_id,nprogress)
