@@ -161,7 +161,7 @@ $.ajaxSetup({
         }, false);
         // scene_id
         var scene_id = {{ scene_id | escapejs }};
-        if (scene_id>-1){
+        if (scene_id>0){
             get_view(scene_id);
         }
     })

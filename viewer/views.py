@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpResponse,HttpRequest
 from network.functions import draw_mol
 from django.shortcuts import render
 from .models import ViewScene,Molecule,Protein
@@ -56,7 +56,8 @@ def post_view(request):
     new_view.scene = request.POST["scene"]
     new_view.uuid = str(uuid4())
     new_view.save()
-    return HttpResponse(new_view.uuid)
+    url = request.build_absolute_uri("get_view/?scene_id="+str(new_view.pk))
+    return HttpResponse(url)
 
 def get_view(request, pk):
     """
