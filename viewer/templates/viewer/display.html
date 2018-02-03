@@ -91,7 +91,7 @@ $.ajaxSetup({
           data: {"title": title,
           "scene": scene},
           success: function(response){
-              $("#result")
+              $("#clip_target").value = response;
               NProgress.done();
           }
         }).fail(function() { alert( "error" ); });
