@@ -85,7 +85,7 @@ $.ajaxSetup({
           type: "POST",
           url: "/viewer/get_view/",
           data: {"uuid": uuid},
-          success: display_view(response)
+          success: function(response){display_view(response)}
         }).fail(function() { alert( "error" ); });
     }
 
