@@ -76,6 +76,9 @@ AUTHENTICATION_BACKENDS = (
     'django_cas_ng.backends.CASBackend',
 )
 
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+    ]
 
 STATICFILES_FINDERS = ('npm.finders.NpmFinder',)
 
