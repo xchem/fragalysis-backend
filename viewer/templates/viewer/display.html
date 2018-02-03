@@ -71,7 +71,11 @@ $.ajaxSetup({
                     } );
         }
         // Set the orientation
-        stage.viewerControls.orient(ori);
+        var curr_orient = stage.viewerControls.getOrientation();
+        for (i=0; i< curr_orient["elements"].length; i++){
+             curr_orient["elements"][i] =ori["elements"][i];
+        }
+        stage.viewerControls.orient(curr_orient);
     }
 
     function post_view(title){
