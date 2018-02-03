@@ -80,8 +80,7 @@ $.ajaxSetup({
           type: "POST",
           url: "/viewer/post_view/",
           data: {"title": title,
-          "scene": scene,
-          "orientation": orient},
+          "scene": scene},
           success: function(response){ alert(response) }
         }).fail(function() { alert( "error" ); });
     }
