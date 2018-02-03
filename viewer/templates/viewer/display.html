@@ -7,8 +7,10 @@
 
 {# Load CSS and JavaScript #}
 {% bootstrap_css %}
-<script src="{% bootstrap_jquery_url %}" type="text/javascript"></script>
+<link rel='stylesheet' href='{% static 'nprogress/nprogress.css' %}'/>
 
+<script src="{% bootstrap_jquery_url %}" type="text/javascript"></script>
+<script src='{% static 'dist/clipboard.min.js' %}'></script>
 {% csrf_token %}
 <script type="text/javascript">
 // using jQuery
@@ -16,6 +18,8 @@ var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
 </script>
 
 <script>
+
+new Clipboard('.btn');
 
 function csrfSafeMethod(method) {
     // these HTTP methods do not require CSRF protection
@@ -79,13 +83,17 @@ $.ajaxSetup({
     }
 
     function post_view(title){
+        NProgress.start();
         var scene  = getJsonView();
         $.ajax({
           type: "POST",
           url: "/viewer/post_view/",
           data: {"title": title,
           "scene": scene},
-          success: function(response){ alert(response) }
+          success: function(response){
+              $("#result")
+              NProgress.done();
+          }
         }).fail(function() { alert( "error" ); });
     }
 
@@ -174,7 +182,14 @@ $.ajaxSetup({
     <div class="col-xs-6 col-md-8">
         <div id="viewport" style="height: 500px;"></div>
         <button type="button" class="btn btn-info" onclick="post_view('test')">Save View</button>
-        <div id="result"></div>
+        <div id="result">
+            <!-- Target -->
+            <input id="clip_target" value="">
+            <!-- Trigger -->
+            <button class="btn" data-clipboard-target="#clip_target">
+                <img src="assets/clippy.svg" alt="Copy to clipboard">
+            </button>
+        </div>
     </div>
 </div>
 

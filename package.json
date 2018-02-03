@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "clipboard": "1.7.1",
     "blueimp-file-upload-node": "9.20.0",
     "ngl": "^0.10.4",
     "nprogress": "^0.2.0",
