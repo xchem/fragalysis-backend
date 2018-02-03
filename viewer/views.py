@@ -56,7 +56,7 @@ def post_view(request):
     new_view.scene = request.POST["scene"]
     new_view.uuid = str(uuid4())
     new_view.save()
-    url = request.build_absolute_uri("get_view/?scene_id="+str(new_view.pk))
+    url = request.build_absolute_uri("?scene_id="+str(new_view.pk)).replace("/post_view/","/display/")
     return HttpResponse(url)
 
 def get_view(request, pk):
