@@ -186,12 +186,16 @@ $.ajaxSetup({
         </div>
     <div class="col-xs-6 col-md-8">
         <div id="viewport" style="height: 500px;"></div>
-        <button type="button" class="btn btn-info" onclick="post_view('test')">Save View</button>
-        <div id="result">
-            <input id="clip_target" value="">
-            <button class="btn" data-clipboard-target="#clip_target">
-                <img src="{% static 'viewer/clippy.svg' %}" width="13" alt="Copy to clipboard">
-            </button>
+        <div class="row">
+            <div class="col-xs-2 col-md-2">
+            <button type="button" class="btn btn-info" onclick="post_view('test')">Save View</button>
+            </div>
+            <div class="col-xs-6" id="result">
+                <input id="clip_target" value="">
+                <button class="btn" data-clipboard-target="#clip_target">
+                    <img src="{% static 'viewer/clippy.svg' %}" width="13" alt="Copy to clipboard">
+                </button>
+            </div>
         </div>
     </div>
 </div>
