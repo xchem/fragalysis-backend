@@ -67,10 +67,11 @@ $.ajaxSetup({
             else{
                 ext= "pdb";
             }
+            var this_repr = propt["repr"];
             stage.loadFile(propt["file_path"],{ ext: ext})
-                    .then( function( comp ){
-                        for (j=0; j<propt["repr"].length; ++j) {
-                            comp.addRepresentation(propt["repr"][j]["name"], propt["repr"][j]["data"]);
+                    .then( function( comp, this_repr ){
+                        for (j=0; j<this_repr.length; ++j) {
+                            comp.addRepresentation(this_repr[j]["name"], this_repr[j]["data"]);
                         }
                     } );
         }
