@@ -54,7 +54,7 @@ $.ajaxSetup({
         // Generate the ey value pairs
             var propt = obj[index];
             var ext = "";
-            if (propt["file_path"].contains("mol_from_pk")){
+            if (propt["file_path"].includes("mol_from_pk")){
                 ext = "sdf";
             }
             else{
