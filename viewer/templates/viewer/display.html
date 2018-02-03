@@ -43,11 +43,14 @@ $.ajaxSetup({
             })
             out_data.push(component_data)
         });
-        return JSON.stringify(out_data)
+        return JSON.stringify({"components": out_data,
+            "orientation": stage.viewerControls.getOrientation()})
     }
 
     function setJsonView(input_json){
-        var obj = JSON.parse(input_json);
+        var tot_obj = JSON.parse(input_json);
+        var obj = tot_obj["components"];
+        var ori = tot_obj["orientation"];
         // Loop through dict
         for (index = 0; index < obj.length; ++index)
         {
@@ -67,6 +70,8 @@ $.ajaxSetup({
                         }
                     } );
         }
+        // Set the orientation
+        stage.viewerControls.orient(ori);
     }
 
     function post_view(title){
@@ -75,7 +80,8 @@ $.ajaxSetup({
           type: "POST",
           url: "/viewer/post_view/",
           data: {"title": title,
-          "scene": scene},
+          "scene": scene,
+          "orientation": orient},
           success: function(response){ alert(response) }
         }).fail(function() { alert( "error" ); });
     }
