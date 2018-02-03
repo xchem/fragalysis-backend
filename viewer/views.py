@@ -5,6 +5,17 @@ from .models import ViewScene,Molecule,Protein
 from uuid import uuid4
 import json
 
+
+def get_mols_from_scene(scene):
+    comps = json.loads(scene)['components']
+    mol_pks = []
+    for comp in comps:
+        path = comp['file_path']
+        if "/viewer/mol_from_pk/" in path:
+            mol_pks.append(int(path.split("/viewer/mol_from_pk/")[-1]))
+    return mol_pks
+
+
 def display(request):
     # Define the proteins, targets and molecules to be displayed / have options for displaying
     scene_id = 0
@@ -14,11 +25,7 @@ def display(request):
     elif "scene_id" in request.GET:
         scene_id = int(request.GET["scene_id"])
         vs = ViewScene.objects.get(pk=scene_id)
-        load_paths = json.loads(vs.scene)['components'][0]['file_path']
-        mol_pks = []
-        for path in load_paths:
-            if "/viewer/mol_from_pk/" in path:
-                mol_pks.append(int(path.split("/viewer/mol_from_pk/")[-1]))
+        mol_pks = get_mols_from_scene(vs.scene)
         mols = Molecule.objects.filter(id__in=mol_pks)
     return render(request, 'viewer/display.html', {"mols": mols, "scene_id": scene_id})
 
