@@ -69,9 +69,9 @@ $.ajaxSetup({
             }
             var this_repr = propt["repr"];
             stage.loadFile(propt["file_path"],{ ext: ext})
-                    .then( function( comp, my_data ){
-                        for (j=0; j<my_data.length; ++j) {
-                            comp.addRepresentation(my_data[j]["name"],my_data[j]["data"]);
+                    .then( function( comp ){
+                        for (j=0; j<this.length; ++j) {
+                            comp.addRepresentation(this[j]["name"],this[j]["data"]);
                         }
                     }.bind(this_repr));
         }
