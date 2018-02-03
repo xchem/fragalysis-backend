@@ -17,7 +17,7 @@ def display(request):
         load_paths = json.loads(vs.scene)['components'][0]['file_path']
         mol_pks = []
         for path in load_paths:
-            if path.contains("/viewer/mol_from_pk/"):
+            if "/viewer/mol_from_pk/" in path:
                 mol_pks.append(int(path.split("/viewer/mol_from_pk/")[-1]))
         mols = Molecule.objects.filter(id__in=mol_pks)
     return render(request, 'viewer/display.html', {"mols": mols, "scene_id": scene_id})
