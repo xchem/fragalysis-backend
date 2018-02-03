@@ -7,7 +7,7 @@ import json
 
 def display(request):
     # Define the proteins, targets and molecules to be displayed / have options for displaying
-    scene_id = -1
+    scene_id = 0
     if "target_title" in request.GET:
         target_title = request.GET["target_title"]
         mols = Molecule.objects.filter(prot_id__target_id__title=target_title)
