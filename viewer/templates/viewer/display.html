@@ -91,7 +91,7 @@ $.ajaxSetup({
           data: {"title": title,
           "scene": scene},
           success: function(response){
-              $("#clip_target").value = response;
+              $("#clip_target").val(response);
               NProgress.done();
           }
         }).fail(function() { alert( "error" ); });
@@ -187,7 +187,7 @@ $.ajaxSetup({
             <input id="clip_target" value="">
             <!-- Trigger -->
             <button class="btn" data-clipboard-target="#clip_target">
-                <img src="assets/clippy.svg" alt="Copy to clipboard">
+                <img src="{% static 'viewer/clippy.svg%}' alt="Copy to clipboard">
             </button>
         </div>
     </div>
