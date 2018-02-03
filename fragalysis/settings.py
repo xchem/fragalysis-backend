@@ -77,10 +77,13 @@ AUTHENTICATION_BACKENDS = (
 )
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static"),
+    os.path.join(BASE_DIR, "fragalysis", "../viewer/static"),
     ]
 
-STATICFILES_FINDERS = ('npm.finders.NpmFinder',)
+STATICFILES_FINDERS = (
+        'django.contrib.staticfiles.finders.FileSystemFinder',
+        'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+        'npm.finders.NpmFinder',)
 
 # CAS parameters
 CAS_SERVER_URL = "https://auth.diamond.ac.uk:443/cas/"
