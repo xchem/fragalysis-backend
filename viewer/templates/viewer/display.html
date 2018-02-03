@@ -85,8 +85,14 @@ $.ajaxSetup({
           type: "POST",
           url: "/viewer/get_view/",
           data: {"uuid": uuid},
-          success: function(response){ alert(response) }
+          success: display_view(response)
         }).fail(function() { alert( "error" ); });
+    }
+
+    function display_view(response){
+        var res = JSON.parse(response);
+        var title = response["title"];
+        setJsonView(response["scene"]);
     }
 
     function fillDiv(query_url,input_data,div_id,nprogress)
