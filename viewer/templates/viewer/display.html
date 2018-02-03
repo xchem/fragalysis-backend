@@ -37,7 +37,7 @@ $.ajaxSetup({
         // Get component (path) -> representation (parameters)
         var out_data = new Array()
         stage.eachComponent(function (component) {
-            var component_data = {"file_path": component.structure.path,
+                var component_data = {"file_path": component.structure.path,
             "repr": new Array(),
             };
             component.eachRepresentation(function (repr) {
@@ -97,11 +97,10 @@ $.ajaxSetup({
         }).fail(function() { alert( "error" ); });
     }
 
-    function get_view(uuid){
+    function get_view(pk){
         $.ajax({
           type: "POST",
-          url: "/viewer/get_view/",
-          data: {"uuid": uuid},
+          url: "/viewer/get_view/"+pk.toString()+"/",
           success: function(response){display_view(response)}
         }).fail(function() { alert( "error" ); });
     }
@@ -160,6 +159,11 @@ $.ajaxSetup({
         window.addEventListener("resize", function (event) {
             stage.handleResize();
         }, false);
+        // scene_id
+        var scene_id = {{ scene_id | escapejs }};
+        if (scene_id>-1){
+            get_view(scene_id);
+        }
     })
 
 </script>
@@ -183,9 +187,7 @@ $.ajaxSetup({
         <div id="viewport" style="height: 500px;"></div>
         <button type="button" class="btn btn-info" onclick="post_view('test')">Save View</button>
         <div id="result">
-            <!-- Target -->
             <input id="clip_target" value="">
-            <!-- Trigger -->
             <button class="btn" data-clipboard-target="#clip_target">
                 <img src="{% static 'viewer/clippy.svg' %}" width="13" alt="Copy to clipboard">
             </button>

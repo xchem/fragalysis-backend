@@ -7,9 +7,20 @@ import json
 
 def display(request):
     # Define the proteins, targets and molecules to be displayed / have options for displaying
-    target_title = request.GET["target_title"]
-    mols = Molecule.objects.filter(prot_id__target_id__title=target_title)
-    return render(request, 'viewer/display.html', {"mols":mols})
+    scene_id = -1
+    if "target_title" in request.GET:
+        target_title = request.GET["target_title"]
+        mols = Molecule.objects.filter(prot_id__target_id__title=target_title)
+    elif "scene_id" in request.GET:
+        scene_id = int(request.GET["scene_id"])
+        vs = ViewScene.objects.get(pk=scene_id)
+        load_paths = json.loads(vs.scene)['components'][0]['file_path']
+        mol_pks = []
+        for path in load_paths:
+            if path.contains("/viewer/mol_from_pk/"):
+                mol_pks.append(int(path.split("/viewer/mol_from_pk/")[-1]))
+        mols = Molecule.objects.filter(id__in=mol_pks)
+    return render(request, 'viewer/display.html', {"mols": mols, "scene_id": scene_id})
 
 def mol_view(request):
     if "smiles" in request.GET:
@@ -47,14 +58,13 @@ def post_view(request):
     new_view.save()
     return HttpResponse(new_view.uuid)
 
-def get_view(request):
+def get_view(request, pk):
     """
     Now Get the view for a given UUID
     :param request:
     :return:
     """
-    uuid = request.POST["uuid"]
-    this_view = ViewScene.objects.get(uuid=uuid)
+    this_view = ViewScene.objects.get(pk=pk)
     return HttpResponse(json.dumps({"title": this_view.title,
                          "scene": this_view.scene}))
 
