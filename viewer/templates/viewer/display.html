@@ -69,11 +69,11 @@ $.ajaxSetup({
             }
             var this_repr = propt["repr"];
             stage.loadFile(propt["file_path"],{ ext: ext})
-                    .then( function( comp, name, data ){
-                        for (j=0; j<this_repr.length; ++j) {
-                            comp.addRepresentation(name, data);
+                    .then( function( comp, my_data ){
+                        for (j=0; j<my_data.length; ++j) {
+                            comp.addRepresentation(my_data[j]["name"],my_data[j]["data"]);
                         }
-                    }.bind(this_repr[j]["name"], this_repr[j]["data"])   );
+                    }.bind(this_repr));
         }
         // Set the orientation
         var curr_orient = stage.viewerControls.getOrientation();
