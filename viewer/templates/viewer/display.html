@@ -56,7 +56,7 @@ $.ajaxSetup({
         var obj = tot_obj["components"];
         var ori = tot_obj["orientation"];
         // Loop through dict
-        for (index = 0; index < obj.length; ++index)
+        for (var index = 0; index < obj.length; ++index)
         {
         // Generate the ey value pairs
             var propt = obj[index];
@@ -69,11 +69,11 @@ $.ajaxSetup({
             }
             var this_repr = propt["repr"];
             stage.loadFile(propt["file_path"],{ ext: ext})
-                    .then( function( comp ){
+                    .then( function( comp, name, data ){
                         for (j=0; j<this_repr.length; ++j) {
-                            comp.addRepresentation(this_repr[j]["name"], this_repr[j]["data"]);
+                            comp.addRepresentation(name, data);
                         }
-                    } );
+                    }.bind(this_repr[j]["name"], this_repr[j]["data"])   );
         }
         // Set the orientation
         var curr_orient = stage.viewerControls.getOrientation();
