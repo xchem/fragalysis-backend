@@ -147,7 +147,7 @@ $.ajaxSetup({
             var cs = NGL.concatStructures(
                     "concat",
                     ol[0].structure.getView(new NGL.Selection("not ligand")),
-                    ol[1].structure.getView(new NGL.Selection(""))
+                    ol[1].structure.getView(new NGL.Selection("ligand"))
             )
             var comp = stage.addComponentFromObject(cs)
             comp.addRepresentation("cartoon")
