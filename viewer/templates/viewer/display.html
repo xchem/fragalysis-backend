@@ -136,7 +136,7 @@ $.ajaxSetup({
             fillDiv("/viewer/img_from_pk", {"pk": mol_pk_array[j]}, "molecule_"+mol_pk_array[j].toString(), false)
         }
     }
-
+    var glob_comp;
     function load_mol(mol_pk,prot_pk) {
 
         Promise.all([
@@ -154,16 +154,17 @@ $.ajaxSetup({
                 masterModelIndex: 0,
                 weakHydrogenBond: true,
                 maxHbondDonPlaneAngle: 35,
-                sele: "/0 or /2"
+                sele: "/0 or /1"
             })
             comp.addRepresentation("licorice", {
-                sele: "ligand and /2",
+                sele: "ligand and /1",
                 multipleBond: "offset"
             })
             comp.addRepresentation("line", {
                 sele: "/0"
             })
             comp.autoView("ligand")
+            glob_comp = comp;
             stage.setFocus(95)
         })
 
