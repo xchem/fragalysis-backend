@@ -74,8 +74,8 @@ $.ajaxSetup({
                 file_path_2 = f_p.split(":::")[1]
                 var this_repr = propt["repr"];
                 Promise.all([
-                    stage.loadFile("data://2vts-protein.pdb"),
-                    stage.loadFile("data://2vts-docking.sdf")
+                    stage.loadFile(file_path_1),
+                    stage.loadFile(file_path_2)
                 ]).then(
                         function (ol) {
                             var cs = NGL.concatStructures("concat",
