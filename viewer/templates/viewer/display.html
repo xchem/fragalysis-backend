@@ -138,19 +138,38 @@ $.ajaxSetup({
         }
     }
 
-    function load_mol(mol_pk) {
-        stage.loadFile("/viewer/mol_from_pk/"+mol_pk.toString(),  {ext: "sdf" }).then(function (o) {
-            o.addRepresentation("ball+stick", { })
-            o.autoView()
-})
+    function load_mol(mol_pk,prot_pk) {
+
+        Promise.all([
+            stage.loadFile("/viewer/prot_from_pk/" + prot_pk.toString(), {ext: "pdb"}),
+            stage.loadFile("/viewer/mol_from_pk/" + mol_pk.toString(), {ext: "sdf"})
+        ]).then(function (ol) {
+            var cs = NGL.concatStructures(
+                    "concat",
+                    ol[0].structure.getView(new NGL.Selection("not ligand")),
+                    ol[1].structure.getView(new NGL.Selection(""))
+            )
+            var comp = stage.addComponentFromObject(cs)
+            comp.addRepresentation("cartoon")
+            comp.addRepresentation("contact", {
+                masterModelIndex: 0,
+                weakHydrogenBond: true,
+                maxHbondDonPlaneAngle: 35,
+                sele: "/0 or /2"
+            })
+            comp.addRepresentation("licorice", {
+                sele: "ligand and /2",
+                multipleBond: "offset"
+            })
+            comp.addRepresentation("line", {
+                sele: "/0"
+            })
+            comp.autoView("ligand")
+            stage.setFocus(95)
+        })
+
     }
 
-    function load_prot(prot_pk) {
-        stage.loadFile("/viewer/prot_from_pk/" + prot_pk.toString(), {ext: "pdb"}).then(function (o) {
-            o.addRepresentation("cartoon", {})
-            o.autoView()
-        })
-    }
 
     $('document').ready( function() {
         fill_imgs();
@@ -177,8 +196,7 @@ $.ajaxSetup({
         <div class="col-xs-6 col-md-4" style="height: 600px; overflow: scroll">
             {% for mol in mols %}
                 <div class="col-xs-6" >
-                     <div id="molecule_{{ mol.pk }}" onclick="load_mol({{ mol.pk }})"
-                          ondblclick="load_prot({{ mol.prot_id_id }})">
+                     <div id="molecule_{{ mol.pk }}" onclick="load_mol({{ mol.pk }},{{ mol.prot_id_id }})">
                          { mol.smiles }}
                      </div>
                 </div>

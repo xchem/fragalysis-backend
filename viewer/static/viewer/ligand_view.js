@@ -621,3 +621,4 @@ addElement(piStackingCheckbox)
 addElement(createElement('span', {
   innerText: 'pi-stacking'
 }, { top: getTopPosition(), left: '32px', color: 'grey' }))
+
