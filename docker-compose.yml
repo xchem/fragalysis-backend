@@ -12,7 +12,6 @@ services:
       update_config:
         parallelism: 2
         delay: 10s
-        order: stop-first
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -49,7 +48,6 @@ services:
       update_config:
         parallelism: 1
         delay: 10s
-        order: stop-first
       restart_policy:
         condition: on-failure
         delay: 5s
