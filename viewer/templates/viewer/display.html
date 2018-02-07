@@ -69,6 +69,7 @@ $.ajaxSetup({
 
             if (propt["file_path"].includes(":::"))
             {
+                var f_p = propt["file_path"];
                 file_path_1 = f_p.split(":::")[0]
                 file_path_2 = f_p.split(":::")[1]
                 var this_repr = propt["repr"];
