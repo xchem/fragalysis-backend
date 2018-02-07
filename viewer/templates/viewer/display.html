@@ -74,8 +74,8 @@ $.ajaxSetup({
                 file_path_2 = f_p.split(":::")[1]
                 var this_repr = propt["repr"];
                 Promise.all([
-                    stage.loadFile(file_path_1),
-                    stage.loadFile(file_path_2)
+                    stage.loadFile(file_path_1,{ext: "pdb"}),
+                    stage.loadFile(file_path_2,{ext: "sdf"})
                 ]).then(
                         function (ol) {
                             var cs = NGL.concatStructures("concat",
