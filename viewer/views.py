@@ -43,9 +43,11 @@ def img_from_pk(request):
     else:
         return HttpResponse("Please insert PK")
 
-def mol_from_pk(request,pk):
-    sdf_info = Molecule.objects.get(pk=pk).sdf_info
-    return  HttpResponse(sdf_info)
+def mol_from_pk(request, pk):
+    from rdkit import Chem
+    mol = Chem.MolFromMolBlock(Molecule.objects.get(pk=pk).sdf_info)
+    mol.SetProp("_Name","ligand")
+    return  HttpResponse(Chem.MolToMolBlock(mol))
 
 def prot_from_pk(request,pk):
     pdb_info = open(Protein.objects.get(pk=pk).pdb_info.path).read()

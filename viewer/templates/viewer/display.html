@@ -1,7 +1,6 @@
 {% load static %}
 <script type="text/javascript" src='{% static 'nprogress/nprogress.js' %}'></script>
 <script type="text/javascript" src='{% static 'ngl/dist/ngl.js' %}'></script>
-<script type="text/javascript" src='{% static 'viewer/ligand_view.js' %}'></script>
 {# Load the tag library #}
 {% load bootstrap3 %}
 
@@ -147,7 +146,7 @@ $.ajaxSetup({
             var cs = NGL.concatStructures(
                     "concat",
                     ol[0].structure.getView(new NGL.Selection("not ligand")),
-                    ol[1].structure.getView(new NGL.Selection("ligand"))
+                    ol[1].structure.getView(new NGL.Selection(""))
             )
             var comp = stage.addComponentFromObject(cs)
             comp.addRepresentation("cartoon")
