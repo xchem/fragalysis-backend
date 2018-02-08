@@ -270,15 +270,27 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
           success: function(response) {
 
               glob_data = JSON.parse(response);
-
-              NProgress.done();
+              // TODO number_objects -> Cumulative score. Not just once.
+              var new_data = {}
               for(var key in glob_data) {
-                  var number_objects = glob_data[key].length
+                  var number_objects_this = glob_data[key].length
                   var smiles = key.split("_")[0]
                   var comp_type = key.split("_")[2]
+                  if (smiles in new_data) {
+                      new_data[smiles]["num_objects"] += number_objects_this;
+                  }
+                  else {
+                      new_data[smiles] = {
+                          "num_objects": number_objects_this,
+                          "comp_typye": comp_type
+                      }
+                  }
+              }
+              for (var smiles in new_data){
+
                   // Get the components
                   var components = stage.getComponentsByName(smiles).list
-
+                  var number_objects = new_data[smiles]["num_objects"]
                   for (var index in components) {
                       var comp = components[index];
                       if (comp_type=="LINKER"){
@@ -298,6 +310,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
 
                   }
               }
+              NProgress.done();
 
           }
 
