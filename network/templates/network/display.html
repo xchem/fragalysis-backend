@@ -156,18 +156,7 @@
                            var depth = this.getAttribute("depth");
                            var sub_mol = this.getAttribute("sub-mol");
                            var smiles_list = tot_data[depth][data_category][sub_mol]["smiles"];
-                           var counter = 0;
-                           var data_div = $(document.getElementById("cmpd_grid"));
-                           $("div.newcomp").remove();
-                           for (var index in smiles_list){
-                               var compoundDiv = document.createElement("div")
-                               var div_id = "smiles_"+counter;
-                               counter+=1;
-                               compoundDiv.id = div_id;
-                               compoundDiv.setAttribute('class','newcomp');
-                               data_div.append(compoundDiv);
-                               fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
-                           }
+                            fill_data_div(smiles_list,"cmpd_grid");
 
                        });
 
@@ -183,6 +172,22 @@
                    });
 
        }
+        function fill_data_div(smiles_list,data_div_id){
+
+            var counter = 0;
+            var data_div = $(document.getElementById(data_div_id));
+            $("div.newcomp").remove();
+            for (var index in smiles_list){
+                var compoundDiv = document.createElement("div")
+                var div_id = "smiles_"+counter;
+                counter+=1;
+                compoundDiv.id = div_id;
+                compoundDiv.setAttribute('class','newcomp');
+                data_div.append(compoundDiv);
+                fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
+            }
+
+        }
 
     function makeQuery(url) {
         var smiles = document.getElementById("smiles").value;

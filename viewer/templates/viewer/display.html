@@ -178,6 +178,23 @@ var focus_var = 95;
     }
 
 
+function fill_data_div(smiles_list,data_div_id){
+
+            var counter = 0;
+            var data_div = $(document.getElementById(data_div_id));
+            $("div.newcomp").remove();
+            for (var index in smiles_list){
+                var compoundDiv = document.createElement("div")
+                var div_id = "smiles_"+counter;
+                counter+=1;
+                compoundDiv.id = div_id;
+                compoundDiv.setAttribute('class','newcomp');
+                data_div.append(compoundDiv);
+                fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
+            }
+
+        }
+
     function showPick (stage, pickingProxy) {
     if (pickingProxy) {
         if (pickingProxy.object.name) {
@@ -186,7 +203,10 @@ var focus_var = 95;
                 // Now show the mols for this one
                 for (var key in glob_data){
                     if(key.startsWith(smiles_str)){
-                      alert(glob_data[key].length)
+                        var mols = glob_data[key];
+                        var type = key.split("_")[2];
+                        fill_data_div(mols,type);
+
                     }
                 }
 
@@ -358,6 +378,12 @@ var focus_var = 95;
                     <img src="{% static 'viewer/clippy.svg' %}" width="13" alt="Copy to clipboard">
                 </button>
             </div>
+        </div>
+        <div class="row">
+            <div id="REPLACE" style=""class="col-lg-3"></div>
+            <div id="LINKER" style=""class="col-lg-3"></div>
+            <div id="ADDITION" style=""class="col-lg-3"></div>
+            <div id="DELETION" style=""class="col-lg-3"></div>
         </div>
     </div>
 </div>
