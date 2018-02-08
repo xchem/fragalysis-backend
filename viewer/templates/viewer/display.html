@@ -188,7 +188,7 @@ function fill_data_div(smiles_list,data_div_id){
                 var div_id = "smiles_"+counter;
                 counter+=1;
                 compoundDiv.id = div_id;
-                compoundDiv.setAttribute('class','newcomp');
+                compoundDiv.setAttribute('class','newcomp col-sm-3');
                 data_div.append(compoundDiv);
                 fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
             }
