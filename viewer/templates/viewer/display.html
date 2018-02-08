@@ -59,15 +59,18 @@ var focus_var = 95;
         var out_data = new Array()
         stage.eachComponent(function (component) {
                 // TODO Sort this out for objects
-                var component_data = {"file_path": component.structure.path,
-            "repr": new Array(),
-            };
-            component.eachRepresentation(function (repr) {
-                var my_params = {"data": repr.getParameters()};
-                my_params["name"] = repr.name;
-               component_data["repr"].push(my_params);
-            })
-            out_data.push(component_data)
+                if(component.structure) {
+                    var component_data = {
+                        "file_path": component.structure.path,
+                        "repr": new Array(),
+                    };
+                    component.eachRepresentation(function (repr) {
+                        var my_params = {"data": repr.getParameters()};
+                        my_params["name"] = repr.name;
+                        component_data["repr"].push(my_params);
+                    })
+                    out_data.push(component_data)
+                }
         });
         return JSON.stringify({"components": out_data,
             "orientation": stage.viewerControls.getOrientation()})
@@ -198,12 +201,6 @@ var focus_var = 95;
         shapeComp.addRepresentation( "buffer" );
     }
 
-function guidGenerator() {
-    var S4 = function() {
-       return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
-    };
-    return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
-}
 
 function fill_data_div(smiles_list,data_div_id,comp_type){
 
