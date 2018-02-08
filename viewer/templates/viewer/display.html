@@ -206,7 +206,6 @@ function fill_data_div(smiles_list,data_div_id){
                         var mols = glob_data[key];
                         var type = key.split("_")[2];
                         fill_data_div(mols,type);
-
                     }
                 }
 
@@ -381,8 +380,14 @@ function fill_data_div(smiles_list,data_div_id){
         </div>
         <div class="row">
             <div id="REPLACE" style=""class="col-lg-3"></div>
+        </div>
+        <div class="row">
             <div id="LINKER" style=""class="col-lg-3"></div>
+        </div>
+        <div class="row">
             <div id="ADDITION" style=""class="col-lg-3"></div>
+        </div>
+        <div class="row">
             <div id="DELETION" style=""class="col-lg-3"></div>
         </div>
     </div>
