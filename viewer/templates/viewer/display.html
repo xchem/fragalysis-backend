@@ -291,6 +291,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                   // Get the components
                   var components = stage.getComponentsByName(smiles).list
                   var number_objects = new_data[smiles]["num_objects"]
+                  var comp_type = new_data[smiles]["comp_type"]
                   for (var index in components) {
                       var comp = components[index];
                       if (comp_type=="LINKER"){
