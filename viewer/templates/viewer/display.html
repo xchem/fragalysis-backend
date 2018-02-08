@@ -16,6 +16,27 @@
 var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
 </script>
 
+<style>
+
+
+    .compound {
+
+}
+    .compound.linker {
+    border: 5px solid #bfbed8;
+}
+    .compound.addition {
+    border: 5px solid #e0ffdc;
+}
+    .compound.deletion {
+    border: 5px solid #e2a8a8;
+}
+    .compound.replace {
+    border: 5px solid #3809f3;
+}
+
+</style>
+
 <script>
 
 new Clipboard('.btn');
@@ -178,7 +199,7 @@ var focus_var = 95;
     }
 
 
-function fill_data_div(smiles_list,data_div_id){
+function fill_data_div(smiles_list,data_div_id,comp_type){
 
             var counter = 0;
             var data_div = $(document.getElementById(data_div_id));
@@ -188,7 +209,7 @@ function fill_data_div(smiles_list,data_div_id){
                 var div_id = "smiles_"+counter;
                 counter+=1;
                 compoundDiv.id = div_id;
-                compoundDiv.setAttribute('class','newcomp col-sm-3');
+                compoundDiv.setAttribute('class','newcomp col-sm-3 compound '+comp_type);
                 data_div.append(compoundDiv);
                 fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
             }
@@ -206,7 +227,7 @@ function fill_data_div(smiles_list,data_div_id){
                     if(key.startsWith(smiles_str)){
                         var mols = glob_data[key];
                         var type = key.split("_")[2];
-                        fill_data_div(mols,"compounds");
+                        fill_data_div(mols,"compounds",type);
                     }
                 }
 
