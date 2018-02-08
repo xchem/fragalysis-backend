@@ -5,3 +5,4 @@ if __name__ == "__main__":
     django.setup()
     from viewer.loaders import load_from_dir
     load_from_dir("DCP2B","/code/media/DCP2B")
+    load_from_dir("MURD", "/code/media/MURD")
