@@ -162,6 +162,46 @@ var focus_var = 95;
             fillDiv("/viewer/img_from_pk", {"pk": mol_pk_array[j]}, "molecule_"+mol_pk_array[j].toString(), false)
         }
     }
+
+    function display_arrow(start,end,colour,key){
+        var shape = new NGL.Shape( key );
+        shape.addArrow( start, end, colour, 0.5 );
+        var shapeComp = stage.addComponentFromObject( shape );
+        shapeComp.addRepresentation( "buffer" );
+    }
+    function display_cylinder(start,end,colour,key){
+        var shape = new NGL.Shape( key );
+        shape.addCylinder( start, end, colour, 0.8);
+        var shapeComp = stage.addComponentFromObject( shape );
+        shapeComp.addRepresentation( "buffer" );
+    }
+    function load_vector(pk) {
+
+                $.ajax({
+          type: "POST",
+          url: "/viewer/get_vects_from_pk/"+pk.toString()+"/",
+          success: function(response){
+
+              var out_data = JSON.parse(response);
+              var deletions = out_data["deletions"]
+              for(var key in deletions) {
+                  var colour = [1,0,0]
+                  display_arrow(deletions[key][0],deletions[key][1],colour,key)
+              }
+              var additions = out_data["additions"]
+              for(var key in additions) {
+                  var colour = [0,1,0]
+                  display_arrow(additions[key][0],additions[key][1],colour,key)
+              }
+              var linker = out_data["linkers"]
+              for(var key in linker) {
+                  var colour = [0,0,1]
+                  display_cylinder(linker[key][0],linker[key][3],colour,key)
+              }
+
+          }
+        }).fail(function() { alert( "error" ); });
+    }
     var glob_comp;
     function load_mol(mol_pk,prot_pk) {
 
