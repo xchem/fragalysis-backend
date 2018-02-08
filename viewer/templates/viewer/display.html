@@ -314,6 +314,7 @@ var focus_var = 95;
         window.addEventListener("resize", function (event) {
             stage.handleResize();
         }, false);
+        
         // scene_id
         var scene_id = {{ scene_id | escapejs }};
         if (scene_id>0){
