@@ -4,7 +4,7 @@ from django.shortcuts import render
 from .models import ViewScene,Molecule,Protein
 from uuid import uuid4
 import json
-
+from frag.network.decorate import get_3d_vects_for_mol
 
 def get_mols_from_scene(scene):
     comps = json.loads(scene)['components']
@@ -76,6 +76,9 @@ def get_view(request, pk):
     return HttpResponse(json.dumps({"title": this_view.title,
                          "scene": this_view.scene}))
 
+def get_vects_from_pk(request, pk):
+    out_data = get_3d_vects_for_mol(str(Molecule.objects.get(pk=pk).sdf_info))
+    return HttpResponse(json.dumps(out_data))
 
 # POST AND GETS FOR ALL THE OTHER FILE TYPES.
 
