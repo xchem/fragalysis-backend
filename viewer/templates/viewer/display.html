@@ -180,6 +180,7 @@ var focus_var = 95;
 
     function  get_colour(number_objects){
 
+        var colour;
         if(number_objects>10){
             return [0,1,0]
         }
@@ -205,21 +206,20 @@ var focus_var = 95;
                   var comp_type = key.split("_")[2]
                   // Get the components
                   var components = stage.getComponentsByName(smiles).list
-                  var pos_1;
-                  var pos_2;
+
                   for (var index in components) {
                       var comp = components[index];
                       if (comp_type=="LINKER"){
                           // Now get the params needed and update them
-                          pos_1 = comp.object._primitiveData["cylinderPosition2"];
-                          pos_2 = comp.object._primitiveData["cylinderPosition1"];
+                          var pos_2 = comp.object._primitiveData["cylinderPosition2"].slice();
+                          var pos_1 = comp.object._primitiveData["cylinderPosition1"].slice();
                           stage.removeComponent(comp);
                           display_cylinder(pos_1, pos_2, get_colour(number_objects), smiles);
                       }
                       else {
                           // Now get the params needed and update them
-                          pos_1 = comp.object._primitiveData["arrowPosition2"];
-                          pos_2 = comp.object._primitiveData["arrowPosition1"];
+                          var pos_2 = comp.object._primitiveData["arrowPosition2"].slice();
+                          var pos_1 = comp.object._primitiveData["arrowPosition1"].slice();
                           stage.removeComponent(comp);
                           display_arrow(pos_1, pos_2, get_colour(number_objects), smiles);
                       }
@@ -236,28 +236,22 @@ var focus_var = 95;
           type: "POST",
           url: "/viewer/get_vects_from_pk/"+pk.toString()+"/",
           success: function(response){
-
+              var colour = [1,0,0]
               var out_data = JSON.parse(response);
               var deletions = out_data["deletions"]
               for(var key in deletions) {
-                  var colour = [1,0,0]
+
                   display_arrow(deletions[key][0],deletions[key][1],colour,key)
               }
               var additions = out_data["additions"]
               for(var key in additions) {
-                  var colour = [0,1,0]
                   display_arrow(additions[key][0],additions[key][1],colour,key)
               }
               var linker = out_data["linkers"]
               for(var key in linker) {
-                  var colour = [0,0,1]
                   display_cylinder(linker[key][0],linker[key][3],colour,key)
               }
-              var rings = out_data["ring"]
-              for (var key in rings) {
-                  var colour = [0,0]
 
-              }
 
 
           }
