@@ -390,7 +390,8 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
         <div class="col-xs-6 col-md-4" style="height: 600px; overflow: scroll">
             {% for mol in mols %}
                 <div class="col-xs-6" >
-                     <div id="molecule_{{ mol.pk }}" onclick="load_mol({{ mol.pk }},{{ mol.prot_id_id }})">
+                     <div id="molecule_{{ mol.pk }}" oncontextmenu="load_vector({{ mol.pk }})"
+                          onclick="load_mol({{ mol.pk }},{{ mol.prot_id_id }})">
                          { mol.smiles }}
                      </div>
                 </div>
