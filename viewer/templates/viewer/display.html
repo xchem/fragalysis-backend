@@ -209,7 +209,7 @@ function guidGenerator() {
 
 
 function fill_data_div(smiles_list,data_div_id,comp_type){
-
+            var max_mols = 50;
             var counter = 0;
             var data_div = $(document.getElementById(data_div_id));
 
@@ -221,6 +221,9 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                 compoundDiv.setAttribute('class','newcomp col-sm-3 compound '+comp_type);
                 data_div.append(compoundDiv);
                 fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
+                if(index>max_mols){
+                    break;
+                }
             }
 
         }
