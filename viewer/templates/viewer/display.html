@@ -198,6 +198,12 @@ var focus_var = 95;
         shapeComp.addRepresentation( "buffer" );
     }
 
+function guidGenerator() {
+    var S4 = function() {
+       return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+    };
+    return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
+}
 
 function fill_data_div(smiles_list,data_div_id,comp_type){
 
@@ -206,7 +212,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
 
             for (var index in smiles_list){
                 var compoundDiv = document.createElement("div")
-                var div_id = "smiles_"+counter;
+                var div_id = guidGenerator();
                 counter+=1;
                 compoundDiv.id = div_id;
                 compoundDiv.setAttribute('class','newcomp col-sm-3 compound '+comp_type);
