@@ -181,10 +181,15 @@ var focus_var = 95;
     function showPick (stage, pickingProxy) {
     if (pickingProxy) {
         if (pickingProxy.object.name) {
-            if (pickingProxy.object.name.startsWith("arrow") == true) {
-
+            if (pickingProxy.object.name.startsWith("arrow") == true || pickingProxy.object.name.startsWith("cylinder") == true) {
                 var smiles_str = pickingProxy.object.name.split(" ")[2].slice(1).slice(0, -1);
-                alert(smiles_str);
+                // Now show the mols for this one
+                for (var key in glob_data){
+                    if(key.startsWith(smiles_str)){
+                      alert(glob_data[key].length)
+                    }
+                }
+
             }
         }
     }
@@ -203,6 +208,7 @@ var focus_var = 95;
         return [1,0,0]
 
     }
+    var glob_data;
     function load_vector(pk) {
         NProgress.start();
          $.ajax({
@@ -210,7 +216,7 @@ var focus_var = 95;
           url: "/viewer/get_graph_from_pk/"+pk.toString()+"/",
           success: function(response) {
 
-              var glob_data = JSON.parse(response);
+              glob_data = JSON.parse(response);
 
               NProgress.done();
               for(var key in glob_data) {
@@ -316,7 +322,7 @@ var focus_var = 95;
         window.addEventListener("resize", function (event) {
             stage.handleResize();
         }, false);
-
+        stage.mouseControls.add("clickPick-left",showPick);
         // scene_id
         var scene_id = {{ scene_id | escapejs }};
         if (scene_id>0){
