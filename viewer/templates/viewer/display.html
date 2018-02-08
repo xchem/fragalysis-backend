@@ -175,9 +175,22 @@ var focus_var = 95;
         var shapeComp = stage.addComponentFromObject( shape );
         shapeComp.addRepresentation( "buffer" );
     }
+    var glob_data
     function load_vector(pk) {
 
-                $.ajax({
+
+         $.ajax({
+          type: "POST",
+          url: "/viewer/get_graph_from_pk/"+pk.toString()+"/",
+          success: function(response) {
+
+              glob_data = JSON.parse(response);
+          }
+
+         })
+
+
+        $.ajax({
           type: "POST",
           url: "/viewer/get_vects_from_pk/"+pk.toString()+"/",
           success: function(response){
@@ -208,6 +221,8 @@ var focus_var = 95;
           }
         }).fail(function() { alert( "error" ); });
     }
+
+
     var glob_comp;
     function load_mol(mol_pk,prot_pk) {
 

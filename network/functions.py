@@ -102,7 +102,7 @@ def order_stuctures(results,decoration_list):
     return json.dumps(out_d)
 
 
-def get_results(smiles):
+def get_results(smiles,limit=100):
     conn = get_conn()
     curs = conn.cursor()
     curs.execute('select * from get_mfp2_neighbors(%s) limit ' + str(limit),

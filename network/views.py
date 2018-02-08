@@ -52,7 +52,7 @@ def query_db(request):
     else:
         limit = 100
     if "smiles" in request.GET:
-        results = get_results(request.GET["smiles"])
+        results = get_results(request.GET["smiles"],limit)
         ret_func = ret_type['json']
         if 'return' in request.GET:
             if request.GET['return'] in ret_type:
