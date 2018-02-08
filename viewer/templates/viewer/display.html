@@ -182,7 +182,7 @@ function fill_data_div(smiles_list,data_div_id){
 
             var counter = 0;
             var data_div = $(document.getElementById(data_div_id));
-            $("div.newcomp").remove();
+
             for (var index in smiles_list){
                 var compoundDiv = document.createElement("div")
                 var div_id = "smiles_"+counter;
@@ -201,11 +201,12 @@ function fill_data_div(smiles_list,data_div_id){
             if (pickingProxy.object.name.startsWith("arrow") == true || pickingProxy.object.name.startsWith("cylinder") == true) {
                 var smiles_str = pickingProxy.object.name.split(" ")[2].slice(1).slice(0, -1);
                 // Now show the mols for this one
+                 $("div.newcomp").remove();
                 for (var key in glob_data){
                     if(key.startsWith(smiles_str)){
                         var mols = glob_data[key];
                         var type = key.split("_")[2];
-                        fill_data_div(mols,type);
+                        fill_data_div(mols,"compounds");
                     }
                 }
 
@@ -379,17 +380,9 @@ function fill_data_div(smiles_list,data_div_id){
             </div>
         </div>
         <div class="row">
-            <div id="REPLACE" style=""></div>
+            <div id="compounds" style="overflow: scroll"></div>
         </div>
-        <div class="row">
-            <div id="LINKER" style=""></div>
-        </div>
-        <div class="row">
-            <div id="ADDITION" style=""></div>
-        </div>
-        <div class="row">
-            <div id="DELETION" style=""></div>
-        </div>
+
     </div>
 </div>
 
