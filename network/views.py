@@ -3,7 +3,7 @@ import json
 from frag.network.query import get_picks,get_full_graph
 from frag.network.decorate import get_add_del_link
 from django.shortcuts import render
-from network.functions import get_conn,ret_png,ret_svg,ret_graph_svg,order_stuctures
+from network.functions import get_results,ret_png,ret_svg,ret_graph_svg,order_stuctures
 
 
 ret_type = {u'json': json.dumps, u'png': ret_png, u'svg': ret_svg}
@@ -52,11 +52,7 @@ def query_db(request):
     else:
         limit = 100
     if "smiles" in request.GET:
-        conn = get_conn()
-        curs = conn.cursor()
-        curs.execute('select * from get_mfp2_neighbors(%s) limit '+str(limit),
-                     (request.GET['smiles'],))
-        results = curs.fetchall()
+        results = get_results(request.GET["smiles"])
         ret_func = ret_type['json']
         if 'return' in request.GET:
             if request.GET['return'] in ret_type:

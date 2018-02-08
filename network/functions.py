@@ -100,3 +100,12 @@ def order_stuctures(results,decoration_list):
     out_d=add_empty(out_d, tot_position, decoration_list[1], depth, "DELETION","DEL_MISS")
     out_d=add_empty(out_d, tot_position, decoration_list[2], depth, "LINKER","LINK_MISS")
     return json.dumps(out_d)
+
+
+def get_results(smiles):
+    conn = get_conn()
+    curs = conn.cursor()
+    curs.execute('select * from get_mfp2_neighbors(%s) limit ' + str(limit),
+                 (smiles,))
+    results = curs.fetchall()
+    return results

@@ -5,6 +5,7 @@ from .models import ViewScene,Molecule,Protein
 from uuid import uuid4
 import json
 from frag.network.decorate import get_3d_vects_for_mol
+from network.functions import get_results
 
 def get_mols_from_scene(scene):
     comps = json.loads(scene)['components']
@@ -77,7 +78,12 @@ def get_view(request, pk):
                          "scene": this_view.scene}))
 
 def get_vects_from_pk(request, pk):
-    out_data = get_3d_vects_for_mol(str(Molecule.objects.get(pk=pk).sdf_info))
+    from rdkit import Chem
+    sdf_info = str(Molecule.objects.get(pk=pk).sdf_info)
+    out_data = get_3d_vects_for_mol(sdf_info)
+    smiles = Chem.MolToSmiles(Chem.MolFromMolBlock(sdf_info),isomericSmiles=True)
+    # Annotate vects
+    results = get_results(smiles)
     return HttpResponse(json.dumps(out_data))
 
 # POST AND GETS FOR ALL THE OTHER FILE TYPES.
