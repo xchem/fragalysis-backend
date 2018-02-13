@@ -53,6 +53,8 @@ $.ajaxSetup({
     }
 });
 
+var token = "{{ token }}";
+
 var focus_var = 95;
     function getJsonView() {
         // Get component (path) -> representation (parameters)
@@ -147,7 +149,6 @@ var focus_var = 95;
           }
         }).fail(function() { alert( "error" ); });
     }
-
 
 
     function fill_table(mol_list,table_name) {

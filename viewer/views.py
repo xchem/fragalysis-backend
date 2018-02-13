@@ -1,4 +1,4 @@
-from django.http import HttpResponse,HttpRequest
+from django.http import HttpResponse
 from network.functions import draw_mol
 from viewer.functions import generate_data_for_smis
 from django.shortcuts import render
@@ -7,6 +7,7 @@ from uuid import uuid4
 import json
 from frag.network.decorate import get_3d_vects_for_mol
 from frag.network.query import get_full_graph
+from fragalysis.utils import get_token
 
 def get_mols_from_scene(scene):
     comps = json.loads(scene)['components']
@@ -16,7 +17,6 @@ def get_mols_from_scene(scene):
         if "/viewer/mol_from_pk/" in path:
             mol_pks.append(int(path.split("/viewer/mol_from_pk/")[-1]))
     return mol_pks
-
 
 def display(request):
     # Define the proteins, targets and molecules to be displayed / have options for displaying
@@ -29,7 +29,8 @@ def display(request):
         vs = ViewScene.objects.get(pk=scene_id)
         mol_pks = get_mols_from_scene(vs.scene)
         mols = Molecule.objects.filter(id__in=mol_pks)
-    return render(request, 'viewer/display.html', {"mols": mols, "scene_id": scene_id})
+    token = get_token(request)
+    return render(request, 'viewer/display.html', {"token": token.key, "mols": mols, "scene_id": scene_id})
 
 def mol_view(request):
     if "smiles" in request.GET:
