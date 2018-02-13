@@ -49,17 +49,6 @@ services:
         delay: 5s
         max_attempts: 3
         window: 120s
-  jupyter:
-    image: abradle/rdjupyter
-    user: root
-    ports:
-      - "8888:8888"
-    volumes:
-      - /home/ec2-user/notebooks:/home/jovyan/
-    command: start-notebook.sh
-    environment:
-      - NB_UID=500
-      - GRANT_SUDO=yes
   web:
     build: .
     command: /bin/bash /code/docker-entrypoint.sh
