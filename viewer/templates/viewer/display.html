@@ -148,6 +148,27 @@ var focus_var = 95;
         }).fail(function() { alert( "error" ); });
     }
 
+
+
+    function fill_table(mol_list,table_name) {
+      // Call for the data
+      $.ajax({
+        type: "POST",
+        url: "/viewer/get_mols/",
+        data: {
+          "mols": mol_list
+        },
+        success: function(response) {
+          $('#table_name').DataTable({
+            data: response.data,
+            columns: response.columns
+          });
+        }
+      }).fail(function() {
+        alert("error");
+      });
+    };
+
     function get_view(pk){
         $.ajax({
           type: "POST",

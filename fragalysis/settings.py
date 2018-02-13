@@ -56,9 +56,11 @@ INSTALLED_APPS = [
     # My own apps
     'network',
     'viewer',
+    'api',
     # My utility apps
     'bootstrap3',
     'django_cas_ng',
+    'rest_framework.authtoken'
 ]
 
 MIDDLEWARE = [

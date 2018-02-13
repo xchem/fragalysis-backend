@@ -6,3 +6,5 @@ django-bootstrap3
 django-npm
 django-cas-ng
 image
+djangorestframework
+django-filter

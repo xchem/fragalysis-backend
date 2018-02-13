@@ -1,5 +1,6 @@
 from django.http import HttpResponse,HttpRequest
 from network.functions import draw_mol
+from viewer.functions import generate_data_for_smis
 from django.shortcuts import render
 from .models import ViewScene,Molecule,Protein
 from uuid import uuid4
@@ -87,3 +88,10 @@ def get_graph_from_pk(request,pk):
     out_data = get_full_graph(smiles)
     return HttpResponse(json.dumps(out_data))
 
+
+def get_mols(request):
+    mol_smiles = request.POST["mol_smiles"]
+    if "target" in request.POST:
+        target_id = request.POST["target"]
+    out_data = generate_data_for_smis(mol_smiles)
+    return HttpResponse(json.dumps(out_data))
