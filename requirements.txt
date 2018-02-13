@@ -8,3 +8,4 @@ django-cas-ng
 image
 djangorestframework
 django-filter
+django-guardian

@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'api',
     # My utility apps
     'bootstrap3',
+    'guardian',
     'django_cas_ng',
     'rest_framework.authtoken'
 ]
@@ -76,6 +77,7 @@ MIDDLEWARE = [
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
     'django_cas_ng.backends.CASBackend',
+    'guardian.backends.ObjectPermissionBackend',
 )
 
 STATICFILES_DIRS = [
