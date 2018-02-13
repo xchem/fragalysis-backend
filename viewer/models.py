@@ -8,6 +8,10 @@ class Project(models.Model):
     title = models.CharField(max_length=200,unique=True)
     # The date it was made
     init_date = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        permissions = (
+            ('view_project', 'View project'),
+        )
 
 class Target(models.Model):
     """A Django model to define a given protein target"""
@@ -19,6 +23,11 @@ class Target(models.Model):
     project_id = models.ManyToManyField(Project)
     # Indicates the uniprot_id id for the target. Is a unique key
     uniprot_id = models.CharField(max_length=100, null=True)
+
+    class Meta:
+        permissions = (
+            ('view_target', 'View target'),
+        )
 
 class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
@@ -33,6 +42,11 @@ class Protein(models.Model):
     aligned = models.NullBooleanField()
     aligned_to = models.ForeignKey('self', null=True)
     has_eds = models.NullBooleanField()
+
+    class Meta:
+        permissions = (
+            ('view_protein', 'View protein'),
+        )
 
 
 class Compound(models.Model):
@@ -55,6 +69,11 @@ class Compound(models.Model):
     num_rot_bonds = models.IntegerField()
     num_val_electrons = models.IntegerField()
     ring_count = models.IntegerField()
+
+    class Meta:
+        permissions = (
+            ('view_compound', 'View compound'),
+        )
 
 
 class Molecule(models.Model):
@@ -80,6 +99,9 @@ class Molecule(models.Model):
     # Unique constraints
     class Meta:
         unique_together = ('prot_id', 'cmpd_id', )
+        permissions = (
+                ('view_molecule', 'View molecule'),
+            )
 
 class ActivityPoint(models.Model):
     """A Django model to hold the activity information for a given compound"""
@@ -102,6 +124,9 @@ class ActivityPoint(models.Model):
 
     class Meta:
         unique_together = ('target_id', 'activity', 'cmpd_id', 'units', )
+        permissions = (
+            ('view_activitypoint', 'View activitypoint'),
+        )
 
 class ViewScene(models.Model):
     """
@@ -113,3 +138,7 @@ class ViewScene(models.Model):
     title = models.CharField(max_length=200,default="NA")
     # The JSON describing the data
     scene = models.TextField()
+
+    permissions = (
+        ('view_scene', 'View scene'),
+    )
