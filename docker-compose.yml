@@ -4,7 +4,7 @@ services:
   db:
     image: postgres
     volumes:
-     - /home/ec2-user/django_data:/var/lib/postgresql/data
+       - /home/ec2-user/django_data:/var/lib/postgresql/data
     deploy:
       replicas: 4
       update_config:

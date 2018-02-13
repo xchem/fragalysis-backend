@@ -27,7 +27,7 @@ SECRET_KEY = '8flmz)c9i!o&f1-moi5-p&9ak4r9=ck$3!0y1@%34p^(6i*^_9'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["test.diamond.ac.uk"]
 
 import requests
 ########## ALLOWED_HOSTS
