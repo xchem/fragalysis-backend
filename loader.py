@@ -4,5 +4,7 @@ if __name__ == "__main__":
     import django
     django.setup()
     from viewer.loaders import load_from_dir
-    load_from_dir("DCP2B","/code/media/DCP2B")
-    load_from_dir("MURD", "/code/media/MURD")
+    targets_to_load = ["CAMK1DA","DCLRE1AA","DCP2B","FALZA","MURD","NUDT21A","NUDT22A","NUDT7A",
+                       "PARP14A","PHIPA","SETDB1","SHMT2A"]
+    for t in targets_to_load:
+        load_from_dir(t,"/code/media/"+t)
