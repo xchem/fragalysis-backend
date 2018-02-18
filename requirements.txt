@@ -10,7 +10,6 @@ django-guardian==1.4.9
 django-npm==1.0.0
 djangorestframework==3.7.7
 enum34==1.1.6
-fragalysis==0.0.1
 gunicorn==19.7.1
 idna==2.6
 image==1.5.17
