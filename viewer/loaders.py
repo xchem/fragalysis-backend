@@ -124,7 +124,12 @@ def load_from_dir(target_name, dir_path):
     directories = os.listdir(dir_path)
     for xtal in directories:
         new_path = os.path.join(dir_path, xtal)
-        new_prot = add_prot(os.path.join(new_path,xtal+"_apo.pdb"),xtal,new_target)
-        new_mol = add_mol(os.path.join(new_path,xtal+".mol"), new_prot)
-        if not new_mol:
-            print("NONE MOL: "+xtal)
+        pdb_file_path = os.path.join(new_path,xtal+"_apo.pdb")
+        mol_file_path = os.path.join(new_path,xtal+".mol")
+        if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
+            new_prot = add_prot(pdb_file_path,xtal,new_target)
+            new_mol = add_mol(mol_file_path, new_prot)
+            if not new_mol:
+                print("NONE MOL: "+xtal)
+        else:
+            print("File not found: "+xtal)
