@@ -411,28 +411,30 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
 
 
         })
+
         stage.loadFile("/viewer/map_from_pk/" + prot_pk.toString(), {ext: "ccp4"}).then(function (o)
-        {
+            {
+
             // Set the view of the map
             var surfFofc = o.addRepresentation('surface', {
-      color: 'lightgreen',
-      isolevel: 3,
-      boxSize: 10,
-      useWorker: false,
-      contour: true,
-      opaqueBack: false
-    })
-    var surfFofcNeg = o.addRepresentation('surface', {
-      color: 'tomato',
-      isolevel: 3,
-      negateIsolevel: true,
-      boxSize: 10,
-      useWorker: false,
-      contour: true,
-      opaqueBack: false
-    })
-        })
-
+              color: 'lightgreen',
+              isolevel: 3,
+              boxSize: 10,
+              useWorker: false,
+              contour: true,
+              opaqueBack: false
+            })
+                var surfFofcNeg = o.addRepresentation('surface', {
+                    color: 'tomato',
+                    isolevel: 3,
+                    negateIsolevel: true,
+                    boxSize: 10,
+                    useWorker: false,
+                    contour: true,
+                    opaqueBack: false
+                })
+            })
+                    glob_map = o;
 
 
     }
