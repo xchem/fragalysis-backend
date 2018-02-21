@@ -374,7 +374,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
     }
 
 
-    function show_fofc(data,stage){
+    function show_fofc(data){
         var surfFofc = data.addRepresentation('surface', {
       color: 'lightgreen',
       isolevel: 3,
@@ -427,7 +427,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
             // Set the view of the map
             var my_map =ol[2];
             var map_comp = stage.addComponentFromObject(my_map);
-            show_fofc(map_comp,stage);
+            show_fofc(map_comp);
             comp.autoView("ligand");
             NProgress.done();
             glob_comp = comp;
