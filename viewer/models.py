@@ -168,7 +168,7 @@ class MolChoice(models.Model):
     text = models.TextField(default="DENSITY")
     # Score between 0 and 9; Convention for n memberd list -> num_in_list/(num_choices-1)
     # E.g.
-    score = models.IntegerField()
+    score = models.IntegerField(null=True)
     class Meta:
         unique_together = ('user_id', 'mol_id', 'text')
 
