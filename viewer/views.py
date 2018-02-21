@@ -64,13 +64,13 @@ def tindspect(request, target_pk):
     token = get_token(request)
     return render(request, 'viewer/tindspect.html', {"token": token, "mols": mols})
 
-def mol_choice(request, mol_pk, choice):
+def mol_choice(request, mol_pk, score):
     prot = Molecule.objects.get(pk=mol_pk)
     user = request.user
     if not user.is_authenticated():
         return HttpResponse("Not authenticated")
     choice = ProtChoice.objects.get_or_create(prot_id=prot,user_id=user)[0]
-    choice.score = choice
+    choice.score = score
     choice.save()
     return HttpResponse("Succesfully stored choice")
 
