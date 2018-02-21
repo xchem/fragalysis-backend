@@ -375,7 +375,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
 
 
     function show_fofc(data,stage){
-        var surfFofc = o.addRepresentation('surface', {
+        var surfFofc = data.addRepresentation('surface', {
       color: 'lightgreen',
       isolevel: 3,
       boxSize: 10,
@@ -383,7 +383,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
       contour: true,
       opaqueBack: false
     })
-    var surfFofcNeg = o.addRepresentation('surface', {
+    var surfFofcNeg = data.addRepresentation('surface', {
       color: 'tomato',
       isolevel: 3,
       negateIsolevel: true,
