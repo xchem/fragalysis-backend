@@ -35,9 +35,10 @@ def display(request):
     return render(request, 'viewer/display.html', {"token": token, "mols": mols, "scene_id": scene_id})
 
 def inspect(request, target_pk):
-    num_per_page = 7
+    num_per_page = 10
     page = request.GET.get('page', 1)
-    mols = Molecule.objects.filter(prot_id__target_id__pk=target_pk).filter(prot_id__map_info__isnull=False)
+    mol_pks = [x.pk for x in Molecule.objects.filter(prot_id__target_id__pk=target_pk) if x.prot_id.map_info.name != '']
+    mols = Molecule.objects.filter(pk__in=mol_pks)
     paginator = Paginator(mols, num_per_page)
     try:
         mols = paginator.page(page)
