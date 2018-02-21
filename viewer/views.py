@@ -48,7 +48,7 @@ def inspect(request):
     except EmptyPage:
         mols = paginator.page(paginator.num_pages)
     token = get_token(request)
-    return render(request, 'viewer/display.html', {"token": token, "mols": mols, "scene_id": scene_id})
+    return render(request, 'viewer/inspect.html', {"token": token, "mols": mols, "scene_id": scene_id})
 
 def mol_view(request):
     if "smiles" in request.GET:
