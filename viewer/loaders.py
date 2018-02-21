@@ -14,7 +14,7 @@ def add_target(title):
     new_target = Target.objects.get_or_create(title=title)[0]
     return new_target
 
-def add_prot(file_path,code,target):
+def add_prot(file_path,code,target,mtz_path=None,map_path=None):
     """
     Add a protein
     :param file_path:
@@ -25,6 +25,10 @@ def add_prot(file_path,code,target):
     new_prot = Protein.objects.get_or_create(code=code,target_id=target)[0]
     new_prot.apo_holo = True
     new_prot.pdb_info = file_path
+    if mtz_path:
+        new_prot.mtz_info = mtz_path
+    if map_path:
+        new_prot.map_info = map_path
     new_prot.save()
     return new_prot
 
@@ -113,6 +117,20 @@ def add_mol(mol_sd,prot):
     return new_mol
 
 
+def get_path_or_none(new_path,xtal,suffix):
+    """
+    Get a path or none - for loader
+    :param new_path:
+    :param xtal:
+    :param suffix:
+    :return:
+    """
+    path = os.path.join(new_path, xtal + suffix)
+    if os.path.isfile(path):
+        return path
+    else:
+        return None
+
 def load_from_dir(target_name, dir_path):
     """
     Load the data for a given target from a directory structure
@@ -126,8 +144,10 @@ def load_from_dir(target_name, dir_path):
         new_path = os.path.join(dir_path, xtal)
         pdb_file_path = os.path.join(new_path,xtal+"_apo.pdb")
         mol_file_path = os.path.join(new_path,xtal+".mol")
+        map_path = get_path_or_none(new_path,xtal,"_event.map")
+        mtz_path = get_path_or_none(new_path,xtal,".mtz")
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
-            new_prot = add_prot(pdb_file_path,xtal,new_target)
+            new_prot = add_prot(pdb_file_path,xtal,new_target,mtz_path=mtz_path,map_path=map_path)
             new_mol = add_mol(mol_file_path, new_prot)
             if not new_mol:
                 print("NONE MOL: "+xtal)

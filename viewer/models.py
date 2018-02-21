@@ -39,6 +39,8 @@ class Protein(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     init_date = models.DateTimeField(auto_now_add=True)
     cif_info = models.FileField(upload_to='cifs/', null=True, max_length=10000000)
+    mtz_info = models.FileField(upload_to='mtzs/', null=True, max_length=10000000)
+    map_info = models.FileField(upload_to='maps/', null=True, max_length=10000000)
     aligned = models.NullBooleanField()
     aligned_to = models.ForeignKey('self', null=True)
     has_eds = models.NullBooleanField()
@@ -142,3 +144,4 @@ class ViewScene(models.Model):
     permissions = (
         ('view_scene', 'View scene'),
     )
+
