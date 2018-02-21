@@ -470,15 +470,54 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
 <div class="container-fluid">
 
 <div class="row">
+    <table class="table table-bordered">
+        <thead>
+        <tr>
+            <th>Molecule</th>
+            <th>Protein</th>
+            <th>PENTAGON</th>
+            <th>Selections</th>
+        </tr>
+        </thead>
+        <tbody>
         {% for mol in mols %}
-            <div id="molport_{{mol.prot_id_id}}" style="height: 200px;"></div>
-            <div id="viewport_{{mol.prot_id_id}}" style="height:600px;width: 80%;"></div>
-            <div id="pentagon_{{mol.prot_id_id}}" >PENTAGON WILL GO HERE</div>
+            <tr>
+                <td><div id="molport_{{mol.prot_id_id}}" style="height: 200px;"></div></td>
+                <td>
+                    <div id="viewport_{{mol.prot_id_id}}" style="height:200px;width: 400px;">
+
+                    </div>
+
+                </td>
+                <td>
+                    <div id="pentagon_{{mol.prot_id_id}}" >
+                        PENTAGON WILL GO HERE
+                    </div>
+                </td>
+                <td>
+                    <div id="selectport_{{mol.prot_id_id}}" >
+                    <div class="btn-group" data-toggle="buttons">
+                      <label class="btn btn-danger active">
+                        <input type="radio" name="options" id="bad_{{mol.prot_id_id}}" autocomplete="off" checked> BAD
+                      </label>
+                      <label class="btn btn-warning">
+                        <input type="radio" name="options" id="ugly_{{mol.prot_id_id}}" autocomplete="off"> UGLY
+                      </label>
+                      <label class="btn btn-success">
+                        <input type="radio" name="options" id="good_{{mol.prot_id_id}}" autocomplete="off"> GOOD
+                      </label>
+                    </div>
+                    </div>
+                </td>
+
+            </tr>
         {% endfor %}
+        </tbody>
+    </table>
 {% if mols.has_other_pages %}
   <ul class="pagination">
     {% if mols.has_previous %}
-      <li><a href="?page={{ mols.previous_page_number }}">BACK</a></li>
+      <li><a href="?page={{ mols.previous_page_number }}">&laquo;</a></li>
     {% else %}
       <li class="disabled"><span>&laquo;</span></li>
     {% endif %}
@@ -490,11 +529,9 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
       {% endif %}
     {% endfor %}
     {% if mols.has_next %}
-        <li class="success"><a href="?page={{ mols.next_page_number }}">GOOD</a></li>
-        <li class="danger"><a href="?page={{ mols.next_page_number }}">BAD</a></li>
-        <li class="warning"><a href="?page={{ mols.next_page_number }}">UGLY</a></li>
+      <li><a href="?page={{ mols.next_page_number }}">&raquo;</a></li>
     {% else %}
-        <li class="info"><a href="?page={{ mols.next_page_number }}">What's next?</a></li>
+      <li class="disabled"><span>&raquo;</span></li>
     {% endif %}
   </ul>
 {% endif %}
