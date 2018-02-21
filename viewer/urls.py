@@ -9,6 +9,7 @@ urlpatterns = [
     url(r'^img_from_pk/$', views.img_from_pk, name='img_from_pk'),
     url(r'^prot_from_pk/(?P<pk>[0-9]+)/$', views.prot_from_pk, name='prot_from_pk'),
     url(r'^mol_from_pk/(?P<pk>[0-9]+)/', views.mol_from_pk, name='mol_from_pk'),
+    url(r'^map_from_pk/(?P<pk>[0-9]+)/', views.map_from_pk, name='map_from_pk'),
     url(r'^get_vects_from_pk/(?P<pk>[0-9]+)/', views.get_vects_from_pk, name='get_vects_from_pk'),
     url(r'^get_graph_from_pk/(?P<pk>[0-9]+)/', views.get_graph_from_pk, name='get_graph_from_pk'),
     url(r'^post_view/$', views.post_view, name='post_view'),

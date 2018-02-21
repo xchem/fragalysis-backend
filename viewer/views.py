@@ -66,6 +66,11 @@ def mol_from_pk(request, pk):
     sdf_info = Molecule.objects.get(pk=pk).sdf_info
     return  HttpResponse(sdf_info)
 
+
+def map_from_pk(request,pk):
+    prot = Protein.objects.get(pk=pk)
+    return HttpResponse(prot.map_info)
+
 def prot_from_pk(request,pk):
     pdb_info = open(Protein.objects.get(pk=pk).pdb_info.path).read()
     return  HttpResponse(pdb_info)
