@@ -8,6 +8,8 @@ import json
 from frag.network.decorate import get_3d_vects_for_mol
 from frag.network.query import get_full_graph
 from fragalysis.utils import get_token
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 
 def get_mols_from_scene(scene):
     comps = json.loads(scene)['components']
@@ -29,6 +31,22 @@ def display(request):
         vs = ViewScene.objects.get(pk=scene_id)
         mol_pks = get_mols_from_scene(vs.scene)
         mols = Molecule.objects.filter(id__in=mol_pks)
+    token = get_token(request)
+    return render(request, 'viewer/display.html', {"token": token, "mols": mols, "scene_id": scene_id})
+
+def inspect(request):
+    scene_id = 0
+    page = request.GET.get('page', 1)
+    if "target_title" in request.GET:
+        target_title = request.GET["target_title"]
+        mols = Molecule.objects.filter(prot_id__target_id__title=target_title)
+    paginator = Paginator(mols, 10)
+    try:
+        mols = paginator.page(page)
+    except PageNotAnInteger:
+        mols = paginator.page(1)
+    except EmptyPage:
+        mols = paginator.page(paginator.num_pages)
     token = get_token(request)
     return render(request, 'viewer/display.html', {"token": token, "mols": mols, "scene_id": scene_id})
 

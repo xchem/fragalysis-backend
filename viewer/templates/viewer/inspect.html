@@ -1,0 +1,470 @@
+{% load static %}
+<script type="text/javascript" src='{% static 'nprogress/nprogress.js' %}'></script>
+<script type="text/javascript" src='{% static 'ngl/dist/ngl.js' %}'></script>
+{# Load the tag library #}
+{% load bootstrap3 %}
+
+{# Load CSS and JavaScript #}
+{% bootstrap_css %}
+<link rel='stylesheet' href='{% static 'nprogress/nprogress.css' %}'/>
+
+<script src="{% bootstrap_jquery_url %}" type="text/javascript"></script>
+<script src='{% static 'clipboard/dist/clipboard.min.js' %}'></script>
+{% csrf_token %}
+<script type="text/javascript">
+// using jQuery
+var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
+</script>
+
+<style>
+
+
+    .compound {
+
+}
+    .compound.linker {
+    border: 5px solid #bfbed8;
+}
+    .compound.addition {
+    border: 5px solid #e0ffdc;
+}
+    .compound.deletion {
+    border: 5px solid #e2a8a8;
+}
+    .compound.replace {
+    border: 5px solid #3809f3;
+}
+
+</style>
+
+<script>
+
+new Clipboard('.btn');
+
+function csrfSafeMethod(method) {
+    // these HTTP methods do not require CSRF protection
+    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+}
+$.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+    }
+});
+
+var token = "{{ token }}";
+
+var focus_var = 95;
+    function getJsonView() {
+        // Get component (path) -> representation (parameters)
+        var out_data = new Array()
+        stage.eachComponent(function (component) {
+                // TODO Sort this out for objects
+                if(component.structure) {
+                    var component_data = {
+                        "file_path": component.structure.path,
+                        "repr": new Array(),
+                    };
+                    component.eachRepresentation(function (repr) {
+                        var my_params = {"data": repr.getParameters()};
+                        my_params["name"] = repr.name;
+                        component_data["repr"].push(my_params);
+                    })
+                    out_data.push(component_data)
+                }
+        });
+        return JSON.stringify({"components": out_data,
+            "orientation": stage.viewerControls.getOrientation()})
+    }
+
+    function setJsonView(input_json){
+        var tot_obj = JSON.parse(input_json);
+        var obj = tot_obj["components"];
+        var ori = tot_obj["orientation"];
+        // Loop through dict
+        for (var index = 0; index < obj.length; ++index)
+        {
+        // Generate the ey value pairs
+            var propt = obj[index];
+            var ext = "";
+            if (propt["file_path"].includes("mol_from_pk")){
+                ext = "sdf";
+            }
+            else{
+                ext= "pdb";
+            }
+
+            if (propt["file_path"].includes(":::"))
+            {
+                var f_p = propt["file_path"];
+                file_path_1 = f_p.split(":::")[0]
+                file_path_2 = f_p.split(":::")[1]
+                var this_repr = propt["repr"];
+                Promise.all([
+                    stage.loadFile(file_path_1,{ext: "pdb"}),
+                    stage.loadFile(file_path_2,{ext: "sdf"})
+                ]).then(
+                        function (ol) {
+                            var cs = NGL.concatStructures("concat",
+                                    ol[ 0 ].structure.getView(new NGL.Selection("not ligand")),
+                                    ol[ 1 ].structure.getView(new NGL.Selection(""))
+                            )
+                            var comp = stage.addComponentFromObject(cs)
+                            for (j = 0; j < this.length; ++j) {
+                                comp.addRepresentation(this[j]["name"], this[j]["data"]);
+                            }
+                        }.bind(this_repr));
+            }
+            else {
+                var this_repr = propt["repr"];
+                stage.loadFile(propt["file_path"], {ext: ext})
+                        .then(function (comp) {
+                            for (j = 0; j < this.length; ++j) {
+                                comp.addRepresentation(this[j]["name"], this[j]["data"]);
+                            }
+                        }.bind(this_repr));
+            }
+        }
+        // Set the orientation
+        var curr_orient = stage.viewerControls.getOrientation();
+        for (i=0; i< curr_orient["elements"].length; i++){
+             curr_orient["elements"][i] =ori["elements"][i];
+        }
+        stage.viewerControls.orient(curr_orient);
+        stage.setFocus(focus_var);
+    }
+
+    function post_view(title){
+        NProgress.start();
+        var scene  = getJsonView();
+        $.ajax({
+          type: "POST",
+          url: "/viewer/post_view/",
+          data: {"title": title,
+          "scene": scene},
+          success: function(response){
+              $("#clip_target").val(response);
+              NProgress.done();
+          }
+        }).fail(function() { alert( "error" ); });
+    }
+
+
+    function fill_table(mol_list,table_name) {
+      // Call for the data
+      $.ajax({
+        type: "POST",
+        url: "/viewer/get_mols/",
+        data: {
+          "mols": mol_list
+        },
+        success: function(response) {
+          $('#table_name').DataTable({
+            data: response.data,
+            columns: response.columns
+          });
+        }
+      }).fail(function() {
+        alert("error");
+      });
+    };
+
+    function get_view(pk){
+        $.ajax({
+          type: "POST",
+          url: "/viewer/get_view/"+pk.toString()+"/",
+          success: function(response){display_view(response)}
+        }).fail(function() { alert( "error" ); });
+    }
+
+    function display_view(response){
+        var res = JSON.parse(response);
+        var title = res["title"];
+        setJsonView(res["scene"]);
+    }
+
+    function fillDiv(query_url,input_data,div_id,nprogress)
+       {
+           if (nprogress==true){
+               NProgress.start();
+           }
+           $.get(query_url, input_data,
+                   function (data) {
+                       document.getElementById(div_id).innerHTML = data;
+                       if (nprogress==true){
+                           NProgress.done();
+                       }
+                   });
+
+       }
+
+    function fill_imgs() {
+        var mol_pk_array = [
+            {% for mol in mols %}
+                {{ mol.pk }},
+            {% endfor %}
+        ]
+        for (j = 0; j < mol_pk_array.length; ++j) {
+            fillDiv("/viewer/img_from_pk", {"pk": mol_pk_array[j]}, "molecule_"+mol_pk_array[j].toString(), false)
+        }
+    }
+
+    function display_arrow(start,end,colour,key){
+        var shape = new NGL.Shape( key.split("_")[0] );
+        shape.addArrow( start, end, colour, 0.5 );
+        var shapeComp = stage.addComponentFromObject( shape );
+        shapeComp.addRepresentation( "buffer" );
+    }
+    function display_cylinder(start,end,colour,key){
+        var shape = new NGL.Shape( key.split("_")[0] );
+        shape.addCylinder( start, end, colour, 0.8);
+        var shapeComp = stage.addComponentFromObject( shape );
+        shapeComp.addRepresentation( "buffer" );
+    }
+function guidGenerator() {
+    var S4 = function() {
+       return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+    };
+    return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
+}
+
+
+function fill_data_div(smiles_list,data_div_id,comp_type){
+            var max_mols = 50;
+            var counter = 0;
+            var data_div = $(document.getElementById(data_div_id));
+
+            for (var index in smiles_list){
+                var compoundDiv = document.createElement("div")
+                var div_id = guidGenerator();
+                counter+=1;
+                compoundDiv.id = div_id;
+                compoundDiv.setAttribute('class','newcomp col-sm-3 compound '+comp_type);
+                data_div.append(compoundDiv);
+                fillDiv("/viewer/mol_view",{smiles: smiles_list[index], return: "svg"},div_id,false);
+                if(index>max_mols){
+                    break;
+                }
+            }
+
+        }
+
+    function showPick (stage, pickingProxy) {
+    if (pickingProxy) {
+        if (pickingProxy.object.name) {
+            if (pickingProxy.object.name.startsWith("arrow") == true || pickingProxy.object.name.startsWith("cylinder") == true) {
+                var smiles_str = pickingProxy.object.name.split(" ")[2].slice(1).slice(0, -1);
+                // Now show the mols for this one
+                 $("div.newcomp").remove();
+                for (var key in glob_data){
+                    if(key.startsWith(smiles_str)){
+                        var mols = glob_data[key];
+                        var type = key.split("_")[2];
+                        fill_data_div(mols,"compounds",type);
+                    }
+                }
+
+            }
+        }
+    }
+  }
+
+
+    function  get_colour(number_objects){
+
+        var colour;
+        if(number_objects>10){
+            return [0,1,0]
+        }
+        if(number_objects>0){
+            return [1,0.5,0]
+        }
+        return [1,0,0]
+
+    }
+    var glob_data;
+    function load_vector(pk) {
+        NProgress.start();
+         $.ajax({
+          type: "POST",
+          url: "/viewer/get_graph_from_pk/"+pk.toString()+"/",
+          success: function(response) {
+
+              glob_data = JSON.parse(response);
+              // TODO number_objects -> Cumulative score. Not just once.
+              var new_data = {}
+              for(var key in glob_data) {
+                  var number_objects_this = glob_data[key].length
+                  var smiles = key.split("_")[0]
+                  var comp_type = key.split("_")[2]
+                  if (smiles in new_data) {
+                      new_data[smiles]["num_objects"] += number_objects_this;
+                  }
+                  else {
+                      new_data[smiles] = {
+                          "num_objects": number_objects_this,
+                          "comp_type": comp_type
+                      }
+                  }
+              }
+              for (var smiles in new_data){
+
+                  // Get the components
+                  var components = stage.getComponentsByName(smiles).list
+                  var number_objects = new_data[smiles]["num_objects"]
+                  var comp_type = new_data[smiles]["comp_type"]
+                  for (var index in components) {
+                      var comp = components[index];
+                      if (comp_type=="LINKER"){
+                          // Now get the params needed and update them
+                          var pos_2 = comp.object._primitiveData["cylinderPosition2"].slice();
+                          var pos_1 = comp.object._primitiveData["cylinderPosition1"].slice();
+                          stage.removeComponent(comp);
+                          display_cylinder(pos_1, pos_2, get_colour(number_objects), smiles);
+                      }
+                      else {
+                          // Now get the params needed and update them
+                          var pos_2 = comp.object._primitiveData["arrowPosition2"].slice();
+                          var pos_1 = comp.object._primitiveData["arrowPosition1"].slice();
+                          stage.removeComponent(comp);
+                          display_arrow(pos_1, pos_2, get_colour(number_objects), smiles);
+                      }
+
+                  }
+              }
+              NProgress.done();
+
+          }
+
+         })
+
+
+        $.ajax({
+          type: "POST",
+          url: "/viewer/get_vects_from_pk/"+pk.toString()+"/",
+          success: function(response){
+              var colour = [1,0,0]
+              var out_data = JSON.parse(response);
+              var deletions = out_data["deletions"]
+              for(var key in deletions) {
+
+                  display_arrow(deletions[key][0],deletions[key][1],colour,key)
+              }
+              var additions = out_data["additions"]
+              for(var key in additions) {
+                  display_arrow(additions[key][0],additions[key][1],colour,key)
+              }
+              var linker = out_data["linkers"]
+              for(var key in linker) {
+                  display_cylinder(linker[key][0],linker[key][3],colour,key)
+              }
+
+
+
+          }
+        }).fail(function() { alert( "error" ); });
+    }
+
+
+    var glob_comp;
+    function load_mol(mol_pk,prot_pk) {
+        NProgress.start();
+        Promise.all([
+            stage.loadFile("/viewer/prot_from_pk/" + prot_pk.toString(), {ext: "pdb"}),
+            stage.loadFile("/viewer/mol_from_pk/" + mol_pk.toString(), {ext: "sdf"})
+        ]).then(function (ol) {
+            var cs = NGL.concatStructures(
+                    "concat",
+                    ol[0].structure.getView(new NGL.Selection("not ligand")),
+                    ol[1].structure.getView(new NGL.Selection(""))
+            )
+            cs.path = ol[0].structure.path+":::"+ol[1].structure.path
+            var comp = stage.addComponentFromObject(cs)
+            comp.addRepresentation("cartoon")
+            comp.addRepresentation("contact", {
+                masterModelIndex: 0,
+                weakHydrogenBond: true,
+                maxHbondDonPlaneAngle: 35,
+                sele: "/0 or /1"
+            })
+            comp.addRepresentation("licorice", {
+                sele: "ligand and /1",
+                multipleBond: "offset"
+            })
+            comp.addRepresentation("line", {
+                sele: "/0"
+            })
+            comp.autoView("ligand");
+            NProgress.done();
+            glob_comp = comp;
+            stage.setFocus(focus_var);
+        })
+
+    }
+
+
+    $('document').ready( function() {
+        fill_imgs();
+        // Create NGL Stage object
+        stage = new NGL.Stage("viewport");
+        // Handle window resizing
+        window.addEventListener("resize", function (event) {
+            stage.handleResize();
+        }, false);
+        stage.mouseControls.add("clickPick-left",showPick);
+        // scene_id
+        var scene_id = {{ scene_id | escapejs }};
+        if (scene_id>0){
+            get_view(scene_id);
+        }
+    })
+
+</script>
+{% bootstrap_javascript %}
+
+
+<div class="container-fluid">
+
+<div class="row">
+    <table class="table table-bordered">
+        <thead>
+        <tr>
+            <th>HEADER ONE</th>
+            <th>HEADER TWO</th>
+            <th>HEADER THREE</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for mol in mols %}
+            <tr>
+                <td>{{ mol.smiles }}</td>
+                <td>{{ mol.prot_id_id }}</td>
+                <td>{{ mol.prot_id_code}}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% if mols.has_other_pages %}
+  <ul class="pagination">
+    {% if mols.has_previous %}
+      <li><a href="?page={{ mols.previous_page_number }}">&laquo;</a></li>
+    {% else %}
+      <li class="disabled"><span>&laquo;</span></li>
+    {% endif %}
+    {% for i in mols.paginator.page_range %}
+      {% if mols.number == i %}
+        <li class="active"><span>{{ i }} <span class="sr-only">(current)</span></span></li>
+      {% else %}
+        <li><a href="?page={{ i }}">{{ i }}</a></li>
+      {% endif %}
+    {% endfor %}
+    {% if mols.has_next %}
+      <li><a href="?page={{ mols.next_page_number }}">&raquo;</a></li>
+    {% else %}
+      <li class="disabled"><span>&raquo;</span></li>
+    {% endif %}
+  </ul>
+{% endif %}
+</div>
+</div>
