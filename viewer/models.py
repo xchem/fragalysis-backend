@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 
 class Project(models.Model):
@@ -145,3 +146,40 @@ class ViewScene(models.Model):
         ('view_scene', 'View scene'),
     )
 
+
+class ProtChoice(models.Model):
+    """
+    A Django model to store a selection from a user
+    """
+    user_id = models.ForeignKey(User)
+    prot_id = models.ForeignKey(Protein)
+    # Score between 0 and 9; Convention for n memberd list -> num_in_list/(num_choices-1)
+    # E.g.
+    score = models.IntegerField()
+    class Meta:
+        unique_together = ('user_id', 'prot_id',)
+
+class MolChoice(models.Model):
+    """
+    A Django model to store a selection from a user
+    """
+    user_id = models.ForeignKey(User)
+    mol_id = models.ForeignKey(Molecule)
+    # Score between 0 and 9; Convention for n memberd list -> num_in_list/(num_choices-1)
+    # E.g.
+    score = models.IntegerField()
+    class Meta:
+        unique_together = ('user_id', 'mol_id',)
+
+
+class CmpdChoice(models.Model):
+    """
+    A Django model to store a selection from a user
+    """
+    user_id = models.ForeignKey(User)
+    cmpd_id = models.ForeignKey(Compound)
+    # Score between 0 and 9; Convention for n memberd list -> num_in_list/(num_choices-1)
+    # E.g.
+    score = models.IntegerField()
+    class Meta:
+        unique_together = ('user_id', 'cmpd_id',)

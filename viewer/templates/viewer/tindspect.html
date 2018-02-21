@@ -53,8 +53,6 @@ $.ajaxSetup({
     }
 });
 
-var token = "{{ token }}";
-
 var focus_var = 95;
     function getJsonView() {
         // Get component (path) -> representation (parameters)
@@ -375,7 +373,6 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
 
 
 
-
     var glob_comp;
     function load_mol(mol_pk,prot_pk,stage) {
         NProgress.start();
@@ -463,10 +460,14 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
             fillDiv("/viewer/img_from_pk", {"pk": mol_pk_array[j]}, "molport_"+prot_pk_array[j].toString(), false)        }
     })
 
-    function save_choice(choice,next_page_number){
-        // Register the choices in the models
-        alert(choice);
+    function save_choice(choice,next_page_number,this_mol_pk){
+        var token = "{{ token | escapejs}}";
+        // Register the choices in the models for this user
+        var post_choice_url = "mol_choice/"+this_mol_pk.toString()+"/"+choice.toString()+"/"
+        $.get(post_choice_url,function(data){ alert(data) });
+        // Move to the new page
         var new_url = "?page="+next_page_number.toString()
+        // Now move to this new page
         document.location.href = new_url;
     }
 
@@ -483,17 +484,16 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                 <div id="molport_{{mol.prot_id_id}}" style="height: 200px;">
                 </div>
                 <div class="pagination btn-group" data-toggle="buttons">
-                    <button onclick="save_choice('good',{{ mols.next_page_number }})" type="button" class="btn btn-success btn-lg">
+                    <button onclick="save_choice(10,{{ mols.next_page_number }}, {{ mol.pk }})" type="button" class="btn btn-success btn-lg">
                         GOOD
                     </button>
-                    <button onclick="save_choice('ugly',{{ mols.next_page_number }})" type="button" class="btn btn-warning btn-lg">
+                    <button onclick="save_choice(5,{{ mols.next_page_number }}, {{ mol.pk }})" type="button" class="btn btn-warning btn-lg">
                         UGLY
                     </button>
-                    <button onclick="save_choice('bad',{{ mols.next_page_number }})" type="button" class="btn btn-danger btn-lg">
+                    <button onclick="save_choice(0,{{ mols.next_page_number }}, {{ mol.pk }})" type="button" class="btn btn-danger btn-lg">
                         BAD
-
                     </button>
-                <ul>
+                  <ul class="pagination">
                     {% for i in mols.paginator.page_range %}
                         {% if mols.number == i %}
                             <li class="active"><span>{{ i }} <span class="sr-only">(current)</span></span></li>
