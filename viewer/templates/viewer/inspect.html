@@ -374,34 +374,14 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
     }
 
 
-    function show_fofc(data){
-        var surfFofc = data.addRepresentation('surface', {
-      color: 'lightgreen',
-      isolevel: 3,
-      boxSize: 10,
-      useWorker: false,
-      contour: true,
-      opaqueBack: false
-    })
-    var surfFofcNeg = data.addRepresentation('surface', {
-      color: 'tomato',
-      isolevel: 3,
-      negateIsolevel: true,
-      boxSize: 10,
-      useWorker: false,
-      contour: true,
-      opaqueBack: false
-    })
 
-    }
 
     var glob_comp;
     function load_mol(mol_pk,prot_pk,stage) {
         NProgress.start();
         Promise.all([
             stage.loadFile("/viewer/prot_from_pk/" + prot_pk.toString(), {ext: "pdb"}),
-            stage.loadFile("/viewer/mol_from_pk/" + mol_pk.toString(), {ext: "sdf"}),
-            stage.loadFile("/viewer/map_from_pk/" + prot_pk.toString(), {ext: "ccp4"})]
+            stage.loadFile("/viewer/mol_from_pk/" + mol_pk.toString(), {ext: "sdf"})]
         ).then(function (ol) {
             var cs = NGL.concatStructures(
                     "concat",
@@ -424,10 +404,6 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
             comp.addRepresentation("line", {
                 sele: "/0"
             })
-            // Set the view of the map
-            var my_map =ol[2];
-            var map_comp = stage.addComponentFromObject(my_map);
-            show_fofc(map_comp);
             comp.autoView("ligand");
             NProgress.done();
             glob_comp = comp;
@@ -435,6 +411,29 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
 
 
         })
+        stage.loadFile("/viewer/map_from_pk/" + prot_pk.toString(), {ext: "ccp4"}).then(function (o)
+        {
+            // Set the view of the map
+            var surfFofc = o.addRepresentation('surface', {
+      color: 'lightgreen',
+      isolevel: 3,
+      boxSize: 10,
+      useWorker: false,
+      contour: true,
+      opaqueBack: false
+    })
+    var surfFofcNeg = o.addRepresentation('surface', {
+      color: 'tomato',
+      isolevel: 3,
+      negateIsolevel: true,
+      boxSize: 10,
+      useWorker: false,
+      contour: true,
+      opaqueBack: false
+    })
+        })
+
+
 
     }
 
