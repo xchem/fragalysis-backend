@@ -439,16 +439,38 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
     <table class="table table-bordered">
         <thead>
         <tr>
-            <th>HEADER ONE</th>
-            <th>HEADER TWO</th>
-            <th>HEADER THREE</th>
+            <th>Molecule</th>
+            <th>Protein</th>
+            <th>PENTAGON</th>
+            <th>Selections</th>
         </tr>
         </thead>
         <tbody>
         {% for mol in mols %}
             <tr>
-                <td><div id="molport_{{mol.prot_id_id}}" style="height: 300px;"></div></td>
-                <td><div id="viewport_{{mol.prot_id_id}}" style="height: 300px;"></div></td>
+                <td><div id="molport_{{mol.prot_id_id}}" style="height: 200px;"></div></td>
+                <td><div id="viewport_{{mol.prot_id_id}}" style="height: 200px;"></div></td>
+                <td>
+                    <div id="pentagon_{{mol.prot_id_id}}" >
+                        PENTAGON WILL GO HERE
+                    </div>
+                </td>
+                <td>
+                    <div id="selectport_{{mol.prot_id_id}}" >
+                    <div class="btn-group" data-toggle="buttons">
+                      <label class="btn btn-danger active">
+                        <input type="radio" name="options" id="bad_{{mol.prot_id_id}}" autocomplete="off" checked> BAD
+                      </label>
+                      <label class="btn btn-warning">
+                        <input type="radio" name="options" id="ugly_{{mol.prot_id_id}}" autocomplete="off"> UGLY
+                      </label>
+                      <label class="btn btn-success">
+                        <input type="radio" name="options" id="good_{{mol.prot_id_id}}" autocomplete="off"> GOOD
+                      </label>
+                    </div>
+                    </div>
+                </td>
+
             </tr>
         {% endfor %}
         </tbody>
