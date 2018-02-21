@@ -49,6 +49,21 @@ def inspect(request, target_pk):
     token = get_token(request)
     return render(request, 'viewer/inspect.html', {"token": token, "mols": mols})
 
+def tindspect(request, target_pk):
+    num_per_page = 1
+    page = request.GET.get('page', 1)
+    mol_pks = [x.pk for x in Molecule.objects.filter(prot_id__target_id__pk=target_pk) if x.prot_id.map_info.name != '']
+    mols = Molecule.objects.filter(pk__in=mol_pks)
+    paginator = Paginator(mols, num_per_page)
+    try:
+        mols = paginator.page(page)
+    except PageNotAnInteger:
+        mols = paginator.page(1)
+    except EmptyPage:
+        mols = paginator.page(paginator.num_pages)
+    token = get_token(request)
+    return render(request, 'viewer/tindspect.html', {"token": token, "mols": mols})
+
 def mol_view(request):
     if "smiles" in request.GET:
         smiles = request.GET["smiles"].rstrip(".svg")
