@@ -34,12 +34,10 @@ def display(request):
     token = get_token(request)
     return render(request, 'viewer/display.html', {"token": token, "mols": mols, "scene_id": scene_id})
 
-def inspect(request):
+def inspect(request, target_pk):
     scene_id = 0
     page = request.GET.get('page', 1)
-    if "target_title" in request.GET:
-        target_title = request.GET["target_title"]
-        mols = Molecule.objects.filter(prot_id__target_id__title=target_title)
+    mols = Molecule.objects.filter(prot_id__target_id__pk=target_pk)
     paginator = Paginator(mols, 10)
     try:
         mols = paginator.page(page)
