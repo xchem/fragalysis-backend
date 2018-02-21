@@ -463,6 +463,13 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
             fillDiv("/viewer/img_from_pk", {"pk": mol_pk_array[j]}, "molport_"+prot_pk_array[j].toString(), false)        }
     })
 
+    function save_choice(choice,next_page_number){
+        // Register the choices in the models
+        alert(choice);
+        var new_url = "?page="+next_page_number.toString()
+        document.location.href = new_url;
+    }
+
 </script>
 {% bootstrap_javascript %}
 
@@ -475,30 +482,18 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
             <div class="col-sm-3">
                 <div id="molport_{{mol.prot_id_id}}" style="height: 200px;">
                 </div>
-                <div class="btn-group" data-toggle="buttons">
-                {% if mols.has_previous %}
-                    <button type="button" class="btn btn-primary btn-lg">
-                        <a href="?page={{ mols.previous_page_number }}">BACK</a>
+                <div class="pagination btn-group" data-toggle="buttons">
+                    <button onclick="save_choice('good',{{ mols.next_page_number }})" type="button" class="btn btn-success btn-lg">
+                        GOOD
                     </button>
-                {% else %}
+                    <button onclick="save_choice('ugly',{{ mols.next_page_number }})" type="button" class="btn btn-warning btn-lg">
+                        UGLY
+                    </button>
+                    <button onclick="save_choice('bad',{{ mols.next_page_number }})" type="button" class="btn btn-danger btn-lg">
+                        BAD
 
-                {% endif %}
-                {% if mols.has_next %}
-                    <button type="button" class="btn btn-success btn-lg">
-                        <a href="?page={{ mols.next_page_number }}">GOOD</a>
                     </button>
-                    <button type="button" class="btn btn-warning btn-lg">
-                        <a href="?page={{ mols.next_page_number }}">UGLY</a>
-                    </button>
-                    <button type="button" class="btn btn-danger btn-lg">
-                        <a href="?page={{ mols.next_page_number }}">BAD</a>
-                    </button>
-                {% else %}
-                    <button type="button" class="btn btn-success btn-lg">
-                        <a href="?page={{ mols.next_page_number }}">FINISHED</a>
-                    </button>
-                {% endif %}
-                <ul class="pagination">
+                <ul>
                     {% for i in mols.paginator.page_range %}
                         {% if mols.number == i %}
                             <li class="active"><span>{{ i }} <span class="sr-only">(current)</span></span></li>
