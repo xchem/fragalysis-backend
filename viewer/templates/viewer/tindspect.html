@@ -463,12 +463,12 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
     function save_choice(choice,next_page_number,this_mol_pk){
         var token = "{{ token | escapejs}}";
         // Register the choices in the models for this user
-        var post_choice_url = "mol_choice/"+this_mol_pk.toString()+"/"+choice.toString()+"/"
+        var post_choice_url = "/mol_choice/"+this_mol_pk.toString()+"/"+choice.toString()+"/"
         $.get(post_choice_url,function(data){ alert(data) });
         // Move to the new page
         var new_url = "?page="+next_page_number.toString()
         // Now move to this new page
-{#        document.location.href = new_url;#}
+        document.location.href = new_url;
     }
 
 </script>
