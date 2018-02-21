@@ -424,8 +424,9 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
     }
 
     $('document').ready( function() {
-
-
+        for (j = 0; j < mol_pk_array.length; ++j) {
+            fill_mol(mol_pk_array[j],prot_pk_array[j]);
+            fillDiv("/viewer/img_from_pk", {"pk": mol_pk_array[j]}, "molport_"+prot_pk_array[j].toString(), false)        }
     })
 
 </script>
@@ -446,9 +447,8 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
         <tbody>
         {% for mol in mols %}
             <tr>
-                <td>{{ mol.smiles }}</td>
-                <td>{{ mol.prot_id_id }}</td>
-                <td><div id="viewport_{{mol.prot_id_id}}" style="height: 60%;"></div></td>
+                <td><div id="molport_{{mol.prot_id_id}}" style="height: 300px;"></div></td>
+                <td><div id="viewport_{{mol.prot_id_id}}" style="height: 300px;"></div></td>
             </tr>
         {% endfor %}
         </tbody>
