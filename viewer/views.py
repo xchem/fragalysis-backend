@@ -35,7 +35,7 @@ def display(request):
     return render(request, 'viewer/display.html', {"token": token, "mols": mols, "scene_id": scene_id})
 
 def inspect(request, target_pk):
-    num_per_page = 10
+    num_per_page = 5
     page = request.GET.get('page', 1)
     mol_pks = [x.pk for x in Molecule.objects.filter(prot_id__target_id__pk=target_pk) if x.prot_id.map_info.name != '']
     mols = Molecule.objects.filter(pk__in=mol_pks)

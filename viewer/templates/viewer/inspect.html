@@ -426,10 +426,8 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
             })
             // Set the view of the map
             var my_map =ol[2];
-            show_fofc(my_map,stage);
-
-            stage.addComponent()
-
+            var map_comp = stage.addComponentFromObject(my_map);
+            show_fofc(map_comp,stage);
             comp.autoView("ligand");
             NProgress.done();
             glob_comp = comp;
