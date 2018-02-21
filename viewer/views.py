@@ -2,7 +2,7 @@ from django.http import HttpResponse
 from network.functions import draw_mol
 from viewer.functions import generate_data_for_smis
 from django.shortcuts import render
-from .models import ViewScene,Molecule,Protein, ProtChoice
+from .models import ViewScene,Molecule,Protein,MolChoice
 from uuid import uuid4
 import json
 from frag.network.decorate import get_3d_vects_for_mol
@@ -65,11 +65,11 @@ def tindspect(request, target_pk):
     return render(request, 'viewer/tindspect.html', {"token": token, "mols": mols})
 
 def mol_choice(request, mol_pk, score):
-    prot = Molecule.objects.get(pk=mol_pk)
+    mol = Molecule.objects.get(pk=mol_pk)
     user = request.user
     if not user.is_authenticated():
         return HttpResponse("Not authenticated")
-    choice = ProtChoice.objects.get_or_create(prot_id=prot,user_id=user)[0]
+    choice = MolChoice.objects.get_or_create(mol_id=mol,user_id=user,text="DENSITY")[0]
     choice.score = score
     choice.save()
     return HttpResponse("Succesfully stored choice")

@@ -165,11 +165,12 @@ class MolChoice(models.Model):
     """
     user_id = models.ForeignKey(User)
     mol_id = models.ForeignKey(Molecule)
+    text = models.TextField(default="DENSITY")
     # Score between 0 and 9; Convention for n memberd list -> num_in_list/(num_choices-1)
     # E.g.
     score = models.IntegerField()
     class Meta:
-        unique_together = ('user_id', 'mol_id',)
+        unique_together = ('user_id', 'mol_id', 'text')
 
 
 class CmpdChoice(models.Model):
