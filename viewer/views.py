@@ -35,10 +35,10 @@ def display(request):
     return render(request, 'viewer/display.html', {"token": token, "mols": mols, "scene_id": scene_id})
 
 def inspect(request, target_pk):
-    scene_id = 0
+    num_per_page = 7
     page = request.GET.get('page', 1)
-    mols = Molecule.objects.filter(prot_id__target_id__pk=target_pk)
-    paginator = Paginator(mols, 10)
+    mols = Molecule.objects.filter(prot_id__target_id__pk=target_pk).filter(prot_id__map_info__isnull=False)
+    paginator = Paginator(mols, num_per_page)
     try:
         mols = paginator.page(page)
     except PageNotAnInteger:
@@ -46,7 +46,7 @@ def inspect(request, target_pk):
     except EmptyPage:
         mols = paginator.page(paginator.num_pages)
     token = get_token(request)
-    return render(request, 'viewer/inspect.html', {"token": token, "mols": mols, "scene_id": scene_id})
+    return render(request, 'viewer/inspect.html', {"token": token, "mols": mols})
 
 def mol_view(request):
     if "smiles" in request.GET:
