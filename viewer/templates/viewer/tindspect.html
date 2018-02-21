@@ -489,7 +489,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                 <div id="molport_{{mol.prot_id_id}}" style="height: 200px;">
                 </div>
                 {% if mols.has_next %}
-                <div class="pagination btn-group" data-toggle="buttons">
+                    <div class="pagination btn-group" data-toggle="buttons">
                     <button onclick="save_choice(10,{{ mols.next_page_number }}, {{ mol.pk }})" type="button" class="btn btn-success btn-lg">
                         GOOD
                     </button>
@@ -499,7 +499,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                     <button onclick="save_choice(0,{{ mols.next_page_number }}, {{ mol.pk }})" type="button" class="btn btn-danger btn-lg">
                         BAD
                     </button>
-                {$ else %}
+                {% else %}
                     <div class="pagination btn-group" data-toggle="buttons">
                     <button onclick="save_choice(10,-1, {{ mol.pk }})" type="button" class="btn btn-success btn-lg">
                         GOOD
@@ -510,7 +510,6 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                     <button onclick="save_choice(0,-1, {{ mol.pk }})" type="button" class="btn btn-danger btn-lg">
                         BAD
                     </button>
-
                 {%  endif %}
                   <ul class="pagination">
                     {% for i in mols.paginator.page_range %}
