@@ -466,9 +466,14 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
         var post_choice_url = "/viewer/mol_choice/"+this_mol_pk.toString()+"/"+choice.toString()+"/"
         $.get(post_choice_url,function(data){ console.log(data) });
         // Move to the new page
-        var new_url = "?page="+next_page_number.toString()
-        // Now move to this new page
-        document.location.href = new_url;
+        if (next_page_number==-1){
+            alert("Got to end of numbers...")
+        }
+        else {
+            var new_url = "?page=" + next_page_number.toString()
+            // Now move to this new page
+            document.location.href = new_url;
+        }
     }
 
 </script>
@@ -483,6 +488,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
             <div class="col-sm-3">
                 <div id="molport_{{mol.prot_id_id}}" style="height: 200px;">
                 </div>
+                {% if mols.has_next %}
                 <div class="pagination btn-group" data-toggle="buttons">
                     <button onclick="save_choice(10,{{ mols.next_page_number }}, {{ mol.pk }})" type="button" class="btn btn-success btn-lg">
                         GOOD
@@ -493,6 +499,19 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                     <button onclick="save_choice(0,{{ mols.next_page_number }}, {{ mol.pk }})" type="button" class="btn btn-danger btn-lg">
                         BAD
                     </button>
+                {$ else %}
+                    <div class="pagination btn-group" data-toggle="buttons">
+                    <button onclick="save_choice(10,-1, {{ mol.pk }})" type="button" class="btn btn-success btn-lg">
+                        GOOD
+                    </button>
+                    <button onclick="save_choice(5,-1, {{ mol.pk }})" type="button" class="btn btn-warning btn-lg">
+                        UGLY
+                    </button>
+                    <button onclick="save_choice(0,-1, {{ mol.pk }})" type="button" class="btn btn-danger btn-lg">
+                        BAD
+                    </button>
+
+                {%  endif %}
                   <ul class="pagination">
                     {% for i in mols.paginator.page_range %}
                         {% if mols.number == i %}
