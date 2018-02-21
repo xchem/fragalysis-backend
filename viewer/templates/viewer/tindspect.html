@@ -464,11 +464,11 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
         var token = "{{ token | escapejs}}";
         // Register the choices in the models for this user
         var post_choice_url = "/viewer/mol_choice/"+this_mol_pk.toString()+"/"+choice.toString()+"/"
-        $.get(post_choice_url,function(data){ alert(data) });
+        $.get(post_choice_url,function(data){ console.log(data) });
         // Move to the new page
         var new_url = "?page="+next_page_number.toString()
         // Now move to this new page
-{#        document.location.href = new_url;#}
+        document.location.href = new_url;
     }
 
 </script>
@@ -498,7 +498,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                         {% if mols.number == i %}
                             <li class="active"><span>{{ i }} <span class="sr-only">(current)</span></span></li>
                         {% else %}
-                            <li><a href="?page={{ i }}">{{ i }}</a></li>
+                            <li><a onclick="document.location.href='?page={{ i }}'">{{ i }}</a></li>
                         {% endif %}
                     {% endfor %}
                 </ul>
