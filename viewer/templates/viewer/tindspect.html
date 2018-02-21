@@ -473,7 +473,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
     <div class="col-sm-1"></div>
         {% for mol in mols %}
             <div class="col-sm-3" id="molport_{{mol.prot_id_id}}" style="height: 200px;"></div>
-            <div class="col-sm-6" id="viewport_{{mol.prot_id_id}}" style="height:600px"></div>
+            <div class="col-sm-6" id="viewport_{{mol.prot_id_id}}" style="height:100%"></div>
             <div class="col-sm-2" id="pentagon_{{mol.prot_id_id}}" >PENTAGON WILL GO HERE</div>
         {% endfor %}
 </div>
