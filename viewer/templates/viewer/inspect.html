@@ -401,7 +401,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
         Promise.all([
             stage.loadFile("/viewer/prot_from_pk/" + prot_pk.toString(), {ext: "pdb"}),
             stage.loadFile("/viewer/mol_from_pk/" + mol_pk.toString(), {ext: "sdf"}),
-            stage.loadFile("/viewer/map_from_pk/" + prot_pk.toString(), {ext: "map"})]
+            stage.loadFile("/viewer/map_from_pk/" + prot_pk.toString(), {ext: "ccp4"})]
         ).then(function (ol) {
             var cs = NGL.concatStructures(
                     "concat",
