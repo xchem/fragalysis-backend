@@ -1,4 +1,4 @@
-FROM informaticsmatters/rdkit
+FROM informaticsmatters/rdkit:21e49472ed96
 ENV PYTHONUNBUFFERED 1
 RUN mkdir /code
 WORKDIR /code
