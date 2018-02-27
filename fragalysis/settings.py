@@ -61,7 +61,8 @@ INSTALLED_APPS = [
     'bootstrap3',
     'guardian',
     'django_cas_ng',
-    'rest_framework.authtoken'
+    'rest_framework.authtoken',
+    'webpack_loader'
 ]
 
 MIDDLEWARE = [
@@ -82,6 +83,7 @@ AUTHENTICATION_BACKENDS = (
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "fragalysis", "../viewer/static"),
+    os.path.join(BASE_DIR, "assets")
     ]
 
 STATICFILES_FINDERS = (
@@ -169,3 +171,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
+
+WEBPACK_LOADER = {
+    'DEFAULT': {
+        'BUNDLE_DIR_NAME': 'bundles/',
+        'STATS_FILE': os.path.join(BASE_DIR, 'webpack-stats.json'),
+    }
+}

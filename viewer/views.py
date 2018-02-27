@@ -88,6 +88,13 @@ def img_from_pk(request):
     else:
         return HttpResponse("Please insert PK")
 
+def img_from_smiles(request):
+    if "smiles" in request.POST:
+        smiles = request.POST["smiles"]
+        return  HttpResponse(draw_mol(smiles))
+    else:
+        return HttpResponse("Please insert SMILES")
+
 def mol_from_pk(request, pk):
     sdf_info = Molecule.objects.get(pk=pk).sdf_info
     return  HttpResponse(sdf_info)

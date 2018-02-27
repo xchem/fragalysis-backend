@@ -37,8 +37,6 @@ class Protein(models.Model):
     target_id = models.ForeignKey(Target)
     apo_holo = models.NullBooleanField()
     pdb_info = models.FileField(upload_to='pdbs/', null=True, max_length=10000000)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-    init_date = models.DateTimeField(auto_now_add=True)
     cif_info = models.FileField(upload_to='cifs/', null=True, max_length=10000000)
     mtz_info = models.FileField(upload_to='mtzs/', null=True, max_length=10000000)
     map_info = models.FileField(upload_to='maps/', null=True, max_length=10000000)
@@ -153,11 +151,16 @@ class ProtChoice(models.Model):
     """
     user_id = models.ForeignKey(User)
     prot_id = models.ForeignKey(Protein)
+    text = models.TextField(default="DEFAULT")
     # Score between 0 and 9; Convention for n memberd list -> num_in_list/(num_choices-1)
     # E.g.
     score = models.IntegerField()
     class Meta:
-        unique_together = ('user_id', 'prot_id',)
+        unique_together = ('user_id', 'prot_id', 'text',)
+        permissions = (
+            ('view_protchoice', 'View protchoice'),
+        )
+
 
 class MolChoice(models.Model):
     """
@@ -171,6 +174,9 @@ class MolChoice(models.Model):
     score = models.IntegerField(null=True)
     class Meta:
         unique_together = ('user_id', 'mol_id', 'text')
+        permissions = (
+            ('view_molchoice', 'View molchoice'),
+        )
 
 
 class CmpdChoice(models.Model):
@@ -179,8 +185,12 @@ class CmpdChoice(models.Model):
     """
     user_id = models.ForeignKey(User)
     cmpd_id = models.ForeignKey(Compound)
+    text = models.TextField(default="DEFAULT")
     # Score between 0 and 9; Convention for n memberd list -> num_in_list/(num_choices-1)
     # E.g.
     score = models.IntegerField()
     class Meta:
-        unique_together = ('user_id', 'cmpd_id',)
+        unique_together = ('user_id', 'cmpd_id','text',)
+        permissions = (
+            ('view_cmpdchoice', 'View cmpdhoice'),
+        )

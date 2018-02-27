@@ -247,7 +247,6 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                     break;
                 }
             }
-
         }
 
     function showPick (stage, pickingProxy) {
@@ -330,13 +329,10 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                           stage.removeComponent(comp);
                           display_arrow(pos_1, pos_2, get_colour(number_objects), smiles);
                       }
-
                   }
               }
               NProgress.done();
-
           }
-
          })
 
 
@@ -400,9 +396,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
             glob_comp = comp;
             stage.setFocus(focus_var);
         })
-
     }
-
 
     $('document').ready( function() {
         fill_imgs();
