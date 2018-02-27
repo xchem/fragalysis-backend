@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from .models import ViewScene, ActivityPoint, Molecule, Project, Protein, Compound
+from viewer.models import ViewScene, ActivityPoint, Molecule, Project, Protein, Compound, Target
+
+
+class TargetSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Target
+        fields = ('title', 'project_id')
 
 class CompoundSerializer(serializers.ModelSerializer):
     class Meta:

@@ -25,7 +25,5 @@ urlpatterns = [
     url(r'^accounts/login$', django_cas_ng.views.login, name='cas_ng_login'),
     url(r'^accounts/logout$', django_cas_ng.views.logout, name='cas_ng_logout'),
     url(r'^accounts/callback$', django_cas_ng.views.callback, name='cas_ng_proxy_callback'),
-    url(r'^', include('api.urls', namespace='api', app_name='api'))
-    # url(r'^$', RedirectView.as_view(url='/network/display/'),
-    #url(r'^$', RedirectView.as_view(url='/accounts/login'),
+    url(r'^v0.1/', include('api.urls', namespace='api', app_name='api'))
 ]

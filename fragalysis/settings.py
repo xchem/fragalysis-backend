@@ -29,6 +29,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["test.diamond.ac.uk"]
 
+REST_FRAMEWORK = {
+    'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',)
+}
+
 import requests
 ########## ALLOWED_HOSTS
 from requests.exceptions import ConnectionError
