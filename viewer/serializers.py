@@ -23,9 +23,13 @@ class ActivityPointSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('source','target_id', 'cmpd_id', 'activity', 'units', 'confidence', 'operator', 'internal_id')
 
 class ProteinSerializer(serializers.HyperlinkedModelSerializer):
+
+    pdb_info = serializers.Field('image.url')
+    cif_info =
+
     class Meta:
         model = Protein
-        fields = ('code','target_id','pdb_info','cif_info','mtz_info',)
+        fields = ('code','target_id',)
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:

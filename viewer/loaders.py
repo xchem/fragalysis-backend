@@ -2,6 +2,7 @@ import os,sys
 from .models import Target,Protein,Molecule,Compound
 from .functions import NeutraliseCharges,desalt_compound
 from django.core.exceptions import ValidationError
+from django.core.files import File
 from rdkit import Chem
 from rdkit.Chem import Lipinski,Descriptors
 
@@ -24,11 +25,11 @@ def add_prot(file_path,code,target,mtz_path=None,map_path=None):
     """
     new_prot = Protein.objects.get_or_create(code=code,target_id=target)[0]
     new_prot.apo_holo = True
-    new_prot.pdb_info = file_path
+    new_prot.pdb_info = File(open(file_path))
     if mtz_path:
-        new_prot.mtz_info = mtz_path
+        new_prot.mtz_info = File(open(mtz_path))
     if map_path:
-        new_prot.map_info = map_path
+        new_prot.map_info = File(open(map_path))
     new_prot.save()
     return new_prot
 
