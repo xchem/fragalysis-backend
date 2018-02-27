@@ -6,8 +6,9 @@ from api import views
 
 urlpatterns = [
     url(r'^auth$', drf_views.obtain_auth_token, name='auth'),
-    url(r'^molecules/(?P<pk>[0-9]+)/$', views.MoleculeList.as_view()),
-    url(r'^compounds/(?P<pk>[0-9]+)/$', views.CompoundList.as_view()),
-    url(r'^proteins/(?P<pk>[0-9]+)/$', views.ProteinList.as_view()),
-    url(r'^targets/(?P<pk>[0-9]+)/$', views.TargetList.as_view()),
+    url(r'^molecules/$', views.MoleculeList.as_view()),
+    url(r'^compounds/$', views.CompoundList.as_view()),
+    url(r'^proteins/$', views.ProteinList.as_view()),
+    url(r'^targets/$', views.TargetList.as_view()),
+    url(r'^targets/(?P<pk>[0-9]+)/$', views.TargetDetail.as_view()),
 ]
