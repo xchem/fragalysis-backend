@@ -26,7 +26,7 @@ class ProteinSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ('code','target_id',)
+        fields = ('code','target_id','pdb_info','mtz_info','map_info','cif_info')
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:

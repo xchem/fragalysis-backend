@@ -25,11 +25,11 @@ def add_prot(file_path,code,target,mtz_path=None,map_path=None):
     """
     new_prot = Protein.objects.get_or_create(code=code,target_id=target)[0]
     new_prot.apo_holo = True
-    new_prot.pdb_info = File(open(file_path))
+    new_prot.pdb_info.save(os.path.basename(file_path),File(open(file_path)))
     if mtz_path:
-        new_prot.mtz_info = File(open(mtz_path))
+        new_prot.mtz_info.save(os.path.basename(mtz_path),File(open(mtz_path)))
     if map_path:
-        new_prot.map_info = File(open(map_path))
+        new_prot.map_info.save(os.path.basename(map_path),File(open(map_path)))
     new_prot.save()
     return new_prot
 
