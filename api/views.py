@@ -18,18 +18,34 @@ class TargetDetail(generics.RetrieveAPIView):
     filter_fields = ('title',)
 
 
-
 class MoleculeList(generics.ListAPIView):
     queryset = Molecule.objects.filter()
     serializer_class = MoleculeSerializer
     filter_fields = ('prot_id', 'cmpd_id','smiles')
+
+class MoleculeDetail(generics.RetrieveAPIView):
+    queryset = Molecule.objects.filter()
+    serializer_class = MoleculeSerializer
+    filter_fields = ('prot_id', 'cmpd_id','smiles')
+
 
 class CompoundList(generics.ListAPIView):
     queryset = Compound.objects.filter()
     serializer_class = CompoundSerializer
     filter_fields = ('smiles',)
 
+class CompoundDetail(generics.RetrieveAPIView):
+    queryset = Compound.objects.filter()
+    serializer_class = CompoundSerializer
+    filter_fields = ('smiles',)
+
+
 class ProteinList(generics.ListAPIView):
+    queryset = Protein.objects.filter()
+    serializer_class = ProteinSerializer
+    filter_fields = ('code','target_id',)
+
+class ProteinDetail(generics.RetrieveAPIView):
     queryset = Protein.objects.filter()
     serializer_class = ProteinSerializer
     filter_fields = ('code','target_id',)
