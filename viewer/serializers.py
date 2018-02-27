@@ -24,9 +24,6 @@ class ActivityPointSerializer(serializers.HyperlinkedModelSerializer):
 
 class ProteinSerializer(serializers.HyperlinkedModelSerializer):
 
-    pdb_info = serializers.Field('image.url')
-    cif_info =
-
     class Meta:
         model = Protein
         fields = ('code','target_id',)
