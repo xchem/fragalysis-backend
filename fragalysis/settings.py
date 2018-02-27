@@ -176,7 +176,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 MEDIA_ROOT = '/code/media/'
-MEDIA_URL = '/media/'
 
 WEBPACK_LOADER = {
     'DEFAULT': {
