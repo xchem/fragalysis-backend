@@ -17,22 +17,22 @@ class MoleculeSerializer(serializers.HyperlinkedModelSerializer):
         model = Molecule
         fields = ('smiles', 'cmpd_id', 'prot_id', 'lig_id', 'chain_id', 'sdf_info', 'x_com', 'y_com', 'z_com',)
 
-class ActivityPointSerializer(serializers.HyperlinkedIdentityField):
+class ActivityPointSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = ActivityPoint
         fields = ('source','target_id', 'cmpd_id', 'activity', 'units', 'confidence', 'operator', 'internal_id')
 
-class ProteinSerializer(serializers.HyperlinkedIdentityField):
+class ProteinSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Protein
         fields = ('code','target_id','pdb_info','cif_info','mtz_info',)
 
-class ProjectSerializer(serializers.HyperlinkedIdentityField):
+class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Project
         fields = ('title',)
 
-class ViewSceneSerializer(serializers.HyperlinkedIdentityField):
+class ViewSceneSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model =  ViewScene
         fields = ('uuid','title','scene',)
