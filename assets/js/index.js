@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import '../css/index.css';
 import $ from 'jquery';
+import SVGInline from "react-svg-inline"
+
 
 function FillMe(props) {
     return <h1>FILL ME UP PLEASE</h1>;
@@ -101,8 +103,7 @@ class CompoundView extends React.Component{
     render() {
         if (this.state.data) {
             console.log(this.props.message)
-            //
-            return <div>{this.state.data}</div>
+            return <div><SVGInline svg={this.state.data}/></div>
         }
         else {
             return (<FillMe />)

@@ -25,7 +25,9 @@
     "cross-fetch": "^1.1.1",
     "lodash": "^4.17.5",
     "ngl": "2.0.0-dev.22",
-    "nprogress": "^0.2.0"
+    "nprogress": "^0.2.0",
+    "react-inlinesvg": "^0.7.5",
+    "react-svg-inline": "^2.1.0"
   },
   "devDependencies": {
     "babel-core": "^6.26.0",
