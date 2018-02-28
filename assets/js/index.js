@@ -5,8 +5,6 @@ import GenericList from 'generic_components';
 import GenericView from 'generic_components';
 
 
-
-
 function FillMe(props) {
     return <h1>FILL ME UP PLEASE</h1>;
 }
