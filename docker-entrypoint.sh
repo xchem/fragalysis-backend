@@ -1,5 +1,5 @@
 #!/bin/bash
-npm run watch
+npm install
 python manage.py makemigrations
 python manage.py migrate        # Apply database migrations
 python loader.py
@@ -10,6 +10,7 @@ touch /srv/logs/gunicorn.log
 touch /srv/logs/access.log
 tail -n 0 -f /srv/logs/*.log &
 # Start Gunicorn processes
+npm run watch &
 echo Starting Gunicorn.
 exec gunicorn fragalysis.wsgi:application \
     --name fragalysis \

@@ -42,7 +42,7 @@ def react(request):
     :param request:
     :return:
     """
-    return HttpResponse(request)
+    return render(request,'viewer/react_temp.html',)
 
 
 def inspect(request, target_pk):
