@@ -81,7 +81,7 @@ class CompoundView extends React.Component{
     super(props);
         this.url = '/viewer/img_from_cmpd_pk/'+props.my_id+'/'
         this.loadFromServer = this.loadFromServer.bind(this);
-        this.state = { data: [] };
+        this.state = "";
   }
 
     loadFromServer() {
