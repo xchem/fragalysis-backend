@@ -62,24 +62,11 @@ class TargetList extends GenericList {
         }
 };
 
-class CompoundList extends GenericList {
-        constructor(props) {
-            super(props);
-            this.url = '/v0.1/compounds/'
-            this.interval = 1000
-            this.render_method = function (data, index) {
-                return <CompoundView key={data.id} my_id={data.id} />
-            }
-        }
-};
-
-
 class GenericView extends React.Component{
 
 
     constructor(props) {
     super(props);
-        this.url = '/viewer/img_from_cmpd_pk/'+props.my_id+'/'
         this.loadFromServer = this.loadFromServer.bind(this);
         this.state = {data: '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="110px" height="110px"><g>' +
         '<circle cx="50" cy="0" r="5" transform="translate(5 5)"/>' +
@@ -122,6 +109,27 @@ class GenericView extends React.Component{
         else {
             return (<FillMe />)
         }
+    }
+
+}
+
+class CompoundList extends GenericList {
+        constructor(props) {
+            super(props);
+            this.url = '/v0.1/compounds/'
+            this.interval = 1000
+            this.render_method = function (data, index) {
+                return <CompoundView key={data.id} my_id={data.id} />
+            }
+        }
+};
+
+
+class CompoundView extends GenericView {
+
+    constructor(props) {
+        super(props);
+        this.url = '/viewer/img_from_cmpd_pk/' + props.my_id + '/'
     }
 
 }
