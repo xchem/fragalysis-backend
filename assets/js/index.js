@@ -75,7 +75,7 @@ class CompoundList extends GenericList {
 };
 
 
-class CompoundView extends React.Component{
+class GenericView extends React.Component{
 
 
     constructor(props) {
