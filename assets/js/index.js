@@ -2,6 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import '../css/index.css';
 
+function FillMe(props) {
+    return <h1>FILL ME UP PLEASE</h1>;
+}
+
 class GenericList extends React.Component {
 
     loadFromServer() {
@@ -30,7 +34,6 @@ class GenericList extends React.Component {
 class TargetList extends React.Component {
 
   loadFromServer() {
-    alert("HELLO");
         $.ajax({
             url: this.props.url,
             datatype: 'json',
@@ -61,7 +64,7 @@ class TargetList extends React.Component {
        else {
          return (<FillMe />)
        }
-     }
+  }
 }
 
 function Welcome(props) {
