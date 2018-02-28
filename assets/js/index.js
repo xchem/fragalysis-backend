@@ -34,6 +34,12 @@ function FillMe(props) {
 
 class TargetList extends React.Component {
 
+    constructor(props) {
+    super(props);
+    this.loadFromServer = this.loadFromServer.bind(this);
+    this.state = { data: [] };
+  }
+
   loadFromServer() {
         $.ajax({
             url: this.url,
