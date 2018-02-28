@@ -55,15 +55,9 @@ class TargetList extends React.Component {
     }
 
   render() {
-       if (this.state.data) {
-         console.log("Refreshing target load")
-         return this.state.data.map(data => (
-            <h3>{data}</h3>
-         ));
-       }
-       else {
+
          return (<FillMe />)
-       }
+       
   }
 }
 
