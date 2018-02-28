@@ -66,7 +66,7 @@ class CompoundList extends GenericList {
             this.url = '/v0.1/compounds/'
             this.interval = 1000
             this.render_method = function (data, index) {
-                return <CompoundView key={data.id} />
+                return <CompoundView key={data.id} my_id={data.id} />
             }
         }
 };
@@ -77,7 +77,7 @@ class CompoundView extends React.Component{
 
     constructor(props) {
     super(props);
-        this.url = '/viewer/img_from_cmpd_pk/'+props.key+'/'
+        this.url = '/viewer/img_from_cmpd_pk/'+props.my_id+'/'
         this.loadFromServer = this.loadFromServer.bind(this);
         this.state = { data: [] };
   }
