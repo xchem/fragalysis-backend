@@ -50,7 +50,7 @@ function Welcome(props) {
 }
 
 const element = <Welcome name="anthony" />;
-const project_div = <TargetList url='/v0.1/targets/' pollInterval={1000} />;
+const target_div = <TargetList url='/v0.1/targets/' pollInterval={1000} />;
 
 // The links between data and what is rendered
 ReactDOM.render(element, document.getElementById('react'));
