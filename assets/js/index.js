@@ -2,12 +2,60 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 
 
+import React from 'react';
+import ReactDOM from 'react-dom';
+import '../css/index.css';
+
+class GenericList extends React.Component {
+
+    loadFromServer() {
+        $.ajax({
+            url: this.props.url,
+            datatype: 'json',
+            cache: false,
+            success: function (data) {
+                this.setState({data: data})
+            }.bind(this)
+        })
+    }
+
+    getInitialState() {
+        return {data: []}
+    }
+
+    componentDidMount() {
+        this.loadFromServer();
+        setInterval(this.loadFromServer,
+            this.props.pollInterval)
+    }
+
+
+     render() {
+       if (this.state.data) {
+         console.log("Refreshing compound load")
+         //
+         return this.props.data.map(data => (
+            this.render_view
+         ));
+       }
+       else {
+         return (<FillMe />)
+       }
+     }
+}
+
+
+class TargetList extends GenericList {
+    const render_view = <h3>this.data</h3>;
+}
+
 function Welcome(props) {
   return <h1>Hello there, {props.name}</h1>;
 }
 
 const element = <Welcome name="anthony" />;
-ReactDOM.render(
-  element,
-  document.getElementById('react')
-);
+const project_div = <TargetList url='/v0.1/targets/' pollInterval={1000} />;
+
+// The links between data and what is rendered
+ReactDOM.render(element, document.getElementById('react'));
+ReactDOM.render(target_div, document.getElementById('targets'))

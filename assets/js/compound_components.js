@@ -3,8 +3,9 @@ import ReactDOM from 'react-dom';
 import '../css/index.css';
 import 'generic_components';
 
-class CompoundList extends React.Component {
-    loadCompoundsFromServer() {
+class GenericList extends React.Component {
+
+    loadFromServer() {
         $.ajax({
             url: this.props.url,
             datatype: 'json',
@@ -20,17 +21,21 @@ class CompoundList extends React.Component {
     }
 
     componentDidMount() {
-        this.loadCompoundsFromServer();
-        setInterval(this.loadCompoundsFromServer,
+        this.loadFromServer();
+        setInterval(this.loadFromServer,
             this.props.pollInterval)
     }
+}
+
+
+class ProjectList extends GenericList {
 
     render() {
         if (this.state.data) {
             console.log("Refreshing compound load")
             //
             return this.props.data.map(data => (
-                <CompoundView data={data}/>
+                <ProjectView data={data}/>
             ));
         }
         else {
@@ -39,19 +44,7 @@ class CompoundList extends React.Component {
     }
 }
 
-class CompoundView extends React.Component {
-
-    loadImageFromServer() {
-        $.ajax({
-            url: "/viewer/img_from_smiles",
-            // POST THE SMILES
-            datatype: 'json',
-            cache: false,
-            success: function (data) {
-                this.setState({data: data})
-            }.bind(this)
-        })
-    }
+class ProjectView extends React.Component {
 
   render() {
     return (this.data);
@@ -64,5 +57,4 @@ function App(props) {
 
 
 // The links between data and what is rendered
-ReactDOM.render(<CompoundList url='/insert/path/here/' pollInterval={1000} />, document.getElementById('compound-container'))
-ReactDOM.render(<App />, document.getElementsById('app'))
+ReactDOM.render(<ProjectList url='/projects/' pollInterval={1000} />, document.getElementById('projects'))
