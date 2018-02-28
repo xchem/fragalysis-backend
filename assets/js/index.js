@@ -27,7 +27,7 @@ class GenericList extends React.Component {
 
 }
 
-class TargetList extends React.Compnent {
+class TargetList extends React.Component {
 
   loadFromServer() {
         $.ajax({
