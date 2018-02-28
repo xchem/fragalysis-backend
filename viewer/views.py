@@ -93,11 +93,24 @@ def mol_view(request):
         return HttpResponse("Please insert SMILES")
 
 def img_from_pk(request):
+    """
+    DEPRECATED DESTROY!!!
+    :param request:
+    :return:
+    """
     if "pk" in request.GET:
         smiles = Molecule.objects.get(pk=request.GET["pk"]).smiles
         return  HttpResponse(draw_mol(smiles))
     else:
         return HttpResponse("Please insert PK")
+
+def img_from_mol_pk(request,pk):
+    smiles = Molecule.objects.get(pk=pk).smiles
+    return HttpResponse(draw_mol(smiles))
+
+def img_from_cmpd_pk(request,pk):
+    smiles = Compound.objects.get(pk=pk).smiles
+    return HttpResponse(draw_mol(smiles))
 
 def img_from_smiles(request):
     if "smiles" in request.POST:

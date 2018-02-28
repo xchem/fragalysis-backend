@@ -66,11 +66,52 @@ class CompoundList extends GenericList {
             this.url = '/v0.1/compounds/'
             this.interval = 1000
             this.render_method = function (data, index) {
-                return <h3 key={index}>{data.smiles}</h3>
+                return <CompoundView key=data.id />
             }
         }
 };
 
+
+class CompoundView extends React.Component{
+
+
+    constructor(props) {
+    super(props);
+        this.url = '/viewer/img_from_cmpd_pk/'+props.key+'/'
+        this.loadFromServer = this.loadFromServer.bind(this);
+        this.state = { data: [] };
+  }
+
+    loadFromServer() {
+        $.ajax({
+            url: this.url,
+            datatype: 'json',
+            cache: false,
+            success: function (data) {
+                this.setState({data: data})
+            }.bind(this)
+        })
+    }
+
+
+    componentDidMount() {
+        this.loadFromServer();
+    }
+
+    render() {
+        if (this.state.data) {
+            console.log(this.props.message)
+            //
+            return this.state.data.map((data, index) => (
+                <div>{data}</div>
+            ));
+        }
+        else {
+            return (<FillMe />)
+        }
+    }
+
+}
 
 class TargetListLink extends TargetList {
         constructor(props) {
