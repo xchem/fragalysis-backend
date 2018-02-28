@@ -50,13 +50,13 @@ class GenericList extends React.Component {
 class TargetList extends GenericList {
         constructor(props) {
             super(props);
-            render_method = render_title
+            this.render_method = render_title
         }
 }
 class TargetListTwo extends GenericList {
         constructor(props) {
             super(props);
-            render_method = render_title_two
+            this.render_method = render_title_two
         }
 }
 
