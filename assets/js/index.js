@@ -64,7 +64,7 @@ class TargetListTwo extends GenericList {
 function RenderTitle(props){
     return <h3 key={props.data.id}>{props.data.title}</h3>
 }
-function RenderTitle(props){
+function RenderTitleTwo(props){
     return <h3 key={props.data.id}>HELLO {props.data.title}</h3>
 }
 
