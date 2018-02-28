@@ -42,11 +42,10 @@ class TargetList extends React.Component {
 
   loadFromServer() {
         $.ajax({
-            url: this.url,
+            url: this.props.url,
             datatype: 'json',
             cache: false,
             success: function (data) {
-                alert(data);
                 this.setState({data: data})
             }.bind(this)
         })
