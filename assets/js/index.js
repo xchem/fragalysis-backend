@@ -57,13 +57,18 @@ class TargetList extends GenericList {
 class TargetListTwo extends GenericList {
         constructor(props) {
             super(props);
-            render_method = <RenderTitleTwo data={data}/>
+            render_method = render_title_two
         }
 }
 
 function render_title(props){
     return <h3 key={props.data.id}>{props.data.title}</h3>
 }
+
+function render_title_two(props){
+    return <h3 key={props.data.id}>HELLO{props.data.title}</h3>
+}
+
 
 
 function Welcome(props) {
