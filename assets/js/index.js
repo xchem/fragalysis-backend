@@ -16,7 +16,6 @@ const PROTEIN_URL = BASE_API+"proteins/"
 const SVG_CMPD = '/viewer/img_from_cmpd_pk/'
 const SVG_MOL = '/viewer/img_from_mol_pk/'
 
-const selected_style = "border:1px solid black;"
 
 
 // Actions
@@ -145,7 +144,7 @@ export class GenericView extends React.Component{
             const svg_image = <SVGInline svg={this.state.data}/>;
             console.log(this.props.message)
             if (this.state.isToggleOn){
-                return <div onClick={this.handleClick} style={selected_style}>{svg_image}</div>
+                return <div onClick={this.handleClick} style={{border: "1px solid black"}}>{svg_image}</div>
             }
             else{
                 return <div onClick={this.handleClick}>{svg_image}</div>
