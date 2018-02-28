@@ -30,12 +30,12 @@ class GenericList extends React.Component {
 class TargetList extends React.Component {
 
   loadFromServer() {
+    alert("HELLO");
         $.ajax({
             url: this.props.url,
             datatype: 'json',
             cache: false,
             success: function (data) {
-                alert(data);
                 this.setState({data: data})
             }.bind(this)
         })
