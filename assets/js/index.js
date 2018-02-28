@@ -33,10 +33,9 @@ class GenericList extends React.Component {
 class TargetList extends GenericList {
        render() {
        if (this.state.data) {
-         console.log("Refreshing compound load")
-         //
+         console.log("Refreshing target load")
          return this.props.data.map(data => (
-            <h3>{this.data}</h3>
+            <h3>{data}</h3>
          ));
        }
        else {
