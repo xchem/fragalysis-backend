@@ -7,30 +7,30 @@ function FillMe(props) {
     return <h1>FILL ME UP PLEASE</h1>;
 }
 
-class GenericList extends React.Component {
-
-    loadFromServer() {
-        $.ajax({
-            url: this.props.url,
-            datatype: 'json',
-            cache: false,
-            success: function (data) {
-                this.setState({data: data})
-            }.bind(this)
-        })
-    }
-
-    getInitialState() {
-        return {data: []}
-    }
-
-    componentDidMount() {
-        this.loadFromServer();
-        setInterval(this.loadFromServer,
-            this.props.pollInterval)
-    }
-
-}
+// class GenericList extends React.Component {
+//
+//     loadFromServer() {
+//         $.ajax({
+//             url: this.props.url,
+//             datatype: 'json',
+//             cache: false,
+//             success: function (data) {
+//                 this.setState({data: data})
+//             }.bind(this)
+//         })
+//     }
+//
+//     getInitialState() {
+//         return {data: []}
+//     }
+//
+//     componentDidMount() {
+//         this.loadFromServer();
+//         setInterval(this.loadFromServer,
+//             this.props.pollInterval)
+//     }
+//
+// }
 
 class TargetList extends React.Component {
 
