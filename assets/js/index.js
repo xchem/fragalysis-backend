@@ -32,7 +32,7 @@ function FillMe(props) {
 //
 // }
 
-class TargetList extends React.Component {
+class GenericList extends React.Component {
 
     constructor(props) {
     super(props);
@@ -59,7 +59,7 @@ class TargetList extends React.Component {
 
     render() {
         if (this.state.data) {
-            console.log("Refreshing compound load")
+            console.log(this.props.message)
             //
             return this.state.data.map(data => (
                 <RenderTitle data={data}/>
@@ -71,9 +71,13 @@ class TargetList extends React.Component {
     }
 }
 
+class TitleList extends GenericList {
+
+    
+}
+
 function RenderTitle(props){
     return  <h3 key={props.data.id}>{props.data.title}</h3>
-
 }
 
 function Welcome(props) {
@@ -81,7 +85,7 @@ function Welcome(props) {
 }
 
 const element = <Welcome name="anthony" />;
-const target_div = <TargetList url='/v0.1/targets/' pollInterval={1000} />;
+const target_div = <TargetList url='/v0.1/targets/' pollInterval={5000} />;
 
 // The links between data and what is rendered
 ReactDOM.render(element, document.getElementById('react'));
