@@ -72,6 +72,7 @@ export class GenericList extends React.Component {
             this.interval)
     }
 
+
     render() {
         if (this.state.data) {
             console.log(this.props.message)
@@ -95,7 +96,9 @@ export class GenericView extends React.Component{
     constructor(props) {
     super(props);
         this.loadFromServer = this.loadFromServer.bind(this);
-        this.state = {data: '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="110px" height="110px"><g>' +
+        this.handleClick = this.handleClick().bind(this);
+        this.state = {isToggleOn: false,
+            data: '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="110px" height="110px"><g>' +
         '<circle cx="50" cy="0" r="5" transform="translate(5 5)"/>' +
         '<circle cx="75" cy="6.6987298" r="5" transform="translate(5 5)"/> ' +
         '<circle cx="93.3012702" cy="25" r="5" transform="translate(5 5)"/> ' +
@@ -127,22 +130,22 @@ export class GenericView extends React.Component{
     componentDidMount() {
         this.loadFromServer();
     }
+      handleClick() {
+        this.setState(prevState => ({
+          isToggleOn: !prevState.isToggleOn
+        }));
+      }
 
     render() {
         if (this.state.data) {
-
-            const tooltip = (
-                <Tooltip id="tooltip">
-                    {this.props.id}
-                </Tooltip>
-            );
-
             console.log(this.props.message)
-            return <div>
-                <OverlayTrigger placement="left" overlay={tooltip}>
-                <SVGInline svg={this.state.data}/>
-                </OverlayTrigger>
-                </div>
+            if (this.state.isToggleOn){
+                    return <div class="border"><SVGInline svg={this.state.data}/></div>
+            }
+            else{
+                return <div><SVGInline svg={this.state.data}/></div>
+            }
+
         }
         else {
             return (<FillMe />)
