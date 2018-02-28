@@ -7,37 +7,13 @@ function FillMe(props) {
     return <h1>FILL ME UP PLEASE</h1>;
 }
 
-// class GenericList extends React.Component {
-//
-//     loadFromServer() {
-//         $.ajax({
-//             url: this.props.url,
-//             datatype: 'json',
-//             cache: false,
-//             success: function (data) {
-//                 this.setState({data: data})
-//             }.bind(this)
-//         })
-//     }
-//
-//     getInitialState() {
-//         return {data: []}
-//     }
-//
-//     componentDidMount() {
-//         this.loadFromServer();
-//         setInterval(this.loadFromServer,
-//             this.props.pollInterval)
-//     }
-//
-// }
-
 class GenericList extends React.Component {
 
     constructor(props) {
     super(props);
     this.loadFromServer = this.loadFromServer.bind(this);
     this.state = { data: [] };
+    this.render_method = <h3 key={props.data.id}>{props.data.title}</h3>
   }
 
   loadFromServer() {
@@ -61,23 +37,35 @@ class GenericList extends React.Component {
         if (this.state.data) {
             console.log(this.props.message)
             //
-            return this.state.data.map(data => (
-                <RenderTitle data={data}/>
+            return this.state.data.map((data, index) => (
+                this.render_method
             ));
         }
         else {
             return (<FillMe />)
         }
     }
+
 }
 
 class TargetList extends GenericList {
-
-
+        constructor(props) {
+            super(props);
+            render_method = <RenderTitle data={data}/>
+        }
+}
+class TargetListTwo extends GenericList {
+        constructor(props) {
+            super(props);
+            render_method = <RenderTitleTwo data={data}/>
+        }
 }
 
 function RenderTitle(props){
-    return  <h3 key={props.data.id}>{props.data.title}</h3>
+    return <h3 key={props.data.id}>{props.data.title}</h3>
+}
+function RenderTitle(props){
+    return <h3 key={props.data.id}>HELLO {props.data.title}</h3>
 }
 
 function Welcome(props) {
