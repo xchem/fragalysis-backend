@@ -66,7 +66,7 @@ class CompoundList extends GenericList {
             this.url = '/v0.1/compounds/'
             this.interval = 1000
             this.render_method = function (data, index) {
-                return <CompoundView key=data.id />
+                return <CompoundView key={data.id} />
             }
         }
 };
