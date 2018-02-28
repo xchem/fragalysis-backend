@@ -102,7 +102,7 @@ class CompoundView extends React.Component{
         if (this.state.data) {
             console.log(this.props.message)
             //
-            return <div>{this.state.data}</div>
+            return <svg>{this.state.data}</svg>
         }
         else {
             return (<FillMe />)
