@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import '../css/index.css';
-import fetch from 'cross-fetch';
 import $ from 'jquery';
 
 function FillMe(props) {
