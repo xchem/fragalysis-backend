@@ -25,13 +25,33 @@ class GenericList extends React.Component {
             this.props.pollInterval)
     }
 
-
-
 }
 
+class TargetList extends React.Compnent {
 
-class TargetList extends GenericList {
-       render() {
+  loadFromServer() {
+        $.ajax({
+            url: this.props.url,
+            datatype: 'json',
+            cache: false,
+            success: function (data) {
+                alert(data);
+                this.setState({data: data})
+            }.bind(this)
+        })
+    }
+
+    getInitialState() {
+        return {data: []}
+    }
+
+    componentDidMount() {
+        this.loadFromServer();
+        setInterval(this.loadFromServer,
+            this.props.pollInterval)
+    }
+
+  render() {
        if (this.state.data) {
          console.log("Refreshing target load")
          return this.props.data.map(data => (
