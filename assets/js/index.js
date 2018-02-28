@@ -77,7 +77,7 @@ function Welcome(props) {
 }
 
 const element = <Welcome name="anthony" />;
-const target_div = <TargetList />;
+const target_div = <TargetListLink />;
 
 // The links between data and what is rendered
 ReactDOM.render(element, document.getElementById('react'));
