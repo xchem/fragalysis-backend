@@ -62,13 +62,18 @@ class TargetList extends React.Component {
             console.log("Refreshing compound load")
             //
             return this.state.data.map(data => (
-                <h3 key={data.id}>{data.title}</h3>
+                <RenderTitle data={data}/>
             ));
         }
         else {
             return (<FillMe />)
         }
     }
+}
+
+function RenderTitle(props){
+    return  <h3 key={props.data.id}>{props.data.title}</h3>
+
 }
 
 function Welcome(props) {
