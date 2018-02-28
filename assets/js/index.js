@@ -61,7 +61,7 @@ class TargetList extends React.Component {
         if (this.state.data) {
             console.log("Refreshing compound load")
             //
-            return this.props.data.map(data => (
+            return this.state.data.map(data => (
                 <h3>{data}</h3>
             ));
         }
