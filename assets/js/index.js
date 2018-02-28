@@ -30,23 +30,23 @@ class GenericList extends React.Component {
     }
 
 
-     render() {
+
+}
+
+
+class TargetList extends GenericList {
+       render() {
        if (this.state.data) {
          console.log("Refreshing compound load")
          //
          return this.props.data.map(data => (
-            this.render_view
+            <h3>{this.data}</h3>
          ));
        }
        else {
          return (<FillMe />)
        }
      }
-}
-
-
-class TargetList extends GenericList {
-    const render_view = <h3>this.data</h3>;
 }
 
 function Welcome(props) {
