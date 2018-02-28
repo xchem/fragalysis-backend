@@ -4,6 +4,8 @@ import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 
+
+// Basic config of the API
 const BASE_API = "/v0.1/"
 const TARGET_URL = BASE_API+"targets/"
 const COMPOUNDS_URL = BASE_API+"compounds/"
@@ -13,6 +15,34 @@ const SVG_CMPD = '/viewer/img_from_cmpd_pk/'
 const SVG_MOL = '/viewer/img_from_mol_pk/'
 
 
+// Actions
+/*
+ * action types
+ */
+export const SELECT_MOL = 'SELECT_MOL'
+export const TOGGLE_MOL = 'TOGGLE_MOL'
+export const SET_VISIBILITY_FILTER = 'SET_VISIBILITY_FILTER'
+/*
+ * other constants
+ */
+export const VisibilityFilters = {
+  SHOW_ALL: 'SHOW_ALL',
+  SHOW_COMPLETED: 'SHOW_SELECTED',
+  SHOW_ACTIVE: 'SHOW_ACTIVE'
+}
+export function selectMol(index) {
+  return { type: SELECT_MOL, index }
+}
+ 
+export function toggleMol(index) {
+  return { type: TOGGLE_MOL, index }
+}
+ 
+export function setVisibilityFilter(filter) {
+  return { type: SET_VISIBILITY_FILTER, filter }
+}
+
+// Generic Classes
 export class GenericList extends React.Component {
 
     constructor(props) {
@@ -111,6 +141,8 @@ function FillMe(props) {
     return <h1>FILL ME UP PLEASE</h1>;
 }
 
+// Specific Lists
+
 class CompoundList extends GenericList {
         constructor(props) {
             super(props);
@@ -156,6 +188,9 @@ class ProteinList extends GenericList {
         }
 }
 
+
+// Specific Views
+
 class CompoundView extends GenericView {
 
     constructor(props) {
@@ -179,7 +214,7 @@ const target_div = <TargetList />;
 const protein_div = <ProteinList />;
 const molecule_div = <MoleculeList />;
 // The links between data and what is rendered
-ReactDOM.render(target_div, document.getElementById('targets'))
+// ReactDOM.render(target_div, document.getElementById('targets'))
 ReactDOM.render(molecule_div, document.getElementById('molecules'))
-ReactDOM.render(protein_div, document.getElementById('proteins'))
-ReactDOM.render(compound_div, document.getElementById('compounds'))
+// ReactDOM.render(protein_div, document.getElementById('proteins'))
+// ReactDOM.render(compound_div, document.getElementById('compounds'))
