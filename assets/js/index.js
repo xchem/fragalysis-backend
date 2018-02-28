@@ -1,8 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import '../css/index.css';
-import GenericList from './generic_components.js';
-import GenericView from './generic_components.js';
+import './generic_components.js';
 
 
 function FillMe(props) {
