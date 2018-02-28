@@ -4,6 +4,8 @@ import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 
+import { ListGroup, ListGroupItem } from 'react-bootstrap';
+
 
 // Basic config of the API
 const BASE_API = "/v0.1/"
@@ -75,7 +77,9 @@ export class GenericList extends React.Component {
             console.log(this.props.message)
             //
             return this.state.data.map((data, index) => (
+                <ListGroup>
                 this.render_method(data,index)
+                </ListGroup>
             ));
         }
         else {
@@ -160,7 +164,7 @@ class TargetList extends GenericList {
             this.url = TARGET_URL
             this.interval = 1000
             this.render_method = function (data, index) {
-                return <h3 key={index}>{data.title}</h3>
+                return <ListGroupItem key={index}>{data.title}</ListGroupItem>
             }
         }
 };
@@ -183,7 +187,7 @@ class ProteinList extends GenericList {
             this.url = PROTEIN_URL
             this.interval = 1000
             this.render_method = function (data, index) {
-                return <h3 key={data.id} >{data.code}</h3>
+                return <ListGroupItem key={data.id}>{data.code}</ListGroupItem>
             }
         }
 }
