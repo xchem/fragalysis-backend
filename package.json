@@ -4,8 +4,9 @@
   "description": "Docker setup for building a Django, RDKit and Postgres stack with neo4j and Jupyter notebooks",
   "main": "webpack.config.js",
   "scripts": {
-    "build": "webpack --config webpack.config.js --progress --colors",
-    "watch": "webpack --config webpack.config.js --watch"
+    "build": "webpack --config webpack.config.js --progress --colors --mode production",
+    "watch": "webpack --config webpack.config.js --watch",
+    "dev": "webpack --config webpack.config.js --mode development --watch"
   },
   "repository": {
     "type": "git",
