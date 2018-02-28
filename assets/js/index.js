@@ -96,7 +96,7 @@ export class GenericView extends React.Component{
     constructor(props) {
     super(props);
         this.loadFromServer = this.loadFromServer.bind(this);
-        this.handleClick = this.handleClick().bind(this);
+        this.handleClick = this.handleClick.bind(this);
         this.state = {isToggleOn: false,
             data: '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="110px" height="110px"><g>' +
         '<circle cx="50" cy="0" r="5" transform="translate(5 5)"/>' +
@@ -130,7 +130,8 @@ export class GenericView extends React.Component{
     componentDidMount() {
         this.loadFromServer();
     }
-      handleClick() {
+
+    handleClick() {
         this.setState(prevState => ({
           isToggleOn: !prevState.isToggleOn
         }));
