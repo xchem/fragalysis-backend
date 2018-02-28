@@ -8,7 +8,7 @@ from rest_framework import viewsets
 class TargetView(viewsets.ModelViewSet):
     queryset = Target.objects.filter()
     serializer_class = TargetSerializer
-    permission_classes =  [permissions.DjangoObjectPermissions,]
+    # permission_classes =  [permissions.DjangoObjectPermissions,]
     filter_fields = ('title',)
 
 class MoleculeView(viewsets.ModelViewSet):
