@@ -45,10 +45,6 @@ class TargetList extends React.Component {
         })
     }
 
-    getInitialState() {
-        return {data: []}
-    }
-
     componentDidMount() {
         this.loadFromServer();
         setInterval(this.loadFromServer,
