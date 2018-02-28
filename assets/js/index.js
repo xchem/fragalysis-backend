@@ -13,7 +13,6 @@ class GenericList extends React.Component {
     super(props);
     this.loadFromServer = this.loadFromServer.bind(this);
     this.state = { data: [] };
-    this.render_method = <h3 key={props.data.id}>{props.data.title}</h3>
   }
 
   loadFromServer() {
