@@ -64,7 +64,7 @@ class TargetListLink extends TargetList {
         constructor(props) {
             super(props);
             this.render_method = function (data, index) {
-                return <a key={index}>{title}</a>
+                return <a key={index}>{data.title}</a>
             }
         }
 };
