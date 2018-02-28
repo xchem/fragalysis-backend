@@ -179,7 +179,6 @@ const target_div = <TargetList />;
 const protein_div = <ProteinList />;
 const molecule_div = <MoleculeList />;
 // The links between data and what is rendered
-ReactDOM.render(element, document.getElementById('react'));
 ReactDOM.render(target_div, document.getElementById('targets'))
 ReactDOM.render(molecule_div, document.getElementById('molecules'))
 ReactDOM.render(protein_div, document.getElementById('proteins'))
