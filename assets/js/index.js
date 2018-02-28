@@ -57,10 +57,18 @@ class TargetList extends React.Component {
             this.pollInterval)
     }
 
-  render() {
-         return (<FillMe />)
-
-  }
+    render() {
+        if (this.state.data) {
+            console.log("Refreshing compound load")
+            //
+            return this.props.data.map(data => (
+                <h3>{data}</h3>
+            ));
+        }
+        else {
+            return (<FillMe />)
+        }
+    }
 }
 
 function Welcome(props) {
