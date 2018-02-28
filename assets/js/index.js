@@ -38,7 +38,7 @@ class GenericList extends React.Component {
             console.log(this.props.message)
             //
             return this.state.data.map((data, index) => (
-                this.render_method
+                this.render_method(data,index)
             ));
         }
         else {
@@ -51,7 +51,7 @@ class GenericList extends React.Component {
 class TargetList extends GenericList {
         constructor(props) {
             super(props);
-            render_method = <RenderTitle data={data}/>
+            render_method = render_title
         }
 }
 class TargetListTwo extends GenericList {
@@ -61,12 +61,10 @@ class TargetListTwo extends GenericList {
         }
 }
 
-function RenderTitle(props){
+function render_title(props){
     return <h3 key={props.data.id}>{props.data.title}</h3>
 }
-function RenderTitleTwo(props){
-    return <h3 key={props.data.id}>HELLO {props.data.title}</h3>
-}
+
 
 function Welcome(props) {
   return <h1>Hello there, {props.name}</h1>;
