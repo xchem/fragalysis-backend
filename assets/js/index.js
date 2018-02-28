@@ -9,9 +9,9 @@ function FillMe(props) {
 
 class GenericList extends React.Component {
 
-    loadFromServer(url) {
+    loadFromServer() {
         $.ajax({
-            url: url,
+            url: this.props.url,
             datatype: 'json',
             cache: false,
             success: function (data) {
@@ -56,7 +56,6 @@ class TargetList extends React.Component {
     }
 
   render() {
-
          return (<FillMe />)
 
   }
