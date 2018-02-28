@@ -50,24 +50,19 @@ class GenericList extends React.Component {
 class TargetList extends GenericList {
         constructor(props) {
             super(props);
-            this.render_method = render_title
+            props.url = '/v0.1/targets/'
+            props.pollInterval=100000
+            this.render_method = function (data, index) {
+                return <RenderTitle index={index} title={data.title}/>
+            }
         }
-}
-class TargetListTwo extends GenericList {
-        constructor(props) {
-            super(props);
-            this.render_method = render_title_two
-        }
-}
+};
 
-function render_title(data,index){
-    return <h3 key={index}>{data.title}</h3>
-}
+function RenderTitle(props){
 
-function render_title_two(data,index){
-    return <h3 key={index}>HELLO{data.title}</h3>
-}
+    return <h3 key={props.index}></h3>
 
+}
 
 
 function Welcome(props) {
@@ -75,7 +70,7 @@ function Welcome(props) {
 }
 
 const element = <Welcome name="anthony" />;
-const target_div = <TargetList url='/v0.1/targets/' pollInterval={5000} />;
+const target_div = <TargetList />;
 
 // The links between data and what is rendered
 ReactDOM.render(element, document.getElementById('react'));
