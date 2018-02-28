@@ -77,9 +77,7 @@ export class GenericList extends React.Component {
             console.log(this.props.message)
             //
             return this.state.data.map((data, index) => (
-                <ListGroup>
                 this.render_method(data,index)
-                </ListGroup>
             ));
         }
         else {
