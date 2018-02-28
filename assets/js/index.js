@@ -71,9 +71,9 @@ class GenericList extends React.Component {
     }
 }
 
-class TitleList extends GenericList {
+class TargetList extends GenericList {
 
-    
+
 }
 
 function RenderTitle(props){
