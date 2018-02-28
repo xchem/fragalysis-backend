@@ -92,7 +92,9 @@ STATICFILES_DIRS = [
 
 STATICFILES_FINDERS = (
         'django.contrib.staticfiles.finders.FileSystemFinder',
-        'django.contrib.staticfiles.finders.AppDirectoriesFinder',)
+        'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+        'npm.finders.NpmFinder',
+)
 
 # CAS parameters
 CAS_SERVER_URL = "https://auth.diamond.ac.uk:443/cas/"
