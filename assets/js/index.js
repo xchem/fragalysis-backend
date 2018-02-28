@@ -130,8 +130,19 @@ export class GenericView extends React.Component{
 
     render() {
         if (this.state.data) {
+
+            const tooltip = (
+                <Tooltip id="tooltip">
+                    {this.props.id}
+                </Tooltip>
+            );
+
             console.log(this.props.message)
-            return <SVGInline svg={this.state.data}/>
+            return <div>
+                <OverlayTrigger placement="left" overlay={tooltip}>
+                <SVGInline svg={this.state.data}/>
+                </OverlayTrigger>
+                </div>
         }
         else {
             return (<FillMe />)
@@ -173,6 +184,7 @@ class MoleculeList extends GenericList {
         constructor(props) {
             super(props);
             this.url = MOLECULE_URL
+            this.payload = {"target_id": null, "prot_id": null}
             this.interval = 1000
             this.render_method = function (data, index) {
                 return <MoleculeView key={data.id} my_id={data.id} />
@@ -221,4 +233,4 @@ const molecule_div = <MoleculeList />;
 // ReactDOM.render(target_div, document.getElementById('targets'))
 ReactDOM.render(target_div, document.getElementById('targets'))
 // ReactDOM.render(protein_div, document.getElementById('proteins'))
-// ReactDOM.render(compound_div, document.getElementById('compounds'))
+ReactDOM.render(compound_div, document.getElementById('compounds'))
