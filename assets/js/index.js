@@ -4,7 +4,7 @@ import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 
-import { ListGroup, ListGroupItem } from 'react-bootstrap';
+import { ListGroup, ListGroupItem, Tooltip} from 'react-bootstrap';
 
 
 // Basic config of the API
