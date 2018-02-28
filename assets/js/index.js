@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
-import { init } from "./ngl-ui.js";
+import { ngl_init } from "./ngl-ui.js";
 
 
 import { ListGroup, ListGroupItem, Tooltip, OverlayTrigger, Col} from 'react-bootstrap';
@@ -239,8 +239,8 @@ const target_div = <TargetList />;
 const protein_div = <ProteinList />;
 const molecule_div = <MoleculeList />;
 // The links between data and what is rendered
-init()
 // ReactDOM.render(target_div, document.getElementById('targets'))
 ReactDOM.render(target_div, document.getElementById('targets'))
 // ReactDOM.render(protein_div, document.getElementById('proteins'))
 ReactDOM.render(compound_div, document.getElementById('compounds'))
+ngl_init();

@@ -1,7 +1,6 @@
 import { createStore } from 'redux';
 import { h, render } from 'preact';
-import NGL from 'ngl';
-
+import  NGL from 'ngl';
 // Subscribe > Action > Reducer > Component
 import { Header, DisplayOptions } from './components/components.js';
 import { app } from './reducers/reducers.js';
@@ -13,7 +12,7 @@ import { getQueryStringParameterByName, inspect } from "./util.js";
 // Kick start the initialization process
 
 
-export function init() {
+function ngl_init() {
     // Get the pdbId from the parameterString or set a default pdbId
     const pdbId = (getQueryStringParameterByName('pdbId') !== '') ? getQueryStringParameterByName('pdbId') : '4cup';
 
