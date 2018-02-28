@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import '../css/index.css';
+import fetch from 'cross-fetch';
 
 function FillMe(props) {
     return <h1>FILL ME UP PLEASE</h1>;
@@ -57,7 +58,7 @@ class TargetList extends React.Component {
   render() {
 
          return (<FillMe />)
-       
+
   }
 }
 
