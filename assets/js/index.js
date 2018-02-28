@@ -11,13 +11,15 @@ class GenericList extends React.Component {
 
     constructor(props) {
     super(props);
-    this.loadFromServer = this.loadFromServer.bind(this);
-    this.state = { data: [] };
+        this.url = '/v0.1/'
+        this.interval = 1000
+        this.loadFromServer = this.loadFromServer.bind(this);
+        this.state = { data: [] };
   }
 
   loadFromServer() {
         $.ajax({
-            url: this.props.url,
+            url: this.url,
             datatype: 'json',
             cache: false,
             success: function (data) {
@@ -29,7 +31,7 @@ class GenericList extends React.Component {
     componentDidMount() {
         this.loadFromServer();
         setInterval(this.loadFromServer,
-            this.pollInterval)
+            this.interval)
     }
 
     render() {
@@ -50,8 +52,8 @@ class GenericList extends React.Component {
 class TargetList extends GenericList {
         constructor(props) {
             super(props);
-            props.url = '/v0.1/targets/'
-            props.pollInterval=100000
+            this.url = '/v0.1/targets/'
+            this.interval = 1000
             this.render_method = function (data, index) {
                 return <RenderTitle index={index} title={data.title}/>
             }
