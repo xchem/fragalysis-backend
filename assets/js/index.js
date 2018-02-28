@@ -60,16 +60,26 @@ class TargetList extends GenericList {
         }
 };
 
-class TargetListLink extends TargetList {
+class CompoundList extends GenericList {
         constructor(props) {
             super(props);
+            this.url = '/v0.1/compounds/'
+            this.interval = 1000
             this.render_method = function (data, index) {
-                return <li><a key={index}>{data.title}</a></li>
+                return <h3 key={index}>{data.smiles}</h3>
             }
         }
 };
 
 
+class TargetListLink extends TargetList {
+        constructor(props) {
+            super(props);
+            this.render_method = function (data, index) {
+                return <li key={index}><a>{data.title}</a></li>
+            }
+        }
+};
 
 
 function Welcome(props) {
@@ -77,7 +87,7 @@ function Welcome(props) {
 }
 
 const element = <Welcome name="anthony" />;
-const target_div = <TargetListLink />;
+const target_div = <CompoundList />;
 
 // The links between data and what is rendered
 ReactDOM.render(element, document.getElementById('react'));
