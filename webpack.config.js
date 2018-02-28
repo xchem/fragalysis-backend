@@ -1,52 +1,32 @@
-var path = require('path')
-var webpack = require('webpack')
-var BundleTracker = require('webpack-bundle-tracker')
-
+var path = require("path");
+var webpack = require('webpack');
+var BundleTracker = require('webpack-bundle-tracker');
 
 module.exports = {
+  context: __dirname,
 
-    context:__dirname,
+  entry: './assets/js/index',
 
-    entry: "./assets/js/index",
+  output: {
+      path: path.resolve('./assets/static/bundles/'),
+      filename: "[name]-[hash].js",
+  },
 
-    output: {
-        path: path.resolve('./assets/bundles'),
-        filename: '[name]-[hash].js',
-    },
+  plugins: [
+    new BundleTracker({filename: 'webpack-stats.json'}),
+  ],
 
-    plugins: [
+  module: {
+    rules: [
+      { test: /\.js$/, enforce: "pre", loader: 'babel-loader', exclude: /node_modules/ },
+      { test: /\.jsx$/, enforce: "pre",  loader: 'babel-loader', exclude: /node_modules/ }
+    ]
+  },
 
-        new BundleTracker({
-            filename: './webpack-stats.json'
-        }),
-
-        new webpack.ProvidePlugin(
-            {
-                $: 'jquery',
-                jQuery: 'jquery',
-                'window.jQuery': jquery
-            }
-        )
-    ],
-
-    module: {
-
-        loaders: [
-
-            {test: /\.jsx?$/,
-                exclude: /node_moldules/,
-                loader: 'babel-loader',
-                query: {
-                 presets: ['react']
-                }
-            }
+  resolve: {
+    modules: ['node_modules'],
+    extensions: ['.js', '.jsx']
+  },
 
 
-        ]
-    },
-    resolve: {
-        moduleDirectories: ['node_modules'],
-        extensions: ['','.js','.jsx']
-    }
-
-}
+};

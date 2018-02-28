@@ -1,13 +1,12 @@
+{% load render_bundle from webpack_loader %}
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>React attempt</title>
-    {% load render_bundle from webpack_loader %}
-</head>
-<body>
-
-    <div id="container"></div>
-     {% render_bundle ‘main’ %}
-</body>
+<html>
+ <head>
+ <meta charset="UTF-8">
+ <title>Example</title>
+ </head>
+ <body>
+ <div id="react"></div>
+ {% render_bundle 'main' %}
+ </body>
 </html>

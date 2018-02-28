@@ -35,6 +35,16 @@ def display(request):
     token = get_token(request)
     return render(request, 'viewer/display.html', {"token": token, "mols": mols, "scene_id": scene_id})
 
+
+def react(request):
+    """
+
+    :param request:
+    :return:
+    """
+    return HttpResponse(request)
+
+
 def inspect(request, target_pk):
     num_per_page = 5
     page = request.GET.get('page', 1)
@@ -151,3 +161,4 @@ def get_mols(request):
         target_id = request.POST["target"]
     out_data = generate_data_for_smis(mol_smiles)
     return HttpResponse(json.dumps(out_data))
+

@@ -4,24 +4,14 @@ services:
   db:
     image: postgres
     volumes:
-       - /home/ec2-user/django_data:/var/lib/postgresql/data
-    deploy:
-      replicas: 4
-      update_config:
-        parallelism: 2
-        delay: 10s
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
+       - ../django_data:/var/lib/postgresql/data
   cartridge:
     image: informaticsmatters/rdkit_cartridge:Release_2017_09_1
     user: root
     environment:
       - POSTGRES_PASSWORD=password
     volumes:
-      - /home/ec2-user/cartridge_data:/var/lib/postgresql/data
+      - ../cartridge_data:/var/lib/postgresql/data
   graph:
     container_name: neo4j
     image: neo4j
@@ -34,41 +24,21 @@ services:
         soft: 40000
         hard: 40000
     volumes:
-      - /home/ec2-user/neo4j/data:/data
-      - /home/ec2-user/neo4j/logs:/logs
+      - ../neo4j/data:/data
+      - ../neo4j/logs:/logs
     environment:
       - NEO4J_AUTH=none
       - NEO4J_dbms_memory_pagecache_size=4G
-    deploy:
-      replicas: 2
-      update_config:
-        parallelism: 1
-        delay: 10s
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
   web:
     build: .
     command: /bin/bash /code/docker-entrypoint.sh
     volumes:
       - .:/code
-      - /home/ec2-user/logs:/code/logs/
-      - /home/ec2-user/media:/code/media/
+      - ../logs:/code/logs/
+      - ../media:/code/media/
     ports:
       - "80:80"
     depends_on:
       - db
       - graph
       - cartridge
-    deploy:
-      replicas: 12
-      update_config:
-        parallelism: 4
-        delay: 10s
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s

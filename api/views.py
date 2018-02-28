@@ -1,14 +1,14 @@
 from viewer.models import ViewScene, ActivityPoint, Molecule, Project, Protein, Compound,Target
 from viewer.serializers import ViewSceneSerializer,ActivityPointSerializer,MoleculeSerializer,ProjectSerializer,\
     ProteinSerializer, CompoundSerializer, TargetSerializer
-from rest_framework import generics
 from rest_framework import permissions
 from rest_framework import viewsets
+
 
 class TargetView(viewsets.ModelViewSet):
     queryset = Target.objects.filter()
     serializer_class = TargetSerializer
-    # permission_classes =  [permissions.DjangoObjectPermissions(),]
+    permission_classes =  [permissions.DjangoObjectPermissions,]
     filter_fields = ('title',)
 
 class MoleculeView(viewsets.ModelViewSet):

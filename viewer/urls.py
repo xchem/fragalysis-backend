@@ -6,6 +6,8 @@ urlpatterns = [
     url(r'^display/$', views.display, name='display'),
     url(r'^inspect/(?P<target_pk>[0-9]+)/$', views.inspect, name='inspect'),
     url(r'^tindspect/(?P<target_pk>[0-9]+)/$', views.tindspect, name='tindspect'),
+    url(r'^react/$', views.react, name='react'),
+    # Move all of these to API
     url(r'^mol_choice/(?P<mol_pk>[0-9]+)/(?P<score>[0-9]+)/$', views.mol_choice, name='mol_choice'),
     url(r'^mol_view/$', views.mol_view, name='mol_view'),
     url(r'^img_from_pk/$', views.img_from_pk, name='img_from_pk'),

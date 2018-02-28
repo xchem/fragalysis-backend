@@ -1,5 +1,5 @@
 #!/bin/bash
-npm install
+npm run watch
 python manage.py makemigrations
 python manage.py migrate        # Apply database migrations
 python loader.py

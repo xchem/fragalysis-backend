@@ -44,7 +44,7 @@ try:
     ALLOWED_HOSTS += [instance_ip]
 except ConnectionError:
     error_msg = "You can only run production settings on an AWS EC2 instance"
-    raise ImproperlyConfigured(error_msg)
+    # raise ImproperlyConfigured(error_msg)
 ########## END ALLOWED_HOSTS
 
 
@@ -92,8 +92,7 @@ STATICFILES_DIRS = [
 
 STATICFILES_FINDERS = (
         'django.contrib.staticfiles.finders.FileSystemFinder',
-        'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-        'npm.finders.NpmFinder',)
+        'django.contrib.staticfiles.finders.AppDirectoriesFinder',)
 
 # CAS parameters
 CAS_SERVER_URL = "https://auth.diamond.ac.uk:443/cas/"
