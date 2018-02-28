@@ -27,6 +27,10 @@ module.exports = {
     modules: ['node_modules'],
     extensions: ['.js', '.jsx']
   },
-
-
+  loaders: [
+    {
+      test: /\.svg$/,
+      loader: 'raw-loader'
+    }
+  ]
 };
