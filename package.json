@@ -17,6 +17,14 @@
     "url": "https://github.com/xchem/fragalysis-stack/issues"
   },
   "homepage": "https://github.com/xchem/fragalysis-stack#readme",
+  "dependencies": {
+    "@shopify/draggable": "1.0.0-beta.3",
+    "axios": "^0.17.1",
+    "clipboard": "1.7.1",
+    "lodash": "^4.17.5",
+    "ngl": "2.0.0-dev.22",
+    "nprogress": "^0.2.0",
+  },
   "devDependencies": {
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.3",
