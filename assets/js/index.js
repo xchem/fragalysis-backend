@@ -55,16 +55,21 @@ class TargetList extends GenericList {
             this.url = '/v0.1/targets/'
             this.interval = 1000
             this.render_method = function (data, index) {
-                return <RenderTitle index={index} title={data.title}/>
+                return <h3 key={index}>{data.title}</h3>
             }
         }
 };
 
-function RenderTitle(props){
+class TargetListLink extends TargetList {
+        constructor(props) {
+            super(props);
+            this.render_method = function (data, index) {
+                return <a key={index}>{title}</a>
+            }
+        }
+};
 
-    return <h3 key={props.index}></h3>
 
-}
 
 
 function Welcome(props) {
