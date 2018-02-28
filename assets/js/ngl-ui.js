@@ -11,9 +11,9 @@ import { NglController } from './ngl-controller';
 import { getQueryStringParameterByName, inspect } from "./util.js";
 
 // Kick start the initialization process
-init();
 
-function init() {
+
+export function init() {
     // Get the pdbId from the parameterString or set a default pdbId
     const pdbId = (getQueryStringParameterByName('pdbId') !== '') ? getQueryStringParameterByName('pdbId') : '4cup';
 

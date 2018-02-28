@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
-import init from "./ngl-ui.js";
+import { init } from "./ngl-ui.js";
 
 
 import { ListGroup, ListGroupItem, Tooltip, OverlayTrigger, Col} from 'react-bootstrap';
