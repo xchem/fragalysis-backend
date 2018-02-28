@@ -12,7 +12,7 @@ import { getQueryStringParameterByName, inspect } from "./util.js";
 // Kick start the initialization process
 
 
-function ngl_init() {
+export function ngl_init() {
     // Get the pdbId from the parameterString or set a default pdbId
     const pdbId = (getQueryStringParameterByName('pdbId') !== '') ? getQueryStringParameterByName('pdbId') : '4cup';
 
