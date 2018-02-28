@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
+import spinnersvg from "../svg/spinner.svg"
 
 
 function FillMe(props) {
@@ -81,7 +82,7 @@ class CompoundView extends React.Component{
     super(props);
         this.url = '/viewer/img_from_cmpd_pk/'+props.my_id+'/'
         this.loadFromServer = this.loadFromServer.bind(this);
-        this.state = {data:""};
+        this.state = {data: spinnersvg};
   }
 
     loadFromServer() {
