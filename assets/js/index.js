@@ -36,7 +36,7 @@ class TargetList extends React.Component {
 
   loadFromServer() {
         $.ajax({
-            url: this.props.url,
+            url: this.url,
             datatype: 'json',
             cache: false,
             success: function (data) {
@@ -52,7 +52,7 @@ class TargetList extends React.Component {
     componentDidMount() {
         this.loadFromServer();
         setInterval(this.loadFromServer,
-            this.props.pollInterval)
+            this.pollInterval)
     }
 
   render() {
