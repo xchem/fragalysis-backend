@@ -141,10 +141,10 @@ export class GenericView extends React.Component{
         if (this.state.data) {
             console.log(this.props.message)
             if (this.state.isToggleOn){
-                    return <div class="border"><SVGInline svg={this.state.data}/></div>
+                    return <div onClick={this.handleClick} class="border"><SVGInline svg={this.state.data}/></div>
             }
             else{
-                return <div><SVGInline svg={this.state.data}/></div>
+                return <div onClick={this.handleClick}><SVGInline svg={this.state.data}/></div>
             }
 
         }
