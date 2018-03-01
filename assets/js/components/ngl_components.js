@@ -41,40 +41,50 @@ export class NGLView extends React.Component {
             const mol_url = MOL_URL + mol_id.toString() + "/"
             const object_name = mol_id.toString()
             NProgress.start();
-            Promise.all([
-                this.stage.loadFile(prot_url, {ext: "pdb"}),
-                this.stage.loadFile(mol_url, {ext: "sdf"}),
-            this.stage,this.focus_var,object_name]
-            ).then(function (ol) {
-                var cs = concatStructures(
-                    "concat",
-                    ol[0].structure.getView(new Selection("not ligand")),
-                    ol[1].structure.getView(new Selection(""))
-                )
-                var stage = ol[2];
-                var focus_var = ol[3];
-                cs.path = ol[4]
-                // Set the object name
-                var comp = stage.addComponentFromObject(cs)
-                comp.addRepresentation("cartoon")
-                comp.addRepresentation("contact", {
-                    masterModelIndex: 0,
-                    weakHydrogenBond: true,
-                    maxHbondDonPlaneAngle: 35,
-                    sele: "/0 or /1"
+            if(toggle) {
+                Promise.all([
+                    this.stage.loadFile(prot_url, {ext: "pdb"}),
+                    this.stage.loadFile(mol_url, {ext: "sdf"}),
+                    this.stage, this.focus_var, object_name]
+                ).then(function (ol) {
+                    var cs = concatStructures(
+                        ol[4],
+                        ol[0].structure.getView(new Selection("not ligand")),
+                        ol[1].structure.getView(new Selection(""))
+                    )
+                    var stage = ol[2];
+                    var focus_var = ol[3];
+                    // Set the object name
+                    var comp = stage.addComponentFromObject(cs)
+                    comp.addRepresentation("cartoon")
+                    comp.addRepresentation("contact", {
+                        masterModelIndex: 0,
+                        weakHydrogenBond: true,
+                        maxHbondDonPlaneAngle: 35,
+                        sele: "/0 or /1"
+                    })
+                    comp.addRepresentation("licorice", {
+                        sele: "ligand and /1",
+                        multipleBond: "offset"
+                    })
+                    comp.addRepresentation("line", {
+                        sele: "/0"
+                    })
+                    comp.autoView("ligand");
+                    NProgress.done();
+                    this.stage.setFocus(focus_var);
+                });
+            }
+            else{
+                stage.eachComponent(
+                  function(comp){
+                  if (comp.name==object_name){
+                      stage.removeComponent(comp)
+                  }
                 })
-                comp.addRepresentation("licorice", {
-                    sele: "ligand and /1",
-                    multipleBond: "offset"
-                })
-                comp.addRepresentation("line", {
-                    sele: "/0"
-                })
-                comp.autoView("ligand");
-                NProgress.done();
-                this.stage.setFocus(focus_var);
-            });
+            }
         }
+
         this.old_dict = this.props.mol_dict;
     }
     render(){
