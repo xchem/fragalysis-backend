@@ -38,7 +38,7 @@ export class TargetList extends GenericList {
             this.render_method = function (data, index) {
                 return <ListGroupItem key={index} >
                     <input type="radio" value={data.title} checked={this.state.target === data.title}
-                    onChange={this.handleOptionChange} />/>
+                    onChange={this.handleOptionChange}>{data.title}</input>>
                 </ListGroupItem>
             }
         }
