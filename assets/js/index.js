@@ -4,9 +4,6 @@ import { connect, createStore } from 'redux'
 import { Col, Row} from 'react-bootstrap'
 import { NGLView } from './components/ngl_components'
 import { TargetList, MoleculeList } from './components/api_components'
-import { app } from './reducers/reducers'
-
-let store = createStore(app);
 
 class TotalView extends React.Component {
 
