@@ -59,6 +59,7 @@ export class GenericList extends React.Component {
           targetOn: new_value
         }));
         this.props.communicateChecked(new_value);
+        this.loadFromServer();
       }
 
   loadFromServer() {
