@@ -296,7 +296,7 @@ class TotalView extends React.Component {
     }
 
     render() {
-        <Row>
+        return <Row>
             <Col xs={2} md={2}>
                 <TargetList />
             </Col>
