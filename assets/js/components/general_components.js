@@ -6,7 +6,7 @@
  */
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
-
+import React from 'react';
 // Actions
 /*
  * action types
