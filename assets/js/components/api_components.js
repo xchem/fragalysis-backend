@@ -51,10 +51,11 @@ export class MoleculeList extends GenericList {
         constructor(props) {
             super(props);
             this.url = MOLECULE_URL
+            this.get_params={"width": 100, "height": 100}
             this.communicateChecked = props.communicateChecked;
             this.interval = 1000
             this.render_method = function (data, index) {
-                return <MoleculeView communicateChecked={this.communicateChecked} key={data.id} prot_id={data.prot_id} my_id={data.id} />
+                return <MoleculeView get_params={this.get_params}communicateChecked={this.communicateChecked} key={data.id} prot_id={data.prot_id} my_id={data.id} />
             }
         }
 };

@@ -132,6 +132,7 @@ export class GenericView extends React.Component{
             url: this.url,
             datatype: 'json',
             cache: false,
+            data: this.props.get_params,
             success: function (data) {
                 this.setState({data: data})
             }.bind(this)
