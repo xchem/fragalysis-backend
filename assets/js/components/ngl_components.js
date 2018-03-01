@@ -71,7 +71,6 @@ export class NGLView extends React.Component {
                         sele: "/0"
                     })
                     comp.autoView("ligand");
-                    NProgress.done();
                     this.stage.setFocus(focus_var);
                 });
             }
@@ -79,11 +78,13 @@ export class NGLView extends React.Component {
                 this.stage.eachComponent(
                   function(comp){
                   if (comp.name==object_name){
-                      stage.removeComponent(comp)
+                      this.stage.removeComponent(comp)
                   }
                 })
+
             }
         }
+        NProgress.done();
         this.old_dict = this.props.mol_dict;
     }
     render(){
