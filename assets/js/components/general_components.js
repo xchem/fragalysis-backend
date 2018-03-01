@@ -107,7 +107,7 @@ export class GenericView extends React.Component{
     super(props);
         this.loadFromServer = this.loadFromServer.bind(this);
         this.handleClick = this.handleClick.bind(this);
-        this.selected_style = {background: "#faebcc"}
+        this.selected_style = {backgroundColor: "#faebcc"}
         this.not_selected_style = {}
         this.state = {isToggleOn: false,
             data: '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="110px" height="110px"><g>' +
