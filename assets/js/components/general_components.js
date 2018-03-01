@@ -50,6 +50,13 @@ export class GenericList extends React.Component {
         this.loadFromServer = this.loadFromServer.bind(this);
         this.state = { data: [], get_params: {}};
   }
+    handleOptionChange(changeEvent) {
+        const new_value = changeEvent.target.value;
+        this.setState(prevState => ({
+          targetOn: new_value
+        }));
+        this.props.communicateChecked(new_value);
+      }
 
   loadFromServer() {
         $.ajax({
@@ -134,7 +141,8 @@ export class GenericView extends React.Component{
         this.setState(prevState => ({
           isToggleOn: !prevState.isToggleOn
         }));
-      }
+        this.props.communicateChecked(this.props.my_id);
+    }
 
     render() {
         if (this.state.data) {
@@ -152,6 +160,4 @@ export class GenericView extends React.Component{
             return (<FillMe />)
         }
     }
-
 }
-

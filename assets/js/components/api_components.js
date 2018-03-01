@@ -1,7 +1,6 @@
 /**
  * Created by abradley on 01/03/2018.
  */
-    
 import { ListGroupItem } from 'react-bootstrap';
 import { GenericView, GenericList } from './general_components';
 import React from 'react';
@@ -30,21 +29,29 @@ export class CompoundList extends GenericList {
 };
 
 export class TargetList extends GenericList {
-        constructor(props) {
+
+
+    constructor(props) {
             super(props);
             this.url = TARGET_URL
             this.interval = GENERIC_INTERVAL
+            this.setState(prevState => ({
+                targetOn: ""
+            }))
             this.render_method = function (data, index) {
-                return <ListGroupItem key={index}>{data.title}</ListGroupItem>
+                return <ListGroupItem key={index} >
+                    <input type="radio" value={data.title} checked={this.state.target === data.title}
+                    onChange={this.handleOptionChange} />/>
+                </ListGroupItem>
             }
         }
+
 };
 
 export class MoleculeList extends GenericList {
         constructor(props) {
             super(props);
             this.url = MOLECULE_URL
-            this.payload = {"target_id": null, "prot_id": null}
             this.interval = 1000
             this.render_method = function (data, index) {
                 return <MoleculeView key={data.id} my_id={data.id} />
