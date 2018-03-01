@@ -74,7 +74,8 @@ export class GenericList extends React.Component {
 
     componentDidMount() {
         this.setState(prevState => (
-        {data: []}
+        {targetOn: "",
+            data: []}
         ));
         setInterval(this.loadFromServer,
             this.interval)

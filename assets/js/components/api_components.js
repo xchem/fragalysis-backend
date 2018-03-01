@@ -44,12 +44,6 @@ export class TargetList extends GenericList {
                 </ListGroupItem>
             }
         }
-    onComponentMount(){
-
-        this.setState(prevState => ({
-                targetOn: ""
-            }))
-    }
 
 };
 
