@@ -242,7 +242,8 @@ class NGLView extends React.Component {
     constructor(props) {
         super(props);
         // Create NGL Stage object
-        this.stage = new NGL.Stage("viewport");
+        this.div_id = "viewport";
+        this.stage = new NGL.Stage();
         // Handle window resizing
         window.addEventListener("resize", function (event) {
             this.stage.handleResize();
@@ -250,6 +251,7 @@ class NGLView extends React.Component {
         this.focus_var = 95;
         // this.stage.mouseControls.add("clickPick-left",showPick);
     }
+
 
 
 
@@ -284,6 +286,10 @@ class NGLView extends React.Component {
             NProgress.done();
             this.stage.setFocus(this.focus_var);
         })
+    }
+    render(){
+        return <div style="height:600px;" id={this.div_id}></div>
+
     }
 }
 
