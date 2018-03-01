@@ -4,6 +4,7 @@
     
 import { ListGroupItem } from 'react-bootstrap';
 import { GenericView, GenericList } from './general_components';
+import React from 'react';
 
 import {toggleComplex} from '../actions/actions'
 
