@@ -76,7 +76,7 @@ export class NGLView extends React.Component {
                 });
             }
             else{
-                stage.eachComponent(
+                this.stage.eachComponent(
                   function(comp){
                   if (comp.name==object_name){
                       stage.removeComponent(comp)
