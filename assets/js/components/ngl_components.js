@@ -30,8 +30,8 @@ export class NGLView extends React.Component {
     show_mol() {
         const PROT_URL = "/viewer/prot_from_pk/"
         const MOL_URL = "/viewer/mol_from_pk/"
-        const prot_id = this.params.mol_dict["prot_id"]
-        const mol_id = this.params.mol_dict["mol_id"]
+        const prot_id = this.props.mol_dict["prot_id"]
+        const mol_id = this.props.mol_dict["mol_id"]
         const prot_url = PROT_URL + prot_id.toString() + "/"
         const mol_url = MOL_URL + mol_id.toString() + "/"
         const object_name = mol_id.toString()+"__"+prot_id.toString()
