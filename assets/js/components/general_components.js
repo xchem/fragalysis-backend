@@ -7,7 +7,7 @@
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 import React from 'react';
-import { ListGroup } from 'react-bootstrap';
+import { ListGroup, Col } from 'react-bootstrap';
 
 // Actions
 /*
@@ -139,12 +139,11 @@ export class GenericView extends React.Component{
             const svg_image = <SVGInline svg={this.state.data}/>;
             console.log(this.props.message)
             if (this.state.isToggleOn){
-                return <a onClick={this.handleClick} style={{border: "1px solid black"}}>{svg_image}</a>
+                return <Col xs={6} onClick={this.handleClick} style={{border: "1px solid black"}}>{svg_image}</Col>
             }
             else{
-                return <a onClick={this.handleClick}>{svg_image}</a>
+                return <Col xs={6} onClick={this.handleClick}>{svg_image}</Col>
             }
-
         }
         else {
             return (<FillMe />)
