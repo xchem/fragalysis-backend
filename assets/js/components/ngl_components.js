@@ -41,6 +41,7 @@ export class NGLView extends React.Component {
             const mol_url = MOL_URL + mol_id.toString() + "/"
             const object_name = mol_id.toString()
             NProgress.start();
+            alert(toggle)
             if(toggle==true) {
                 alert(prot_url)
                 alert(mol_url)
