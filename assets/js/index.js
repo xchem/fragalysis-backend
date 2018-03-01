@@ -249,6 +249,7 @@ class NGLView extends React.Component {
             this.stage.handleResize();
         }, false);
         this.focus_var = 95;
+        this.height = "600px";
         // this.stage.mouseControls.add("clickPick-left",showPick);
     }
 
@@ -288,7 +289,7 @@ class NGLView extends React.Component {
         })
     }
     render(){
-        return <div style={{height: 600px}} id={this.div_id}></div>
+        return <div style={{height: this.height}} id={this.div_id}></div>
 
     }
 }
