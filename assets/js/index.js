@@ -288,7 +288,7 @@ class NGLView extends React.Component {
         })
     }
     render(){
-        return <div style="height:600px;" id={this.div_id}></div>
+        return <div style={{height: 600px}} id={this.div_id}></div>
 
     }
 }
