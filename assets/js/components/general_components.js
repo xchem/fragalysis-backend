@@ -7,6 +7,8 @@
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 import React from 'react';
+import { ListGroup } from 'react-bootstrap';
+
 // Actions
 /*
  * action types

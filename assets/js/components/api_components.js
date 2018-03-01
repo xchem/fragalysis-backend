@@ -2,7 +2,7 @@
  * Created by abradley on 01/03/2018.
  */
     
-import { ListGroup, ListGroupItem } from 'react-bootstrap';
+import { ListGroupItem } from 'react-bootstrap';
 import { GenericView, GenericList } from './general_components';
 
 import {toggleComplex} from '../actions/actions'
