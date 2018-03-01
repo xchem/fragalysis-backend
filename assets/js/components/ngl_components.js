@@ -65,7 +65,7 @@ export class NGLView extends React.Component {
                 comp.autoView("ligand");
                 NProgress.done();
                 this.stage.setFocus(this.focus_var);
-            })
+            }).bind(this);
         }
     }
     render(){
