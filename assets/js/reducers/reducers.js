@@ -7,18 +7,14 @@ function app(state, action) {
 
     switch (action.type) {
         // Defined in initialState - but may be needed if we want to load a different structure
-        case actions.SET_STRUCTURE:
-            return Object.assign({}, state, {
-                pdbId: action.pdbId
-            });
 
-        case actions.SET_ASSEMBLY:
+
+        case actions.TOGGLE_COMPLEX:
             return Object.assign({}, state, {
-                assembly: action.assembly
-            });
-        case actions.SET_ASSEMBLY_OPTIONS:
-            return Object.assign({}, state, {
-                assemblyOptions: action.assemblyOptions
+                visible: action.visible,
+                protein: action.protein,
+                mol: action.mol,
+                interactions: action.interactions
             });
 
         case actions.SET_COLOR:

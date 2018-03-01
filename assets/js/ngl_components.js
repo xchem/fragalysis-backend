@@ -25,7 +25,7 @@ function showPick (pickingProxy) {
             }
         }
     }
-    }
+}
 
 
 class NGLView extends React.Component {
@@ -50,48 +50,11 @@ class NGLView extends React.Component {
 class NGLSimpleFooter extends React.Component {
     render () {
         // The simple footer we have in most of the apps
-
-    }
-}
-
-class MultiNGL extends React.Component {
-    /*
-    NGL View for multiple components
-     */
-
-    loadViewsFromServer() {
-        $.ajax({
-            url: this.props.url,
-            datatype: 'json',
-            cache: false,
-            success: function (data) {
-                this.setState({data: data})
-            }.bind(this)
-        })
-    }
-
-    getInitialState() {
-        return {data: []}
-    }
-    viewDidMount() {
-        this.loadViewsFromServer();
-        setInterval(this.loadViewsFromServer,
-            this.props.pollInterval)
-    }
-    render() {
-        // The simple footer we have in most of the apps
-        if (this.state.data) {
-            console.log("Refreshing compound load");
-            return (<NGLView url={this.state.data}/>);
-        }
-        else {
-            return (<FillMe />)
-        }
+        
     }
 }
 
 
-// The links between data and what is rendered
-ReactDOM.render(<MultiNGL url="/path/to/multi/view" />, document.getElementById('viewport'));
+
 // The links between data and what is rendered
 ReactDOM.render(<NGLView url="/path/to/single/view" />, document.getElementById('viewport'));

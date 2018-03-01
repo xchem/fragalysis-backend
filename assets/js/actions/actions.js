@@ -1,6 +1,4 @@
-export const SET_STRUCTURE = 'SET_STRUCTURE';
-export const SET_ASSEMBLY = 'SET_ASSEMBLY';
-export const SET_ASSEMBLY_OPTIONS = 'SET_ASSEMBLY_OPTIONS';
+export const TOGGLE_COMPLEX = 'TOGGLE_COMPLEX';
 export const SET_COLOR = 'SET_COLOR';
 export const SET_STYLE = 'SET_STYLE';
 export const SET_SPIN = 'SET_SPIN';
@@ -9,18 +7,13 @@ export const SET_HYDROGEN = 'SET_HYDROGEN';
 
 console.log("ACTIONS file passed thru");
 
-export const setStructure = function (pdbId) {
+export const toggleComplex = function (protein_id,mol_id,interactions) {
     return {
-        type: SET_STRUCTURE,
-        pdbId: pdbId
-    };
-}
-
-export const setAssembly = function (assembly) {
-    console.log("ACTIONS: " + assembly);
-    return {
-        type: SET_ASSEMBLY,
-        assembly: assembly
+        type: TOGGLE_COMPLEX,
+        visible: false,
+        protein: protein_id,
+        mol: mol_id,
+        interactions: interactions
     };
 }
 

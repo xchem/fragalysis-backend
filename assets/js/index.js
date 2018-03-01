@@ -3,11 +3,14 @@ import ReactDOM from 'react-dom';
 import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
-import { ngl_init } from "./ngl-ui.js";
+import { ListGroup, ListGroupItem, Tooltip, OverlayTrigger, Col, Row} from 'react-bootstrap';
 
+import {toggleComplex} from './actions/actions'
 
-import { ListGroup, ListGroupItem, Tooltip, OverlayTrigger, Col} from 'react-bootstrap';
+import { createStore } from 'redux'
+import app from './reducers/reducers'
 
+let store = createStore(app);
 
 // Basic config of the API
 const BASE_API = "/v0.1/"
@@ -233,14 +236,82 @@ class MoleculeView extends GenericView {
 }
 
 
-// The different DIV elements
-const compound_div = <CompoundList />;
-const target_div = <TargetList />;
-const protein_div = <ProteinList />;
-const molecule_div = <MoleculeList />;
+class NGLView extends React.Component {
+
+
+    constructor(props) {
+        super(props);
+        // Create NGL Stage object
+        this.stage = new NGL.Stage("viewport");
+        // Handle window resizing
+        window.addEventListener("resize", function (event) {
+            this.stage.handleResize();
+        }, false);
+        this.focus_var = 95;
+        this.stage.mouseControls.add("clickPick-left",showPick);
+    }
+
+
+
+    show_mol() {
+        NProgress.start();
+        Promise.all([
+            this.stage.loadFile(prot_url, {ext: "pdb"}),
+            this.stage.loadFile(lig_data, {ext: "sdf"})]
+        ).then(function (ol) {
+            var cs = NGL.concatStructures(
+                "concat",
+                ol[0].structure.getView(new NGL.Selection("not ligand")),
+                ol[1].structure.getView(new NGL.Selection(""))
+            )
+            cs.path = ol[0].structure.path + ":::" + ol[1].structure.path
+            var comp = this.stage.addComponentFromObject(cs)
+            comp.addRepresentation("cartoon")
+            comp.addRepresentation("contact", {
+                masterModelIndex: 0,
+                weakHydrogenBond: true,
+                maxHbondDonPlaneAngle: 35,
+                sele: "/0 or /1"
+            })
+            comp.addRepresentation("licorice", {
+                sele: "ligand and /1",
+                multipleBond: "offset"
+            })
+            comp.addRepresentation("line", {
+                sele: "/0"
+            })
+            comp.autoView("ligand");
+            NProgress.done();
+            this.stage.setFocus(this.focus_var);
+        })
+    }
+}
+
+class TotalView extends React.Component {
+
+
+    constructor(props) {
+        super(props);
+        this.div_id = props.div_id;
+    }
+
+    render() {
+        <Row>
+            <Col xs={2} md={2}>
+                <TargetList />
+            </Col>
+            <Col xs={4} md={4}>
+                <MoleculeList />
+            </Col>
+            <Col xs={4} md={4}>
+                <NGLView />
+            </Col>
+        </Row>
+    }
+}
+
+
 // The links between data and what is rendered
 // ReactDOM.render(target_div, document.getElementById('targets'))
-ReactDOM.render(target_div, document.getElementById('targets'))
-// ReactDOM.render(protein_div, document.getElementById('proteins'))
-ReactDOM.render(compound_div, document.getElementById('compounds'))
-ngl_init();
+ReactDOM.render(<TotalView key="main_app"/>, document.getElementById('app'))
+
