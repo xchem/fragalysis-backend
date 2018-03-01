@@ -5,10 +5,8 @@
  * Created by abradley on 01/03/2018.
  */
 import React from 'react';
-import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
-
 
 // Actions
 /*
