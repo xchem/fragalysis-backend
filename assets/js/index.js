@@ -248,7 +248,7 @@ class NGLView extends React.Component {
             this.stage.handleResize();
         }, false);
         this.focus_var = 95;
-        this.stage.mouseControls.add("clickPick-left",showPick);
+        // this.stage.mouseControls.add("clickPick-left",showPick);
     }
 
 
