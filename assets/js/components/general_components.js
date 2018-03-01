@@ -147,7 +147,7 @@ export class GenericView extends React.Component{
         this.setState(prevState => ({
           isToggleOn: !prevState.isToggleOn
         }));
-        this.props.communicateChecked(this.props.my_id, this.props.prot_id, isToggleOn);
+        this.props.communicateChecked(this.props.my_id, this.props.prot_id, this.state.isToggleOn);
     }
 
     render() {
