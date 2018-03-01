@@ -14,7 +14,7 @@ export class NGLView extends React.Component {
         this.div_id = "viewport";
         this.focus_var = 95;
         this.height = "600px";
-        this.interval = 10000
+        this.interval = 10;
         this.show_mol = this.show_mol.bind(this);
     }
 
@@ -39,15 +39,18 @@ export class NGLView extends React.Component {
             NProgress.start();
             Promise.all([
                 this.stage.loadFile(prot_url, {ext: "pdb"}),
-                this.stage.loadFile(mol_url, {ext: "sdf"})]
+                this.stage.loadFile(mol_url, {ext: "sdf"}),
+            this.stage,this.focus_var]
             ).then(function (ol) {
                 var cs = concatStructures(
                     "concat",
                     ol[0].structure.getView(new Selection("not ligand")),
                     ol[1].structure.getView(new Selection(""))
                 )
+                var stage = ol[2];
+                var focus_var = ol[3];
                 cs.path = object_name
-                var comp = this.stage.addComponentFromObject(cs)
+                var comp = stage.addComponentFromObject(cs)
                 comp.addRepresentation("cartoon")
                 comp.addRepresentation("contact", {
                     masterModelIndex: 0,
@@ -64,8 +67,8 @@ export class NGLView extends React.Component {
                 })
                 comp.autoView("ligand");
                 NProgress.done();
-                this.stage.setFocus(this.focus_var);
-            }).bind(this);
+                this.stage.setFocus(focus_var);
+            });
         }
     }
     render(){
