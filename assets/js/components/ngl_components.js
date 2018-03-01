@@ -42,6 +42,8 @@ export class NGLView extends React.Component {
             const object_name = mol_id.toString()
             NProgress.start();
             if(toggle==true) {
+                alert(prot_url)
+                alert(mol_url)
                 Promise.all([
                     this.stage.loadFile(prot_url, {ext: "pdb"}),
                     this.stage.loadFile(mol_url, {ext: "sdf"}),
