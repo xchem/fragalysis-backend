@@ -243,7 +243,7 @@ class NGLView extends React.Component {
         super(props);
         // Create NGL Stage object
         this.div_id = "viewport";
-        this.stage = new NGL.Stage();
+        this.stage = new NGL.Stage(this.div_id);
         // Handle window resizing
         window.addEventListener("resize", function (event) {
             this.stage.handleResize();
