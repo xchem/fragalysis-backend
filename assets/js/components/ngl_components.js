@@ -40,7 +40,7 @@ export class NGLView extends React.Component {
             Promise.all([
                 this.stage.loadFile(prot_url, {ext: "pdb"}),
                 this.stage.loadFile(mol_url, {ext: "sdf"})]
-            ).bind(object_name).then(function (ol) {
+            ).then(function (ol) {
                 var cs = concatStructures(
                     "concat",
                     ol[0].structure.getView(new Selection("not ligand")),
