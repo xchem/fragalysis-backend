@@ -4,9 +4,8 @@ import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 import { ListGroup, ListGroupItem, Tooltip, OverlayTrigger, Col, Row} from 'react-bootstrap';
-import {NGL} from 'ngl';
 import {toggleComplex} from './actions/actions'
-
+import {NGL} from 'ngl';
 import { createStore } from 'redux'
 import { app } from './reducers/reducers'
 
