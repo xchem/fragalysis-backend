@@ -49,6 +49,7 @@ export class GenericList extends React.Component {
         this.interval = 10000
         this.state = {data:[]}
         this.loadFromServer = this.loadFromServer.bind(this);
+        this.handleOptionChange = this.handleOptionChange.bind(this);
   }
 
     handleOptionChange(changeEvent) {
