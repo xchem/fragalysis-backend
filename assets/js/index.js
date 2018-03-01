@@ -5,7 +5,7 @@ import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 import { ListGroup, ListGroupItem, Tooltip, OverlayTrigger, Col, Row} from 'react-bootstrap';
 import {toggleComplex} from './actions/actions'
-import { NGL } from 'ngl';
+import { Stage concatStructures Selection } from 'ngl';
 import { createStore } from 'redux'
 import { app } from './reducers/reducers'
 
@@ -249,7 +249,7 @@ class NGLView extends React.Component {
     }
 
     componentDidMount(){
-        this.stage = new NGL.Stage(this.div_id);
+        this.stage = new Stage(this.div_id);
         // Handle window resizing
         window.addEventListener("resize", function (event) {
             this.stage.handleResize();
@@ -263,10 +263,10 @@ class NGLView extends React.Component {
             this.stage.loadFile(prot_url, {ext: "pdb"}),
             this.stage.loadFile(lig_data, {ext: "sdf"})]
         ).then(function (ol) {
-            var cs = NGL.concatStructures(
+            var cs = concatStructures(
                 "concat",
-                ol[0].structure.getView(new NGL.Selection("not ligand")),
-                ol[1].structure.getView(new NGL.Selection(""))
+                ol[0].structure.getView(new Selection("not ligand")),
+                ol[1].structure.getView(new Selection(""))
             )
             cs.path = ol[0].structure.path + ":::" + ol[1].structure.path
             var comp = this.stage.addComponentFromObject(cs)
