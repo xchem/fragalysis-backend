@@ -29,6 +29,7 @@ class TotalView extends React.Component {
 
     onMolChecked(mol){
         // Now add or remove this to the list
+        
     }
 
 
