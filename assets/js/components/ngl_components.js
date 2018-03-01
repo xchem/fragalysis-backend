@@ -86,9 +86,8 @@ export class NGLView extends React.Component {
                   }
                 })
             }
+            this.old_dict = this.props.mol_dict;
         }
-
-        this.old_dict = this.props.mol_dict;
     }
     render(){
         return <div style={{height: this.height}} id={this.div_id}></div>
