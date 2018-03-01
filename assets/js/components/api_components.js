@@ -37,8 +37,10 @@ export class TargetList extends GenericList {
             this.interval = GENERIC_INTERVAL
             this.render_method = function (data, index) {
                 return <ListGroupItem key={index} >
-                    <input type="radio" value={data.title} checked={this.state.target === data.title}
-                    onChange={this.handleOptionChange}>{data.title}</input>>
+                    <label>
+                        <input type="radio" value={data.title} checked={this.state.target === data.title} onChange={this.handleOptionChange}/>
+                        {data.title}
+                    </label>
                 </ListGroupItem>
             }
         }
