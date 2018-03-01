@@ -20,6 +20,7 @@ const MOLECULE_URL = BASE_API+"molecules/"
 const PROTEIN_URL = BASE_API+"proteins/"
 const SVG_CMPD = '/viewer/img_from_cmpd_pk/'
 const SVG_MOL = '/viewer/img_from_mol_pk/'
+const GENERIC_INTERVAL = 100000
 
 
 
@@ -56,7 +57,7 @@ export class GenericList extends React.Component {
     constructor(props) {
     super(props);
         this.url = BASE_API
-        this.interval = 1000
+        this.interval = 10000
         this.loadFromServer = this.loadFromServer.bind(this);
         this.state = { data: [] };
   }
@@ -174,7 +175,7 @@ class CompoundList extends GenericList {
         constructor(props) {
             super(props);
             this.url = COMPOUNDS_URL
-            this.interval = 10000
+            this.interval = GENERIC_INTERVAL
             this.render_method = function (data, index) {
                 return <CompoundView key={data.id} my_id={data.id} />
             }
@@ -185,7 +186,7 @@ class TargetList extends GenericList {
         constructor(props) {
             super(props);
             this.url = TARGET_URL
-            this.interval = 1000
+            this.interval = GENERIC_INTERVAL
             this.render_method = function (data, index) {
                 return <ListGroupItem key={index}>{data.title}</ListGroupItem>
             }
