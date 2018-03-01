@@ -27,7 +27,7 @@ class TotalView extends React.Component {
     onMolChecked(mol,prot_id,isToggleOn){
         // Now add or remove this to the list
         this.setState(prevState => ({
-            mol_dict: {"mol_id": mol, "prot_id": prot, "toggle": isToggleOn}
+            mol_dict: {"mol_id": mol, "prot_id": prot_id, "toggle": isToggleOn}
         }));
     }
 
