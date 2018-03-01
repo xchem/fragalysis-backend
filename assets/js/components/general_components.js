@@ -158,10 +158,10 @@ export class GenericView extends React.Component{
             const svg_image = <SVGInline svg={this.state.data}/>;
             console.log(this.props.message)
             if (this.state.isToggleOn){
-                return <Col xs={6} onClick={this.handleClick} style={this.selected_style}>{svg_image}</Col>
+                return <Col xs={3} onClick={this.handleClick} style={this.selected_style}>{svg_image}</Col>
             }
             else{
-                return <Col xs={6} onClick={this.handleClick} style={this.not_selected_style}>{svg_image}</Col>
+                return <Col xs={3} onClick={this.handleClick} style={this.not_selected_style}>{svg_image}</Col>
             }
         }
         else {
