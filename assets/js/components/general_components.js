@@ -58,7 +58,7 @@ export class GenericList extends React.Component {
             data: this.state.get_params,
             cache: false,
             success: function (data) {
-                this.setState({data: data})
+                this.setState({data: data["results"]})
             }.bind(this)
         })
     }
@@ -118,7 +118,7 @@ export class GenericView extends React.Component{
             datatype: 'json',
             cache: false,
             success: function (data) {
-                this.setState({data: data["results"]})
+                this.setState({data: data})
             }.bind(this)
         })
     }
