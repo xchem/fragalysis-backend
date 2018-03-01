@@ -36,6 +36,7 @@ export class NGLView extends React.Component {
         if (this.props.mol_dict && this.props.mol_dict != this.old_dict) {
             const prot_id = this.props.mol_dict["prot_id"]
             const mol_id = this.props.mol_dict["mol_id"]
+            const toggle = this.props.mol_dict["toggle"]
             const prot_url = PROT_URL + prot_id.toString() + "/"
             const mol_url = MOL_URL + mol_id.toString() + "/"
             const object_name = mol_id.toString()
@@ -43,7 +44,7 @@ export class NGLView extends React.Component {
             Promise.all([
                 this.stage.loadFile(prot_url, {ext: "pdb"}),
                 this.stage.loadFile(mol_url, {ext: "sdf"}),
-            this.stage,this.focus_var]
+            this.stage,this.focus_var,object_name]
             ).then(function (ol) {
                 var cs = concatStructures(
                     "concat",
@@ -52,7 +53,8 @@ export class NGLView extends React.Component {
                 )
                 var stage = ol[2];
                 var focus_var = ol[3];
-                cs.path = object_name
+                cs.path = ol[4]
+                // Set the object name
                 var comp = stage.addComponentFromObject(cs)
                 comp.addRepresentation("cartoon")
                 comp.addRepresentation("contact", {
