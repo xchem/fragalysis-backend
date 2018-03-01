@@ -4,7 +4,6 @@
 /**
  * Created by abradley on 01/03/2018.
  */
-import React from 'react';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 
@@ -44,7 +43,7 @@ export class GenericList extends React.Component {
 
     constructor(props) {
     super(props);
-        this.url = BASE_API
+        this.url = ''
         this.interval = 10000
         this.loadFromServer = this.loadFromServer.bind(this);
         this.state = { data: [] };
