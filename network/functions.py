@@ -12,7 +12,7 @@ def transparentsvg(svg):
     # Make the white background transparent
     tree = ET.fromstring(svg)
     rect = tree.find('rect')
-    rect.set('style', rect.get('style').replace('#ffffff', 'none'))
+    rect.set('style', rect.get('style').replace('#FFFFFF', 'none'))
     # Recover some missing attributes for correct browser rendering
     tree.set('version', '1.1')
     tree.set('xmlns', 'http://www.w3.org/2000/svg')
