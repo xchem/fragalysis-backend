@@ -7,8 +7,7 @@ function app(state, action) {
 
     switch (action.type) {
         // Defined in initialState - but may be needed if we want to load a different structure
-
-
+            
         case actions.TOGGLE_COMPLEX:
             return Object.assign({}, state, {
                 visible: action.visible,
