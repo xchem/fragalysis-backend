@@ -23,7 +23,7 @@ class TotalView extends React.Component {
             <Col xs={4} md={4}>
                 <MoleculeList />
             </Col>
-            <Col xs={4} md={4}>
+            <Col xs={6} md={6}>
                 <NGLView />
             </Col>
         </Row>
