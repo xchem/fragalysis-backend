@@ -14,7 +14,8 @@ export class NGLView extends React.Component {
         this.div_id = "viewport";
         this.focus_var = 95;
         this.height = "600px";
-        this.interval = 10;
+        this.interval = 100;
+        this.old_dict = {}
         this.show_mol = this.show_mol.bind(this);
     }
 
@@ -32,7 +33,7 @@ export class NGLView extends React.Component {
     show_mol() {
         const MOL_URL = "/viewer/mol_from_pk/"
         const PROT_URL = "/viewer/prot_from_pk/"
-        if (this.props.mol_dict) {
+        if (this.props.mol_dict && this.props.mol_dict != this.old_dict) {
             const prot_id = this.props.mol_dict["prot_id"]
             const mol_id = this.props.mol_dict["mol_id"]
             const prot_url = PROT_URL + prot_id.toString() + "/"
@@ -72,6 +73,7 @@ export class NGLView extends React.Component {
                 this.stage.setFocus(focus_var);
             });
         }
+        this.old_dict = this.props.mol_dict;
     }
     render(){
         return <div style={{height: this.height}} id={this.div_id}></div>
