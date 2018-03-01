@@ -5,7 +5,7 @@ import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 import { ListGroup, ListGroupItem, Tooltip, OverlayTrigger, Col, Row} from 'react-bootstrap';
 import {toggleComplex} from './actions/actions'
-import { Stage concatStructures Selection } from 'ngl';
+import { Stage, concatStructures, Selection } from 'ngl';
 import { createStore } from 'redux'
 import { app } from './reducers/reducers'
 
