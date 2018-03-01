@@ -14,6 +14,7 @@ export class NGLView extends React.Component {
         this.div_id = "viewport";
         this.focus_var = 95;
         this.height = "600px";
+        this.show_mol = this.show_mol.bind(this);
     }
 
     componentDidMount(){
@@ -22,6 +23,8 @@ export class NGLView extends React.Component {
         window.addEventListener("resize", function (event) {
             this.stage.handleResize();
         }, false);
+        setInterval(this.show_mol(),
+            this.interval)
     }
 
     show_mol() {
