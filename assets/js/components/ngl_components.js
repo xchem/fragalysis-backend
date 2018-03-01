@@ -14,7 +14,6 @@ export class NGLView extends React.Component {
         this.div_id = "viewport";
         this.focus_var = 95;
         this.height = "600px";
-        // this.stage.mouseControls.add("clickPick-left",showPick);
     }
 
     componentDidMount(){
@@ -23,23 +22,27 @@ export class NGLView extends React.Component {
         window.addEventListener("resize", function (event) {
             this.stage.handleResize();
         }, false);
-
     }
 
-    show_mol(mol_id,prot_id) {
-        const prot_url = PROT_URL + prot_id
-        const mol_url = MOL_URL + mol_id
+    show_mol() {
+        const PROT_URL = "/viewer/prot_from_pk/"
+        const MOL_URL = "/viewer/mol_from_pk/"
+        const prot_id = this.params.mol_dict["prot_id"]
+        const mol_id = this.params.mol_dict["mol_id"]
+        const prot_url = PROT_URL + prot_id.toString() + "/"
+        const mol_url = MOL_URL + mol_id.toString() + "/"
+        const object_name = mol_id.toString()+"__"+prot_id.toString()
         NProgress.start();
         Promise.all([
             this.stage.loadFile(prot_url, {ext: "pdb"}),
             this.stage.loadFile(mol_url, {ext: "sdf"})]
-        ).then(function (ol) {
+        ).bind(object_name).then(function (ol) {
             var cs = concatStructures(
                 "concat",
                 ol[0].structure.getView(new Selection("not ligand")),
                 ol[1].structure.getView(new Selection(""))
             )
-            cs.path = ol[0].structure.path + ":::" + ol[1].structure.path
+            cs.path = object_name
             var comp = this.stage.addComponentFromObject(cs)
             comp.addRepresentation("cartoon")
             comp.addRepresentation("contact", {

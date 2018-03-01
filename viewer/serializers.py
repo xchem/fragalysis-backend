@@ -20,7 +20,7 @@ class MoleculeSerializer(serializers.HyperlinkedModelSerializer):
 class MDLSerializer(serializers.ModelSerializer):
     class Meta:
         model = Molecule
-        field = ('sdf_info')
+        fields = ('sdf_info')
 
 class ActivityPointSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:

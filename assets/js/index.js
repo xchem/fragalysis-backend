@@ -13,7 +13,8 @@ class TotalView extends React.Component {
         this.onTargetChecked = this.onTargetChecked.bind(this)
         this.onMolChecked = this.onMolChecked.bind(this)
         this.mol_list = new Array();
-        this.state = {mol_params: {"prot_id__target_id": 1}
+        this.state = {mol_params: {"prot_id__target_id": 1},
+            mol_dict: {}
         }
     }
     
@@ -41,7 +42,7 @@ class TotalView extends React.Component {
                 <MoleculeList get_params={this.state.mol_params} communicateChecked={this.onMolChecked}/>
             </Col>
             <Col xs={6} md={6} >
-                <NGLView />
+                <NGLView mol_dict={this.state.mol_dict}/>
             </Col>
         </Row>
     }

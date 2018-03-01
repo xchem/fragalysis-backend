@@ -19,7 +19,6 @@ class MoleculeView(viewsets.ModelViewSet):
 class MDLView(viewsets.ModelViewSet):
     queryset = Molecule.objects.filter()
     serializer_class = MDLSerializer
-    filter_fields = ('prot_id', 'cmpd_id','smiles','prot_id__target_id')
 
 class CompoundView(viewsets.ModelViewSet):
     queryset = Compound.objects.filter()

@@ -78,8 +78,6 @@ export class GenericList extends React.Component {
         {data: []}
         ));
         this.loadFromServer();
-        setInterval(this.loadFromServer,
-            this.interval)
     }
 
 
