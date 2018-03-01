@@ -33,17 +33,20 @@ class TotalView extends React.Component {
 
 
     render() {
-        return <Row>
-            <Col xs={2} md={2}>
-                <TargetList communicateChecked={this.onTargetChecked}/>
-            </Col>
-            <Col xs={4} md={4}>
-                <MoleculeList get_params={this.state.mol_params} communicateChecked={this.onMolChecked}/>
-            </Col>
-            <Col xs={6} md={6} >
-                <NGLView mol_dict={this.state.mol_dict}/>
-            </Col>
-        </Row>
+        return
+        <Grid>
+            <Row>
+                <Col xs={2} md={2}>
+                    <TargetList communicateChecked={this.onTargetChecked}/>
+                </Col>
+                <Col xs={4} md={4}>
+                    <MoleculeList get_params={this.state.mol_params} communicateChecked={this.onMolChecked}/>
+                </Col>
+                <Col xs={6} md={6} >
+                    <NGLView mol_dict={this.state.mol_dict}/>
+                </Col>
+            </Row>
+        </Grid>
     }
 }
 
