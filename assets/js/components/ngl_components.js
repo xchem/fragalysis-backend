@@ -5,7 +5,7 @@ import { Stage, concatStructures, Selection } from 'ngl';
 import React from 'react';
 
 
-class NGLView extends React.Component {
+export class NGLView extends React.Component {
 
 
     constructor(props) {
