@@ -16,14 +16,14 @@ class TotalView extends React.Component {
         this.onTargetChecked = this.onTargetChecked.bind(this)
         this.onMolChecked = this.onMolChecked.bind(this)
         this.mol_list = new Array();
-        this.state = {mol_params: {"target_id": 1}
+        this.state = {mol_params: {"prot_id__target_id": 1}
         }
     }
     
     onTargetChecked(target){
         // Now pass this to the molecule div
         this.setState(prevState => ({
-          mol_params:  {"target_id": target}
+          mol_params:  {"prot_id__target_id": target}
         }));
     }
 
