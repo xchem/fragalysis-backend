@@ -71,14 +71,15 @@ export class NGLView extends React.Component {
                         sele: "/0"
                     })
                     comp.autoView("ligand");
-                    this.stage.setFocus(focus_var);
+                    stage.setFocus(focus_var);
                 });
             }
             else{
-                this.stage.eachComponent(
+                var local_stage = this.stage
+                local_stage.eachComponent(
                   function(comp){
                   if (comp.name==object_name){
-                      this.stage.removeComponent(comp)
+                      local_stage.removeComponent(comp)
                   }
                 })
 
