@@ -67,6 +67,10 @@ def draw_mol(smiles,height=200,width=200):
         return "None Mol"
     AllChem.Compute2DCoords(mol)
     Chem.Kekulize(mol)
+    if not height:
+        height=200
+    if not width:
+        width=200
     drawer = Draw.MolDraw2DSVG(height,width)
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
