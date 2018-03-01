@@ -76,7 +76,7 @@ export class GenericList extends React.Component {
         this.setState(prevState => (
         {data: []}
         ));
-        setInterval(this.loadFromServer(),
+        setInterval(this.loadFromServer,
             this.interval)
     }
 

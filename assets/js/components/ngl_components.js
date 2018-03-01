@@ -23,7 +23,7 @@ export class NGLView extends React.Component {
         window.addEventListener("resize", function (event) {
             this.stage.handleResize();
         }, false);
-        setInterval(this.show_mol(),
+        setInterval(this.show_mol,
             this.interval)
     }
 
