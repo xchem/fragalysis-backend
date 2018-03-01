@@ -33,9 +33,7 @@ class TotalView extends React.Component {
 
 
     render() {
-        return
-        <Grid>
-            <Row>
+        return <Row>
                 <Col xs={2} md={2}>
                     <TargetList communicateChecked={this.onTargetChecked}/>
                 </Col>
@@ -45,8 +43,7 @@ class TotalView extends React.Component {
                 <Col xs={6} md={6} >
                     <NGLView mol_dict={this.state.mol_dict}/>
                 </Col>
-            </Row>
-        </Grid>
+        </Row>
     }
 }
 
