@@ -48,13 +48,14 @@ export class GenericList extends React.Component {
         this.url = ''
         this.interval = 10000
         this.loadFromServer = this.loadFromServer.bind(this);
-        this.state = { data: [] };
+        this.state = { data: [], get_params: {}};
   }
 
   loadFromServer() {
         $.ajax({
             url: this.url,
             datatype: 'json',
+            data: this.state.get_params,
             cache: false,
             success: function (data) {
                 this.setState({data: data})
@@ -139,7 +140,7 @@ export class GenericView extends React.Component{
             const svg_image = <SVGInline svg={this.state.data}/>;
             console.log(this.props.message)
             if (this.state.isToggleOn){
-                return <Col xs={6} onClick={this.handleClick} style={{border: "1px solid black"}}>{svg_image}</Col>
+                return <Col xs={5} onClick={this.handleClick} style={{border: "1px solid black"}}>{svg_image}</Col>
             }
             else{
                 return <Col xs={6} onClick={this.handleClick}>{svg_image}</Col>
