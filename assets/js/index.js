@@ -1,14 +1,14 @@
+import React from 'react';
 import ReactDOM from 'react-dom';
 import { createStore } from 'redux'
 import { Col, Row} from 'react-bootstrap'
-import {NGLView} from './components/ngl_components'
-import {TargetList, MoleculeList} from './components/api_components'
+import { NGLView } from './components/ngl_components'
+import { TargetList, MoleculeList } from './components/api_components'
 import { app } from './reducers/reducers'
 
 let store = createStore(app);
 
 class TotalView extends React.Component {
-
 
     constructor(props) {
         super(props);
@@ -32,6 +32,4 @@ class TotalView extends React.Component {
 
 
 // The links between data and what is rendered
-// ReactDOM.render(target_div, document.getElementById('targets'))
 ReactDOM.render(<TotalView key="main_app"/>, document.getElementById('app'))
-
