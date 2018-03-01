@@ -14,7 +14,7 @@ class TotalView extends React.Component {
         this.onMolChecked = this.onMolChecked.bind(this)
         this.mol_list = new Array();
         this.state = {mol_params: {"prot_id__target_id": 1},
-            mol_dict: {}
+            mol_dict: false
         }
     }
     
