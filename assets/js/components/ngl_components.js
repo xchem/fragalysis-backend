@@ -26,11 +26,13 @@ export class NGLView extends React.Component {
 
     }
 
-    show_mol() {
+    show_mol(mol_id,prot_id) {
+        const prot_url = PROT_URL + prot_id
+        const mol_url = MOL_URL + mol_id
         NProgress.start();
         Promise.all([
             this.stage.loadFile(prot_url, {ext: "pdb"}),
-            this.stage.loadFile(lig_data, {ext: "sdf"})]
+            this.stage.loadFile(mol_url, {ext: "sdf"})]
         ).then(function (ol) {
             var cs = concatStructures(
                 "concat",

@@ -17,6 +17,11 @@ class MoleculeSerializer(serializers.HyperlinkedModelSerializer):
         model = Molecule
         fields = ('id','smiles', 'cmpd_id', 'prot_id', 'lig_id', 'chain_id', 'sdf_info', 'x_com', 'y_com', 'z_com',)
 
+class MDLSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Molecule
+        field = ('sdf_info')
+
 class ActivityPointSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = ActivityPoint

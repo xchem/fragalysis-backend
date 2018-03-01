@@ -1,6 +1,6 @@
 from viewer.models import ViewScene, ActivityPoint, Molecule, Project, Protein, Compound,Target
 from viewer.serializers import ViewSceneSerializer,ActivityPointSerializer,MoleculeSerializer,ProjectSerializer,\
-    ProteinSerializer, CompoundSerializer, TargetSerializer
+    ProteinSerializer, CompoundSerializer, TargetSerializer, MDLSerializer
 from rest_framework import permissions
 from rest_framework import viewsets
 
@@ -14,6 +14,11 @@ class TargetView(viewsets.ModelViewSet):
 class MoleculeView(viewsets.ModelViewSet):
     queryset = Molecule.objects.filter()
     serializer_class = MoleculeSerializer
+    filter_fields = ('prot_id', 'cmpd_id','smiles','prot_id__target_id')
+
+class MDLView(viewsets.ModelViewSet):
+    queryset = Molecule.objects.filter()
+    serializer_class = MDLSerializer
     filter_fields = ('prot_id', 'cmpd_id','smiles','prot_id__target_id')
 
 class CompoundView(viewsets.ModelViewSet):

@@ -27,9 +27,11 @@ class TotalView extends React.Component {
         }));
     }
 
-    onMolChecked(mol){
+    onMolChecked(mol,prot_id,isToggleOn){
         // Now add or remove this to the list
-        
+        this.setState(prevState => ({
+            mol_dict: {"mol_id": mol, "prot_id": prot, "toggle": isToggleOn}
+        }));
     }
 
 
@@ -42,7 +44,7 @@ class TotalView extends React.Component {
                 <MoleculeList get_params={this.state.mol_params} communicateChecked={this.onMolChecked}/>
             </Col>
             <Col xs={6} md={6} >
-                <NGLView mol_id={this.mol_list}/>
+                <NGLView />
             </Col>
         </Row>
     }
