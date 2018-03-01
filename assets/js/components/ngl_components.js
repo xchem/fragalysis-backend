@@ -41,10 +41,7 @@ export class NGLView extends React.Component {
             const mol_url = MOL_URL + mol_id.toString() + "/"
             const object_name = mol_id.toString()
             NProgress.start();
-            alert(toggle)
             if(toggle==true) {
-                alert(prot_url)
-                alert(mol_url)
                 Promise.all([
                     this.stage.loadFile(prot_url, {ext: "pdb"}),
                     this.stage.loadFile(mol_url, {ext: "sdf"}),
@@ -86,8 +83,8 @@ export class NGLView extends React.Component {
                   }
                 })
             }
-            this.old_dict = this.props.mol_dict;
         }
+        this.old_dict = this.props.mol_dict;
     }
     render(){
         return <div style={{height: this.height}} id={this.div_id}></div>
