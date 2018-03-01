@@ -143,7 +143,7 @@ export class GenericView extends React.Component{
                 return <Col xs={5} onClick={this.handleClick} style={{border: "1px solid black"}}>{svg_image}</Col>
             }
             else{
-                return <Col xs={6} onClick={this.handleClick}>{svg_image}</Col>
+                return <Col xs={5} onClick={this.handleClick}>{svg_image}</Col>
             }
         }
         else {
