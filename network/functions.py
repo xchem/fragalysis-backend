@@ -49,12 +49,15 @@ def ret_graph_svg(results):
 
 def draw_mol(smiles):
     mol = Chem.MolFromSmiles(smiles)
+
     if mol is None:
         return "None Mol"
     AllChem.Compute2DCoords(mol)
     Chem.Kekulize(mol)
     drawer = Draw.MolDraw2DSVG(200,200)
-    drawer.DrawMolecule(mol)
+    opts = Draw.DrawingOptions()
+    opts.bgColor = None
+    drawer.DrawMolecule(mol,options=opts)
     drawer.FinishDrawing()
     return drawer.GetDrawingText().replace('svg:','')
 
