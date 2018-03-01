@@ -35,9 +35,6 @@ export class TargetList extends GenericList {
             super(props);
             this.url = TARGET_URL
             this.interval = GENERIC_INTERVAL
-            this.setState(prevState => ({
-                targetOn: ""
-            }))
             this.render_method = function (data, index) {
                 return <ListGroupItem key={index} >
                     <input type="radio" value={data.title} checked={this.state.target === data.title}
@@ -45,6 +42,12 @@ export class TargetList extends GenericList {
                 </ListGroupItem>
             }
         }
+    onComponentMount(){
+
+        this.setState(prevState => ({
+                targetOn: ""
+            }))
+    }
 
 };
 
