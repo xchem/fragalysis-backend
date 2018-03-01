@@ -47,6 +47,7 @@ export class GenericList extends React.Component {
     super(props);
         this.url = ''
         this.interval = 10000
+        this.state = {data:[]}
         this.loadFromServer = this.loadFromServer.bind(this);
   }
 
