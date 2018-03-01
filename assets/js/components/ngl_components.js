@@ -35,7 +35,7 @@ export class NGLView extends React.Component {
             const prot_url = this.props.mol_dict["prot_id"]
             const mol_id = this.props.mol_dict["mol_id"]
             const mol_url = MOL_URL + mol_id.toString() + "/"
-            const object_name = mol_id.toString() + "__" + prot_id.toString()
+            const object_name = mol_id.toString()
             NProgress.start();
             Promise.all([
                 this.stage.loadFile(prot_url, {ext: "pdb"}),
