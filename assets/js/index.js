@@ -15,15 +15,19 @@ class TotalView extends React.Component {
         this.div_id = props.div_id;
         this.onTargetChecked = this.onTargetChecked.bind(this)
         this.onMolChecked = this.onMolChecked.bind(this)
+        this.mol_list = new Array();
+        this.mol_get_params = {"target_id": 1}
     }
     
     onTargetChecked(target){
-        alert(target);
+        // Now pass this to the molecule div
+        this.mol_get_params = {"target_id": target}
     }
 
     onMolChecked(mol){
-        alert(mol);
+        // Now add or remove this to the list
     }
+
 
 
     render() {
@@ -32,10 +36,10 @@ class TotalView extends React.Component {
                 <TargetList communicateChecked={this.onTargetChecked}/>
             </Col>
             <Col xs={4} md={4}>
-                <MoleculeList communicateChecked={this.onMolChecked}/>
+                <MoleculeList get_params={this.mol_get_params} communicateChecked={this.onMolChecked}/>
             </Col>
             <Col xs={6} md={6} >
-                <NGLView />
+                <NGLView mol_id={this.mol_list}/>
             </Col>
         </Row>
     }

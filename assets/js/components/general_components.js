@@ -48,6 +48,7 @@ export class GenericList extends React.Component {
         this.url = ''
         this.interval = 10000
         this.state = {data:[]}
+
         this.loadFromServer = this.loadFromServer.bind(this);
         this.handleOptionChange = this.handleOptionChange.bind(this);
   }
@@ -64,7 +65,7 @@ export class GenericList extends React.Component {
         $.ajax({
             url: this.url,
             datatype: 'json',
-            data: this.state.get_params,
+            data: this.props.get_params,
             cache: false,
             success: function (data) {
                 this.setState({data: data["results"]})
@@ -74,7 +75,7 @@ export class GenericList extends React.Component {
 
     componentDidMount() {
         this.setState(prevState => (
-        {data: [], get_params: {}}
+        {data: []}
         ));
         this.loadFromServer();
         setInterval(this.loadFromServer,
