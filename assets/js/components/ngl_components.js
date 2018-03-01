@@ -14,6 +14,7 @@ export class NGLView extends React.Component {
         this.div_id = "viewport";
         this.focus_var = 95;
         this.height = "600px";
+        this.interval = 10000
         this.show_mol = this.show_mol.bind(this);
     }
 
