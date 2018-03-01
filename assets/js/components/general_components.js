@@ -94,6 +94,8 @@ export class GenericView extends React.Component{
     super(props);
         this.loadFromServer = this.loadFromServer.bind(this);
         this.handleClick = this.handleClick.bind(this);
+        this.selected_style = {border: "1px solid black"}
+        this.not_selected_style = {}
         this.state = {isToggleOn: false,
             data: '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="110px" height="110px"><g>' +
         '<circle cx="50" cy="0" r="5" transform="translate(5 5)"/>' +
@@ -140,10 +142,10 @@ export class GenericView extends React.Component{
             const svg_image = <SVGInline svg={this.state.data}/>;
             console.log(this.props.message)
             if (this.state.isToggleOn){
-                return <Col xs={5} onClick={this.handleClick} style={{border: "1px solid black"}}>{svg_image}</Col>
+                return <Col xs={6} onClick={this.handleClick} style={this.selected_style}>{svg_image}</Col>
             }
             else{
-                return <Col xs={5} onClick={this.handleClick}>{svg_image}</Col>
+                return <Col xs={6} onClick={this.handleClick} style={this.not_selected_style}>{svg_image}</Col>
             }
         }
         else {

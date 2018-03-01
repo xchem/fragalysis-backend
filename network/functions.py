@@ -60,14 +60,14 @@ def ret_graph_svg(results):
     img = Draw.MolsToGridImage(mols, legends=legends, molsPerRow=3, useSVG=True)
     return img
 
-def draw_mol(smiles):
+def draw_mol(smiles,height=200,width=200):
     mol = Chem.MolFromSmiles(smiles)
 
     if mol is None:
         return "None Mol"
     AllChem.Compute2DCoords(mol)
     Chem.Kekulize(mol)
-    drawer = Draw.MolDraw2DSVG(200,200)
+    drawer = Draw.MolDraw2DSVG(height,width)
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
     return transparentsvg(drawer.GetDrawingText().replace('svg:',''))
