@@ -4,11 +4,11 @@ import '../css/index.css';
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 import { ListGroup, ListGroupItem, Tooltip, OverlayTrigger, Col, Row} from 'react-bootstrap';
-
+import {NGL} from 'ngl';
 import {toggleComplex} from './actions/actions'
 
 import { createStore } from 'redux'
-import { app }from './reducers/reducers'
+import { app } from './reducers/reducers'
 
 let store = createStore(app);
 
@@ -249,15 +249,12 @@ class NGLView extends React.Component {
         // this.stage.mouseControls.add("clickPick-left",showPick);
     }
 
-
     componentDidMount(){
         this.stage = new NGL.Stage(this.div_id);
         // Handle window resizing
         window.addEventListener("resize", function (event) {
             this.stage.handleResize();
         }, false);
-
-
 
     }
 
