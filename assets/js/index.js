@@ -16,7 +16,7 @@ class TotalView extends React.Component {
         this.onTargetChecked = this.onTargetChecked.bind(this)
         this.onMolChecked = this.onMolChecked.bind(this)
         this.mol_list = new Array();
-        this.mol_get_params = {"target_id": 1}
+        this.state.mol_params = {"target_id": 1}
     }
     
     onTargetChecked(target){
