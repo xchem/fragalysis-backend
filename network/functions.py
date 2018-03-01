@@ -5,7 +5,20 @@ except:
     from io import StringIO
 from rdkit import Chem
 from rdkit.Chem import Draw,AllChem
-from frag.network.decorate import get_add_del_link
+import xml.etree.ElementTree as ET
+
+
+def transparentsvg(svg):
+    # Make the white background transparent
+    tree = ET.fromstring(svg)
+    rect = tree.find('rect')
+    rect.set('style', rect.get('style').replace('#ffffff', 'none'))
+    # Recover some missing attributes for correct browser rendering
+    tree.set('version', '1.1')
+    tree.set('xmlns', 'http://www.w3.org/2000/svg')
+    tree.set('xmlns:rdkit', 'http://www.rdkit.org/xml')
+    tree.set('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+    return '<?xml version="1.0" encoding="UTF-8"?>' + ET.tostring(tree).strip()
 
 def get_conn():
     conn = psycopg2.connect(database='dsi',port=5432,host='cartridge',user="postgres")
@@ -55,11 +68,9 @@ def draw_mol(smiles):
     AllChem.Compute2DCoords(mol)
     Chem.Kekulize(mol)
     drawer = Draw.MolDraw2DSVG(200,200)
-    opts = Draw.DrawingOptions()
-    opts.bgColor = None
-    drawer.DrawMolecule(mol,options=opts)
+    drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
-    return drawer.GetDrawingText().replace('svg:','')
+    return transparentsvg(drawer.GetDrawingText().replace('svg:',''))
 
 def add_keys(out_d,depth,type):
     if depth not in out_d:

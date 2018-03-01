@@ -11,7 +11,6 @@ from fragalysis.utils import get_token
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 
-
 def get_mols_from_scene(scene):
     comps = json.loads(scene)['components']
     mol_pks = []
