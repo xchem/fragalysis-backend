@@ -249,7 +249,16 @@ class NGLView extends React.Component {
     }
 
 
+    componentDidMount(){
+        this.stage = new NGL.Stage(this.div_id);
+        // Handle window resizing
+        window.addEventListener("resize", function (event) {
+            this.stage.handleResize();
+        }, false);
 
+
+
+    }
 
     show_mol() {
         NProgress.start();
@@ -284,12 +293,6 @@ class NGLView extends React.Component {
         })
     }
     render(){
-
-        this.stage = new NGL.Stage(this.div_id);
-        // Handle window resizing
-        window.addEventListener("resize", function (event) {
-            this.stage.handleResize();
-        }, false);
 
         return <div style={{height: this.height}} id={this.div_id}></div>
 
