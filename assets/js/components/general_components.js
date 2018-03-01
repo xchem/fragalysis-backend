@@ -48,8 +48,8 @@ export class GenericList extends React.Component {
         this.url = ''
         this.interval = 10000
         this.loadFromServer = this.loadFromServer.bind(this);
-        this.state = { data: [], get_params: {}};
   }
+
     handleOptionChange(changeEvent) {
         const new_value = changeEvent.target.value;
         this.setState(prevState => ({
@@ -71,6 +71,9 @@ export class GenericList extends React.Component {
     }
 
     componentDidMount() {
+        this.setState(prevState => (
+        {data: [], get_params: {}}
+        ));
         this.loadFromServer();
         setInterval(this.loadFromServer,
             this.interval)
