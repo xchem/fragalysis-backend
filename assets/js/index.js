@@ -8,7 +8,7 @@ import { ListGroup, ListGroupItem, Tooltip, OverlayTrigger, Col, Row} from 'reac
 import {toggleComplex} from './actions/actions'
 
 import { createStore } from 'redux'
-import app from './reducers/reducers'
+import { app }from './reducers/reducers'
 
 let store = createStore(app);
 
