@@ -1,6 +1,8 @@
 /**
  * Created by abradley on 02/03/2018.
  */
+import { concatStructures, Selection } from "ngl"
+
 class BaseNGLDisplay {
 
     constructor(stage, mol_dict) {
@@ -40,6 +42,16 @@ class BaseNGLDisplay {
 
 class ShowMolLigs extends BaseNGLDisplay {
 
+    getInputDict(){
+        var prot_id = this.mol_dict["prot_id"]
+        var mol_id = this.mol_dict["mol_id"]
+        var toggle = this.mol_dict["toggle"]
+        var prot_url = this.prot_url + prot_id.toString() + "/"
+        var mol_url = this.mol_url + mol_id.toString() + "/"
+        var object_name = mol_id.toString()+"_mol"
+        return {"mol_url": mol_url, "prot_url": prot_url, "object_name":object_name, "toggle": toggle}
+    }
+
     generatePromise(input_dict){
         Promise.all([
                 this.stage.loadFile(input_dict["prot_url"], {ext: "pdb"}),
@@ -77,14 +89,5 @@ class ShowMolLigs extends BaseNGLDisplay {
             NProgress.done();
     }
 
-    getInputDict(){
-        var prot_id = this.mol_dict["prot_id"]
-        var mol_id = this.mol_dict["mol_id"]
-        var toggle = this.mol_dict["toggle"]
-        var prot_url = this.prot_url + prot_id.toString() + "/"
-        var mol_url = this.mol_url + mol_id.toString() + "/"
-        var object_name = mol_id.toString()+"_mol"
-        return {"mol_url": mol_url, "prot_url": prot_url, "object_name":object_name, "toggle": toggle}
-    }
 }
 export { ShowMolLigs }

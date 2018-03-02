@@ -1,7 +1,7 @@
 /**
  * Created by abradley on 01/03/2018.
  */
-import { Stage, concatStructures, Selection } from 'ngl';
+import { Stage } from 'ngl';
 import React from 'react';
 import { ShowMolLigs} from '../views/ngl_views';
 
