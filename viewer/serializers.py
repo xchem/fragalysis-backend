@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from viewer.models import ViewScene, ActivityPoint, Molecule, Project, Protein, Compound, Target
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target
 
 
 class TargetSerializer(serializers.ModelSerializer):
@@ -37,8 +37,3 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ('id', 'title',)
-
-class ViewSceneSerializer(serializers.ModelSerializer):
-    class Meta:
-        model =  ViewScene
-        fields = ('id', 'uuid','title','scene',)

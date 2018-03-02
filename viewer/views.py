@@ -2,7 +2,8 @@ from django.http import HttpResponse
 from network.functions import draw_mol
 from viewer.functions import generate_data_for_smis
 from django.shortcuts import render
-from .models import ViewScene,Molecule,Protein,MolChoice,Compound
+from viewer.models import Molecule,Protein,Compound
+from scoring.models import MolChoice,ViewScene
 from uuid import uuid4
 import json
 from frag.network.decorate import get_3d_vects_for_mol
