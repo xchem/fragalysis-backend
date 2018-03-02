@@ -178,6 +178,5 @@ def analyse_target(target_name):
             mol_group.z_com = out_data[clust_type][cluster]['centre_of_mass'][2]
             mol_group.save()
             for mol_id in out_data[clust_type][cluster]["mol_ids"]:
-                print(mol_id)
-                this_mol = Molecule.objects.get(mol_id)
+                this_mol = Molecule.objects.get(id=mol_id)
                 mol_group.mol_id.add(this_mol)
