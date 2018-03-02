@@ -24,7 +24,7 @@ class TotalView extends React.Component {
         // Now pass this to the molecule div
         this.setState(prevState => ({
           mol_params:  {"prot_id__target_id": target},
-            group_params: {"target_id": target}
+            group_params: {"target_id": target,"group_type": "MC"}
         }));
     }
 
