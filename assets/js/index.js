@@ -12,6 +12,7 @@ class TotalView extends React.Component {
         this.div_id = props.div_id;
         this.onTargetChecked = this.onTargetChecked.bind(this)
         this.onMolChecked = this.onMolChecked.bind(this)
+        this.onGroupChecked = this.onGroupChecked.bind(this)
         this.state = {mol_params: {"prot_id__target_id": 1},
             mol_dict: false, clear_all: false
         }
