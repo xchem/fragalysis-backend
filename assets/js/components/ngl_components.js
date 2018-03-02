@@ -5,38 +5,28 @@ import { Stage, concatStructures, Selection } from 'ngl';
 import React from 'react';
 
 
-export class NGLView extends React.Component {
 
+class ShowMolLigs {
 
-    constructor(props) {
-        super(props);
-        // Create NGL Stage object
-        this.div_id = "viewport";
+    constructor(stage, mol_dict) {
+        this.stage = stage
+        this.mol_dict = mol_dict
         this.focus_var = 95;
-        this.height = "600px";
-        this.interval = 100;
-        this.old_dict = {}
         this.mol_url = "/viewer/mol_from_pk/"
         this.prot_url = "/viewer/prot_from_pk/"
-        this.showMol = this.showMol.bind(this);
-        this.removeComponentByName = this.removeComponentByName.bind(this);
-        this.molLigInteraction = this.molLigInteraction.bind(this);
-        this.genMolLigInt = this.genMolLigInt.bind(this);
-        this.getInputDict = this.getInputDict.bind(this);
     }
 
-
-    componentDidMount(){
-        this.stage = new Stage(this.div_id);
-        // Handle window resizing
-        window.addEventListener("resize", function (event) {
-            this.stage.handleResize();
-        }, false);
-        this.showMol();
-        setInterval(this.showMol,
-            this.interval)
+    run(){
+        var inputDict = this.getInputDict(this.props.mol_dict);
+        NProgress.start();
+        if(inputDict["toggle"]==true) {
+            this.molLigInteraction(inputDict)
+        }
+        else{
+            this.removeComponentByName(inputDict);
+            NProgress.done();
+        }
     }
-
 
     removeComponentByName(inputDict){
         var local_stage = this.stage
@@ -46,7 +36,8 @@ export class NGLView extends React.Component {
                 if (comp.name==compName){
                     local_stage.removeComponent(comp)
                 }
-            })
+            }
+        )
     }
 
     molLigInteraction(input_dict){
@@ -86,10 +77,11 @@ export class NGLView extends React.Component {
             NProgress.done();
     }
 
-    getInputDict(mol_dict){
-        var prot_id = this.props.mol_dict["prot_id"]
-        var mol_id = this.props.mol_dict["mol_id"]
-        var toggle = this.props.mol_dict["toggle"]
+
+    getInputDict(){
+        var prot_id = this.mol_dict["prot_id"]
+        var mol_id = this.mol_dict["mol_id"]
+        var toggle = this.mol_dict["toggle"]
         var prot_url = this.prot_url + prot_id.toString() + "/"
         var mol_url = this.mol_url + mol_id.toString() + "/"
         var object_name = mol_id.toString()+"_mol"
@@ -97,17 +89,42 @@ export class NGLView extends React.Component {
         return inputDict
     }
 
+
+}
+
+
+export class NGLView extends React.Component {
+
+
+    constructor(props) {
+        super(props);
+        // Create NGL Stage object
+        this.div_id = "viewport";
+        this.height = "600px";
+        this.interval = 100;
+        this.old_dict = {}
+        this.showMol = this.showMol.bind(this);
+    }
+
+
+    componentDidMount(){
+        this.stage = new Stage(this.div_id);
+        // Handle window resizing
+        window.addEventListener("resize", function (event) {
+            this.stage.handleResize();
+        }, false);
+        this.showMol();
+        setInterval(this.showMol,
+            this.interval)
+    }
+
+
+    /**
+     * Function to deal with the logic of showing molecules
+     */
     showMol() {
         if (this.props.mol_dict && this.props.mol_dict != this.old_dict) {
-            var inputDict = this.getInputDict(this.props.mol_dict);
-            NProgress.start();
-            if(inputDict["toggle"]==true) {
-                this.molLigInteraction(inputDict)
-            }
-            else{
-                this.removeComponentByName(inputDict);
-                NProgress.done();
-            }
+            ShowMolLigs(this.stage, this.props.mol_dict).run();
         }
         // Now update the dicts
         this.old_dict = this.props.mol_dict;
