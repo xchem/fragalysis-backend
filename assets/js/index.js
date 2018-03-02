@@ -13,7 +13,9 @@ class TotalView extends React.Component {
         this.onTargetChecked = this.onTargetChecked.bind(this)
         this.onMolChecked = this.onMolChecked.bind(this)
         this.onGroupChecked = this.onGroupChecked.bind(this)
-        this.state = {mol_params: {"prot_id__target_id": 1},
+        this.dummy_target = 1
+        this.state = {mol_params: {"prot_id__target_id": this.dummy_target},
+            group_params: {"target_id": this.dummy_target},
             mol_dict: false, clear_all: false
         }
     }
@@ -21,7 +23,8 @@ class TotalView extends React.Component {
     onTargetChecked(target){
         // Now pass this to the molecule div
         this.setState(prevState => ({
-          mol_params:  {"prot_id__target_id": target}
+          mol_params:  {"prot_id__target_id": target},
+            group_params: {"target_id": target}
         }));
     }
 
@@ -51,7 +54,7 @@ class TotalView extends React.Component {
                     <TargetList communicateChecked={this.onTargetChecked}/>
                 </Col>
                 <Col xs={1}>
-                    <MolGroupList communicateChecked={this.onGroupChecked}/>
+                    <MolGroupList get_params={this.state.group_params} communicateChecked={this.onGroupChecked}/>
                 </Col>
                 <Col xs={3}>
                     <MoleculeList get_params={this.state.mol_params} communicateChecked={this.onMolChecked}/>
