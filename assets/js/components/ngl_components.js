@@ -17,7 +17,7 @@ class ShowMolLigs {
     }
 
     run(){
-        var inputDict = this.getInputDict(this.props.mol_dict);
+        var inputDict = this.getInputDict();
         NProgress.start();
         if(inputDict["toggle"]==true) {
             this.molLigInteraction(inputDict)
@@ -76,7 +76,6 @@ class ShowMolLigs {
             stage.setFocus(focus_var);
             NProgress.done();
     }
-
 
     getInputDict(){
         var prot_id = this.mol_dict["prot_id"]
