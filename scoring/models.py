@@ -148,7 +148,7 @@ class MolGroup(models.Model):
     # Set the target id
     target_id = models.ForeignKey(Target)
     # Set the ManyToMany
-    mol_id = models.ManyToManyField(Molecule)
+    mol_id = models.ManyToManyField(Molecule,related_name="mol_groups")
     # Set the centre of mass
     x_com = models.FloatField(null=True)
     y_com = models.FloatField(null=True)

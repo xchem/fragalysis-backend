@@ -34,7 +34,7 @@ class TotalView extends React.Component {
 
     onGroupChecked(mol_list){
         this.setState(prevState => ({
-          mol_params:  {"id__in": mol_list}
+          mol_params:  {"mol_groups": mol_list}
         }));
     }
 

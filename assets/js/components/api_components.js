@@ -33,9 +33,10 @@ export class TargetList extends GenericList {
 
 
     constructor(props) {
-            super(props);
-            this.url = TARGET_URL
-            this.interval = GENERIC_INTERVAL
+        super(props);
+        this.url = TARGET_URL
+        this.interval = GENERIC_INTERVAL
+        this.handleOptionChange = this.handleOptionChange.bind(this);
             this.render_method = function (data, index) {
                 return <ListGroupItem key={index} >
                     <label>
@@ -46,6 +47,14 @@ export class TargetList extends GenericList {
             }
         }
 
+    handleOptionChange(changeEvent) {
+        const new_value = changeEvent.target.value;
+        this.setState(prevState => ({
+          targetOn: new_value
+        }));
+        this.props.communicateChecked(new_value);
+      }
+
 };
 
 
@@ -55,6 +64,7 @@ export class MolGroupList extends GenericList {
         super(props);
         this.url = GROUP_URL
         this.interval = GENERIC_INTERVAL
+        this.handleOptionChange = this.handleOptionChange.bind(this);
         this.render_method = function (data, index) {
             return <ListGroupItem key={index} >
                 <label>
@@ -64,6 +74,14 @@ export class MolGroupList extends GenericList {
             </ListGroupItem>
         }
     }
+
+    handleOptionChange(changeEvent) {
+        const new_value = changeEvent.target.value;
+        this.setState(prevState => ({
+          groupOn: new_value
+        }));
+        this.props.communicateChecked(new_value);
+      }
 
 }
 

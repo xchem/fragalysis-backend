@@ -49,16 +49,7 @@ export class GenericList extends React.Component {
         this.interval = 10000
         this.state = {data:[]}
         this.loadFromServer = this.loadFromServer.bind(this);
-        this.handleOptionChange = this.handleOptionChange.bind(this);
   }
-
-    handleOptionChange(changeEvent) {
-        const new_value = changeEvent.target.value;
-        this.setState(prevState => ({
-          targetOn: new_value
-        }));
-        this.props.communicateChecked(new_value);
-      }
 
   loadFromServer() {
         $.ajax({
