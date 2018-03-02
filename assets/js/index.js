@@ -50,13 +50,13 @@ class TotalView extends React.Component {
 
     render() {
         return <Row>
-                <Col xs={2} >
+                <Col xs={1} >
                     <TargetList communicateChecked={this.onTargetChecked}/>
                 </Col>
                 <Col xs={1}>
                     <MolGroupList get_params={this.state.group_params} communicateChecked={this.onGroupChecked}/>
                 </Col>
-                <Col xs={3}>
+                <Col xs={4}>
                     <MoleculeList get_params={this.state.mol_params} communicateChecked={this.onMolChecked}/>
                 </Col>
                 <Col xs={6} md={6} >
