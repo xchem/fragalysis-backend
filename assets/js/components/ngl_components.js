@@ -99,7 +99,7 @@ export class NGLView extends React.Component {
 
     showMol() {
         if (this.props.mol_dict && this.props.mol_dict != this.old_dict) {
-            var inputDict = getInputDict(this.props.mol_dict);
+            var inputDict = this.getInputDict(this.props.mol_dict);
             NProgress.start();
             if(inputDict["toggle"]==true) {
                 this.molLigInteraction(inputDict)
