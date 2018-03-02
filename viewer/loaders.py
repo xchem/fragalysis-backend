@@ -176,6 +176,6 @@ def analyse_target(target_name):
             mol_group.x_com = out_data[clust_type][cluster]['centre_of_mass'][0]
             mol_group.y_com = out_data[clust_type][cluster]['centre_of_mass'][1]
             mol_group.z_com = out_data[clust_type][cluster]['centre_of_mass'][2]
-            for mol_id in out_data[clust_type][clust_type]["mol_ids"]:
+            for mol_id in out_data[clust_type][cluster]["mol_ids"]:
                 mol_group.mol_id.add(mol_id)
             mol_group.save()
