@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # My own apps
+    'scoring',
     'network',
     'viewer',
     'api',
