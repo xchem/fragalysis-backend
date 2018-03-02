@@ -63,7 +63,7 @@ export class MolGroupList extends GenericList {
     constructor(props) {
         super(props);
         this.url = GROUP_URL
-        this.interval = GENERIC_INTERVAL
+        this.interval = 1000
         this.handleOptionChange = this.handleOptionChange.bind(this);
         this.render_method = function (data, index) {
             return <ListGroupItem key={index} >
