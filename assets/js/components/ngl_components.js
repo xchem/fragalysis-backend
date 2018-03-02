@@ -124,7 +124,8 @@ export class NGLView extends React.Component {
      */
     showMol() {
         if (this.props.mol_dict && this.props.mol_dict != this.old_dict) {
-            ShowMolLigs(this.stage, this.props.mol_dict).run();
+            var showMolLigs = new ShowMolLigs(this.stage, this.props.mol_dict);
+            showMolLigs.run();
         }
         // Now update the dicts
         this.old_dict = this.props.mol_dict;
