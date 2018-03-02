@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from viewer.models import Protein,Molecule,Compound
+from viewer.models import Protein,Molecule,Compound,Target
 
 
 # TODO - Consider this for reorginisation. E.g. Linking to targets,proteins,molecules.
@@ -122,4 +122,39 @@ class CmpdChoice(models.Model):
         unique_together = ('user_id', 'cmpd_id','choice_type',)
         permissions = (
             ('view_cmpdchoice', 'View cmpdhoice'),
+        )
+
+class MolGroup(models.Model):
+    """
+    A Django model for a group of molecules.
+    No unique set - so needs to be deleted for a type before re-running.
+    """
+    PANDDA = 'PA'
+    DEFAULT = 'DE'
+    MOL_CLUSTER = 'MC'
+    WATER_CLUSTER = 'WC'
+    PHARMA_CLUSTER = 'PC'
+    RES_CLUSTER = "RC"
+    MOL_GROUP_CHOICES = (
+        (PANDDA, 'Pandda'),
+        (DEFAULT, 'Default'),
+        (MOL_CLUSTER, 'MolCluster'),
+        (WATER_CLUSTER, 'WaterCluster'),
+        (PHARMA_CLUSTER, 'PharmaCluster'),
+        (RES_CLUSTER, 'ResCluster'),
+    )
+    # Set the groups types
+    group_type = models.CharField(choices=MOL_GROUP_CHOICES,max_length=2,default=DEFAULT)
+    # Set the target id
+    target_id = models.ForeignKey(Target)
+    # Set the ManyToMany
+    mol_id = models.ManyToManyField(Molecule)
+    # Set the centre of mass
+    x_com = models.FloatField(null=True)
+    y_com = models.FloatField(null=True)
+    z_com = models.FloatField(null=True)
+
+    class Meta:
+        permissions = (
+            ('view_molgroup', 'View molecule group'),
         )

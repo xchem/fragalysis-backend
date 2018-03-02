@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from scoring.models import ViewScene,ProtChoice,CmpdChoice,MolChoice,ScoreChoice
+from scoring.models import ViewScene,ProtChoice,CmpdChoice,MolChoice,ScoreChoice,MolGroup
 
 class ViewSceneSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,3 +25,8 @@ class ScoreChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScoreChoice
         fields = ('id', 'user_id','mol_id','prot_id','choice_type','score','is_done')
+
+class MolGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MolGroup
+        fields = ('id', 'group_type','mol_id','target_id','x_com','y_com','z_com')

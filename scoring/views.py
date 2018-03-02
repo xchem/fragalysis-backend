@@ -1,6 +1,6 @@
-from scoring.models import ViewScene,ProtChoice,CmpdChoice,MolChoice,ScoreChoice
+from scoring.models import ViewScene,ProtChoice,CmpdChoice,MolChoice,ScoreChoice,MolGroup
 from scoring.serializers import ViewSceneSerializer,ProtChoiceSerializer,CmpdChoiceSerializer,\
-    MolChoiceSerializer,ScoreChoiceSerializer
+    MolChoiceSerializer,ScoreChoiceSerializer,MolGroupSerializer
 from rest_framework import viewsets
 
 class ViewSceneView(viewsets.ModelViewSet):
@@ -27,3 +27,8 @@ class ScoreChoiceView(viewsets.ModelViewSet):
     queryset = ScoreChoice.objects.filter()
     serializer_class = ScoreChoiceSerializer
     filter_fields = ('user_id','mol_id','prot_id','is_done','mol_id__prot_id__target_id','prot_id__target_id','choice_type')
+
+class MolGroupView(viewsets.ModelViewSet):
+    queryset = MolGroup.objects.filter()
+    serializer_class = MolGroupSerializer
+    filter_fields = ('group_type','mol_id','target_id')

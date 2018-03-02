@@ -12,13 +12,15 @@ router.register(r'compounds', views.CompoundView)
 router.register(r'targets', views.TargetView)
 router.register(r'proteins', views.ProteinView)
 
-# Register the molecular choices
+# Register the  choices
 router.register(r'scorechoice',score_views.ScoreChoiceView)
 router.register(r'molchoice',score_views.MolChoiceView)
 router.register(r'protchoice',score_views.ProtChoiceView)
 router.register(r'cmpdchoice',score_views.CmpdChoiceView)
+# Register the scenese
 router.register(r'viewscene',score_views.ViewSceneView)
-
+# Register the groups
+router.register(r'molgroup',score_views.MolGroupView)
 
 urlpatterns = [
     url(r'^', include(router.urls)),
