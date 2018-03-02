@@ -69,7 +69,7 @@ export class MolGroupList extends GenericList {
             return <ListGroupItem key={index} >
                 <label>
                     <input type="radio" value={data.id} checked={this.state.groupOn == data.id} onChange={this.handleOptionChange}/>
-                    SITE {data.index}
+                    SITE {index}
                 </label>
             </ListGroupItem>
         }
