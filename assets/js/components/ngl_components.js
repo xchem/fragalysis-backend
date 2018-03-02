@@ -54,7 +54,7 @@ export class NGLView extends React.Component {
                 this.stage.loadFile(input_dict["prot_url"], {ext: "pdb"}),
                 this.stage.loadFile(input_dict["mol_url"], {ext: "sdf"}),
                 this.stage, this.focus_var, input_dict["object_name"]]
-            ).then(genMolLigInt(ol));
+            ).then(this.genMolLigInt(ol));
     }
 
     genMolLigInt(ol){
