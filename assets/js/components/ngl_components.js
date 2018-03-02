@@ -92,7 +92,7 @@ export class NGLView extends React.Component {
                 this.molLigInteraction(prot_url,mol_url,object_name)
             }
             else{
-                this.remove_component_by_name(object_name);
+                this.removeComponentByName(object_name);
                 NProgress.done();
             }
         }
