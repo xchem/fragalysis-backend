@@ -27,7 +27,7 @@ export class NGLView extends React.Component {
         var local_stage = this.stage
         local_stage.eachComponent(
             function(comp){
-                if (comp.name==object_name){
+                if (comp.name==compName){
                     local_stage.removeComponent(comp)
                 }
             })
@@ -86,7 +86,7 @@ export class NGLView extends React.Component {
             const toggle = this.props.mol_dict["toggle"]
             const prot_url = this.prot_url + prot_id.toString() + "/"
             const mol_url = this.mol_url + mol_id.toString() + "/"
-            const object_name = mol_id.toString()+"_mo"
+            const object_name = mol_id.toString()+"_mol"
             NProgress.start();
             if(toggle==true) {
                 this.molLigInteraction(prot_url,mol_url,object_name)
