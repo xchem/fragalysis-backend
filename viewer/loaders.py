@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from rdkit import Chem
 from rdkit.Chem import Lipinski,Descriptors
+from frag.alysis.run_clustering import run_lig_cluster
 
 def add_target(title):
     """
@@ -154,3 +155,27 @@ def load_from_dir(target_name, dir_path):
                 print("NONE MOL: "+xtal)
         else:
             print("File not found: "+xtal)
+
+def analyse_target(target_name):
+    from scoring.models import MolGroup
+    target = Target.objects.get(title=target_name)
+    mols = list(Molecule.objects.filter(prot_id__target_id=target))
+    rd_mols = [Chem.MolFromMolBlock(x.sdf_info) for x in mols]
+    id_mols = [x.id for x in mols]
+    out_data = run_lig_cluster(rd_mols, id_mols)
+    MolGroup.objects.filter(group_type="PC",target_id=target).delete()
+    MolGroup.objects.filter(group_type="MC",target_id=target).delete()
+    for clust_type in out_data:
+        for cluster in out_data[clust_type]:
+            mol_group = MolGroup()
+            if clust_type!="c_of_m":
+                mol_group.group_type = "PC"
+            else:
+                mol_group.group_type = "MC"
+            mol_group.target_id = target
+            mol_group.x_com = out_data[clust_type][cluster]['centre_of_mass'][0]
+            mol_group.y_com = out_data[clust_type][cluster]['centre_of_mass'][1]
+            mol_group.z_com = out_data[clust_type][cluster]['centre_of_mass'][2]
+            for mol_id in out_data[clust_type][clust_type]["mol_ids"]:
+                mol_group.mol_id.add(mol_id)
+            mol_group.save()

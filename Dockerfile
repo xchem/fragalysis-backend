@@ -3,6 +3,7 @@ ENV PYTHONUNBUFFERED 1
 RUN mkdir /code
 WORKDIR /code
 ADD requirements.txt /code/
+RUN apt-get update -y
 RUN pip install -r requirements.txt
 RUN git clone https://github.com/xchem/fragalysis /usr/local/fragalysis
 RUN pip install -r /usr/local/fragalysis/requirements.txt

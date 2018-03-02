@@ -77,7 +77,7 @@ class ScoreChoice(models.Model):
     # IN THIS CASE THIS WOULD INDICATE THE SOFTWARE USED - WE WILL GENERATE DIFFERENT USERS FOR EACH SOFTWARE
     user_id = models.ForeignKey(User)
     mol_id = models.ForeignKey(Molecule)
-    prot_id = models.ForeignKey(Molecule)
+    prot_id = models.ForeignKey(Protein)
     is_done = models.BooleanField(default=False)
     DEFAULT = 'DE'
     DOCKING = 'AU'
