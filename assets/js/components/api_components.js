@@ -12,6 +12,7 @@ const BASE_API = "/v0.1/"
 const TARGET_URL = BASE_API+"targets/"
 const COMPOUNDS_URL = BASE_API+"compounds/"
 const MOLECULE_URL = BASE_API+"molecules/"
+const GROUP_URL = BASE_API+"molgroup/"
 const PROTEIN_URL = BASE_API+"proteins/"
 const SVG_CMPD = '/viewer/img_from_cmpd_pk/'
 const SVG_MOL = '/viewer/img_from_mol_pk/'
@@ -47,6 +48,25 @@ export class TargetList extends GenericList {
 
 };
 
+
+export class MolGroupList extends GenericList {
+
+    constructor(props) {
+        super(props);
+        this.url = GROUP_URL
+        this.interval = GENERIC_INTERVAL
+        this.render_method = function (data, index) {
+            return <ListGroupItem key={index} >
+                <label>
+                    <input type="radio" value={data.id} checked={this.state.groupOn == data.id} onChange={this.handleOptionChange}/>
+                    {data.id}
+                </label>
+            </ListGroupItem>
+        }
+    }
+
+}
+
 export class MoleculeList extends GenericList {
         constructor(props) {
             super(props);
@@ -55,7 +75,7 @@ export class MoleculeList extends GenericList {
             this.communicateChecked = props.communicateChecked;
             this.interval = 1000
             this.render_method = function (data, index) {
-                return <MoleculeView get_params={this.get_params}communicateChecked={this.communicateChecked} key={data.id} prot_id={data.prot_id} my_id={data.id} />
+                return <MoleculeView get_params={this.get_params} communicateChecked={this.communicateChecked} key={data.id} prot_id={data.prot_id} my_id={data.id} />
             }
         }
 };

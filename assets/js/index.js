@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { connect, createStore } from 'redux'
 import { Col, Row} from 'react-bootstrap'
 import { NGLView } from './components/ngl_components'
-import { TargetList, MoleculeList } from './components/api_components'
+import { TargetList, MoleculeList, MolGroupList } from './components/api_components'
 
 class TotalView extends React.Component {
 
@@ -20,8 +20,7 @@ class TotalView extends React.Component {
     onTargetChecked(target){
         // Now pass this to the molecule div
         this.setState(prevState => ({
-          mol_params:  {"prot_id__target_id": target},
-            clear_all: true
+          mol_params:  {"prot_id__target_id": target}
         }));
     }
 
@@ -29,6 +28,12 @@ class TotalView extends React.Component {
         // Now add this to NGL
         this.setState(prevState => ({
             mol_dict: {"mol_id": mol, "prot_id": prot_id, "toggle": isToggleOn}
+        }));
+    }
+
+    onGroupChecked(mol_list){
+        this.setState(prevState => ({
+          mol_params:  {"id__in": mol_list}
         }));
     }
 
@@ -43,6 +48,9 @@ class TotalView extends React.Component {
         return <Row>
                 <Col xs={2} md={2}>
                     <TargetList communicateChecked={this.onTargetChecked}/>
+                </Col>
+                <Col xs={2} md={2}>
+                    <MolGroupList communicateChecked={this.onGroupChecked}/>
                 </Col>
                 <Col xs={4} md={4}>
                     <MoleculeList get_params={this.state.mol_params} communicateChecked={this.onMolChecked}/>

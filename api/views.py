@@ -13,7 +13,7 @@ class TargetView(viewsets.ModelViewSet):
 class MoleculeView(viewsets.ModelViewSet):
     queryset = Molecule.objects.filter()
     serializer_class = MoleculeSerializer
-    filter_fields = ('prot_id', 'cmpd_id','smiles','prot_id__target_id')
+    filter_fields = ('id__in', 'prot_id', 'cmpd_id','smiles','prot_id__target_id')
 
 class CompoundView(viewsets.ModelViewSet):
     queryset = Compound.objects.filter()

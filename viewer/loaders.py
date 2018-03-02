@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from rdkit import Chem
 from rdkit.Chem import Lipinski,Descriptors
+from scoring.models import MolGroup
 from frag.alysis.run_clustering import run_lig_cluster
 
 def add_target(title):
@@ -157,11 +158,10 @@ def load_from_dir(target_name, dir_path):
             print("File not found: "+xtal)
 
 def analyse_target(target_name):
-    from scoring.models import MolGroup
     target = Target.objects.get(title=target_name)
     mols = list(Molecule.objects.filter(prot_id__target_id=target))
     rd_mols = [Chem.MolFromMolBlock(x.sdf_info) for x in mols]
-    id_mols = [x.id for x in mols]
+    id_mols = [x.pk for x in mols]
     out_data = run_lig_cluster(rd_mols, id_mols)
     MolGroup.objects.filter(group_type="PC",target_id=target).delete()
     MolGroup.objects.filter(group_type="MC",target_id=target).delete()
