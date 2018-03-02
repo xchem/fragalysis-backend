@@ -42,6 +42,10 @@ export class NGLView extends React.Component {
         }
         // Now update the dicts
         this.old_dict = this.props.mol_dict;
+        if(this.props.clear_all==true){
+            this.stage.removeAllComponents();
+            this.props.onMolCleared();
+        }
     }
 
     render(){
