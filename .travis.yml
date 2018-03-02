@@ -1,0 +1,12 @@
+sudo: required
+services:
+  - docker
+install:
+  - docker build -t abradle/fragalysis_stack .
+script:
+  - docker run abradle/fragalysis_stack /bin/sh -c "cd /usr/local/fragalysis && nosetests"
+after_success:
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+    docker push abradle/fragalysis_stack;
+    fi
