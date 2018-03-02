@@ -23,8 +23,9 @@ export class NGLView extends React.Component {
     componentDidMount(){
         this.stage = new Stage(this.div_id);
         // Handle window resizing
+        var local_stage = this.stage;
         window.addEventListener("resize", function (event) {
-            this.stage.handleResize();
+           local_stage.handleResize();
         }, false);
         this.showMol();
         setInterval(this.showMol,
