@@ -1,9 +1,6 @@
 /**
  * Created by abradley on 01/03/2018.
  */
-/**
- * Created by abradley on 01/03/2018.
- */
 import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 import React from 'react';

@@ -4,6 +4,11 @@ import { connect, createStore } from 'redux'
 import { Col, Row} from 'react-bootstrap'
 import { NGLView } from './components/ngl_components'
 import { TargetList, MoleculeList, MolGroupList } from './components/api_components'
+import { createStore } from 'redux'
+import { Provider } from 'react-redux'
+import { app } from './reducers/reducers'
+ 
+let store = createStore(app)
 
 class TotalView extends React.Component {
 
@@ -49,7 +54,8 @@ class TotalView extends React.Component {
 
 
     render() {
-        return <Row>
+        return <Provider store={store}>
+            <Row>
                 <Col xs={1} >
                     <TargetList communicateChecked={this.onTargetChecked}/>
                 </Col>
@@ -62,7 +68,8 @@ class TotalView extends React.Component {
                 <Col xs={6} md={6} >
                     <NGLView mol_dict={this.state.mol_dict} communicateCleared={this.onMolCleared}/>
                 </Col>
-        </Row>
+            </Row>
+        </Provider>
     }
 }
 
