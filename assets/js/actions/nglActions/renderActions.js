@@ -1,21 +1,8 @@
-export const TOGGLE_COMPLEX = 'TOGGLE_COMPLEX';
-export const SET_COLOR = 'SET_COLOR';
-export const SET_STYLE = 'SET_STYLE';
-export const SET_SPIN = 'SET_SPIN';
-export const SET_WATER = 'SET_WATER';
-export const SET_HYDROGEN = 'SET_HYDROGEN';
+/**
+ * Created by abradley on 03/03/2018.
+ */
 
-console.log("ACTIONS file passed thru");
-
-export const toggleComplex = function (protein_id,mol_id,interactions) {
-    return {
-        type: TOGGLE_COMPLEX,
-        visible: false,
-        protein: protein_id,
-        mol: mol_id,
-        interactions: interactions
-    };
-}
+import {SET_COLOR, SET_STYLE, SET_SPIN, SET_WATER, SET_HYDROGEN } from '../actonTypes'
 
 export const setColor = function (color) {
     console.log("ACTIONS: " + color);

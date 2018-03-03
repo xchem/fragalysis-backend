@@ -2,10 +2,10 @@
  * Created by abradley on 01/03/2018.
  */
 import { ListGroupItem } from 'react-bootstrap';
-import { GenericView, GenericList } from './general_components';
+import { GenericView, GenericList } from './generalComponents';
 import React from 'react';
 
-import {toggleComplex} from '../actions/actions'
+import {toggleComplex} from '../actions/toggleActions'
 
 // Basic config of the API
 const BASE_API = "/v0.1/"

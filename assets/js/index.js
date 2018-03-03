@@ -2,11 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { connect, createStore } from 'redux'
 import { Col, Row} from 'react-bootstrap'
-import { NGLView } from './components/ngl_components'
-import { TargetList, MoleculeList, MolGroupList } from './components/api_components'
+import { NGLView } from './components/nglComponents'
+import { TargetList, MoleculeList, MolGroupList } from './components/apiComponents'
 import { createStore } from 'redux'
 import { Provider } from 'react-redux'
-import { app } from './reducers/reducers'
+import { app } from './reducers/nglReducers'
  
 let store = createStore(app)
 
