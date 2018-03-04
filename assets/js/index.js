@@ -6,9 +6,9 @@ import { NGLView } from './components/nglComponents'
 import { TargetList, MoleculeList, MolGroupList } from './components/apiComponents'
 import { createStore } from 'redux'
 import { Provider } from 'react-redux'
-import { app } from './reducers/nglReducers'
+import { nglReducers } from './reducers/nglReducers'
  
-let store = createStore(app)
+let store = createStore(nglReducers)
 
 class TotalView extends React.Component {
 

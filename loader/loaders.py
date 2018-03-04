@@ -1,10 +1,12 @@
 import os,sys
-from .models import Target,Protein,Molecule,Compound
+from viewer.models import Target,Protein,Molecule,Compound
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from rdkit import Chem
+from rdkit.Chem import Descriptors
 from scoring.models import MolGroup
 from frag.alysis.run_clustering import run_lig_cluster
+from loader.functions import sanitize_mol,get_path_or_none
 
 def add_target(title):
     """
@@ -35,7 +37,7 @@ def add_prot(pdb_file_path, code, target, mtz_path=None, map_path=None):
     new_prot.save()
     return new_prot
 
-def add_new_comp(mol, option=None, comp_id=None):
+def add_comp(mol, option=None, comp_id=None):
     """
     Function to add a new compound to the database given an RDKit molecule
     Takes an RDKit molecule. Option of LIG to return original smiles with the Compound object
@@ -105,7 +107,7 @@ def add_mol(mol_sd,prot,lig_id="LIG",chaind_id="Z",occupancy=0.0):
     if rd_mol is None:
         return None
     # Get the reference compound
-    comp_ref = add_new_comp(rd_mol)
+    comp_ref = add_comp(rd_mol)
     new_mol = Molecule.objects.get_or_create(prot_id=prot,cmpd_id=comp_ref)[0]
     # Make a protein object by which it is related in the DB
     new_mol.sdf_info = Chem.MolToMolBlock(rd_mol)

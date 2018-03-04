@@ -1,5 +1,4 @@
 from django.http import HttpResponse
-from network.functions import draw_mol
 from django.shortcuts import render
 from viewer.models import Molecule,Protein,Compound
 from scoring.models import MolChoice,ViewScene
@@ -7,7 +6,7 @@ from uuid import uuid4
 import json
 from frag.network.decorate import get_3d_vects_for_mol
 from frag.network.query import get_full_graph
-from fragalysis.utils import get_token
+from api.utils import draw_mol,get_token
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 

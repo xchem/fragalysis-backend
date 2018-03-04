@@ -1,6 +1,6 @@
-
 from rdkit import Chem
-from rdkit.Chem import Lipinski,Descriptors,AllChem
+from rdkit.Chem import Lipinski,AllChem
+import sys,os
 
 # Contribution to the RDKit from Hans de Winter
 def _InitialiseNeutralisationReactions():
@@ -55,3 +55,30 @@ def desalt_compound(smiles):
     Returns a desalted smiles string."""
     # Chose the biggest fragment, after splitting into fragments
     return sorted([(x, Lipinski.HeavyAtomCount(Chem.MolFromSmiles(x))) for x in smiles.split(".")], key=lambda x: x[1], reverse=True)[0][0]
+
+def sanitize_mol(mol):
+    """
+    Sanitized the input molecule
+    :param mol: the input molecule
+    :return: the sanitized molecule
+    """
+    s_store_mol = NeutraliseCharges(desalt_compound(Chem.MolToSmiles(mol, isomericSmiles=True)))[0]
+    store_mol = Chem.MolFromSmiles(s_store_mol)
+    if store_mol is None:
+        sys.stderr.write("NEUTRALISING MADE NONE MOL" + " " + s_store_mol + " " + Chem.MolToSmiles(mol, isomericSmiles=True))
+        return None
+    return store_mol
+
+def get_path_or_none(new_path,xtal,suffix):
+    """
+    Get a path or none - for loader
+    :param new_path:
+    :param xtal:
+    :param suffix:
+    :return:
+    """
+    path = os.path.join(new_path, xtal + suffix)
+    if os.path.isfile(path):
+        return path
+    else:
+        return None
