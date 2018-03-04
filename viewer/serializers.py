@@ -17,11 +17,6 @@ class MoleculeSerializer(serializers.ModelSerializer):
         model = Molecule
         fields = ('id','smiles', 'cmpd_id', 'prot_id', 'lig_id', 'chain_id', 'sdf_info', 'x_com', 'y_com', 'z_com',)
 
-class MDLSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Molecule
-        fields = ('sdf_info')
-
 class ActivityPointSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActivityPoint
