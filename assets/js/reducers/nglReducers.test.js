@@ -1,7 +1,7 @@
 /**
  * Created by abradley on 03/03/2018.
  */
-import nglReducers,{INITIALSTATE} from  './nglReducers'
+import nglReducers from  './nglReducers'
 import * as types from '../actions/actonTypes'
  
 const TEST_OBJ_ONE = {name: "TESTOBJ", loadMe: "STRING"}
@@ -23,7 +23,6 @@ function getInitialState(){
       hydrogen: true,
     }
 }
-
 
 // All the possible states
 const TEST_LOAD_ONE_STATE = Object.assign({}, getInitialState(), {
