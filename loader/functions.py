@@ -55,11 +55,3 @@ def desalt_compound(smiles):
     Returns a desalted smiles string."""
     # Chose the biggest fragment, after splitting into fragments
     return sorted([(x, Lipinski.HeavyAtomCount(Chem.MolFromSmiles(x))) for x in smiles.split(".")], key=lambda x: x[1], reverse=True)[0][0]
-
-
-def generate_data_for_smis(smi_list):
-    mols = [Chem.MolFromSmiles(x) for x in smi_list]
-    mols = [x for x in mols if x is not None]
-    for m in mols:
-        # Now generate a series of data for these molecules
-        m

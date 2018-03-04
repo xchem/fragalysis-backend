@@ -1,33 +1,33 @@
 import os,sys
 from .models import Target,Protein,Molecule,Compound
-from .functions import NeutraliseCharges,desalt_compound
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from rdkit import Chem
-from rdkit.Chem import Lipinski,Descriptors
 from scoring.models import MolGroup
 from frag.alysis.run_clustering import run_lig_cluster
 
 def add_target(title):
     """
     Add a target
-    :param title:
-    :return:
+    :param title: add a target by titlte
+    :return: the created target
     """
     new_target = Target.objects.get_or_create(title=title)[0]
     return new_target
 
-def add_prot(file_path,code,target,mtz_path=None,map_path=None):
+def add_prot(pdb_file_path, code, target, mtz_path=None, map_path=None):
     """
-    Add a protein
-    :param file_path:
-    :param code:
-    :param target_pk:
-    :return:
+    Add a protein with a PDB, code and
+    :param pdb_file_path: the PDB file path
+    :param code: the unique code for this file
+    :param target: the target to be linkede to
+    :param mtz_path: the path to the MTZ file
+    :param map_path: the path to the MAP file
+    :return: the created protein
     """
     new_prot = Protein.objects.get_or_create(code=code,target_id=target)[0]
     new_prot.apo_holo = True
-    new_prot.pdb_info.save(os.path.basename(file_path),File(open(file_path)))
+    new_prot.pdb_info.save(os.path.basename(pdb_file_path), File(open(pdb_file_path)))
     if mtz_path:
         new_prot.mtz_info.save(os.path.basename(mtz_path),File(open(mtz_path)))
     if map_path:
@@ -35,22 +35,22 @@ def add_prot(file_path,code,target,mtz_path=None,map_path=None):
     new_prot.save()
     return new_prot
 
-
-
 def add_new_comp(mol, option=None, comp_id=None):
-    """Function to add a new compound to the database given an RDKit molecule
+    """
+    Function to add a new compound to the database given an RDKit molecule
     Takes an RDKit molecule. Option of LIG to return original smiles with the Compound object
-    Returns a compound object for the RDKit molecule."""
+    Returns a compound object for the RDKit molecule.
+    :param mol:
+    :param option:
+    :param comp_id:
+    :return:
+    """
     # Neutralise and desalt compound the compound
-    s_store_mol = NeutraliseCharges(desalt_compound(Chem.MolToSmiles(mol, isomericSmiles=True)))[0]
-    store_mol = Chem.MolFromSmiles(s_store_mol)
-    if store_mol is None:
-        sys.stderr.write("NEUTRALISING MADE NONE MOL" + " " + s_store_mol + " " + Chem.MolToSmiles(mol, isomericSmiles=True))
-        return None
+    sanitized_mol = sanitize_mol(mol)
     # Store the isomeric smiles
-    smiles = Chem.MolToSmiles(store_mol, isomericSmiles=True)
+    smiles = Chem.MolToSmiles(sanitized_mol, isomericSmiles=True)
     # The inchi string is used for unique identification
-    inchi = Chem.MolToInchi(store_mol)
+    inchi = Chem.MolToInchi(sanitized_mol)
     # Now convert back to inchi to canonicalise
     tmp_mol = Chem.MolFromInchi(inchi)
     if tmp_mol is None:
@@ -58,14 +58,14 @@ def add_new_comp(mol, option=None, comp_id=None):
         sys.stderr.write("INCHI ERROR: " + inchi)
     else:
         inchi = Chem.MolToInchi(tmp_mol)
-# Now attribute all this meta-deta to the compound object
+    # Now attribute all this meta-deta to the compound object
     new_comp = Compound()
     new_comp.smiles = smiles
     if len(smiles) > Compound._meta.get_field('smiles').max_length:
         print "SMILES TOO LONG"
         return None
     new_comp.inchi = inchi
-    m = store_mol
+    m = sanitized_mol
     try:
         new_comp.mol_log_p = Chem.Crippen.MolLogP(m)
     except:
@@ -87,18 +87,20 @@ def add_new_comp(mol, option=None, comp_id=None):
     try:
         new_comp.validate_unique()
         new_comp.save()
-        if option is None:
-            return new_comp
-        elif option == "LIG":
-            return (new_comp, smiles)
+        return new_comp
     except ValidationError:
-        if option is None:
-            return Compound.objects.get(inchi=inchi)
-        elif option == "LIG":
-            return (Compound.objects.get(inchi=inchi), smiles)
+        return Compound.objects.get(inchi=inchi)
 
-def add_mol(mol_sd,prot):
-
+def add_mol(mol_sd,prot,lig_id="LIG",chaind_id="Z",occupancy=0.0):
+    """
+    Function to add a new Molecule to the database
+    :param mol_sd: the SDMolBlock of the molecule
+    :param prot: the protein it is associated to
+    :param lig_id: the 3 letter ligand id
+    :param chaind_id: the chain id
+    :param occupancy: the occupancy
+    :return: the created molecule
+    """
     rd_mol = Chem.MolFromMolFile(mol_sd)
     if rd_mol is None:
         return None
@@ -109,30 +111,15 @@ def add_mol(mol_sd,prot):
     new_mol.sdf_info = Chem.MolToMolBlock(rd_mol)
     new_mol.smiles = Chem.MolToSmiles(rd_mol, isomericSmiles=True)
     # Find out how to add this information from Proasis
-    new_mol.lig_id = "LIG"
-    new_mol.chain_id = "Z"
-    new_mol.occupancy = 0.0
+    new_mol.lig_id = lig_id
+    new_mol.chain_id = chaind_id
+    new_mol.occupancy = occupancy
     # Add this to the compound list -> make sure this passes in for the
     # correct molecule. I.e. if it fails where does it go???
     # Now link that compound back
     new_mol.cmpd_id = comp_ref
     new_mol.save()
     return new_mol
-
-
-def get_path_or_none(new_path,xtal,suffix):
-    """
-    Get a path or none - for loader
-    :param new_path:
-    :param xtal:
-    :param suffix:
-    :return:
-    """
-    path = os.path.join(new_path, xtal + suffix)
-    if os.path.isfile(path):
-        return path
-    else:
-        return None
 
 def load_from_dir(target_name, dir_path):
     """
@@ -157,14 +144,16 @@ def load_from_dir(target_name, dir_path):
         else:
             print("File not found: "+xtal)
 
-def analyse_target(target_name):
-    target = Target.objects.get(title=target_name)
-    mols = list(Molecule.objects.filter(prot_id__target_id=target))
+def analyse_mols(mols, target):
+    """
+    Analyse a list of molecules for a given target
+    :param mols:
+    :param target:
+    :return:
+    """
     rd_mols = [Chem.MolFromMolBlock(x.sdf_info) for x in mols]
     id_mols = [x.pk for x in mols]
     out_data = run_lig_cluster(rd_mols, id_mols)
-    MolGroup.objects.filter(group_type="PC",target_id=target).delete()
-    MolGroup.objects.filter(group_type="MC",target_id=target).delete()
     for clust_type in out_data:
         for cluster in out_data[clust_type]:
             mol_group = MolGroup()
@@ -180,3 +169,17 @@ def analyse_target(target_name):
             for mol_id in out_data[clust_type][cluster]["mol_ids"]:
                 this_mol = Molecule.objects.get(id=mol_id)
                 mol_group.mol_id.add(this_mol)
+
+
+def analyse_target(target_name):
+    """
+    Analyse all the molecules for a particular target
+    :param target_name: the name of the target
+    :return:
+    """
+    target = Target.objects.get(title=target_name)
+    mols = list(Molecule.objects.filter(prot_id__target_id=target))
+    # Delete the old ones for this target
+    MolGroup.objects.filter(group_type="PC",target_id=target).delete()
+    MolGroup.objects.filter(group_type="MC",target_id=target).delete()
+    analyse_mols(mols=mols)

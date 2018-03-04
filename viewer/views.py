@@ -1,6 +1,5 @@
 from django.http import HttpResponse
 from network.functions import draw_mol
-from viewer.functions import generate_data_for_smis
 from django.shortcuts import render
 from viewer.models import Molecule,Protein,Compound
 from scoring.models import MolChoice,ViewScene
@@ -174,13 +173,5 @@ def get_vects_from_pk(request, pk):
 def get_graph_from_pk(request,pk):
     smiles = str(Molecule.objects.get(pk=pk).smiles)
     out_data = get_full_graph(smiles)
-    return HttpResponse(json.dumps(out_data))
-
-
-def get_mols(request):
-    mol_smiles = request.POST["mol_smiles"]
-    if "target" in request.POST:
-        target_id = request.POST["target"]
-    out_data = generate_data_for_smis(mol_smiles)
     return HttpResponse(json.dumps(out_data))
 
