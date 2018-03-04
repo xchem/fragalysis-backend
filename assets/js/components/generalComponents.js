@@ -5,6 +5,7 @@ import $ from 'jquery';
 import SVGInline from "react-svg-inline"
 import React from 'react';
 import { ListGroup, Col } from 'react-bootstrap';
+import Draggable from 'react-draggable'; // The default
 
 // Actions
 /*
@@ -146,10 +147,14 @@ export class GenericView extends React.Component{
             const svg_image = <SVGInline svg={this.state.data}/>;
             console.log(this.props.message)
             if (this.state.isToggleOn){
-                return <Col xs={3} onClick={this.handleClick} style={this.selected_style}>{svg_image}</Col>
+                return <Draggable>
+                    <Col xs={3} onClick={this.handleClick} style={this.selected_style}>{svg_image}</Col>
+                    </Draggable>
             }
             else{
-                return <Col xs={3} onClick={this.handleClick} style={this.not_selected_style}>{svg_image}</Col>
+                return <Draggable>
+                    <Col xs={3} onClick={this.handleClick} style={this.not_selected_style}>{svg_image}</Col>
+                    </Draggable>
             }
         }
         else {

@@ -112,7 +112,6 @@ export class ProteinList extends GenericList {
 
 
 // Specific Views
-
 class CompoundView extends GenericView {
 
     constructor(props) {
@@ -122,7 +121,6 @@ class CompoundView extends GenericView {
 }
 
 class MoleculeView extends GenericView {
-
     constructor(props) {
         super(props);
         this.url = SVG_MOL + props.my_id + '/'

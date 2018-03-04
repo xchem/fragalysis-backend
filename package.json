@@ -30,6 +30,7 @@
     "nprogress": "^0.2.0",
     "preact": "^8.2.7",
     "react-bootstrap": "^0.32.1",
+    "react-draggable": "^3.0.5",
     "react-inlinesvg": "^0.7.5",
     "react-svg-inline": "^2.1.0"
   },
