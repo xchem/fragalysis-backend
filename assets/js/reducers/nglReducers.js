@@ -1,6 +1,6 @@
 import * as actions from '../actions/actonTypes'
 
-const initialState = {
+const INITIALSTATE = {
       // Lists storing the information of what is in the viewer
       objectsToLoad: {},
       objectsToDelete: {},
@@ -16,7 +16,7 @@ const initialState = {
 }
 
 
-export default function nglReducers(state = initialState, action) {
+export default function nglReducers(state = INITIALSTATE, action) {
     console.log('REDUCERS FIRED OFF. OLD STATE');
     console.log(state);
     console.log('action.type=' + action.type);
@@ -53,7 +53,7 @@ export default function nglReducers(state = initialState, action) {
             var objectsToDelete = state.objectsToDelete
             objectsToDelete[action.loadObj.name]=action.loadObj
             return Object.assign({}, state, {
-            objectsToDel: objectsToDelete
+            objectsToDelete: objectsToDelete
         });
 
         case actions.DELETE_OBJECT_SUCCESS:
@@ -64,7 +64,7 @@ export default function nglReducers(state = initialState, action) {
             var objectsInView = state.objectsInView
             delete objectsInView[action.loadObj.name]
             return Object.assign({}, state, {
-                objectsToDel:objectsToDelete,
+                objectsToDelete:objectsToDelete,
                 objectsInView: objectsInView
             });
         case actions.DELETE_OBJECT_FAILURE:

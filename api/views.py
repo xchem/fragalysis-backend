@@ -25,7 +25,12 @@ class ProteinView(viewsets.ModelViewSet):
     serializer_class = ProteinSerializer
     filter_fields = ('code','target_id',)
 
-# TODO VIEW to get MDL MolBlocks,Images,PDBs,Vectors and Graphs
+class MDLView(viewsets.ModelViewSet):
+    queryset = Molecule.objects.filter()
+    serializer_class = MDLSerializer
+
+
+# TODO VIEW to get Images,PDBs,Vectors and Graphs
 """
     # New REST functions
     url(r'^img_from_mol_pk/(?P<pk>[0-9]+)/$', views.img_from_mol_pk, name='img_from_mol_pk'),
@@ -35,6 +40,3 @@ class ProteinView(viewsets.ModelViewSet):
     url(r'^get_vects_from_pk/(?P<pk>[0-9]+)/', views.get_vects_from_pk, name='get_vects_from_pk'),
     url(r'^get_graph_from_pk/(?P<pk>[0-9]+)/', views.get_graph_from_pk, name='get_graph_from_pk'),
 """
-class MDLView(viewsets.ModelViewSet):
-    queryset = Molecule.objects.filter()
-    serializer_class = MDLSerializer
