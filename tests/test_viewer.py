@@ -1,7 +1,2 @@
-from django.test import TestCase
-from viewer.models import Molecule
-
-class MoleculeTestCase(TestCase):
-
-    def setUp(self):
-        Molecule.objects.create()
+from viewer.views import get_graph_from_pk,get_vects_from_pk
+# TEST THESE - IF NOT IN API
