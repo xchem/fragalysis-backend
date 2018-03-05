@@ -96,7 +96,7 @@ class LoderLoaderTestCase(TestCase):
         self.assertEqual(Protein.objects.count(),2)
         add_prot("DUMMY_NEW.pdb","DUMMY_NEW",self.target)
         self.assertEqual(Protein.objects.count(),3)
-        self.assertEqual(Protein.objects.get(code="DUMMY_NEW").pdb_info.path,"DUMMY_NEW.pdb")
+        self.assertEqual(Protein.objects.get(code="DUMMY_NEW").pdb_info.path,"/code/media/pdbs/DUMMY_NEW_r6LI7so.pdb")
         add_prot("DUMMY_NEW_TWO.pdb","DUMMY_NEW",self.target)
         self.assertEqual(Protein.objects.count(),3)
         self.assertEqual(Protein.objects.get(code="DUMMY_NEW").pdb_info.path,"DUMMY_NEW_TWO.pdb")
