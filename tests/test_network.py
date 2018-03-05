@@ -28,4 +28,4 @@ class NetworkUtilsTestCase(TestCase):
         results = {"ONE_DEPTH_TYPEONE": "SMILES"}
         decoration_list = ["ONE_ME","TWO_ME","THREE_ME"]
         out_json = order_stuctures(results, decoration_list)
-        self.assertJSONEqual(out_json,json.dumps(test_d))
+        self.assertEqual(json.loads(out_json),test_d)
