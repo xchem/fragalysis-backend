@@ -96,11 +96,10 @@ class LoderLoaderTestCase(TestCase):
         self.assertEqual(Protein.objects.count(),2)
         add_prot("DUMMY_NEW.pdb","DUMMY_NEW",self.target)
         self.assertEqual(Protein.objects.count(),3)
-        pdb_path = Protein.objects.get("DUMMY_NEW")
-        self.assertEqual(pdb_path,"DUMMY_NEW.pdb")
+        self.assertEqual(Protein.objects.get(code="DUMMY_NEW").pdb_info.path,"DUMMY_NEW.pdb")
         add_prot("DUMMY_NEW_TWO.pdb","DUMMY_NEW",self.target)
         self.assertEqual(Protein.objects.count(),3)
-        self.assertEqual(Protein.objects.get("DUMMY_NEW").pdb_info.path,"DUMMY_NEW_TWO.pdb")
+        self.assertEqual(Protein.objects.get(code="DUMMY_NEW").pdb_info.path,"DUMMY_NEW_TWO.pdb")
 
     def test_analyse_mols(self):
         analyse_mols(Molecule.objects.filter(prot_id__target_id=self.target),self.target)
