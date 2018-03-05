@@ -43,6 +43,10 @@ class LoderLoaderTestCase(TestCase):
                                             mol_wt=0.2,tpsa=0.3,heavy_atom_count=1,heavy_atom_mol_wt=2,
                                             nhoh_count=3,no_count=4,num_h_acceptors=5,num_h_donors=6,
                                             num_het_atoms=7,num_rot_bonds=8,num_val_electrons=9,ring_count=10)
+        self.cmpd_two = Compound.objects.create(inchi="DUM_INCH", smiles=self.mol_smi_two, mol_log_p=0.1,
+                                            mol_wt=0.2, tpsa=0.3, heavy_atom_count=1, heavy_atom_mol_wt=2,
+                                            nhoh_count=3, no_count=4, num_h_acceptors=5, num_h_donors=6,
+                                            num_het_atoms=7, num_rot_bonds=8, num_val_electrons=9, ring_count=10)
         self.protein = Protein.objects.create(code="DUMM",target_id=self.target,
                                               pdb_info="my_pdb.pdb")
         self.protein_two = Protein.objects.create(code="DUMM_TWO", target_id=self.target,
@@ -54,7 +58,7 @@ class LoderLoaderTestCase(TestCase):
         self.mol_two = Molecule.objects.create(smiles=self.mol_smi_two, lig_id="DUM", chain_id="C",
                                            sdf_info=self.mol_sd_two,
                                            rscc=0.1, occupancy=0.2, x_com=0.3, y_com=0.4, z_com=0.5, rmsd=0.6,
-                                           prot_id=self.protein, cmpd_id=self.cmpd)
+                                           prot_id=self.protein, cmpd_id=self.cmpd_two)
 
     def test_add_target(self):
         add_target("DUMMY_TARGET")
