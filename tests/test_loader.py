@@ -43,7 +43,7 @@ class LoderLoaderTestCase(TestCase):
                                             mol_wt=0.2,tpsa=0.3,heavy_atom_count=1,heavy_atom_mol_wt=2,
                                             nhoh_count=3,no_count=4,num_h_acceptors=5,num_h_donors=6,
                                             num_het_atoms=7,num_rot_bonds=8,num_val_electrons=9,ring_count=10)
-        self.cmpd_two = Compound.objects.create(inchi="DUM_INCH", smiles=self.mol_smi_two, mol_log_p=0.1,
+        self.cmpd_two = Compound.objects.create(inchi="DUM_INCH_TWO", smiles=self.mol_smi_two, mol_log_p=0.1,
                                             mol_wt=0.2, tpsa=0.3, heavy_atom_count=1, heavy_atom_mol_wt=2,
                                             nhoh_count=3, no_count=4, num_h_acceptors=5, num_h_donors=6,
                                             num_het_atoms=7, num_rot_bonds=8, num_val_electrons=9, ring_count=10)
