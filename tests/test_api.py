@@ -4,6 +4,8 @@ from django.test import TestCase
 from api.utils import draw_mol,_transparentsvg,get_token
 # Test all these functions
 
+
+
 # TEST ALL THESE URLS
 """
 router.register(r'molecules', views.MoleculeView)
