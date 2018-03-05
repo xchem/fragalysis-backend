@@ -28,7 +28,7 @@ class APIUtilesTestCase(TestCase):
         token_one = get_token(self.request_one)
         print(token_one)
         print(type(token_one))
-        self.assertTrue(type(token_one)=='unicode')
+        self.assertTrue(type(token_one)==unicode)
         self.assertNotEqual(token_one,"")
         token_two = get_token(self.request_one)
         self.assertEqual(token_two,"")
