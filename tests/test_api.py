@@ -84,8 +84,6 @@ class APIUrlsTestCase(TestCase):
         for i, url in enumerate(urls):
             # GET basic request
             response = self.client.get(url_base+"/"+url+"/1/")
-            print(url_base+"/"+url+"/1/")
-            print(response.status_code)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
             # POST shouldn't work

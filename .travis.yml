@@ -4,7 +4,7 @@ services:
 install:
   - docker build -t abradle/fragalysis_stack .
 script:
-  - docker-compose -f docker-compose.test.yml up
+  -  docker-compose -f docker-compose.test.yml up --build  --exit-code-from tests --abort-on-container-exit
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
