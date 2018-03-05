@@ -48,6 +48,7 @@ def draw_mol(smiles,height=200,width=200):
     print(smiles)
     if mol is None:
         return "None Mol"
+    print(mol)
     AllChem.Compute2DCoords(mol)
     Chem.Kekulize(mol)
     if not height:
