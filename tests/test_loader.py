@@ -23,4 +23,4 @@ class LoaderFunctionsTestCase(TestCase):
         test_input = Chem.MolFromSmiles("CCC[NH+]CCC.Cl")
         test_output = "CCCNCCC"
         output = sanitize_mol(test_input)
-        self.assertEqual(output,test_output)
+        self.assertEqual(Chem.MolToSmiles(output),test_output)
