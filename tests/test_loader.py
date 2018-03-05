@@ -73,13 +73,13 @@ class LoderLoaderTestCase(TestCase):
         self.assertEqual(Molecule.objects.count(),2)
 
     def test_add_comp(self):
-        self.assertEqual(Compound.objects.count(),1)
+        self.assertEqual(Compound.objects.count(),2)
         add_comp(self.mol_one)
-        self.assertEqual(Compound.objects.count(),2)
+        self.assertEqual(Compound.objects.count(),3)
         add_comp(self.mol_two)
-        self.assertEqual(Compound.objects.count(),2)
+        self.assertEqual(Compound.objects.count(),3)
         add_comp(self.mol_three)
-        self.assertEqual(Compound.objects.count(),2)
+        self.assertEqual(Compound.objects.count(),3)
 
     def test_add_prot(self):
         self.assertEqual(Protein.objects.count(),1)
@@ -91,10 +91,10 @@ class LoderLoaderTestCase(TestCase):
         self.assertEqual(Protein.objects.get("DUMMY_NEW").pdb_info.path,"DUMMY_NEW_TWO.pdb")
 
     def test_analyse_mols(self):
-        analyse_mols(Molecule.objects.filter())
+        analyse_mols(Molecule.objects.filter(prot_id__target_id=self.target),self.target)
         self.assertEqual(MolGroup.objects.filter(choices='MC').count(),2)
         self.assertEqual(MolGroup.objects.filter(choices='PC').count(),2)
-        analyse_mols(Molecule.objects.filter())
+        analyse_mols(Molecule.objects.filter(prot_id__target_id=self.target),self.target)
         self.assertEqual(MolGroup.objects.filter(choices='MC').count(), 2)
         self.assertEqual(MolGroup.objects.filter(choices='PC').count(), 2)
 

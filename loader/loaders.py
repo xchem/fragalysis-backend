@@ -184,4 +184,4 @@ def analyse_target(target_name):
     # Delete the old ones for this target
     MolGroup.objects.filter(group_type="PC",target_id=target).delete()
     MolGroup.objects.filter(group_type="MC",target_id=target).delete()
-    analyse_mols(mols=mols)
+    analyse_mols(mols=mols,target=target)
