@@ -5,7 +5,7 @@ import { ListGroupItem } from 'react-bootstrap';
 import { GenericView, GenericList } from './generalComponents';
 import React from 'react';
 
-import {toggleComplex} from '../actions/toggleActions'
+import {toggleComplex} from '../actions/nglActions/toggleActions'
 
 // Basic config of the API
 const BASE_API = "/v0.1/"
