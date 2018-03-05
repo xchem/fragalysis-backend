@@ -1,7 +1,11 @@
 #!/bin/bash
 npm install
+python manage.py makemigrations auth
+python manage.py migrate auth
+python manage.py makemigrations scoring
+python manage.py migrate scoring
 python manage.py makemigrations
-python manage.py migrate        # Apply database migrations
+python manage.py migrate     # Apply database migrations - weird order is due to https://stackoverflow.com/questions/31417470/django-db-utils-programmingerror-relation-app-user-does-not-exist-during-ma
 python loader.py
 python manage.py collectstatic --clear --noinput -v 0 # clearstatic files
 python manage.py collectstatic --noinput -v 0 # collect static files
