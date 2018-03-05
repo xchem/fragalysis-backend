@@ -1,9 +1,8 @@
 from django.db import models
-from django.contrib.auth.models import User
-from viewer.models import Protein,Molecule,Compound,Target
+from django.conf import settings
+from viewer.models import Protein, Molecule, Compound, Target
 
 
-# TODO - Consider this for reorginisation. E.g. Linking to targets,proteins,molecules.
 class ViewScene(models.Model):
     """
     A Django Model for a given view.
@@ -11,7 +10,7 @@ class ViewScene(models.Model):
 
     """
     # The user who made the scene
-    user_id = models.ForeignKey(User,null=True)
+    user_id = models.ForeignKey(settings.AUTH_USER_MODEL,null=True)
     # The uuid that will enable this to be shared
     uuid = models.UUIDField(unique=True)
     # The title - optional
@@ -27,7 +26,7 @@ class ProtChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
-    user_id = models.ForeignKey(User)
+    user_id = models.ForeignKey(settings.AUTH_USER_MODEL)
     prot_id = models.ForeignKey(Protein)
     # Set the groups types
     DEFAULT = 'DE'
@@ -49,7 +48,7 @@ class MolChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
-    user_id = models.ForeignKey(User)
+    user_id = models.ForeignKey(settings.AUTH_USER_MODEL)
     mol_id = models.ForeignKey(Molecule)
     DEFAULT = 'DE'
     PANDDA = 'PA'
@@ -75,7 +74,7 @@ class ScoreChoice(models.Model):
     A Django model to store a selection from a user
     """
     # IN THIS CASE THIS WOULD INDICATE THE SOFTWARE USED - WE WILL GENERATE DIFFERENT USERS FOR EACH SOFTWARE
-    user_id = models.ForeignKey(User)
+    user_id = models.ForeignKey(settings.AUTH_USER_MODEL)
     mol_id = models.ForeignKey(Molecule)
     prot_id = models.ForeignKey(Protein)
     is_done = models.BooleanField(default=False)
@@ -103,7 +102,7 @@ class CmpdChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
-    user_id = models.ForeignKey(User)
+    user_id = models.ForeignKey(settings.AUTH_USER_MODEL)
     cmpd_id = models.ForeignKey(Compound)
     DEFAULT = 'DE'
     PRICE = 'PR'
