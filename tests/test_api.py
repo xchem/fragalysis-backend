@@ -68,7 +68,7 @@ class APIUrlsTestCase(TestCase):
                          'chain_id':"C", 'sdf_info':"DUMMY_SD", 'x_com':0.3, 'y_com':0.4, 'z_com':0.5},
                          {'id':1, 'inchi':"DUM_INCH", 'smiles':"DUM_SMI", 'mol_log_p':0.1, 'mol_wt':0.2,
                           'num_h_acceptors':5, 'num_h_donors':6},
-                         {'id':1, 'title':"DUMMY_TARGET", 'project_id': None},
+                         {'id':1, 'title':"DUMMY_TARGET", 'project_id': []},
                          {'id':1, 'code':"DUMM", 'target_id':1, 'pdb_info':"my_pdb.pdb", 'mtz_info':None,
                           'map_info':None, 'cif_info':None}]
         for i,url in enumerate(urls):
