@@ -1,7 +1,5 @@
 from rest_framework.test import APIRequestFactory
 from rest_framework.test import force_authenticate
-from django.test import TestCase
-from django.http import HttpRequest
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase, RequestFactory
 from api.utils import draw_mol,get_token
@@ -26,11 +24,11 @@ class APIUtilesTestCase(TestCase):
     def test_can_get_token(self):
         request = self.factory.get('/viewer/react/')
         request.user = self.user
-        token_one = get_token(self.request)
+        token_one = get_token(request)
         self.assertTrue(type(token_one)==unicode)
         self.assertNotEqual(token_one,"")
         request.user = AnonymousUser()
-        token_two = get_token(self.request)
+        token_two = get_token(request)
         self.assertEqual(token_two,"")
 
 
