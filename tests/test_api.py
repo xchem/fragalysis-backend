@@ -1,9 +1,30 @@
 from rest_framework.test import APIRequestFactory
 from rest_framework.test import force_authenticate
 from django.test import TestCase
-from api.utils import draw_mol,_transparentsvg,get_token
+from django.http import HttpRequest
+from django.contrib.auth.models import User
+from api.utils import draw_mol,get_token
 # Test all these functions
 
+
+class APIUtilesTestCase(TestCase):
+    def __init__(self):
+        self.smiles = "C1CCCCC1"
+        self.non_smiles = "C1CCCCC1"
+        self.request_one = HttpRequest()
+        self.request_two = HttpRequest()
+
+    def setUp(self):
+        user_one = User.objects.create(username="DUMMY",password="DUMMY")
+        self.request_one.user = user_one.get_username()
+
+    def test_can_draw(self):
+        output_mol = draw_mol("C1CCCCC1")
+        self.assertEqual(output_mol,"")
+        self.assertTrue(type(output_mol),str)
+
+    def test_can_get_token(self):
+        get_token(self.request_one)
 
 
 # TEST ALL THESE URLS
