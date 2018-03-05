@@ -8,14 +8,10 @@ from api.utils import draw_mol,get_token
 
 
 class APIUtilesTestCase(TestCase):
-    def __init__(self):
-        self.smiles = "C1CCCCC1"
-        self.non_smiles = "C1CCCCC1"
-        self.request_one = HttpRequest()
-        self.request_two = HttpRequest()
 
     def setUp(self):
         user_one = User.objects.create(username="DUMMY",password="DUMMY")
+        self.request_one = HttpRequest()
         self.request_one.user = user_one.get_username()
 
     def test_can_draw(self):
