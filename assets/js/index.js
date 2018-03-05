@@ -4,7 +4,6 @@ import { connect, createStore } from 'redux'
 import { Col, Row} from 'react-bootstrap'
 import { NGLView } from './components/nglComponents'
 import { TargetList, MoleculeList, MolGroupList } from './components/apiComponents'
-import { createStore } from 'redux'
 import { Provider } from 'react-redux'
 import { nglReducers } from './reducers/nglReducers'
  
