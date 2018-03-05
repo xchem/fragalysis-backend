@@ -29,7 +29,9 @@ class APIUtilesTestCase(TestCase):
         self.assertNotEqual(token_one,"")
         request.user = AnonymousUser()
         token_two = get_token(request)
-        self.assertEqual(token_two,"")
+        self.assertNotEqual(token_two,"")
+        self.assertTrue(type(token_two)==unicode)
+
 
 
 # TEST ALL THESE URLS
