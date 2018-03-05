@@ -81,7 +81,7 @@ class APIUrlsTestCase(TestCase):
                      {u'detail': u'Method "POST" not allowed.'},
                      {u'detail': u'Method "POST" not allowed.'},
                      {u'detail': u'Method "POST" not allowed.'},]
-        for i,url in enumerate(urls):
+        for i, url in enumerate(urls):
             # GET basic request
             response = self.client.get(url_base+"/"+url+"/1/")
             self.assertEqual(response.status_code, 200)

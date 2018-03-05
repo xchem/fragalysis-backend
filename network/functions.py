@@ -1,12 +1,10 @@
-from rdkit import Chem
-from rdkit.Chem import Draw,AllChem
 import json
 
-def add_keys(out_d,depth,type):
+def add_keys(out_d, depth, this_type):
     if depth not in out_d:
         out_d[depth] = {}
-    if type not in out_d[depth]:
-        out_d[depth][type] = {}
+    if this_type not in out_d[depth]:
+        out_d[depth][this_type] = {}
     return out_d
 
 def add_empty(out_d,tot_position,this_list,depth,this_type,annotation):
@@ -39,8 +37,8 @@ def order_stuctures(results, decoration_list):
             annotation = "LINK_DEC"
         out_d[depth][this_type][position] = {"smiles": results[key],"annotation":annotation}
     depth = -1
-    out_d=add_empty(out_d,tot_position,decoration_list[0],depth,"ADDITION","ADD_MISS")
-    out_d=add_empty(out_d, tot_position, decoration_list[1], depth, "DELETION","DEL_MISS")
-    out_d=add_empty(out_d, tot_position, decoration_list[2], depth, "LINKER","LINK_MISS")
+    out_d = add_empty(out_d,tot_position,decoration_list[0],depth,"ADDITION","ADD_MISS")
+    out_d = add_empty(out_d, tot_position, decoration_list[1], depth, "DELETION","DEL_MISS")
+    out_d = add_empty(out_d, tot_position, decoration_list[2], depth, "LINKER","LINK_MISS")
     return json.dumps(out_d)
 
