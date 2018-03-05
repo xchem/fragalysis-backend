@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  db:
+    image: postgres
+    volumes:
+       - ../django_data:/var/lib/postgresql/data
+  web:
+    image: abradle/fragalysis_stack
+    command: python manage.py test
+    volumes:
+      - .:/code
+      - ../logs:/code/logs/
+      - ../media:/code/media/
+    ports:
+      - "80:80"
+    depends_on:
+      - db
