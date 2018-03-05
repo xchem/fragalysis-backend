@@ -7,7 +7,7 @@ services:
        - ../django_data:/var/lib/postgresql/data
   web:
     image: abradle/fragalysis_stack
-    command: ["/code/wait-for-it.sh", "db:5432", "--", "python", "/code/manage.py", "migrate", "--", "python", "/code/manage.py","test"]
+    command: ["/code/wait-for-it.sh", "db:5432", "--", "python", "/code/manage.py", "migrate", "&&", "python", "/code/manage.py","test"]
     volumes:
       - .:/code
       - ../logs:/code/logs/
