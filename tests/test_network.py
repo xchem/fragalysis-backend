@@ -1,6 +1,6 @@
 from network.functions import add_keys, add_empty, order_stuctures
 from django.test import TestCase
-import json
+
 
 class NetworkUtilsTestCase(TestCase):
 
@@ -24,7 +24,6 @@ class NetworkUtilsTestCase(TestCase):
         self.assertEqual(final_d,test_d)
 
     def test_order_stuctures(self):
-        test_d = {"DEPTH":{"TYPEONE":{"ONE": {"smiles": "SMILES","annotation":"ADD_DEC"}}}}
         test_json = '{"DEPTH": {"TYPEONE": {"ONE": {"smiles": "SMILES", "annotation": "ADD_DEC"}}}, "-1": {"ADDITION": {"M": {"smiles": [], "annotation": "ADD_MISS"}, "E": {"smiles": [], "annotation": "ADD_MISS"}, "_": {"smiles": [], "annotation": "ADD_MISS"}, "O": {"smiles": [], "annotation": "ADD_MISS"}, "N": {"smiles": [], "annotation": "ADD_MISS"}}, "LINKER": {"E": {"smiles": [], "annotation": "LINK_MISS"}, "H": {"smiles": [], "annotation": "LINK_MISS"}, "M": {"smiles": [], "annotation": "LINK_MISS"}, "R": {"smiles": [], "annotation": "LINK_MISS"}, "T": {"smiles": [], "annotation": "LINK_MISS"}, "_": {"smiles": [], "annotation": "LINK_MISS"}}, "DELETION": {"E": {"smiles": [], "annotation": "DEL_MISS"}, "M": {"smiles": [], "annotation": "DEL_MISS"}, "O": {"smiles": [], "annotation": "DEL_MISS"}, "T": {"smiles": [], "annotation": "DEL_MISS"}, "W": {"smiles": [], "annotation": "DEL_MISS"}, "_": {"smiles": [], "annotation": "DEL_MISS"}}}}'
         results = {"ONE_DEPTH_TYPEONE": "SMILES"}
         decoration_list = ["ONE_ME","TWO_ME","THREE_ME"]
