@@ -68,5 +68,5 @@ class APIUrlsTestCase(TestCase):
                          'chain_id':"C", 'sdf_info':"DUMMY_SD", 'x_com':0.3, 'y_com':0.4, 'z_com':0.5}]
         for i,url in enumerate(urls):
             response = self.client.get(url_base+"/"+url+"/1/")
-            self.assertEqual(response.code, 200)
+            self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
