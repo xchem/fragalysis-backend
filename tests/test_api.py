@@ -2,7 +2,8 @@ from rest_framework.test import APIRequestFactory
 from rest_framework.test import force_authenticate
 from django.test import TestCase
 from django.http import HttpRequest
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AnonymousUser, User
+from django.test import TestCase, RequestFactory
 from api.utils import draw_mol,get_token
 # Test all these functions
 
@@ -10,10 +11,8 @@ from api.utils import draw_mol,get_token
 class APIUtilesTestCase(TestCase):
 
     def setUp(self):
-        user_one = User.objects.create(username="DUMMY",password="DUMMY")
-        self.request_one = HttpRequest()
-        self.request_one.user = user_one.get_username()
-        self.request_two = HttpRequest()
+        self.factory = RequestFactory()
+        self.user = User.objects.create(username="DUMMY",password="DUMMY")
 
     def test_can_draw(self):
         output_mol = draw_mol("C1CCCCC1")
@@ -25,10 +24,13 @@ class APIUtilesTestCase(TestCase):
 
 
     def test_can_get_token(self):
-        token_one = get_token(self.request_one)
+        request = self.factory.get('/viewer/react/')
+        request.user = self.user
+        token_one = get_token(self.request)
         self.assertTrue(type(token_one)==unicode)
         self.assertNotEqual(token_one,"")
-        token_two = get_token(self.request_two)
+        request.user = AnonymousUser()
+        token_two = get_token(self.request)
         self.assertEqual(token_two,"")
 
 
