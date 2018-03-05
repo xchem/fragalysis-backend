@@ -45,6 +45,7 @@ def draw_mol(smiles,height=200,width=200):
     :return: an SVG as a string of the inage
     """
     mol = Chem.MolFromSmiles(smiles)
+    print(smiles)
     if mol is None:
         return "None Mol"
     AllChem.Compute2DCoords(mol)
