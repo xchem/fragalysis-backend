@@ -63,7 +63,7 @@ class LoderLoaderTestCase(TestCase):
                                            sdf_info=self.mol_sd_str,
                                 rscc=0.1,occupancy=0.2,x_com=0.3,y_com=0.4,z_com=0.5,rmsd=0.6,
                                 prot_id=self.protein,cmpd_id=self.cmpd)
-        self.mol_two = Molecule.objects.create(smiles=self.mol_smi_two, lig_id="DUM", chain_id="C",
+        self.dj_mol_two = Molecule.objects.create(smiles=self.mol_smi_two, lig_id="DUM", chain_id="C",
                                            sdf_info=self.mol_sd_two_str,
                                            rscc=0.1, occupancy=0.2, x_com=0.3, y_com=0.4, z_com=0.5, rmsd=0.6,
                                            prot_id=self.protein_two, cmpd_id=self.cmpd_two)
@@ -96,7 +96,7 @@ class LoderLoaderTestCase(TestCase):
         self.assertEqual(Protein.objects.count(),2)
         add_prot("DUMMY_NEW.pdb","DUMMY_NEW",self.target)
         self.assertEqual(Protein.objects.count(),3)
-        pdb_path = Protein.objects.get("DUMMY_NEW").pdb_info.path
+        pdb_path = Protein.objects.get("DUMMY_NEW")
         self.assertEqual(pdb_path,"DUMMY_NEW.pdb")
         add_prot("DUMMY_NEW_TWO.pdb","DUMMY_NEW",self.target)
         self.assertEqual(Protein.objects.count(),3)
