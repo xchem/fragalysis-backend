@@ -24,7 +24,7 @@ class NetworkUtilsTestCase(TestCase):
         self.assertEqual(final_d,test_d)
 
     def test_order_stuctures(self):
-        test_d = {"DEPTH":{"TYPEONE":{"ONE_ME": {"smiles": "SMILES","annotation":"ADD_DEC"}}}}
+        test_d = {"DEPTH":{"TYPEONE":{"ONE": {"smiles": "SMILES","annotation":"ADD_DEC"}}}}
         results = {"ONE_DEPTH_TYPEONE": "SMILES"}
         decoration_list = ["ONE_ME","TWO_ME","THREE_ME"]
         out_json = order_stuctures(results, decoration_list)
