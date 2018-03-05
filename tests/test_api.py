@@ -40,7 +40,7 @@ class APIUrlsTestCase(TestCase):
         self.factory = APIRequestFactory()
         self.client = APIClient()
         self.user = User.objects.create(username="DUMMY",password="DUMMY")
-        self.client.login(username=self.user.username, password=self.user.passowrd)
+        self.client.login(username=self.user.username, password=self.user.password)
         self.target = Target.objects.create(title="DUMMY_TARGET")
         self.cmpd = Compound.objects.create(inchi="DUM_INCH",smiles="DUM_SMI",mol_log_p=0.1,
                                             mol_wt=0.2,tpsa=0.3,heavy_atom_count=1,heavy_atom_mol_wt=2,
