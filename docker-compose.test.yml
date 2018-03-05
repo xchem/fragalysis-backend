@@ -7,7 +7,7 @@ services:
        - ../django_data:/var/lib/postgresql/data
   web:
     image: abradle/fragalysis_stack
-    command: ["/code/wait-for-it.sh", "db:5432", "--", "/bin/bash/", "/code/test_entry.sh"]
+    command: ["/code/wait-for-it.sh", "db:5432", "--", "/bin/bash", "/code/test_entry.sh"]
     volumes:
       - .:/code
       - ../logs:/code/logs/
