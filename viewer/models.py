@@ -97,14 +97,6 @@ class Molecule(models.Model):
     prot_id = models.ForeignKey(Protein)
     cmpd_id = models.ForeignKey(Compound)
 
-    def get_3d_mol(self):
-        return Chem.MolFromMolBlock(self.sdf_info)
-
-    def get_smiles_mol(self):
-        return Chem.MolFromSmiles(self.smiles)
-
-
-
     # Unique constraints
     class Meta:
         unique_together = ('prot_id', 'cmpd_id', )

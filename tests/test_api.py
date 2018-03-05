@@ -1,12 +1,14 @@
 from rest_framework.test import APIRequestFactory
-from rest_framework.test import force_authenticate
+from viewer.models import Molecule,Protein,Target,Compound
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase, RequestFactory
+
+from rest_framework.test import APIClient
 from api.utils import draw_mol,get_token
 # Test all these functions
 
 
-class APIUtilesTestCase(TestCase):
+class APIUtilsTestCase(TestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
@@ -32,24 +34,39 @@ class APIUtilesTestCase(TestCase):
         self.assertNotEqual(token_two,"")
         self.assertTrue(type(token_two)==unicode)
 
+class APIUrlsTestCase(TestCase):
 
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.client = APIClient()
+        self.user = User.objects.create(username="DUMMY",password="DUMMY")
+        self.client.login(username=self.user.username, password=self.user.passowrd)
+        self.target = Target.objects.create(title="DUMMY_TARGET")
+        self.cmpd = Compound.objects.create(inchi="DUM_INCH",smiles="DUM_SMI",mol_log_p=0.1,
+                                            mol_wt=0.2,tpsa=0.3,heavy_atom_count=1,heavy_atom_mol_wt=2,
+                                            nhoh_count=3,no_count=4,num_h_acceptors=5,num_h_donors=6,
+                                            num_het_atoms=7,num_rot_bonds=8,num_val_electrons=9,ring_count=10)
+        self.protein = Protein.objects.create(code="DUMM",target_id=self.target,
+                                              pdb_info="my_pdb.pdb")
+        self.mol = Molecule.objects.create(smiles="DUMMY",lig_id="DUM",chain_id="C",sdf_info="DUMMY_SD",
+                                rscc=0.1,occupancy=0.2,x_com=0.3,y_com=0.4,z_com=0.5,rmsd=0.6,
+                                prot_id=self.protein,cmpd_id=self.cmpd)
 
-# TEST ALL THESE URLS
-"""
-router.register(r'molecules', views.MoleculeView)
-router.register(r'mdl', views.MDLView)
-router.register(r'compounds', views.CompoundView)
-router.register(r'targets', views.TargetView)
-router.register(r'proteins', views.ProteinView)
-
-# Register the  choices
-router.register(r'scorechoice',score_views.ScoreChoiceView)
-router.register(r'molchoice',score_views.MolChoiceView)
-router.register(r'protchoice',score_views.ProtChoiceView)
-router.register(r'cmpdchoice',score_views.CmpdChoiceView)
-# Register the scenese
-router.register(r'viewscene',score_views.ViewSceneView)
-# Register the groups
-router.register(r'molgroup',score_views.MolGroupView)
-
-"""
+    def testV0_1API(self):
+        """
+        Untested but check get API works the way we want
+        :return:
+        """
+        url_base = "/v0.1"
+        urls = ['molecules']
+        # Fix for all the rest
+        #,'mdl','compounds','targets','proteins',
+        # 'scorechoice','molchoice','protchoice','cmpdchoice',
+        # 'viewscene',
+        # 'molgroup']
+        response_data = [{'id':1,'smiles':"DUMMY", 'cmpd_id':1, 'prot_id':1, 'lig_id':"DUM",
+                         'chain_id':"C", 'sdf_info':"DUMMY_SD", 'x_com':0.3, 'y_com':0.4, 'z_com':0.5}]
+        for i,url in enumerate(urls):
+            response = self.client.get(url_base+"/"+url+"/1/")
+            self.assertEqual(response.code, 200)
+            self.assertEqual(response.data, response_data[i])

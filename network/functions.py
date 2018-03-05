@@ -16,7 +16,7 @@ def add_empty(out_d,tot_position,this_list,depth,this_type,annotation):
             out_d[depth][this_type][item] = {"smiles": [],"annotation":annotation}
     return out_d
 
-def order_stuctures(results,decoration_list):
+def order_stuctures(results, decoration_list):
     """
     Order the data
     :param results:
