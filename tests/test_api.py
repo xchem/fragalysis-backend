@@ -60,7 +60,6 @@ class APIUrlsTestCase(TestCase):
         url_base = "/v0.1"
         urls = ['molecules','compounds','targets','proteins','mdl']
         # Fix for all the rest
-        #,,
         # 'scorechoice','molchoice','protchoice','cmpdchoice',
         # 'viewscene',
         # 'molgroup']
@@ -72,7 +71,16 @@ class APIUrlsTestCase(TestCase):
                          {'id':1, 'code':"DUMM", 'target_id':1, 'pdb_info':"http://testserver/media/my_pdb.pdb",
                           'mtz_info':None, 'map_info':None, 'cif_info':None},
                          {'id':1, "sdf_info": "DUMMY_SD", "smiles": "DUMMY"}]
+        post_data = [{},
+                     {},
+                     {},
+                     {},
+                     {}]
         for i,url in enumerate(urls):
+            # GET basic request
             response = self.client.get(url_base+"/"+url+"/1/")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
+            # POST shouldn't work
+            request = self.client.post(url_base+"/"+url+"/", post_data[i])
+            self.assertEqual(response.status_code, 401)
