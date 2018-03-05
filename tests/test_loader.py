@@ -4,7 +4,6 @@ from loader.loaders import add_target, add_mol, add_comp, add_prot, analyse_mols
 from rdkit import Chem
 from viewer.models import Molecule,Compound,Protein,Target
 from scoring.models import MolGroup
-from django.core.exceptions import ObjectDoesNotExist
 
 class LoaderFunctionsTestCase(TestCase):
 
@@ -97,7 +96,8 @@ class LoderLoaderTestCase(TestCase):
         self.assertEqual(Protein.objects.count(),2)
         add_prot("DUMMY_NEW.pdb","DUMMY_NEW",self.target)
         self.assertEqual(Protein.objects.count(),3)
-        self.assertEqual(Protein.objects.get("DUMMY_NEW").pdb_info.path,"DUMMY_NEW.pdb")
+        pdb_path = Protein.objects.get("DUMMY_NEW").pdb_info.path
+        self.assertEqual(pdb_path,"DUMMY_NEW.pdb")
         add_prot("DUMMY_NEW_TWO.pdb","DUMMY_NEW",self.target)
         self.assertEqual(Protein.objects.count(),3)
         self.assertEqual(Protein.objects.get("DUMMY_NEW").pdb_info.path,"DUMMY_NEW_TWO.pdb")
@@ -114,7 +114,6 @@ class LoderLoaderTestCase(TestCase):
         analyse_target("DUMMY_TARGET")
         self.assertEqual(MolGroup.objects.filter(group_type='MC').count(),1)
         self.assertEqual(MolGroup.objects.filter(group_type='PC').count(),16)
-        self.assertRaises(analyse_target("DUMMY"),ObjectDoesNotExist)
         analyse_target("DUMMY_TARGET")
         self.assertEqual(MolGroup.objects.filter(group_type='MC').count(),1)
         self.assertEqual(MolGroup.objects.filter(group_type='PC').count(),16)
