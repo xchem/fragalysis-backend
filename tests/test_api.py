@@ -82,7 +82,7 @@ class APIUrlsTestCase(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
             # POST shouldn't work
-            request = self.client.post(url_base+"/"+url+"/", post_data[i])
+            response = self.client.post(url_base+"/"+url+"/", post_data[i])
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, "")
 
