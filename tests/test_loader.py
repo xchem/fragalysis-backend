@@ -21,6 +21,6 @@ class LoaderFunctionsTestCase(TestCase):
 
     def test_sanitize_mol(self):
         test_input = "CCC[NH+]CCC.Cl"
-        test_output = "CCCNCCC"
+        test_output = ("CCCNCCC",True)
         output = sanitize_mol(test_input)
         self.assertEqual(output,test_output)
