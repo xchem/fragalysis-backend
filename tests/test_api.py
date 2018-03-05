@@ -76,6 +76,11 @@ class APIUrlsTestCase(TestCase):
                      {},
                      {},
                      {}]
+        post_resp = [{u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},]
         for i,url in enumerate(urls):
             # GET basic request
             response = self.client.get(url_base+"/"+url+"/1/")
@@ -84,5 +89,5 @@ class APIUrlsTestCase(TestCase):
             # POST shouldn't work
             response = self.client.post(url_base+"/"+url+"/", post_data[i])
             self.assertEqual(response.status_code, 405)
-            self.assertEqual(response.data, "")
+            self.assertEqual(response.data, post_resp[i])
 
