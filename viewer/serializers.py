@@ -36,4 +36,4 @@ class ProjectSerializer(serializers.ModelSerializer):
 class MDLSerializer(serializers.ModelSerializer):
     class Meta:
         model = Molecule
-        fields = ('id','smiles', 'sdf_info', )
+        fields = ('id', 'smiles', 'sdf_info', )

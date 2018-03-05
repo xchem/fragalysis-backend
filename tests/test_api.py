@@ -58,9 +58,9 @@ class APIUrlsTestCase(TestCase):
         :return:
         """
         url_base = "/v0.1"
-        urls = ['molecules','compounds','targets','proteins',]
+        urls = ['molecules','compounds','targets','proteins','mdl']
         # Fix for all the rest
-        #,'mdl',
+        #,,
         # 'scorechoice','molchoice','protchoice','cmpdchoice',
         # 'viewscene',
         # 'molgroup']
@@ -69,8 +69,9 @@ class APIUrlsTestCase(TestCase):
                          {'id':1, 'inchi':"DUM_INCH", 'smiles':"DUM_SMI", 'mol_log_p':0.1, 'mol_wt':0.2,
                           'num_h_acceptors':5, 'num_h_donors':6},
                          {'id':1, 'title':"DUMMY_TARGET", 'project_id': []},
-                         {'id':1, 'code':"DUMM", 'target_id':1, 'pdb_info':"http://testserver/media/my_pdb.pdb", 'mtz_info':None,
-                          'map_info':None, 'cif_info':None}]
+                         {'id':1, 'code':"DUMM", 'target_id':1, 'pdb_info':"http://testserver/media/my_pdb.pdb",
+                          'mtz_info':None, 'map_info':None, 'cif_info':None},
+                         {'id':1, "sdf_info": "DUMMY_SD", "smiles": "DUMMY"}]
         for i,url in enumerate(urls):
             response = self.client.get(url_base+"/"+url+"/1/")
             self.assertEqual(response.status_code, 200)
