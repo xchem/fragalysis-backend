@@ -75,10 +75,13 @@ class LoderLoaderTestCase(TestCase):
     def test_add_mol(self):
         self.assertEqual(Molecule.objects.count(),2)
         add_mol(self.mol_sd_two,self.protein_two)
-        self.assertEqual(Molecule.objects.count(),2)
-        # Should have still only two
+        self.assertEqual(Molecule.objects.count(),3)
+        add_mol(self.mol_sd_two,self.protein_two)
+        self.assertEqual(Molecule.objects.count(),3)
         add_mol(self.mol_sd,self.protein)
-        self.assertEqual(Molecule.objects.count(),2)
+        self.assertEqual(Molecule.objects.count(),4)
+        add_mol(self.mol_sd, self.protein)
+        self.assertEqual(Molecule.objects.count(), 4)
 
     def test_add_comp(self):
         self.assertEqual(Compound.objects.count(),2)
