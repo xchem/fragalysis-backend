@@ -89,9 +89,8 @@ AUTHENTICATION_BACKENDS = (
 )
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "fragalysis", "../viewer/static"),
-    os.path.join(BASE_DIR, "assets")
-    ]
+    os.path.join(BASE_DIR, "fragalysis", "../viewer/static")
+]
 
 STATICFILES_FINDERS = (
         'django.contrib.staticfiles.finders.FileSystemFinder',
