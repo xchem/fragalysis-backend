@@ -5,11 +5,13 @@ WORKDIR /code
 ADD requirements.txt /code/
 RUN apt-get update -y
 RUN pip install -r requirements.txt
+# Conver this into a single pip install command
 RUN git clone https://github.com/xchem/fragalysis /usr/local/fragalysis
 RUN pip install -r /usr/local/fragalysis/requirements.txt
 RUN pip install /usr/local/fragalysis
 RUN apt-get update -y
 RUN apt-get install -y nginx curl
+# This shouldn't be needed - perform node builds on travs.ci
 RUN curl -sL https://deb.nodesource.com/setup_6.x | bash -
 RUN apt-get install -y nodejs
 # Copy entrypoint script into the image
