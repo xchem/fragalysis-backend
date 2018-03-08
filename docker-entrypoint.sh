@@ -14,7 +14,6 @@ touch /srv/logs/gunicorn.log
 touch /srv/logs/access.log
 tail -n 0 -f /srv/logs/*.log &
 # Start Gunicorn processes
-npm run dev &
 echo Starting Gunicorn.
 exec gunicorn fragalysis.wsgi:application \
     --name fragalysis \
