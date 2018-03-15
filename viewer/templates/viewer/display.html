@@ -344,7 +344,6 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
               var out_data = JSON.parse(response);
               var deletions = out_data["deletions"]
               for(var key in deletions) {
-
                   display_arrow(deletions[key][0],deletions[key][1],colour,key)
               }
               var additions = out_data["additions"]
@@ -355,9 +354,6 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
               for(var key in linker) {
                   display_cylinder(linker[key][0],linker[key][3],colour,key)
               }
-
-
-
           }
         }).fail(function() { alert( "error" ); });
     }

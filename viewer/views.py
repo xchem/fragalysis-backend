@@ -120,9 +120,9 @@ def img_from_cmpd_pk(request,pk):
     return get_params(smiles, request)
 
 def img_from_smiles(request):
-    if "smiles" in request.POST:
-        smiles = request.POST["smiles"]
-        return  HttpResponse(draw_mol(smiles))
+    if "smiles" in request.GET:
+        smiles = request.GET["smiles"]
+        return get_params(smiles, request)
     else:
         return HttpResponse("Please insert SMILES")
 
