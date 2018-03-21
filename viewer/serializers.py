@@ -5,7 +5,7 @@ from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, T
 class TargetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Target
-        fields = ('id', 'title', 'project_id')
+        fields = ('id', 'title', 'project_id', 'proteins')
 
 class CompoundSerializer(serializers.ModelSerializer):
     class Meta:
