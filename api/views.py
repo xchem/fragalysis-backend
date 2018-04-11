@@ -25,10 +25,6 @@ class ProteinView(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProteinSerializer
     filter_fields = ('code','target_id',)
 
-class MDLView(viewsets.ReadOnlyModelViewSet):
-    queryset = Molecule.objects.filter()
-    serializer_class = MDLSerializer
-
 
 # TODO VIEW to get Images, PDBs, Vectors and Graphs
 

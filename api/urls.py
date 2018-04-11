@@ -7,7 +7,6 @@ from scoring import views as score_views
 router = DefaultRouter()
 # Register the basic data
 router.register(r'molecules', views.MoleculeView)
-router.register(r'mdl', views.MDLView)
 router.register(r'compounds', views.CompoundView)
 router.register(r'targets', views.TargetView)
 router.register(r'proteins', views.ProteinView)
