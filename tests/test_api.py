@@ -58,7 +58,7 @@ class APIUrlsTestCase(TestCase):
         :return:
         """
         url_base = "/v0.1"
-        urls = ['molecules','compounds','targets','proteins','mdl']
+        urls = ['molecules','compounds','targets','proteins']
         # Fix for all the rest
         # 'scorechoice','molchoice','protchoice','cmpdchoice',
         # 'viewscene',
@@ -69,8 +69,7 @@ class APIUrlsTestCase(TestCase):
                           'num_h_acceptors':5, 'num_h_donors':6},
                          {'id':1, 'title':"DUMMY_TARGET", 'project_id': [], 'protein_set': [1]},
                          {'id':1, 'code':"DUMM", 'target_id':1, 'pdb_info':"http://testserver/media/my_pdb.pdb",
-                          'mtz_info':None, 'map_info':None, 'cif_info':None},
-                         {'id':1, "sdf_info": "DUMMY_SD", "smiles": "DUMMY"}]
+                          'mtz_info':None, 'map_info':None, 'cif_info':None}]
         post_data = [{},
                      {},
                      {},
