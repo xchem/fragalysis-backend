@@ -1,5 +1,5 @@
 from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound,Target
-from viewer.serializers import MoleculeSerializer, ProteinSerializer, CompoundSerializer, TargetSerializer, MDLSerializer
+from viewer.serializers import MoleculeSerializer, ProteinSerializer, CompoundSerializer, TargetSerializer
 from rest_framework import permissions
 from rest_framework import viewsets
 
