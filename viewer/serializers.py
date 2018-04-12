@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Event
 
 
 class TargetSerializer(serializers.ModelSerializer):
@@ -32,3 +32,12 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ('id', 'title',)
+
+class EventSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Event
+        fields = ('xtal','event','site','pandda_version','target_id','pdb_info','mtz_info','map_info','lig_id',
+                  'event_com_x','event_com_y','event_com_z','lig_com_x','lig_com_y','lig_com_z','site_align_com_x',
+                  'site_align_com_y','site_align_com_z','site_native_com_x','site_native_com_y','site_native_com_z',
+                  'event_dist_from_site_centroid','lig_dist_from_site_centroid')

@@ -49,7 +49,6 @@ class Protein(models.Model):
             ('view_protein', 'View protein'),
         )
 
-
 class Compound(models.Model):
     """A Django model to hold the information for a given compound -> a unique 2D molecule"""
     # Character attributes
@@ -128,3 +127,40 @@ class ActivityPoint(models.Model):
         permissions = (
             ('view_activitypoint', 'View activitypoint'),
         )
+
+class Event(models.Model):
+    """
+    Django model for Pandda events
+    """
+    # The xtal
+    xtal = models.TextField()
+    # The event
+    event = models.IntegerField()
+    # The site
+    site = models.IntegerField()
+    # The pannda version
+    pandda_version = models.TextField()
+    # The pdb, map and mtz
+    target_id = models.ForeignKey(Target)
+    apo_holo = models.NullBooleanField()
+    pdb_info = models.FileField(upload_to='pdbs/', null=True, max_length=10000000)
+    cif_info = models.FileField(upload_to='cifs/', null=True, max_length=10000000)
+    mtz_info = models.FileField(upload_to='mtzs/', null=True, max_length=10000000)
+    map_info = models.FileField(upload_to='maps/', null=True, max_length=10000000)
+    # The ligand id
+    lig_id = models.CharField(max_length=5, null=True)
+    event_com_x = models.FloatField(null=True)
+    event_com_y = models.FloatField(null=True)
+    event_com_z = models.FloatField(null=True)
+    lig_com_x = models.FloatField(null=True)
+    lig_com_y = models.FloatField(null=True)
+    lig_com_z = models.FloatField(null=True)
+    site_align_com_x = models.FloatField(null=True)
+    site_align_com_y = models.FloatField(null=True)
+    site_align_com_z = models.FloatField(null=True)
+    site_native_com_x = models.FloatField(null=True)
+    site_native_com_y = models.FloatField(null=True)
+    site_native_com_z = models.FloatField(null=True)
+    event_dist_from_site_centroid = models.FloatField(null=True)
+    lig_dist_from_site_centroid = models.FloatField(null=True)
+

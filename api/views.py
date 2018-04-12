@@ -1,5 +1,5 @@
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound,Target
-from viewer.serializers import MoleculeSerializer, ProteinSerializer, CompoundSerializer, TargetSerializer
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound,Target, Event
+from viewer.serializers import MoleculeSerializer, ProteinSerializer, CompoundSerializer, TargetSerializer,EventSerializer
 from rest_framework import permissions
 from rest_framework import viewsets
 
@@ -25,6 +25,10 @@ class ProteinView(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProteinSerializer
     filter_fields = ('code','target_id',)
 
+class EventView(viewsets.ReadOnlyModelViewSet):
+    queryset = Event.objects.filter()
+    serializer_class = EventSerializer
+    filter_fields = ('xtal','event','site','pandda_version','target_id',)
 
 # TODO VIEW to get Images, PDBs, Vectors and Graphs
 

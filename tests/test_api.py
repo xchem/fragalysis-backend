@@ -1,5 +1,5 @@
 from rest_framework.test import APIRequestFactory
-from viewer.models import Molecule,Protein,Target,Compound
+from viewer.models import Molecule,Protein,Target,Compound,Event
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase, RequestFactory
 
@@ -51,6 +51,9 @@ class APIUrlsTestCase(TestCase):
         self.mol = Molecule.objects.create(id=1,smiles="DUMMY",lig_id="DUM",chain_id="C",sdf_info="DUMMY_SD",
                                 rscc=0.1,occupancy=0.2,x_com=0.3,y_com=0.4,z_com=0.5,rmsd=0.6,
                                 prot_id=self.protein,cmpd_id=self.cmpd)
+        self.event = Event.objects.create(id=1,xtal="DUMMY-x001",event=1,site=1,pandda_version="0.0.1-alpha",
+                                          target_id=self.target,pdb_info="my_pdb.pdb",map_info="my_map.map",
+                                          lig_id="LIG",event_com_x=0.1,event_com_y=0.2,event_com_z=0.3)
 
     def testV0_1API(self):
         """
@@ -69,7 +72,13 @@ class APIUrlsTestCase(TestCase):
                           'num_h_acceptors':5, 'num_h_donors':6},
                          {'id':1, 'title':"DUMMY_TARGET", 'project_id': [], 'protein_set': [1]},
                          {'id':1, 'code':"DUMM", 'target_id':1, 'pdb_info':"http://testserver/media/my_pdb.pdb",
-                          'mtz_info':None, 'map_info':None, 'cif_info':None}]
+                          'mtz_info':None, 'map_info':None, 'cif_info':None},
+                         {'id':1,'xtal':"DUMMY-x001",'event':1,'site':1,'pandda_version':"0.0.1-alpha",'target_id':1,
+                          'pdb_info':"http://testserver/media/my_pdb.pdb",'mtz_info':None,'map_info':"http://testserver/media/my_map.map",
+                          'lig_id':"LIG",'event_com_x':0.1,'event_com_y':0.2,'event_com_z':0.3,
+                         'lig_com_x':None,'lig_com_y':None,'lig_com_z':None,'site_align_com_x':None,'site_align_com_y':None,
+                          'site_align_com_z':None,'site_native_com_x':None,'site_native_com_y':None,'site_native_com_z':None,
+                          'event_dist_from_site_centroid':None,'lig_dist_from_site_centroid':None}]
         post_data = [{},
                      {},
                      {},
