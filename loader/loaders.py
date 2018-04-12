@@ -159,6 +159,12 @@ def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_i
     new_event.pandda_version = pandda_version
     new_event.lig_id = lig_id
     # Now set all of the com
+    print(event_cent)
+    print(lig_cent)
+    print(site_align_cent)
+    print(site_native_cent)
+    print(event_dist)
+    print(lig_dist)
     new_event.event_com_x = event_cent[0]
     new_event.event_com_y = event_cent[1]
     new_event.event_com_z = event_cent[2]
@@ -182,7 +188,7 @@ def load_events_from_dir(target_name,dir_path):
     lines = [x.strip() for x in open("out.csv").readlines()]
     header = lines[0].split(",")
     PATTERN = re.compile(r'''((?:[^,"']|"[^"]*"|'[^']*')+)''')
-    for line in lines:
+    for line in lines[1:]:
         spl_line = PATTERN.split(line)[1::2]
         xtal = spl_line[0]
         event = spl_line[1]
@@ -195,7 +201,7 @@ def load_events_from_dir(target_name,dir_path):
         event_cent = parse_centre(spl_line[8])
         event_dist = float(spl_line[9])
         lig_cent = parse_centre(spl_line[10])
-        lig_dist = spl_line[11]
+        lig_dist = float(spl_line[11])
         site_align_cent = parse_centre(spl_line[12])
         site_native_cent = parse_centre(spl_line[13])
         create_event(xtal,event,site,pandda_version,pdb_file,mtz_file,map_file,lig_id,
