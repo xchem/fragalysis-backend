@@ -138,17 +138,17 @@ class Event(models.Model):
     event = models.IntegerField()
     # The site
     site = models.IntegerField()
-    # The pannda version
-    pandda_version = models.TextField()
     # The pdb, map and mtz
     target_id = models.ForeignKey(Target)
+    # The pannda version
+    pandda_version = models.TextField(null=True)
     apo_holo = models.NullBooleanField()
     pdb_info = models.FileField(upload_to='pdbs/', null=True, max_length=10000000)
     cif_info = models.FileField(upload_to='cifs/', null=True, max_length=10000000)
     mtz_info = models.FileField(upload_to='mtzs/', null=True, max_length=10000000)
     map_info = models.FileField(upload_to='maps/', null=True, max_length=10000000)
     # The ligand id
-    lig_id = models.CharField(max_length=5, null=True)
+    lig_id = models.CharField(max_length=50, null=True)
     event_com_x = models.FloatField(null=True)
     event_com_y = models.FloatField(null=True)
     event_com_z = models.FloatField(null=True)
@@ -163,4 +163,6 @@ class Event(models.Model):
     site_native_com_z = models.FloatField(null=True)
     event_dist_from_site_centroid = models.FloatField(null=True)
     lig_dist_from_site_centroid = models.FloatField(null=True)
-
+    # Unique constraints
+    class Meta:
+        unique_together = ('xtal', 'event', 'site', 'target_id')

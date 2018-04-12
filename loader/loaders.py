@@ -1,5 +1,5 @@
-import os,sys
-from viewer.models import Target,Protein,Molecule,Compound
+import os,sys,re,json
+from viewer.models import Target,Protein,Molecule,Compound,Event
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from rdkit import Chem
@@ -145,6 +145,64 @@ def load_from_dir(target_name, dir_path):
                 print("NONE MOL: "+xtal)
         else:
             print("File not found: "+xtal)
+
+
+def parse_centre(input_str):
+    return json.loads(input_str)
+
+def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_id,
+                     event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,target):
+    new_event = Event.objects.get_or_create(xtal=xtal, event=event, site=site, target_id=target)[0]
+    new_event.pdb_info.save(os.path.basename(pdb_file), File(open(pdb_file)))
+    new_event.mtz_info.save(os.path.basename(mtz_path),File(open(mtz_path)))
+    new_event.map_info.save(os.path.basename(map_path),File(open(map_path)))
+    new_event.pandda_version = pandda_version
+    new_event.lig_id = lig_id
+    # Now set all of the com
+    new_event.event_com_x = event_cent[0]
+    new_event.event_com_y = event_cent[1]
+    new_event.event_com_z = event_cent[2]
+    new_event.lig_com_x = lig_cent[0]
+    new_event.lig_com_y = lig_cent[1]
+    new_event.lig_com_z = lig_cent[2]
+    new_event.site_align_com_x = site_align_cent[0]
+    new_event.site_align_com_y = site_align_cent[1]
+    new_event.site_align_com_z = site_align_cent[2]
+    new_event.site_native_com_x = site_native_cent[0]
+    new_event.site_native_com_y = site_native_cent[1]
+    new_event.site_native_com_z = site_native_cent[2]
+    new_event.event_dist_from_site_centroid = event_dist
+    new_event.lig_dist_from_site_centroid = lig_dist
+    new_event.save()
+    return new_event
+
+def load_events_from_dir(target_name,dir_path):
+    new_target = add_target(target_name)
+    os.chdir(dir_path)
+    lines = [x.strip() for x in open("out.csv").readlines()]
+    header = lines[0].split(",")
+    PATTERN = re.compile(r'''((?:[^,"']|"[^"]*"|'[^']*')+)''')
+    for line in lines:
+        spl_line = PATTERN.split(line)[1::2]
+        xtal = spl_line[0]
+        event = spl_line[1]
+        site = spl_line[2]
+        pandda_version = spl_line[3]
+        pdb_file = spl_line[4]
+        mtz_file = spl_line[5]
+        map_file = spl_line[6]
+        lig_id = spl_line[7]
+        event_cent = parse_centre(spl_line[8])
+        event_dist = float(spl_line[9])
+        lig_cent = parse_centre(spl_line[10])
+        lig_dist = spl_line[11]
+        site_align_cent = parse_centre(spl_line[12])
+        site_native_cent = parse_centre(spl_line[13])
+        create_event(xtal,event,site,pandda_version,pdb_file,mtz_file,map_file,lig_id,
+                     event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,new_target)
+
+    os.chdir("../")
+
 
 def analyse_mols(mols, target):
     """
