@@ -148,7 +148,7 @@ def load_from_dir(target_name, dir_path):
 
 
 def parse_centre(input_str):
-    return json.loads(input_str)
+    return json.loads(input_str.strip('"'))
 
 def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_id,
                      event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,target):
@@ -158,13 +158,6 @@ def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_i
     new_event.map_info.save(os.path.basename(map_path),File(open(map_path)))
     new_event.pandda_version = pandda_version
     new_event.lig_id = lig_id
-    # Now set all of the com
-    print(event_cent)
-    print(lig_cent)
-    print(site_align_cent)
-    print(site_native_cent)
-    print(event_dist)
-    print(lig_dist)
     new_event.event_com_x = event_cent[0]
     new_event.event_com_y = event_cent[1]
     new_event.event_com_z = event_cent[2]
