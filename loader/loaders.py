@@ -186,6 +186,7 @@ def load_events_from_dir(target_name,dir_path):
         xtal = spl_line[0]
         event = spl_line[1]
         site = spl_line[2]
+        print("Processing: "+xtal)
         pandda_version = spl_line[3]
         pdb_file = spl_line[4]
         mtz_file = spl_line[5]
