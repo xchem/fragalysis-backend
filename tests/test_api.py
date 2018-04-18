@@ -53,7 +53,7 @@ class APIUrlsTestCase(TestCase):
                                 prot_id=self.protein,cmpd_id=self.cmpd)
         self.site = PanddaSite.objects.create(id=1, site_id=1, pandda_version="0.0.1-alpha",
                                               target_id=self.target, pdb_info="my_pdb.pdb", map_info="my_map.map",
-                                              lig_id="LIG", event_com_x=0.1, event_com_y=0.2, event_com_z=0.3)
+                                              lig_id="LIG", site_align_com_x=0.1, site_align_com_y=0.2, site_align_com_z=0.3)
         self.event = PanddaEvent.objects.create(id=1,xtal="DUMMY-x001",event=1,pandda_site=self.site,
                                           target_id=self.target,pdb_info="my_pdb.pdb",map_info="my_map.map",
                                           lig_id="LIG",event_com_x=0.1,event_com_y=0.2,event_com_z=0.3)
@@ -77,8 +77,8 @@ class APIUrlsTestCase(TestCase):
                          {'id':1, 'code':"DUMM", 'target_id':1, 'pdb_info':"http://testserver/media/my_pdb.pdb",
                           'mtz_info':None, 'map_info':None, 'cif_info':None},
                          {'id': 1, 'site_id': 1, 'pandda_version': "0.0.1-alpha",
-                          'target_id': 1, 'site_align_com_x': None,'pandda_run':"STANDARD",
-                          'site_align_com_y': None, 'site_align_com_z': None, 'site_native_com_x': None,
+                          'target_id': 1, 'site_align_com_x': None,'pandda_run':"STANDARD", 'site_align_com_x':0.1,
+                          'site_align_com_y': 0.2, 'site_align_com_z':0.2, 'site_native_com_x': None,
                           'site_native_com_y': None, 'site_native_com_z': None},
                          {'id': 1, 'xtal': "DUMMY-x001", 'event': 1, 'pannda_site': 1, 'pandda_version': "0.0.1-alpha",
                           'target_id': 1,'pdb_info': "http://testserver/media/my_pdb.pdb", 'mtz_info': None,
