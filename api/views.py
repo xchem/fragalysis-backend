@@ -33,7 +33,7 @@ class PanddaEventView(viewsets.ReadOnlyModelViewSet):
 
 class PanddaSiteView(viewsets.ReadOnlyModelViewSet):
     queryset = PanddaSite.objects.filter()
-    serializer_class = PanddaEventSerializer
+    serializer_class = PanddaSiteSerializer
     filter_fields = ('pandda_run','site_id','pandda_version','target_id',)
 
 # TODO VIEW to get Images, PDBs, Vectors and Graphs
