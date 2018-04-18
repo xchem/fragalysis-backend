@@ -97,6 +97,8 @@ class APIUrlsTestCase(TestCase):
                      {u'detail': u'Method "POST" not allowed.'},
                      {u'detail': u'Method "POST" not allowed.'},
                      {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
                      {u'detail': u'Method "POST" not allowed.'},]
         for i, url in enumerate(urls):
             # GET basic request
