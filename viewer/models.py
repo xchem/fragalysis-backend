@@ -128,20 +128,37 @@ class ActivityPoint(models.Model):
             ('view_activitypoint', 'View activitypoint'),
         )
 
-class Event(models.Model):
+class PanddaSite(models.Model):
     """
-    Django model for Pandda events
+    Django model for Pandda sites
     """
-    # The xtal
-    xtal = models.TextField()
-    # The event
-    event = models.IntegerField()
     # The site
-    site = models.IntegerField()
+    site_id = models.IntegerField()
     # The pdb, map and mtz
     target_id = models.ForeignKey(Target)
     # The pannda version
     pandda_version = models.TextField(null=True)
+    # Pandda run
+    pandda_run = models.TextField(default="STANDARD")
+    # Define the X,Y,Z
+    site_align_com_x = models.FloatField(null=True)
+    site_align_com_y = models.FloatField(null=True)
+    site_align_com_z = models.FloatField(null=True)
+    site_native_com_x = models.FloatField(null=True)
+    site_native_com_y = models.FloatField(null=True)
+    site_native_com_z = models.FloatField(null=True)
+
+    class Meta:
+        unique_together = ('site_id', 'target_id', 'pandda_run')
+
+class PanddaEvent(models.Model):
+    # Define the site
+    pandda_site = models.ForeignKey(PanddaSite)
+    target_id = models.ForeignKey(Target)
+    # The xtal - this will later be linke to Rachael's stuff
+    xtal = models.TextField()
+    # The event id
+    event = models.IntegerField()
     apo_holo = models.NullBooleanField()
     pdb_info = models.FileField(upload_to='pdbs/', null=True, max_length=10000000)
     cif_info = models.FileField(upload_to='cifs/', null=True, max_length=10000000)
@@ -156,14 +173,8 @@ class Event(models.Model):
     lig_com_x = models.FloatField(null=True)
     lig_com_y = models.FloatField(null=True)
     lig_com_z = models.FloatField(null=True)
-    site_align_com_x = models.FloatField(null=True)
-    site_align_com_y = models.FloatField(null=True)
-    site_align_com_z = models.FloatField(null=True)
-    site_native_com_x = models.FloatField(null=True)
-    site_native_com_y = models.FloatField(null=True)
-    site_native_com_z = models.FloatField(null=True)
     event_dist_from_site_centroid = models.FloatField(null=True)
     lig_dist_from_site_centroid = models.FloatField(null=True)
     # Unique constraints
     class Meta:
-        unique_together = ('xtal', 'event', 'site', 'target_id')
+        unique_together = ('xtal', 'event', 'pandda_site', 'target_id')
