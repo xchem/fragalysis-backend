@@ -150,9 +150,8 @@ def load_from_dir(target_name, dir_path):
 def parse_centre(input_str):
     return json.loads(input_str.strip('"'))
 
-def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_id,
-                     event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,target):
 
+def create_site(site,target,pandda_version,site_align_cent,site_native_cent):
     new_site = PanddaSite.objects.get_or_create(site_id=site, target_id=target,pandda_run="STANDARD")[0]
     new_site.pandda_version = pandda_version
     new_site.site_align_com_x = site_align_cent[0]
@@ -162,7 +161,12 @@ def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_i
     new_site.site_native_com_y = site_native_cent[1]
     new_site.site_native_com_z = site_native_cent[2]
     new_site.save()
+    return new_site
+
+def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_id,
+                     event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,target):
     # Now make the event
+    new_site = create_site(site,target,pandda_version,site_align_cent)
     new_event = PanddaEvent.objects.get_or_create(xtal=xtal, event=event, pandda_site=new_site, target_id=target)[0]
     new_event.pdb_info.save(os.path.basename(pdb_file), File(open(pdb_file)))
     new_event.mtz_info.save(os.path.basename(mtz_path),File(open(mtz_path)))
