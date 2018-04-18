@@ -154,6 +154,7 @@ class PanddaSite(models.Model):
 class PanddaEvent(models.Model):
     # Define the site
     pandda_site = models.ForeignKey(PanddaSite)
+    target_id = models.ForeignKey(Target)
     # The xtal - this will later be linke to Rachael's stuff
     xtal = models.TextField()
     # The event id
@@ -176,4 +177,4 @@ class PanddaEvent(models.Model):
     lig_dist_from_site_centroid = models.FloatField(null=True)
     # Unique constraints
     class Meta:
-        unique_together = ('xtal', 'event', 'site_id', 'target_id')
+        unique_together = ('xtal', 'event', 'pandda_site', 'target_id')
