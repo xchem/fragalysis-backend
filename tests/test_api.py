@@ -52,8 +52,8 @@ class APIUrlsTestCase(TestCase):
                                 rscc=0.1,occupancy=0.2,x_com=0.3,y_com=0.4,z_com=0.5,rmsd=0.6,
                                 prot_id=self.protein,cmpd_id=self.cmpd)
         self.site = PanddaSite.objects.create(id=1, site_id=1, pandda_version="0.0.1-alpha",
-                                              target_id=self.target, pdb_info="my_pdb.pdb", map_info="my_map.map",
-                                              lig_id="LIG", site_align_com_x=0.1, site_align_com_y=0.2, site_align_com_z=0.3)
+                                              target_id=self.target,
+                                              site_align_com_x=0.1, site_align_com_y=0.2, site_align_com_z=0.3)
         self.event = PanddaEvent.objects.create(id=1,xtal="DUMMY-x001",event=1,pandda_site=self.site,
                                           target_id=self.target,pdb_info="my_pdb.pdb",map_info="my_map.map",
                                           lig_id="LIG",event_com_x=0.1,event_com_y=0.2,event_com_z=0.3)
