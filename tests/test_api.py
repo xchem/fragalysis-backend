@@ -80,7 +80,7 @@ class APIUrlsTestCase(TestCase):
                           'target_id': 1, 'site_align_com_x': None,'pandda_run':"STANDARD", 'site_align_com_x':0.1,
                           'site_align_com_y': 0.2, 'site_align_com_z':0.3, 'site_native_com_x': None,
                           'site_native_com_y': None, 'site_native_com_z': None},
-                         {'id': 1, 'xtal': "DUMMY-x001", 'event': 1, 'pannda_site': 1, 'pandda_version': "0.0.1-alpha",
+                         {'id': 1, 'xtal': "DUMMY-x001", 'event': 1, 'pandda_site': 1,
                           'target_id': 1,'pdb_info': "http://testserver/media/my_pdb.pdb", 'mtz_info': None,
                           'map_info': "http://testserver/media/my_map.map",
                           'lig_id': "LIG", 'event_com_x': 0.1, 'event_com_y': 0.2, 'event_com_z': 0.3,
