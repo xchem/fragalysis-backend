@@ -56,6 +56,7 @@ class APIUrlsTestCase(TestCase):
                                               site_align_com_x=0.1, site_align_com_y=0.2, site_align_com_z=0.3)
         self.event = PanddaEvent.objects.create(id=1,xtal="DUMMY-x001",event=1,pandda_site=self.site,
                                           target_id=self.target,pdb_info="my_pdb.pdb",map_info="my_map.map",
+                                                small_map_info="my_map_small.map",
                                           lig_id="LIG",event_com_x=0.1,event_com_y=0.2,event_com_z=0.3)
 
     def testV0_1API(self):
@@ -82,7 +83,7 @@ class APIUrlsTestCase(TestCase):
                           'site_native_com_y': None, 'site_native_com_z': None},
                          {'id': 1, 'xtal': "DUMMY-x001", 'event': 1, 'pandda_site': 1,
                           'target_id': 1,'pdb_info': "http://testserver/media/my_pdb.pdb", 'mtz_info': None,
-                          'map_info': "http://testserver/media/my_map.map",
+                          'map_info': "http://testserver/media/my_map.map",'small_map_info': "http://testserver/media/my_map_small.map",
                           'lig_id': "LIG", 'event_com_x': 0.1, 'event_com_y': 0.2, 'event_com_z': 0.3,
                           'lig_com_x': None, 'lig_com_y': None, 'lig_com_z': None,
                           'event_dist_from_site_centroid': None, 'lig_dist_from_site_centroid': None},
