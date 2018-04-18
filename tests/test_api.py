@@ -92,6 +92,8 @@ class APIUrlsTestCase(TestCase):
                      {},
                      {},
                      {},
+                     {},
+                     {},
                      {}]
         post_resp = [{u'detail': u'Method "POST" not allowed.'},
                      {u'detail': u'Method "POST" not allowed.'},
