@@ -163,7 +163,7 @@ def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_i
     new_site.site_native_com_z = site_native_cent[2]
     new_site.save()
     # Now make the event
-    new_event = PanddaEvent.objects.get_or_create(xtal=xtal, event=event, site_id=new_site, target_id=target)[0]
+    new_event = PanddaEvent.objects.get_or_create(xtal=xtal, event=event, pandda_site=new_site, target_id=target)[0]
     new_event.pdb_info.save(os.path.basename(pdb_file), File(open(pdb_file)))
     new_event.mtz_info.save(os.path.basename(mtz_path),File(open(mtz_path)))
     new_event.map_info.save(os.path.basename(map_path),File(open(map_path)))
