@@ -10,8 +10,8 @@ router.register(r'molecules', views.MoleculeView)
 router.register(r'compounds', views.CompoundView)
 router.register(r'targets', views.TargetView)
 router.register(r'proteins', views.ProteinView)
-router.register(r'events', views.EventView)
-
+router.register(r'events', views.PanddaEventView)
+router.register(r'site', views.PanddaSiteView)
 # Register the  choices
 router.register(r'scorechoice',score_views.ScoreChoiceView)
 router.register(r'molchoice',score_views.MolChoiceView)
