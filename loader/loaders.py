@@ -153,7 +153,7 @@ def parse_centre(input_str):
 def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_id,
                      event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,target):
 
-    new_site = PanddaSite.objects.get_or_create(site_id=site, target_id=target,pandda_run="STANDARD")
+    new_site = PanddaSite.objects.get_or_create(site_id=site, target_id=target,pandda_run="STANDARD")[0]
     new_site.pandda_version = pandda_version
     new_site.site_align_com_x = site_align_cent[0]
     new_site.site_align_com_y = site_align_cent[1]
