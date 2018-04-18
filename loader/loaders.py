@@ -156,6 +156,8 @@ def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_i
     new_event.pdb_info.save(os.path.basename(pdb_file), File(open(pdb_file)))
     new_event.mtz_info.save(os.path.basename(mtz_path),File(open(mtz_path)))
     new_event.map_info.save(os.path.basename(map_path),File(open(map_path)))
+    small_map_path = map_path.replace(".map",'_small.map')
+    new_event.small_map_info.save(os.path.basename(small_map_path),File(open(small_map_path)))
     new_event.pandda_version = pandda_version
     new_event.lig_id = lig_id
     new_event.event_com_x = event_cent[0]

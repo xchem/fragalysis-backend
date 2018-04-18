@@ -147,6 +147,7 @@ class Event(models.Model):
     cif_info = models.FileField(upload_to='cifs/', null=True, max_length=10000000)
     mtz_info = models.FileField(upload_to='mtzs/', null=True, max_length=10000000)
     map_info = models.FileField(upload_to='maps/', null=True, max_length=10000000)
+    small_map_info = models.FileField(upload_to='maps/', null=True, max_length=10000000)
     # The ligand id
     lig_id = models.CharField(max_length=50, null=True)
     event_com_x = models.FloatField(null=True)
