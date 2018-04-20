@@ -146,6 +146,8 @@ class MolGroup(models.Model):
     group_type = models.CharField(choices=MOL_GROUP_CHOICES,max_length=2,default=DEFAULT)
     # Set the target id
     target_id = models.ForeignKey(Target)
+    # Set the description
+    description = models.TextField(null=True)
     # Set the ManyToMany
     mol_id = models.ManyToManyField(Molecule,related_name="mol_groups")
     # Set the centre of mass

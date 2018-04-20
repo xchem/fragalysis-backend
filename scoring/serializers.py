@@ -35,4 +35,4 @@ class ScoreChoiceSerializer(serializers.ModelSerializer):
 class MolGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = MolGroup
-        fields = ('id', 'group_type','mol_id','target_id','x_com','y_com','z_com')
+        fields = ('id', 'group_type','mol_id','target_id','x_com','y_com','z_com','description')
