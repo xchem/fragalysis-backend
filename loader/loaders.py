@@ -167,7 +167,7 @@ def load_from_dir(target_name, dir_path):
                 print("NONE MOL: "+xtal)
             else:
                 if os.path.isfile(contact_path):
-                    add_contacts(json.load(open(contact_path)))
+                    add_contacts(json.load(open(contact_path)),new_target,new_prot,new_mol)
         else:
             print("File not found: "+xtal)
 
@@ -221,7 +221,6 @@ def load_events_from_dir(target_name,dir_path):
         xtal = spl_line[0]
         event = spl_line[1]
         site = spl_line[2]
-        print("Processing: "+xtal)
         pandda_version = spl_line[3]
         pdb_file = spl_line[4]
         mtz_file = spl_line[5]
@@ -248,7 +247,6 @@ def get_vectors(mols):
     vect_types = VectTypes()
     for mol in mols:
         vectors = get_3d_vects_for_mol(mol.sdf_info)
-        print(vectors)
         for vect_type in vectors:
             vect_choice = vect_types.translate_vect_types(vect_type)
             for vector in vectors[vect_type]:
