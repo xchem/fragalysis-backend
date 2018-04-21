@@ -66,10 +66,10 @@ class IntTypes(object):
         return self.INT_VER_CHOICES, self.DEFAULT_INT_VER, self.INT_TYPE_CHOICES, self.DEFAULT_INT_TYPE
 
     def get_int_conv(self,int_ver,int_name):
-        if int_ver not in self.CONV_DICT:
+        if int_ver not in self.conv_dict:
             return None
         else:
-            return self.CONV_DICT[int_ver][int_name]
+            return self.conv_dict[int_ver][int_name]
 
 
 class VectTypes(object):
