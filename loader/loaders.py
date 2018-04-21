@@ -159,7 +159,7 @@ def load_from_dir(target_name, dir_path):
         map_path = get_path_or_none(new_path,xtal,"_event.map")
         mtz_path = get_path_or_none(new_path,xtal,".mtz")
         contact_path = get_path_or_none(new_path,xtal,'_contacts.json')
-
+        print(contact_path)
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
             new_prot = add_prot(pdb_file_path,xtal,new_target,mtz_path=mtz_path,map_path=map_path)
             new_mol = add_mol(mol_file_path, new_prot)
