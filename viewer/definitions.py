@@ -85,7 +85,7 @@ class VectTypes(object):
             (LINKER, 'Linker'),
             (RING, 'Ring'),
         )
-        self.vect_dict = {'additions': ADDITION, 'deletion': DELETION, 'linkers': LINKER, 'ring': RING}
+        self.vect_dict = {'additions': ADDITION, 'deletions': DELETION, 'linkers': LINKER, 'ring': RING}
 
     def get_vect_types(self):
         return self.VECTOR_TYPES
