@@ -158,16 +158,16 @@ class ProteinResidue(models.Model):
 
 class Interaction(models.Model):
     """Model to store the interaction information."""
+    int_ver_choices, default_int_ver, int_type_choices, default_int_type = IntTypes().define_int_types()
     # The protein residue id
     prot_res_id = models.ForeignKey(ProteinResidue)
     # The molecule id
     mol_id = models.ForeignKey(Molecule)
-    int_ver_choices, default_int_ver, int_type_choices, default_int_type = IntTypes().define_int_types()
     interaction_version = models.CharField(choices=int_ver_choices,max_length=2,default=default_int_ver)
     interaction_type = models.CharField(choices=int_type_choices,max_length=2,default=default_int_type)
-    distance = models.FloatField()
     protein_atom_name = models.TextField()
     molecule_atom_name = models.TextField()
+    distance = models.FloatField(null=True)
     score = models.FloatField(null=True)
     prot_smarts = models.TextField(null=True)
     mol_smarts = models.TextField(null=True)

@@ -140,7 +140,8 @@ def add_contacts(input_data,target,prot,mol):
         prot_res = ProteinResidue.objects.get_or_create(targ_res_id=targ_res,prot_id=prot)[0]
         Interaction.objects.get_or_create(prot_res_id=prot_res,mol_id=mol,interaction_version="PR",
                                           interaction_type=int_type.get_int_conv("PR",interaction["contactType"]),
-                                          distance=interaction["dis"],protein_atom_name='dstaname',molecule_atom_name='srcaname',
+                                          distance=interaction["dis"],protein_atom_name=interaction['dstaname'],
+                                          molecule_atom_name=interaction['srcaname'],
                                           prot_smarts=interaction['dstType'],mol_smarts=interaction['srcType'])
 
 def load_from_dir(target_name, dir_path):
