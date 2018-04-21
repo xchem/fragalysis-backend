@@ -192,13 +192,13 @@ class Vector3D(models.Model):
     # The number on this
     number = models.IntegerField()
     # The start position
-    start_x = models.FloatField()
-    start_y = models.FloatField()
-    start_z = models.FloatField()
+    start_x = models.FloatField(null=True)
+    start_y = models.FloatField(null=True)
+    start_z = models.FloatField(null=True)
     # The end position
-    end_x = models.FloatField()
-    end_y = models.FloatField()
-    end_z = models.FloatField()
+    end_x = models.FloatField(null=True)
+    end_y = models.FloatField(null=True)
+    end_z = models.FloatField(null=True)
 
     class Meta:
         unique_together = ('mol_id','vector_id','number',)
