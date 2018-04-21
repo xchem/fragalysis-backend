@@ -1,5 +1,6 @@
 import os,sys,re,json
-from viewer.models import Target,Protein,Molecule,Compound,PanddaSite,PanddaEvent,Vector,Vector3D
+from viewer.models import Target,Protein,Molecule,Compound,PanddaSite,PanddaEvent,\
+    Vector,Vector3D,Interaction,ProteinResidue,TargetResidue
 from viewer.definitions import VectTypes,IntTypes
 from django.core.exceptions import ValidationError
 from django.core.files import File
@@ -126,6 +127,22 @@ def add_mol(mol_sd,prot,lig_id="LIG",chaind_id="Z",occupancy=0.0):
     new_mol.save()
     return new_mol
 
+
+def parse_proasis(input_string):
+    spl_string =  input_string.split(" ")
+    return spl_string[0], int(spl_string[2]), spl_string[1]
+
+def add_contacts(input_data,target,prot,mol):
+    int_type = IntTypes()
+    for interaction in input_data:
+        res_name, res_num, chain_id = parse_proasis(interaction['dstrname'])
+        targ_res = TargetResidue.objects.get_or_create(target_id=target,res_name=res_name,res_num=res_num,chain_id=chain_id)[0]
+        prot_res = ProteinResidue.objects.get_or_create(targ_res_id=targ_res,prot_id=prot)
+        Interaction.objects.get_or_create(prot_res_id=prot_res,mol_id=mol,interaction_version="PR",
+                                          interaction_type=int_type.get_int_conv("PR",interaction["contactType"]),
+                                          distance=interaction["dis"],protein_atom_name='dstaname',molecule_atom_name='srcaname',
+                                          prot_smarts=interaction['dstType'],mol_smarts=interaction['srcType'])
+
 def load_from_dir(target_name, dir_path):
     """
     Load the data for a given target from a directory structure
@@ -141,11 +158,16 @@ def load_from_dir(target_name, dir_path):
         mol_file_path = os.path.join(new_path,xtal+".mol")
         map_path = get_path_or_none(new_path,xtal,"_event.map")
         mtz_path = get_path_or_none(new_path,xtal,".mtz")
+        contact_path = get_path_or_none(new_path,xtal,'_contacts.json')
+
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
             new_prot = add_prot(pdb_file_path,xtal,new_target,mtz_path=mtz_path,map_path=map_path)
             new_mol = add_mol(mol_file_path, new_prot)
             if not new_mol:
                 print("NONE MOL: "+xtal)
+            else:
+                if os.path.isfile(contact_path):
+                    add_contacts(json.load(open(contact_path)))
         else:
             print("File not found: "+xtal)
 

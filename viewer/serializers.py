@@ -40,7 +40,6 @@ class PanddaEventSerializer(serializers.ModelSerializer):
         fields = ('id','xtal','event','pandda_site','target_id','pdb_info','mtz_info','map_info','lig_id',
                   'event_com_x','event_com_y','event_com_z','lig_com_x','lig_com_y','lig_com_z',
                   'event_dist_from_site_centroid','lig_dist_from_site_centroid','small_map_info')
-
 class PanddaSiteSerializer(serializers.ModelSerializer):
 
     class Meta:

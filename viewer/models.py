@@ -132,17 +132,19 @@ class TargetResidue(models.Model):
     """Model to store residue information - to curate the probes"""
     # The target it relates to
     target_id = models.ForeignKey(Target)
-    # The residue number
-    res_num = models.IntegerField()
     # The residue name
     res_name = models.CharField(max_length=20)
+    # The residue number
+    res_num = models.IntegerField()
+    # The chain
+    chain_id = models.CharField(max_length=4)
+
 
     class Meta:
-        unique_together = ('target_id', 'res_num', 'res_name', )
+        unique_together = ('target_id', 'res_num', 'res_name', 'chain_id')
         permissions = (
             ('view_targetresidue', 'View targetresidue'),
         )
-
 
 class ProteinResidue(models.Model):
     """Model to store residue information - to curate the probes"""
@@ -166,9 +168,9 @@ class Interaction(models.Model):
     distance = models.FloatField()
     protein_atom_name = models.TextField()
     molecule_atom_name = models.TextField()
-    score = models.FloatField()
-    proteinSmarts = models.TextField(null=True)
-    moleculeSmarts = models.TextField(null=True)
+    score = models.FloatField(null=True)
+    prot_smarts = models.TextField(null=True)
+    mol_smarts = models.TextField(null=True)
 
     class Meta:
         unique_together = ('prot_res_id', 'mol_id', 'interaction_type','interaction_version','protein_atom_name','molecule_atom_name')
