@@ -237,7 +237,7 @@ def get_vectors(mols):
                 else:
                     vect_ind = 0
                 new_vect = Vector.objects.get_or_create(smiles=smiles,cmpd_id=mol.cmpd_id,type=vect_choice)[0]
-                new_vect3d = Vector3D.object.get_or_create(mol_id=mol,vector_id=new_vect,number=vect_ind)[0]
+                new_vect3d = Vector3D.objects.get_or_create(mol_id=mol,vector_id=new_vect,number=vect_ind)[0]
                 # The start position
                 new_vect3d.start_x = float(vectors[vect_type][vector][0][0])
                 new_vect3d.start_y = float(vectors[vect_type][vector][0][1])
