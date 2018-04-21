@@ -135,6 +135,9 @@ def parse_proasis(input_string):
 def add_contacts(input_data,target,prot,mol):
     int_type = IntTypes()
     for interaction in input_data:
+        # Ignore Water mediasted interactions with Protein for now
+        if interaction['hetmoltype'] == 'WATER':
+            continue
         res_name, res_num, chain_id = parse_proasis(interaction['dstrname'])
         targ_res = TargetResidue.objects.get_or_create(target_id=target,res_name=res_name,res_num=res_num,chain_id=chain_id)[0]
         prot_res = ProteinResidue.objects.get_or_create(targ_res_id=targ_res,prot_id=prot)[0]
