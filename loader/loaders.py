@@ -230,6 +230,7 @@ def get_vectors(mols):
             vect_choice = vect_types.translate_vect_types(vect_type)
             for vector in vectors[vect_type]:
                 smiles = vector.split("__")[0]
+                print(vector)
                 vect_ind = int(vector.split("__")[1])
                 new_vect = Vector.objects.get_or_create(smiles=smiles,cmpd_id=mol.cmpd_id,type=vect_choice)[0]
                 new_vect3d = Vector3D.object.get_or_create(mol_id=mol,vector_id=new_vect,number=vect_ind)[0]
