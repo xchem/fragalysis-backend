@@ -129,7 +129,7 @@ def add_mol(mol_sd,prot,lig_id="LIG",chaind_id="Z",occupancy=0.0):
 
 
 def parse_proasis(input_string):
-    spl_string =  input_string.split(" ")
+    spl_string =  input_string.split()
     return spl_string[0], int(spl_string[2]), spl_string[1]
 
 def add_contacts(input_data,target,prot,mol):
