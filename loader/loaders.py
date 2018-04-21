@@ -226,6 +226,7 @@ def get_vectors(mols):
     vect_types = VectTypes()
     for mol in mols:
         vectors = get_3d_vects_for_mol(mol.sdf_info)
+        print(vectors)
         for vect_type in vectors:
             vect_choice = vect_types.translate_vect_types(vect_type)
             for vector in vectors[vect_type]:
