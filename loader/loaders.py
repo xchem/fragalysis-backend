@@ -167,8 +167,9 @@ def load_from_dir(target_name, dir_path):
             if not new_mol:
                 print("NONE MOL: "+xtal)
             else:
-                if os.path.isfile(contact_path):
-                    add_contacts(json.load(open(contact_path)),new_target,new_prot,new_mol)
+                if contact_path:
+                    if os.path.isfile(contact_path):
+                        add_contacts(json.load(open(contact_path)),new_target,new_prot,new_mol)
         else:
             print("File not found: "+xtal)
 
