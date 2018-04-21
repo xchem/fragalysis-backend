@@ -4,6 +4,24 @@ from loader.loaders import add_target, add_mol, add_comp, add_prot, analyse_mols
 from rdkit import Chem
 from viewer.models import Molecule,Compound,Protein,Target
 from scoring.models import MolGroup
+import json
+class PlifLoaderFunctionsTestCase(TestCase):
+
+    def test_load(self):
+        input_json = """[{"dstserno": 237, "dstType": "[O;D0]", "dstaname": "O", "dstrname": "HOH B   3 ", "srcserno": 221, "hetmoltype": "WATER", "contactClass": "S", "contactId": 0, "srcType": "[OH;X2]", "WaterRank": 2.2266573663269629, "contactType": "hbond", "srcaname": "OG1", "dis": 2.5175003475670068, "srcrname": "THR A 193 "}, {"dstserno": 98, "dstType": "[SH;X2]", "dstaname": "SG", "dstrname": "CYS A  73 ", "srcserno": 2
+47, "hetmoltype": "LIG", "contactClass": "S", "contactId": 0, "srcType": "[N;X3][C;X4]", "contactType": "hbond", "srcaname": "N", "dis": 2.5611310001637948, "srcrname": "LIG E   1 "}, {"dstserno": 237, "d
+stType": "[O;D0]", "dstaname": "O", "dstrname": "HOH B   3 ", "srcserno": 99, "hetmoltype": "WATER", "contactClass": "S", "contactId": 0, "srcType": "[N;!H0;X3][*]=[*]", "WaterRank": 2.2266573663269629, "
+contactType": "hbond", "srcaname": "N", "dis": 3.1184688550633304, "srcrname": "PHE A  74 "}, {"dstserno": 237, "dstType": "[O;D0]", "dstaname": "O", "dstrname": "HOH B   3 ", "srcserno": 247, "hetmoltype
+": "LIG", "contactClass": "W", "contactId": 2, "srcType": "[N;X3][C;X4]", "WaterRank": 2.2266573663269629, "contactType": "cat_dip", "srcaname": "N", "dis": 3.3527564778850252, "srcrname": "LIG E   1 "},
+{"dstserno": 27, "dstType": "[#6;X3]", "dstaname": "CE2", "dstrname": "TYR A  41 ", "srcserno": 249, "hetmoltype": "LIG", "contactClass": "S", "contactId": 6, "srcType": "[OH;X2]", "contactType": "hdon_pi
+", "srcaname": "O", "dis": 3.2172882991737, "srcrname": "LIG E   1 "}, {"dstserno": 194, "dstType": "[#6]", "dstaname": "CD1", "dstrname": "ILE A 122 ", "srcserno": 250, "hetmoltype": "LIG", "contactClass
+": "S", "contactId": 8, "srcType": "[#6]", "contactType": "vdW", "srcaname": "C1", "dis": 3.370730484627924, "srcrname": "LIG E   1 "}, {"dstserno": 28, "dstType": "[#6;X3]", "dstaname": "CZ", "dstrname":
+ "TYR A  41 ", "srcserno": 248, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW", "srcaname": "C", "dis": 3.6206717608753216, "srcrname": "LIG E   1 "}, {"
+dstserno": 215, "dstType": "[#6]", "dstaname": "CE", "dstrname": "MET A 192 ", "srcserno": 252, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW", "srcaname
+": "C11", "dis": 3.879828862205136, "srcrname": "LIG E   1 "}]"""
+        input_data = json.loads(input_json)
+
+
 
 class LoaderFunctionsTestCase(TestCase):
 
@@ -116,3 +134,4 @@ class LoderLoaderTestCase(TestCase):
         analyse_target("DUMMY_TARGET")
         self.assertEqual(MolGroup.objects.filter(group_type='MC').count(),1)
         self.assertEqual(MolGroup.objects.filter(group_type='PC').count(),16)
+

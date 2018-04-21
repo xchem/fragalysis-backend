@@ -1,6 +1,6 @@
 from django.db import models
 from rdkit import Chem
-
+from viewer.definitions import IntTypes,VectTypes
 
 class Project(models.Model):
     """A django model to define a given project_id. Not currently used.
@@ -127,6 +127,82 @@ class ActivityPoint(models.Model):
         permissions = (
             ('view_activitypoint', 'View activitypoint'),
         )
+
+class TargetResidue(models.Model):
+    """Model to store residue information - to curate the probes"""
+    # The target it relates to
+    target_id = models.ForeignKey(Target)
+    # The residue number
+    res_num = models.IntegerField()
+    # The residue name
+    res_name = models.CharField(max_length=20)
+
+    class Meta:
+        unique_together = ('target_id', 'res_num', 'res_name', )
+        permissions = (
+            ('view_targetresidue', 'View targetresidue'),
+        )
+
+
+class ProteinResidue(models.Model):
+    """Model to store residue information - to curate the probes"""
+    # The target it relates to
+    prot_id = models.ForeignKey(Protein)
+    # The target Residue it relates to
+    targ_res_id = models.ForeignKey(TargetResidue)
+    class Meta:
+        unique_together = ('prot_id', 'targ_res_id', )
+
+
+class Interaction(models.Model):
+    """Model to store the interaction information."""
+    # The protein residue id
+    prot_res_id = models.ForeignKey(ProteinResidue)
+    # The molecule id
+    mol_id = models.ForeignKey(Molecule)
+    int_ver_choices, default_int_ver, int_type_choices, default_int_type = IntTypes().define_int_types()
+    interaction_version = models.CharField(choices=int_ver_choices,max_length=2,default=default_int_ver)
+    interaction_type = models.CharField(choices=int_type_choices,max_length=2,default=default_int_type)
+    distance = models.FloatField()
+    protein_atom_name = models.TextField()
+    molecule_atom_name = models.TextField()
+    score = models.FloatField()
+    proteinSmarts = models.TextField(null=True)
+    moleculeSmarts = models.TextField(null=True)
+
+    class Meta:
+        unique_together = ('prot_res_id', 'mol_id', 'interaction_type','interaction_version','protein_atom_name','molecule_atom_name')
+
+class Vector(models.Model):
+    # The compound it relates to
+    cmpd_id = models.ForeignKey(Compound)
+    # The smiles of the vector
+    smiles = models.TextField()
+    # Vector type
+    type = models.CharField(choices=VectTypes().get_vect_types(),max_length=2)
+
+    class Meta:
+        unique_together = ('cmpd_id', 'smiles','type')
+
+class Vector3D(models.Model):
+    # The molecule it relates to
+    mol_id = models.ForeignKey(Molecule)
+    # The vector it relates to
+    vector_id = models.ForeignKey(Vector)
+    # The number on this
+    number = models.IntegerField()
+    # The start position
+    start_x = models.FloatField()
+    start_y = models.FloatField()
+    start_z = models.FloatField()
+    # The end position
+    end_x = models.FloatField()
+    end_y = models.FloatField()
+    end_z = models.FloatField()
+
+    class Meta:
+        unique_together = ('mol_id','vector_id','number',)
+
 
 class PanddaSite(models.Model):
     """

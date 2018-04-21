@@ -1,5 +1,6 @@
 import os,sys,re,json
-from viewer.models import Target,Protein,Molecule,Compound,PanddaSite,PanddaEvent
+from viewer.models import Target,Protein,Molecule,Compound,PanddaSite,PanddaEvent,Vector,Vector3D
+from viewer.definitions import VectTypes,IntTypes
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from rdkit import Chem
@@ -7,6 +8,8 @@ from rdkit.Chem import Descriptors
 from scoring.models import MolGroup
 from frag.alysis.run_clustering import run_lig_cluster
 from loader.functions import sanitize_mol,get_path_or_none
+from frag.network.decorate import get_3d_vects_for_mol
+
 
 def add_target(title):
     """
@@ -213,15 +216,34 @@ def load_events_from_dir(target_name,dir_path):
 
     os.chdir("../")
 
-
-def analyse_mols(mols, target):
+def get_vectors(mols):
     """
-    Analyse a list of molecules for a given target
+    Get the vectors for a given molecule
     :param mols:
     :param target:
     :return:
     """
-    rd_mols = [Chem.MolFromMolBlock(x.sdf_info) for x in mols]
+    vect_types = VectTypes()
+    for mol in mols:
+        vectors = get_3d_vects_for_mol(mol.sdf_info)
+        for vect_type in vectors:
+            vect_choice = vect_types.translate_vect_types(vect_type)
+            for vector in vectors[vect_type]:
+                smiles = vector.split("__")[0]
+                vect_ind = int(vector.split("__")[1])
+                new_vect = Vector.objects.get_or_create(smiles=smiles,cmpd_id=mol.cmpd_id,type=vect_choice)[0]
+                new_vect3d = Vector3D.object.get_or_create(mol_id=mol,vector_id=new_vect,number=vect_ind)[0]
+                # The start position
+                new_vect3d.start_x = float(vectors[vect_type][vector][0][0])
+                new_vect3d.start_y = float(vectors[vect_type][vector][0][1])
+                new_vect3d.start_z = float(vectors[vect_type][vector][0][2])
+                # The end position
+                new_vect3d.end_x = float(vectors[vect_type][vector][1][0])
+                new_vect3d.end_y = float(vectors[vect_type][vector][1][1])
+                new_vect3d.end_z = float(vectors[vect_type][vector][1][2])
+                new_vect3d.save()
+
+def cluster_mols(rd_mols,mols,target):
     id_mols = [x.pk for x in mols]
     out_data = run_lig_cluster(rd_mols, id_mols)
     for clust_type in out_data:
@@ -241,6 +263,16 @@ def analyse_mols(mols, target):
                 this_mol = Molecule.objects.get(id=mol_id)
                 mol_group.mol_id.add(this_mol)
 
+def analyse_mols(mols, target):
+    """
+    Analyse a list of molecules for a given target
+    :param mols:
+    :param target:
+    :return:
+    """
+    rd_mols = [Chem.MolFromMolBlock(x.sdf_info) for x in mols]
+    cluster_mols(rd_mols,mols,target)
+    get_vectors(mols)
 
 def analyse_target(target_name):
     """
