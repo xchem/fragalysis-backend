@@ -50,4 +50,4 @@ class PanddaEvent(models.Model):
     lig_dist_from_site_centroid = models.FloatField(null=True)
     # Unique constraints
     class Meta:
-        unique_together = ('xtal_id', 'event', 'pandda_site', 'target_id')
+        unique_together = ('xtal', 'event', 'pandda_site', 'target_id')
