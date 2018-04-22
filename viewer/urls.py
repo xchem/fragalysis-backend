@@ -9,7 +9,6 @@ urlpatterns = [
     url(r'^img_from_cmpd_pk/(?P<pk>[0-9]+)/$', views.img_from_cmpd_pk, name='img_from_cmpd_pk'),
 
     # Move all of these to API
-    url(r'^mol_choice/(?P<mol_pk>[0-9]+)/(?P<score>[0-9]+)/$', views.mol_choice, name='mol_choice'),
     url(r'^mol_view/$', views.mol_view, name='mol_view'),
     url(r'^img_from_pk/$', views.img_from_pk, name='img_from_pk'),
     url(r'^img_from_smiles/$', views.img_from_smiles, name='img_from_smiles'),
