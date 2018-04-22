@@ -1,6 +1,7 @@
 import os,sys,re,json
-from viewer.models import Target,Protein,Molecule,Compound,PanddaSite,PanddaEvent,\
-    Vector,Vector3D,Interaction,ProteinResidue,TargetResidue,InteractionPoint
+from viewer.models import Target,Protein,Molecule,Compound
+from pandda.models import PanddaSite,PanddaEvent
+from hypothesis.models import Vector3D,Vector,InteractionPoint,TargetResidue,ProteinResidue,Interaction
 from viewer.definitions import VectTypes,IntTypes
 from django.core.exceptions import ValidationError
 from django.core.files import File
