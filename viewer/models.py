@@ -1,6 +1,5 @@
 from django.db import models
 from rdkit import Chem
-from viewer.definitions import IntTypes,VectTypes
 
 class Project(models.Model):
     """A django model to define a given project_id. Not currently used.
