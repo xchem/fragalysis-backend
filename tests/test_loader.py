@@ -130,10 +130,10 @@ class LoderLoaderTestCase(TestCase):
         add_contacts(input_data, self.target, self.protein, self.mol)
         # Now test some stuff to do with the output
         self.assertEqual(Interaction.objects.count(),16)
-        self.assertEqual(InteractionPoint.objects.count(), 13)
+        self.assertEqual(InteractionPoint.objects.count(), 16)
         self.assertEqual(ProteinResidue.objects.count(), 6)
         self.assertEqual(TargetResidue.objects.count(), 6)
-        
+
     def test_add_mol(self):
         self.assertEqual(Molecule.objects.count(),2)
         add_mol(self.mol_sd_two,self.protein_two)
@@ -180,10 +180,10 @@ class LoderLoaderTestCase(TestCase):
         self.assertEqual(MolGroup.objects.filter(group_type='PC').count(),16)
         self.assertEqual(Vector3D.objects.filter().count(),29)
         self.assertEqual(Vector.objects.filter().count(),17)
-        self.assertEqual(Vector.objects.filter(type="AD").count(),14)
-        self.assertEqual(Vector.objects.filter(type="DE").count(),1)
-        self.assertEqual(Vector.objects.filter(type="LI").count(),1)
-        self.assertEqual(Vector.objects.filter(type="RI").count(),1)
+        self.assertEqual(Vector.objects.filter(type="AD").count(),11)
+        self.assertEqual(Vector.objects.filter(type="DE").count(),2)
+        self.assertEqual(Vector.objects.filter(type="LI").count(),2)
+        self.assertEqual(Vector.objects.filter(type="RI").count(),2)
 
 
 

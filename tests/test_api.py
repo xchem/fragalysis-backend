@@ -1,6 +1,7 @@
 from rest_framework.test import APIRequestFactory
 from viewer.models import Molecule,Protein,Target,Compound
 from pandda.models import PanddaEvent,PanddaSite
+from hypothesis.models import Vector3D, Vector, ProteinResidue, TargetResidue, InteractionPoint,Interaction
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase, RequestFactory
 
@@ -59,6 +60,18 @@ class APIUrlsTestCase(TestCase):
                                           target_id=self.target,pdb_info="my_pdb.pdb",map_info="my_map.map",
                                                 small_map_info="my_map_small.map",
                                           lig_id="LIG",event_com_x=0.1,event_com_y=0.2,event_com_z=0.3)
+        self.vector = Vector.objects.create(id=1,cmpd_id=self.cmpd,smiles="DUMMY",type="DE")
+        self.vector3d = Vector3D.objects.create(id=1,mol_id=self.mol,vector_id=self.vector,number=1)
+        self.target_res = TargetResidue.objects.create(id=1,target_id=self.target,res_name="DED",res_num=1,chain_id="A")
+        self.prot_res = ProteinResidue.objects.create(id=1,prot_id=self.protein,targ_res_id=self.target_res)
+        self.interaction_point = InteractionPoint.objects.create(id=1,mol_id=self.mol,prot_res_id=self.prot_res,
+                                                                 protein_atom_name="A",molecule_atom_name="B")
+        self.interaction = Interaction.objects.create(id=1,interaction_version="DE",interaction_type="UK",
+                                                      interaction_point=self.interaction_point)
+
+
+
+
 
     def testV0_1API(self):
         """
@@ -66,8 +79,10 @@ class APIUrlsTestCase(TestCase):
         :return:
         """
         url_base = "/v0.1"
-        urls = ['molecules','compounds','targets','proteins','sites','events']
-        # Fix for all the rest
+        urls = ['molecules','compounds','targets','proteins','sites','events',
+                'vectors','vector3ds','proteinres','targetres',
+                'interactionpoints','interactions']
+
         # 'scorechoice','molchoice','protchoice','cmpdchoice',
         # 'viewscene',
         # 'molgroup']
@@ -88,8 +103,20 @@ class APIUrlsTestCase(TestCase):
                           'lig_id': "LIG", 'event_com_x': 0.1, 'event_com_y': 0.2, 'event_com_z': 0.3,
                           'lig_com_x': None, 'lig_com_y': None, 'lig_com_z': None,
                           'event_dist_from_site_centroid': None, 'lig_dist_from_site_centroid': None},
+                         {'id':1, 'cmpd_id':1,'smiles':"DUMMY",'type':"DE"},
+                         {'id':1,'mol_id':1,'vector_id':1,'number':1,'start_x':None,'start_y':None,'start_z':None,
+                          'end_x': None,'end_y': None,'end_z': None},
+                         {'id':1,'target_id':1,'res_name':"DED",'res_num':1,'chain_id':"A"},
+                         {'id':1,'mol_id':1,'prot_res_id':1,'protein_atom_name':"A","molecule_atom_name":"B"},
+                         {'id': 1, 'interaction_version':"DE", 'interaction_type':"UK",'interaction_point': 1,
+                          'distance':None,'score':None,'prot_smarts': None,'mol_smarts':None}
                          ]
+
         post_data = [{},
+                     {},
+                     {},
+                     {},
+                     {},
                      {},
                      {},
                      {},
@@ -97,6 +124,12 @@ class APIUrlsTestCase(TestCase):
                      {},
                      {}]
         post_resp = [{u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
+                     {u'detail': u'Method "POST" not allowed.'},
                      {u'detail': u'Method "POST" not allowed.'},
                      {u'detail': u'Method "POST" not allowed.'},
                      {u'detail': u'Method "POST" not allowed.'},
