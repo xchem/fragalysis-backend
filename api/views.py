@@ -1,6 +1,8 @@
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound,Target, PanddaEvent, PanddaSite
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound,Target, PanddaEvent, PanddaSite, \
+    Vector, Vector3D, Interaction, ProteinResidue, TargetResidue
 from viewer.serializers import MoleculeSerializer, ProteinSerializer, CompoundSerializer, TargetSerializer, \
-    PanddaEventSerializer, PanddaSiteSerializer
+    PanddaEventSerializer, PanddaSiteSerializer, Vector3DSerialzier,VectorSerialzier,InteractionSerialzier, \
+    ProteinResidueSerialzier, TargetResidueSerialzier
 from rest_framework import permissions
 from rest_framework import viewsets
 
@@ -36,7 +38,34 @@ class PanddaSiteView(viewsets.ReadOnlyModelViewSet):
     serializer_class = PanddaSiteSerializer
     filter_fields = ('pandda_run','site_id','pandda_version','target_id',)
 
-# TODO VIEW to get Images, PDBs, Vectors and Graphs
+class VectorView(viewsets.ReadOnlyModelViewSet):
+    queryset = Vector.objects.filter()
+    serializer_class = VectorSerialzier
+    filter_fields = ('cmpd_id','smiles','type')
+
+class Vector3DView(viewsets.ReadOnlyModelViewSet):
+    queryset = Vector3D.objects.filter()
+    serializer_class = Vector3DSerialzier
+    filter_fields = ('mol_id', 'vector_id', 'number')
+
+class InteractionView(viewsets.ReadOnlyModelViewSet):
+    queryset = Interaction.objects.filter()
+    serializer_class = InteractionSerialzier
+    filter_fields = ('prot_res_id', 'mol_id', 'interaction_version', 'interaction_type', 'protein_atom_name',
+              'molecule_atom_name', 'distance', 'score', 'prot_smarts', 'mol_smarts')
+
+class ProteinResidueView(viewsets.ReadOnlyModelViewSet):
+    queryset = ProteinResidue.objects.filter()
+    serializer_class = ProteinResidueSerialzier
+    filter_fields = ('prot_id', 'targ_res_id')
+
+class TargetResidueView(viewsets.ReadOnlyModelViewSet):
+    queryset = TargetResidue.objects.filter()
+    serializer_class = TargetResidueSerialzier
+    filter_fields = ('target_id', 'res_name', 'res_num', 'chain_id')
+
+
+# TODO VIEW to get Images,and Graphs
 
 """
     # New REST functions
