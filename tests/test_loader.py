@@ -3,13 +3,11 @@ from loader.functions import desalt_compound,NeutraliseCharges,sanitize_mol
 from loader.loaders import add_target, add_mol, add_comp, add_prot, analyse_mols, analyse_target, add_contacts
 from rdkit import Chem
 from viewer.models import Molecule,Compound,Protein,Target
-from hypothesis.models import Vector,Vector3D
+from hypothesis.models import Vector,Vector3D,\
+    Interaction,InteractionPoint,ProteinResidue,TargetResidue
 from scoring.models import MolGroup
 import json
-class InteractionLoaderFunctionsTestCase(TestCase):
-    def test_load(self):
-        input_data = [{"dstserno": 285, "dstType": "[N;X2]=C[N;X3]", "dstaname": "NH2", "dstrname": "ARG A  67 ", "srcserno": 91, "hetmoltype": "LIG", "contactClass": "S", "contactId": 0, "srcType": "[O;X1]=C", "contactType": "hbond", "srcaname": "O1", "dis": 2.8713592600021336, "srcrname": "LIG E   1 "}, {"dstserno": 285, "dstType": "[O;D0]", "dstaname": "O", "dstrname": "HOH B 177 ", "srcserno": 266, "hetmoltype": "LIG", "contactClass": "S", "contactId": 0, "srcType": "[O;X1]=C", "WaterRank": 0.92620632462753028, "contactType": "hbond", "srcaname": "O1", "dis": 2.8818716140730491, "srcrname": "LIG E   1 "}, {"dstserno": 282, "dstType": "[N;X2]=C[N;X3]", "dstaname": "NH2", "dstrname": "ARG A  67 ", "srcserno": 91, "hetmoltype": "LIG", "contactClass": "S", "contactId": 3, "srcType": "[#6;X3]", "contactType": "cat_pi", "srcaname": "C8", "dis": 3.1437404473015897, "srcrname": "LIG E   1 "}, {"dstserno": 283, "dstType": "[C;D3](=[N;X2])[N;X3]", "dstaname": "CZ", "dstrname": "ARG A  67 ", "srcserno": 89, "hetmoltype": "LIG", "contactClass": "W", "contactId": 3, "srcType": "[#6;X3]", "contactType": "cat_pi", "srcaname": "C9", "dis": 3.7579441187968725, "srcrname": "LIG E   1 "}, {"dstserno": 28, "dstType": "[#6;X3]", "dstaname": "CZ", "dstrname": "TYR A  41 ", "srcserno": 282, "hetmoltype": "LIG", "contactClass": "W", "contactId": 7, "srcType": "[#6;X3]", "contactType": "pi_pi", "srcaname": "C8", "dis": 3.5787707386755025, "srcrname": "LIG E   1 "}, {"dstserno": 26, "dstType": "[#6;X3]", "dstaname": "CE1", "dstrname": "TYR A  41 ", "srcserno": 283, "hetmoltype": "LIG", "contactClass": "W", "contactId": 7, "srcType": "[#6;X3]", "contactType": "pi_pi", "srcaname": "C9", "dis": 3.8064135350747166, "srcrname": "LIG E   1 "}, {"dstserno": 27, "dstType": "[#6;X3]", "dstaname": "CE2", "dstrname": "TYR A  41 ", "srcserno": 285, "hetmoltype": "LIG", "contactClass": "P", "contactId": 7, "srcType": "[O;X1]=C", "contactType": "poor_ang", "srcaname": "O1", "dis": 3.6816126901128534, "srcrname": "LIG E   1 "}, {"dstserno": 60, "dstType": "[N;X2]=C[N;X3]", "dstaname": "NH1", "dstrname": "ARG A  61 ", "srcserno": 276, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW", "srcaname": "C2", "dis": 3.3666553135122101, "srcrname": "LIG E   1 "}, {"dstserno": 59, "dstType": "[C;D3](=[N;X2])[N;X3]", "dstaname": "CZ", "dstrname": "ARG A  61 ", "srcserno": 272, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW", "srcaname": "C1", "dis": 3.6744675804801976, "srcrname": "LIG E   1 "}, {"dstserno": 209, "dstType": "[#6]", "dstaname": "CG2", "dstrname": "THR A 120 ", "srcserno": 283, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6;X3]", "contactType": "vdW", "srcaname": "C9", "dis": 3.8099112850563857, "srcrname": "LIG E   1 "}, {"dstserno": 22, "dstType": "[#6]", "dstaname": "CB", "dstrname": "TYR A  41 ", "srcserno": 279, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW", "srcaname": "C5", "dis": 3.8161614221623275, "srcrname": "LIG E   1 "}, {"dstserno": 87, "dstType": "[#6]", "dstaname": "CD", "dstrname": "ARG A  67 ", "srcserno": 272, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW", "srcaname": "C1", "dis": 3.8670898618987382, "srcrname": "LIG E   1 "}, {"dstserno": 87, "dstType": "[#6]", "dstaname": "CD", "dstrname": "ARG A  67 ", "srcserno": 275, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6;X3]", "contactType": "vdW", "srcaname": "C12", "dis": 3.8904148879007749, "srcrname": "LIG E   1 "}, {"dstserno": 25, "dstType": "[#6;X3]", "dstaname": "CD2", "dstrname": "TYR A  41 ", "srcserno": 279, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW", "srcaname": "C5", "dis": 3.899495351965431, "srcrname": "LIG E   1 "}, {"dstserno": 87, "dstType": "[#6]", "dstaname": "CD", "dstrname": "ARG A  67 ", "srcserno": 285, "hetmoltype": "LIG", "contactClass": "S", "contactId": 9, "srcType": "[O;X1]=C", "contactType": "unk", "srcaname": "O1", "dis": 3.2183747451159257, "srcrname": "LIG E   1 "}, {"dstserno": 254, "dstType": "[O;D0]", "dstaname": "O", "dstrname": "HOH B  33 ", "srcserno": 278, "hetmoltype": "LIG", "contactClass": "S", "contactId": 9, "srcType": "[#6]", "WaterRank": 1.0, "contactType": "unk", "srcaname": "C4", "dis": 3.291210111797787, "srcrname": "LIG E   1 "}]
-        add_contacts(input_data)
+
 
 class LoaderFunctionsTestCase(TestCase):
 
@@ -77,6 +75,65 @@ class LoderLoaderTestCase(TestCase):
         add_target("DUMMY_TARGET")
         add_target("DUMMY_TWO")
 
+    def test_load(self):
+        input_data = [
+            {"dstserno": 285, "dstType": "[N;X2]=C[N;X3]", "dstaname": "NH2", "dstrname": "ARG A  67 ", "srcserno": 91,
+             "hetmoltype": "LIG", "contactClass": "S", "contactId": 0, "srcType": "[O;X1]=C", "contactType": "hbond",
+             "srcaname": "O1", "dis": 2.8713592600021336, "srcrname": "LIG E   1 "},
+            {"dstserno": 285, "dstType": "[O;D0]", "dstaname": "O", "dstrname": "HOH B 177 ", "srcserno": 266,
+             "hetmoltype": "LIG", "contactClass": "S", "contactId": 0, "srcType": "[O;X1]=C",
+             "WaterRank": 0.92620632462753028, "contactType": "hbond", "srcaname": "O1", "dis": 2.8818716140730491,
+             "srcrname": "LIG E   1 "},
+            {"dstserno": 282, "dstType": "[N;X2]=C[N;X3]", "dstaname": "NH2", "dstrname": "ARG A  67 ", "srcserno": 91,
+             "hetmoltype": "LIG", "contactClass": "S", "contactId": 3, "srcType": "[#6;X3]", "contactType": "cat_pi",
+             "srcaname": "C8", "dis": 3.1437404473015897, "srcrname": "LIG E   1 "},
+            {"dstserno": 283, "dstType": "[C;D3](=[N;X2])[N;X3]", "dstaname": "CZ", "dstrname": "ARG A  67 ",
+             "srcserno": 89, "hetmoltype": "LIG", "contactClass": "W", "contactId": 3, "srcType": "[#6;X3]",
+             "contactType": "cat_pi", "srcaname": "C9", "dis": 3.7579441187968725, "srcrname": "LIG E   1 "},
+            {"dstserno": 28, "dstType": "[#6;X3]", "dstaname": "CZ", "dstrname": "TYR A  41 ", "srcserno": 282,
+             "hetmoltype": "LIG", "contactClass": "W", "contactId": 7, "srcType": "[#6;X3]", "contactType": "pi_pi",
+             "srcaname": "C8", "dis": 3.5787707386755025, "srcrname": "LIG E   1 "},
+            {"dstserno": 26, "dstType": "[#6;X3]", "dstaname": "CE1", "dstrname": "TYR A  41 ", "srcserno": 283,
+             "hetmoltype": "LIG", "contactClass": "W", "contactId": 7, "srcType": "[#6;X3]", "contactType": "pi_pi",
+             "srcaname": "C9", "dis": 3.8064135350747166, "srcrname": "LIG E   1 "},
+            {"dstserno": 27, "dstType": "[#6;X3]", "dstaname": "CE2", "dstrname": "TYR A  41 ", "srcserno": 285,
+             "hetmoltype": "LIG", "contactClass": "P", "contactId": 7, "srcType": "[O;X1]=C", "contactType": "poor_ang",
+             "srcaname": "O1", "dis": 3.6816126901128534, "srcrname": "LIG E   1 "},
+            {"dstserno": 60, "dstType": "[N;X2]=C[N;X3]", "dstaname": "NH1", "dstrname": "ARG A  61 ", "srcserno": 276,
+             "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW",
+             "srcaname": "C2", "dis": 3.3666553135122101, "srcrname": "LIG E   1 "},
+            {"dstserno": 59, "dstType": "[C;D3](=[N;X2])[N;X3]", "dstaname": "CZ", "dstrname": "ARG A  61 ",
+             "srcserno": 272, "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]",
+             "contactType": "vdW", "srcaname": "C1", "dis": 3.6744675804801976, "srcrname": "LIG E   1 "},
+            {"dstserno": 209, "dstType": "[#6]", "dstaname": "CG2", "dstrname": "THR A 120 ", "srcserno": 283,
+             "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6;X3]", "contactType": "vdW",
+             "srcaname": "C9", "dis": 3.8099112850563857, "srcrname": "LIG E   1 "},
+            {"dstserno": 22, "dstType": "[#6]", "dstaname": "CB", "dstrname": "TYR A  41 ", "srcserno": 279,
+             "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW",
+             "srcaname": "C5", "dis": 3.8161614221623275, "srcrname": "LIG E   1 "},
+            {"dstserno": 87, "dstType": "[#6]", "dstaname": "CD", "dstrname": "ARG A  67 ", "srcserno": 272,
+             "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW",
+             "srcaname": "C1", "dis": 3.8670898618987382, "srcrname": "LIG E   1 "},
+            {"dstserno": 87, "dstType": "[#6]", "dstaname": "CD", "dstrname": "ARG A  67 ", "srcserno": 275,
+             "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6;X3]", "contactType": "vdW",
+             "srcaname": "C12", "dis": 3.8904148879007749, "srcrname": "LIG E   1 "},
+            {"dstserno": 25, "dstType": "[#6;X3]", "dstaname": "CD2", "dstrname": "TYR A  41 ", "srcserno": 279,
+             "hetmoltype": "LIG", "contactClass": "W", "contactId": 8, "srcType": "[#6]", "contactType": "vdW",
+             "srcaname": "C5", "dis": 3.899495351965431, "srcrname": "LIG E   1 "},
+            {"dstserno": 87, "dstType": "[#6]", "dstaname": "CD", "dstrname": "ARG A  67 ", "srcserno": 285,
+             "hetmoltype": "LIG", "contactClass": "S", "contactId": 9, "srcType": "[O;X1]=C", "contactType": "unk",
+             "srcaname": "O1", "dis": 3.2183747451159257, "srcrname": "LIG E   1 "},
+            {"dstserno": 254, "dstType": "[O;D0]", "dstaname": "O", "dstrname": "HOH B  33 ", "srcserno": 278,
+             "hetmoltype": "LIG", "contactClass": "S", "contactId": 9, "srcType": "[#6]", "WaterRank": 1.0,
+             "contactType": "unk", "srcaname": "C4", "dis": 3.291210111797787, "srcrname": "LIG E   1 "}]
+        # Add the contacts
+        add_contacts(input_data, self.target, self.protein, self.mol)
+        # Now test some stuff to do with the output
+        self.assertEqual(Interaction.objects.count(),16)
+        self.assertEqual(InteractionPoint.objects.count(), 13)
+        self.assertEqual(ProteinResidue.objects.count(), 6)
+        self.assertEqual(TargetResidue.objects.count(), 6)
+        
     def test_add_mol(self):
         self.assertEqual(Molecule.objects.count(),2)
         add_mol(self.mol_sd_two,self.protein_two)
