@@ -1,5 +1,6 @@
 from rest_framework.test import APIRequestFactory
-from viewer.models import Molecule,Protein,Target,Compound,PanddaEvent,PanddaSite
+from viewer.models import Molecule,Protein,Target,Compound
+from pandda.models import PanddaEvent,PanddaSite
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase, RequestFactory
 

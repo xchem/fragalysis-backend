@@ -122,11 +122,11 @@ class LoderLoaderTestCase(TestCase):
         self.assertEqual(MolGroup.objects.filter(group_type='MC').count(),1)
         self.assertEqual(MolGroup.objects.filter(group_type='PC').count(),16)
         self.assertEqual(Vector3D.objects.filter().count(),29)
-        self.assertEqual(Vector.objects.filter().count(),29)
-        self.assertEqual(Vector.objects.filter(type="AD").count(),23)
-        self.assertEqual(Vector.objects.filter(type="DE").count(),2)
-        self.assertEqual(Vector.objects.filter(type="LI").count(),2)
-        self.assertEqual(Vector.objects.filter(type="RI").count(),2)
+        self.assertEqual(Vector.objects.filter().count(),17)
+        self.assertEqual(Vector.objects.filter(type="AD").count(),14)
+        self.assertEqual(Vector.objects.filter(type="DE").count(),1)
+        self.assertEqual(Vector.objects.filter(type="LI").count(),1)
+        self.assertEqual(Vector.objects.filter(type="RI").count(),1)
 
 
 
