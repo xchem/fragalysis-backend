@@ -64,6 +64,8 @@ INSTALLED_APPS = [
     'network',
     'viewer',
     'api',
+    'pandda',
+    'hypothesis'
     # My utility apps
     'bootstrap3',
     'guardian',

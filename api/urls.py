@@ -3,21 +3,24 @@ from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 from api import views
 from scoring import views as score_views
+from viewer import views as viewer_views
+from pandda import views as pandda_views
+from hypothesis import views as hypo_views
 
 router = DefaultRouter()
 # Register the basic data
-router.register(r'molecules', views.MoleculeView)
-router.register(r'compounds', views.CompoundView)
-router.register(r'targets', views.TargetView)
-router.register(r'proteins', views.ProteinView)
-router.register(r'events', views.PanddaEventView)
-router.register(r'sites', views.PanddaSiteView)
-# Register the vectors and interactions
-router.register(r'vectors', views.VectorView)
-router.register(r'vector3ds', views.Vector3DView)
-router.register(r'interactions', views.InteractionView)
-router.register(r'proteinres', views.ProteinResidueView)
-router.register(r'targetres', views.TargetResidueView)
+router.register(r'molecules', viewer_views.MoleculeView)
+router.register(r'compounds', viewer_views.CompoundView)
+router.register(r'targets', viewer_views.TargetView)
+router.register(r'proteins', viewer_views.ProteinView)
+router.register(r'events', pandda_views.PanddaEventView)
+router.register(r'sites', pandda_views.PanddaSiteView)
+# Register the vectors and hypothesis
+router.register(r'vectors', hypo_views.VectorView)
+router.register(r'vector3ds', hypo_views.Vector3DView)
+router.register(r'interactions', hypo_views.InteractionView)
+router.register(r'proteinres', hypo_views.ProteinResidueView)
+router.register(r'targetres', hypo_views.TargetResidueView)
 # Register the  choices
 router.register(r'scorechoice',score_views.ScoreChoiceView)
 router.register(r'molchoice',score_views.MolChoiceView)

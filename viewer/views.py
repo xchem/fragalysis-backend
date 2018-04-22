@@ -8,80 +8,40 @@ from frag.network.decorate import get_3d_vects_for_mol
 from frag.network.query import get_full_graph
 from api.utils import draw_mol,get_token
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-
-
-def get_mols_from_scene(scene):
-    comps = json.loads(scene)['components']
-    mol_pks = []
-    for comp in comps:
-        path = comp['file_path']
-        if "/viewer/mol_from_pk/" in path:
-            mol_pks.append(int(path.split("/viewer/mol_from_pk/")[-1]))
-    return mol_pks
-
-def display(request):
-    # Define the proteins, targets and molecules to be displayed / have options for displaying
-    scene_id = 0
-    if "target_title" in request.GET:
-        target_title = request.GET["target_title"]
-        mols = Molecule.objects.filter(prot_id__target_id__title=target_title)
-    elif "scene_id" in request.GET:
-        scene_id = int(request.GET["scene_id"])
-        vs = ViewScene.objects.get(pk=scene_id)
-        mol_pks = get_mols_from_scene(vs.scene)
-        mols = Molecule.objects.filter(id__in=mol_pks)
-    token = get_token(request)
-    return render(request, 'viewer/display.html', {"token": token, "mols": mols, "scene_id": scene_id})
+from viewer.models import Molecule, Protein, Compound,Target
+from viewer.serializers import MoleculeSerializer, ProteinSerializer, CompoundSerializer, TargetSerializer
+from rest_framework import permissions
+from rest_framework import viewsets
 
 
 def react(request):
     """
-
     :param request:
     :return:
     """
     return render(request,'viewer/react_temp.html',)
 
+class TargetView(viewsets.ReadOnlyModelViewSet):
+    queryset = Target.objects.filter()
+    serializer_class = TargetSerializer
+    # permission_classes =  [permissions.DjangoObjectPermissions,]
+    filter_fields = ('title',)
 
-def inspect(request, target_pk):
-    num_per_page = 5
-    page = request.GET.get('page', 1)
-    mol_pks = [x.pk for x in Molecule.objects.filter(prot_id__target_id__pk=target_pk) if x.prot_id.map_info.name != '']
-    mols = Molecule.objects.filter(pk__in=mol_pks)
-    paginator = Paginator(mols, num_per_page)
-    try:
-        mols = paginator.page(page)
-    except PageNotAnInteger:
-        mols = paginator.page(1)
-    except EmptyPage:
-        mols = paginator.page(paginator.num_pages)
-    token = get_token(request)
-    return render(request, 'viewer/inspect.html', {"token": token, "mols": mols})
+class MoleculeView(viewsets.ReadOnlyModelViewSet):
+    queryset = Molecule.objects.filter()
+    serializer_class = MoleculeSerializer
+    filter_fields = ('prot_id', 'cmpd_id','smiles','prot_id__target_id', 'mol_groups')
 
-def tindspect(request, target_pk):
-    num_per_page = 1
-    page = request.GET.get('page', 1)
-    mol_pks = [x.pk for x in Molecule.objects.filter(prot_id__target_id__pk=target_pk) if x.prot_id.map_info.name != '']
-    mols = Molecule.objects.filter(pk__in=mol_pks)
-    paginator = Paginator(mols, num_per_page)
-    try:
-        mols = paginator.page(page)
-    except PageNotAnInteger:
-        mols = paginator.page(1)
-    except EmptyPage:
-        mols = paginator.page(paginator.num_pages)
-    token = get_token(request)
-    return render(request, 'viewer/tindspect.html', {"token": token, "mols": mols})
+class CompoundView(viewsets.ReadOnlyModelViewSet):
+    queryset = Compound.objects.filter()
+    serializer_class = CompoundSerializer
+    filter_fields = ('smiles',)
 
-def mol_choice(request, mol_pk, score):
-    mol = Molecule.objects.get(pk=mol_pk)
-    user = request.user
-    if not user.is_authenticated():
-        return HttpResponse("Not authenticated")
-    choice = MolChoice.objects.get_or_create(mol_id=mol,user_id=user,text="DENSITY")[0]
-    choice.score = score
-    choice.save()
-    return HttpResponse("Succesfully stored choice")
+class ProteinView(viewsets.ReadOnlyModelViewSet):
+    queryset = Protein.objects.filter()
+    serializer_class = ProteinSerializer
+    filter_fields = ('code','target_id',)
+
 
 def get_params(smiles,request):
     height = None
