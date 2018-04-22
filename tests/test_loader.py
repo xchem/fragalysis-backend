@@ -2,7 +2,8 @@ from django.test import TestCase
 from loader.functions import desalt_compound,NeutraliseCharges,sanitize_mol
 from loader.loaders import add_target, add_mol, add_comp, add_prot, analyse_mols, analyse_target, add_contacts
 from rdkit import Chem
-from viewer.models import Molecule,Compound,Protein,Target,Vector3D,Vector
+from viewer.models import Molecule,Compound,Protein,Target
+from hypothesis.models import Vector,Vector3D
 from scoring.models import MolGroup
 import json
 class InteractionLoaderFunctionsTestCase(TestCase):
@@ -36,7 +37,6 @@ class LoderLoaderTestCase(TestCase):
     def setUp(self):
         out_f = open('DUMMY_NEW.pdb', "w")
         out_f = open("DUMMY_NEW_TWO.pdb", "w")
-
         self.mol_one = Chem.MolFromSmiles("CCC[NH+]CCC.Cl")
         self.mol_two = Chem.MolFromSmiles("CCC[NH+]CCC")
         self.mol_three = Chem.MolFromSmiles("CCCNCCC")

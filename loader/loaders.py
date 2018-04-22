@@ -255,7 +255,7 @@ def get_vectors(mols):
     vect_types = VectTypes()
     for mol in mols:
         if "." in mol.smiles:
-            print("SKIPPING - FRAGMENT....")
+            print("SKIPPING - FRAGMENT: " + str(mol.pk))
             continue
         vectors = get_3d_vects_for_mol(mol.sdf_info)
         for vect_type in vectors:
