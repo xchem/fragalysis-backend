@@ -21,6 +21,7 @@ router.register(r'vector3ds', hypo_views.Vector3DView)
 router.register(r'interactions', hypo_views.InteractionView)
 router.register(r'proteinres', hypo_views.ProteinResidueView)
 router.register(r'targetres', hypo_views.TargetResidueView)
+router.register(r'interactionpoint', hypo_views.InteractionPointView)
 # Register the  choices
 router.register(r'scorechoice',score_views.ScoreChoiceView)
 router.register(r'molchoice',score_views.MolChoiceView)

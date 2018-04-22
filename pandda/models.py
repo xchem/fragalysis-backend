@@ -1,5 +1,5 @@
 from django.db import models
-from viewer.models import Target
+from viewer.models import Target,Xtal
 
 class PanddaSite(models.Model):
     """
@@ -29,7 +29,7 @@ class PanddaEvent(models.Model):
     pandda_site = models.ForeignKey(PanddaSite)
     target_id = models.ForeignKey(Target)
     # The xtal - this will later be linke to Rachael's stuff
-    xtal = models.TextField()
+    xtal_id = models.ForeignKey(Xtal)
     # The event id
     event = models.IntegerField()
     apo_holo = models.NullBooleanField()
@@ -50,4 +50,4 @@ class PanddaEvent(models.Model):
     lig_dist_from_site_centroid = models.FloatField(null=True)
     # Unique constraints
     class Meta:
-        unique_together = ('xtal', 'event', 'pandda_site', 'target_id')
+        unique_together = ('xtal_id', 'event', 'pandda_site', 'target_id')

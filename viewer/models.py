@@ -30,10 +30,20 @@ class Target(models.Model):
             ('view_target', 'View target'),
         )
 
+class Xtal(models.Model):
+    # The name of this xtal
+    xtal_name = models.TextField()
+    target_id = models.ForeignKey(Target)
+
+    class Meta:
+        unique_together = ('xtal_name', 'target_id',)
+
+
 class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
     # code for this protein
     code = models.CharField(max_length=50,unique=True, db_index=True)
+    xtal_id = models.ForeignKey(Xtal)
     target_id = models.ForeignKey(Target)
     apo_holo = models.NullBooleanField()
     pdb_info = models.FileField(upload_to='pdbs/', null=True, max_length=10000000)
