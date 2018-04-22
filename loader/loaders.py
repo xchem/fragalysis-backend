@@ -1,6 +1,6 @@
 import os,sys,re,json
 from viewer.models import Target,Protein,Molecule,Compound,PanddaSite,PanddaEvent,\
-    Vector,Vector3D,Interaction,ProteinResidue,TargetResidue
+    Vector,Vector3D,Interaction,ProteinResidue,TargetResidue,InteractionPoint
 from viewer.definitions import VectTypes,IntTypes
 from django.core.exceptions import ValidationError
 from django.core.files import File
@@ -141,11 +141,14 @@ def add_contacts(input_data,target,prot,mol):
         res_name, res_num, chain_id = parse_proasis(interaction['dstrname'])
         targ_res = TargetResidue.objects.get_or_create(target_id=target,res_name=res_name,res_num=res_num,chain_id=chain_id)[0]
         prot_res = ProteinResidue.objects.get_or_create(targ_res_id=targ_res,prot_id=prot)[0]
-        Interaction.objects.get_or_create(prot_res_id=prot_res,mol_id=mol,interaction_version="PR",
+        interation_point = InteractionPoint.objects.get_or_create(prot_res_id=prot_res,mol_id=mol,
+                                                                  protein_atom_name=interaction['dstaname'],
+                                                                  molecule_atom_name=interaction['srcaname']
+                                                                  )[0]
+        Interaction.objects.get_or_create(interaction_version="PR",interaction_point=interation_point,
                                           interaction_type=int_type.get_int_conv("PR",interaction["contactType"]),
-                                          distance=interaction["dis"],protein_atom_name=interaction['dstaname'],
-                                          molecule_atom_name=interaction['srcaname'],
-                                          prot_smarts=interaction['dstType'],mol_smarts=interaction['srcType'])
+                                          distance=interaction["dis"],prot_smarts=interaction['dstType'],
+                                          mol_smarts=interaction['srcType'])
 
 def load_from_dir(target_name, dir_path):
     """
