@@ -220,7 +220,11 @@ def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_i
 
 def load_events_from_dir(target_name,dir_path):
     new_target = add_target(target_name)
-    os.chdir(dir_path)
+    if(os.path.isdir(dir_path)):
+        os.chdir(dir_path)
+    else:
+        "No events to add: " + target_name
+        return None
     lines = [x.strip() for x in open("out.csv").readlines()]
     header = lines[0].split(",")
     PATTERN = re.compile(r'''((?:[^,"']|"[^"]*"|'[^']*')+)''')
