@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, \
-    Vector3D,Vector,Interaction,ProteinResidue,TargetResidue, InteractionPoint
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target
 
 class TargetSerializer(serializers.ModelSerializer):
     class Meta:

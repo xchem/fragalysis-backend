@@ -1,25 +1,7 @@
-from django.http import HttpResponse
-from django.shortcuts import render
-from viewer.models import Molecule,Protein,Compound
-from scoring.models import MolChoice,ViewScene
-from uuid import uuid4
-import json
-from frag.network.decorate import get_3d_vects_for_mol
-from frag.network.query import get_full_graph
-from api.utils import draw_mol,get_token
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from viewer.models import Molecule, Protein, Compound,Target
 from viewer.serializers import MoleculeSerializer, ProteinSerializer, CompoundSerializer, TargetSerializer
 from rest_framework import permissions
 from rest_framework import viewsets
-
-
-def react(request):
-    """
-    :param request:
-    :return:
-    """
-    return render(request,'viewer/react_temp.html',)
 
 class TargetView(viewsets.ReadOnlyModelViewSet):
     queryset = Target.objects.filter()
@@ -41,6 +23,25 @@ class ProteinView(viewsets.ReadOnlyModelViewSet):
     queryset = Protein.objects.filter()
     serializer_class = ProteinSerializer
     filter_fields = ('code','target_id',)
+
+
+from django.http import HttpResponse
+from django.shortcuts import render
+from viewer.models import Molecule,Protein,Compound
+from scoring.models import MolChoice,ViewScene
+from uuid import uuid4
+import json
+from frag.network.decorate import get_3d_vects_for_mol
+from frag.network.query import get_full_graph
+from api.utils import draw_mol,get_token
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+def react(request):
+    """
+    :param request:
+    :return:
+    """
+    return render(request,'viewer/react_temp.html',)
+
 
 
 def get_params(smiles,request):
