@@ -3,9 +3,6 @@ from django.conf.urls import url
 from . import views
 
 urlpatterns = [
-    url(r'^display/$', views.display, name='display'),
-    url(r'^inspect/(?P<target_pk>[0-9]+)/$', views.inspect, name='inspect'),
-    url(r'^tindspect/(?P<target_pk>[0-9]+)/$', views.tindspect, name='tindspect'),
     url(r'^react/$', views.react, name='react'),
     # New REST functions
     url(r'^img_from_mol_pk/(?P<pk>[0-9]+)/$', views.img_from_mol_pk, name='img_from_mol_pk'),

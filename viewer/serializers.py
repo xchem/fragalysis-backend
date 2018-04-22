@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, PanddaSite, PanddaEvent, \
-    Vector3D,Vector,Interaction,ProteinResidue,TargetResidue
+    Vector3D,Vector,Interaction,ProteinResidue,TargetResidue, InteractionPoint
 
 
 class TargetSerializer(serializers.ModelSerializer):
@@ -65,8 +65,14 @@ class InteractionSerialzier(serializers.ModelSerializer):
 
     class Meta:
         model = Interaction
-        fields = ('id','prot_res_id', 'mol_id', 'interaction_version', 'interaction_type','protein_atom_name',
-                  'molecule_atom_name','distance','score','prot_smarts','mol_smarts')
+        fields = ('id','interaction_version','interaction_point','interaction_type','distance',
+                  'score','prot_smarts','mol_smarts')
+
+class InteractionPointSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = InteractionPoint
+        fields = ('id','prot_res_id', 'mol_id','protein_atom_name','molecule_atom_name',)
 
 class ProteinResidueSerialzier(serializers.ModelSerializer):
 

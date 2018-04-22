@@ -1,8 +1,8 @@
 from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound,Target, PanddaEvent, PanddaSite, \
-    Vector, Vector3D, Interaction, ProteinResidue, TargetResidue
+    Vector, Vector3D, Interaction, ProteinResidue, TargetResidue, InteractionPoint
 from viewer.serializers import MoleculeSerializer, ProteinSerializer, CompoundSerializer, TargetSerializer, \
     PanddaEventSerializer, PanddaSiteSerializer, Vector3DSerialzier,VectorSerialzier,InteractionSerialzier, \
-    ProteinResidueSerialzier, TargetResidueSerialzier
+    ProteinResidueSerialzier, TargetResidueSerialzier, InteractionPointSerializer
 from rest_framework import permissions
 from rest_framework import viewsets
 
@@ -51,8 +51,13 @@ class Vector3DView(viewsets.ReadOnlyModelViewSet):
 class InteractionView(viewsets.ReadOnlyModelViewSet):
     queryset = Interaction.objects.filter()
     serializer_class = InteractionSerialzier
-    filter_fields = ('prot_res_id', 'mol_id', 'interaction_version', 'interaction_type', 'protein_atom_name',
-              'molecule_atom_name', 'distance', 'score', 'prot_smarts', 'mol_smarts')
+    filter_fields = ('interaction_point', 'interaction_version', 'interaction_type',
+                     'distance', 'score', 'prot_smarts', 'mol_smarts')
+
+class InteractionPointView(viewsets.ReadOnlyModelViewSet):
+    queryset = InteractionPoint.objects.filter()
+    serializer_class = InteractionPointSerializer
+    filter_fields = ('prot_res_id', 'mol_id', 'protein_atom_name', 'molecule_atom_name',)
 
 class ProteinResidueView(viewsets.ReadOnlyModelViewSet):
     queryset = ProteinResidue.objects.filter()

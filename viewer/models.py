@@ -146,34 +146,42 @@ class TargetResidue(models.Model):
             ('view_targetresidue', 'View targetresidue'),
         )
 
+class InteractionPoint(models.Model):
+    # The protein residue id
+    prot_res_id = models.ForeignKey(ProteinResidue)
+    # The molecule id
+    mol_id = models.ForeignKey(Molecule)
+    # Set the molecule and protein identifier
+    protein_atom_name = models.TextField()
+    molecule_atom_name = models.TextField()
+
+    class Meta:
+        unique_together = ('prot_res_id', 'mol_id','protein_atom_name','molecule_atom_name',)
+
 class ProteinResidue(models.Model):
     """Model to store residue information - to curate the probes"""
     # The target it relates to
     prot_id = models.ForeignKey(Protein)
     # The target Residue it relates to
     targ_res_id = models.ForeignKey(TargetResidue)
+
     class Meta:
-        unique_together = ('prot_id', 'targ_res_id', )
+        unique_together = ('prot_id', 'targ_res_id',)
 
 
 class Interaction(models.Model):
     """Model to store the interaction information."""
     int_ver_choices, default_int_ver, int_type_choices, default_int_type = IntTypes().define_int_types()
-    # The protein residue id
-    prot_res_id = models.ForeignKey(ProteinResidue)
-    # The molecule id
-    mol_id = models.ForeignKey(Molecule)
     interaction_version = models.CharField(choices=int_ver_choices,max_length=2,default=default_int_ver)
     interaction_type = models.CharField(choices=int_type_choices,max_length=2,default=default_int_type)
-    protein_atom_name = models.TextField()
-    molecule_atom_name = models.TextField()
+    interaction_point = models.ForeignKey(InteractionPoint)
     distance = models.FloatField(null=True)
     score = models.FloatField(null=True)
     prot_smarts = models.TextField(null=True)
     mol_smarts = models.TextField(null=True)
 
     class Meta:
-        unique_together = ('prot_res_id', 'mol_id', 'interaction_type','interaction_version','protein_atom_name','molecule_atom_name')
+        unique_together = ('interaction_type','interaction_version','inteaction_point')
 
 class Vector(models.Model):
     # The compound it relates to
