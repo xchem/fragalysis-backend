@@ -107,6 +107,7 @@ class APIUrlsTestCase(TestCase):
                          {'id':1,'mol_id':1,'vector_id':1,'number':1,'start_x':None,'start_y':None,'start_z':None,
                           'end_x': None,'end_y': None,'end_z': None},
                          {'id':1,'target_id':1,'res_name':"DED",'res_num':1,'chain_id':"A"},
+                         {'id':1, 'prot_id' :1, 'targ_res_id': 1},
                          {'id':1,'mol_id':1,'prot_res_id':1,'protein_atom_name':"A","molecule_atom_name":"B"},
                          {'id': 1, 'interaction_version':"DE", 'interaction_type':"UK",'interaction_point': 1,
                           'distance':None,'score':None,'prot_smarts': None,'mol_smarts':None}
