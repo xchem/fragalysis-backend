@@ -25,7 +25,7 @@ class IntTypes(object):
             (UNKNOWN, 'Unkwnon'),
             (HBOND, 'H-bond'),
             (CATPI, 'Cation Pi'),
-            (HALOGEN, 'Halogen')
+            (HALOGEN, 'Halogen'),
             (VANDERWAALS, 'Van der Waals'),
             (CHARGE, 'Charge'),
             (WEAKHBOND, 'Weak H-bond'),
