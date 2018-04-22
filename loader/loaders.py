@@ -1,5 +1,8 @@
 import os,sys,re,json
-from viewer.models import Target,Protein,Molecule,Compound,PanddaSite,PanddaEvent
+from viewer.models import Target,Protein,Molecule,Compound
+from pandda.models import PanddaSite,PanddaEvent
+from hypothesis.models import Vector3D,Vector,InteractionPoint,TargetResidue,ProteinResidue,Interaction
+from hypothesis.definitions import VectTypes,IntTypes
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from rdkit import Chem
@@ -7,6 +10,8 @@ from rdkit.Chem import Descriptors
 from scoring.models import MolGroup
 from frag.alysis.run_clustering import run_lig_cluster
 from loader.functions import sanitize_mol,get_path_or_none
+from frag.network.decorate import get_3d_vects_for_mol
+
 
 def add_target(title):
     """
@@ -123,6 +128,28 @@ def add_mol(mol_sd,prot,lig_id="LIG",chaind_id="Z",occupancy=0.0):
     new_mol.save()
     return new_mol
 
+
+def parse_proasis(input_string):
+    return input_string[:3].strip(), int(input_string[5:].strip()), input_string[3:5].strip()
+
+def add_contacts(input_data,target,prot,mol):
+    int_type = IntTypes()
+    for interaction in input_data:
+        # Ignore Water mediasted hypothesis with Protein for now
+        if interaction['hetmoltype'] == 'WATER':
+            continue
+        res_name, res_num, chain_id = parse_proasis(interaction['dstrname'])
+        targ_res = TargetResidue.objects.get_or_create(target_id=target,res_name=res_name,res_num=res_num,chain_id=chain_id)[0]
+        prot_res = ProteinResidue.objects.get_or_create(targ_res_id=targ_res,prot_id=prot)[0]
+        interation_point = InteractionPoint.objects.get_or_create(prot_res_id=prot_res,mol_id=mol,
+                                                                  protein_atom_name=interaction['dstaname'],
+                                                                  molecule_atom_name=interaction['srcaname']
+                                                                  )[0]
+        Interaction.objects.get_or_create(interaction_version="PR",interaction_point=interation_point,
+                                          interaction_type=int_type.get_int_conv("PR",interaction["contactType"]),
+                                          distance=interaction["dis"],prot_smarts=interaction['dstType'],
+                                          mol_smarts=interaction['srcType'])
+
 def load_from_dir(target_name, dir_path):
     """
     Load the data for a given target from a directory structure
@@ -138,11 +165,17 @@ def load_from_dir(target_name, dir_path):
         mol_file_path = os.path.join(new_path,xtal+".mol")
         map_path = get_path_or_none(new_path,xtal,"_event.map")
         mtz_path = get_path_or_none(new_path,xtal,".mtz")
+        contact_path = get_path_or_none(new_path,xtal,'_contacts.json')
+        print(contact_path)
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
             new_prot = add_prot(pdb_file_path,xtal,new_target,mtz_path=mtz_path,map_path=map_path)
             new_mol = add_mol(mol_file_path, new_prot)
             if not new_mol:
                 print("NONE MOL: "+xtal)
+            else:
+                if contact_path:
+                    if os.path.isfile(contact_path):
+                        add_contacts(json.load(open(contact_path)),new_target,new_prot,new_mol)
         else:
             print("File not found: "+xtal)
 
@@ -150,9 +183,8 @@ def load_from_dir(target_name, dir_path):
 def parse_centre(input_str):
     return json.loads(input_str.strip('"'))
 
-def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_id,
-                     event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,target):
 
+def create_site(site,target,pandda_version,site_align_cent,site_native_cent):
     new_site = PanddaSite.objects.get_or_create(site_id=site, target_id=target,pandda_run="STANDARD")[0]
     new_site.pandda_version = pandda_version
     new_site.site_align_com_x = site_align_cent[0]
@@ -162,7 +194,12 @@ def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_i
     new_site.site_native_com_y = site_native_cent[1]
     new_site.site_native_com_z = site_native_cent[2]
     new_site.save()
+    return new_site
+
+def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_id,
+                     event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,target):
     # Now make the event
+    new_site = create_site(site,target,pandda_version,site_align_cent,site_native_cent)
     new_event = PanddaEvent.objects.get_or_create(xtal=xtal, event=event, pandda_site=new_site, target_id=target)[0]
     new_event.pdb_info.save(os.path.basename(pdb_file), File(open(pdb_file)))
     new_event.mtz_info.save(os.path.basename(mtz_path),File(open(mtz_path)))
@@ -183,7 +220,11 @@ def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_i
 
 def load_events_from_dir(target_name,dir_path):
     new_target = add_target(target_name)
-    os.chdir(dir_path)
+    if(os.path.isdir(dir_path)):
+        os.chdir(dir_path)
+    else:
+        "No events to add: " + target_name
+        return None
     lines = [x.strip() for x in open("out.csv").readlines()]
     header = lines[0].split(",")
     PATTERN = re.compile(r'''((?:[^,"']|"[^"]*"|'[^']*')+)''')
@@ -192,7 +233,6 @@ def load_events_from_dir(target_name,dir_path):
         xtal = spl_line[0]
         event = spl_line[1]
         site = spl_line[2]
-        print("Processing: "+xtal)
         pandda_version = spl_line[3]
         pdb_file = spl_line[4]
         mtz_file = spl_line[5]
@@ -209,15 +249,41 @@ def load_events_from_dir(target_name,dir_path):
 
     os.chdir("../")
 
-
-def analyse_mols(mols, target):
+def get_vectors(mols):
     """
-    Analyse a list of molecules for a given target
+    Get the vectors for a given molecule
     :param mols:
     :param target:
     :return:
     """
-    rd_mols = [Chem.MolFromMolBlock(x.sdf_info) for x in mols]
+    vect_types = VectTypes()
+    for mol in mols:
+        if "." in mol.smiles:
+            print("SKIPPING - FRAGMENT: " + str(mol.pk)) + " " + str(mol.smiles)
+            continue
+        vectors = get_3d_vects_for_mol(mol.sdf_info)
+        for vect_type in vectors:
+            vect_choice = vect_types.translate_vect_types(vect_type)
+            for vector in vectors[vect_type]:
+                spl_vect = vector.split("__")
+                smiles = spl_vect[0]
+                if len(spl_vect) > 1:
+                    vect_ind = int(spl_vect[1])
+                else:
+                    vect_ind = 0
+                new_vect = Vector.objects.get_or_create(smiles=smiles,cmpd_id=mol.cmpd_id,type=vect_choice)[0]
+                new_vect3d = Vector3D.objects.get_or_create(mol_id=mol,vector_id=new_vect,number=vect_ind)[0]
+                # The start position
+                new_vect3d.start_x = float(vectors[vect_type][vector][0][0])
+                new_vect3d.start_y = float(vectors[vect_type][vector][0][1])
+                new_vect3d.start_z = float(vectors[vect_type][vector][0][2])
+                # The end position
+                new_vect3d.end_x = float(vectors[vect_type][vector][1][0])
+                new_vect3d.end_y = float(vectors[vect_type][vector][1][1])
+                new_vect3d.end_z = float(vectors[vect_type][vector][1][2])
+                new_vect3d.save()
+
+def cluster_mols(rd_mols,mols,target):
     id_mols = [x.pk for x in mols]
     out_data = run_lig_cluster(rd_mols, id_mols)
     for clust_type in out_data:
@@ -231,11 +297,22 @@ def analyse_mols(mols, target):
             mol_group.x_com = out_data[clust_type][cluster]['centre_of_mass'][0]
             mol_group.y_com = out_data[clust_type][cluster]['centre_of_mass'][1]
             mol_group.z_com = out_data[clust_type][cluster]['centre_of_mass'][2]
+            mol_group.description = clust_type
             mol_group.save()
             for mol_id in out_data[clust_type][cluster]["mol_ids"]:
                 this_mol = Molecule.objects.get(id=mol_id)
                 mol_group.mol_id.add(this_mol)
 
+def analyse_mols(mols, target):
+    """
+    Analyse a list of molecules for a given target
+    :param mols:
+    :param target:
+    :return:
+    """
+    rd_mols = [Chem.MolFromMolBlock(x.sdf_info) for x in mols]
+    cluster_mols(rd_mols,mols,target)
+    get_vectors(mols)
 
 def analyse_target(target_name):
     """

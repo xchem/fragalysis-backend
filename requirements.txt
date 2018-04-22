@@ -50,3 +50,4 @@ wcwidth==0.1.7
 websocket-client==0.46.0
 django-webpack-loader
 coveralls
+django-treebeard

@@ -2,8 +2,8 @@
 npm install
 python manage.py makemigrations auth
 python manage.py migrate auth
-python manage.py makemigrations scoring
-python manage.py migrate scoring
+python manage.py makemigrations scoring pandda hypothesis
+python manage.py migrate scoring pandda hypothesis
 python manage.py makemigrations
 python manage.py migrate     # Apply database migrations - weird order is due to https://stackoverflow.com/questions/31417470/django-db-utils-programmingerror-relation-app-user-does-not-exist-during-ma
 python loader.py
