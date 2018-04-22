@@ -181,7 +181,7 @@ class Interaction(models.Model):
     mol_smarts = models.TextField(null=True)
 
     class Meta:
-        unique_together = ('interaction_type','interaction_version','inteaction_point')
+        unique_together = ('interaction_type','interaction_version','interaction_point')
 
 class Vector(models.Model):
     # The compound it relates to
