@@ -112,31 +112,9 @@ class APIUrlsTestCase(TestCase):
                          {'id': 1, 'interaction_version':"DE", 'interaction_type':"UK",'interaction_point': 1,
                           'distance':None,'score':None,'prot_smarts': None,'mol_smarts':None}
                          ]
-
-        post_data = [{},
-                     {},
-                     {},
-                     {},
-                     {},
-                     {},
-                     {},
-                     {},
-                     {},
-                     {},
-                     {}]
-        post_resp = [{u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},
-                     {u'detail': u'Method "POST" not allowed.'},]
+        # Currently empty
+        post_data = [{} for x in response_data]
+        post_resp = [{u'detail': u'Method "POST" not allowed.'} for x in response_data]
         for i, url in enumerate(urls):
             # GET basic request
             response = self.client.get(url_base+"/"+url+"/1/")
