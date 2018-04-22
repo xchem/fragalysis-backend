@@ -1,5 +1,5 @@
 from django.db import models
-from viewer.definitions import IntTypes,VectTypes
+from hypothesis.definitions import IntTypes,VectTypes
 from viewer.models import Protein,Molecule,Target,Compound
 
 class TargetResidue(models.Model):
