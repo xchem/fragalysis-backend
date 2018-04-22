@@ -30,7 +30,6 @@ class PanddaEvent(models.Model):
     target_id = models.ForeignKey(Target)
     # The xtal - this will later be linked to Rachael's stuff
     xtal = models.TextField()
-    xtal_id = models.ForeignKey(Xtal)
     # The event id
     event = models.IntegerField()
     apo_holo = models.NullBooleanField()

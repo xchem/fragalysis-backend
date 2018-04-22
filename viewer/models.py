@@ -43,7 +43,6 @@ class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
     # code for this protein
     code = models.CharField(max_length=50,unique=True, db_index=True)
-    xtal_id = models.ForeignKey(Xtal)
     target_id = models.ForeignKey(Target)
     apo_holo = models.NullBooleanField()
     pdb_info = models.FileField(upload_to='pdbs/', null=True, max_length=10000000)
