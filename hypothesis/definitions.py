@@ -16,6 +16,7 @@ class IntTypes(object):
         CATDIP = 'CD'
         CATPI = 'CP'
         DIPOLAR = 'DI'
+        HALOGEN = 'HA'
         HDONPI = 'HP'
         PIPI = 'PP'
         POORANG = 'PA'
@@ -24,6 +25,7 @@ class IntTypes(object):
             (UNKNOWN, 'Unkwnon'),
             (HBOND, 'H-bond'),
             (CATPI, 'Cation Pi'),
+            (HALOGEN, 'Halogen')
             (VANDERWAALS, 'Van der Waals'),
             (CHARGE, 'Charge'),
             (WEAKHBOND, 'Weak H-bond'),
@@ -38,29 +40,32 @@ class IntTypes(object):
         self.DEFAULT_INT_TYPE = UNKNOWN
 
         self.conv_dict = {PROASIS: {'cat_dip': CATDIP,
-                       'cat_pi': CATPI,
-                       'dipolar': DIPOLAR,
-                       'hbond': HBOND,
-                       'hdon_pi': HDONPI,
-                       'ionic': CHARGE,
-                       'pi_pi': PIPI,
-                       'poor_ang': POORANG,
-                       'unfav': UNFAV,
-                       'unk': UNKNOWN,
-                       'vdW': VANDERWAALS},
-         DEFAULT: {'cat_dip': CATDIP,
-                       'cat_pi': CATPI,
-                       'dipolar': DIPOLAR,
-                       'hbond': HBOND,
-                       'hdon_pi': HDONPI,
-                       'ionic': CHARGE,
-                       'pi_pi': PIPI,
-                       'poor_ang': POORANG,
-                       'unfav': UNFAV,
-                       'unk': UNKNOWN,
-                       'vdW': VANDERWAALS
-                   }
-         }
+                                    'cat_pi': CATPI,
+                                    'dipolar': DIPOLAR,
+                                    'hbond': HBOND,
+                                    'hdon_pi': HDONPI,
+                                    'halogen': HALOGEN,
+                                    'ionic': CHARGE,
+                                    'pi_pi': PIPI,
+                                    'poor_ang': POORANG,
+                                    'unfav': UNFAV,
+                                    'unk': UNKNOWN,
+                                    'vdW': VANDERWAALS
+                                    },
+                          DEFAULT:{'cat_dip': CATDIP,
+                                   'cat_pi': CATPI,
+                                   'dipolar': DIPOLAR,
+                                   'hbond': HBOND,
+                                   'hdon_pi': HDONPI,
+                                   'halogen': HALOGEN,
+                                   'ionic': CHARGE,
+                                   'pi_pi': PIPI,
+                                   'poor_ang': POORANG,
+                                   'unfav': UNFAV,
+                                   'unk': UNKNOWN,
+                                   'vdW': VANDERWAALS
+                                   }
+                          }
 
     def define_int_types(self):
         return self.INT_VER_CHOICES, self.DEFAULT_INT_VER, self.INT_TYPE_CHOICES, self.DEFAULT_INT_TYPE
