@@ -31,7 +31,7 @@ class Target(models.Model):
         )
 
 class Xtal(models.Model):
-    # The name of this xtal
+    # The na    me of this xtal
     xtal_name = models.TextField()
     target_id = models.ForeignKey(Target)
 

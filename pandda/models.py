@@ -28,7 +28,8 @@ class PanddaEvent(models.Model):
     # Define the site
     pandda_site = models.ForeignKey(PanddaSite)
     target_id = models.ForeignKey(Target)
-    # The xtal - this will later be linke to Rachael's stuff
+    # The xtal - this will later be linked to Rachael's stuff
+    xtal = models.TextField()
     xtal_id = models.ForeignKey(Xtal)
     # The event id
     event = models.IntegerField()
