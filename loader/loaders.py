@@ -130,8 +130,7 @@ def add_mol(mol_sd,prot,lig_id="LIG",chaind_id="Z",occupancy=0.0):
 
 
 def parse_proasis(input_string):
-    spl_string =  input_string.split()
-    return spl_string[0], int(spl_string[2]), spl_string[1]
+    return input_string[:3].strip(), int(input_string[5:].strip()), input_string[3:5].strip()
 
 def add_contacts(input_data,target,prot,mol):
     int_type = IntTypes()
