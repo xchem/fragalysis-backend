@@ -157,6 +157,12 @@ def load_from_dir(target_name, dir_path):
     :param dir_path:
     :return:
     """
+
+    if(os.path.isdir(dir_path)):
+        pass
+    else:
+        "No data to add: " + target_name
+        return None
     new_target = add_target(target_name)
     directories = os.listdir(dir_path)
     for xtal in directories:
@@ -326,3 +332,8 @@ def analyse_target(target_name):
     MolGroup.objects.filter(group_type="PC",target_id=target).delete()
     MolGroup.objects.filter(group_type="MC",target_id=target).delete()
     analyse_mols(mols=mols,target=target)
+
+def process_target(prefix,target_name):
+    load_from_dir(target_name, prefix + target_name)
+    load_events_from_dir(target_name, prefix + target_name + "/events")
+    analyse_target(target_name)
