@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'guardian',
     'django_cas_ng',
     'rest_framework.authtoken',
+    'rest_framework_swagger',
     'webpack_loader'
 ]
 
