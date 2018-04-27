@@ -51,3 +51,4 @@ websocket-client==0.46.0
 django-webpack-loader
 coveralls
 django-treebeard
+django-rest-swagger

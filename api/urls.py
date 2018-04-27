@@ -1,6 +1,7 @@
 from django.conf.urls import include,url
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
+from rest_framework_swagger.views import get_swagger_view
 from api import views
 from scoring import views as score_views
 from viewer import views as viewer_views
@@ -32,7 +33,11 @@ router.register(r'viewscene',score_views.ViewSceneView)
 # Register the groups
 router.register(r'molgroup',score_views.MolGroupView)
 
+
+schema_view = get_swagger_view(title='Fragalysis API')
+
 urlpatterns = [
     url(r'^', include(router.urls)),
     url(r'^auth$', drf_views.obtain_auth_token, name='auth'),
+    url(r'^swagger$', schema_view)
 ]
