@@ -1,4 +1,5 @@
 import os,sys,re,json
+import shutil
 from viewer.models import Target,Protein,Molecule,Compound
 from pandda.models import PanddaSite,PanddaEvent
 from hypothesis.models import Vector3D,Vector,InteractionPoint,TargetResidue,ProteinResidue,Interaction
@@ -11,7 +12,6 @@ from scoring.models import MolGroup
 from frag.alysis.run_clustering import run_lig_cluster
 from loader.functions import sanitize_mol,get_path_or_none
 from frag.network.decorate import get_3d_vects_for_mol
-
 
 def add_target(title):
     """
@@ -134,7 +134,7 @@ def parse_proasis(input_string):
 
 def add_contacts(input_data,target,prot,mol):
     int_type = IntTypes()
-    for interaction in input_data:
+    for interaction in input_data["results"]:
         # Ignore Water mediasted hypothesis with Protein for now
         if interaction['hetmoltype'] == 'WATER':
             continue
@@ -150,14 +150,13 @@ def add_contacts(input_data,target,prot,mol):
                                           distance=interaction["dis"],prot_smarts=interaction['dstType'],
                                           mol_smarts=interaction['srcType'])
 
-def load_from_dir(target_name, dir_path):
+def load_from_dir(target_name, dir_path, input_dict):
     """
     Load the data for a given target from a directory structure
     :param target_name:
     :param dir_path:
     :return:
     """
-
     if(os.path.isdir(dir_path)):
         pass
     else:
@@ -167,11 +166,11 @@ def load_from_dir(target_name, dir_path):
     directories = os.listdir(dir_path)
     for xtal in directories:
         new_path = os.path.join(dir_path, xtal)
-        pdb_file_path = os.path.join(new_path,xtal+"_apo.pdb")
-        mol_file_path = os.path.join(new_path,xtal+".mol")
-        map_path = get_path_or_none(new_path,xtal,"_event.map")
-        mtz_path = get_path_or_none(new_path,xtal,".mtz")
-        contact_path = get_path_or_none(new_path,xtal,'_contacts.json')
+        pdb_file_path = get_path_or_none(new_path,xtal,input_dict["APO"])
+        mol_file_path = get_path_or_none(new_path,xtal,input_dict["MOL"])
+        map_path = get_path_or_none(new_path,xtal,input_dict["MAP"])
+        mtz_path = get_path_or_none(new_path,xtal,input_dict["MTZ"])
+        contact_path = get_path_or_none(new_path,xtal,input_dict["CONTACTS"])
         print(contact_path)
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
             new_prot = add_prot(pdb_file_path,xtal,new_target,mtz_path=mtz_path,map_path=map_path)
@@ -252,7 +251,6 @@ def load_events_from_dir(target_name,dir_path):
         site_native_cent = parse_centre(spl_line[13])
         create_event(xtal,event,site,pandda_version,pdb_file,mtz_file,map_file,lig_id,
                      event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,new_target)
-
     os.chdir("../")
 
 def get_vectors(mols):
@@ -333,7 +331,45 @@ def analyse_target(target_name):
     MolGroup.objects.filter(group_type="MC",target_id=target).delete()
     analyse_mols(mols=mols,target=target)
 
+
+import csv,os,shutil
+
+FILE_PATH_DICT = {"APO": "_apo.pdb", "MOL": ".mol", "EVENT": "_event.map",
+                  "MTZ": ".mtz", "CONTACTS": '_contacts.json'}
+
+def prepare_from_csv(file_path):
+    date = "20180430"
+    if not os.path.isdir(date):
+        os.mkdir(date)
+    rows = csv.DictReader(open(file_path))
+    for row in rows:
+        target_name = row['apo_name'].split("-")[0]
+        target_base = os.path.join(date,target_name)
+        xtal_name = row['apo_name'].split("_apo.pdb")[0]
+        # Make the target directory
+        if not os.path.isdir(target_base):
+            os.mkdir(target_base)
+        xtal_base = os.path.join(target_base,xtal_name)
+        # Make this dataset directory
+        if not os.path.isdir(xtal_base):
+            os.mkdir(xtal_base)
+        # Now copy the files over
+        shutil.copyfile(os.path.join(row['root_dir'],row['apo_name']),
+                        os.path.join(xtal_base,xtal_name+FILE_PATH_DICT["APO"]))
+        shutil.copyfile(os.path.join(row['root_dir'], row['mol_name']),
+                        os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["MOL"]))
+        shutil.copyfile(os.path.join(row['root_dir'], row['fofc_name']),
+                        os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["EVENT"]))
+        shutil.copyfile(os.path.join(row['root_dir'], row['apo_name'].replace("_apo.pdb","_interactions.json")),
+                        os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["CONTACTS"]))
+        if row['mtz_name']:
+            shutil.copyfile(os.path.join(row['root_dir'], row['mtz_name']),
+                            os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["MTZ"]))
+
+# prepare_from_csv("/dls/science/groups/i04-1/software/luigi_pipeline/pipeline/logs/proasis_out/proasis_out_20180430.csv")
+
+
 def process_target(prefix,target_name):
-    load_from_dir(target_name, prefix + target_name)
+    load_from_dir(target_name, prefix + target_name, FILE_PATH_DICT)
     load_events_from_dir(target_name, prefix + target_name + "/events")
     analyse_target(target_name)

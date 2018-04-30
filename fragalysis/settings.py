@@ -126,6 +126,8 @@ TEMPLATES = [
     },
 ]
 
+
+
 WSGI_APPLICATION = 'fragalysis.wsgi.application'
 
 
