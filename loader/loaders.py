@@ -365,7 +365,7 @@ def prepare_from_csv(file_path):
         if row['mtz_name']:
             shutil.copyfile(os.path.join(row['root_dir'], row['mtz_name']),
                             os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["MTZ"]))
-
+# Use this and add into LUIGI pipeline
 # prepare_from_csv("/dls/science/groups/i04-1/software/luigi_pipeline/pipeline/logs/proasis_out/proasis_out_20180430.csv")
 
 
