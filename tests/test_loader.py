@@ -76,7 +76,8 @@ class LoderLoaderTestCase(TestCase):
         add_target("DUMMY_TWO")
 
     def test_load(self):
-        input_data = {"results":[
+        input_data = {"results":
+            [
             {"dstserno": 285, "dstType": "[N;X2]=C[N;X3]", "dstaname": "NH2", "dstrname": "ARG A  67 ", "srcserno": 91,
              "hetmoltype": "LIG", "contactClass": "S", "contactId": 0, "srcType": "[O;X1]=C", "contactType": "hbond",
              "srcaname": "O1", "dis": 2.8713592600021336, "srcrname": "LIG E   1 "},
@@ -125,7 +126,8 @@ class LoderLoaderTestCase(TestCase):
              "srcaname": "O1", "dis": 3.2183747451159257, "srcrname": "LIG E   1 "},
             {"dstserno": 254, "dstType": "[O;D0]", "dstaname": "O", "dstrname": "HOH B  33 ", "srcserno": 278,
              "hetmoltype": "LIG", "contactClass": "S", "contactId": 9, "srcType": "[#6]", "WaterRank": 1.0,
-             "contactType": "unk", "srcaname": "C4", "dis": 3.291210111797787, "srcrname": "LIG E   1 "}]
+             "contactType": "unk", "srcaname": "C4", "dis": 3.291210111797787, "srcrname": "LIG E   1 "}
+            ]
         }
         # Add the contacts
         add_contacts(input_data, self.target, self.protein, self.mol)
