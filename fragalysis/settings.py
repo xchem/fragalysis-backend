@@ -22,7 +22,8 @@ PROJECT_ROOT = os.path.abspath(
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '8flmz)c9i!o&f1-moi5-p&9ak4r9=ck$3!0y1@%34p^(6i*^_9'
+SECRET_KEY = os.environ.get('WEB_DJANGO_SECRET_KEY',
+                            '8flmz)c9i!o&f1-moi5-p&9ak4r9=ck$3!0y1@%34p^(6i*^_9')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -37,16 +38,16 @@ REST_FRAMEWORK = {
 
 import requests
 ########## ALLOWED_HOSTS
-from requests.exceptions import ConnectionError
-
-url = "http://169.254.169.254/latest/meta-data/public-ipv4"
-try:
-    r = requests.get(url)
-    instance_ip = r.text
-    ALLOWED_HOSTS += [instance_ip]
-except ConnectionError:
-    error_msg = "You can only run production settings on an AWS EC2 instance"
-    # raise ImproperlyConfigured(error_msg)
+#from requests.exceptions import ConnectionError
+#
+#url = "http://169.254.169.254/latest/meta-data/public-ipv4"
+#try:
+#    r = requests.get(url)
+#    instance_ip = r.text
+#    ALLOWED_HOSTS += [instance_ip]
+#except ConnectionError:
+#    error_msg = "You can only run production settings on an AWS EC2 instance"
+#    # raise ImproperlyConfigured(error_msg)
 ########## END ALLOWED_HOSTS
 
 
