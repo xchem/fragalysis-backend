@@ -1,11 +1,10 @@
 from rest_framework import serializers
 from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target
 
-
 class TargetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Target
-        fields = ('id', 'title', 'project_id')
+        fields = ('id', 'title', 'project_id','protein_set')
 
 class CompoundSerializer(serializers.ModelSerializer):
     class Meta:
@@ -32,8 +31,3 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ('id', 'title',)
-
-class MDLSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Molecule
-        fields = ('id', 'smiles', 'sdf_info', )

@@ -1,7 +1,6 @@
 from django.db import models
 from rdkit import Chem
 
-
 class Project(models.Model):
     """A django model to define a given project_id. Not currently used.
     Could be used to define certain attributes."""
@@ -30,6 +29,15 @@ class Target(models.Model):
             ('view_target', 'View target'),
         )
 
+class Xtal(models.Model):
+    # The na    me of this xtal
+    xtal_name = models.TextField()
+    target_id = models.ForeignKey(Target)
+
+    class Meta:
+        unique_together = ('xtal_name', 'target_id',)
+
+
 class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
     # code for this protein
@@ -48,7 +56,6 @@ class Protein(models.Model):
         permissions = (
             ('view_protein', 'View protein'),
         )
-
 
 class Compound(models.Model):
     """A Django model to hold the information for a given compound -> a unique 2D molecule"""
