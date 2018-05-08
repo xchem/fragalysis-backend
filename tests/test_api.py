@@ -78,7 +78,7 @@ class APIUrlsTestCase(TestCase):
         Untested but check get API works the way we want
         :return:
         """
-        url_base = "/v0.1"
+        url_base = "/api"
         urls = ['molecules','compounds','targets','proteins','sites','events',
                 'vectors','vector3ds','proteinres','targetres',
                 'interactionpoints','interactions']
