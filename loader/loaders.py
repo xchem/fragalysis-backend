@@ -134,7 +134,11 @@ def parse_proasis(input_string):
 
 def add_contacts(input_data,target,prot,mol):
     int_type = IntTypes()
-    for interaction in input_data["results"]:
+    if type(input_data)== dict:
+        int_list = input_data["results"]
+    else:
+        int_list = input_data
+    for interaction in int_list:
         # Ignore Water mediasted hypothesis with Protein for now
         if interaction['hetmoltype'] == 'WATER':
             continue
@@ -165,13 +169,15 @@ def load_from_dir(target_name, dir_path, input_dict):
     new_target = add_target(target_name)
     directories = os.listdir(dir_path)
     for xtal in directories:
+        print(xtal)
         new_path = os.path.join(dir_path, xtal)
         pdb_file_path = get_path_or_none(new_path,xtal,input_dict,"APO")
         mol_file_path = get_path_or_none(new_path,xtal,input_dict,"MOL")
         map_path = get_path_or_none(new_path,xtal,input_dict,"MAP")
         mtz_path = get_path_or_none(new_path,xtal,input_dict,"MTZ")
         contact_path = get_path_or_none(new_path,xtal,input_dict,"CONTACTS")
-        print(contact_path)
+        if not pdb_file_path or not mol_file_path:
+            continue
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
             new_prot = add_prot(pdb_file_path,xtal,new_target,mtz_path=mtz_path,map_path=map_path)
             new_mol = add_mol(mol_file_path, new_prot)
