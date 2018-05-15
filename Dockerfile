@@ -2,10 +2,10 @@ FROM informaticsmatters/rdkit-python-debian:Release_2018_03_01
 ENV PYTHONUNBUFFERED 1
 ADD . /code/
 WORKDIR /code
-RUN git clone https://github.com/xchem/fragalysis /usr/local/fragalysis
 USER root
 RUN apt-get update -y
 RUN apt-get install -y nginx curl git
+RUN git clone https://github.com/xchem/fragalysis /usr/local/fragalysis
 RUN pip install -r requirements.txt
 # Conver this into a single pip install command
 RUN pip install -r /usr/local/fragalysis/requirements.txt
