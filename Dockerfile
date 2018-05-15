@@ -1,4 +1,4 @@
-FROM abradle/rdkit:stable
+FROM informaticsmatters/rdkit-python-debian:Release_2018_03_01
 ENV PYTHONUNBUFFERED 1
 ADD . /code/
 WORKDIR /code
