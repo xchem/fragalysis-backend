@@ -15,4 +15,5 @@ COPY django_nginx.conf /etc/nginx/sites-available/default.conf
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 RUN mkdir /srv/logs/
+RUN chown -R 1000 /usr/local/fragalysis /code
 USER 1000
