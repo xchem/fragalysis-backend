@@ -2,13 +2,13 @@ sudo: required
 services:
   - docker
 install:
-  - docker build -t abradle/fragalysis_backend .
+  - docker build -t xchem/fragalysis-backend .
 script:
   -  docker-compose -f docker-compose.test.yml up --build  --exit-code-from tests --abort-on-container-exit
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push abradle/fragalysis_backend;
+    docker push xchem/fragalysis-backend;
     fi
   - coveralls
 
