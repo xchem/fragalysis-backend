@@ -166,11 +166,11 @@ def load_from_dir(target_name, dir_path, input_dict):
     directories = os.listdir(dir_path)
     for xtal in directories:
         new_path = os.path.join(dir_path, xtal)
-        pdb_file_path = get_path_or_none(new_path,xtal,input_dict["APO"])
-        mol_file_path = get_path_or_none(new_path,xtal,input_dict["MOL"])
-        map_path = get_path_or_none(new_path,xtal,input_dict["MAP"])
-        mtz_path = get_path_or_none(new_path,xtal,input_dict["MTZ"])
-        contact_path = get_path_or_none(new_path,xtal,input_dict["CONTACTS"])
+        pdb_file_path = get_path_or_none(new_path,xtal,input_dict,"APO")
+        mol_file_path = get_path_or_none(new_path,xtal,input_dict,"MOL")
+        map_path = get_path_or_none(new_path,xtal,input_dict,"MAP")
+        mtz_path = get_path_or_none(new_path,xtal,input_dict,"MTZ")
+        contact_path = get_path_or_none(new_path,xtal,input_dict,"CONTACTS")
         print(contact_path)
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
             new_prot = add_prot(pdb_file_path,xtal,new_target,mtz_path=mtz_path,map_path=map_path)

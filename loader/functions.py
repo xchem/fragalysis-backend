@@ -69,7 +69,7 @@ def sanitize_mol(mol):
         return None
     return store_mol
 
-def get_path_or_none(new_path,xtal,suffix):
+def get_path_or_none(new_path,xtal,dict_input,dict_key):
     """
     Get a path or none - for loader
     :param new_path:
@@ -77,6 +77,10 @@ def get_path_or_none(new_path,xtal,suffix):
     :param suffix:
     :return:
     """
+    if dict_key in dict_input:
+        suffix = dict_input[dict_key]
+    else:
+        return None
     path = os.path.join(new_path, xtal + suffix)
     if os.path.isfile(path):
         return path
