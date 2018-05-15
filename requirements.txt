@@ -32,7 +32,6 @@ ptyprocess==0.5.2
 pyasn1==0.1.9
 pycrypto==2.6.1
 Pygments==2.2.0
-pygobject==3.28.2
 python-cas==1.2.0
 pytz==2018.3
 pyxdg==0.25
