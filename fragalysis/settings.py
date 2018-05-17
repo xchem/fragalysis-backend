@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'api',
     'pandda',
     'hypothesis',
+    'hotspots',
     # My utility apps
     'bootstrap3',
     'guardian',

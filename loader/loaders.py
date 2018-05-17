@@ -4,6 +4,7 @@ from viewer.models import Target,Protein,Molecule,Compound
 from pandda.models import PanddaSite,PanddaEvent
 from hypothesis.models import Vector3D,Vector,InteractionPoint,TargetResidue,ProteinResidue,Interaction
 from hypothesis.definitions import VectTypes,IntTypes
+from hotspots.models import HotspotMap
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from rdkit import Chem
@@ -156,6 +157,12 @@ def add_contacts(input_data,target,prot,mol):
                                           distance=interaction["dis"],prot_smarts=interaction['dstType'],
                                           mol_smarts=interaction['srcType'])
 
+def add_map(new_prot,new_target,map_path,map_type):
+    hotspot_map = HotspotMap.objects.get_or_create(map_type=map_type, target_id=new_target, prot_id=new_prot)[0]
+    hotspot_map.map_info.save(os.path.basename(map_path), File(open(map_path)))
+    return hotspot_map
+
+
 def load_from_dir(target_name, dir_path, input_dict):
     """
     Load the data for a given target from a directory structure
@@ -177,7 +184,11 @@ def load_from_dir(target_name, dir_path, input_dict):
         mol_file_path = get_path_or_none(new_path,xtal,input_dict,"MOL")
         map_path = get_path_or_none(new_path,xtal,input_dict,"MAP")
         mtz_path = get_path_or_none(new_path,xtal,input_dict,"MTZ")
+        # optional ones - contacts and hotspots
         contact_path = get_path_or_none(new_path,xtal,input_dict,"CONTACTS")
+        acc_path = get_path_or_none(new_path,xtal,input_dict,"ACC")
+        don_path = get_path_or_none(new_path,xtal,input_dict,"DON")
+        lip_path = get_path_or_none(new_path,xtal,input_dict,"LIP")
         if not pdb_file_path or not mol_file_path:
             continue
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
@@ -186,9 +197,14 @@ def load_from_dir(target_name, dir_path, input_dict):
             if not new_mol:
                 print("NONE MOL: "+xtal)
             else:
-                if contact_path:
-                    if os.path.isfile(contact_path):
-                        add_contacts(json.load(open(contact_path)),new_target,new_prot,new_mol)
+                if contact_path and os.path.isfile(contact_path):
+                    add_contacts(json.load(open(contact_path)),new_target,new_prot,new_mol)
+                if acc_path and os.path.isfile(acc_path):
+                    add_map(new_prot,new_target,acc_path,"AC")
+                if don_path and os.path.isfile(don_path):
+                    add_map(new_prot,new_target,don_path,"DO")
+                if lip_path and os.path.isfile(lip_path):
+                    add_map(new_prot,new_target,lip_path,"LI")
         else:
             print("File not found: "+xtal)
 
@@ -343,7 +359,8 @@ def analyse_target(target_name):
 import csv,os,shutil
 
 FILE_PATH_DICT = {"APO": "_apo.pdb", "MOL": ".mol", "EVENT": "_event.map",
-                  "MTZ": ".mtz", "CONTACTS": '_contacts.json'}
+                  "MTZ": ".mtz", "CONTACTS": '_contacts.json',"ACC": "_acc.map",
+                  "DON": "_don.map", "LIP": "_lip.map"}
 
 def prepare_from_csv(file_path):
     date = "20180430"
