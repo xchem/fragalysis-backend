@@ -134,8 +134,10 @@ def parse_proasis(input_string):
 
 def add_contacts(input_data,target,prot,mol):
     int_type = IntTypes()
+    int_list = []
     if type(input_data)== dict:
-        int_list = input_data["results"]
+        if "results" in input_data:
+            int_list = input_data["results"]
     else:
         int_list = input_data
     for interaction in int_list:
