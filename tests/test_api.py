@@ -1,6 +1,7 @@
 from rest_framework.test import APIRequestFactory
 from viewer.models import Molecule,Protein,Target,Compound
 from pandda.models import PanddaEvent,PanddaSite
+from hotspots.models import HotspotMap
 from hypothesis.models import Vector3D, Vector, ProteinResidue, TargetResidue, InteractionPoint,Interaction
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase, RequestFactory
@@ -68,7 +69,8 @@ class APIUrlsTestCase(TestCase):
                                                                  protein_atom_name="A",molecule_atom_name="B")
         self.interaction = Interaction.objects.create(id=1,interaction_version="DE",interaction_type="UK",
                                                       interaction_point=self.interaction_point)
-
+        self.hotspotmap = HotspotMap.objects.create(id=1,map_type="AC",target_id=self.target,
+                                                prot_id=self.protein,map_info="my_hotspot.map")
 
 
 
@@ -81,7 +83,7 @@ class APIUrlsTestCase(TestCase):
         url_base = "/api"
         urls = ['molecules','compounds','targets','proteins','sites','events',
                 'vectors','vector3ds','proteinres','targetres',
-                'interactionpoints','interactions']
+                'interactionpoints','interactions','hotpots']
 
         # 'scorechoice','molchoice','protchoice','cmpdchoice',
         # 'viewscene',
@@ -110,7 +112,9 @@ class APIUrlsTestCase(TestCase):
                          {'id':1,'target_id':1,'res_name':"DED",'res_num':1,'chain_id':"A"},
                          {'id':1,'mol_id':1,'prot_res_id':1,'protein_atom_name':"A","molecule_atom_name":"B"},
                          {'id': 1, 'interaction_version':"DE", 'interaction_type':"UK",'interaction_point': 1,
-                          'distance':None,'score':None,'prot_smarts': None,'mol_smarts':None}
+                          'distance':None,'score':None,'prot_smarts': None,'mol_smarts':None},
+                         { 'id':1,'map_type':'AC','target_id':1,'prot_id':1,
+                           'map_info':"http://testserver/media/my_hotspot.map",'compressed_map_info':None}
                          ]
         # Currently empty
         post_data = [{} for x in response_data]
