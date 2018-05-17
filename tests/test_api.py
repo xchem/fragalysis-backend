@@ -75,7 +75,7 @@ class APIUrlsTestCase(TestCase):
 
 
 
-    def testV0_1API(self):
+    def test_API(self):
         """
         Untested but check get API works the way we want
         :return:
@@ -83,7 +83,7 @@ class APIUrlsTestCase(TestCase):
         url_base = "/api"
         urls = ['molecules','compounds','targets','proteins','sites','events',
                 'vectors','vector3ds','proteinres','targetres',
-                'interactionpoints','interactions','hotpots']
+                'interactionpoints','interactions','hotspots']
 
         # 'scorechoice','molchoice','protchoice','cmpdchoice',
         # 'viewscene',
