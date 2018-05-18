@@ -189,6 +189,16 @@ def load_from_dir(target_name, dir_path, input_dict):
         acc_path = get_path_or_none(new_path,xtal,input_dict,"ACC")
         don_path = get_path_or_none(new_path,xtal,input_dict,"DON")
         lip_path = get_path_or_none(new_path,xtal,input_dict,"LIP")
+        # Pandda Events
+        pandda_json = get_path_or_none(new_path,xtal,input_dict,"PJSON")
+        pandda_map = get_path_or_none(new_path,xtal,input_dict,"PMAP")
+        pandda_pdb = get_path_or_none(new_path,xtal,input_dict,"PPDB")
+        pandda_mtz = get_path_or_none(new_path,xtal,input_dict,"PMTZ")
+        if pandda_json:
+            for event in json.load(open(pandda_json)):
+                create_event(xtal, event["event"], event["site"], event["pandda_version"], pandda_pdb, pandda_mtz, pandda_map,
+                         event["lig_id"], event["event_centroid"], event["event_dist_from_site_centroi"], event["lig_centroid"],
+                         event["lig_dist_event"], event["site_align_centroid"], event["site_native_centroid"], event["new_target"])
         if not pdb_file_path or not mol_file_path:
             continue
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
@@ -247,35 +257,6 @@ def create_event(xtal,event,site,pandda_version,pdb_file,mtz_path,map_path,lig_i
     new_event.save()
     return new_event,new_site
 
-def load_events_from_dir(target_name,dir_path):
-    new_target = add_target(target_name)
-    if(os.path.isdir(dir_path)):
-        os.chdir(dir_path)
-    else:
-        "No events to add: " + target_name
-        return None
-    lines = [x.strip() for x in open("out.csv").readlines()]
-    header = lines[0].split(",")
-    PATTERN = re.compile(r'''((?:[^,"']|"[^"]*"|'[^']*')+)''')
-    for line in lines[1:]:
-        spl_line = PATTERN.split(line)[1::2]
-        xtal = spl_line[0]
-        event = spl_line[1]
-        site = spl_line[2]
-        pandda_version = spl_line[3]
-        pdb_file = spl_line[4]
-        mtz_file = spl_line[5]
-        map_file = spl_line[6]
-        lig_id = spl_line[7]
-        event_cent = parse_centre(spl_line[8])
-        event_dist = float(spl_line[9])
-        lig_cent = parse_centre(spl_line[10])
-        lig_dist = float(spl_line[11])
-        site_align_cent = parse_centre(spl_line[12])
-        site_native_cent = parse_centre(spl_line[13])
-        create_event(xtal,event,site,pandda_version,pdb_file,mtz_file,map_file,lig_id,
-                     event_cent,event_dist,lig_cent,lig_dist,site_align_cent,site_native_cent,new_target)
-    os.chdir("../")
 
 def get_vectors(mols):
     """
@@ -360,7 +341,8 @@ import csv,os,shutil
 
 FILE_PATH_DICT = {"APO": "_apo.pdb", "MOL": ".mol", "EVENT": "_event.map",
                   "MTZ": ".mtz", "CONTACTS": '_contacts.json',"ACC": "_acc.map",
-                  "DON": "_don.map", "LIP": "_lip.map"}
+                  "DON": "_don.map", "LIP": "_lip.map", "PMAP": "_pandda.map",
+                  "PPDB": "_pandda.pdb",  "PJSON": "_pandda.json", "PMTZ": "_pandda.mtz"}
 
 def prepare_from_csv(file_path):
     date = "20180430"
@@ -393,8 +375,6 @@ def prepare_from_csv(file_path):
 # Use this and add into LUIGI pipeline
 # prepare_from_csv("/dls/science/groups/i04-1/software/luigi_pipeline/pipeline/logs/proasis_out/proasis_out_20180430.csv")
 
-
 def process_target(prefix,target_name):
     load_from_dir(target_name, prefix + target_name, FILE_PATH_DICT)
-    load_events_from_dir(target_name, prefix + target_name + "/events")
     analyse_target(target_name)
