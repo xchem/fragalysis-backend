@@ -149,13 +149,7 @@ def parse_proasis(input_string):
     )
 
 
-def create_int(res_name, res_num, chain_id, interaction, target, prot, mol, int_type):
-    targ_res = TargetResidue.objects.get_or_create(
-        target_id=target, res_name=res_name, res_num=res_num, chain_id=chain_id
-    )[0]
-    prot_res = ProteinResidue.objects.get_or_create(targ_res_id=targ_res, prot_id=prot)[
-        0
-    ]
+def create_int(prot_res, mol, int_type, interaction):
     interation_point = InteractionPoint.objects.get_or_create(
         prot_res_id=prot_res,
         mol_id=mol,
@@ -185,9 +179,13 @@ def add_contacts(input_data, target, prot, mol):
         if interaction["hetmoltype"] == "WATER":
             continue
         res_name, res_num, chain_id = parse_proasis(interaction["dstrname"])
-        create_int(
-            res_name, res_num, chain_id, interaction, target, prot, mol, int_type
-        )
+        targ_res = TargetResidue.objects.get_or_create(
+            target_id=target, res_name=res_name, res_num=res_num, chain_id=chain_id
+        )[0]
+        prot_res = ProteinResidue.objects.get_or_create(
+            targ_res_id=targ_res, prot_id=prot
+        )[0]
+        create_int(prot_res, mol, int_type, interaction)
 
 
 def add_map(new_prot, new_target, map_path, map_type):
