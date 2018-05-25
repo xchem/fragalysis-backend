@@ -149,6 +149,29 @@ def parse_proasis(input_string):
     )
 
 
+def create_int(res_name, res_num, chain_id, interaction, target, prot, mol, int_type):
+    targ_res = TargetResidue.objects.get_or_create(
+        target_id=target, res_name=res_name, res_num=res_num, chain_id=chain_id
+    )[0]
+    prot_res = ProteinResidue.objects.get_or_create(targ_res_id=targ_res, prot_id=prot)[
+        0
+    ]
+    interation_point = InteractionPoint.objects.get_or_create(
+        prot_res_id=prot_res,
+        mol_id=mol,
+        protein_atom_name=interaction["dstaname"],
+        molecule_atom_name=interaction["srcaname"],
+    )[0]
+    Interaction.objects.get_or_create(
+        interaction_version="PR",
+        interaction_point=interation_point,
+        interaction_type=int_type.get_int_conv("PR", interaction["contactType"]),
+        distance=interaction["dis"],
+        prot_smarts=interaction["dstType"],
+        mol_smarts=interaction["srcType"],
+    )
+
+
 def add_contacts(input_data, target, prot, mol):
     int_type = IntTypes()
     int_list = []
@@ -162,25 +185,8 @@ def add_contacts(input_data, target, prot, mol):
         if interaction["hetmoltype"] == "WATER":
             continue
         res_name, res_num, chain_id = parse_proasis(interaction["dstrname"])
-        targ_res = TargetResidue.objects.get_or_create(
-            target_id=target, res_name=res_name, res_num=res_num, chain_id=chain_id
-        )[0]
-        prot_res = ProteinResidue.objects.get_or_create(
-            targ_res_id=targ_res, prot_id=prot
-        )[0]
-        interation_point = InteractionPoint.objects.get_or_create(
-            prot_res_id=prot_res,
-            mol_id=mol,
-            protein_atom_name=interaction["dstaname"],
-            molecule_atom_name=interaction["srcaname"],
-        )[0]
-        Interaction.objects.get_or_create(
-            interaction_version="PR",
-            interaction_point=interation_point,
-            interaction_type=int_type.get_int_conv("PR", interaction["contactType"]),
-            distance=interaction["dis"],
-            prot_smarts=interaction["dstType"],
-            mol_smarts=interaction["srcType"],
+        create_int(
+            res_name, res_num, chain_id, interaction, target, prot, mol, int_type
         )
 
 
@@ -329,6 +335,21 @@ def create_event(
     return new_event, new_site
 
 
+def create_vect_3d(mol, new_vect, vect_ind, vector):
+    new_vect3d = Vector3D.objects.get_or_create(
+        mol_id=mol, vector_id=new_vect, number=vect_ind
+    )[0]
+    # The start position
+    new_vect3d.start_x = float(vector[0][0])
+    new_vect3d.start_y = float(vector[0][1])
+    new_vect3d.start_z = float(vector[0][2])
+    # The end position
+    new_vect3d.end_x = float(vector[1][0])
+    new_vect3d.end_y = float(vector[1][1])
+    new_vect3d.end_z = float(vector[1][2])
+    new_vect3d.save()
+
+
 def get_vectors(mols):
     """
     Get the vectors for a given molecule
@@ -354,18 +375,7 @@ def get_vectors(mols):
                 new_vect = Vector.objects.get_or_create(
                     smiles=smiles, cmpd_id=mol.cmpd_id, type=vect_choice
                 )[0]
-                new_vect3d = Vector3D.objects.get_or_create(
-                    mol_id=mol, vector_id=new_vect, number=vect_ind
-                )[0]
-                # The start position
-                new_vect3d.start_x = float(vectors[vect_type][vector][0][0])
-                new_vect3d.start_y = float(vectors[vect_type][vector][0][1])
-                new_vect3d.start_z = float(vectors[vect_type][vector][0][2])
-                # The end position
-                new_vect3d.end_x = float(vectors[vect_type][vector][1][0])
-                new_vect3d.end_y = float(vectors[vect_type][vector][1][1])
-                new_vect3d.end_z = float(vectors[vect_type][vector][1][2])
-                new_vect3d.save()
+                create_vect_3d(mol, new_vect, vect_ind, vectors[vect_type][vector])
 
 
 def cluster_mols(rd_mols, mols, target):
@@ -433,6 +443,14 @@ FILE_PATH_DICT = {
 }
 
 
+def copy_files(copy_file_dict, row, xtal_base, xtal_name):
+    for key in copy_file_dict:
+        shutil.copyfile(
+            os.path.join(row["root_dir"], key),
+            os.path.join(xtal_base, xtal_name + FILE_PATH_DICT[copy_file_dict[key]]),
+        )
+
+
 def prepare_from_csv(file_path):
     date = "20180430"
     if not os.path.isdir(date):
@@ -450,30 +468,14 @@ def prepare_from_csv(file_path):
         if not os.path.isdir(xtal_base):
             os.mkdir(xtal_base)
         # Now copy the files over
-        shutil.copyfile(
-            os.path.join(row["root_dir"], row["apo_name"]),
-            os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["APO"]),
-        )
-        shutil.copyfile(
-            os.path.join(row["root_dir"], row["mol_name"]),
-            os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["MOL"]),
-        )
-        shutil.copyfile(
-            os.path.join(row["root_dir"], row["fofc_name"]),
-            os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["EVENT"]),
-        )
-        shutil.copyfile(
-            os.path.join(
-                row["root_dir"],
-                row["apo_name"].replace("_apo.pdb", "_interactions.json"),
-            ),
-            os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["CONTACTS"]),
-        )
-        if row["mtz_name"]:
-            shutil.copyfile(
-                os.path.join(row["root_dir"], row["mtz_name"]),
-                os.path.join(xtal_base, xtal_name + FILE_PATH_DICT["MTZ"]),
-            )
+        copy_file_dict = {
+            row["apo_name"]: "APO",
+            row["mol_name"]: "MOL",
+            row["fofc_name"]: "EVENT",
+            row["apo_name"].replace("_apo.pdb", "_interactions.json"): "CONTACTS",
+            row["mtz_name"]: "MTZ",
+        }
+        copy_files(copy_file_dict, row, xtal_base, xtal_name)
 
 
 # Use this and add into LUIGI pipeline
