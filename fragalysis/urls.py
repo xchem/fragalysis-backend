@@ -16,14 +16,20 @@ Including another URLconf
 from django.conf.urls import include, url
 from django.contrib import admin
 import django_cas_ng.views
-from django.views.generic import RedirectView
+from graphene_django.views import GraphQLView
+
 
 urlpatterns = [
-    url(r'^admin/', admin.site.urls),
-    url(r'^viewer/', include('viewer.urls')),
-    url(r'^network/', include('network.urls')),
-    url(r'^api/', include('api.urls')),
-    url(r'^accounts/login$', django_cas_ng.views.login, name='cas_ng_login'),
-    url(r'^accounts/logout$', django_cas_ng.views.logout, name='cas_ng_logout'),
-    url(r'^accounts/callback$', django_cas_ng.views.callback, name='cas_ng_proxy_callback'),
+    url(r"^admin/", admin.site.urls),
+    url(r"^viewer/", include("viewer.urls")),
+    url(r"^network/", include("network.urls")),
+    url(r"^api/", include("api.urls")),
+    url(r"^graphql", GraphQLView.as_view(graphiql=True)),
+    url(r"^accounts/login$", django_cas_ng.views.login, name="cas_ng_login"),
+    url(r"^accounts/logout$", django_cas_ng.views.logout, name="cas_ng_logout"),
+    url(
+        r"^accounts/callback$",
+        django_cas_ng.views.callback,
+        name="cas_ng_proxy_callback",
+    ),
 ]
