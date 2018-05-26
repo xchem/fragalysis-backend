@@ -1,5 +1,5 @@
 import graphene
-from graphen import relay
+from graphene import relay
 from graphene_django.rest_framework.mutation import SerializerMutation
 from viewer.serializers import (
     MoleculeSerializer,
