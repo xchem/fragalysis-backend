@@ -1,7 +1,6 @@
 from graphene_django import DjangoObjectType
 import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
-from viewer.models import Molecule, Project, Protein, Compound, Target
 from viewer.serializers import (
     MoleculeSerializer,
     ProteinSerializer,
