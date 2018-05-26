@@ -14,13 +14,13 @@ from hypothesis.serializers import (
 class Vector3D(SerializerMutation):
 
     class Meta:
-        serializer_class = Vector3DSerialzier
+        serializer_class = Vector3DSerializer
 
 
 class Vector(SerializerMutation):
 
     class Meta:
-        serializer_class = VectorSerialzier
+        serializer_class = VectorSerializer
 
 
 class InteractionPoint(SerializerMutation):
