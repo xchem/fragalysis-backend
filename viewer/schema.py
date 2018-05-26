@@ -16,11 +16,29 @@ class Molecule(SerializerMutation):
         serializer_class = MoleculeSerializer
 
 
+class Protein(SerializerMutation):
+
+    class Meta:
+        serializer_class = ProteinSerializer
+
+
+class Compound(SerializerMutation):
+
+    class Meta:
+        serializer_class = CompoundSerializer
+
+
+class Target(SerializerMutation):
+
+    class Meta:
+        serializer_class = TargetSerializer
+
+
 class Query(graphene.ObjectType):
     molecules = graphene.List(Molecule)
-
-    def resolve_users(self, info):
-        return Molecule.objects.all()
+    proteins = graphene.List(Protein)
+    compounds = graphene.List(Compound)
+    targets = graphene.List(Target)
 
 
 schema = graphene.Schema(query=Query)

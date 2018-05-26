@@ -186,4 +186,4 @@ WEBPACK_LOADER = {
     }
 }
 
-GRAPHENE = {"SCHEMA": "viewer.schema.schema"}  # Where your Graphene schema lives
+GRAPHENE = {"SCHEMA": "fragalysis.schema.schema"}  # Where your Graphene schema lives
