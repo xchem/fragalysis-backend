@@ -1,5 +1,5 @@
-from graphene_django import DjangoObjectType
 import graphene
+from graphen import relay
 from graphene_django.rest_framework.mutation import SerializerMutation
 from viewer.serializers import (
     MoleculeSerializer,
@@ -13,24 +13,28 @@ class Molecule(SerializerMutation):
 
     class Meta:
         serializer_class = MoleculeSerializer
+        interfaces = (relay.Node,)
 
 
 class Protein(SerializerMutation):
 
     class Meta:
         serializer_class = ProteinSerializer
+        interfaces = (relay.Node,)
 
 
 class Compound(SerializerMutation):
 
     class Meta:
         serializer_class = CompoundSerializer
+        interfaces = (relay.Node,)
 
 
 class Target(SerializerMutation):
 
     class Meta:
         serializer_class = TargetSerializer
+        interfaces = (relay.Node,)
 
 
 class Query(graphene.ObjectType):
