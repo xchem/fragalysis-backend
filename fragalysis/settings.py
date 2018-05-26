@@ -186,4 +186,4 @@ WEBPACK_LOADER = {
     }
 }
 
-GRAPHENE = {"SCHEMA": "app.schema.schema"}  # Where your Graphene schema lives
+GRAPHENE = {"SCHEMA": "viewer.schema"}  # Where your Graphene schema lives
