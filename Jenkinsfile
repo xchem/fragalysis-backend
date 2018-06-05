@@ -10,7 +10,7 @@ pipeline {
     // Registry details
     USER = 'jenkins'
     REGISTRY = 'docker-registry.default:5000'
-    STREAM_IMAGE = "${REGISTRY}/fragalysis-cicd/fragalysis-stack:latest"
+    STREAM_IMAGE = "${REGISTRY}/fragalysis-cicd/fragalysis-backend:latest"
   }
 
   stages {
