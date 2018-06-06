@@ -5,6 +5,9 @@ WORKDIR /code
 USER root
 RUN apt-get update -y
 RUN apt-get install -y nginx curl git gcc python-dev python-setuptools
+ENV RDBASE=/rdkit
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$RDBASE/lib:/usr/lib/x86_64-linux-gnu
+ENV PYTHONPATH=$PYTHONPATH:$RDBASE
 RUN pip install wheel
 RUN git clone https://github.com/xchem/fragalysis /usr/local/fragalysis
 RUN pip install -r requirements.txt
