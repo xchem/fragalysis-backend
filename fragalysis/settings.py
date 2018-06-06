@@ -104,7 +104,7 @@ STATICFILES_FINDERS = (
 
 # CAS parameters
 CAS_SERVER_URL = "https://authbeta.diamond.ac.uk:443/cas/"
-CAS_REDIRECT_URL = "/network/display/"
+CAS_REDIRECT_URL = "/viewer/react/"
 
 ROOT_URLCONF = "fragalysis.urls"
 
