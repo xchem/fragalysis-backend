@@ -1,7 +1,6 @@
 #!/bin/bash
 /bin/bash /code/makemigrations.sh
 echo "Creating superuser..."
-
 # Automatically create the superuser...
 script="
 from django.contrib.auth.models import User;
@@ -22,6 +21,7 @@ touch /srv/logs/access.log
 tail -n 0 -f /srv/logs/*.log &
 # Start the NPM build
 echo "Starting..."
+# TODO set up flag that cun this in dev / prod mode
 cd /code/frontend && npm run dev &
 # Start Gunicorn processes
 echo "Starting Gunicorn...."
