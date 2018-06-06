@@ -1,10 +1,14 @@
-FROM informaticsmatters/rdkit-python-debian:Release_2018_03_01
+FROM xchem/rdkit-python-debian:Release_2017_03_3
 ENV PYTHONUNBUFFERED 1
 ADD . /code/
 WORKDIR /code
 USER root
 RUN apt-get update -y
-RUN apt-get install -y nginx curl git
+RUN apt-get install -y nginx curl git gcc python-dev python-setuptools
+ENV RDBASE=/rdkit
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$RDBASE/lib:/usr/lib/x86_64-linux-gnu
+ENV PYTHONPATH=$PYTHONPATH:$RDBASE
+RUN pip install wheel
 RUN git clone https://github.com/xchem/fragalysis /usr/local/fragalysis
 RUN pip install -r requirements.txt
 # Conver this into a single pip install command
