@@ -4,7 +4,7 @@ ADD . /code/
 WORKDIR /code
 USER root
 RUN apt-get update -y
-RUN apt-get install -y nginx curl git python-dev python-setuptools
+RUN apt-get install -y nginx curl git gcc python-dev python-setuptools
 RUN pip install wheel
 RUN git clone https://github.com/xchem/fragalysis /usr/local/fragalysis
 RUN pip install -r requirements.txt
