@@ -1,4 +1,4 @@
-FROM xchem/rdkit-python-debian:Release_2017_09_2
+FROM xchem/rdkit-python-debian:Release_2017_03_3
 ENV PYTHONUNBUFFERED 1
 ADD . /code/
 WORKDIR /code
