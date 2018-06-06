@@ -17,6 +17,7 @@ from django.conf.urls import include, url
 from django.contrib import admin
 import django_cas_ng.views
 from graphene_django.views import GraphQLView
+from django.views.generic.base import RedirectView
 
 
 urlpatterns = [
@@ -32,4 +33,5 @@ urlpatterns = [
         django_cas_ng.views.callback,
         name="cas_ng_proxy_callback",
     ),
+    url(r"^.*$", RedirectView.as_view(url="/accounts/login/")),
 ]
