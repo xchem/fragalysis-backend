@@ -21,8 +21,8 @@ touch /srv/logs/access.log
 tail -n 0 -f /srv/logs/*.log &
 # Start the NPM build
 echo "Starting..."
-# TODO set up flag that cun this in dev / prod mode
-cd /code/frontend && npm run dev &
+# Run this is production mode now
+cd /code/frontend && npm run build &
 # Start Gunicorn processes
 echo "Starting Gunicorn...."
 gunicorn fragalysis.wsgi:application \
