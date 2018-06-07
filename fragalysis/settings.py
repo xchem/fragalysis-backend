@@ -36,20 +36,13 @@ REST_FRAMEWORK = {
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.QueryParameterVersioning",
 }
 
-import requests
-
-########## ALLOWED_HOSTS
-# from requests.exceptions import ConnectionError
-#
-# url = "http://169.254.169.254/latest/meta-data/public-ipv4"
-# try:
-#    r = requests.get(url)
-#    instance_ip = r.text
-#    ALLOWED_HOSTS += [instance_ip]
-# except ConnectionError:
-#    error_msg = "You can only run production settings on an AWS EC2 instance"
-#    # raise ImproperlyConfigured(error_msg)
-########## END ALLOWED_HOSTS
+# Celery settings
+CELERY_BROKER_URL = "amqp://guest:guest@localhost//"
+#: Only add pickle to this list if your broker is secured
+#: from unwanted access (see userguide/security.html)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_RESULT_BACKEND = "db+sqlite:///results.sqlite"
+CELERY_TASK_SERIALIZER = "json"
 
 
 # Application definition
