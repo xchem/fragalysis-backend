@@ -24,6 +24,7 @@ numpy
 pathlib2==2.3.0
 pexpect==4.4.0
 xchem-ot
+celery==4.0.2
 graphene-django>=2.0
 pickleshare==0.7.4
 Pillow==5.0.0
