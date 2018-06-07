@@ -171,6 +171,10 @@ USE_TZ = True
 STATIC_URL = "/static/"
 MEDIA_ROOT = "/code/media/"
 MEDIA_URL = "/media/"
+# Swagger loging / logout
+LOGIN_URL = "/accounts/login/"
+LOGOUT_URL = "/accounts/logout/"
+
 
 WEBPACK_LOADER = {
     "DEFAULT": {
