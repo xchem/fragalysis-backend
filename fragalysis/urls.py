@@ -33,5 +33,4 @@ urlpatterns = [
         django_cas_ng.views.callback,
         name="cas_ng_proxy_callback",
     ),
-    url(r"^$", RedirectView.as_view(url="/accounts/login/")),
 ]
