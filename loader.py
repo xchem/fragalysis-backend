@@ -5,7 +5,7 @@ def get_target_list():
     if "TARGET_LIST" in os.environ:
         return os.environ["TARGET_LIST"].split(",")
     else:
-        return ["CAMK1DA", "MURD", "HAO1A"]
+        return ["CAMK1DA", "MURD", "HAO1A", "smTGR", "PTP1B"]
         # ,"DCLRE1AA","DCP2B","FALZA","MURD","NUDT21A",
         #    "NUDT22A","NUDT7A","PARP14A","PHIPA","SETDB1","SHMT2A","HAO1A","PTP1B",]
 
