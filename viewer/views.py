@@ -25,7 +25,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return ["PROPOSAL_THREE"]
 
     def get_proposals_for_user_dummy(self, user):
-        DUMMY_DATA = {"qkg34138": "PROPOSAL_ONE", "uzw12877": "PROPOSAL_TWO"}
+        DUMMY_DATA = {"qkg34138": ["PROPOSAL_ONE"], "uzw12877": ["PROPOSAL_TWO"]}
         if user.username in DUMMY_DATA:
             return DUMMY_DATA[user.username]
         return []
