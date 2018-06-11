@@ -9,10 +9,40 @@ from rest_framework import permissions
 from rest_framework import viewsets
 
 
-class TargetView(viewsets.ReadOnlyModelViewSet):
+class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+
+    def get_open_proposals(self):
+        """
+        Returns the list of proposals anybody can access
+        :return:
+        """
+        return []
+
+    def get_proposals_for_user(self):
+        import ispyb
+
+        # Check ISPyB for the relavent data
+        # Get a connection and data area objects
+        # What username and password to use in config.cfg
+        with ispyb.open("config.cfg") as conn:
+            core = conn.core
+            mx_acquisition = conn.mx_acquisition
+            return mx_acquisition.get_proposals_for_user(self.request.user)
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned purchases to a given propsals
+        """
+        #
+        proposal_list = self.get_proposals_for_user()
+        # Add in the ones everyone has access to
+        proposal_list.extend(self.get_open_proposals())
+        return self.queryset.object.filter(project_id__in=proposal_list)
+
+
+class TargetView(ISpyBSafeQuerySet):
     queryset = Target.objects.filter()
     serializer_class = TargetSerializer
-    # permission_classes =  [permissions.DjangoObjectPermissions,]
     filter_fields = ("title",)
 
 
