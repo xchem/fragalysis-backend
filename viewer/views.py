@@ -1,3 +1,10 @@
+from django.http import HttpResponse
+from django.shortcuts import render
+from viewer.models import Molecule, Protein, Compound
+import json
+from frag.network.decorate import get_3d_vects_for_mol
+from api.utils import draw_mol
+from .tasks import get_my_graph
 from viewer.models import Molecule, Protein, Compound, Target
 from viewer.serializers import (
     MoleculeSerializer,
@@ -5,7 +12,6 @@ from viewer.serializers import (
     CompoundSerializer,
     TargetSerializer,
 )
-from rest_framework import permissions
 from rest_framework import viewsets
 
 
@@ -16,9 +22,13 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         Returns the list of proposals anybody can access
         :return:
         """
-        return []
+        return ["PROPOSAL_THREE"]
 
-    def get_proposals_for_user(self):
+    def get_proposals_for_user_dummy(self, user):
+        DUMMY_DATA = {"qkg34138": "PROPOSAL_ONE", "uzw12877": "PROPOSAL_TWO"}
+        return DUMMY_DATA[user]
+
+    def get_proposals_for_user_from_ispyb(self, user):
         import ispyb
 
         # Check ISPyB for the relavent data
@@ -27,16 +37,21 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         with ispyb.open("config.cfg") as conn:
             core = conn.core
             mx_acquisition = conn.mx_acquisition
-            return mx_acquisition.get_proposals_for_user(self.request.user)
+            return mx_acquisition.get_proposals_for_user()
+
+    def get_proposals_for_user(self):
+        user = self.request.user
+        return self.get_proposals_for_user_dummy(user)
 
     def get_queryset(self):
         """
         Optionally restricts the returned purchases to a given propsals
         """
-        #
+        # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user()
         # Add in the ones everyone has access to
         proposal_list.extend(self.get_open_proposals())
+        # Must have a directy foreign key (project_id) for it to work
         return self.queryset.object.filter(project_id__in=proposal_list)
 
 
@@ -62,18 +77,6 @@ class ProteinView(viewsets.ReadOnlyModelViewSet):
     queryset = Protein.objects.filter()
     serializer_class = ProteinSerializer
     filter_fields = ("code", "target_id")
-
-
-from django.http import HttpResponse
-from django.shortcuts import render
-from viewer.models import Molecule, Protein, Compound
-from scoring.models import MolChoice, ViewScene
-from uuid import uuid4
-import json
-from frag.network.decorate import get_3d_vects_for_mol
-from api.utils import draw_mol, get_token
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from .tasks import get_my_graph
 
 
 def react(request):
@@ -131,50 +134,6 @@ def img_from_smiles(request):
         return get_params(smiles, request)
     else:
         return HttpResponse("Please insert SMILES")
-
-
-def mol_from_pk(request, pk):
-    sdf_info = Molecule.objects.get(pk=pk).sdf_info
-    return HttpResponse(sdf_info)
-
-
-def map_from_pk(request, pk):
-    prot = Protein.objects.get(pk=pk)
-    return HttpResponse(prot.map_info)
-
-
-def prot_from_pk(request, pk):
-    pdb_info = open(Protein.objects.get(pk=pk).pdb_info.path).read()
-    return HttpResponse(pdb_info)
-
-
-def post_view(request):
-    """
-    Post the view for a given scene
-    :param request:
-    :return:
-    """
-    new_view = ViewScene()
-    new_view.title = request.POST["title"]
-    new_view.scene = request.POST["scene"]
-    new_view.uuid = str(uuid4())
-    new_view.save()
-    url = request.build_absolute_uri("?scene_id=" + str(new_view.pk)).replace(
-        "/post_view/", "/display/"
-    )
-    return HttpResponse(url)
-
-
-def get_view(request, pk):
-    """
-    Now Get the view for a given UUID
-    :param request:
-    :return:
-    """
-    this_view = ViewScene.objects.get(pk=pk)
-    return HttpResponse(
-        json.dumps({"title": this_view.title, "scene": this_view.scene})
-    )
 
 
 def get_vects_from_pk(request, pk):
