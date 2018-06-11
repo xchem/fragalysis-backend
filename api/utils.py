@@ -87,7 +87,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         with ispyb.open("config.cfg") as conn:
             core = conn.core
             mx_acquisition = conn.mx_acquisition
-            return mx_acquisition.get_proposals_for_user()
+            return mx_acquisition.get_proposals_for_user(user.username)
 
     def get_proposals_for_user(self):
         user = self.request.user

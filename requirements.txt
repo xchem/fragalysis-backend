@@ -29,6 +29,7 @@ graphene-django>=2.0
 pickleshare==0.7.4
 Pillow==5.0.0
 pprint==0.1
+fragalysis
 ispyb
 prompt-toolkit==1.0.15
 psycopg2-binary==2.7.4
