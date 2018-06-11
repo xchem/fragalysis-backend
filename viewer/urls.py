@@ -32,6 +32,4 @@ urlpatterns = [
         views.get_graph_from_pk,
         name="get_graph_from_pk",
     ),
-    url(r"^post_view/$", views.post_view, name="post_view"),
-    url(r"^get_view/(?P<pk>[0-9]+)/$", views.get_view, name="get_view"),
 ]
