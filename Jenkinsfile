@@ -24,7 +24,7 @@ pipeline {
     stage('Build Image') {
       steps {
         echo "Building fragalysis-backend..."
-        sh "buildah bud --format docker -f Dockerfile -t ${STREAM_IMAGE}"
+        sh "buildah bud --format docker -f Dockerfile -t ${STREAM_IMAGE} ."
       }
     }
 
