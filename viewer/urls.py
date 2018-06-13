@@ -3,7 +3,7 @@ from django.conf.urls import url
 from . import views
 
 urlpatterns = [
-    url(r"^$", views.react, name="react"),
+    url(r"^react/*", views.react, name="react"),
     # New REST functions
     url(
         r"^img_from_mol_pk/(?P<pk>[0-9]+)/$",
