@@ -6,7 +6,7 @@ from rest_framework import viewsets
 class ViewSceneView(viewsets.ModelViewSet):
     queryset = ViewScene.objects.filter()
     serializer_class = ViewSceneSerializer
-    filter_fields = ('user_id',)
+    filter_fields = ('user_id','uuid',)
 
 class ProtChoiceView(viewsets.ModelViewSet):
     queryset = ProtChoice.objects.filter()
