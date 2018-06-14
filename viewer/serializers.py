@@ -41,7 +41,7 @@ class MoleculeSerializer(serializers.ModelSerializer):
             "smiles",
             "cmpd_id",
             "prot_id",
-            "molecule_protein"
+            "molecule_protein",
             "lig_id",
             "chain_id",
             "sdf_info",
