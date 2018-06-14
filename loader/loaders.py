@@ -209,7 +209,7 @@ def load_from_dir(target_name, dir_path, input_dict):
         "No data to add: " + target_name
         return None
     new_target = add_target(target_name)
-    directories = os.listdir(dir_path)
+    directories = sorted(os.listdir(dir_path))
     for xtal in directories:
         print(xtal)
         new_path = os.path.join(dir_path, xtal)
