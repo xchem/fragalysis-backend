@@ -3,10 +3,14 @@ from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, T
 
 
 class TargetSerializer(serializers.ModelSerializer):
+    template_protein = serializers.SerializerMethodField()
+    def get_template_protein(self, obj):
+        return obj.protein_set.filter()[0].pdb_info.url
+
 
     class Meta:
         model = Target
-        fields = ("id", "title", "project_id", "protein_set")
+        fields = ("id", "title", "project_id", "protein_set","template_protein")
 
 
 class CompoundSerializer(serializers.ModelSerializer):
@@ -26,6 +30,10 @@ class CompoundSerializer(serializers.ModelSerializer):
 
 class MoleculeSerializer(serializers.ModelSerializer):
 
+    molecule_protein = serializers.SerializerMethodField()
+    def get_molecule_protein(self, obj):
+        return obj.prot_id.pdb_info.url
+
     class Meta:
         model = Molecule
         fields = (
@@ -33,6 +41,7 @@ class MoleculeSerializer(serializers.ModelSerializer):
             "smiles",
             "cmpd_id",
             "prot_id",
+            "molecule_protein"
             "lig_id",
             "chain_id",
             "sdf_info",
