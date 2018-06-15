@@ -83,10 +83,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         Returns the list of proposals anybody can access
         :return:
         """
-        return ["PROPOSAL_THREE"]
+        return ["OPEN"]
 
     def get_proposals_for_user_dummy(self, user):
-        DUMMY_DATA = {"qkg34138": ["PROPOSAL_ONE"], "uzw12877": ["PROPOSAL_TWO"]}
+        DUMMY_DATA = {"qkg34138": ["lb1234"], "uzw12877": ["lb4567"]}
         if user.username in DUMMY_DATA:
             return DUMMY_DATA[user.username]
         return []

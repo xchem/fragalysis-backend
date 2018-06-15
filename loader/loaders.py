@@ -211,6 +211,17 @@ def add_visits(target, visit_path):
     target.save()
 
 
+def add_projects(new_target, dir_path):
+    # Add the proposal information
+    new_target.project_id.delete()
+    proposal_path = os.path.join(dir_path, "PROPOSALS")
+    visit_path = os.path.join(dir_path, "VISITS")
+    if os.path.isfile(proposal_path):
+        add_proposals(new_target, proposal_path)
+    if os.path.isfile(visit_path):
+        add_visits(new_target, visit_path)
+
+
 def load_from_dir(target_name, dir_path, input_dict):
     """
     Load the data for a given target from a directory structure
@@ -224,13 +235,7 @@ def load_from_dir(target_name, dir_path, input_dict):
         "No data to add: " + target_name
         return None
     new_target = add_target(target_name)
-    # Add the proposal information
-    proposal_path = os.path.join(dir_path, "PROPOSALS")
-    visit_path = os.path.join(dir_path, "VISITS")
-    if os.path.isfile(proposal_path):
-        add_proposals(new_target, proposal_path)
-    if os.path.isfile(visit_path):
-        add_visits(new_target, visit_path)
+    add_projects(new_target, dir_path)
     directories = sorted(os.listdir(dir_path))
     for xtal in directories:
         print(xtal)
