@@ -166,4 +166,4 @@ class GraphSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ("id", "vectors")
+        fields = ("id", "graph")
