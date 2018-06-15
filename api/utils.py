@@ -76,7 +76,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         proposal_list.extend(self.get_open_proposals())
         # Must have a directy foreign key (project_id) for it to work
         filter_dict = self.get_filter_dict(proposal_list)
-        return self.queryset.filter(**filter_dict)
+        return self.queryset.filter(**filter_dict).distinct()
 
     def get_open_proposals(self):
         """
