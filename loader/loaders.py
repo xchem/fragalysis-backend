@@ -201,12 +201,14 @@ def add_proposals(target, proposal_path):
     for proposal_line in proposals:
         proposal = proposal_line.split()[0]
         project = Project.objects.get_or_create(title=proposal)[0]
+        project.user_id.remove()
         target.project_id.add(project)
         for fedid in proposal_line.split()[1:]:
             password = "".join(
                 random.choice(string.ascii_letters + string.digits) for i in range(12)
             )
-            user = User.objects.get_or_create(username=fedid, password=password)
+            user = User.objects.get_or_create(username=fedid, password=password)[0]
+            project.user_id.add(user)
 
 
 def add_visits(target, visit_path):
@@ -214,12 +216,14 @@ def add_visits(target, visit_path):
     for visit_line in visits:
         visit = visit_line.split()[0]
         project = Project.objects.get_or_create(title=visit)[0]
+        project.user_id.remove()
         target.project_id.add(project)
         for fedid in visit_line.split()[1:]:
             password = "".join(
                 random.choice(string.ascii_letters + string.digits) for i in range(12)
             )
-            user = User.objects.get_or_create(username=fedid, password=password)
+            user = User.objects.get_or_create(username=fedid, password=password)[0]
+            project.user_id.add(user)
     target.save()
 
 
