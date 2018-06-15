@@ -91,23 +91,12 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return DUMMY_DATA[user.username]
         return []
 
-    def get_proposals_for_user_from_ispyb(self, user):
-        import ispyb
-
-        # Check ISPyB for the relavent data
-        # Get a connection and data area objects
-        # What username and password to use in config.cfg
-        with ispyb.open("config.cfg") as conn:
-            core = conn.core
-            mx_acquisition = conn.mx_acquisition
-            return mx_acquisition.get_proposals_for_user(user.username)
-
     def get_proposals_for_user_from_django(self, user):
-        from viewer.models import Proposals
+        from viewer.models import Project
 
         # Load the list of proposals for the user
         # Get the list of proposals for the user
-        return Proposals.object.filter(user_id=user)
+        return Project.object.filter(user_id=user)
 
     def get_proposals_for_user(self):
         user = self.request.user

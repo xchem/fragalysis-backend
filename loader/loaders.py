@@ -1,5 +1,5 @@
-import os, sys, re, json
-import shutil
+import sys, json, random, string
+from django.contrib.auth.models import User
 from viewer.models import Target, Protein, Molecule, Compound, Project
 from pandda.models import PanddaSite, PanddaEvent
 from hypothesis.models import (
@@ -198,16 +198,28 @@ def add_map(new_prot, new_target, map_path, map_type):
 
 def add_proposals(target, proposal_path):
     proposals = [x.strip() for x in open(proposal_path).readlines() if x.strip()]
-    for proposal in proposals:
+    for proposal_line in proposals:
+        proposal = proposal_line.split()[0]
         project = Project.objects.get_or_create(title=proposal)[0]
         target.project_id.add(project)
+        for fedid in proposal_line.split()[1:]:
+            password = "".join(
+                random.choice(string.ascii_letters + string.digits) for i in range(12)
+            )
+            user = User.objects.get_or_create(username=fedid, password=password)
 
 
 def add_visits(target, visit_path):
     visits = [x.strip() for x in open(visit_path).readlines() if x.strip()]
-    for visit in visits:
+    for visit_line in visits:
+        visit = visit_line.split()[0]
         project = Project.objects.get_or_create(title=visit)[0]
         target.project_id.add(project)
+        for fedid in visit_line.split()[1:]:
+            password = "".join(
+                random.choice(string.ascii_letters + string.digits) for i in range(12)
+            )
+            user = User.objects.get_or_create(username=fedid, password=password)
     target.save()
 
 
