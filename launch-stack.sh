@@ -25,6 +25,7 @@ echo "Starting..."
 cd /code/frontend && npm run build
 # Start Gunicorn processes
 echo "Starting Gunicorn...."
+cd /code
 gunicorn fragalysis.wsgi:application \
     --daemon \
     --name fragalysis \
