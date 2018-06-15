@@ -213,7 +213,7 @@ def add_visits(target, visit_path):
 
 def add_projects(new_target, dir_path):
     # Add the proposal information
-    new_target.project_id.delete()
+    new_target.project_id.remove()
     proposal_path = os.path.join(dir_path, "PROPOSALS")
     visit_path = os.path.join(dir_path, "VISITS")
     if os.path.isfile(proposal_path):
