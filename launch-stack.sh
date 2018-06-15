@@ -22,7 +22,7 @@ tail -n 0 -f /srv/logs/*.log &
 # Start the NPM build
 echo "Starting..."
 # Run this is production mode now
-cd /code/frontend && npm run build &
+cd /code/frontend && npm run build
 # Start Gunicorn processes
 echo "Starting Gunicorn...."
 gunicorn fragalysis.wsgi:application \
