@@ -68,4 +68,8 @@ def gen_conf_from_vect(request):
     input_vector = request.POST["INPUT_VECTOR"]
     input_smiles = request.POST.getlist("INPUT_SMILES")
     input_mol_block = request.POST["INPUT_MOL_BLOCK"]
-    return HttpResponse(json.dumps(generate_confs_for_vector(input_vector, input_smiles, input_mol_block)))
+    return HttpResponse(
+        json.dumps(
+            generate_confs_for_vector(input_vector, input_smiles, input_mol_block)
+        )
+    )

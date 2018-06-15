@@ -24,6 +24,7 @@ echo "Starting..."
 # Run this is production mode now
 cd /code/frontend && npm run build
 # Start Gunicorn processes
+cd /code/
 echo "Starting Gunicorn...."
 cd /code
 gunicorn fragalysis.wsgi:application \

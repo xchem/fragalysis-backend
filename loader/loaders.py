@@ -1,6 +1,6 @@
 import os, sys, re, json
 import shutil
-from viewer.models import Target, Protein, Molecule, Compound
+from viewer.models import Target, Protein, Molecule, Compound, Project
 from pandda.models import PanddaSite, PanddaEvent
 from hypothesis.models import (
     Vector3D,
@@ -196,6 +196,32 @@ def add_map(new_prot, new_target, map_path, map_type):
     return hotspot_map
 
 
+def add_proposals(target, proposal_path):
+    proposals = [x.strip() for x in open(proposal_path).readlines() if x.strip()]
+    for proposal in proposals:
+        project = Project.objects.get_or_create(title=proposal)[0]
+        target.project_id.add(project)
+
+
+def add_visits(target, visit_path):
+    visits = [x.strip() for x in open(visit_path).readlines() if x.strip()]
+    for visit in visits:
+        project = Project.objects.get_or_create(title=visit)[0]
+        target.project_id.add(project)
+    target.save()
+
+
+def add_projects(new_target, dir_path):
+    # Add the proposal information
+    new_target.project_id.remove()
+    proposal_path = os.path.join(dir_path, "PROPOSALS")
+    visit_path = os.path.join(dir_path, "VISITS")
+    if os.path.isfile(proposal_path):
+        add_proposals(new_target, proposal_path)
+    if os.path.isfile(visit_path):
+        add_visits(new_target, visit_path)
+
+
 def load_from_dir(target_name, dir_path, input_dict):
     """
     Load the data for a given target from a directory structure
@@ -209,6 +235,7 @@ def load_from_dir(target_name, dir_path, input_dict):
         "No data to add: " + target_name
         return None
     new_target = add_target(target_name)
+    add_projects(new_target, dir_path)
     directories = sorted(os.listdir(dir_path))
     for xtal in directories:
         print(xtal)
@@ -481,5 +508,7 @@ def prepare_from_csv(file_path):
 
 
 def process_target(prefix, target_name):
-    load_from_dir(target_name, prefix + target_name, FILE_PATH_DICT)
-    analyse_target(target_name)
+    new_data = load_from_dir(target_name, prefix + target_name, FILE_PATH_DICT)
+    # Check for new data
+    if os.path.isfile(os.path.join(prefix + target_name, "NEW_DATA")):
+        analyse_target(target_name)

@@ -14,6 +14,13 @@ router.register(r"molecules", viewer_views.MoleculeView)
 router.register(r"compounds", viewer_views.CompoundView)
 router.register(r"targets", viewer_views.TargetView)
 router.register(r"proteins", viewer_views.ProteinView)
+# Get the derived data
+router.register(r"molimg", viewer_views.MolImageView)
+router.register(r"vector", viewer_views.VectorsView)
+router.register(r"graph", viewer_views.GraphView)
+router.register(r"cmpdimg", viewer_views.CompoundImageView)
+router.register(r"protmap", viewer_views.ProteinMapInfoView)
+router.register(r"protpdb", viewer_views.ProteinPDBInfoView)
 # Hotspot maps
 router.register(r"hotspots", hostpot_views.HotspotView)
 # Pandda events and site
