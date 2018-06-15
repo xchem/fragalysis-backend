@@ -5,6 +5,7 @@ from frag.network.decorate import get_add_del_link
 from django.shortcuts import render
 from network.functions import order_stuctures
 
+
 def full_graph(request):
     """
     Get the full graph for a molecule from an input smiles
@@ -17,15 +18,6 @@ def full_graph(request):
         decoration_list = get_add_del_link(smiles)
         if not out_dict:
             return HttpResponse("EMPTY RESULT SET")
-        return HttpResponse(order_stuctures(out_dict,decoration_list))
+        return HttpResponse(order_stuctures(out_dict, decoration_list))
     else:
         return HttpResponse("Please insert SMILES")
-
-
-def display(request):
-    """
-    The basic tempalte for this app
-    :param request:
-    :return:
-    """
-    return render(request, 'network/display.html', {})

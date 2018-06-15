@@ -1,6 +1,6 @@
 import os, sys, re, json
 import shutil
-from viewer.models import Target, Protein, Molecule, Compound
+from viewer.models import Target, Protein, Molecule, Compound, Project
 from pandda.models import PanddaSite, PanddaEvent
 from hypothesis.models import (
     Vector3D,
@@ -42,7 +42,7 @@ def add_prot(pdb_file_path, code, target, mtz_path=None, map_path=None):
     :param map_path: the path to the MAP file
     :return: the created protein
     """
-    new_prot = Protein.objects.get_or_create(code=code, target_id=target)[0]
+    new_prot = Protein.objects.get_or_create(code=code, target_id=target)
     new_prot.apo_holo = True
     new_prot.pdb_info.save(os.path.basename(pdb_file_path), File(open(pdb_file_path)))
     if mtz_path:
@@ -196,6 +196,21 @@ def add_map(new_prot, new_target, map_path, map_type):
     return hotspot_map
 
 
+def add_proposals(target, proposal_path):
+    proposals = [x.strip() for x in open(proposal_path).readlines() if x.strip()]
+    for proposal in proposals:
+        project = Project.objects.get_or_create(title=proposal)[0]
+        target.project_id.add(project)
+
+
+def add_visits(target, visit_path):
+    visits = [x.strip() for x in open(visit_path).readlines() if x.strip()]
+    for visit in visits:
+        project = Project.objects.get_or_create(title=visit)[0]
+        target.project_id.add(project)
+    target.save()
+
+
 def load_from_dir(target_name, dir_path, input_dict):
     """
     Load the data for a given target from a directory structure
@@ -209,7 +224,15 @@ def load_from_dir(target_name, dir_path, input_dict):
         "No data to add: " + target_name
         return None
     new_target = add_target(target_name)
-    directories = os.listdir(dir_path)
+    # Add the proposal information
+    proposal_path = os.path.join(dir_path, "PROPOSALS")
+    visit_path = os.path.join(dir_path, "VISITS")
+    if os.path.isfile(proposal_path):
+        add_proposals(new_target, proposal_path)
+    if os.path.isfile(visit_path):
+        add_visits(new_target, visit_path)
+
+    directories = sorted(os.listdir(dir_path))
     for xtal in directories:
         print(xtal)
         new_path = os.path.join(dir_path, xtal)
@@ -481,5 +504,7 @@ def prepare_from_csv(file_path):
 
 
 def process_target(prefix, target_name):
-    load_from_dir(target_name, prefix + target_name, FILE_PATH_DICT)
-    analyse_target(target_name)
+    new_data = load_from_dir(target_name, prefix + target_name, FILE_PATH_DICT)
+    # Check for new data
+    if os.path.isfile(os.path.join(prefix + target_name, "NEW_DATA")):
+        analyse_target(target_name)

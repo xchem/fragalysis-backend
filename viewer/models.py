@@ -1,17 +1,18 @@
 from django.db import models
 from rdkit import Chem
 
+
 class Project(models.Model):
     """A django model to define a given project_id. Not currently used.
     Could be used to define certain attributes."""
     # The title of the project_id -> userdefined
-    title = models.CharField(max_length=200,unique=True)
+    title = models.CharField(max_length=200, unique=True)
     # The date it was made
     init_date = models.DateTimeField(auto_now_add=True)
+
     class Meta:
-        permissions = (
-            ('view_project', 'View project'),
-        )
+        permissions = (("view_project", "View project"),)
+
 
 class Target(models.Model):
     """A Django model to define a given protein target"""
@@ -25,9 +26,8 @@ class Target(models.Model):
     uniprot_id = models.CharField(max_length=100, null=True)
 
     class Meta:
-        permissions = (
-            ('view_target', 'View target'),
-        )
+        permissions = (("view_target", "View target"),)
+
 
 class Xtal(models.Model):
     # The na    me of this xtal
@@ -35,27 +35,26 @@ class Xtal(models.Model):
     target_id = models.ForeignKey(Target)
 
     class Meta:
-        unique_together = ('xtal_name', 'target_id',)
+        unique_together = ("xtal_name", "target_id")
 
 
 class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
     # code for this protein
-    code = models.CharField(max_length=50,unique=True, db_index=True)
+    code = models.CharField(max_length=50, unique=True, db_index=True)
     target_id = models.ForeignKey(Target)
     apo_holo = models.NullBooleanField()
-    pdb_info = models.FileField(upload_to='pdbs/', null=True, max_length=10000000)
-    cif_info = models.FileField(upload_to='cifs/', null=True, max_length=10000000)
-    mtz_info = models.FileField(upload_to='mtzs/', null=True, max_length=10000000)
-    map_info = models.FileField(upload_to='maps/', null=True, max_length=10000000)
+    pdb_info = models.FileField(upload_to="pdbs/", null=True, max_length=10000000)
+    cif_info = models.FileField(upload_to="cifs/", null=True, max_length=10000000)
+    mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=10000000)
+    map_info = models.FileField(upload_to="maps/", null=True, max_length=10000000)
     aligned = models.NullBooleanField()
-    aligned_to = models.ForeignKey('self', null=True)
+    aligned_to = models.ForeignKey("self", null=True)
     has_eds = models.NullBooleanField()
 
     class Meta:
-        permissions = (
-            ('view_protein', 'View protein'),
-        )
+        permissions = (("view_protein", "View protein"),)
+
 
 class Compound(models.Model):
     """A Django model to hold the information for a given compound -> a unique 2D molecule"""
@@ -79,18 +78,16 @@ class Compound(models.Model):
     ring_count = models.IntegerField()
 
     class Meta:
-        permissions = (
-            ('view_compound', 'View compound'),
-        )
+        permissions = (("view_compound", "View compound"),)
 
 
 class Molecule(models.Model):
     """A Django model to hold the information for a molecule -> a 3D set of
     co-ordinates"""
     # Character attributes
-    smiles = models.CharField(max_length=500, db_index=True,null=True)
-    lig_id = models.CharField(max_length=5,null=True)
-    chain_id = models.CharField(max_length=1,null=True)
+    smiles = models.CharField(max_length=500, db_index=True, null=True)
+    lig_id = models.CharField(max_length=5, null=True)
+    chain_id = models.CharField(max_length=1, null=True)
     # Textfield
     sdf_info = models.TextField(null=True)
     # Float attributes
@@ -106,10 +103,9 @@ class Molecule(models.Model):
 
     # Unique constraints
     class Meta:
-        unique_together = ('prot_id', 'cmpd_id', )
-        permissions = (
-                ('view_molecule', 'View molecule'),
-            )
+        unique_together = ("prot_id", "cmpd_id")
+        permissions = (("view_molecule", "View molecule"),)
+
 
 class ActivityPoint(models.Model):
     """A Django model to hold the activity information for a given compound"""
@@ -131,7 +127,5 @@ class ActivityPoint(models.Model):
     operator = models.CharField(max_length=5, default="NA")
 
     class Meta:
-        unique_together = ('target_id', 'activity', 'cmpd_id', 'units', )
-        permissions = (
-            ('view_activitypoint', 'View activitypoint'),
-        )
+        unique_together = ("target_id", "activity", "cmpd_id", "units")
+        permissions = (("view_activitypoint", "View activitypoint"),)

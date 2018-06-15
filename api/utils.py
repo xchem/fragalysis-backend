@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rest_framework import viewsets
+from django.http import HttpResponse
 
 
 def get_token(request):
@@ -65,6 +66,18 @@ def draw_mol(smiles, height=200, width=200):
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
+    def get_queryset(self):
+        """
+        Optionally restricts the returned purchases to a given propsals
+        """
+        # The list of proposals this user can have
+        proposal_list = self.get_proposals_for_user()
+        # Add in the ones everyone has access to
+        proposal_list.extend(self.get_open_proposals())
+        # Must have a directy foreign key (project_id) for it to work
+        filter_dict = self.get_filter_dict(proposal_list)
+        return self.queryset.filter(**filter_dict)
+
     def get_open_proposals(self):
         """
         Returns the list of proposals anybody can access
@@ -89,6 +102,13 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             mx_acquisition = conn.mx_acquisition
             return mx_acquisition.get_proposals_for_user(user.username)
 
+    def get_proposals_for_user_from_django(self, user):
+        from viewer.models import Proposals
+
+        # Load the list of proposals for the user
+        # Get the list of proposals for the user
+        return Proposals.object.filter(user_id=user)
+
     def get_proposals_for_user(self):
         user = self.request.user
         return self.get_proposals_for_user_dummy(user)
@@ -96,14 +116,20 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_filter_dict(self, proposal_list):
         return {self.filter_permissions + "__title__in": proposal_list}
 
-    def get_queryset(self):
-        """
-        Optionally restricts the returned purchases to a given propsals
-        """
-        # The list of proposals this user can have
-        proposal_list = self.get_proposals_for_user()
-        # Add in the ones everyone has access to
-        proposal_list.extend(self.get_open_proposals())
-        # Must have a directy foreign key (project_id) for it to work
-        filter_dict = self.get_filter_dict(proposal_list)
-        return self.queryset.filter(**filter_dict)
+
+def get_params(smiles, request):
+    height = None
+    if "height" in request.GET:
+        height = int(request.GET["height"])
+    width = None
+    if "width" in request.GET:
+        width = int(request.GET["width"])
+    return HttpResponse(draw_mol(smiles, width=width, height=height))
+
+
+def mol_view(request):
+    if "smiles" in request.GET:
+        smiles = request.GET["smiles"].rstrip(".svg")
+        return get_params(smiles, request)
+    else:
+        return HttpResponse("Please insert SMILES")
