@@ -42,7 +42,7 @@ def add_prot(pdb_file_path, code, target, mtz_path=None, map_path=None):
     :param map_path: the path to the MAP file
     :return: the created protein
     """
-    new_prot = Protein.objects.get_or_create(code=code, target_id=target)
+    new_prot = Protein.objects.get_or_create(code=code, target_id=target)[0]
     new_prot.apo_holo = True
     new_prot.pdb_info.save(os.path.basename(pdb_file_path), File(open(pdb_file_path)))
     if mtz_path:
