@@ -1,5 +1,5 @@
 from django.db import models
-from rdkit import Chem
+from django.contrib.auth.models import User
 
 
 class Project(models.Model):
@@ -9,6 +9,8 @@ class Project(models.Model):
     title = models.CharField(max_length=200, unique=True)
     # The date it was made
     init_date = models.DateTimeField(auto_now_add=True)
+    # The users it's related to
+    user_id = models.ManyToManyField(User)
 
     class Meta:
         permissions = (("view_project", "View project"),)
