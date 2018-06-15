@@ -5,7 +5,10 @@ from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, T
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
     def get_template_protein(self, obj):
-        return obj.protein_set.filter()[0].pdb_info.url
+        if len(obj.protein_set.filter()) > 0:
+            return obj.protein_set.filter()[0].pdb_info.url
+        else:
+            return "NOT AVAILABLE"
 
 
     class Meta:
