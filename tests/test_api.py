@@ -196,7 +196,7 @@ class APIUrlsTestCase(TestCase):
             {
                 "id": 1,
                 "title": "DUMMY_TARGET",
-                "project_id": [],
+                "project_id": [1],
                 "protein_set": [1],
                 "template_protein": "/media/my_pdb.pdb",
             },
