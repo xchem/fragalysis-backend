@@ -231,7 +231,6 @@ def load_from_dir(target_name, dir_path, input_dict):
         add_proposals(new_target, proposal_path)
     if os.path.isfile(visit_path):
         add_visits(new_target, visit_path)
-
     directories = sorted(os.listdir(dir_path))
     for xtal in directories:
         print(xtal)
