@@ -96,7 +96,9 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # Load the list of proposals for the user
         # Get the list of proposals for the user
-        return Project.objects.filter(user_id=user.pk)
+        return list(
+            Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
+        )
 
     def get_proposals_for_user(self):
         user = self.request.user
