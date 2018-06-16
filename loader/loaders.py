@@ -196,12 +196,18 @@ def add_map(new_prot, new_target, map_path, map_type):
     return hotspot_map
 
 
+def delete_users(project):
+    for user_id in project.user_id.all():
+        project.user_id.remove(user_id.pk)
+    project.user_id.save()
+
+
 def add_proposals(target, proposal_path):
     proposals = [x.strip() for x in open(proposal_path).readlines() if x.strip()]
     for proposal_line in proposals:
         proposal = proposal_line.split()[0]
         project = Project.objects.get_or_create(title=proposal)[0]
-        project.user_id.remove()
+        delete_users(project)
         target.project_id.add(project)
         for fedid in proposal_line.split()[1:]:
             user = User.objects.get_or_create(username=fedid, password="")[0]
@@ -213,10 +219,10 @@ def add_visits(target, visit_path):
     for visit_line in visits:
         visit = visit_line.split()[0]
         project = Project.objects.get_or_create(title=visit)[0]
-        project.user_id.remove()
+        delete_users(project)
         target.project_id.add(project)
         for fedid in visit_line.split()[1:]:
-            user = User.objects.get_or_create(username=fedid, password=password)[0]
+            user = User.objects.get_or_create(username=fedid, password="")[0]
             project.user_id.add(user)
     target.save()
 
