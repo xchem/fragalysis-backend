@@ -199,7 +199,7 @@ def add_map(new_prot, new_target, map_path, map_type):
 def delete_users(project):
     for user_id in project.user_id.all():
         project.user_id.remove(user_id.pk)
-    project.user_id.save()
+    project.save()
 
 
 def add_proposals(target, proposal_path):
