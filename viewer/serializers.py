@@ -153,7 +153,7 @@ class VectorsSerializer(serializers.ModelSerializer):
         return get_3d_vects_for_mol(obj.sdf_info)
 
     class Meta:
-        model = Protein
+        model = Molecule
         fields = ("id", "vectors")
 
 
@@ -165,5 +165,5 @@ class GraphSerializer(serializers.ModelSerializer):
         return get_full_graph(obj.smiles)
 
     class Meta:
-        model = Protein
+        model = Molecule
         fields = ("id", "graph")

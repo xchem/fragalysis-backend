@@ -6,6 +6,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rest_framework import viewsets
 from django.http import HttpResponse
+from viewer.models import Project
 
 
 def get_token(request):
@@ -85,16 +86,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """
         return ["OPEN"]
 
-    def get_proposals_for_user_dummy(self, user):
-        DUMMY_DATA = {"qkg34138": ["lb1234"], "uzw12877": ["lb4567"]}
-        if user.username in DUMMY_DATA:
-            return DUMMY_DATA[user.username]
-        return []
-
     def get_proposals_for_user_from_django(self, user):
-        from viewer.models import Project
-
-        # Load the list of proposals for the user
         # Get the list of proposals for the user
         return list(
             Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
