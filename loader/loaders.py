@@ -204,10 +204,7 @@ def add_proposals(target, proposal_path):
         project.user_id.remove()
         target.project_id.add(project)
         for fedid in proposal_line.split()[1:]:
-            password = "".join(
-                random.choice(string.ascii_letters + string.digits) for i in range(12)
-            )
-            user = User.objects.get_or_create(username=fedid, password=password)[0]
+            user = User.objects.get_or_create(username=fedid, password="")[0]
             project.user_id.add(user)
 
 
@@ -219,9 +216,6 @@ def add_visits(target, visit_path):
         project.user_id.remove()
         target.project_id.add(project)
         for fedid in visit_line.split()[1:]:
-            password = "".join(
-                random.choice(string.ascii_letters + string.digits) for i in range(12)
-            )
             user = User.objects.get_or_create(username=fedid, password=password)[0]
             project.user_id.add(user)
     target.save()
