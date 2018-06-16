@@ -227,9 +227,15 @@ def add_visits(target, visit_path):
     target.save()
 
 
+def delete_projects(target):
+    for project_id in target.project_id.all():
+        target.project_id.remove(project_id.pk)
+    target.save()
+
+
 def add_projects(new_target, dir_path):
     # Add the proposal information
-    new_target.project_id.remove()
+    delete_projects(new_target)
     proposal_path = os.path.join(dir_path, "PROPOSALS")
     visit_path = os.path.join(dir_path, "VISITS")
     if os.path.isfile(proposal_path):
