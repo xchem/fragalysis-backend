@@ -73,9 +73,10 @@ class MoleculeView(ISpyBSafeQuerySet):
     filter_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
 
-class CompoundView(viewsets.ReadOnlyModelViewSet):
+class CompoundView(ISpyBSafeQuerySet):
     queryset = Compound.objects.filter()
     serializer_class = CompoundSerializer
+    filter_permissions = "project_id"
     filter_fields = ("smiles",)
 
 
