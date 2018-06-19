@@ -53,6 +53,12 @@ def add_prot(pdb_file_path, code, target, mtz_path=None, map_path=None):
     return new_prot
 
 
+def add_projects_to_cmpd(new_comp, projects):
+    [new_comp.project_id.add(x) for x in projects]
+    new_comp.save()
+    return new_comp
+
+
 def add_comp(mol, projects, option=None, comp_id=None):
     """
     Function to add a new compound to the database given an RDKit molecule
@@ -105,11 +111,11 @@ def add_comp(mol, projects, option=None, comp_id=None):
     try:
         new_comp.validate_unique()
         new_comp.save()
-        [new_comp.add(x) for x in projects]
+        new_comp = add_projects_to_cmpd(new_comp, projects)
         return new_comp
     except ValidationError:
         new_comp = Compound.objects.get(inchi=inchi)
-        [new_comp.add(x) for x in projects]
+        new_comp = add_projects_to_cmpd(new_comp, projects)
         return new_comp
 
 
