@@ -75,6 +75,8 @@ class APIUrlsTestCase(TestCase):
             num_val_electrons=9,
             ring_count=10,
         )
+        self.cmpd.project_id.add(self.project)
+        self.cmpd.save()
         self.protein = Protein.objects.create(
             id=1, code="DUMM", target_id=self.target, pdb_info="my_pdb.pdb"
         )
@@ -188,6 +190,7 @@ class APIUrlsTestCase(TestCase):
                 "id": 1,
                 "inchi": "DUM_INCH",
                 "smiles": "DUM_SMI",
+                "project_id": [1],
                 "mol_log_p": 0.1,
                 "mol_wt": 0.2,
                 "num_h_acceptors": 5,
