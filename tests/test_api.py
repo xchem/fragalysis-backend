@@ -190,7 +190,6 @@ class APIUrlsTestCase(TestCase):
                 "id": 1,
                 "inchi": "DUM_INCH",
                 "smiles": "DUM_SMI",
-                "project_id": [1],
                 "mol_log_p": 0.1,
                 "mol_wt": 0.2,
                 "num_h_acceptors": 5,
