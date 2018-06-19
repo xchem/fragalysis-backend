@@ -63,6 +63,8 @@ class Compound(models.Model):
     # Character attributes
     inchi = models.CharField(max_length=5000, unique=True, db_index=True)
     smiles = models.CharField(max_length=500, db_index=True)
+    # A link to the related project
+    project_id = models.ManyToManyField(Project)
     # Float attributes
     mol_log_p = models.FloatField()
     mol_wt = models.FloatField()
