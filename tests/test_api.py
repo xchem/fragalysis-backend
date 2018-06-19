@@ -53,7 +53,7 @@ class APIUrlsTestCase(TestCase):
         self.factory = APIRequestFactory()
         self.client = APIClient()
         self.user = User.objects.create(username="DUMMY", password="DUMMY")
-        self.project = Project.objects.create(title="OPEN")
+        self.project = Project.objects.create(id=1, title="OPEN")
         self.client.login(username=self.user.username, password=self.user.password)
         self.target = Target.objects.create(id=1, title="DUMMY_TARGET")
         self.target.project_id.add(self.project)
