@@ -38,9 +38,10 @@ class MolImageView(ISpyBSafeQuerySet):
     filter_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
 
-class CompoundImageView(viewsets.ReadOnlyModelViewSet):
+class CompoundImageView(ISpyBSafeQuerySet):
     queryset = Compound.objects.filter()
     serializer_class = CmpdImageSerialzier
+    filter_permissions = "project_id"
     filter_fields = ("smiles",)
 
 

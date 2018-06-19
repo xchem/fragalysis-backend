@@ -53,7 +53,7 @@ def add_prot(pdb_file_path, code, target, mtz_path=None, map_path=None):
     return new_prot
 
 
-def add_comp(mol, option=None, comp_id=None):
+def add_comp(mol, projects, option=None, comp_id=None):
     """
     Function to add a new compound to the database given an RDKit molecule
     Takes an RDKit molecule. Option of LIG to return original smiles with the Compound object
@@ -105,12 +105,15 @@ def add_comp(mol, option=None, comp_id=None):
     try:
         new_comp.validate_unique()
         new_comp.save()
+        [new_comp.add(x) for x in projects]
         return new_comp
     except ValidationError:
-        return Compound.objects.get(inchi=inchi)
+        new_comp = Compound.objects.get(inchi=inchi)
+        [new_comp.add(x) for x in projects]
+        return new_comp
 
 
-def add_mol(mol_sd, prot, lig_id="LIG", chaind_id="Z", occupancy=0.0):
+def add_mol(mol_sd, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
     """
     Function to add a new Molecule to the database
     :param mol_sd: the SDMolBlock of the molecule
@@ -124,7 +127,7 @@ def add_mol(mol_sd, prot, lig_id="LIG", chaind_id="Z", occupancy=0.0):
     if rd_mol is None:
         return None
     # Get the reference compound
-    comp_ref = add_comp(rd_mol)
+    comp_ref = add_comp(rd_mol, projects)
     new_mol = Molecule.objects.get_or_create(prot_id=prot, cmpd_id=comp_ref)[0]
     # Make a protein object by which it is related in the DB
     new_mol.sdf_info = Chem.MolToMolBlock(rd_mol)
@@ -204,27 +207,34 @@ def delete_users(project):
 
 def add_proposals(target, proposal_path):
     proposals = [x.strip() for x in open(proposal_path).readlines() if x.strip()]
+    projects = []
     for proposal_line in proposals:
         proposal = proposal_line.split()[0]
         project = Project.objects.get_or_create(title=proposal)[0]
+        projects.append(project)
         delete_users(project)
         target.project_id.add(project)
         for fedid in proposal_line.split()[1:]:
             user = User.objects.get_or_create(username=fedid, password="")[0]
             project.user_id.add(user)
+    target.save()
+    return projects
 
 
 def add_visits(target, visit_path):
     visits = [x.strip() for x in open(visit_path).readlines() if x.strip()]
+    projects = []
     for visit_line in visits:
         visit = visit_line.split()[0]
         project = Project.objects.get_or_create(title=visit)[0]
+        projects.append(project)
         delete_users(project)
         target.project_id.add(project)
         for fedid in visit_line.split()[1:]:
             user = User.objects.get_or_create(username=fedid, password="")[0]
             project.user_id.add(user)
     target.save()
+    return projects
 
 
 def delete_projects(target):
@@ -238,10 +248,12 @@ def add_projects(new_target, dir_path):
     delete_projects(new_target)
     proposal_path = os.path.join(dir_path, "PROPOSALS")
     visit_path = os.path.join(dir_path, "VISITS")
+    projects = []
     if os.path.isfile(proposal_path):
-        add_proposals(new_target, proposal_path)
+        projects.extend(add_proposals(new_target, proposal_path))
     if os.path.isfile(visit_path):
-        add_visits(new_target, visit_path)
+        projects.extend(add_visits(new_target, visit_path))
+    return projects
 
 
 def load_from_dir(target_name, dir_path, input_dict):
@@ -257,7 +269,7 @@ def load_from_dir(target_name, dir_path, input_dict):
         "No data to add: " + target_name
         return None
     new_target = add_target(target_name)
-    add_projects(new_target, dir_path)
+    projects = add_projects(new_target, dir_path)
     directories = sorted(os.listdir(dir_path))
     for xtal in directories:
         print(xtal)
@@ -301,7 +313,7 @@ def load_from_dir(target_name, dir_path, input_dict):
             new_prot = add_prot(
                 pdb_file_path, xtal, new_target, mtz_path=mtz_path, map_path=map_path
             )
-            new_mol = add_mol(mol_file_path, new_prot)
+            new_mol = add_mol(mol_file_path, new_prot, projects)
             if not new_mol:
                 print("NONE MOL: " + xtal)
             else:
