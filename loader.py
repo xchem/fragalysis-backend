@@ -1,13 +1,14 @@
 import os
 
 
-def get_target_list():
-    if "TARGET_LIST" in os.environ:
+def get_target_list(base_path):
+    target_path = os.path.join(base_path, "TARGET_LIST")
+    if os.path.isfile(target_path):
+        return [x.strip() for x in open(target_path).read().split(" ") if x.strip()]
+    elif "TARGET_LIST" in os.environ:
         return os.environ["TARGET_LIST"].split(",")
     else:
-        return ["CAMK1DA", "MURD", "HAO1A", "smTGR", "PTP1B"]
-        # ,"DCLRE1AA","DCP2B","FALZA","MURD","NUDT21A",
-        #    "NUDT22A","NUDT7A","PARP14A","PHIPA","SETDB1","SHMT2A","HAO1A","PTP1B",]
+        return ["MURD", "HAO1A", "smTGR", "PTP1B"]
 
 
 if __name__ == "__main__":
@@ -17,7 +18,7 @@ if __name__ == "__main__":
     django.setup()
     from loader.loaders import process_target
 
-    targets_to_load = get_target_list()
     prefix = "/code/media/"
+    targets_to_load = get_target_list(prefix)
     for target_name in targets_to_load:
         process_target(prefix, target_name)
