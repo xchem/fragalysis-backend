@@ -65,9 +65,12 @@ class MolGroupView(viewsets.ModelViewSet):
 
 
 def gen_conf_from_vect(request):
-    input_vector = request.POST["INPUT_VECTOR"]
-    input_smiles = request.POST.getlist("INPUT_SMILES")
-    input_mol_block = request.POST["INPUT_MOL_BLOCK"]
+    input_dict = json.loads(request.body)
+    input_vector = sorted(input_dict["INPUT_VECTOR"].split("."), reverse=True)[
+        0
+    ].replace("Xe", "H")
+    input_smiles = input_dict["INPUT_SMILES"]
+    input_mol_block = input_dict["INPUT_MOL_BLOCK"]
     return HttpResponse(
         json.dumps(
             generate_confs_for_vector(input_vector, input_smiles, input_mol_block)
