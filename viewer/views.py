@@ -119,5 +119,5 @@ def similarity_search(request):
   WHERE mfp.m @> qmol_from_smiles(%s)
   LIMIT 1000"""
     with connections[db_name].cursor() as cursor:
-        rows = cursor.execute(sql_query, smiles)
+        rows = cursor.execute(sql_query, [smiles])
         return rows.fetchall()
