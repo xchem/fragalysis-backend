@@ -122,4 +122,4 @@ def similarity_search(request):
   ) sub;"""
     with connections[db_name].cursor() as cursor:
         rows = cursor.execute(sql_query, [smiles])
-        return rows.fetchall()
+        return cursor.fetchall()
