@@ -12,6 +12,25 @@
  <body>
  {% csrf_token %}
  <div id="app" />
+
+
+
+ <script type="text/javascript">
+
+ {% if user.is_authenticated %}
+     var DJANGO_CONTEXT ={
+     username: '{{user.username}}',
+     authenticated: true
+     }
+ {% else %}
+     var DJANGO_CONTEXT = {
+         username: 'NOT_LOGGED_IN',
+         authenticated: false
+     }
+ {% endif %}
+
+</script>
+
  {% render_bundle 'main' %}
  </body>
 </html>
