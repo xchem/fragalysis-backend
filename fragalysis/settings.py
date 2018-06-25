@@ -133,6 +133,8 @@ WSGI_APPLICATION = "fragalysis.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
+CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKOWN")
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -140,16 +142,17 @@ DATABASES = {
         "USER": "postgres",
         "HOST": "db",
         "PORT": 5432,
-    },
-    "chemcentral": {
+    }
+}
+if CHEMCENTRAL_DB_NAME != "UNKOWN":
+    DATABASES["chemcentral"] = {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("CHEMCENT_DB_NAME", "postgres"),
+        "NAME": CHEMCENTRAL_DB_NAME,
         "USER": os.environ.get("CHEMCENT_DB_USER", "postgres"),
         "PASSWORD": os.environ.get("CHEMCENT_DB_PASSWORD", "postgres"),
         "HOST": os.environ.get("CHEMCENT_DB_HOST", "postgres"),
         "PORT": 5432,
-    },
-}
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
