@@ -1,4 +1,5 @@
 from django.http import HttpResponse
+from django.db import connections
 from django.shortcuts import render
 from api.utils import ISpyBSafeQuerySet, get_params
 from rest_framework import viewsets
@@ -101,3 +102,22 @@ def img_from_smiles(request):
         return get_params(smiles, request)
     else:
         return HttpResponse("Please insert SMILES")
+
+
+def similarity_search(request):
+    if "smiles" in request.GET:
+        smiles = request.GET["smiles"]
+    else:
+        return HttpResponse("Please insert SMILES")
+    if "db_name" in request.GET:
+        db_name = request.GET["db_name"]
+    else:
+        return HttpResponse("Please insert db_name")
+    sql_query = """SELECT rdk.id,rdk.structure,rdk.idnumber
+  FROM vendordbs.enamine_real_dsi AS rdk
+  JOIN vendordbs.enamine_real_dsi_molfps AS mfp ON mfp.id = rdk.id
+  WHERE mfp.m @> qmol_from_smiles(%s)
+  LIMIT 1000"""
+    with connections[db_name].cursor() as cursor:
+        rows = cursor.execute(sql_query, smiles)
+        return rows.fetchall()

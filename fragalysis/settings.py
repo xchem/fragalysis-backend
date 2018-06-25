@@ -44,9 +44,13 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_BACKEND = "db+sqlite:///results.sqlite"
 CELERY_TASK_SERIALIZER = "json"
 
+# This can be injected as an ENV var
+NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
+    "NEO4J_BOLT_URL", "bolt://neo4j:test@neo4j:7687"
+)
+
 
 # Application definition
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -54,6 +58,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Must come before my own apps
+    "django_neomodel",
     # My own apps
     "scoring",
     "network",
@@ -136,7 +142,15 @@ DATABASES = {
         "USER": "postgres",
         "HOST": "db",
         "PORT": 5432,
-    }
+    },
+    "chemcentral": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("CHEMCENT_DB_NAME", "postgres"),
+        "USER": os.environ.get("CHEMCENT_DB_USER", "postgres"),
+        "PASSWORD": os.environ.get("CHEMCENT_DB_PASSWORD", "postgres"),
+        "HOST": os.environ.get("CHEMCENT_DB_HOST", "postgres"),
+        "PORT": 5432,
+    },
 }
 
 # Password validation
