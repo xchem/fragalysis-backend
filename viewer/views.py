@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from django.db import connections
 from django.shortcuts import render
+import json
 from api.utils import ISpyBSafeQuerySet, get_params
 from rest_framework import viewsets
 from viewer.models import Molecule, Protein, Compound, Target
@@ -121,5 +122,5 @@ def similarity_search(request):
       WHERE m @> qmol_from_smiles(%s) LIMIT 1000
   ) sub;"""
     with connections[db_name].cursor() as cursor:
-        rows = cursor.execute(sql_query, [smiles])
-        return rows.fetchall()
+        cursor.execute(sql_query, [smiles])
+        return HttpResponse(json.dumps(cursor.fetchall()))
