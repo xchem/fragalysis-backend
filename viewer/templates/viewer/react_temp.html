@@ -24,8 +24,8 @@
      }
  {% else %}
      var DJANGO_CONTEXT = {
-         username: '{{user.username}}',
-         authenticated: true
+         username: 'NOT_LOGGED_IN',
+         authenticated: false
      }
  {% endif %}
 
