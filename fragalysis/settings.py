@@ -58,8 +58,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # Must come before my own apps
-    "django_neomodel",
     # My own apps
     "scoring",
     "network",
