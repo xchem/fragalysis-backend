@@ -44,9 +44,13 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_BACKEND = "db+sqlite:///results.sqlite"
 CELERY_TASK_SERIALIZER = "json"
 
+# This can be injected as an ENV var
+NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
+    "NEO4J_BOLT_URL", "bolt://neo4j:test@neo4j:7687"
+)
+
 
 # Application definition
-
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -129,6 +133,8 @@ WSGI_APPLICATION = "fragalysis.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
+CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKOWN")
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -138,6 +144,15 @@ DATABASES = {
         "PORT": 5432,
     }
 }
+if CHEMCENTRAL_DB_NAME != "UNKOWN":
+    DATABASES["chemcentral"] = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": CHEMCENTRAL_DB_NAME,
+        "USER": os.environ.get("CHEMCENT_DB_USER", "postgres"),
+        "PASSWORD": os.environ.get("CHEMCENT_DB_PASSWORD", "postgres"),
+        "HOST": os.environ.get("CHEMCENT_DB_HOST", "postgres"),
+        "PORT": 5432,
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
