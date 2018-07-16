@@ -332,7 +332,7 @@ def load_from_dir(target_name, dir_path, input_dict):
                 if don_path and os.path.isfile(don_path):
                     add_map(new_prot, new_target, don_path, "DO")
                 if lip_path and os.path.isfile(lip_path):
-                    add_map(new_prot, new_target, lip_path, "LI")
+                    add_map(new_prot, new_target, lip_path, "AP")
         else:
             print("File not found: " + xtal)
 
