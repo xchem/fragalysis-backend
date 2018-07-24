@@ -60,7 +60,7 @@ def draw_mol(smiles, height=200, width=200, img_type=None):
     if not width:
         width = 200
     if img_type == "png":
-        drawer = Draw.MolDraw2DCairo(height, width)
+        drawer = Draw.MolDraw2D(height, width)
     else:
         drawer = Draw.MolDraw2DSVG(height, width)
     drawer.DrawMolecule(mol)
