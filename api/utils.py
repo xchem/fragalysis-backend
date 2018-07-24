@@ -61,7 +61,9 @@ def draw_mol(smiles, height=200, width=200, img_type=None):
         width = 200
     if img_type == "png":
         img = Draw.MolToImage(mol)
-        return img.tobytes()
+        response = HttpResponse(mimetype="image/png")
+        img.save(response, "PNG")
+        return response
     else:
         drawer = Draw.MolDraw2DSVG(height, width)
         drawer.DrawMolecule(mol)
@@ -112,7 +114,10 @@ def get_params(smiles, request):
     if "width" in request.GET:
         width = int(request.GET["width"])
     img_type = request.GET.get("img_type", None)
-    return HttpResponse(draw_mol(smiles, width=width, height=height, img_type=img_type))
+    get_mol = draw_mol(smiles, width=width, height=height, img_type=img_type)
+    if type(get_mol) == HttpResponse:
+        return get_mol
+    return HttpResponse(get_mol)
 
 
 def mol_view(request):
