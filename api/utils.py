@@ -61,7 +61,7 @@ def draw_mol(smiles, height=200, width=200, img_type=None):
         width = 200
     if img_type == "png":
         img = Draw.MolToImage(mol)
-        response = HttpResponse(mimetype="image/png")
+        response = HttpResponse(content_type="image/png")
         img.save(response, "PNG")
         return response
     else:
