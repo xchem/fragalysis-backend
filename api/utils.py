@@ -61,6 +61,15 @@ def draw_mol(smiles, height=200, width=200, img_type=None):
         width = 200
     if img_type == "png":
         img = Draw.MolToImage(mol)
+        img = img.convert("RGBA")
+        datas = img.getdata()
+        newData = []
+        for item in datas:
+            if item[0] == 255 and item[1] == 255 and item[2] == 255:
+                newData.append((255, 255, 255, 0))
+            else:
+                newData.append(item)
+        img.putdata(newData)
         response = HttpResponse(content_type="image/png")
         img.save(response, "PNG")
         return response
