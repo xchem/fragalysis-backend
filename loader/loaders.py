@@ -495,6 +495,9 @@ import csv, os, shutil
 FILE_PATH_DICT = {
     "APO": "_apo.pdb",
     "MOL": ".mol",
+    "MOL2": ".mol2",
+    "H_MOL": "_h.mol",
+    "STRIPPED": "_no_buffer_altlocs.pdb",
     "EVENT": "_event.map",
     "MTZ": ".mtz",
     "CONTACTS": "_contacts.json",

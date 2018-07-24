@@ -1,8 +1,6 @@
 from django.http import HttpResponse
-import json
-from frag.network.query import get_full_graph
+from frag.network.query import get_full_graph, custom_query
 from frag.network.decorate import get_add_del_link
-from django.shortcuts import render
 from network.functions import order_stuctures
 
 
@@ -21,3 +19,11 @@ def full_graph(request):
         return HttpResponse(order_stuctures(out_dict, decoration_list))
     else:
         return HttpResponse("Please insert SMILES")
+
+
+def custom_query(request):
+    query = request.GET.get("query", None)
+    if query:
+        return HttpResponse(custom_query(query))
+    else:
+        return HttpResponse("Please insert Query")
