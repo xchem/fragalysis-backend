@@ -60,14 +60,12 @@ def draw_mol(smiles, height=200, width=200, img_type=None):
     if not width:
         width = 200
     if img_type == "png":
-        drawer = Draw.MolDraw2D(height, width)
+        img = Draw.MolToImage(mol)
+        return img.tobytes()
     else:
         drawer = Draw.MolDraw2DSVG(height, width)
-    drawer.DrawMolecule(mol)
-    drawer.FinishDrawing()
-    if img_type == "png":
-        return drawer.GetDrawingText()
-    else:
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
         return _transparentsvg(drawer.GetDrawingText().replace("svg:", ""))
 
 
