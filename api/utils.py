@@ -42,7 +42,7 @@ def _transparentsvg(svg):
     return '<?xml version="1.0" encoding="UTF-8"?>' + ET.tostring(tree).strip()
 
 
-def draw_mol(smiles, height=200, width=200):
+def draw_mol(smiles, height=200, width=200, img_type=None):
     """
     Draw a molecule from a smiles
     :param smiles: the SMILES to render
@@ -59,10 +59,16 @@ def draw_mol(smiles, height=200, width=200):
         height = 200
     if not width:
         width = 200
-    drawer = Draw.MolDraw2DSVG(height, width)
+    if img_type == "png":
+        drawer = Draw.MolDraw2DCairo(height, width)
+    else:
+        drawer = Draw.MolDraw2DSVG(height, width)
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
-    return _transparentsvg(drawer.GetDrawingText().replace("svg:", ""))
+    if img_type == "png":
+        return drawer.GetDrawingText()
+    else:
+        return _transparentsvg(drawer.GetDrawingText().replace("svg:", ""))
 
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
@@ -107,7 +113,8 @@ def get_params(smiles, request):
     width = None
     if "width" in request.GET:
         width = int(request.GET["width"])
-    return HttpResponse(draw_mol(smiles, width=width, height=height))
+    img_type = request.GET.get("img_type", None)
+    return HttpResponse(draw_mol(smiles, width=width, height=height, img_type=img_type))
 
 
 def mol_view(request):
