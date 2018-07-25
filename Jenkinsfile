@@ -11,6 +11,9 @@ pipeline {
     USER = 'jenkins'
     REGISTRY = 'docker-registry.default:5000'
     STREAM_IMAGE = "${REGISTRY}/fragalysis-cicd/fragalysis-backend:latest"
+
+    // Slack channel to be used for errors/failures
+    SLACK_ALERT_CHANNEL = 'dls-alerts'
   }
 
   stages {
@@ -37,6 +40,24 @@ pipeline {
         sh "buildah push --tls-verify=false ${env.STREAM_IMAGE} docker://${env.STREAM_IMAGE}"
         sh "podman logout ${env.REGISTRY}"
       }
+    }
+
+  }
+
+  // Post-job actions.
+  // See https://jenkins.io/doc/book/pipeline/syntax/#post
+  post {
+
+    failure {
+      slackSend channel: "#${SLACK_ALERT_CHANNEL}",
+              color: 'danger',
+              message: "Fragalysis-Backend build ${env.BUILD_NUMBER} - failed (${env.BUILD_URL})"
+    }
+
+    fixed {
+      slackSend channel: "#${env.SLACK_ALERT_CHANNEL}",
+              color: 'good',
+              message: "Fragalysis-Backend build - fixed"
     }
 
   }
