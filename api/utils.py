@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 import xml.etree.ElementTree as ET
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
+from rdkit.Chem.Draw.MolDrawing import DrawingOptions
 from rest_framework import viewsets
 from django.http import HttpResponse
 from viewer.models import Project
@@ -60,7 +61,10 @@ def draw_mol(smiles, height=200, width=200, img_type=None):
     if not width:
         width = 200
     if img_type == "png":
-        img = Draw.MolToImage(mol)
+        options = DrawingOptions()
+        # options.defaultColor = (1, 1, 1)
+        options.bondLineWidth = 2
+        img = Draw.MolToImage(mol, options=options)
         img = img.convert("RGBA")
         datas = img.getdata()
         newData = []
