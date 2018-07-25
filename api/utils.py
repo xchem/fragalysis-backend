@@ -63,7 +63,7 @@ def draw_mol(smiles, height=200, width=200, img_type=None):
     if img_type == "png":
         options = DrawingOptions()
         # options.defaultColor = (1, 1, 1)
-        options.bondLineWidth = 2
+        options.bondLineWidth = 6
         img = Draw.MolToImage(mol, options=options)
         img = img.convert("RGBA")
         datas = img.getdata()
