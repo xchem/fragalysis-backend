@@ -25,7 +25,7 @@ pipeline {
           slackSend channel: "#${SLACK_BUILD_CHANNEL}",
                     message: "${JOB_NAME} build ${BUILD_NUMBER} - starting..."
           echo "Inspecting..."
-          false
+          sh "false"
       }
     }
 
