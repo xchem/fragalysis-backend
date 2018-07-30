@@ -44,7 +44,7 @@ class Xtal(models.Model):
 class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
     # code for this protein
-    code = models.CharField(max_length=50, unique=True, db_index=True)
+    code = models.CharField(max_length=50, db_index=True)
     target_id = models.ForeignKey(Target)
     apo_holo = models.NullBooleanField()
     # Set the groups types
@@ -61,6 +61,7 @@ class Protein(models.Model):
     has_eds = models.NullBooleanField()
 
     class Meta:
+        unique_together = ("code", "prot_type")
         permissions = (("view_protein", "View protein"),)
 
 
@@ -117,7 +118,7 @@ class Molecule(models.Model):
 
     # Unique constraints
     class Meta:
-        unique_together = ("prot_id", "cmpd_id")
+        unique_together = ("prot_id", "cmpd_id", "mol_type")
         permissions = (("view_molecule", "View molecule"),)
 
 
