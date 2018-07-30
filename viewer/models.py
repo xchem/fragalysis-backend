@@ -48,7 +48,10 @@ class Protein(models.Model):
     target_id = models.ForeignKey(Target)
     apo_holo = models.NullBooleanField()
     # Set the groups types
-    prot_type = models.CharField(choices=get_prot_choices(), max_length=2)
+    prot_choices, default_prot = get_prot_choices()
+    prot_type = models.CharField(
+        choices=prot_choices, default=default_prot, max_length=2
+    )
     pdb_info = models.FileField(upload_to="pdbs/", null=True, max_length=10000000)
     cif_info = models.FileField(upload_to="cifs/", null=True, max_length=10000000)
     mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=10000000)
@@ -97,7 +100,8 @@ class Molecule(models.Model):
     chain_id = models.CharField(max_length=1, null=True)
     # The type of map
     # Set the groups types
-    mol_type = models.CharField(choices=get_mol_choices(), max_length=2)
+    mol_choices, default_mol = get_mol_choices()
+    mol_type = models.CharField(choices=mol_choices, default=default_mol, max_length=2)
     # Textfield
     sdf_info = models.TextField(null=True)
     # Float attributes

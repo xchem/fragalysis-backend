@@ -16,7 +16,7 @@ def _mol_choices():
             "MOL2",
         ),
     )
-    return mol_choices
+    return mol_choices, PROASIS
 
 
 def _prot_choices():
@@ -34,7 +34,7 @@ def _prot_choices():
         (TLEAPED, "Tleaped", "_tleap.pdb", "TLEAP"),
         (CHUNKED, "Chunked", "_chunk.pdb", "CHUNK"),
     )
-    return prot_choices
+    return prot_choices, APO
 
 
 def _djangofy_choices(input):
@@ -52,9 +52,9 @@ def get_dict():
     :return:
     """
     out_d = {}
-    for prot in _prot_choices():
+    for prot in _prot_choices()[0]:
         out_d[prot[3]] = prot[2]
-    for mol in _mol_choices():
+    for mol in _mol_choices()[0]:
         out_d[mol[3]] = mol[2]
     return out_d
 
@@ -64,7 +64,7 @@ def get_mol_choices():
     Get the molecule choices for django
     :return:
     """
-    return _djangofy_choices(_mol_choices())
+    return _djangofy_choices(_mol_choices()[0]), _mol_choices()[1]
 
 
 def get_prot_choices():
@@ -72,4 +72,4 @@ def get_prot_choices():
     Get the protein choices for django
     :return:
     """
-    return _djangofy_choices(_prot_choices())
+    return _djangofy_choices(_prot_choices()[0]), _prot_choices()[1]
