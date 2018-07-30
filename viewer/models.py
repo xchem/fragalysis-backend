@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from loader.config import get_mol_choices, get_prot_choices
 
 
 class Project(models.Model):
@@ -46,6 +47,8 @@ class Protein(models.Model):
     code = models.CharField(max_length=50, unique=True, db_index=True)
     target_id = models.ForeignKey(Target)
     apo_holo = models.NullBooleanField()
+    # Set the groups types
+    prot_type = models.CharField(choices=get_prot_choices(), max_length=2)
     pdb_info = models.FileField(upload_to="pdbs/", null=True, max_length=10000000)
     cif_info = models.FileField(upload_to="cifs/", null=True, max_length=10000000)
     mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=10000000)
@@ -92,6 +95,9 @@ class Molecule(models.Model):
     smiles = models.CharField(max_length=500, db_index=True, null=True)
     lig_id = models.CharField(max_length=5, null=True)
     chain_id = models.CharField(max_length=1, null=True)
+    # The type of map
+    # Set the groups types
+    mol_type = models.CharField(choices=get_mol_choices(), max_length=2)
     # Textfield
     sdf_info = models.TextField(null=True)
     # Float attributes

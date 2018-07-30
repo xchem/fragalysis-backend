@@ -20,6 +20,8 @@ from scoring.models import MolGroup
 from frag.alysis.run_clustering import run_lig_cluster
 from loader.functions import sanitize_mol, get_path_or_none
 from frag.network.decorate import get_3d_vects_for_mol
+import csv, os, shutil
+from loader.config import get_dict
 
 
 def add_target(title):
@@ -490,32 +492,12 @@ def analyse_target(target_name):
     analyse_mols(mols=mols, target=target)
 
 
-import csv, os, shutil
-
-FILE_PATH_DICT = {
-    "APO": "_apo.pdb",
-    "MOL": ".mol",
-    "MOL2": ".mol2",
-    "H_MOL": "_h.mol",
-    "STRIPPED": "_no_buffer_altlocs.pdb",
-    "EVENT": "_event.map",
-    "MTZ": ".mtz",
-    "CONTACTS": "_contacts.json",
-    "ACC": "_acceptor.ccp4",
-    "DON": "_donor.ccp4",
-    "LIP": "_apolar.ccp4",
-    "PMAP": "_pandda.map",
-    "PPDB": "_pandda.pdb",
-    "PJSON": "_pandda.json",
-    "PMTZ": "_pandda.mtz",
-}
-
-
 def copy_files(copy_file_dict, row, xtal_base, xtal_name):
+    file_path_dict = get_dict()
     for key in copy_file_dict:
         shutil.copyfile(
             os.path.join(row["root_dir"], key),
-            os.path.join(xtal_base, xtal_name + FILE_PATH_DICT[copy_file_dict[key]]),
+            os.path.join(xtal_base, xtal_name + file_path_dict[copy_file_dict[key]]),
         )
 
 
@@ -548,10 +530,9 @@ def prepare_from_csv(file_path):
 
 # Use this and add into LUIGI pipeline
 # prepare_from_csv("/dls/science/groups/i04-1/software/luigi_pipeline/pipeline/logs/proasis_out/proasis_out_20180430.csv")
-
-
 def process_target(prefix, target_name):
-    new_data = load_from_dir(target_name, prefix + target_name, FILE_PATH_DICT)
+    file_path_dict = get_dict()
+    new_data = load_from_dir(target_name, prefix + target_name, file_path_dict)
     # Check for new data
     if os.path.isfile(os.path.join(prefix + target_name, "NEW_DATA")):
         analyse_target(target_name)
