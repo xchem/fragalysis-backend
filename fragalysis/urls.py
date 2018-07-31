@@ -25,7 +25,7 @@ urlpatterns = [
     url(r"^viewer/", include("viewer.urls")),
     url(r"^network/", include("network.urls")),
     url(r"^api/", include("api.urls")),
-    url(r"^media_test/", include("media_serve.urls")),
+    url(r"^media/", include("media_serve.urls")),
     url(r"^scoring/", include("scoring.urls")),
     url(r"^graphql/", GraphQLView.as_view(graphiql=True)),
     url(r"^accounts/login/", django_cas_ng.views.login, name="cas_ng_login"),
