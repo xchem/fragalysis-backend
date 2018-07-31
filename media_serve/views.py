@@ -11,6 +11,7 @@ def prot_download(request, file_path):
     """
     ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = Protein
+    ispy_b_static.request = request
     ispy_b_static.permission_string = "target_id__project_id"
     ispy_b_static.field_name = "pdb_info"
     ispy_b_static.content_type = "application/x-pilot"
