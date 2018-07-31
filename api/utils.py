@@ -164,7 +164,7 @@ def get_response(
     response["Content-Type"] = content_type
     response["X-Accel-Redirect"] = prefix + file_name
     response["Content-Disposition"] = "attachment;filename=" + file_name
-    return response
+    return HttpResponse(prefix + file_name)
     # except Exception:
     #     raise Http404
     # return response
