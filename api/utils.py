@@ -143,28 +143,27 @@ def mol_view(request):
         return HttpResponse("Please insert SMILES")
 
 
-def get_queryset(request, my_class, permissions):
-    query = ISpyBSafeQuerySet()
-    query.request = request
-    query.filter_permissions = permissions
-    query.queryset = my_class.objects.filter()
-    queryset = query.get_queryset()
-    return queryset
+class ISpyBSafeStaticFiles:
 
+    def get_queryset(self):
+        query = ISpyBSafeQuerySet()
+        query.request = self.request
+        query.filter_permissions = self.permission_string
+        query.queryset = self.model.objects.filter()
+        queryset = query.get_queryset()
+        return queryset
 
-def get_response(
-    request, model, permission_string, field_name, content_type, prefix, input_string
-):
-    try:
-        queryset = get_queryset(request, model, permission_string)
-        filter_dict = {field_name + "__endswith": input_string}
-        object = queryset.get(**filter_dict)
-        file_name = os.path.basename(str(getattr(object, field_name)))
-        response = HttpResponse()
-        response["Content-Type"] = content_type
-        response["X-Accel-Redirect"] = prefix + file_name
-        response["Content-Disposition"] = "attachment;filename=" + file_name
+    def get_response(self):
+        try:
+            queryset = self.get_queryset()
+            filter_dict = {self.field_name + "__endswith": self.input_string}
+            object = queryset.get(**filter_dict)
+            file_name = os.path.basename(str(getattr(object, self.field_name)))
+            response = HttpResponse()
+            response["Content-Type"] = self.content_type
+            response["X-Accel-Redirect"] = self.prefix + file_name
+            response["Content-Disposition"] = "attachment;filename=" + file_name
+            return response
+        except Exception:
+            raise Http404
         return response
-    except Exception:
-        raise Http404
-    return response

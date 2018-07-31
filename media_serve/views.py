@@ -1,13 +1,19 @@
-from api.utils import get_response
+from api.utils import ISpyBSafeStaticFiles
 from viewer.models import Protein
 
 
 def prot_download(request, file_path):
-    model = Protein
-    permission = "target_id__project_id"
-    field_name = "pdb_info"
-    content_type = "application/x-pilot"
-    prefix = "/pdbs/"
-    return get_response(
-        request, model, permission, field_name, content_type, prefix, file_path
-    )
+    """
+    Download a protein by nginx redirect
+    :param request: the initial request
+    :param file_path: the file path we're getting from the static
+    :return: the response (a redirect to nginx internal)
+    """
+    ispy_b_static = ISpyBSafeStaticFiles()
+    ispy_b_static.model = Protein
+    ispy_b_static.permission_string = "target_id__project_id"
+    ispy_b_static.field_name = "pdb_info"
+    ispy_b_static.content_type = "application/x-pilot"
+    ispy_b_static.prefix = "/pdbs/"
+    ispy_b_static.input_string = file_path
+    return ispy_b_static.get_response()
