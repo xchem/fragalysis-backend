@@ -155,16 +155,16 @@ def get_queryset(request, my_class, permissions):
 def get_response(
     request, model, permission_string, field_name, content_type, prefix, input_string
 ):
-    # try:
-    queryset = get_queryset(request, model, permission_string)
-    filter_dict = {field_name + "__endswith": input_string}
-    object = queryset.get(**filter_dict)
-    file_name = os.path.basename(str(getattr(object, field_name)))
-    response = HttpResponse()
-    response["Content-Type"] = content_type
-    response["X-Accel-Redirect"] = prefix + file_name
-    response["Content-Disposition"] = "attachment;filename=" + file_name
-    return HttpResponse(prefix + file_name)
-    # except Exception:
-    #     raise Http404
-    # return response
+    try:
+        queryset = get_queryset(request, model, permission_string)
+        filter_dict = {field_name + "__endswith": input_string}
+        object = queryset.get(**filter_dict)
+        file_name = os.path.basename(str(getattr(object, field_name)))
+        response = HttpResponse()
+        response["Content-Type"] = content_type
+        response["X-Accel-Redirect"] = prefix + file_name
+        response["Content-Disposition"] = "attachment;filename=" + file_name
+        return response
+    except Exception:
+        raise Http404
+    return response
