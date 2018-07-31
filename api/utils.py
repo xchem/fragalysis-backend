@@ -158,7 +158,7 @@ def get_response(
     # try:
     queryset = get_queryset(request, model, permission_string)
     filter_dict = {field_name + "__endswith": input_string}
-    object = queryset.objects.get(**filter_dict)
+    object = queryset.get(**filter_dict)
     file_name = os.path.basename(str(getattr(object, field_name)))
     response = HttpResponse()
     response["Content-Type"] = content_type
