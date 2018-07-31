@@ -61,7 +61,7 @@ class ScoreChoiceView(viewsets.ModelViewSet):
 class MolGroupView(viewsets.ModelViewSet):
     queryset = MolGroup.objects.filter()
     serializer_class = MolGroupSerializer
-    filter_fields = ("group_type", "mol_id", "target_id")
+    filter_fields = ("group_type", "mol_id", "target_id", "description")
 
 
 def gen_conf_from_vect(request):
