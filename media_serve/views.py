@@ -8,4 +8,6 @@ def prot_download(request, file_path):
     field_name = "pdb_info"
     content_type = "application/x-pilot"
     prefix = "/pdbs/"
-    return get_response(model, permission, field_name, content_type, prefix, file_path)
+    return get_response(
+        request, model, permission, field_name, content_type, prefix, file_path
+    )

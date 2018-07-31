@@ -143,8 +143,9 @@ def mol_view(request):
         return HttpResponse("Please insert SMILES")
 
 
-def get_queryset(my_class, permissions):
+def get_queryset(request, my_class, permissions):
     query = ISpyBSafeQuerySet()
+    query.request = request
     query.filter_permissions = permissions
     query.queryset = my_class.objects.filter()
     queryset = query.get_queryset()
@@ -152,17 +153,18 @@ def get_queryset(my_class, permissions):
 
 
 def get_response(
-    model, permission_string, field_name, content_type, prefix, input_string
+    request, model, permission_string, field_name, content_type, prefix, input_string
 ):
-    try:
-        queryset = get_queryset(model, permission_string)
-        filter_dict = {field_name + "__endswith": input_string}
-        object = queryset.objects.get(**filter_dict)
-        file_name = os.path.basename(str(getattr(object, field_name)))
-        response = HttpResponse()
-        response["Content-Type"] = content_type
-        response["X-Accel-Redirect"] = prefix + file_name
-        response["Content-Disposition"] = "attachment;filename=" + file_name
-    except Exception:
-        raise Http404
+    # try:
+    queryset = get_queryset(request, model, permission_string)
+    filter_dict = {field_name + "__endswith": input_string}
+    object = queryset.objects.get(**filter_dict)
+    file_name = os.path.basename(str(getattr(object, field_name)))
+    response = HttpResponse()
+    response["Content-Type"] = content_type
+    response["X-Accel-Redirect"] = prefix + file_name
+    response["Content-Disposition"] = "attachment;filename=" + file_name
     return response
+    # except Exception:
+    #     raise Http404
+    # return response
