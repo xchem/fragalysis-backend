@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from django.db import connections
 from django.shortcuts import render
-import json
+import json, os
 from api.utils import ISpyBSafeQuerySet, get_params
 from rest_framework import viewsets
 from viewer.models import Molecule, Protein, Compound, Target

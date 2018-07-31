@@ -27,7 +27,7 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 ALLOWED_HOSTS = ["*"]
 
@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "pandda",
     "hypothesis",
     "hotspots",
+    "media_serve",
     # My utility apps
     "bootstrap3",
     "guardian",
