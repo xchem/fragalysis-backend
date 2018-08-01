@@ -48,6 +48,7 @@ class MoleculeSerializer(serializers.ModelSerializer):
             "smiles",
             "cmpd_id",
             "prot_id",
+            "mol_type",
             "molecule_protein",
             "lig_id",
             "chain_id",
@@ -83,6 +84,7 @@ class ProteinSerializer(serializers.ModelSerializer):
             "id",
             "code",
             "target_id",
+            "prot_type",
             "pdb_info",
             "mtz_info",
             "map_info",
@@ -130,7 +132,7 @@ class ProtMapInfoSerialzer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ("id", "map_data")
+        fields = ("id", "map_data", "prot_type")
 
 
 class ProtPDBInfoSerialzer(serializers.ModelSerializer):
@@ -142,7 +144,7 @@ class ProtPDBInfoSerialzer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ("id", "pdb_data")
+        fields = ("id", "pdb_data", "prot_type")
 
 
 class VectorsSerializer(serializers.ModelSerializer):
