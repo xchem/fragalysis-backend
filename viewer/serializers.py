@@ -37,9 +37,13 @@ class CompoundSerializer(serializers.ModelSerializer):
 class MoleculeSerializer(serializers.ModelSerializer):
 
     molecule_protein = serializers.SerializerMethodField()
+    protein_code = serializers.SerializerMethodField()
 
     def get_molecule_protein(self, obj):
         return obj.prot_id.pdb_info.url
+
+    def get_protein_code(self, obj):
+        return obj.prot_id.code
 
     class Meta:
         model = Molecule
@@ -48,7 +52,7 @@ class MoleculeSerializer(serializers.ModelSerializer):
             "smiles",
             "cmpd_id",
             "prot_id",
-            "prot_id__code",
+            "protein_code",
             "mol_type",
             "molecule_protein",
             "lig_id",
