@@ -12,7 +12,7 @@ from hypothesis.models import (
 )
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase, RequestFactory
-
+import json
 from rest_framework.test import APIClient
 from api.utils import draw_mol, get_token
 
@@ -347,10 +347,16 @@ class APIUrlsTestCase(TestCase):
         # Test the login can access
         response = self.client.get(url_base + "/targets/")
         self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(response.json(), not_secret_target_data)
+        self.assertDictEqual(
+            json.loads(json.dumps(response.json())),
+            json.loads(json.dumps(not_secret_target_data)),
+        )
         self.client.login(
             username=self.user_two.username, password=self.user_two.password
         )
         response = self.client.get(url_base + "/targets/")
         self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(response.json(), secret_target_data)
+        self.assertDictEqual(
+            json.loads(json.dumps(response.json())),
+            json.loads(json.dumps(secret_target_data)),
+        )
