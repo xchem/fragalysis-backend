@@ -12,14 +12,14 @@ from hypothesis.models import (
 )
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase, RequestFactory
-
-from rest_framework.test import APIClient
+import json
+from rest_framework.test import APIClient, APITestCase
 from api.utils import draw_mol, get_token
 
 # Test all these functions
 
 
-class APIUtilsTestCase(TestCase):
+class APIUtilsTestCase(APITestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
@@ -47,16 +47,25 @@ class APIUtilsTestCase(TestCase):
         self.assertTrue(type(token_two) == unicode)
 
 
-class APIUrlsTestCase(TestCase):
+class APIUrlsTestCase(APITestCase):
 
     def setUp(self):
+        self.maxDiff = None
         self.factory = APIRequestFactory()
         self.client = APIClient()
         self.user = User.objects.create(username="DUMMY", password="DUMMY")
+        self.user_two = User.objects.create(username="SECURE", password="SECURE")
         self.project = Project.objects.create(id=1, title="OPEN")
+        self.project_secure = Project.objects.create(id=2, title="SECURE PROJECT")
+        self.project_secure.user_id.add(self.user_two)
+        self.project_secure.save()
         self.client.login(username=self.user.username, password=self.user.password)
         self.target = Target.objects.create(id=1, title="DUMMY_TARGET")
         self.target.project_id.add(self.project)
+        self.target_two = Target.objects.create(id=2, title="SECRET_TARGET")
+        self.target_two.project_id.add(self.project_secure)
+        self.target_two.save()
+        self.target.save()
         self.cmpd = Compound.objects.create(
             id=1,
             inchi="DUM_INCH",
@@ -151,12 +160,49 @@ class APIUrlsTestCase(TestCase):
             map_info="my_hotspot.map",
         )
 
+        self.url_base = "/api"
+
+        self.secret_target_data = {
+            "count": 2,
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "id": 1,
+                    "title": "DUMMY_TARGET",
+                    "project_id": [1],
+                    "protein_set": [1],
+                    "template_protein": "/media/my_pdb.pdb",
+                },
+                {
+                    "id": 2,
+                    "title": "SECRET_TARGET",
+                    "project_id": [2],
+                    "protein_set": [],
+                    "template_protein": "NOT AVAILABLE",
+                },
+            ],
+        }
+        self.not_secret_target_data = {
+            "count": 1,
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "id": 1,
+                    "title": "DUMMY_TARGET",
+                    "project_id": [1],
+                    "protein_set": [1],
+                    "template_protein": "/media/my_pdb.pdb",
+                }
+            ],
+        }
+
     def test_API(self):
         """
         Untested but check get API works the way we want
         :return:
         """
-        url_base = "/api"
         urls = [
             "molecules",
             "compounds",
@@ -178,6 +224,7 @@ class APIUrlsTestCase(TestCase):
                 "smiles": "DUMMY",
                 "cmpd_id": 1,
                 "prot_id": 1,
+                "protein_code": "DUMM",
                 "lig_id": "DUM",
                 "mol_type": "PR",
                 "molecule_protein": "/media/my_pdb.pdb",
@@ -288,15 +335,35 @@ class APIUrlsTestCase(TestCase):
                 "compressed_map_info": None,
             },
         ]
+        self.client.login(username=self.user.username, password=self.user.password)
         # Currently empty
         post_data = [{} for x in response_data]
         post_resp = [{u"detail": u'Method "POST" not allowed.'} for x in response_data]
         for i, url in enumerate(urls):
             # GET basic request
-            response = self.client.get(url_base + "/" + url + "/1/")
+            response = self.client.get(self.url_base + "/" + url + "/1/")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
             # POST shouldn't work
-            response = self.client.post(url_base + "/" + url + "/", post_data[i])
+            response = self.client.post(self.url_base + "/" + url + "/", post_data[i])
             self.assertEqual(response.status_code, 405)
             self.assertEqual(response.data, post_resp[i])
+
+    def test_secure(self):
+        # Test the login user  can access secure data
+        self.client.force_authenticate(self.user_two)
+        response = self.client.get(self.url_base + "/targets/")
+        self.assertEqual(response.status_code, 200)
+        self.assertDictEqual(
+            json.loads(json.dumps(response.json())),
+            json.loads(json.dumps(self.secret_target_data)),
+        )
+
+    def test_insecure(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.get(self.url_base + "/targets/")
+        self.assertEqual(response.status_code, 200)
+        self.assertDictEqual(
+            json.loads(json.dumps(response.json())),
+            json.loads(json.dumps(self.not_secret_target_data)),
+        )
