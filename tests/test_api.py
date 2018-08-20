@@ -53,10 +53,15 @@ class APIUrlsTestCase(TestCase):
         self.factory = APIRequestFactory()
         self.client = APIClient()
         self.user = User.objects.create(username="DUMMY", password="DUMMY")
+        self.user_two = User.objects.create(username="SECURE", password="SECURE")
         self.project = Project.objects.create(id=1, title="OPEN")
+        self.project_secure = Project.objects.create(id=2, title="SECURE PROJECT")
+        self.project_secure.user_id.add(self.user_two)
         self.client.login(username=self.user.username, password=self.user.password)
         self.target = Target.objects.create(id=1, title="DUMMY_TARGET")
         self.target.project_id.add(self.project)
+        self.target_two = Target.objects.create(id=1, title="SECRET_TARGET")
+        self.target_two.project_id.add(self.project_secure)
         self.cmpd = Compound.objects.create(
             id=1,
             inchi="DUM_INCH",
@@ -288,6 +293,7 @@ class APIUrlsTestCase(TestCase):
                 "compressed_map_info": None,
             },
         ]
+
         # Currently empty
         post_data = [{} for x in response_data]
         post_resp = [{u"detail": u'Method "POST" not allowed.'} for x in response_data]
@@ -300,3 +306,39 @@ class APIUrlsTestCase(TestCase):
             response = self.client.post(url_base + "/" + url + "/", post_data[i])
             self.assertEqual(response.status_code, 405)
             self.assertEqual(response.data, post_resp[i])
+
+        secret_target_data = [
+            {
+                "id": 1,
+                "title": "_TARGET",
+                "project_id": [2],
+                "protein_set": [],
+                "template_protein": None,
+            },
+            {
+                "id": 1,
+                "title": "DUMMY_TARGET",
+                "project_id": [1],
+                "protein_set": [1],
+                "template_protein": "/media/my_pdb.pdb",
+            },
+        ]
+        not_secret_target_data = [
+            {
+                "id": 1,
+                "title": "DUMMY_TARGET",
+                "project_id": [1],
+                "protein_set": [1],
+                "template_protein": "/media/my_pdb.pdb",
+            }
+        ]
+        # Test the login can access
+        response = self.client.get(url_base + "/" + "targets")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, not_secret_target_data)
+        self.client.login(
+            username=self.user_two.username, password=self.user_two.password
+        )
+        response = self.client.get(url_base + "/" + "targets")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, secret_target_data)
