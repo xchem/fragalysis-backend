@@ -58,6 +58,7 @@ class APIUrlsTestCase(TestCase):
         self.project = Project.objects.create(id=1, title="OPEN")
         self.project_secure = Project.objects.create(id=2, title="SECURE PROJECT")
         self.project_secure.user_id.add(self.user_two)
+        self.project_secure.save()
         self.client.login(username=self.user.username, password=self.user.password)
         self.target = Target.objects.create(id=1, title="DUMMY_TARGET")
         self.target.project_id.add(self.project)
