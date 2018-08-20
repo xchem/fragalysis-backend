@@ -354,6 +354,11 @@ class APIUrlsTestCase(TestCase):
         self.client.login(
             username=self.user_two.username, password=self.user_two.password
         )
+        print(
+            Project.objects.filter(user_id=self.user_two.pk).values_list(
+                "title", flat=True
+            )
+        )
         response = self.client.get(self.url_base + "/targets/")
         self.assertEqual(response.status_code, 200)
         self.assertDictEqual(
