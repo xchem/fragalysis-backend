@@ -160,12 +160,49 @@ class APIUrlsTestCase(TestCase):
             map_info="my_hotspot.map",
         )
 
+        self.url_base = "/api"
+
+        self.secret_target_data = {
+            "count": 1,
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "id": 2,
+                    "title": "SECRET_TARGET",
+                    "project_id": [2],
+                    "protein_set": [],
+                    "template_protein": None,
+                },
+                {
+                    "id": 1,
+                    "title": "DUMMY_TARGET",
+                    "project_id": [1],
+                    "protein_set": [1],
+                    "template_protein": "/media/my_pdb.pdb",
+                },
+            ],
+        }
+        self.not_secret_target_data = {
+            "count": 1,
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "id": 1,
+                    "title": "DUMMY_TARGET",
+                    "project_id": [1],
+                    "protein_set": [1],
+                    "template_protein": "/media/my_pdb.pdb",
+                }
+            ],
+        }
+
     def test_API(self):
         """
         Untested but check get API works the way we want
         :return:
         """
-        url_base = "/api"
         urls = [
             "molecules",
             "compounds",
@@ -298,69 +335,37 @@ class APIUrlsTestCase(TestCase):
                 "compressed_map_info": None,
             },
         ]
-
+        self.client.login(username=self.user.username, password=self.user.password)
         # Currently empty
         post_data = [{} for x in response_data]
         post_resp = [{u"detail": u'Method "POST" not allowed.'} for x in response_data]
         for i, url in enumerate(urls):
             # GET basic request
-            response = self.client.get(url_base + "/" + url + "/1/")
+            response = self.client.get(self.url_base + "/" + url + "/1/")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
             # POST shouldn't work
-            response = self.client.post(url_base + "/" + url + "/", post_data[i])
+            response = self.client.post(self.url_base + "/" + url + "/", post_data[i])
             self.assertEqual(response.status_code, 405)
             self.assertEqual(response.data, post_resp[i])
 
-        secret_target_data = {
-            "count": 1,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "id": 2,
-                    "title": "SECRET_TARGET",
-                    "project_id": [2],
-                    "protein_set": [],
-                    "template_protein": None,
-                },
-                {
-                    "id": 1,
-                    "title": "DUMMY_TARGET",
-                    "project_id": [1],
-                    "protein_set": [1],
-                    "template_protein": "/media/my_pdb.pdb",
-                },
-            ],
-        }
-        not_secret_target_data = {
-            "count": 1,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "id": 1,
-                    "title": "DUMMY_TARGET",
-                    "project_id": [1],
-                    "protein_set": [1],
-                    "template_protein": "/media/my_pdb.pdb",
-                }
-            ],
-        }
-        # Test the login can access
-        response = self.client.get(url_base + "/targets/")
-        self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(
-            json.loads(json.dumps(response.json())),
-            json.loads(json.dumps(not_secret_target_data)),
-        )
-        self.client.logout()
+    def test_secure(self):
+        # Test the login user  can access secure data
         self.client.login(
             username=self.user_two.username, password=self.user_two.password
         )
-        response = self.client.get(url_base + "/targets/")
+        response = self.client.get(self.url_base + "/targets/")
         self.assertEqual(response.status_code, 200)
         self.assertDictEqual(
             json.loads(json.dumps(response.json())),
-            json.loads(json.dumps(secret_target_data)),
+            json.loads(json.dumps(self.secret_target_data)),
+        )
+
+    def test_insecure(self):
+        self.client.login(username=self.user.username, password=self.user.password)
+        response = self.client.get(self.url_base + "/targets/")
+        self.assertEqual(response.status_code, 200)
+        self.assertDictEqual(
+            json.loads(json.dumps(response.json())),
+            json.loads(json.dumps(self.not_secret_target_data)),
         )
