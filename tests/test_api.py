@@ -308,31 +308,41 @@ class APIUrlsTestCase(TestCase):
             self.assertEqual(response.status_code, 405)
             self.assertEqual(response.data, post_resp[i])
 
-        secret_target_data = [
-            {
-                "id": 2,
-                "title": "SECRET_TARGET",
-                "project_id": [2],
-                "protein_set": [],
-                "template_protein": None,
-            },
-            {
-                "id": 1,
-                "title": "DUMMY_TARGET",
-                "project_id": [1],
-                "protein_set": [1],
-                "template_protein": "/media/my_pdb.pdb",
-            },
-        ]
-        not_secret_target_data = [
-            {
-                "id": 1,
-                "title": "DUMMY_TARGET",
-                "project_id": [1],
-                "protein_set": [1],
-                "template_protein": "/media/my_pdb.pdb",
-            }
-        ]
+        secret_target_data = {
+            "count": 1,
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "id": 2,
+                    "title": "SECRET_TARGET",
+                    "project_id": [2],
+                    "protein_set": [],
+                    "template_protein": None,
+                },
+                {
+                    "id": 1,
+                    "title": "DUMMY_TARGET",
+                    "project_id": [1],
+                    "protein_set": [1],
+                    "template_protein": "/media/my_pdb.pdb",
+                },
+            ],
+        }
+        not_secret_target_data = {
+            "count": 1,
+            "next": None,
+            "previous": None,
+            "results": [
+                {
+                    "id": 1,
+                    "title": "DUMMY_TARGET",
+                    "project_id": [1],
+                    "protein_set": [1],
+                    "template_protein": "/media/my_pdb.pdb",
+                }
+            ],
+        }
         # Test the login can access
         response = self.client.get(url_base + "/targets/")
         self.assertEqual(response.status_code, 200)
