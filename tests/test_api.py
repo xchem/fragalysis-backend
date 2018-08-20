@@ -60,7 +60,7 @@ class APIUrlsTestCase(TestCase):
         self.client.login(username=self.user.username, password=self.user.password)
         self.target = Target.objects.create(id=1, title="DUMMY_TARGET")
         self.target.project_id.add(self.project)
-        self.target_two = Target.objects.create(id=1, title="SECRET_TARGET")
+        self.target_two = Target.objects.create(id=2, title="SECRET_TARGET")
         self.target_two.project_id.add(self.project_secure)
         self.cmpd = Compound.objects.create(
             id=1,
@@ -309,8 +309,8 @@ class APIUrlsTestCase(TestCase):
 
         secret_target_data = [
             {
-                "id": 1,
-                "title": "_TARGET",
+                "id": 2,
+                "title": "SECRET_TARGET",
                 "project_id": [2],
                 "protein_set": [],
                 "template_protein": None,
