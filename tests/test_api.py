@@ -183,6 +183,7 @@ class APIUrlsTestCase(TestCase):
                 "smiles": "DUMMY",
                 "cmpd_id": 1,
                 "prot_id": 1,
+                "protein_code": "DUMM",
                 "lig_id": "DUM",
                 "mol_type": "PR",
                 "molecule_protein": "/media/my_pdb.pdb",
