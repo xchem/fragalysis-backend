@@ -50,6 +50,7 @@ class APIUtilsTestCase(TestCase):
 class APIUrlsTestCase(TestCase):
 
     def setUp(self):
+        self.maxDiff = None
         self.factory = APIRequestFactory()
         self.client = APIClient()
         self.user = User.objects.create(username="DUMMY", password="DUMMY")
