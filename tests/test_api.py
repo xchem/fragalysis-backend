@@ -64,6 +64,8 @@ class APIUrlsTestCase(TestCase):
         self.target.project_id.add(self.project)
         self.target_two = Target.objects.create(id=2, title="SECRET_TARGET")
         self.target_two.project_id.add(self.project_secure)
+        self.target_two.save()
+        self.target.save()
         self.cmpd = Compound.objects.create(
             id=1,
             inchi="DUM_INCH",
@@ -352,6 +354,7 @@ class APIUrlsTestCase(TestCase):
             json.loads(json.dumps(response.json())),
             json.loads(json.dumps(not_secret_target_data)),
         )
+        self.client.logout()
         self.client.login(
             username=self.user_two.username, password=self.user_two.password
         )
