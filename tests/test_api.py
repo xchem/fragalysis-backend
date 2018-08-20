@@ -163,7 +163,7 @@ class APIUrlsTestCase(APITestCase):
         self.url_base = "/api"
 
         self.secret_target_data = {
-            "count": 1,
+            "count": 2,
             "next": None,
             "previous": None,
             "results": [
@@ -179,7 +179,7 @@ class APIUrlsTestCase(APITestCase):
                     "title": "SECRET_TARGET",
                     "project_id": [2],
                     "protein_set": [],
-                    "template_protein": None,
+                    "template_protein": "NOT AVAILABLE",
                 },
             ],
         }
