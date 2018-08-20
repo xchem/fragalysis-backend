@@ -168,18 +168,18 @@ class APIUrlsTestCase(APITestCase):
             "previous": None,
             "results": [
                 {
-                    "id": 2,
-                    "title": "SECRET_TARGET",
-                    "project_id": [2],
-                    "protein_set": [],
-                    "template_protein": None,
-                },
-                {
                     "id": 1,
                     "title": "DUMMY_TARGET",
                     "project_id": [1],
                     "protein_set": [1],
                     "template_protein": "/media/my_pdb.pdb",
+                },
+                {
+                    "id": 2,
+                    "title": "SECRET_TARGET",
+                    "project_id": [2],
+                    "protein_set": [],
+                    "template_protein": None,
                 },
             ],
         }
@@ -360,7 +360,7 @@ class APIUrlsTestCase(APITestCase):
         )
 
     def test_insecure(self):
-        self.client.login(username=self.user.username, password=self.user.password)
+        self.client.force_authenticate(self.user)
         response = self.client.get(self.url_base + "/targets/")
         self.assertEqual(response.status_code, 200)
         self.assertDictEqual(
