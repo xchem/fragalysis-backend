@@ -13,13 +13,13 @@ from hypothesis.models import (
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase, RequestFactory
 import json
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APITestCase
 from api.utils import draw_mol, get_token
 
 # Test all these functions
 
 
-class APIUtilsTestCase(TestCase):
+class APIUtilsTestCase(APITestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
@@ -47,7 +47,7 @@ class APIUtilsTestCase(TestCase):
         self.assertTrue(type(token_two) == unicode)
 
 
-class APIUrlsTestCase(TestCase):
+class APIUrlsTestCase(APITestCase):
 
     def setUp(self):
         self.maxDiff = None
@@ -351,14 +351,7 @@ class APIUrlsTestCase(TestCase):
 
     def test_secure(self):
         # Test the login user  can access secure data
-        self.client.login(
-            username=self.user_two.username, password=self.user_two.password
-        )
-        print(
-            Project.objects.filter(user_id=self.user_two.pk).values_list(
-                "title", flat=True
-            )
-        )
+        self.client.force_authenticate(self.user_two)
         response = self.client.get(self.url_base + "/targets/")
         self.assertEqual(response.status_code, 200)
         self.assertDictEqual(
