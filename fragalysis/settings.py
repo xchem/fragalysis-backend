@@ -69,6 +69,8 @@ INSTALLED_APPS = [
     "hypothesis",
     "hotspots",
     "media_serve",
+    # The XChem database model
+    "xchem_db",
     # My utility apps
     "bootstrap3",
     "guardian",
