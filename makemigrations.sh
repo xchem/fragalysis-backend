@@ -2,7 +2,7 @@
 echo "Running migrations..."
 cd /code
 python /code/manage.py makemigrations auth
-python /code/manage.py migrate
+python /code/manage.py migrate auth
 python /code/manage.py makemigrations viewer
 python /code/manage.py migrate
 python /code/manage.py makemigrations scoring pandda hypothesis hotspots
