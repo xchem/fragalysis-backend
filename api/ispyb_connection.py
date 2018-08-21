@@ -8,7 +8,7 @@ def get_conn():
         "pw": os.environ["ISPYB_PASSWORD"],
         "host": os.environ["ISPYB_HOST"],
         "port": os.environ["ISPYB_PORT"],
-        "db": os.environ["ISPYB_DB"],
+        "db": "ispyb",
         "conn_inactivity": 360,
     }
     conn = Connector(**credentials)
