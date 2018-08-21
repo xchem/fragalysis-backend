@@ -228,7 +228,7 @@ class APIUrlsTestCase(APITestCase):
                 ],
             },
             "molecules": {
-                "count": 1,
+                "count": 2,
                 "next": None,
                 "previous": None,
                 "results": [
@@ -261,6 +261,58 @@ class APIUrlsTestCase(APITestCase):
                         "x_com": 0.3,
                         "y_com": 0.4,
                         "z_com": 0.5,
+                    },
+                ],
+            },
+            "compounds": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "inchi": "DUM_INCH",
+                        "smiles": "DUM_SMI",
+                        "mol_log_p": 0.1,
+                        "mol_wt": 0.2,
+                        "num_h_acceptors": 5,
+                        "num_h_donors": 6,
+                    },
+                    {
+                        "id": 2,
+                        "inchi": "SEC_INCH",
+                        "smiles": "SEC_SMI",
+                        "mol_log_p": 0.1,
+                        "mol_wt": 0.2,
+                        "num_h_acceptors": 5,
+                        "num_h_donors": 6,
+                    },
+                ],
+            },
+            "proteins": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "code": "DUMM",
+                        "target_id": 1,
+                        "prot_type": "AP",
+                        "pdb_info": "http://testserver/media/my_pdb.pdb",
+                        "mtz_info": None,
+                        "map_info": None,
+                        "cif_info": None,
+                    },
+                    {
+                        "id": 2,
+                        "code": "SECC",
+                        "target_id": 1,
+                        "prot_type": "AP",
+                        "pdb_info": "http://testserver/media/secret_pdb.pdb",
+                        "mtz_info": None,
+                        "map_info": None,
+                        "cif_info": None,
                     },
                 ],
             },
@@ -299,6 +351,39 @@ class APIUrlsTestCase(APITestCase):
                         "x_com": 0.3,
                         "y_com": 0.4,
                         "z_com": 0.5,
+                    }
+                ],
+            },
+            "compounds": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "inchi": "DUM_INCH",
+                        "smiles": "DUM_SMI",
+                        "mol_log_p": 0.1,
+                        "mol_wt": 0.2,
+                        "num_h_acceptors": 5,
+                        "num_h_donors": 6,
+                    }
+                ],
+            },
+            "proteins": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "code": "DUMM",
+                        "target_id": 1,
+                        "prot_type": "AP",
+                        "pdb_info": "http://testserver/media/my_pdb.pdb",
+                        "mtz_info": None,
+                        "map_info": None,
+                        "cif_info": None,
                     }
                 ],
             },
