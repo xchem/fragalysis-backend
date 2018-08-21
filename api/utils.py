@@ -10,6 +10,7 @@ from rest_framework import viewsets
 from django.http import HttpResponse
 from viewer.models import Project
 import os
+import ispyb
 
 
 def get_token(request):
@@ -112,6 +113,13 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return list(
             Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
         )
+
+    def get_proposals_for_user_from_ispyb(self, user):
+        with ispyb.open("config.cfg") as conn:
+            core = conn.core
+            rs = core.retrieve_sessions_for_person_login(user.username)
+        prop_ids = [str(x["proposalId"]) + "-" + str(x["sessionNumber"]) for x in rs]
+        return prop_ids
 
     def get_proposals_for_user(self):
         user = self.request.user

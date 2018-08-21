@@ -30,7 +30,7 @@ pickleshare==0.7.4
 Pillow==5.0.0
 pprint==0.1
 fragalysis
-ispyb
+ispyb==4.10.0
 prompt-toolkit==1.0.15
 psycopg2-binary==2.7.4
 ptyprocess==0.5.2
