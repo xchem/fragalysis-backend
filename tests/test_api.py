@@ -203,7 +203,7 @@ class APIUrlsTestCase(APITestCase):
 
         self.url_base = "/api"
 
-        self.get_types = ["targets"]
+        self.get_types = ["targets", "molecules"]
 
         self.secret_target_data = {
             "targets": {
@@ -222,11 +222,48 @@ class APIUrlsTestCase(APITestCase):
                         "id": 2,
                         "title": "SECRET_TARGET",
                         "project_id": [2],
-                        "protein_set": [],
-                        "template_protein": "NOT AVAILABLE",
+                        "protein_set": [2],
+                        "template_protein": "/media/secret_pdb.pdb",
                     },
                 ],
-            }
+            },
+            "molecules": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "smiles": "DUMMY",
+                        "cmpd_id": 1,
+                        "prot_id": 1,
+                        "protein_code": "DUMM",
+                        "lig_id": "DUM",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/my_pdb.pdb",
+                        "chain_id": "C",
+                        "sdf_info": "DUMMY_SD",
+                        "x_com": 0.3,
+                        "y_com": 0.4,
+                        "z_com": 0.5,
+                    },
+                    {
+                        "id": 2,
+                        "smiles": "SECRET",
+                        "cmpd_id": 2,
+                        "prot_id": 2,
+                        "protein_code": "SECC",
+                        "lig_id": "SEC",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/secret_pdb.pdb",
+                        "chain_id": "C",
+                        "sdf_info": "SECRET_SD",
+                        "x_com": 0.3,
+                        "y_com": 0.4,
+                        "z_com": 0.5,
+                    },
+                ],
+            },
         }
         self.not_secret_target_data = {
             "targets": {
@@ -242,7 +279,29 @@ class APIUrlsTestCase(APITestCase):
                         "template_protein": "/media/my_pdb.pdb",
                     }
                 ],
-            }
+            },
+            "molecules": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "smiles": "DUMMY",
+                        "cmpd_id": 1,
+                        "prot_id": 1,
+                        "protein_code": "DUMM",
+                        "lig_id": "DUM",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/my_pdb.pdb",
+                        "chain_id": "C",
+                        "sdf_info": "DUMMY_SD",
+                        "x_com": 0.3,
+                        "y_com": 0.4,
+                        "z_com": 0.5,
+                    }
+                ],
+            },
         }
 
     def test_API(self):
