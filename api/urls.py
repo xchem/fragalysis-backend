@@ -5,8 +5,8 @@ from rest_framework_swagger.views import get_swagger_view
 from scoring import views as score_views
 from hotspots import views as hostpot_views
 from viewer import views as viewer_views
-from pandda import views as pandda_views
 from hypothesis import views as hypo_views
+from api import views as xchem_views
 
 router = DefaultRouter()
 # Register the basic data
@@ -23,9 +23,6 @@ router.register(r"protmap", viewer_views.ProteinMapInfoView)
 router.register(r"protpdb", viewer_views.ProteinPDBInfoView)
 # Hotspot maps
 router.register(r"hotspots", hostpot_views.HotspotView)
-# Pandda events and site
-router.register(r"events", pandda_views.PanddaEventView)
-router.register(r"sites", pandda_views.PanddaSiteView)
 # Register the vectors and hypothesis
 router.register(r"vectors", hypo_views.VectorView)
 router.register(r"vector3ds", hypo_views.Vector3DView)
@@ -42,6 +39,17 @@ router.register(r"cmpdchoice", score_views.CmpdChoiceView)
 router.register(r"viewscene", score_views.ViewSceneView)
 # Register the groups
 router.register(r"molgroup", score_views.MolGroupView)
+# Register the basic urls
+router.register(r"crystal", xchem_views.CrystalView)
+router.register(r"dataproc", xchem_views.DataProcessingView)
+router.register(r"dimple", xchem_views.DimpleView)
+router.register(r"lab", xchem_views.LabView)
+router.register(r"refinement", xchem_views.RefinementView)
+router.register(r"pandda_analysis", xchem_views.PanddaAnalysisView)
+router.register(r"pandda_run", xchem_views.PanddaRunView)
+router.register(r"pandda_site", xchem_views.PanddaSiteView)
+router.register(r"pandda_event", xchem_views.PanddaEventView)
+router.register(r"proasis_out", xchem_views.ProasisOutView)
 
 
 schema_view = get_swagger_view(title="Fragalysis API")

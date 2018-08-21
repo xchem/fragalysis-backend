@@ -54,8 +54,8 @@ NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
 
 # Application definition
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
+    "django.contrib.admin",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
@@ -65,7 +65,6 @@ INSTALLED_APPS = [
     "network",
     "viewer",
     "api",
-    "pandda",
     "hypothesis",
     "hotspots",
     "media_serve",

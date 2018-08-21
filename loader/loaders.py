@@ -1,7 +1,6 @@
 import sys, json, random, string
 from django.contrib.auth.models import User
 from viewer.models import Target, Protein, Molecule, Compound, Project
-from pandda.models import PanddaSite, PanddaEvent
 from hypothesis.models import (
     Vector3D,
     Vector,
@@ -291,30 +290,6 @@ def load_from_dir(target_name, dir_path, input_dict):
         acc_path = get_path_or_none(new_path, xtal, input_dict, "ACC")
         don_path = get_path_or_none(new_path, xtal, input_dict, "DON")
         lip_path = get_path_or_none(new_path, xtal, input_dict, "LIP")
-        # Pandda Events
-        pandda_json = get_path_or_none(new_path, xtal, input_dict, "PJSON")
-        pandda_map = get_path_or_none(new_path, xtal, input_dict, "PMAP")
-        pandda_pdb = get_path_or_none(new_path, xtal, input_dict, "PPDB")
-        pandda_mtz = get_path_or_none(new_path, xtal, input_dict, "PMTZ")
-        if pandda_json:
-            for event in json.load(open(pandda_json)):
-                create_event(
-                    xtal,
-                    event["event"],
-                    event["site"],
-                    event["pandda_version"],
-                    pandda_pdb,
-                    pandda_mtz,
-                    pandda_map,
-                    event["lig_id"],
-                    event["event_centroid"],
-                    event["event_dist_from_site_centroi"],
-                    event["lig_centroid"],
-                    event["lig_dist_event"],
-                    event["site_align_centroid"],
-                    event["site_native_centroid"],
-                    event["new_target"],
-                )
         if not pdb_file_path or not mol_file_path:
             continue
         if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
@@ -341,65 +316,6 @@ def load_from_dir(target_name, dir_path, input_dict):
 
 def parse_centre(input_str):
     return json.loads(input_str.strip('"'))
-
-
-def create_site(site, target, pandda_version, site_align_cent, site_native_cent):
-    new_site = PanddaSite.objects.get_or_create(
-        site_id=site, target_id=target, pandda_run="STANDARD"
-    )[0]
-    new_site.pandda_version = pandda_version
-    new_site.site_align_com_x = site_align_cent[0]
-    new_site.site_align_com_y = site_align_cent[1]
-    new_site.site_align_com_z = site_align_cent[2]
-    new_site.site_native_com_x = site_native_cent[0]
-    new_site.site_native_com_y = site_native_cent[1]
-    new_site.site_native_com_z = site_native_cent[2]
-    new_site.save()
-    return new_site
-
-
-def create_event(
-    xtal,
-    event,
-    site,
-    pandda_version,
-    pdb_file,
-    mtz_path,
-    map_path,
-    lig_id,
-    event_cent,
-    event_dist,
-    lig_cent,
-    lig_dist,
-    site_align_cent,
-    site_native_cent,
-    target,
-):
-    # Now make the event
-    new_site = create_site(
-        site, target, pandda_version, site_align_cent, site_native_cent
-    )
-    new_event = PanddaEvent.objects.get_or_create(
-        xtal=xtal, event=event, pandda_site=new_site, target_id=target
-    )[0]
-    new_event.pdb_info.save(os.path.basename(pdb_file), File(open(pdb_file)))
-    new_event.mtz_info.save(os.path.basename(mtz_path), File(open(mtz_path)))
-    new_event.map_info.save(os.path.basename(map_path), File(open(map_path)))
-    small_map_path = map_path.replace(".map", "_small.map")
-    new_event.small_map_info.save(
-        os.path.basename(small_map_path), File(open(small_map_path))
-    )
-    new_event.lig_id = lig_id
-    new_event.event_com_x = event_cent[0]
-    new_event.event_com_y = event_cent[1]
-    new_event.event_com_z = event_cent[2]
-    new_event.lig_com_x = lig_cent[0]
-    new_event.lig_com_y = lig_cent[1]
-    new_event.lig_com_z = lig_cent[2]
-    new_event.event_dist_from_site_centroid = event_dist
-    new_event.lig_dist_from_site_centroid = lig_dist
-    new_event.save()
-    return new_event, new_site
 
 
 def create_vect_3d(mol, new_vect, vect_ind, vector):
