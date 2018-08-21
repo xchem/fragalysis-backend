@@ -5,7 +5,6 @@ from rest_framework_swagger.views import get_swagger_view
 from scoring import views as score_views
 from hotspots import views as hostpot_views
 from viewer import views as viewer_views
-from pandda import views as pandda_views
 from hypothesis import views as hypo_views
 from api import views as xchem_views
 
@@ -24,9 +23,6 @@ router.register(r"protmap", viewer_views.ProteinMapInfoView)
 router.register(r"protpdb", viewer_views.ProteinPDBInfoView)
 # Hotspot maps
 router.register(r"hotspots", hostpot_views.HotspotView)
-# Pandda events and site
-router.register(r"events", pandda_views.PanddaEventView)
-router.register(r"sites", pandda_views.PanddaSiteView)
 # Register the vectors and hypothesis
 router.register(r"vectors", hypo_views.VectorView)
 router.register(r"vector3ds", hypo_views.Vector3DView)
