@@ -552,7 +552,7 @@ class APIUrlsTestCase(APITestCase):
 
     def test_secure(self):
         # Test the login user  can access secure data
-        self.test_data(self.user_two, self.secret_target_data)
+        self.do_full_scan(self.user_two, self.secret_target_data)
 
     def test_insecure(self):
-        self.test_data(self.user, self.not_secret_target_data)
+        self.do_full_scan(self.user, self.not_secret_target_data)
