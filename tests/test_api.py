@@ -162,40 +162,46 @@ class APIUrlsTestCase(APITestCase):
 
         self.url_base = "/api"
 
+        self.get_types = ["targets"]
+
         self.secret_target_data = {
-            "count": 2,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "id": 1,
-                    "title": "DUMMY_TARGET",
-                    "project_id": [1],
-                    "protein_set": [1],
-                    "template_protein": "/media/my_pdb.pdb",
-                },
-                {
-                    "id": 2,
-                    "title": "SECRET_TARGET",
-                    "project_id": [2],
-                    "protein_set": [],
-                    "template_protein": "NOT AVAILABLE",
-                },
-            ],
+            "targets": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "title": "DUMMY_TARGET",
+                        "project_id": [1],
+                        "protein_set": [1],
+                        "template_protein": "/media/my_pdb.pdb",
+                    },
+                    {
+                        "id": 2,
+                        "title": "SECRET_TARGET",
+                        "project_id": [2],
+                        "protein_set": [],
+                        "template_protein": "NOT AVAILABLE",
+                    },
+                ],
+            }
         }
         self.not_secret_target_data = {
-            "count": 1,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "id": 1,
-                    "title": "DUMMY_TARGET",
-                    "project_id": [1],
-                    "protein_set": [1],
-                    "template_protein": "/media/my_pdb.pdb",
-                }
-            ],
+            "targets": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "title": "DUMMY_TARGET",
+                        "project_id": [1],
+                        "protein_set": [1],
+                        "template_protein": "/media/my_pdb.pdb",
+                    }
+                ],
+            }
         }
 
     def test_API(self):
@@ -349,21 +355,19 @@ class APIUrlsTestCase(APITestCase):
             self.assertEqual(response.status_code, 405)
             self.assertEqual(response.data, post_resp[i])
 
+    def test_data(self, user, test_data):
+        for get_type in self.get_types:
+            self.client.force_authenticate(user)
+            response = self.client.get(self.url_base + "/" + get_type + "/")
+            self.assertEqual(response.status_code, 200)
+            self.assertDictEqual(
+                json.loads(json.dumps(response.json())),
+                json.loads(json.dumps(test_data[get_type])),
+            )
+
     def test_secure(self):
         # Test the login user  can access secure data
-        self.client.force_authenticate(self.user_two)
-        response = self.client.get(self.url_base + "/targets/")
-        self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(
-            json.loads(json.dumps(response.json())),
-            json.loads(json.dumps(self.secret_target_data)),
-        )
+        self.test_data(self.user_two, self.secret_target_data)
 
     def test_insecure(self):
-        self.client.force_authenticate(self.user)
-        response = self.client.get(self.url_base + "/targets/")
-        self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(
-            json.loads(json.dumps(response.json())),
-            json.loads(json.dumps(self.not_secret_target_data)),
-        )
+        self.test_data(self.user, self.not_secret_target_data)
