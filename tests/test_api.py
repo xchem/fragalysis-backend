@@ -540,7 +540,7 @@ class APIUrlsTestCase(APITestCase):
             self.assertEqual(response.status_code, 405)
             self.assertEqual(response.data, post_resp[i])
 
-    def test_data(self, user, test_data_set):
+    def do_full_scan(self, user, test_data_set):
         for get_type in self.get_types:
             self.client.force_authenticate(user)
             response = self.client.get(self.url_base + "/" + get_type + "/")
