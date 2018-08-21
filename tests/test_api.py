@@ -84,10 +84,35 @@ class APIUrlsTestCase(APITestCase):
             num_val_electrons=9,
             ring_count=10,
         )
+        self.secret_cmpd = Compound.objects.create(
+            id=2,
+            inchi="SEC_INCH",
+            smiles="SEC_SMI",
+            mol_log_p=0.1,
+            mol_wt=0.2,
+            tpsa=0.3,
+            heavy_atom_count=1,
+            heavy_atom_mol_wt=2,
+            nhoh_count=3,
+            no_count=4,
+            num_h_acceptors=5,
+            num_h_donors=6,
+            num_het_atoms=7,
+            num_rot_bonds=8,
+            num_val_electrons=9,
+            ring_count=10,
+        )
+
         self.cmpd.project_id.add(self.project)
         self.cmpd.save()
+        self.secret_cmpd.project_id.add(self.project_secure)
+        self.secret_cmpd.save()
+
         self.protein = Protein.objects.create(
             id=1, code="DUMM", target_id=self.target, pdb_info="my_pdb.pdb"
+        )
+        self.secret_protein = Protein.objects.create(
+            id=1, code="SECC", target_id=self.target_two, pdb_info="secret_pdb.pdb"
         )
         self.mol = Molecule.objects.create(
             id=1,
@@ -104,6 +129,22 @@ class APIUrlsTestCase(APITestCase):
             prot_id=self.protein,
             cmpd_id=self.cmpd,
         )
+        self.secret_mol = Molecule.objects.create(
+            id=2,
+            smiles="SECRET",
+            lig_id="SEC",
+            chain_id="C",
+            sdf_info="SECRET_SD",
+            rscc=0.1,
+            occupancy=0.2,
+            x_com=0.3,
+            y_com=0.4,
+            z_com=0.5,
+            rmsd=0.6,
+            prot_id=self.secret_protein,
+            cmpd_id=self.secret_cmpd,
+        )
+
         self.site = PanddaSite.objects.create(
             id=1,
             site_id=1,
