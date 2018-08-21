@@ -65,7 +65,6 @@ INSTALLED_APPS = [
     "network",
     "viewer",
     "api",
-    "pandda",
     "hypothesis",
     "hotspots",
     "media_serve",
