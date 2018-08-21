@@ -84,10 +84,35 @@ class APIUrlsTestCase(APITestCase):
             num_val_electrons=9,
             ring_count=10,
         )
+        self.secret_cmpd = Compound.objects.create(
+            id=2,
+            inchi="SEC_INCH",
+            smiles="SEC_SMI",
+            mol_log_p=0.1,
+            mol_wt=0.2,
+            tpsa=0.3,
+            heavy_atom_count=1,
+            heavy_atom_mol_wt=2,
+            nhoh_count=3,
+            no_count=4,
+            num_h_acceptors=5,
+            num_h_donors=6,
+            num_het_atoms=7,
+            num_rot_bonds=8,
+            num_val_electrons=9,
+            ring_count=10,
+        )
+
         self.cmpd.project_id.add(self.project)
         self.cmpd.save()
+        self.secret_cmpd.project_id.add(self.project_secure)
+        self.secret_cmpd.save()
+
         self.protein = Protein.objects.create(
             id=1, code="DUMM", target_id=self.target, pdb_info="my_pdb.pdb"
+        )
+        self.secret_protein = Protein.objects.create(
+            id=2, code="SECC", target_id=self.target_two, pdb_info="secret_pdb.pdb"
         )
         self.mol = Molecule.objects.create(
             id=1,
@@ -104,6 +129,22 @@ class APIUrlsTestCase(APITestCase):
             prot_id=self.protein,
             cmpd_id=self.cmpd,
         )
+        self.secret_mol = Molecule.objects.create(
+            id=2,
+            smiles="SECRET",
+            lig_id="SEC",
+            chain_id="C",
+            sdf_info="SECRET_SD",
+            rscc=0.1,
+            occupancy=0.2,
+            x_com=0.3,
+            y_com=0.4,
+            z_com=0.5,
+            rmsd=0.6,
+            prot_id=self.secret_protein,
+            cmpd_id=self.secret_cmpd,
+        )
+
         self.site = PanddaSite.objects.create(
             id=1,
             site_id=1,
@@ -162,40 +203,190 @@ class APIUrlsTestCase(APITestCase):
 
         self.url_base = "/api"
 
+        self.get_types = ["targets", "molecules"]
+
         self.secret_target_data = {
-            "count": 2,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "id": 1,
-                    "title": "DUMMY_TARGET",
-                    "project_id": [1],
-                    "protein_set": [1],
-                    "template_protein": "/media/my_pdb.pdb",
-                },
-                {
-                    "id": 2,
-                    "title": "SECRET_TARGET",
-                    "project_id": [2],
-                    "protein_set": [],
-                    "template_protein": "NOT AVAILABLE",
-                },
-            ],
+            "targets": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "title": "DUMMY_TARGET",
+                        "project_id": [1],
+                        "protein_set": [1],
+                        "template_protein": "/media/my_pdb.pdb",
+                    },
+                    {
+                        "id": 2,
+                        "title": "SECRET_TARGET",
+                        "project_id": [2],
+                        "protein_set": [2],
+                        "template_protein": "/media/secret_pdb.pdb",
+                    },
+                ],
+            },
+            "molecules": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "smiles": "DUMMY",
+                        "cmpd_id": 1,
+                        "prot_id": 1,
+                        "protein_code": "DUMM",
+                        "lig_id": "DUM",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/my_pdb.pdb",
+                        "chain_id": "C",
+                        "sdf_info": "DUMMY_SD",
+                        "x_com": 0.3,
+                        "y_com": 0.4,
+                        "z_com": 0.5,
+                    },
+                    {
+                        "id": 2,
+                        "smiles": "SECRET",
+                        "cmpd_id": 2,
+                        "prot_id": 2,
+                        "protein_code": "SECC",
+                        "lig_id": "SEC",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/secret_pdb.pdb",
+                        "chain_id": "C",
+                        "sdf_info": "SECRET_SD",
+                        "x_com": 0.3,
+                        "y_com": 0.4,
+                        "z_com": 0.5,
+                    },
+                ],
+            },
+            "compounds": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "inchi": "DUM_INCH",
+                        "smiles": "DUM_SMI",
+                        "mol_log_p": 0.1,
+                        "mol_wt": 0.2,
+                        "num_h_acceptors": 5,
+                        "num_h_donors": 6,
+                    },
+                    {
+                        "id": 2,
+                        "inchi": "SEC_INCH",
+                        "smiles": "SEC_SMI",
+                        "mol_log_p": 0.1,
+                        "mol_wt": 0.2,
+                        "num_h_acceptors": 5,
+                        "num_h_donors": 6,
+                    },
+                ],
+            },
+            "proteins": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "code": "DUMM",
+                        "target_id": 1,
+                        "prot_type": "AP",
+                        "pdb_info": "http://testserver/media/my_pdb.pdb",
+                        "mtz_info": None,
+                        "map_info": None,
+                        "cif_info": None,
+                    },
+                    {
+                        "id": 2,
+                        "code": "SECC",
+                        "target_id": 1,
+                        "prot_type": "AP",
+                        "pdb_info": "http://testserver/media/secret_pdb.pdb",
+                        "mtz_info": None,
+                        "map_info": None,
+                        "cif_info": None,
+                    },
+                ],
+            },
         }
         self.not_secret_target_data = {
-            "count": 1,
-            "next": None,
-            "previous": None,
-            "results": [
-                {
-                    "id": 1,
-                    "title": "DUMMY_TARGET",
-                    "project_id": [1],
-                    "protein_set": [1],
-                    "template_protein": "/media/my_pdb.pdb",
-                }
-            ],
+            "targets": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "title": "DUMMY_TARGET",
+                        "project_id": [1],
+                        "protein_set": [1],
+                        "template_protein": "/media/my_pdb.pdb",
+                    }
+                ],
+            },
+            "molecules": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "smiles": "DUMMY",
+                        "cmpd_id": 1,
+                        "prot_id": 1,
+                        "protein_code": "DUMM",
+                        "lig_id": "DUM",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/my_pdb.pdb",
+                        "chain_id": "C",
+                        "sdf_info": "DUMMY_SD",
+                        "x_com": 0.3,
+                        "y_com": 0.4,
+                        "z_com": 0.5,
+                    }
+                ],
+            },
+            "compounds": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "inchi": "DUM_INCH",
+                        "smiles": "DUM_SMI",
+                        "mol_log_p": 0.1,
+                        "mol_wt": 0.2,
+                        "num_h_acceptors": 5,
+                        "num_h_donors": 6,
+                    }
+                ],
+            },
+            "proteins": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "code": "DUMM",
+                        "target_id": 1,
+                        "prot_type": "AP",
+                        "pdb_info": "http://testserver/media/my_pdb.pdb",
+                        "mtz_info": None,
+                        "map_info": None,
+                        "cif_info": None,
+                    }
+                ],
+            },
         }
 
     def test_API(self):
@@ -349,21 +540,19 @@ class APIUrlsTestCase(APITestCase):
             self.assertEqual(response.status_code, 405)
             self.assertEqual(response.data, post_resp[i])
 
+    def do_full_scan(self, user, test_data_set):
+        for get_type in self.get_types:
+            self.client.force_authenticate(user)
+            response = self.client.get(self.url_base + "/" + get_type + "/")
+            self.assertEqual(response.status_code, 200)
+            self.assertDictEqual(
+                json.loads(json.dumps(response.json())),
+                json.loads(json.dumps(test_data_set[get_type])),
+            )
+
     def test_secure(self):
         # Test the login user  can access secure data
-        self.client.force_authenticate(self.user_two)
-        response = self.client.get(self.url_base + "/targets/")
-        self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(
-            json.loads(json.dumps(response.json())),
-            json.loads(json.dumps(self.secret_target_data)),
-        )
+        self.do_full_scan(self.user_two, self.secret_target_data)
 
     def test_insecure(self):
-        self.client.force_authenticate(self.user)
-        response = self.client.get(self.url_base + "/targets/")
-        self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(
-            json.loads(json.dumps(response.json())),
-            json.loads(json.dumps(self.not_secret_target_data)),
-        )
+        self.do_full_scan(self.user, self.not_secret_target_data)
