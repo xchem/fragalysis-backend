@@ -6,11 +6,92 @@ import xml.etree.ElementTree as ET
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit.Chem.Draw.MolDrawing import DrawingOptions
-from rest_framework import viewsets
 from django.http import HttpResponse
 from viewer.models import Project
+from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 import os
-from ispyb_connection import get_conn
+from rest_framework import viewsets
+
+
+def get_conn():
+    credentials = {
+        "user": os.environ["ISPYB_USER"],
+        "pw": os.environ["ISPYB_PASSWORD"],
+        "host": os.environ["ISPYB_HOST"],
+        "port": os.environ["ISPYB_PORT"],
+        "db": "ispyb",
+        "conn_inactivity": 360,
+    }
+    conn = Connector(**credentials)
+    return conn
+
+
+class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned purchases to a given propsals
+        """
+        # The list of proposals this user can have
+        proposal_list = self.get_proposals_for_user()
+        # Add in the ones everyone has access to
+        proposal_list.extend(self.get_open_proposals())
+        # Must have a directy foreign key (project_id) for it to work
+        filter_dict = self.get_filter_dict(proposal_list)
+        return self.queryset.filter(**filter_dict).distinct()
+
+    def get_open_proposals(self):
+        """
+        Returns the list of proposals anybody can access
+        :return:
+        """
+        return ["OPEN"]
+
+    def get_proposals_for_user_from_django(self, user):
+        # Get the list of proposals for the user
+        return list(
+            Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
+        )
+
+    def get_proposals_for_user_from_ispyb(self, user):
+        with get_conn() as conn:
+            core = conn.core
+            rs = core.retrieve_sessions_for_person_login(user.username)
+        prop_ids = [str(x["proposalId"]) + "-" + str(x["sessionNumber"]) for x in rs]
+        return prop_ids
+
+    def get_proposals_for_user(self):
+        user = self.request.user
+        return self.get_proposals_for_user_from_django(user)
+
+    def get_filter_dict(self, proposal_list):
+        return {self.filter_permissions + "__title__in": proposal_list}
+
+
+class ISpyBSafeStaticFiles:
+
+    def get_queryset(self):
+        query = ISpyBSafeQuerySet()
+        query.request = self.request
+        query.filter_permissions = self.permission_string
+        query.queryset = self.model.objects.filter()
+        queryset = query.get_queryset()
+        return queryset
+
+    def get_response(self):
+        try:
+            queryset = self.get_queryset()
+            filter_dict = {self.field_name + "__endswith": self.input_string}
+            object = queryset.get(**filter_dict)
+            file_name = os.path.basename(str(getattr(object, self.field_name)))
+            response = HttpResponse()
+            response["Content-Type"] = self.content_type
+            response["X-Accel-Redirect"] = self.prefix + file_name
+            response["Content-Disposition"] = "attachment;filename=" + file_name
+            return response
+        except Exception:
+            raise Http404
+        return response
 
 
 def get_token(request):
@@ -87,48 +168,6 @@ def draw_mol(smiles, height=200, width=200, img_type=None):
         return _transparentsvg(drawer.GetDrawingText().replace("svg:", ""))
 
 
-class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
-
-    def get_queryset(self):
-        """
-        Optionally restricts the returned purchases to a given propsals
-        """
-        # The list of proposals this user can have
-        proposal_list = self.get_proposals_for_user()
-        # Add in the ones everyone has access to
-        proposal_list.extend(self.get_open_proposals())
-        # Must have a directy foreign key (project_id) for it to work
-        filter_dict = self.get_filter_dict(proposal_list)
-        return self.queryset.filter(**filter_dict).distinct()
-
-    def get_open_proposals(self):
-        """
-        Returns the list of proposals anybody can access
-        :return:
-        """
-        return ["OPEN"]
-
-    def get_proposals_for_user_from_django(self, user):
-        # Get the list of proposals for the user
-        return list(
-            Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
-        )
-
-    def get_proposals_for_user_from_ispyb(self, user):
-        with get_conn() as conn:
-            core = conn.core
-            rs = core.retrieve_sessions_for_person_login(user.username)
-        prop_ids = [str(x["proposalId"]) + "-" + str(x["sessionNumber"]) for x in rs]
-        return prop_ids
-
-    def get_proposals_for_user(self):
-        user = self.request.user
-        return self.get_proposals_for_user_from_django(user)
-
-    def get_filter_dict(self, proposal_list):
-        return {self.filter_permissions + "__title__in": proposal_list}
-
-
 def get_params(smiles, request):
     height = None
     if "height" in request.GET:
@@ -149,29 +188,3 @@ def mol_view(request):
         return get_params(smiles, request)
     else:
         return HttpResponse("Please insert SMILES")
-
-
-class ISpyBSafeStaticFiles:
-
-    def get_queryset(self):
-        query = ISpyBSafeQuerySet()
-        query.request = self.request
-        query.filter_permissions = self.permission_string
-        query.queryset = self.model.objects.filter()
-        queryset = query.get_queryset()
-        return queryset
-
-    def get_response(self):
-        try:
-            queryset = self.get_queryset()
-            filter_dict = {self.field_name + "__endswith": self.input_string}
-            object = queryset.get(**filter_dict)
-            file_name = os.path.basename(str(getattr(object, self.field_name)))
-            response = HttpResponse()
-            response["Content-Type"] = self.content_type
-            response["X-Accel-Redirect"] = self.prefix + file_name
-            response["Content-Disposition"] = "attachment;filename=" + file_name
-            return response
-        except Exception:
-            raise Http404
-        return response

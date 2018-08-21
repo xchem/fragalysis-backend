@@ -32,15 +32,6 @@ class Target(models.Model):
         permissions = (("view_target", "View target"),)
 
 
-class Xtal(models.Model):
-    # The na    me of this xtal
-    xtal_name = models.TextField()
-    target_id = models.ForeignKey(Target)
-
-    class Meta:
-        unique_together = ("xtal_name", "target_id")
-
-
 class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
     # code for this protein
