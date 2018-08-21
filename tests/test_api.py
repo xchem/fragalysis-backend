@@ -112,7 +112,7 @@ class APIUrlsTestCase(APITestCase):
             id=1, code="DUMM", target_id=self.target, pdb_info="my_pdb.pdb"
         )
         self.secret_protein = Protein.objects.create(
-            id=1, code="SECC", target_id=self.target_two, pdb_info="secret_pdb.pdb"
+            id=2, code="SECC", target_id=self.target_two, pdb_info="secret_pdb.pdb"
         )
         self.mol = Molecule.objects.create(
             id=1,
