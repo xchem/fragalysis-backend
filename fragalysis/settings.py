@@ -142,9 +142,9 @@ CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKOWN")
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "mysql",
-        "USER": os.environ.get("MYSQL_USER", "mysql"),
-        "PASSWORD": os.environ.get("MYSQL_PASSWORD", "password"),
+        "NAME": os.environ.get("MYSQL_DATABASE", "django_db"),
+        "USER": os.environ.get("MYSQL_USER", "django"),
+        "PASSWORD": os.environ.get("MYSQL_PASSWORD", "django_password"),
         "HOST": "mysql",
         "PORT": 3306,
     }
