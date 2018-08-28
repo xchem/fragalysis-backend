@@ -2,7 +2,7 @@ version: '3'
 
 services:
   mysql:
-    image: mysql
+      image: mysql:5.7.23
     volumes:
        - ../django_data:/var/lib/mysql
     environment:
@@ -19,4 +19,4 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - db
+      - mysql
