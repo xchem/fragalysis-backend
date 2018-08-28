@@ -76,7 +76,7 @@ class Interaction(models.Model):
 class Vector(models.Model):
     # The compound it relates to
     cmpd_id = models.ForeignKey(Compound)
-    # The smiles of th e vector
+    # The smiles of the vector
     smiles = models.CharField(max_length=255)
     # Vector type
     type = models.CharField(choices=VectTypes().get_vect_types(), max_length=2)
