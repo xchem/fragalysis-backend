@@ -43,10 +43,10 @@ class Protein(models.Model):
     prot_type = models.CharField(
         choices=prot_choices, default=default_prot, max_length=2
     )
-    pdb_info = models.FileField(upload_to="pdbs/", null=True, max_length=65535)
-    cif_info = models.FileField(upload_to="cifs/", null=True, max_length=65535)
-    mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=65535)
-    map_info = models.FileField(upload_to="maps/", null=True, max_length=65535)
+    pdb_info = models.FileField(upload_to="pdbs/", null=True, max_length=255)
+    cif_info = models.FileField(upload_to="cifs/", null=True, max_length=255)
+    mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=255)
+    map_info = models.FileField(upload_to="maps/", null=True, max_length=255)
     aligned = models.NullBooleanField()
     aligned_to = models.ForeignKey("self", null=True)
     has_eds = models.NullBooleanField()
