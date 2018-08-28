@@ -43,10 +43,10 @@ class Protein(models.Model):
     prot_type = models.CharField(
         choices=prot_choices, default=default_prot, max_length=2
     )
-    pdb_info = models.FileField(upload_to="pdbs/", null=True, max_length=10000000)
-    cif_info = models.FileField(upload_to="cifs/", null=True, max_length=10000000)
-    mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=10000000)
-    map_info = models.FileField(upload_to="maps/", null=True, max_length=10000000)
+    pdb_info = models.FileField(upload_to="pdbs/", null=True, max_length=255)
+    cif_info = models.FileField(upload_to="cifs/", null=True, max_length=255)
+    mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=255)
+    map_info = models.FileField(upload_to="maps/", null=True, max_length=255)
     aligned = models.NullBooleanField()
     aligned_to = models.ForeignKey("self", null=True)
     has_eds = models.NullBooleanField()
@@ -59,8 +59,8 @@ class Protein(models.Model):
 class Compound(models.Model):
     """A Django model to hold the information for a given compound -> a unique 2D molecule"""
     # Character attributes
-    inchi = models.CharField(max_length=5000, unique=True, db_index=True)
-    smiles = models.CharField(max_length=500, db_index=True)
+    inchi = models.CharField(max_length=255, unique=True, db_index=True)
+    smiles = models.CharField(max_length=255, db_index=True)
     # A link to the related project
     project_id = models.ManyToManyField(Project)
     # Float attributes
@@ -87,7 +87,7 @@ class Molecule(models.Model):
     """A Django model to hold the information for a molecule -> a 3D set of
     co-ordinates"""
     # Character attributes
-    smiles = models.CharField(max_length=500, db_index=True, null=True)
+    smiles = models.CharField(max_length=255, db_index=True, null=True)
     lig_id = models.CharField(max_length=5, null=True)
     chain_id = models.CharField(max_length=1, null=True)
     # The type of map

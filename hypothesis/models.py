@@ -1,6 +1,7 @@
 from django.db import models
-from hypothesis.definitions import IntTypes,VectTypes
-from viewer.models import Protein,Molecule,Target,Compound
+from hypothesis.definitions import IntTypes, VectTypes
+from viewer.models import Protein, Molecule, Target, Compound
+
 
 class TargetResidue(models.Model):
     """Model to store residue information - to curate the probes"""
@@ -13,12 +14,10 @@ class TargetResidue(models.Model):
     # The chain
     chain_id = models.CharField(max_length=4)
 
-
     class Meta:
-        unique_together = ('target_id', 'res_num', 'res_name', 'chain_id')
-        permissions = (
-            ('view_targetresidue', 'View targetresidue'),
-        )
+        unique_together = ("target_id", "res_num", "res_name", "chain_id")
+        permissions = (("view_targetresidue", "View targetresidue"),)
+
 
 class ProteinResidue(models.Model):
     """Model to store residue information - to curate the probes"""
@@ -28,7 +27,7 @@ class ProteinResidue(models.Model):
     targ_res_id = models.ForeignKey(TargetResidue)
 
     class Meta:
-        unique_together = ('prot_id', 'targ_res_id',)
+        unique_together = ("prot_id", "targ_res_id")
 
 
 class InteractionPoint(models.Model):
@@ -37,17 +36,29 @@ class InteractionPoint(models.Model):
     # The molecule id
     mol_id = models.ForeignKey(Molecule)
     # Set the molecule and protein identifier
-    protein_atom_name = models.TextField()
-    molecule_atom_name = models.TextField()
+    protein_atom_name = models.CharField(max_length=255)
+    molecule_atom_name = models.CharField(max_length=255)
 
     class Meta:
-        unique_together = ('prot_res_id', 'mol_id','protein_atom_name','molecule_atom_name',)
+        unique_together = (
+            "prot_res_id",
+            "mol_id",
+            "protein_atom_name",
+            "molecule_atom_name",
+        )
+
 
 class Interaction(models.Model):
     """Model to store the interaction information."""
-    int_ver_choices, default_int_ver, int_type_choices, default_int_type = IntTypes().define_int_types()
-    interaction_version = models.CharField(choices=int_ver_choices,max_length=2,default=default_int_ver)
-    interaction_type = models.CharField(choices=int_type_choices,max_length=2,default=default_int_type)
+    int_ver_choices, default_int_ver, int_type_choices, default_int_type = (
+        IntTypes().define_int_types()
+    )
+    interaction_version = models.CharField(
+        choices=int_ver_choices, max_length=2, default=default_int_ver
+    )
+    interaction_type = models.CharField(
+        choices=int_type_choices, max_length=2, default=default_int_type
+    )
     interaction_point = models.ForeignKey(InteractionPoint)
     distance = models.FloatField(null=True)
     score = models.FloatField(null=True)
@@ -55,18 +66,24 @@ class Interaction(models.Model):
     mol_smarts = models.TextField(null=True)
 
     class Meta:
-        unique_together = ('interaction_type','interaction_version','interaction_point')
+        unique_together = (
+            "interaction_type",
+            "interaction_version",
+            "interaction_point",
+        )
+
 
 class Vector(models.Model):
     # The compound it relates to
     cmpd_id = models.ForeignKey(Compound)
     # The smiles of the vector
-    smiles = models.TextField()
+    smiles = models.CharField(max_length=255)
     # Vector type
-    type = models.CharField(choices=VectTypes().get_vect_types(),max_length=2)
+    type = models.CharField(choices=VectTypes().get_vect_types(), max_length=2)
 
     class Meta:
-        unique_together = ('cmpd_id', 'smiles','type')
+        unique_together = ("cmpd_id", "smiles", "type")
+
 
 class Vector3D(models.Model):
     # The molecule it relates to
@@ -85,4 +102,4 @@ class Vector3D(models.Model):
     end_z = models.FloatField(null=True)
 
     class Meta:
-        unique_together = ('mol_id','vector_id','number',)
+        unique_together = ("mol_id", "vector_id", "number")

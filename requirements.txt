@@ -31,7 +31,7 @@ Pillow==5.0.0
 pprint==0.1
 fragalysis
 ispyb==4.10.0
-xchem-db
+xchem-db==0.0.1a7
 mysqlclient==1.3.13
 prompt-toolkit==1.0.15
 psycopg2-binary==2.7.4
