@@ -36,8 +36,8 @@ class InteractionPoint(models.Model):
     # The molecule id
     mol_id = models.ForeignKey(Molecule)
     # Set the molecule and protein identifier
-    protein_atom_name = models.TextField()
-    molecule_atom_name = models.TextField()
+    protein_atom_name = models.CharField(max_length=255)
+    molecule_atom_name = models.CharField(max_length=255)
 
     class Meta:
         unique_together = (
