@@ -147,6 +147,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("MYSQL_PASSWORD", "django_password"),
         "HOST": "mysql",
         "PORT": 3306,
+        "TEST": {"NAME": os.environ.get("MYSQL_DATABASE", "django_db")},
     }
 }
 if CHEMCENTRAL_DB_NAME != "UNKOWN":
