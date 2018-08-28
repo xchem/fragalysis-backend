@@ -141,11 +141,12 @@ CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKOWN")
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "postgres",
-        "USER": "postgres",
-        "HOST": "db",
-        "PORT": 5432,
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "mysql",
+        "USER": os.environ.get("MYSQL_USER", "mysql"),
+        "PASSWORD": os.environ.get("MYSQL_PASSWORD", "password"),
+        "HOST": "mysql",
+        "PORT": 3306,
     }
 }
 if CHEMCENTRAL_DB_NAME != "UNKOWN":

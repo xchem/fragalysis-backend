@@ -1,10 +1,14 @@
 version: '3'
 
 services:
-  db:
-    image: postgres
+  mysql:
+    image: mysql
     volumes:
-       - ../django_data:/var/lib/postgresql/data
+       - ../django_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_PASSWORD: password
+      MYSQL_USER: mysql
   tests:
     image: xchem/fragalysis-backend
     command: ["/code/wait-for-it.sh", "db:5432", "--", "/bin/bash", "/code/test_entry.sh"]
