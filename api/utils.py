@@ -62,7 +62,11 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_proposals_for_user(self):
         user = self.request.user
-        return self.get_proposals_for_user_from_django(user)
+        get_from_ispyb = os.environ.get("ISPYB_FLAG", False)
+        if get_from_ispyb:
+            return self.get_proposals_for_user_from_ispyb(user)
+        else:
+            return self.get_proposals_for_user_from_django(user)
 
     def get_filter_dict(self, proposal_list):
         return {self.filter_permissions + "__title__in": proposal_list}
