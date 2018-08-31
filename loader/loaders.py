@@ -341,7 +341,7 @@ def remove_not_added(target, xtal_list):
     all_prots = Protein.objects.filter(target_id=target)
     for prot in all_prots:
         if prot.code not in xtal_list:
-            prot.delte()
+            prot.delete()
     return None
 
 
