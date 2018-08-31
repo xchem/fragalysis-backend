@@ -55,6 +55,12 @@ def add_prot(pdb_file_path, code, target, mtz_path=None, map_path=None):
 
 
 def add_projects_to_cmpd(new_comp, projects):
+    """
+    Add a project links to a compound
+    :param new_comp: the Django compound to add them to
+    :param projects:  the list Django projects to add
+    :return: the compound with the added projects
+    """
     [new_comp.project_id.add(x) for x in projects]
     new_comp.save()
     return new_comp
@@ -63,12 +69,11 @@ def add_projects_to_cmpd(new_comp, projects):
 def add_comp(mol, projects, option=None, comp_id=None):
     """
     Function to add a new compound to the database given an RDKit molecule
-    Takes an RDKit molecule. Option of LIG to return original smiles with the Compound object
-    Returns a compound object for the RDKit molecule.
-    :param mol:
-    :param option:
-    :param comp_id:
-    :return:
+    Takes an RDKit molecule.
+    :param mol: the input RDKit molecule
+    :param option: Option of LIG to return original smiles with the Compound object
+    :param comp_id: the Django compound it relates to
+    :return: a compound object for the RDKit molecule
     """
     # Neutralise and desalt compound the compound
     sanitized_mol = sanitize_mol(mol)
@@ -152,6 +157,11 @@ def add_mol(mol_sd, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
 
 
 def parse_proasis(input_string):
+    """
+    Parse proasis contact strings
+    :param input_string: the Proasis contact string to parse
+    :return: a tuple of res_name, res_num, chain_id
+    """
     return (
         input_string[:3].strip(),
         int(input_string[5:].strip()),
@@ -160,6 +170,14 @@ def parse_proasis(input_string):
 
 
 def create_int(prot_res, mol, int_type, interaction):
+    """
+    Create a Django interaction object
+    :param prot_res: the Django protein residue
+    :param mol: the Django molecule
+    :param int_type: the interaction type string
+    :param interaction: the interaction dictionary
+    :return: None
+    """
     interation_point = InteractionPoint.objects.get_or_create(
         prot_res_id=prot_res,
         mol_id=mol,
@@ -177,6 +195,14 @@ def create_int(prot_res, mol, int_type, interaction):
 
 
 def add_contacts(input_data, target, prot, mol):
+    """
+    Add a series of Django contact objects
+    :param input_data: the
+    :param target: the data - either dict or list - of itneractions
+    :param prot: the Django protein object
+    :param mol: the Django molecule object
+    :return: None
+    """
     int_type = IntTypes()
     int_list = []
     if type(input_data) == dict:
@@ -199,6 +225,14 @@ def add_contacts(input_data, target, prot, mol):
 
 
 def add_map(new_prot, new_target, map_path, map_type):
+    """
+    Add a Django map obect
+    :param new_prot: the Django protein object
+    :param new_target: the Django target object
+    :param map_path: the path to the map file
+    :param map_type: the two letter code signifyign the type of the map
+    :return: the add Django map object
+    """
     hotspot_map = HotspotMap.objects.get_or_create(
         map_type=map_type, target_id=new_target, prot_id=new_prot
     )[0]
@@ -207,12 +241,24 @@ def add_map(new_prot, new_target, map_path, map_type):
 
 
 def delete_users(project):
+    """
+    Refresh the users for a given project by deleting all of them.
+    Redundant if using iSpyB.
+    :param project: the project to remove users from.
+    :return: None
+    """
     for user_id in project.user_id.all():
         project.user_id.remove(user_id.pk)
     project.save()
 
 
 def add_proposals(target, proposal_path):
+    """
+    Add the proposals for a given target
+    :param target: the target to add proposals to
+    :param proposal_path: the path to the file describing the available proposals in space delimited format.
+    :return: the Django projects created in this process
+    """
     proposals = [x.strip() for x in open(proposal_path).readlines() if x.strip()]
     projects = []
     for proposal_line in proposals:
@@ -229,6 +275,12 @@ def add_proposals(target, proposal_path):
 
 
 def add_visits(target, visit_path):
+    """
+    Add visits for a given target
+    :param target: the target to add visits to
+    :param visit_path: the path to the file describing the available visits in space delimited format.
+    :return: the Django projects created in this process
+    """
     visits = [x.strip() for x in open(visit_path).readlines() if x.strip()]
     projects = []
     for visit_line in visits:
@@ -244,15 +296,14 @@ def add_visits(target, visit_path):
     return projects
 
 
-def delete_projects(target):
-    for project_id in target.project_id.all():
-        target.project_id.remove(project_id.pk)
-    target.save()
-
-
 def add_projects(new_target, dir_path):
+    """
+    Add proposals and visits as projects for a given target.
+    :param new_target: the target being added
+    :param dir_path: the path for where the PROPOSALS and VISITS files are held.
+    :return: the projects added.
+    """
     # Add the proposal information
-    delete_projects(new_target)
     proposal_path = os.path.join(dir_path, "PROPOSALS")
     visit_path = os.path.join(dir_path, "VISITS")
     projects = []
@@ -260,15 +311,46 @@ def add_projects(new_target, dir_path):
         projects.extend(add_proposals(new_target, proposal_path))
     if os.path.isfile(visit_path):
         projects.extend(add_visits(new_target, visit_path))
+    remove_not_added(new_target, projects)
     return projects
+
+
+def remove_not_added_projects(target, projects):
+    """
+    Remove any projects that have not been added this time around.
+    Ensures the database updates, e.g. if projects or visits are added.
+    :param target: the target added
+    :param projects: the projects that have been added
+    :return:
+    """
+    project_pks = [x.pk for x in projects]
+    for project_id in target.project_id.all():
+        if project_id.pk not in project_pks:
+            target.project_id.remove(project_id.pk)
+    target.save()
+
+
+def remove_not_added(target, xtal_list):
+    """
+    Remove any crystals that have not been added this time around.
+    Ensures the database updates, e.g. if someone nobody wants a given xtal.
+    :param target: the target being considered
+    :param xtal_list: a list of protein codes that have been added
+    :return: None
+    """
+    all_prots = Protein.objects.filter(target_id=target)
+    for prot in all_prots:
+        if prot.code not in xtal_list:
+            prot.delte()
+    return None
 
 
 def load_from_dir(target_name, dir_path, input_dict):
     """
     Load the data for a given target from a directory structure
-    :param target_name:
-    :param dir_path:
-    :return:
+    :param target_name: the string title of the target. This will uniquely identify it.
+    :param dir_path: the path to the input data.
+    :return: None
     """
     if os.path.isdir(dir_path):
         pass
@@ -278,8 +360,10 @@ def load_from_dir(target_name, dir_path, input_dict):
     new_target = add_target(target_name)
     projects = add_projects(new_target, dir_path)
     directories = sorted(os.listdir(dir_path))
+    xtal_list = []
     for xtal in directories:
         print(xtal)
+        xtal_list.append(xtal)
         new_path = os.path.join(dir_path, xtal)
         pdb_file_path = get_path_or_none(new_path, xtal, input_dict, "APO")
         mol_file_path = get_path_or_none(new_path, xtal, input_dict, "MOL")
@@ -312,13 +396,19 @@ def load_from_dir(target_name, dir_path, input_dict):
                     add_map(new_prot, new_target, lip_path, "AP")
         else:
             print("File not found: " + xtal)
-
-
-def parse_centre(input_str):
-    return json.loads(input_str.strip('"'))
+    remove_not_added(new_target, xtal_list)
 
 
 def create_vect_3d(mol, new_vect, vect_ind, vector):
+    """
+    Generate the 3D synthesis vectors for a given molecule
+    :param mol: the Django molecule object
+    :param new_vect: the Django 2d vector object
+    :param vect_ind: the index of the vector - since the same 2D vector
+    can be different in 3D
+    :param vector: the vector coordinates - a 2*3 list of lists.
+    :return: None
+    """
     new_vect3d = Vector3D.objects.get_or_create(
         mol_id=mol, vector_id=new_vect, number=vect_ind
     )[0]
@@ -336,9 +426,9 @@ def create_vect_3d(mol, new_vect, vect_ind, vector):
 def get_vectors(mols):
     """
     Get the vectors for a given molecule
-    :param mols:
-    :param target:
-    :return:
+    :param mols: the Django molecules to get them from
+    :param target: the Django target to record them from
+    :return: None
     """
     vect_types = VectTypes()
     for mol in mols:
@@ -362,6 +452,13 @@ def get_vectors(mols):
 
 
 def cluster_mols(rd_mols, mols, target):
+    """
+    Cluster a series of 3D molecules
+    :param rd_mols: the RDKit molecules to cluster
+    :param mols:  the Django moleculs they refer to
+    :param target:  the Django target it refers to
+    :return: None
+    """
     id_mols = [x.pk for x in mols]
     out_data = run_lig_cluster(rd_mols, id_mols)
     for clust_type in out_data:
@@ -385,9 +482,9 @@ def cluster_mols(rd_mols, mols, target):
 def analyse_mols(mols, target):
     """
     Analyse a list of molecules for a given target
-    :param mols:
-    :param target:
-    :return:
+    :param mols: the Django molecules to analyse
+    :param target: the Django target
+    :return: None
     """
     rd_mols = [Chem.MolFromMolBlock(x.sdf_info) for x in mols]
     cluster_mols(rd_mols, mols, target)
@@ -398,7 +495,7 @@ def analyse_target(target_name):
     """
     Analyse all the molecules for a particular target
     :param target_name: the name of the target
-    :return:
+    :return: None
     """
     target = Target.objects.get(title=target_name)
     mols = list(Molecule.objects.filter(prot_id__target_id=target))
@@ -406,51 +503,3 @@ def analyse_target(target_name):
     MolGroup.objects.filter(group_type="PC", target_id=target).delete()
     MolGroup.objects.filter(group_type="MC", target_id=target).delete()
     analyse_mols(mols=mols, target=target)
-
-
-def copy_files(copy_file_dict, row, xtal_base, xtal_name):
-    file_path_dict = get_dict()
-    for key in copy_file_dict:
-        shutil.copyfile(
-            os.path.join(row["root_dir"], key),
-            os.path.join(xtal_base, xtal_name + file_path_dict[copy_file_dict[key]]),
-        )
-
-
-def prepare_from_csv(file_path):
-    date = "20180430"
-    if not os.path.isdir(date):
-        os.mkdir(date)
-    rows = csv.DictReader(open(file_path))
-    for row in rows:
-        target_name = row["apo_name"].split("-")[0]
-        target_base = os.path.join(date, target_name)
-        xtal_name = row["apo_name"].split("_apo.pdb")[0]
-        # Make the target directory
-        if not os.path.isdir(target_base):
-            os.mkdir(target_base)
-        xtal_base = os.path.join(target_base, xtal_name)
-        # Make this dataset directory
-        if not os.path.isdir(xtal_base):
-            os.mkdir(xtal_base)
-        # Now copy the files over
-        copy_file_dict = {
-            row["apo_name"]: "APO",
-            row["mol_name"]: "MOL",
-            row["fofc_name"]: "EVENT",
-            row["apo_name"].replace("_apo.pdb", "_interactions.json"): "CONTACTS",
-            row["mtz_name"]: "MTZ",
-        }
-        copy_files(copy_file_dict, row, xtal_base, xtal_name)
-
-
-# Use this and add into LUIGI pipeline
-# prepare_from_csv("/dls/science/groups/i04-1/software/luigi_pipeline/pipeline/logs/proasis_out/proasis_out_20180430.csv")
-def process_target(prefix, target_name):
-    file_path_dict = get_dict()
-    new_data = load_from_dir(target_name, prefix + target_name, file_path_dict)
-    # Check for new data
-    new_data_file = os.path.join(prefix + target_name, "NEW_DATA")
-    if os.path.isfile(new_data_file):
-        analyse_target(target_name)
-        os.remove(new_data_file)
