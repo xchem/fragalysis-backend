@@ -503,3 +503,19 @@ def analyse_target(target_name):
     MolGroup.objects.filter(group_type="PC", target_id=target).delete()
     MolGroup.objects.filter(group_type="MC", target_id=target).delete()
     analyse_mols(mols=mols, target=target)
+
+
+def process_target(prefix, target_name):
+    """
+    Process the full target.
+    :param prefix:
+    :param target_name:
+    :return:
+    """
+    file_path_dict = get_dict()
+    new_data = load_from_dir(target_name, prefix + target_name, file_path_dict)
+    # Check for new data
+    new_data_file = os.path.join(prefix + target_name, "NEW_DATA")
+    if os.path.isfile(new_data_file):
+        analyse_target(target_name)
+        os.remove(new_data_file)
