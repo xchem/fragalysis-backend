@@ -66,6 +66,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         if get_from_ispyb:
             if user.is_authenticated:
                 return self.get_proposals_for_user_from_ispyb(user)
+            else:
+                return []
         else:
             return self.get_proposals_for_user_from_django(user)
 
