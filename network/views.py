@@ -2,6 +2,7 @@ from django.http import HttpResponse
 from frag.network.query import get_full_graph
 from frag.network.decorate import get_add_del_link
 from network.functions import order_stuctures
+import os
 
 
 def full_graph(request):
@@ -10,6 +11,7 @@ def full_graph(request):
     :param request:
     :return:
     """
+    os.environ.get("NEO4J_QUERY", "neo4j")
     if "smiles" in request.GET:
         smiles = request.GET["smiles"]
         out_dict = get_full_graph(smiles)
