@@ -63,6 +63,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": 0}
         current_time = time.time()
         if current_time - USER_LIST_DICT[user.username]["TIMESTAMP"] > update_window:
+            USER_LIST_DICT[user.username]["TIMESTAMP"] = current_time
             return True
         return False
 
