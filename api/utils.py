@@ -11,6 +11,9 @@ from viewer.models import Project
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 import os
 from rest_framework import viewsets
+import time
+
+USER_LIST_DICT = {}
 
 
 def get_conn():
@@ -53,12 +56,31 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
         )
 
+    def needs_updating(self, user):
+        global USER_LIST_DICT
+        update_window = 3600
+        if user.username not in USER_LIST_DICT:
+            USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": 0}
+        current_time = time.time()
+        if current_time - USER_LIST_DICT[user.username]["TIMESTAMP"] > update_window:
+            USER_LIST_DICT[user.username]["TIMESTAMP"] = current_time
+            return True
+        return False
+
     def get_proposals_for_user_from_ispyb(self, user):
-        with get_conn() as conn:
-            core = conn.core
-            rs = core.retrieve_sessions_for_person_login(user.username)
-        prop_ids = [str(x["proposalId"]) + "-" + str(x["sessionNumber"]) for x in rs]
-        return prop_ids
+        # First check if it's updated in the past 1 hour
+        global USER_LIST_DICT
+        if self.needs_updating(user):
+            with get_conn() as conn:
+                core = conn.core
+                rs = core.retrieve_sessions_for_person_login(user.username)
+            prop_ids = [
+                str(x["proposalId"]) + "-" + str(x["sessionNumber"]) for x in rs
+            ]
+            USER_LIST_DICT[user.username]["RESULTS"] = prop_ids
+            return prop_ids
+        else:
+            return USER_LIST_DICT[user.username]["RESULTS"]
 
     def get_proposals_for_user(self):
         user = self.request.user
