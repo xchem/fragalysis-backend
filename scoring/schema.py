@@ -1,5 +1,4 @@
 import graphene
-from graphene import relay
 from graphene_django.rest_framework.mutation import SerializerMutation
 
 from scoring.serializers import (
@@ -10,6 +9,8 @@ from scoring.serializers import (
     ScoreChoiceSerializer,
     MolGroupSerializer,
 )
+
+relay = graphene.relay
 
 
 class ViewScene(SerializerMutation):
