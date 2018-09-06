@@ -1,4 +1,5 @@
 from django.db import models
+
 from viewer.models import Target, Protein
 
 

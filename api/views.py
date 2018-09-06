@@ -1,24 +1,4 @@
-from xchem_db.serializers import (
-    TargetSerializer,
-    CompoundsSerializer,
-    ReferenceSerializer,
-    SoakdbFilesSerializer,
-    CrystalSerializer,
-    DataProcessingSerializer,
-    DimpleSerializer,
-    LabSerializer,
-    RefinementSerializer,
-    PanddaAnalysisSerializer,
-    PanddaRunSerializer,
-    PanddaSiteSerializer,
-    PanddaEventSerializer,
-    ProasisOutSerializer,
-)
 from xchem_db.models import (
-    Target,
-    Compounds,
-    Reference,
-    SoakdbFiles,
     Crystal,
     DataProcessing,
     Dimple,
@@ -30,6 +10,19 @@ from xchem_db.models import (
     PanddaEvent,
     ProasisOut,
 )
+from xchem_db.serializers import (
+    CrystalSerializer,
+    DataProcessingSerializer,
+    DimpleSerializer,
+    LabSerializer,
+    RefinementSerializer,
+    PanddaAnalysisSerializer,
+    PanddaRunSerializer,
+    PanddaSiteSerializer,
+    PanddaEventSerializer,
+    ProasisOutSerializer,
+)
+
 from .utils import ISpyBSafeQuerySet
 
 

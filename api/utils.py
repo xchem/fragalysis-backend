@@ -1,17 +1,19 @@
-from django.contrib.auth.models import User
-from django.http import Http404
-from rest_framework.authtoken.models import Token
-from django.core.exceptions import ObjectDoesNotExist
+import os
+import time
 import xml.etree.ElementTree as ET
+
+from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import Http404
+from django.http import HttpResponse
+from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit.Chem.Draw.MolDrawing import DrawingOptions
-from django.http import HttpResponse
-from viewer.models import Project
-from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
-import os
 from rest_framework import viewsets
-import time
+from rest_framework.authtoken.models import Token
+
+from viewer.models import Project
 
 USER_LIST_DICT = {}
 
@@ -120,7 +122,6 @@ class ISpyBSafeStaticFiles:
             return response
         except Exception:
             raise Http404
-        return response
 
 
 def get_token(request):

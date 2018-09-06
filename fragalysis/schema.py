@@ -1,5 +1,10 @@
 import graphene
-import viewer.schema, hypothesis.schema, hotspots.schema, pandda.schema, scoring.schema
+
+import hotspots.schema
+import hypothesis.schema
+import pandda.schema
+import scoring.schema
+import viewer.schema
 
 
 class Query(
