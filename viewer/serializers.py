@@ -1,8 +1,9 @@
-from rest_framework import serializers
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target
-from api.utils import draw_mol
 from frag.network.decorate import get_3d_vects_for_mol
 from frag.network.query import get_full_graph
+from rest_framework import serializers
+
+from api.utils import draw_mol
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target
 
 
 class TargetSerializer(serializers.ModelSerializer):

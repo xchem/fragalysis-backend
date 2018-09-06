@@ -2,11 +2,12 @@ from django.conf.urls import include, url
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 from rest_framework_swagger.views import get_swagger_view
-from scoring import views as score_views
-from hotspots import views as hostpot_views
-from viewer import views as viewer_views
-from hypothesis import views as hypo_views
+
 from api import views as xchem_views
+from hotspots import views as hostpot_views
+from hypothesis import views as hypo_views
+from scoring import views as score_views
+from viewer import views as viewer_views
 
 router = DefaultRouter()
 # Register the basic data

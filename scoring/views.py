@@ -1,6 +1,9 @@
-from frag.conf.functions import generate_confs_for_vector
-from django.http import HttpResponse
 import json
+
+from django.http import HttpResponse
+from frag.conf.functions import generate_confs_for_vector
+from rest_framework import viewsets
+
 from scoring.models import (
     ViewScene,
     ProtChoice,
@@ -17,7 +20,6 @@ from scoring.serializers import (
     ScoreChoiceSerializer,
     MolGroupSerializer,
 )
-from rest_framework import viewsets
 
 
 class ViewSceneView(viewsets.ModelViewSet):

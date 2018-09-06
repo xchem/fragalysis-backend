@@ -1,5 +1,11 @@
+import json
+
+from django.contrib.auth.models import AnonymousUser, User
+from django.test import RequestFactory
+from rest_framework.test import APIClient, APITestCase
 from rest_framework.test import APIRequestFactory
-from viewer.models import Molecule, Protein, Target, Compound, Project
+
+from api.utils import draw_mol, get_token
 from hotspots.models import HotspotMap
 from hypothesis.models import (
     Vector3D,
@@ -9,11 +15,8 @@ from hypothesis.models import (
     InteractionPoint,
     Interaction,
 )
-from django.contrib.auth.models import AnonymousUser, User
-from django.test import TestCase, RequestFactory
-import json
-from rest_framework.test import APIClient, APITestCase
-from api.utils import draw_mol, get_token
+from viewer.models import Molecule, Protein, Target, Compound, Project
+
 
 # Test all these functions
 

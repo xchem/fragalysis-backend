@@ -13,12 +13,11 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
+import django_cas_ng.views
 from django.conf.urls import include, url
 from django.contrib import admin
-import django_cas_ng.views
-from graphene_django.views import GraphQLView
 from django.views.generic.base import RedirectView
-
+from graphene_django.views import GraphQLView
 
 urlpatterns = [
     url(r"^admin/", admin.site.urls),

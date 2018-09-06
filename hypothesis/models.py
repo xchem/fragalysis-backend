@@ -1,4 +1,5 @@
 from django.db import models
+
 from hypothesis.definitions import IntTypes, VectTypes
 from viewer.models import Protein, Molecule, Target, Compound
 

@@ -1,4 +1,14 @@
 from django.test import TestCase
+from rdkit import Chem
+
+from hypothesis.models import (
+    Vector,
+    Vector3D,
+    Interaction,
+    InteractionPoint,
+    ProteinResidue,
+    TargetResidue,
+)
 from loader.functions import desalt_compound, NeutraliseCharges, sanitize_mol
 from loader.loaders import (
     add_target,
@@ -9,18 +19,8 @@ from loader.loaders import (
     analyse_target,
     add_contacts,
 )
-from rdkit import Chem
-from viewer.models import Molecule, Compound, Protein, Target, Project
-from hypothesis.models import (
-    Vector,
-    Vector3D,
-    Interaction,
-    InteractionPoint,
-    ProteinResidue,
-    TargetResidue,
-)
 from scoring.models import MolGroup
-import json
+from viewer.models import Molecule, Compound, Protein, Target, Project
 
 
 class LoaderFunctionsTestCase(TestCase):

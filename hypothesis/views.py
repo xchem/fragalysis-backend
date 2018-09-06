@@ -1,3 +1,5 @@
+from rest_framework import viewsets
+
 from hypothesis.models import (
     Vector,
     Vector3D,
@@ -14,8 +16,6 @@ from hypothesis.serializers import (
     ProteinResidueSerialzier,
     TargetResidueSerialzier,
 )
-from rest_framework import permissions
-from rest_framework import viewsets
 
 
 class VectorView(viewsets.ReadOnlyModelViewSet):

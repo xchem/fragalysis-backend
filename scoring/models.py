@@ -1,5 +1,6 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
+
 from viewer.models import Protein, Molecule, Compound, Target
 
 

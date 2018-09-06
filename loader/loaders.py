@@ -1,6 +1,17 @@
-import sys, json, random, string
+import json
+import os
+import sys
+
 from django.contrib.auth.models import User
-from viewer.models import Target, Protein, Molecule, Compound, Project
+from django.core.exceptions import ValidationError
+from django.core.files import File
+from frag.alysis.run_clustering import run_lig_cluster
+from frag.network.decorate import get_3d_vects_for_mol
+from rdkit import Chem
+from rdkit.Chem import Descriptors
+
+from hotspots.models import HotspotMap
+from hypothesis.definitions import VectTypes, IntTypes
 from hypothesis.models import (
     Vector3D,
     Vector,
@@ -9,18 +20,10 @@ from hypothesis.models import (
     ProteinResidue,
     Interaction,
 )
-from hypothesis.definitions import VectTypes, IntTypes
-from hotspots.models import HotspotMap
-from django.core.exceptions import ValidationError
-from django.core.files import File
-from rdkit import Chem
-from rdkit.Chem import Descriptors
-from scoring.models import MolGroup
-from frag.alysis.run_clustering import run_lig_cluster
-from loader.functions import sanitize_mol, get_path_or_none
-from frag.network.decorate import get_3d_vects_for_mol
-import csv, os, shutil
 from loader.config import get_dict
+from loader.functions import sanitize_mol, get_path_or_none
+from scoring.models import MolGroup
+from viewer.models import Target, Protein, Molecule, Compound, Project
 
 
 def add_target(title):
