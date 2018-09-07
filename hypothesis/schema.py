@@ -1,5 +1,4 @@
 import graphene
-from graphene import relay
 from graphene_django.rest_framework.mutation import SerializerMutation
 
 from hypothesis.serializers import (
@@ -10,6 +9,8 @@ from hypothesis.serializers import (
     ProteinResidueSerialzier,
     TargetResidueSerialzier,
 )
+
+relay = graphene.relay
 
 
 class Vector3D(SerializerMutation):

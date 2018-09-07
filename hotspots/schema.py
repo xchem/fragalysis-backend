@@ -1,8 +1,8 @@
 import graphene
-from graphene import relay
 from graphene_django.rest_framework.mutation import SerializerMutation
-
 from hotspots.serializers import HotspotMapSerializer
+
+relay = graphene.relay
 
 
 class HotspotMap(SerializerMutation):
