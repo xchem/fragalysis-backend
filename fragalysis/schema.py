@@ -1,5 +1,4 @@
 import graphene
-
 import hotspots.schema
 import hypothesis.schema
 import pandda.schema

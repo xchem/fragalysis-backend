@@ -1,13 +1,13 @@
 import graphene
-from graphene import relay
 from graphene_django.rest_framework.mutation import SerializerMutation
-
 from viewer.serializers import (
     MoleculeSerializer,
     ProteinSerializer,
     CompoundSerializer,
     TargetSerializer,
 )
+
+relay = graphene.relay
 
 
 class Molecule(SerializerMutation):
