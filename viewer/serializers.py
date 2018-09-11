@@ -1,3 +1,4 @@
+import os
 from frag.network.decorate import get_3d_vects_for_mol
 from frag.network.query import get_full_graph
 from rest_framework import serializers
@@ -168,9 +169,10 @@ class VectorsSerializer(serializers.ModelSerializer):
 class GraphSerializer(serializers.ModelSerializer):
 
     graph = serializers.SerializerMethodField()
+    graph_choice = os.environ.get("NEO4J_QUERY", "neo4j")
 
     def get_graph(self, obj):
-        return get_full_graph(obj.smiles)
+        return get_full_graph(obj.smiles, self.graph_choice)
 
     class Meta:
         model = Molecule
