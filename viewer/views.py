@@ -4,7 +4,8 @@ from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
 
-from api.utils import ISpyBSafeQuerySet, get_params
+from api.security import ISpyBSafeQuerySet
+from api.utils import get_params
 from viewer.models import Molecule, Protein, Compound, Target
 from viewer.serializers import (
     MoleculeSerializer,
