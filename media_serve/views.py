@@ -1,4 +1,4 @@
-from api.utils import ISpyBSafeStaticFiles
+from api.security import ISpyBSafeStaticFiles
 from viewer.models import Protein
 
 
