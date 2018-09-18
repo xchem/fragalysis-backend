@@ -10,6 +10,7 @@ services:
       MYSQL_DATABASE: django_db
       MYSQL_PASSWORD: django_password
       MYSQL_USER: django
+      ISPYB_FLAG: 
   tests:
     image: xchem/fragalysis-backend
     command: ["/code/wait-for-it.sh", "mysql:3306", "--", "/bin/bash", "/code/test_entry.sh"]
