@@ -13,8 +13,6 @@ services:
   tests:
     image: xchem/fragalysis-backend
     command: ["/code/wait-for-it.sh", "mysql:3306", "--", "/bin/bash", "/code/test_entry.sh"]
-    environment:
-      ISPYB_FLAG:
     volumes:
       - .:/code
       - ../logs:/code/logs/
