@@ -484,7 +484,8 @@ class APIUrlsTestCase(APITestCase):
 
     def do_full_scan(self, user, test_data_set):
         for get_type in self.get_types:
-            self.client.force_authenticate(user)
+            if user:
+                self.client.force_authenticate(user)
             response = self.client.get(self.url_base + "/" + get_type + "/")
             self.assertEqual(response.status_code, 200)
             self.assertDictEqual(
@@ -498,3 +499,6 @@ class APIUrlsTestCase(APITestCase):
 
     def test_insecure(self):
         self.do_full_scan(self.user, self.not_secret_target_data)
+
+    def test_not_logged_in(self):
+        self.do_full_scan(None, self.not_secret_target_data)
