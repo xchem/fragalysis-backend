@@ -47,9 +47,12 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
-        return list(
-            Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
-        )
+        if user.pk is None:
+            return []
+        else:
+            return list(
+                Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
+            )
 
     def needs_updating(self, user):
         global USER_LIST_DICT
@@ -79,7 +82,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_proposals_for_user(self):
         user = self.request.user
-        get_from_ispyb = os.environ.get("ISPYB_FLAG", False)
+        get_from_ispyb = os.environ.get("ISPYB_FLAG", True)
         if get_from_ispyb:
             if user.is_authenticated:
                 return self.get_proposals_for_user_from_ispyb(user)
