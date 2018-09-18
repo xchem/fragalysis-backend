@@ -1,3 +1,5 @@
+env:
+  - ISPYB_FLAG=""
 sudo: required
 services:
   - docker
