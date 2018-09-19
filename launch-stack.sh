@@ -21,8 +21,6 @@ touch /srv/logs/access.log
 tail -n 0 -f /srv/logs/*.log &
 # Start the NPM build
 echo "Starting..."
-# Run this is production mode now
-cd /code/frontend && npm run build
 # Start Gunicorn processes
 cd /code/
 echo "Starting Gunicorn...."
