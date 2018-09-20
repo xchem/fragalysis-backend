@@ -111,12 +111,12 @@ class MolImageSerialzier(serializers.ModelSerializer):
     mol_image = serializers.SerializerMethodField()
 
     def get_mol_image(self, obj):
-        return str(self.context["request"])
-        # print(self.context)
+        params = self.context.request.query_params
+        return str(params)
         # request = getattr(self.context, "request", None)
         # if request:
         #     return draw_mol(
-        #         obj.smiles, height=request.GET["height"], width=request.GET["width"]
+        #         obj.smiles, height=params["height"], width=params["width"]
         #     )
         # else:
         #     return draw_mol(obj.smiles, height=125, width=125)
