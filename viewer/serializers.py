@@ -111,7 +111,7 @@ class MolImageSerialzier(serializers.ModelSerializer):
     mol_image = serializers.SerializerMethodField()
 
     def get_mol_image(self, obj):
-        return str(self.context)
+        return str(self.context["mol_image"]["request"])
         # print(self.context)
         # request = getattr(self.context, "request", None)
         # if request:
