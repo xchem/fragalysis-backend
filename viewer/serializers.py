@@ -111,13 +111,15 @@ class MolImageSerialzier(serializers.ModelSerializer):
     mol_image = serializers.SerializerMethodField()
 
     def get_mol_image(self, obj):
-        request = getattr(self.context, "request", None)
-        if request:
-            return draw_mol(
-                obj.smiles, height=request.GET["height"], width=request.GET["width"]
-            )
-        else:
-            return draw_mol(obj.smiles, height=125, width=125)
+        return str(self.context)
+        # print(self.context)
+        # request = getattr(self.context, "request", None)
+        # if request:
+        #     return draw_mol(
+        #         obj.smiles, height=request.GET["height"], width=request.GET["width"]
+        #     )
+        # else:
+        #     return draw_mol(obj.smiles, height=125, width=125)
 
     class Meta:
         model = Molecule
