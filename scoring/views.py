@@ -43,7 +43,7 @@ class MolChoiceView(viewsets.ModelViewSet):
 
 
 class MolAnnotationView(viewsets.ModelViewSet):
-    queryset = MolAnnotation.object.filter()
+    queryset = MolAnnotation.objects.filter()
     serializer_class = MolAnnotationSerializer
     filter_fields = ("mol_id", "annotation_type")
 
