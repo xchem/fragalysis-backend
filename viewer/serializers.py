@@ -115,7 +115,9 @@ class MolImageSerialzier(serializers.ModelSerializer):
         params = request.query_params
         if params:
             return draw_mol(
-                obj.smiles, height=int(params["height"]), width=int(params["width"])
+                obj.smiles,
+                height=int(float(params["height"])),
+                width=int(float(params["width"])),
             )
         else:
             return draw_mol(obj.smiles, height=125, width=125)
