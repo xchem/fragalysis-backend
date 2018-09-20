@@ -112,7 +112,7 @@ class MolImageSerialzier(serializers.ModelSerializer):
 
     def get_mol_image(self, obj):
         request = self.context["request"]
-        params = request["query_params"]
+        params = request.query_params
         return str(params)
         # request = getattr(self.context, "request", None)
         # if request:
