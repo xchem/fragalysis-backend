@@ -7,6 +7,7 @@ from scoring.models import (
     MolChoice,
     ScoreChoice,
     MolGroup,
+    MolAnnotation,
 )
 
 
@@ -29,6 +30,13 @@ class MolChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = MolChoice
         fields = ("id", "user_id", "mol_id", "choice_type", "score")
+
+
+class MolAnnotationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = MolAnnotation
+        fields = ("id", "mol_id", "annotation_type", "annotation_text")
 
 
 class CmpdChoiceSerializer(serializers.ModelSerializer):

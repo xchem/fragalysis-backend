@@ -63,6 +63,18 @@ class MolChoice(models.Model):
         permissions = (("view_molchoice", "View molchoice"),)
 
 
+class MolAnnotation(models.Model):
+    """
+    A Django model to annotate a molecule with free text
+    """
+    mol_id = models.ForeignKey(Molecule)
+    annotation_type = models.CharField(max_length=50)
+    annotation_text = models.CharField(max_length=100)
+
+    class Meta:
+        unique_together = ("mol_id", "annotation_type")
+
+
 class ScoreChoice(models.Model):
     """
     A Django model to store a selection from a user
