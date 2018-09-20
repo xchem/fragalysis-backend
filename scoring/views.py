@@ -9,6 +9,7 @@ from scoring.models import (
     ProtChoice,
     CmpdChoice,
     MolChoice,
+    MolAnnotation,
     ScoreChoice,
     MolGroup,
 )
@@ -17,6 +18,7 @@ from scoring.serializers import (
     ProtChoiceSerializer,
     CmpdChoiceSerializer,
     MolChoiceSerializer,
+    MolAnnotationSerializer,
     ScoreChoiceSerializer,
     MolGroupSerializer,
 )
@@ -38,6 +40,12 @@ class MolChoiceView(viewsets.ModelViewSet):
     queryset = MolChoice.objects.filter()
     serializer_class = MolChoiceSerializer
     filter_fields = ("user_id", "mol_id", "mol_id__prot_id__target_id", "choice_type")
+
+
+class MolAnnotationView(viewsets.ModelViewSet):
+    queryset = MolAnnotation.objects.filter()
+    serializer_class = MolAnnotationSerializer
+    filter_fields = ("mol_id", "annotation_type")
 
 
 class CmpdChoiceView(viewsets.ModelViewSet):

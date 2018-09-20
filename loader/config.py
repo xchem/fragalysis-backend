@@ -56,6 +56,18 @@ def get_dict():
         out_d[prot[3]] = prot[2]
     for mol in _mol_choices()[0]:
         out_d[mol[3]] = mol[2]
+    out_d["EVENT"] = "_event.map"
+    out_d["MTZ"] = ".mtz"
+    out_d["PMAP"] = "_pandda.map"
+    out_d["PPDB"] = "_pandda.pdb"
+    out_d["PJSON"] = "_pandda.json"
+    out_d["PMTZ"] = "_pandda.mtz"
+    # optional ones - contacts and hotspots
+    out_d["CONTACTS"] = "_contacts.json"
+    out_d["CONFIDENCE"] = "lig_conf.json"
+    out_d["ACC"] = "_acceptor.ccp4"
+    out_d["DON"] = "_donor.ccp4"
+    out_d["LIP"] = "_apolar.ccp4"
     return out_d
 
 
