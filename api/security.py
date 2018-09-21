@@ -4,6 +4,7 @@ import time
 from django.http import Http404
 from django.http import HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
+from ispyb.connector.mysqlsp.main import ISPyBNoResultException
 from rest_framework import viewsets
 
 from viewer.models import Project
@@ -71,7 +72,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         if self.needs_updating(user):
             with get_conn() as conn:
                 core = conn.core
-                rs = core.retrieve_sessions_for_person_login(user.username)
+                try:
+                    rs = core.retrieve_sessions_for_person_login(user.username)
+                except ISPyBNoResultException:
+                    rs = []
             prop_ids = [
                 str(x["proposalId"]) + "-" + str(x["sessionNumber"]) for x in rs
             ]
