@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from rdkit.Chem.Draw.MolDrawing import DrawingOptions
+from rdkit.Chem.Draw import rdMolDraw2D
 from rest_framework.authtoken.models import Token
 from frag.utils.network_utils import get_fragments, canon_input
 
@@ -59,8 +60,10 @@ def draw_mol(
     height=200,
     width=200,
     img_type=None,
+    highlightAtoms=[],
+    atomcolors=[],
     highlightBonds=[],
-    highlightBondColors={},
+    bondcolors={},
 ):
     """
     Draw a molecule from a smiles
@@ -74,7 +77,7 @@ def draw_mol(
     options.atomLabelFontSize = 100
     options.dotsPerAngstrom = 200
     options.bondLineWidth = 6.0
-    #
+
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return "None Mol"
@@ -89,7 +92,7 @@ def draw_mol(
             mol,
             options=options,
             highlightBonds=highlightBonds,
-            highlightBondColors=highlightBondColors,
+            highlightBondColors=bondcolors,
         )
         img = img.convert("RGBA")
         datas = img.getdata()
@@ -104,10 +107,22 @@ def draw_mol(
         img.save(response, "PNG")
         return response
     else:
-        drawer = Draw.MolDraw2DSVG(height, width)
+        drawer = rdMolDraw2D.MolDraw2DSVG(height, width)
+        drawopt = drawer.drawOptions()
+        drawopt.clearBackground = False
+        mol = Chem.MolFromSmiles(smiles)
+        AllChem.Compute2DCoords(mol)
+        drawer.DrawMolecule(
+            mol,
+            highlightAtoms=highlightAtoms,
+            highlightAtomColors=atomcolors,
+            highlightBonds=highlightBonds,
+            highlightBondColors=bondcolors,
+        )
         drawer.DrawMolecule(mol)
         drawer.FinishDrawing()
-        return _transparentsvg(drawer.GetDrawingText().replace("svg:", ""))
+        return drawer.GetDrawingText().replace("svg:", "")
+        # return _transparentsvg(drawer.GetDrawingText().replace("svg:", ""))
 
 
 def parse_vectors(vector_list):
@@ -142,7 +157,7 @@ def get_params(smiles, request):
         height=height,
         img_type=img_type,
         highlightBonds=bond_id_list,
-        highlightBondColors=highlightBondColors,
+        bondcolors=highlightBondColors,
     )
     if type(get_mol) == HttpResponse:
         return get_mol
