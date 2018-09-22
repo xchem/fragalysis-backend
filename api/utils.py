@@ -125,7 +125,7 @@ def get_params(smiles, request):
     try:
         smiles = canon_input(smiles)
     except:
-        smiles = None
+        smiles = ""
     height = None
     bond_id_list = []
     highlightBondColors = {}
