@@ -16,12 +16,16 @@
 
  {% if user.is_authenticated %}
      var DJANGO_CONTEXT ={
-     username: '{{user.username}}',
-     authenticated: true
+         username: '{{user.username}}',
+         email: '{{ user.email|default:"noemail" }}',
+         pk: {{user.pk|default:-1}},
+         authenticated: true
      }
  {% else %}
      var DJANGO_CONTEXT = {
          username: 'NOT_LOGGED_IN',
+         email: "noemail",
+         pk: undefined,
          authenticated: false
      }
  {% endif %}
