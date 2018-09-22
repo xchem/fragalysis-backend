@@ -72,12 +72,6 @@ def draw_mol(
     :param width: the width in px
     :return: an SVG as a string of the inage
     """
-    # Set the options here
-    options = DrawingOptions()
-    options.atomLabelFontSize = 100
-    options.dotsPerAngstrom = 200
-    options.bondLineWidth = 6.0
-
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return "None Mol"
@@ -110,8 +104,6 @@ def draw_mol(
         drawer = rdMolDraw2D.MolDraw2DSVG(height, width)
         drawopt = drawer.drawOptions()
         drawopt.clearBackground = False
-        mol = Chem.MolFromSmiles(smiles)
-        AllChem.Compute2DCoords(mol)
         drawer.DrawMolecule(
             mol,
             highlightAtoms=highlightAtoms,
