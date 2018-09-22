@@ -103,6 +103,7 @@ def parse_vectors(vector_list):
 
 
 def get_params(smiles, request):
+    smiles = canon_input(smiles)
     height = None
     bond_id_list = []
     highlightBonds = []
@@ -116,7 +117,7 @@ def get_params(smiles, request):
         # Get the vector
         isotopes = parse_vectors(request.GET["isotopes"])
         fragments, frag_map = get_fragments(
-            Chem.MolFromSmiles(canon_input(smiles)), get_index_iso_map=True
+            Chem.MolFromSmiles(smiles), get_index_iso_map=True
         )
         for iso in isotopes:
             bond_ids = frag_map[iso]
