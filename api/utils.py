@@ -64,6 +64,7 @@ def draw_mol(
     atomcolors=[],
     highlightBonds=[],
     bondcolors={},
+    mol=None,
 ):
     """
     Draw a molecule from a smiles
@@ -72,7 +73,8 @@ def draw_mol(
     :param width: the width in px
     :return: an SVG as a string of the inage
     """
-    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return "None Mol"
     AllChem.Compute2DCoords(mol)
@@ -150,6 +152,7 @@ def get_params(smiles, request):
         height=height,
         img_type=img_type,
         highlightBonds=bond_id_list,
+        mol=mol,
         bondcolors=highlightBondColors,
     )
     if type(get_mol) == HttpResponse:
