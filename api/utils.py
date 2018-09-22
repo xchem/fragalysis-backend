@@ -114,7 +114,6 @@ def draw_mol(
         drawer.DrawMolecule(mol)
         drawer.FinishDrawing()
         return drawer.GetDrawingText().replace("svg:", "")
-        # return _transparentsvg(drawer.GetDrawingText().replace("svg:", ""))
 
 
 def parse_vectors(vector_list):
