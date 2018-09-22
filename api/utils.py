@@ -54,7 +54,14 @@ def _transparentsvg(svg):
     return '<?xml version="1.0" encoding="UTF-8"?>' + ET.tostring(tree).strip()
 
 
-def draw_mol(smiles, height=200, width=200, img_type=None, **kwargs):
+def draw_mol(
+    smiles,
+    height=200,
+    width=200,
+    img_type=None,
+    highlightBonds=[],
+    highlightBondColors={},
+):
     """
     Draw a molecule from a smiles
     :param smiles: the SMILES to render
@@ -78,7 +85,12 @@ def draw_mol(smiles, height=200, width=200, img_type=None, **kwargs):
     if not width:
         width = 200
     if img_type == "png":
-        img = Draw.MolToImage(mol, options=options, **kwargs)
+        img = Draw.MolToImage(
+            mol,
+            options=options,
+            highlightBonds=highlightBonds,
+            highlightBondColors=highlightBondColors,
+        )
         img = img.convert("RGBA")
         datas = img.getdata()
         newData = []
@@ -106,7 +118,6 @@ def get_params(smiles, request):
     smiles = canon_input(smiles)
     height = None
     bond_id_list = []
-    highlightBonds = []
     highlightBondColors = {}
     if "height" in request.GET:
         height = int(request.GET["height"])
@@ -124,14 +135,13 @@ def get_params(smiles, request):
             bond_id_list.extend(bond_ids)
             for bond_id in bond_ids:
                 highlightBondColors[bond_id] = ISO_COLOUR_MAP[iso]
-        highlightBonds = bond_id_list
     img_type = request.GET.get("img_type", None)
     get_mol = draw_mol(
         smiles,
         width=width,
         height=height,
         img_type=img_type,
-        highlightBonds=highlightBonds,
+        highlightBonds=bond_id_list,
         highlightBondColors=highlightBondColors,
     )
     if type(get_mol) == HttpResponse:
