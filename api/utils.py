@@ -128,6 +128,7 @@ def get_params(smiles, request):
     except:
         smiles = ""
     height = None
+    mol = None
     bond_id_list = []
     highlightBondColors = {}
     if "height" in request.GET:
