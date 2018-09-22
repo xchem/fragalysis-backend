@@ -122,7 +122,10 @@ def parse_vectors(vector_list):
 
 
 def get_params(smiles, request):
-    smiles = canon_input(smiles)
+    try:
+        smiles = canon_input(smiles)
+    except:
+        smiles = None
     height = None
     bond_id_list = []
     highlightBondColors = {}
