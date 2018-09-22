@@ -136,9 +136,8 @@ def get_params(smiles, request):
     if "isotopes" in request.GET:
         # Get the vector
         isotopes = parse_vectors(request.GET["isotopes"])
-        fragments, frag_map = get_fragments(
-            Chem.MolFromSmiles(smiles), get_index_iso_map=True
-        )
+        mol = AllChem.AddHs(Chem.MolFromSmiles(smiles))
+        fragments, frag_map = get_fragments(mol, get_index_iso_map=True)
         for iso in isotopes:
             bond_ids = frag_map[iso]
             bond_id_list.extend(bond_ids)
