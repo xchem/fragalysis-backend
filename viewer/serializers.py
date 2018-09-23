@@ -1,5 +1,5 @@
 import os
-from frag.network.decorate import get_3d_vects_for_mol
+from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
 from rest_framework import serializers
 
@@ -168,7 +168,10 @@ class VectorsSerializer(serializers.ModelSerializer):
     vectors = serializers.SerializerMethodField()
 
     def get_vectors(self, obj):
-        return get_3d_vects_for_mol(obj.sdf_info)
+        out_data = {}
+        out_data["3d"] = get_3d_vects_for_mol(obj.sdf_info)
+        out_data["indices"] = get_vect_indices_for_mol(obj.sdf_info)
+        return out_data
 
     class Meta:
         model = Molecule
