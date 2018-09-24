@@ -142,10 +142,11 @@ def get_params(smiles, request):
         mol = AllChem.AddHs(Chem.MolFromSmiles(smiles))
         fragments, frag_map = get_fragments(mol, get_index_iso_map=True)
         for iso in isotopes:
-            bond_ids = frag_map[iso]
-            bond_id_list.extend(bond_ids)
-            for bond_id in bond_ids:
-                highlightBondColors[bond_id] = ISO_COLOUR_MAP[iso]
+            if iso in frag_map:
+                bond_ids = frag_map[iso]
+                bond_id_list.extend(bond_ids)
+                for bond_id in bond_ids:
+                    highlightBondColors[bond_id] = ISO_COLOUR_MAP[iso]
     img_type = request.GET.get("img_type", None)
     get_mol = draw_mol(
         smiles,
