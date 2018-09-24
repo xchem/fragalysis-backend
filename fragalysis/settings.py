@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     "guardian",
     "graphene_django",
     "django_cas_ng",
+    "django_extensions",
     "rest_framework.authtoken",
     "rest_framework_swagger",
     "webpack_loader",
@@ -217,3 +218,5 @@ WEBPACK_LOADER = {
 }
 
 GRAPHENE = {"SCHEMA": "fragalysis.schema.schema"}  # Where your Graphene schema lives
+
+GRAPH_MODELS = {"all_applications": True, "group_models": True}
