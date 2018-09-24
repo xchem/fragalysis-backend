@@ -94,6 +94,8 @@ class Molecule(models.Model):
     # The type of map
     # Set the groups types
     mol_choices, default_mol = get_mol_choices()
+    # Add this fake dummy field
+    mol_extra_field = models.TextField(null=True)
     mol_type = models.CharField(choices=mol_choices, default=default_mol, max_length=2)
     # Textfield
     sdf_info = models.TextField(null=True)
