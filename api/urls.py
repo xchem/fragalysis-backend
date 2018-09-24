@@ -1,7 +1,6 @@
 from django.conf.urls import include, url
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
-from rest_framework_swagger.views import get_swagger_view
 
 from api import views as xchem_views
 from hotspots import views as hostpot_views
@@ -52,8 +51,18 @@ router.register(r"pandda_site", xchem_views.PanddaSiteView)
 router.register(r"pandda_event", xchem_views.PanddaEventView)
 router.register(r"proasis_out", xchem_views.ProasisOutView)
 
+from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
+from rest_framework.decorators import api_view, renderer_classes
+from rest_framework import response, schemas
 
-schema_view = get_swagger_view(title="Fragalysis API")
+
+@api_view()
+@renderer_classes([SwaggerUIRenderer, OpenAPIRenderer])
+def schema_view(request):
+    url = "https://" + str(request.get_host())
+    generator = schemas.SchemaGenerator(title="Fragalysis API", url=url)
+    return response.Response(generator.get_schema(request=request))
+
 
 urlpatterns = [
     url(r"^", include(router.urls)),

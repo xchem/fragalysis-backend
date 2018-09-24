@@ -64,6 +64,7 @@ def draw_mol(
     atomcolors=[],
     highlightBonds=[],
     bondcolors={},
+    mol=None,
 ):
     """
     Draw a molecule from a smiles
@@ -72,7 +73,8 @@ def draw_mol(
     :param width: the width in px
     :return: an SVG as a string of the inage
     """
-    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return "None Mol"
     AllChem.Compute2DCoords(mol)
@@ -126,6 +128,7 @@ def get_params(smiles, request):
     except:
         smiles = ""
     height = None
+    mol = None
     bond_id_list = []
     highlightBondColors = {}
     if "height" in request.GET:
@@ -136,9 +139,8 @@ def get_params(smiles, request):
     if "isotopes" in request.GET:
         # Get the vector
         isotopes = parse_vectors(request.GET["isotopes"])
-        fragments, frag_map = get_fragments(
-            Chem.MolFromSmiles(smiles), get_index_iso_map=True
-        )
+        mol = AllChem.AddHs(Chem.MolFromSmiles(smiles))
+        fragments, frag_map = get_fragments(mol, get_index_iso_map=True)
         for iso in isotopes:
             bond_ids = frag_map[iso]
             bond_id_list.extend(bond_ids)
@@ -151,6 +153,7 @@ def get_params(smiles, request):
         height=height,
         img_type=img_type,
         highlightBonds=bond_id_list,
+        mol=mol,
         bondcolors=highlightBondColors,
     )
     if type(get_mol) == HttpResponse:
