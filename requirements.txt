@@ -58,3 +58,4 @@ django-webpack-loader
 coveralls
 django-treebeard
 django-rest-swagger
+django-extensions
