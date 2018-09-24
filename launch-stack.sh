@@ -3,15 +3,18 @@
 echo "Creating superuser..."
 # Automatically create the superuser...
 script="
-from django.contrib.auth.models import User;
-username = '$WEB_DJANGO_SUPERUSER_NAME';
-password = '$WEB_DJANGO_SUPERUSER_PASSWORD';
-email = '$WEB_DJANGO_SUPERUSER_EMAIL';
+from django.contrib.auth.models import User
+username = '$WEB_DJANGO_SUPERUSER_NAME'
+password = '$WEB_DJANGO_SUPERUSER_PASSWORD'
+email = '$WEB_DJANGO_SUPERUSER_EMAIL'
+if not username or not password:
+    username = 'admin'
+    password = 'UNSECURED'
 if User.objects.filter(username=username).count()==0:
-    User.objects.create_superuser(username, email, password);
-    print('Superuser created.');
+    User.objects.create_superuser(username, email, password)
+    print('Superuser created.')
 else:
-    print('Superuser creation skipped.');
+    print('Superuser creation skipped.')
 "
 printf "$script" | python manage.py shell
 
