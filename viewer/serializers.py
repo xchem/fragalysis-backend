@@ -11,10 +11,11 @@ class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
 
     def get_template_protein(self, obj):
-        if len(obj.protein_set.filter()) > 0:
-            return obj.protein_set.filter()[0].pdb_info.url
-        else:
-            return "NOT AVAILABLE"
+        proteins = obj.protein_set.filter()
+        for protein in proteins:
+            if protein.pdb_info:
+                return protein.pdb_info.url
+        return "NOT AVAILABLE"
 
     class Meta:
         model = Target
