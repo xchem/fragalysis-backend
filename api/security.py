@@ -44,7 +44,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         Returns the list of proposals anybody can access
         :return:
         """
-        if os.environ.get("TEST_SECURITY_FLAG", True):
+        if os.environ.get("TEST_SECURITY_FLAG", False):
             return ["OPEN", "private_dummy_project"]
         else:
             return ["OPEN"]
