@@ -44,7 +44,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         Returns the list of proposals anybody can access
         :return:
         """
-        return ["OPEN"]
+        if os.environ.get("TEST_SECURITY_FLAG", True):
+            return ["OPEN", "private_dummy_project"]
+        else:
+            return ["OPEN"]
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
