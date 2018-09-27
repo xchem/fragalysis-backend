@@ -60,7 +60,7 @@ from rest_framework import response, schemas
 @renderer_classes([SwaggerUIRenderer, OpenAPIRenderer])
 def schema_view(request):
     url = request.build_absolute_uri()
-    generator = schemas.SchemaGenerator(title="Fragalysis API", url=url)
+    generator = schemas.SchemaGenerator(title="Fragalysis API")
     return response.Response(generator.get_schema(request=request))
 
 
