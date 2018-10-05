@@ -122,6 +122,15 @@ def parse_vectors(vector_list):
     return [int(x) for x in vector_list.split(",")]
 
 
+def parse_bool(input_string):
+    if input_string.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif input_string.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise ValueError("Value not parsable")
+
+
 def parse_atom_ids(input_list, mol):
     """
     List of the form id,id,isotope,addHs
@@ -140,7 +149,7 @@ def parse_atom_ids(input_list, mol):
         if i % 3 == 2:
             iso = int(spl_list[i])
         if i % 4 == 3:
-            add_hs = bool(spl_list[i])
+            add_hs = parse_bool(spl_list[i])
             if add_hs:
                 mol = AllChem.AddHs(mol)
             bond = mol.GetBondBetweenAtoms(atom_ids[0], atom_ids[1])
