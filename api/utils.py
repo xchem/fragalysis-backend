@@ -145,7 +145,7 @@ def parse_atom_ids(input_list, mol):
                 mol = AllChem.AddHs(mol)
             bond = mol.GetBondBetweenAtoms(atom_ids[0], atom_ids[1])
             bond_ids.append(bond.GetIdx())
-            bond_colours[bond.GetIdx] = ISO_COLOUR_MAP[iso]
+            bond_colours[bond.GetIdx()] = ISO_COLOUR_MAP[iso]
             atom_ids = []
     return bond_ids, bond_colours, mol
 
