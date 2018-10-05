@@ -122,6 +122,26 @@ def parse_vectors(vector_list):
     return [int(x) for x in vector_list.split(",")]
 
 
+def parse_atom_ids(input_list, mol):
+    spl_list = input_list.split(",")
+    bond_ids = []
+    bond_colours = {}
+    for i, data in enumerate(spl_list):
+        if i % 4 in [0, 1]:
+            atom_ids.append(int(spl_list[i]))
+        if i % 3 == [2]:
+            iso = int(spl_list[i])
+        if i % 4 == 3:
+            add_hs = bool(spl_list[i])
+            if add_hs:
+                mol = AllChem.AddHs(mol)
+            bond = mol.GetBondBetweenAtoms(atom_ids[0], atom_ids[1])
+            bond_ids.append(bond.GetIdx())
+            bond_colours[bond.GetIdx] = ISO_COLOUR_MAP[iso]
+            atom_ids = []
+    return bond_ids, bond_colours, mol
+
+
 def get_params(smiles, request):
     try:
         smiles = canon_input(smiles)
@@ -147,6 +167,13 @@ def get_params(smiles, request):
                 bond_id_list.extend(bond_ids)
                 for bond_id in bond_ids:
                     highlightBondColors[bond_id] = ISO_COLOUR_MAP[iso]
+    if "atom_indices" in request.GET:
+        bond_ids, bond_colours, render_mol = parse_atom_ids(
+            request.GET["atom_indices"], mol
+        )
+        mol = render_mol
+        bond_id_list = bond_ids
+        highlightBondColors = bond_colours
     img_type = request.GET.get("img_type", None)
     get_mol = draw_mol(
         smiles,
