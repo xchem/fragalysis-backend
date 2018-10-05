@@ -123,8 +123,16 @@ def parse_vectors(vector_list):
 
 
 def parse_atom_ids(input_list, mol):
+    """
+    List of the form id,id,isotope,addHs
+    e.g. 1,2,104,True
+    :param input_list:
+    :param mol:
+    :return:
+    """
     spl_list = input_list.split(",")
     bond_ids = []
+    atom_ids = []
     bond_colours = {}
     for i, data in enumerate(spl_list):
         if i % 4 in [0, 1]:
