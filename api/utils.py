@@ -137,7 +137,7 @@ def parse_atom_ids(input_list, mol):
     for i, data in enumerate(spl_list):
         if i % 4 in [0, 1]:
             atom_ids.append(int(spl_list[i]))
-        if i % 3 == [2]:
+        if i % 3 == 2:
             iso = int(spl_list[i])
         if i % 4 == 3:
             add_hs = bool(spl_list[i])
