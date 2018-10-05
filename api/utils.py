@@ -176,6 +176,7 @@ def get_params(smiles, request):
                 for bond_id in bond_ids:
                     highlightBondColors[bond_id] = ISO_COLOUR_MAP[iso]
     if "atom_indices" in request.GET:
+        mol = Chem.MolFromSmiles(smiles)
         bond_ids, bond_colours, render_mol = parse_atom_ids(
             request.GET["atom_indices"], mol
         )
