@@ -144,11 +144,12 @@ def parse_atom_ids(input_list, mol):
     atom_ids = []
     bond_colours = {}
     for i, data in enumerate(spl_list):
-        if i % 4 in [0, 1]:
+        list_len = 4
+        if i % list_len in [0, 1]:
             atom_ids.append(int(spl_list[i]))
-        if i % 3 == 2:
+        if i % list_len == 2:
             iso = int(spl_list[i])
-        if i % 4 == 3:
+        if i % list_len == 3:
             add_hs = parse_bool(spl_list[i])
             if add_hs:
                 mol = AllChem.AddHs(mol)
