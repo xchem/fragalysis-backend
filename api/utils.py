@@ -122,22 +122,39 @@ def parse_vectors(vector_list):
     return [int(x) for x in vector_list.split(",")]
 
 
+def parse_bool(input_string):
+    if input_string.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif input_string.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise ValueError("Value not parsable")
+
+
 def parse_atom_ids(input_list, mol):
+    """
+    List of the form id,id,isotope,addHs
+    e.g. 1,2,104,True
+    :param input_list:
+    :param mol:
+    :return:
+    """
     spl_list = input_list.split(",")
     bond_ids = []
+    atom_ids = []
     bond_colours = {}
     for i, data in enumerate(spl_list):
         if i % 4 in [0, 1]:
             atom_ids.append(int(spl_list[i]))
-        if i % 3 == [2]:
+        if i % 3 == 2:
             iso = int(spl_list[i])
         if i % 4 == 3:
-            add_hs = bool(spl_list[i])
+            add_hs = parse_bool(spl_list[i])
             if add_hs:
                 mol = AllChem.AddHs(mol)
             bond = mol.GetBondBetweenAtoms(atom_ids[0], atom_ids[1])
             bond_ids.append(bond.GetIdx())
-            bond_colours[bond.GetIdx] = ISO_COLOUR_MAP[iso]
+            bond_colours[bond.GetIdx()] = ISO_COLOUR_MAP[iso]
             atom_ids = []
     return bond_ids, bond_colours, mol
 
@@ -168,6 +185,7 @@ def get_params(smiles, request):
                 for bond_id in bond_ids:
                     highlightBondColors[bond_id] = ISO_COLOUR_MAP[iso]
     if "atom_indices" in request.GET:
+        mol = Chem.MolFromSmiles(smiles)
         bond_ids, bond_colours, render_mol = parse_atom_ids(
             request.GET["atom_indices"], mol
         )

@@ -79,9 +79,11 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
                     rs = core.retrieve_sessions_for_person_login(user.username)
                 except ISPyBNoResultException:
                     rs = []
-            prop_ids = [
+            visit_ids = [
                 str(x["proposalId"]) + "-" + str(x["sessionNumber"]) for x in rs
             ]
+            prop_ids = [str(x["proposalId"]) for x in rs]
+            prop_ids.extend(visit_ids)
             USER_LIST_DICT[user.username]["RESULTS"] = prop_ids
             return prop_ids
         else:
