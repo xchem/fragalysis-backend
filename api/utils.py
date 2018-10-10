@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from rdkit import Chem
-from rdkit.Chem import AllChem, Draw
+from rdkit.Chem import AllChem, Draw, Atom
 from rdkit.Chem.Draw.MolDrawing import DrawingOptions
 from rdkit.Chem.Draw import rdMolDraw2D
 from rest_framework.authtoken.models import Token
@@ -151,9 +151,30 @@ def parse_atom_ids(input_list, mol):
             iso = int(spl_list[i])
         if i % list_len == 3:
             add_hs = parse_bool(spl_list[i])
+            atom_id_1 = atom_ids[0]
+            atom_id_2 = atom_ids[1]
             if add_hs:
                 mol = AllChem.AddHs(mol)
-            bond = mol.GetBondBetweenAtoms(atom_ids[0], atom_ids[1])
+                # Replace the H with the atom id in atom_ids[0], atom_ids[1] with *
+                h_atoms = [x for x in mol.GetAtoms() if x.GetAtomicNum() == 1]
+                atom_remove = [
+                    x.GetIdx() for x in h_atoms if x.GetIdx() in [atom_id_1, atom_id_2]
+                ][0]
+                ed_mol = AllChem.EditableMol(mol)
+                # Remove the other Hs
+                ed_mol.ReplaceAtom(atom_remove, Atom(0))
+                # Get a new editable molecule
+                mol = ed_mol.GetMol()
+                mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol))
+                # Record the new Atom Ids
+                atom_ids = [
+                    [x.GetBonds()[0].GetBeginAtomIdx(), x.GetBonds()[0].GetEndAtomIdx()]
+                    for x in mol.GetAtoms()
+                    if x.GetAtomicNum() == 0
+                ][0]
+                atom_id_1 = atom_ids[0]
+                atom_id_2 = atom_ids[1]
+            bond = mol.GetBondBetweenAtoms(atom_id_1, atom_id_2)
             bond_ids.append(bond.GetIdx())
             bond_colours[bond.GetIdx()] = ISO_COLOUR_MAP[iso]
             atom_ids = []
@@ -174,17 +195,6 @@ def get_params(smiles, request):
     width = None
     if "width" in request.GET:
         width = int(request.GET["width"])
-    if "isotopes" in request.GET:
-        # Get the vector
-        isotopes = parse_vectors(request.GET["isotopes"])
-        mol = AllChem.AddHs(Chem.MolFromSmiles(smiles))
-        fragments, frag_map = get_fragments(mol, get_index_iso_map=True)
-        for iso in isotopes:
-            if iso in frag_map:
-                bond_ids = frag_map[iso]
-                bond_id_list.extend(bond_ids)
-                for bond_id in bond_ids:
-                    highlightBondColors[bond_id] = ISO_COLOUR_MAP[iso]
     if "atom_indices" in request.GET:
         mol = Chem.MolFromSmiles(smiles)
         bond_ids, bond_colours, render_mol = parse_atom_ids(
