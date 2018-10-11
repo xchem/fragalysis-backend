@@ -64,7 +64,7 @@ def get_dict():
     out_d["PMTZ"] = "_pandda.mtz"
     # optional ones - contacts and hotspots
     out_d["CONTACTS"] = "_contacts.json"
-    out_d["CONFIDENCE"] = "lig_conf.json"
+    out_d["CONFIDENCE"] = "_lig_conf.json"
     out_d["ACC"] = "_acceptor.ccp4"
     out_d["DON"] = "_donor.ccp4"
     out_d["LIP"] = "_apolar.ccp4"
