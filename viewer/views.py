@@ -109,7 +109,10 @@ def react(request):
 def img_from_smiles(request):
     if "smiles" in request.GET:
         smiles = request.GET["smiles"]
-        return get_params(smiles, request)
+        if smiles:
+            return get_params(smiles, request)
+        else:
+            return HttpResponse("Please insert SMILES")
     else:
         return HttpResponse("Please insert SMILES")
 
