@@ -215,14 +215,11 @@ def get_params(smiles, request):
         width = int(request.GET["width"])
     if "atom_indices" in request.GET:
         mol = Chem.MolFromSmiles(smiles)
-        bond_ids, bond_colours, render_mol = parse_atom_ids(
+        bond_id_list, highlightBondColors, mol = parse_atom_ids(
             request.GET["atom_indices"], mol
         )
-        mol = render_mol
-        bond_id_list = bond_ids
-        highlightBondColors = bond_colours
     if "Xe" in smiles:
-        bond_ids, bond_colours, mol = parse_xenons(smiles)
+        bond_id_list, highlightBondColors, mol = parse_xenons(smiles)
     img_type = request.GET.get("img_type", None)
     get_mol = draw_mol(
         smiles,
