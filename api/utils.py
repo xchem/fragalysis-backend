@@ -5,6 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw, Atom
+import re
 from rdkit.Chem.Draw.MolDrawing import DrawingOptions
 from rdkit.Chem.Draw import rdMolDraw2D
 from rest_framework.authtoken.models import Token
@@ -181,6 +182,23 @@ def parse_atom_ids(input_list, mol):
     return bond_ids, bond_colours, mol
 
 
+def parse_xenons(input_smi):
+    mol = Chem.MolFromSmiles(input_smi)
+    e_mol = AllChem.EditableMol(mol)
+    xenons = [atom for atom in mol.GetAtoms() if atom.GetAtomicNum() == 54]
+    bond_ids = []
+    bond_colours = {}
+    for xe in xenons:
+        bond_id = xe.GetBonds()[0].GetIdx()
+        bond_ids.append(bond_id)
+        if len(xenons) > 1:
+            bond_colours[bond_id] = ISO_COLOUR_MAP[xe.GetIsotope()]
+        else:
+            bond_colours[bond_id] = ISO_COLOUR_MAP[101]
+        e_mol.ReplaceAtom(xe.GetIdx(), Atom(0))
+    return bond_ids, bond_colours, e_mol.GetMol()
+
+
 def get_params(smiles, request):
     try:
         smiles = canon_input(smiles)
@@ -203,6 +221,8 @@ def get_params(smiles, request):
         mol = render_mol
         bond_id_list = bond_ids
         highlightBondColors = bond_colours
+    if "Xe" in smiles:
+        bond_ids, bond_colours, mol = parse_xenons(smiles)
     img_type = request.GET.get("img_type", None)
     get_mol = draw_mol(
         smiles,
