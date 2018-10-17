@@ -15,7 +15,7 @@ class ViewSceneSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ViewScene
-        fields = ("id", "uuid", "title", "scene", "user_id")
+        fields = ("id", "uuid", "title", "scene", "user_id", "created", "modified")
 
 
 class ProtChoiceSerializer(serializers.ModelSerializer):
