@@ -18,6 +18,10 @@ class ViewScene(models.Model):
     title = models.CharField(max_length=200, default="NA")
     # The JSON describing the data
     scene = models.TextField()
+    # autofield for when the scene was created
+    created = models.DateTimeField(auto_now_add=True)
+    # autofield for when the scene was modified
+    modified = models.DateTimeField(auto_now=True)
 
     permissions = (("view_scene", "View scene"),)
 
