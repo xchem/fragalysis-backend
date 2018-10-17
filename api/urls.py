@@ -39,6 +39,8 @@ router.register(r"cmpdchoice", score_views.CmpdChoiceView)
 router.register(r"viewscene", score_views.ViewSceneView)
 # Register the groups
 router.register(r"molgroup", score_views.MolGroupView)
+# Get the information
+router.register(r"molannotation", score_views.MolAnnotationView)
 # Register the basic urls
 router.register(r"crystal", xchem_views.CrystalView)
 router.register(r"dataproc", xchem_views.DataProcessingView)
