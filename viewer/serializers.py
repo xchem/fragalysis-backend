@@ -170,7 +170,7 @@ class VectorsSerializer(serializers.ModelSerializer):
 
     def get_vectors(self, obj):
         out_data = {}
-        out_data["3d"] = get_3d_vects_for_mol(obj.sdf_info)
+        out_data["3d"] = get_3d_vects_for_mol(obj.sdf_info, iso_labels=False)
         out_data["indices"] = get_vect_indices_for_mol(obj.sdf_info)
         return out_data
 
@@ -185,7 +185,7 @@ class GraphSerializer(serializers.ModelSerializer):
     graph_choice = os.environ.get("NEO4J_QUERY", "neo4j")
 
     def get_graph(self, obj):
-        return get_full_graph(obj.smiles, self.graph_choice)
+        return get_full_graph(obj.smiles, self.graph_choice, isomericSmiles=True)
 
     class Meta:
         model = Molecule
