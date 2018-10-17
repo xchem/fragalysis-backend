@@ -35,7 +35,7 @@ class Target(models.Model):
 
 class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
-    # code for this protein
+    # code for this protein (e.g. NUDT5A-x0001_1)
     code = models.CharField(max_length=50, db_index=True)
     target_id = models.ForeignKey(Target)
     apo_holo = models.NullBooleanField()
