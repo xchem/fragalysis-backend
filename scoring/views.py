@@ -27,7 +27,7 @@ from scoring.serializers import (
 class ViewSceneView(viewsets.ModelViewSet):
     queryset = ViewScene.objects.filter()
     serializer_class = ViewSceneSerializer
-    filter_fields = ("user_id", "uuid")
+    filter_fields = ("user_id__username", "uuid")
 
 
 class ProtChoiceView(viewsets.ModelViewSet):
