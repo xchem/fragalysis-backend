@@ -23,7 +23,6 @@ from scoring.serializers import (
     MolGroupSerializer,
 )
 
-
 class ViewSceneView(viewsets.ModelViewSet):
     queryset = ViewScene.objects.filter()
     serializer_class = ViewSceneSerializer
@@ -86,3 +85,10 @@ def gen_conf_from_vect(request):
             generate_confs_for_vector(input_vector, input_smiles, input_mol_block)
         )
     )
+
+
+def get_current_user_id(request):
+    if request.user.is_authenticated():
+        return HttpResponse(json.dumps(request.user.id))
+    else:
+        return HttpResponse(json.dumps('null'))
