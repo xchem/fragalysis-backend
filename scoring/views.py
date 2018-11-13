@@ -28,6 +28,9 @@ class ViewSceneView(viewsets.ModelViewSet):
     serializer_class = ViewSceneSerializer
     filter_fields = ("user_id", "uuid")
 
+    def put(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
 
 class ProtChoiceView(viewsets.ModelViewSet):
     queryset = ProtChoice.objects.filter()
