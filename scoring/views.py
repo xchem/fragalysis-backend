@@ -24,7 +24,8 @@ from scoring.serializers import (
 )
 
 class ViewSceneView(viewsets.ModelViewSet):
-    queryset = ViewScene.objects.filter()
+    pagination_class = None
+    queryset = ViewScene.objects.filter().order_by('modified')
     serializer_class = ViewSceneSerializer
     filter_fields = ("user_id", "uuid")
 

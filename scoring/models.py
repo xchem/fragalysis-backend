@@ -24,6 +24,7 @@ class ViewScene(models.Model):
     modified = models.DateTimeField(auto_now=True)
 
     permissions = (("view_scene", "View scene"),)
+    
 
 
 class ProtChoice(models.Model):
