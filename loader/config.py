@@ -58,7 +58,7 @@ def get_dict():
         out_d[mol[3]] = mol[2]
     out_d["EVENT"] = "_event.map"
     out_d["MTZ"] = ".mtz"
-    out_d["PMAP"] = "_pandda.map"
+    out_d["PMAP"] = "_pandda.map.gz"
     out_d["PPDB"] = "_pandda.pdb"
     out_d["PJSON"] = "_pandda.json"
     out_d["PMTZ"] = "_pandda.mtz"
