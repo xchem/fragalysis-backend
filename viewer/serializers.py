@@ -145,7 +145,7 @@ class ProtMapInfoSerialzer(serializers.ModelSerializer):
     map_data = serializers.SerializerMethodField()
 
     def get_map_data(self, obj):
-        return open(obj.map_info.path).read()
+        return obj.map_info
 
     class Meta:
         model = Protein
