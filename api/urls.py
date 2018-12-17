@@ -21,6 +21,7 @@ router.register(r"graph", viewer_views.GraphView)
 router.register(r"cmpdimg", viewer_views.CompoundImageView)
 router.register(r"protmap", viewer_views.ProteinMapInfoView)
 router.register(r"protpdb", viewer_views.ProteinPDBInfoView)
+router.register(r"protpdbbound", viewer_views.ProteinPDBBoundInfoView)
 # Hotspot maps
 router.register(r"hotspots", hostpot_views.HotspotView)
 # Register the vectors and hypothesis

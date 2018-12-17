@@ -159,10 +159,19 @@ class ProtMapInfoSerialzer(serializers.ModelSerializer):
 class ProtPDBInfoSerialzer(serializers.ModelSerializer):
 
     pdb_data = serializers.SerializerMethodField()
-    bound_pdb_data = serializers.SerializerMethodField()
 
     def get_pdb_data(self, obj):
         return open(obj.pdb_info.path).read()
+
+
+    class Meta:
+        model = Protein
+        fields = ("id", "pdb_data", "prot_type")
+
+
+class ProtPDBBoundInfoSerialzer(serializers.ModelSerializer):
+
+    bound_pdb_data = serializers.SerializerMethodField()
 
     def get_bound_pdb_data(self, obj):
         if obj.bound_info:
@@ -172,7 +181,7 @@ class ProtPDBInfoSerialzer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ("id", "pdb_data", "bound_pdb_data", "prot_type")
+        fields = ("id", "bound_pdb_data")
 
 
 class VectorsSerializer(serializers.ModelSerializer):
