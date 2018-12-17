@@ -56,6 +56,7 @@ def get_dict():
         out_d[prot[3]] = prot[2]
     for mol in _mol_choices()[0]:
         out_d[mol[3]] = mol[2]
+    out_d["BOUND"] = "_bound.pdb"
     out_d["EVENT"] = "_event.map"
     out_d["MTZ"] = ".mtz"
     out_d["PMAP"] = "_pandda.map.gz"
