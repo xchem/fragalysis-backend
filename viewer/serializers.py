@@ -94,6 +94,7 @@ class ProteinSerializer(serializers.ModelSerializer):
             "target_id",
             "prot_type",
             "pdb_info",
+            "bound_info",
             "mtz_info",
             "map_info",
             "cif_info",
