@@ -423,6 +423,7 @@ class APIUrlsTestCase(APITestCase):
                 "target_id": 1,
                 "prot_type": "AP",
                 "pdb_info": "http://testserver/media/my_pdb.pdb",
+                "bound_info": None,
                 "mtz_info": None,
                 "map_info": None,
                 "cif_info": None,
