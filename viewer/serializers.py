@@ -159,8 +159,12 @@ class ProtPDBInfoSerialzer(serializers.ModelSerializer):
     def get_pdb_data(self, obj):
         return open(obj.pdb_info.path).read()
 
+
     def get_bound_pdb_data(self, obj):
-        return open(obj.bound_info.path).read()
+        if obj.bound_info.path:
+            return open(obj.bound_info.path).read()
+        else:
+            return None
 
     class Meta:
         model = Protein
