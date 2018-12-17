@@ -181,7 +181,7 @@ class ProtPDBBoundInfoSerialzer(serializers.ModelSerializer):
 
     class Meta:
         model = Protein
-        fields = ("id", "bound_pdb_data")
+        fields = ("id", "bound_pdb_data", "target_id")
 
 
 class VectorsSerializer(serializers.ModelSerializer):
