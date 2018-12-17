@@ -16,6 +16,7 @@ from viewer.serializers import (
     CmpdImageSerialzier,
     ProtMapInfoSerialzer,
     ProtPDBInfoSerialzer,
+    ProtPDBBoundInfoSerialzer,
     VectorsSerializer,
     GraphSerializer,
 )
@@ -59,6 +60,13 @@ class ProteinMapInfoView(ISpyBSafeQuerySet):
 class ProteinPDBInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtPDBInfoSerialzer
+    filter_permissions = "target_id__project_id"
+    filter_fields = ("code", "target_id", "prot_type")
+
+
+class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
+    queryset = Protein.objects.filter()
+    serializer_class = ProtPDBBoundInfoSerialzer
     filter_permissions = "target_id__project_id"
     filter_fields = ("code", "target_id", "prot_type")
 
