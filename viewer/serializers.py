@@ -146,7 +146,10 @@ class ProtMapInfoSerialzer(serializers.ModelSerializer):
     map_data = serializers.SerializerMethodField()
 
     def get_map_data(self, obj):
-        return open(obj.map_info).read()
+        if obj.map_info:
+            return open(obj.map_info.path).read()
+        else:
+            return None
 
     class Meta:
         model = Protein
@@ -162,7 +165,7 @@ class ProtPDBInfoSerialzer(serializers.ModelSerializer):
         return open(obj.pdb_info.path).read()
 
     def get_bound_pdb_data(self, obj):
-        if obj.bound_info.path:
+        if obj.bound_info:
             return open(obj.bound_info.path).read()
         else:
             return None
