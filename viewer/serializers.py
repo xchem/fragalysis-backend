@@ -156,10 +156,10 @@ class ProtMapInfoSerialzer(serializers.ModelSerializer):
 class ProtPDBInfoSerialzer(serializers.ModelSerializer):
 
     pdb_data = serializers.SerializerMethodField()
+    bound_pdb_data = serializers.SerializerMethodField()
 
     def get_pdb_data(self, obj):
         return open(obj.pdb_info.path).read()
-
 
     def get_bound_pdb_data(self, obj):
         if obj.bound_info.path:
