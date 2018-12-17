@@ -45,6 +45,7 @@ class Protein(models.Model):
         choices=prot_choices, default=default_prot, max_length=2
     )
     pdb_info = models.FileField(upload_to="pdbs/", null=True, max_length=255)
+    bound_info = models.FileField(upload_to="pdbs/", null=True, max_length=255)
     cif_info = models.FileField(upload_to="cifs/", null=True, max_length=255)
     mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=255)
     map_info = models.FileField(upload_to="maps/", null=True, max_length=255)
