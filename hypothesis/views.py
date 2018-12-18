@@ -19,21 +19,21 @@ from hypothesis.serializers import (
 
 
 class VectorView(viewsets.ReadOnlyModelViewSet):
-    paginate_by = None
+    paginator = None
     queryset = Vector.objects.filter()
     serializer_class = VectorSerializer
     filter_fields = ("cmpd_id", "smiles", "type")
 
 
 class Vector3DView(viewsets.ReadOnlyModelViewSet):
-    paginate_by = None
+    paginator = None
     queryset = Vector3D.objects.filter()
     serializer_class = Vector3DSerializer
     filter_fields = ("mol_id", "vector_id", "number")
 
 
 class InteractionView(viewsets.ReadOnlyModelViewSet):
-    paginate_by = None
+    paginator = None
     queryset = Interaction.objects.filter()
     serializer_class = InteractionSerializer
     filter_fields = (
@@ -51,21 +51,21 @@ class InteractionView(viewsets.ReadOnlyModelViewSet):
 
 
 class InteractionPointView(viewsets.ReadOnlyModelViewSet):
-    paginate_by = None
+    paginator = None
     queryset = InteractionPoint.objects.filter()
     serializer_class = InteractionPointSerializer
     filter_fields = ("prot_res_id", "mol_id", "protein_atom_name", "molecule_atom_name")
 
 
 class ProteinResidueView(viewsets.ReadOnlyModelViewSet):
-    paginate_by = None
+    paginator = None
     queryset = ProteinResidue.objects.filter()
     serializer_class = ProteinResidueSerialzier
     filter_fields = ("prot_id", "targ_res_id")
 
 
 class TargetResidueView(viewsets.ReadOnlyModelViewSet):
-    paginate_by = None
+    paginator = None
     queryset = TargetResidue.objects.filter()
     serializer_class = TargetResidueSerialzier
     filter_fields = ("target_id", "res_name", "res_num", "chain_id")
