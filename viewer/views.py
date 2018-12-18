@@ -23,6 +23,7 @@ from viewer.serializers import (
 
 
 class VectorsView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Molecule.objects.filter()
     serializer_class = VectorsSerializer
     filter_permissions = "prot_id__target_id__project_id"
@@ -30,6 +31,7 @@ class VectorsView(ISpyBSafeQuerySet):
 
 
 class GraphView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Molecule.objects.filter()
     serializer_class = GraphSerializer
     filter_permissions = "prot_id__target_id__project_id"
@@ -37,6 +39,7 @@ class GraphView(ISpyBSafeQuerySet):
 
 
 class MolImageView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Molecule.objects.filter()
     serializer_class = MolImageSerialzier
     filter_permissions = "prot_id__target_id__project_id"
@@ -44,6 +47,7 @@ class MolImageView(ISpyBSafeQuerySet):
 
 
 class CompoundImageView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Compound.objects.filter()
     serializer_class = CmpdImageSerialzier
     filter_permissions = "project_id"
@@ -51,6 +55,7 @@ class CompoundImageView(ISpyBSafeQuerySet):
 
 
 class ProteinMapInfoView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Protein.objects.filter()
     serializer_class = ProtMapInfoSerialzer
     filter_permissions = "target_id__project_id"
@@ -58,6 +63,7 @@ class ProteinMapInfoView(ISpyBSafeQuerySet):
 
 
 class ProteinPDBInfoView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Protein.objects.filter()
     serializer_class = ProtPDBInfoSerialzer
     filter_permissions = "target_id__project_id"
@@ -65,6 +71,7 @@ class ProteinPDBInfoView(ISpyBSafeQuerySet):
 
 
 class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Protein.objects.filter()
     serializer_class = ProtPDBBoundInfoSerialzer
     filter_permissions = "target_id__project_id"
@@ -72,6 +79,7 @@ class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
 
 
 class TargetView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Target.objects.filter()
     serializer_class = TargetSerializer
     filter_permissions = "project_id"
@@ -79,6 +87,7 @@ class TargetView(ISpyBSafeQuerySet):
 
 
 class MoleculeView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Molecule.objects.filter()
     serializer_class = MoleculeSerializer
     filter_permissions = "prot_id__target_id__project_id"
@@ -93,6 +102,7 @@ class MoleculeView(ISpyBSafeQuerySet):
 
 
 class CompoundView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Compound.objects.filter()
     serializer_class = CompoundSerializer
     filter_permissions = "project_id"
@@ -100,6 +110,7 @@ class CompoundView(ISpyBSafeQuerySet):
 
 
 class ProteinView(ISpyBSafeQuerySet):
+    paginate_by = None
     queryset = Protein.objects.filter()
     serializer_class = ProteinSerializer
     filter_permissions = "target_id__project_id"
