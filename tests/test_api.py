@@ -386,99 +386,88 @@ class APIUrlsTestCase(APITestCase):
             "hotspots",
         ]
         response_data = [
-            {"count": 1,
-             "results":
-                 {"id": 1,
-                  "smiles": "DUMMY",
-                  "cmpd_id": 1,
-                  "prot_id": 1,
-                  "protein_code": "DUMM",
-                  "lig_id": "DUM",
-                  "mol_type": "PR",
-                  "molecule_protein": "/media/my_pdb.pdb",
-                  "chain_id": "C",
-                  "sdf_info": "DUMMY_SD",
-                  "x_com": 0.3,
-                  "y_com": 0.4,
-                  "z_com": 0.5, }
-             },
-            {"count": 1,
-             "results": {
-                 "id": 1,
-                 "inchi": "DUM_INCH",
-                 "smiles": "DUM_SMI",
-                 "mol_log_p": 0.1,
-                 "mol_wt": 0.2,
-                 "num_h_acceptors": 5,
-                 "num_h_donors": 6, }
-             },
-            {"count": 1,
-             "results": {
-                 "id": 1,
-                 "title": "DUMMY_TARGET",
-                 "project_id": [1],
-                 "protein_set": [1],
-                 "template_protein": "/media/my_pdb.pdb", }
-             },
-            {"count": 1,
-             "results": {
-                 "id": 1,
-                 "code": "DUMM",
-                 "target_id": 1,
-                 "prot_type": "AP",
-                 "pdb_info": "http://testserver/media/my_pdb.pdb",
-                 "bound_info": None,
-                 "mtz_info": None,
-                 "map_info": None,
-                 "cif_info": None, }
-             },
-            {"count": 1,
-             "results": {"id": 1, "cmpd_id": 1, "smiles": "DUMMY", "type": "DE"}},
-            {"count": 1,
-             "results": {
-                 "id": 1,
-                 "mol_id": 1,
-                 "vector_id": 1,
-                 "number": 1,
-                 "start_x": None,
-                 "start_y": None,
-                 "start_z": None,
-                 "end_x": None,
-                 "end_y": None,
-                 "end_z": None, }
-             },
-            {"count": 1,
-             "results": {"id": 1, "prot_id": 1, "targ_res_id": 1}},
-            {"count": 1,
-             "results": {"id": 1, "target_id": 1, "res_name": "DED", "res_num": 1, "chain_id": "A"}},
-            {"count": 1,
-             "results": {
-                 "id": 1,
-                 "mol_id": 1,
-                 "prot_res_id": 1,
-                 "protein_atom_name": "A",
-                 "molecule_atom_name": "B", }
-             },
-            {"count": 1,
-             "results": {
-                 "id": 1,
-                 "interaction_version": "DE",
-                 "interaction_type": "UK",
-                 "interaction_point": 1,
-                 "distance": None,
-                 "score": None,
-                 "prot_smarts": None,
-                 "mol_smarts": None, }
-             },
-            {"count": 1,
-             "results": {
-                 "id": 1,
-                 "map_type": "AC",
-                 "target_id": 1,
-                 "prot_id": 1,
-                 "map_info": "http://testserver/media/my_hotspot.map",
-                 "compressed_map_info": None, }
-             },
+            {
+                "id": 1,
+                "smiles": "DUMMY",
+                "cmpd_id": 1,
+                "prot_id": 1,
+                "protein_code": "DUMM",
+                "lig_id": "DUM",
+                "mol_type": "PR",
+                "molecule_protein": "/media/my_pdb.pdb",
+                "chain_id": "C",
+                "sdf_info": "DUMMY_SD",
+                "x_com": 0.3,
+                "y_com": 0.4,
+                "z_com": 0.5,
+            },
+            {
+                "id": 1,
+                "inchi": "DUM_INCH",
+                "smiles": "DUM_SMI",
+                "mol_log_p": 0.1,
+                "mol_wt": 0.2,
+                "num_h_acceptors": 5,
+                "num_h_donors": 6,
+            },
+            {
+                "id": 1,
+                "title": "DUMMY_TARGET",
+                "project_id": [1],
+                "protein_set": [1],
+                "template_protein": "/media/my_pdb.pdb",
+            },
+            {
+                "id": 1,
+                "code": "DUMM",
+                "target_id": 1,
+                "prot_type": "AP",
+                "pdb_info": "http://testserver/media/my_pdb.pdb",
+                "bound_info": None,
+                "mtz_info": None,
+                "map_info": None,
+                "cif_info": None,
+            },
+            {"id": 1, "cmpd_id": 1, "smiles": "DUMMY", "type": "DE"},
+            {
+                "id": 1,
+                "mol_id": 1,
+                "vector_id": 1,
+                "number": 1,
+                "start_x": None,
+                "start_y": None,
+                "start_z": None,
+                "end_x": None,
+                "end_y": None,
+                "end_z": None,
+            },
+            {"id": 1, "prot_id": 1, "targ_res_id": 1},
+            {"id": 1, "target_id": 1, "res_name": "DED", "res_num": 1, "chain_id": "A"},
+            {
+                "id": 1,
+                "mol_id": 1,
+                "prot_res_id": 1,
+                "protein_atom_name": "A",
+                "molecule_atom_name": "B",
+            },
+            {
+                "id": 1,
+                "interaction_version": "DE",
+                "interaction_type": "UK",
+                "interaction_point": 1,
+                "distance": None,
+                "score": None,
+                "prot_smarts": None,
+                "mol_smarts": None,
+            },
+            {
+                "id": 1,
+                "map_type": "AC",
+                "target_id": 1,
+                "prot_id": 1,
+                "map_info": "http://testserver/media/my_hotspot.map",
+                "compressed_map_info": None,
+            },
         ]
         self.client.login(username=self.user.username, password=self.user.password)
         # Currently empty
@@ -500,10 +489,13 @@ class APIUrlsTestCase(APITestCase):
                 self.client.force_authenticate(user)
             response = self.client.get(self.url_base + "/" + get_type + "/")
             self.assertEqual(response.status_code, 200)
-            self.assertDictEqual(
-                json.loads(json.dumps(response.json())),
-                json.loads(json.dumps(test_data_set[get_type])),
-            )
+            try:
+                self.assertDictEqual(
+                    json.loads(json.dumps(response.json())),
+                    json.loads(json.dumps(test_data_set[get_type])),
+                )
+            except:
+                raise Exception(response.data)
 
     def test_secure(self):
         # Test the login user  can access secure data
