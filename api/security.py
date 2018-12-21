@@ -43,11 +43,12 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
+        serializer.is_valid(raise_exception=True)
         if isinstance(serializer.data, list):
             count = len(serializer.data)
         else:
             count = len([serializer.data])
-        return Response({'results': serializer.data, 'count': count})
+        return Response({'results': serializer.data, 'count': count, })
 
     def get_open_proposals(self):
         """

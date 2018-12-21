@@ -489,13 +489,10 @@ class APIUrlsTestCase(APITestCase):
                 self.client.force_authenticate(user)
             response = self.client.get(self.url_base + "/" + get_type + "/")
             self.assertEqual(response.status_code, 200)
-            try:
-                self.assertDictEqual(
-                    json.loads(json.dumps(response.json())),
-                    json.loads(json.dumps(test_data_set[get_type])),
-                )
-            except:
-                raise Exception(response.data)
+            self.assertDictEqual(
+                json.loads(json.dumps(response.json())),
+                json.loads(json.dumps(test_data_set[get_type])),
+            )
 
     def test_secure(self):
         # Test the login user  can access secure data
