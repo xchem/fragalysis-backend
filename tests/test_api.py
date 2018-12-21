@@ -477,11 +477,11 @@ class APIUrlsTestCase(APITestCase):
             # GET basic request
             response = self.client.get(self.url_base + "/" + url + "/1/")
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.data['results'], response_data[i])
+            self.assertEqual(response.data, response_data[i])
             # POST shouldn't work
             response = self.client.post(self.url_base + "/" + url + "/", post_data[i])
             self.assertEqual(response.status_code, 405)
-            self.assertEqual(response.data['results'], post_resp[i])
+            self.assertEqual(response.data, post_resp[i])
 
     def do_full_scan(self, user, test_data_set):
         for get_type in self.get_types:
@@ -490,7 +490,7 @@ class APIUrlsTestCase(APITestCase):
             response = self.client.get(self.url_base + "/" + get_type + "/")
             self.assertEqual(response.status_code, 200)
             self.assertDictEqual(
-                json.loads(json.dumps(response.json().results)),
+                json.loads(json.dumps(response.json())),
                 json.loads(json.dumps(test_data_set[get_type])),
             )
 
