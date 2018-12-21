@@ -28,16 +28,6 @@ def get_conn():
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
-    def retrieve(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        instance = self.get_object(queryset)
-        serializer = self.get_serializer(instance)
-        if isinstance(serializer.data, list):
-            count = len(serializer.data)
-        else:
-            count = len([serializer.data])
-        return Response({'results': serializer.data, 'count': count})
-
     def get_queryset(self):
         """
         Optionally restricts the returned purchases to a given propsals
@@ -49,6 +39,15 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # Must have a directy foreign key (project_id) for it to work
         filter_dict = self.get_filter_dict(proposal_list)
         return self.queryset.filter(**filter_dict).distinct()
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_queryset()
+        serializer = self.get_serializer(instance)
+        if isinstance(serializer.data, list):
+            count = len(serializer.data)
+        else:
+            count = len([serializer.data])
+        return Response({'results': serializer.data, 'count': count})
 
     def get_open_proposals(self):
         """
