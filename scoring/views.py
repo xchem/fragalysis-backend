@@ -23,6 +23,7 @@ from scoring.serializers import (
     MolGroupSerializer,
 )
 
+
 class ViewSceneView(viewsets.ModelViewSet):
     paginator = None
     queryset = ViewScene.objects.filter().order_by('-modified')
