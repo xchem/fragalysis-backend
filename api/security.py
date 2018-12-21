@@ -32,11 +32,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         queryset = self.filter_queryset(self.get_queryset())
-        count = queryset.count()
-        if not isinstance(serializer.data, list):
-            return Response({'results': [serializer.data], 'count': count})
-        else:
-            return Response({'results': serializer.data, 'count': count})
+        return Response({'results': serializer.data, 'count': queryset.count()})
 
     def get_queryset(self):
         """

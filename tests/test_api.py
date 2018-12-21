@@ -489,9 +489,8 @@ class APIUrlsTestCase(APITestCase):
                 self.client.force_authenticate(user)
             response = self.client.get(self.url_base + "/" + get_type + "/")
             self.assertEqual(response.status_code, 200)
-            print(response.json())
             self.assertDictEqual(
-                json.loads(json.dumps(response.json()['results'][0])),
+                json.loads(json.dumps(response.json())),
                 json.loads(json.dumps(test_data_set[get_type])),
             )
 
