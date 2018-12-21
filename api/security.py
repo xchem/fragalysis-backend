@@ -28,7 +28,7 @@ def get_conn():
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
-    def retrieve(self):
+    def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response({'results': serializer.data, 'count': len(serializer.data)})
