@@ -1,7 +1,7 @@
 import os
 import time
 
-# from rest_framework.response import Response
+from rest_framework.response import Response
 from django.http import Http404
 from django.http import HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
@@ -29,13 +29,13 @@ def get_conn():
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset)
         if isinstance(serializer.data, list):
             count = len(serializer.data)
         else:
             count = len([serializer.data])
-        return HttpResponse({'results': serializer.data, 'count': count})
+        return Response({'results': serializer.data, 'count': count})
 
     def get_queryset(self):
         """
