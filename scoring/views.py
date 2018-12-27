@@ -23,8 +23,8 @@ from scoring.serializers import (
     MolGroupSerializer,
 )
 
+
 class ViewSceneView(viewsets.ModelViewSet):
-    paginator = None
     queryset = ViewScene.objects.filter().order_by('-modified')
     serializer_class = ViewSceneSerializer
     filter_fields = ("user_id", "uuid")
@@ -34,35 +34,30 @@ class ViewSceneView(viewsets.ModelViewSet):
 
 
 class ProtChoiceView(viewsets.ModelViewSet):
-    paginator = None
     queryset = ProtChoice.objects.filter()
     serializer_class = ProtChoiceSerializer
     filter_fields = ("user_id", "prot_id", "prot_id__target_id", "choice_type")
 
 
 class MolChoiceView(viewsets.ModelViewSet):
-    paginator = None
     queryset = MolChoice.objects.filter()
     serializer_class = MolChoiceSerializer
     filter_fields = ("user_id", "mol_id", "mol_id__prot_id__target_id", "choice_type")
 
 
 class MolAnnotationView(viewsets.ModelViewSet):
-    paginator = None
     queryset = MolAnnotation.objects.filter()
     serializer_class = MolAnnotationSerializer
     filter_fields = ("mol_id", "annotation_type")
 
 
 class CmpdChoiceView(viewsets.ModelViewSet):
-    paginator = None
     queryset = CmpdChoice.objects.filter()
     serializer_class = CmpdChoiceSerializer
     filter_fields = ("user_id", "cmpd_id", "choice_type")
 
 
 class ScoreChoiceView(viewsets.ModelViewSet):
-    paginator = None
     queryset = ScoreChoice.objects.filter()
     serializer_class = ScoreChoiceSerializer
     filter_fields = (
@@ -77,7 +72,6 @@ class ScoreChoiceView(viewsets.ModelViewSet):
 
 
 class MolGroupView(viewsets.ModelViewSet):
-    paginator = None
     queryset = MolGroup.objects.filter()
     serializer_class = MolGroupSerializer
     filter_fields = ("group_type", "mol_id", "target_id", "description")

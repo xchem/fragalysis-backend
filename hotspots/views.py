@@ -5,7 +5,6 @@ from hotspots.serializers import HotspotMapSerializer
 
 
 class HotspotView(viewsets.ReadOnlyModelViewSet):
-    paginator = None
     queryset = HotspotMap.objects.filter()
     serializer_class = HotspotMapSerializer
     filter_fields = ("map_type", "target_id", "prot_id")
