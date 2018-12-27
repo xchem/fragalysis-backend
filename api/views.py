@@ -27,7 +27,6 @@ from .security import ISpyBSafeQuerySet
 
 
 class CrystalView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = Crystal.objects.filter()
     filter_permissions = "visit__proposal"
     serializer_class = CrystalSerializer
@@ -42,7 +41,6 @@ class CrystalView(ISpyBSafeQuerySet):
 
 
 class DataProcessingView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = DataProcessing.objects.filter()
     filter_permissions = "crystal__visit__proposal"
     serializer_class = DataProcessingSerializer
@@ -57,7 +55,6 @@ class DataProcessingView(ISpyBSafeQuerySet):
 
 
 class DimpleView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = Dimple.objects.filter()
     filter_permissions = "crystal__visit__proposal"
     serializer_class = DimpleSerializer
@@ -73,7 +70,6 @@ class DimpleView(ISpyBSafeQuerySet):
 
 
 class LabView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = Lab.objects.filter()
     filter_permissions = "crystal__visit__proposal"
     serializer_class = LabSerializer
@@ -91,7 +87,6 @@ class LabView(ISpyBSafeQuerySet):
 
 
 class RefinementView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = Refinement.objects.filter()
     filter_permissions = "crystal__visit__proposal"
     serializer_class = RefinementSerializer
@@ -107,7 +102,6 @@ class RefinementView(ISpyBSafeQuerySet):
 
 
 class PanddaAnalysisView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = PanddaAnalysis.objects.filter()
     filter_permissions = "crystal__visit__proposal"
     serializer_class = PanddaAnalysisSerializer
@@ -115,7 +109,6 @@ class PanddaAnalysisView(ISpyBSafeQuerySet):
 
 
 class PanddaRunView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = PanddaRun.objects.filter()
     filter_permissions = "crystal__visit__proposal"
     serializer_class = PanddaRunSerializer
@@ -130,7 +123,6 @@ class PanddaRunView(ISpyBSafeQuerySet):
 
 
 class PanddaSiteView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = PanddaSite.objects.filter()
     filter_permissions = "crystal__visit__proposal"
     serializer_class = PanddaSiteSerializer
@@ -145,7 +137,6 @@ class PanddaSiteView(ISpyBSafeQuerySet):
 
 
 class PanddaEventView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = PanddaEvent.objects.filter()
     filter_permissions = "crystal__visit__proposal"
     serializer_class = PanddaEventSerializer
@@ -172,7 +163,6 @@ class PanddaEventView(ISpyBSafeQuerySet):
 
 
 class ProasisOutView(ISpyBSafeQuerySet):
-    paginator = None
     queryset = ProasisOut.objects.filter()
     filter_permissions = "crystal__visit__proposal"
     serializer_class = ProasisOutSerializer
