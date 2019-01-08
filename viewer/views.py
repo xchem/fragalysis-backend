@@ -144,3 +144,17 @@ def similarity_search(request):
     with connections[db_name].cursor() as cursor:
         cursor.execute(sql_query, [smiles])
         return HttpResponse(json.dumps(cursor.fetchall()))
+
+
+def get_open_targets(request):
+    targets = Target.objects.all()
+    target_names = []
+    target_ids = []
+
+    for t in targets:
+        for p in t.project_id.all():
+            if 'OPEN' in p.title:
+                target_names.append(t.title)
+                target_ids.append(t.id)
+
+    return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
