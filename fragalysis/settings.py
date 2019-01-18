@@ -154,6 +154,8 @@ WSGI_APPLICATION = "fragalysis.wsgi.application"
 
 CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKOWN")
 
+DATABASE_ROUTERS = ['xchem_db.routers.AuthRouter']
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
