@@ -44,7 +44,7 @@ router.register(r"molgroup", score_views.MolGroupView)
 router.register(r"molannotation", score_views.MolAnnotationView)
 # Register the basic urls
 router.register(r"crystal", xchem_views.CrystalView)
-router.register(r"dataproc", xchem_views.DataProcessingView)
+router.register(r"data_processing", xchem_views.DataProcessingView)
 router.register(r"dimple", xchem_views.DimpleView)
 router.register(r"lab", xchem_views.LabView)
 router.register(r"refinement", xchem_views.RefinementView)

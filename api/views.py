@@ -23,7 +23,7 @@ from xchem_db.serializers import (
     ProasisOutSerializer,
 )
 
-from .security import ISpyBSafeQuerySet
+from api.security import ISpyBSafeQuerySet
 
 
 class CrystalView(ISpyBSafeQuerySet):
