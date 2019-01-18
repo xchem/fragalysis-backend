@@ -2,7 +2,7 @@ from django.conf.urls import include, url
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 
-from api import views as xchem_views
+# from xcdb import views as xchem_views
 from hotspots import views as hostpot_views
 from hypothesis import views as hypo_views
 from scoring import views as score_views
@@ -42,17 +42,7 @@ router.register(r"viewscene", score_views.ViewSceneView)
 router.register(r"molgroup", score_views.MolGroupView)
 # Get the information
 router.register(r"molannotation", score_views.MolAnnotationView)
-# Register the basic urls
-router.register(r"crystal", xchem_views.CrystalView)
-router.register(r"data_processing", xchem_views.DataProcessingView)
-router.register(r"dimple", xchem_views.DimpleView)
-router.register(r"lab", xchem_views.LabView)
-router.register(r"refinement", xchem_views.RefinementView)
-router.register(r"pandda_analysis", xchem_views.PanddaAnalysisView)
-router.register(r"pandda_run", xchem_views.PanddaRunView)
-router.register(r"pandda_site", xchem_views.PanddaSiteView)
-router.register(r"pandda_event", xchem_views.PanddaEventView)
-router.register(r"proasis_out", xchem_views.ProasisOutView)
+
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
 from rest_framework.decorators import api_view, renderer_classes
