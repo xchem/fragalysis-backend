@@ -2,31 +2,11 @@ from django.conf.urls import include, url
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 
-from xchem_db.views import TargetView, CompoundsView, ReferenceView, SoakdbFilesView, CrystalView, DataProcessingView, \
-    DimpleView, LabView, RefinementView, PanddaAnalysisView, PanddaRunView, PanddaSiteView, PanddaEventView, \
-    ProasisOutView
-
+from api import views as xchem_views
 from hotspots import views as hostpot_views
 from hypothesis import views as hypo_views
 from scoring import views as score_views
 from viewer import views as viewer_views
-
-# Register the basic data
-router.register(r"target", TargetView)
-router.register(r"compound", CompoundsView)
-router.register(r'reference', ReferenceView)
-router.register(r'soakdb', SoakdbFilesView)
-router.register(r'crystal', CrystalView)
-router.register(r'dataproc', DataProcessingView)
-router.register(r'dimple', DimpleView)
-router.register(r'lab', LabView)
-router.register(r'refinement', RefinementView)
-router.register(r'pandda_analysis', PanddaAnalysisView)
-router.register(r'pandda_run', PanddaRunView)
-router.register(r'pandda_site', PanddaSiteView)
-router.register(r'pandda_event', PanddaEventView)
-router.register(r'proasis_out', ProasisOutView)
-
 
 router = DefaultRouter()
 # Register the basic data
@@ -63,16 +43,16 @@ router.register(r"molgroup", score_views.MolGroupView)
 # Get the information
 router.register(r"molannotation", score_views.MolAnnotationView)
 # Register the basic urls
-# router.register(r"crystal", xchem_views.CrystalView)
-# router.register(r"dataproc", xchem_views.DataProcessingView)
-# router.register(r"dimple", xchem_views.DimpleView)
-# router.register(r"lab", xchem_views.LabView)
-# router.register(r"refinement", xchem_views.RefinementView)
-# router.register(r"pandda_analysis", xchem_views.PanddaAnalysisView)
-# router.register(r"pandda_run", xchem_views.PanddaRunView)
-# router.register(r"pandda_site", xchem_views.PanddaSiteView)
-# router.register(r"pandda_event", xchem_views.PanddaEventView)
-# router.register(r"proasis_out", xchem_views.ProasisOutView)
+router.register(r"crystal", xchem_views.CrystalView)
+router.register(r"dataproc", xchem_views.DataProcessingView)
+router.register(r"dimple", xchem_views.DimpleView)
+router.register(r"lab", xchem_views.LabView)
+router.register(r"refinement", xchem_views.RefinementView)
+router.register(r"pandda_analysis", xchem_views.PanddaAnalysisView)
+router.register(r"pandda_run", xchem_views.PanddaRunView)
+router.register(r"pandda_site", xchem_views.PanddaSiteView)
+router.register(r"pandda_event", xchem_views.PanddaEventView)
+router.register(r"proasis_out", xchem_views.ProasisOutView)
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
 from rest_framework.decorators import api_view, renderer_classes
