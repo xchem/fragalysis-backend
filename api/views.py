@@ -1,3 +1,5 @@
+from rest_framework import viewsets
+
 from xchem_db.models import (
     Crystal,
     DataProcessing,
@@ -26,9 +28,8 @@ from xchem_db.serializers import (
 from .security import ISpyBSafeQuerySet
 
 
-class CrystalView(ISpyBSafeQuerySet):
+class CrystalView(viewsets.ReadOnlyModelViewSet):
     queryset = Crystal.objects.filter()
-    filter_permissions = "visit__proposal"
     serializer_class = CrystalSerializer
     filter_fields = (
         "crystal_name",
@@ -40,9 +41,8 @@ class CrystalView(ISpyBSafeQuerySet):
     )
 
 
-class DataProcessingView(ISpyBSafeQuerySet):
+class DataProcessingView(viewsets.ReadOnlyModelViewSet):
     queryset = DataProcessing.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
     serializer_class = DataProcessingSerializer
     filter_fields = (
         "crystal_name__crystal_name",
@@ -54,9 +54,8 @@ class DataProcessingView(ISpyBSafeQuerySet):
     )
 
 
-class DimpleView(ISpyBSafeQuerySet):
+class DimpleView(viewsets.ReadOnlyModelViewSet):
     queryset = Dimple.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
     serializer_class = DimpleSerializer
     filter_fields = (
         "crystal_name__crystal_name",
@@ -69,9 +68,8 @@ class DimpleView(ISpyBSafeQuerySet):
     )
 
 
-class LabView(ISpyBSafeQuerySet):
+class LabView(viewsets.ReadOnlyModelViewSet):
     queryset = Lab.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
     serializer_class = LabSerializer
     filter_fields = (
         "crystal_name__crystal_name",
@@ -86,9 +84,8 @@ class LabView(ISpyBSafeQuerySet):
     )
 
 
-class RefinementView(ISpyBSafeQuerySet):
+class RefinementView(viewsets.ReadOnlyModelViewSet):
     queryset = Refinement.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
     serializer_class = RefinementSerializer
     filter_fields = (
         "crystal_name__crystal_name",
@@ -101,16 +98,14 @@ class RefinementView(ISpyBSafeQuerySet):
     )
 
 
-class PanddaAnalysisView(ISpyBSafeQuerySet):
+class PanddaAnalysisView(viewsets.ReadOnlyModelViewSet):
     queryset = PanddaAnalysis.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
     serializer_class = PanddaAnalysisSerializer
     filter_fields = ("pandda_dir",)
 
 
-class PanddaRunView(ISpyBSafeQuerySet):
+class PanddaRunView(viewsets.ReadOnlyModelViewSet):
     queryset = PanddaRun.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
     serializer_class = PanddaRunSerializer
     filter_fields = (
         "input_dir",
@@ -122,9 +117,8 @@ class PanddaRunView(ISpyBSafeQuerySet):
     )
 
 
-class PanddaSiteView(ISpyBSafeQuerySet):
+class PanddaSiteView(viewsets.ReadOnlyModelViewSet):
     queryset = PanddaSite.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
     serializer_class = PanddaSiteSerializer
     filter_fields = (
         "pandda_run__pandda_analysis__pandda_dir",
@@ -136,9 +130,8 @@ class PanddaSiteView(ISpyBSafeQuerySet):
     )
 
 
-class PanddaEventView(ISpyBSafeQuerySet):
+class PanddaEventView(viewsets.ReadOnlyModelViewSet):
     queryset = PanddaEvent.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
     serializer_class = PanddaEventSerializer
     filter_fields = (
         "crystal__crystal_name",
@@ -162,9 +155,8 @@ class PanddaEventView(ISpyBSafeQuerySet):
     )
 
 
-class ProasisOutView(ISpyBSafeQuerySet):
+class ProasisOutView(viewsets.ReadOnlyModelViewSet):
     queryset = ProasisOut.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
     serializer_class = ProasisOutSerializer
     filter_fields = (
         "crystal__crystal_name",
