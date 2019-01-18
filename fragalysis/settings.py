@@ -163,6 +163,14 @@ DATABASES = {
         "HOST": os.environ.get("MYSQL_HOST", "mysql"),
         "PORT": os.environ.get("MYSQL_PORT", 3306),
         "TEST": {"NAME": os.environ.get("MYSQL_DATABASE", "django_db")},
+    },
+    "xchem_db": {
+        "ENGINE": 'django.db.backends.postgresql',
+        "NAME": os.environ.get("XCHEM_NAME"),
+        "USER": os.environ.get("XCHEM_USER"),
+        "PASSWORD": os.environ.get("XCHEM_PASSWORD"),
+        "HOST": os.environ.get("XCHEM_HOST"),
+        "PORT": os.environ.get("XCHEM_PORT")
     }
 }
 if CHEMCENTRAL_DB_NAME != "UNKOWN":

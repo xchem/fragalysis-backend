@@ -40,11 +40,11 @@ def bound_prot_download(request, file_path):
 
 def map_download(request, file_path):
     """
-        Download an event map by nginx redirect
-        :param request: the initial request
-        :param file_path: the file path we're getting from the static
-        :return: the response (a redirect to nginx internal)
-        """
+    Download an event map by nginx redirect
+    :param request: the initial request
+    :param file_path: the file path we're getting from the static
+    :return: the response (a redirect to nginx internal)
+    """
     ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = Protein
     ispy_b_static.request = request
