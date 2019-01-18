@@ -24,6 +24,6 @@ router.register(r'pandda_event', PanddaEventView)
 router.register(r'proasis_out', ProasisOutView)
 
 urlpatterns = [
-    url(r"^xcdb$", include(router.urls)),
+    url(r"^", include(router.urls)),
     url(r"^auth$", drf_views.obtain_auth_token, name="auth"),
 ]
