@@ -2,7 +2,7 @@ from django.conf.urls import include, url
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 
-from api import views as xchem_views
+from xchem_db import views as xchem_views
 from hotspots import views as hostpot_views
 from hypothesis import views as hypo_views
 from scoring import views as score_views
