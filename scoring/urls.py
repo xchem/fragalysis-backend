@@ -3,20 +3,6 @@ from django.conf.urls import url
 from . import views
 
 urlpatterns = [
-    url(r"^crystal/$", views.CrystalView, name="crystal"),
-    url(r"^data_processing/$", views.DataProcessingView, name="data_processing"),
-    url(r"^dimple/$", views.DimpleView, name="dimple"),
+    url(r"^gen_conf_from_vect/$", views.gen_conf_from_vect, name="gen_conf_from_vect"),
+    url(r"^get_current_user_id/$", views.get_current_user_id, name="get_current_user_id")
 ]
-
-
-# # Register the basic urls
-# router.register(r"crystal", xchem_views.CrystalView)
-# router.register(r"data_processing", xchem_views.DataProcessingView)
-# router.register(r"dimple", xchem_views.DimpleView)
-# router.register(r"lab", xchem_views.LabView)
-# router.register(r"refinement", xchem_views.RefinementView)
-# router.register(r"pandda_analysis", xchem_views.PanddaAnalysisView)
-# router.register(r"pandda_run", xchem_views.PanddaRunView)
-# router.register(r"pandda_site", xchem_views.PanddaSiteView)
-# router.register(r"pandda_event", xchem_views.PanddaEventView)
-# router.register(r"proasis_out", xchem_views.ProasisOutView)
