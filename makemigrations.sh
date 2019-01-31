@@ -3,6 +3,8 @@ echo "Running migrations..."
 cd /code
 python /code/manage.py makemigrations auth
 python /code/manage.py migrate
+python /code/manage.py makemigrations xchem_db
+python /code/manage.py migrate --fake-initial
 python /code/manage.py makemigrations viewer
 python /code/manage.py migrate  --fake-initial
 python /code/manage.py makemigrations scoring hypothesis hotspots
