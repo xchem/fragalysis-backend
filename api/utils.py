@@ -87,7 +87,6 @@ def draw_mol(
     if img_type == "png":
         img = Draw.MolToImage(
             mol,
-            options=options,
             highlightBonds=highlightBonds,
             highlightBondColors=bondcolors,
         )
