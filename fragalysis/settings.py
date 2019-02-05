@@ -11,15 +11,16 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
+
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
 sentry_sdk.init(
     # This should be an environment variabl
     dsn="https://"
-    + os.environ.get("DJANGO_SENTRY_DSN", "9871a59d9a4f49448e6611d43fa34360")
-    + "@sentry.io/"
-    + os.environ.get("DJANGO_SENTRY_ID", "1298297"),
+        + os.environ.get("DJANGO_SENTRY_DSN", "9871a59d9a4f49448e6611d43fa34360")
+        + "@sentry.io/"
+        + os.environ.get("DJANGO_SENTRY_ID", "1298297"),
     integrations=[DjangoIntegration()],
 )
 
@@ -39,7 +40,6 @@ SECRET_KEY = os.environ.get(
 DEBUG = False
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-
 
 ALLOWED_HOSTS = ["*"]
 
@@ -62,7 +62,6 @@ CELERY_TASK_SERIALIZER = "json"
 NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
     "NEO4J_BOLT_URL", "bolt://neo4j:test@neo4j:7687"
 )
-
 
 # Application definition
 INSTALLED_APPS = [
@@ -125,9 +124,7 @@ CAS_FORCE_CHANGE_USERNAME_CASE = "lower"
 
 ROOT_URLCONF = "fragalysis.urls"
 
-
 STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
-
 
 TEMPLATES = [
     {
@@ -145,14 +142,14 @@ TEMPLATES = [
     }
 ]
 
-
 WSGI_APPLICATION = "fragalysis.wsgi.application"
-
 
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKOWN")
+
+DATABASE_ROUTERS = ['xchem_db.routers.AuthRouter']
 
 DATABASES = {
     "default": {
@@ -164,7 +161,19 @@ DATABASES = {
         "PORT": os.environ.get("MYSQL_PORT", 3306),
         "TEST": {"NAME": os.environ.get("MYSQL_DATABASE", "django_db")},
     }
+
 }
+
+if os.environ.get("BUILD_XCDB") == 'yes':
+    DATABASES["xchem_db"] = {
+        "ENGINE": 'django.db.backends.postgresql',
+        "NAME": os.environ.get("XCHEM_NAME"),
+        "USER": os.environ.get("XCHEM_USER"),
+        "PASSWORD": os.environ.get("XCHEM_PASSWORD"),
+        "HOST": os.environ.get("XCHEM_HOST"),
+        "PORT": os.environ.get("XCHEM_PORT")
+    }
+
 if CHEMCENTRAL_DB_NAME != "UNKOWN":
     DATABASES["chemcentral"] = {
         "ENGINE": "django.db.backends.postgresql",
@@ -187,7 +196,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
 
@@ -201,7 +209,6 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
@@ -211,7 +218,6 @@ MEDIA_URL = "/media/"
 # Swagger loging / logout
 LOGIN_URL = "/accounts/login/"
 LOGOUT_URL = "/accounts/logout/"
-
 
 WEBPACK_LOADER = {
     "DEFAULT": {

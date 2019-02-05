@@ -10,6 +10,10 @@ services:
       MYSQL_DATABASE: django_db
       MYSQL_PASSWORD: django_password
       MYSQL_USER: django
+      XCDB_USER: test_user
+      XCDB_PASSWORD: test_password
+      XCDB_DATABASE: test_xchem
+      BUILD_XCDB: 'no'
   tests:
     image: xchem/fragalysis-backend
     command: ["/code/wait-for-it.sh", "mysql:3306", "--", "/bin/bash", "/code/test_entry.sh"]
