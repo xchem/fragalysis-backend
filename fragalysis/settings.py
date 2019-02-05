@@ -164,7 +164,7 @@ DATABASES = {
 
 }
 
-if os.environ.get("BUILD_XCDB") == 'True':
+if os.environ.get("BUILD_XCDB") == 'yes':
     DATABASES["xchem_db"] = {
         "ENGINE": 'django.db.backends.postgresql',
         "NAME": os.environ.get("XCHEM_NAME"),
