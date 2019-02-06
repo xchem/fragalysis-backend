@@ -25,6 +25,14 @@ from xchem_db.serializers import (
 
 from api.security import ISpyBSafeQuerySet
 
+CrystalSerializer.Meta.fields = fields = (
+            "crystal_name",
+            "target",
+            "compound",
+            "visit",
+            "status",
+            "visit__number",
+        )
 
 class CrystalView(ISpyBSafeQuerySet):
     queryset = Crystal.objects.filter()
@@ -32,7 +40,6 @@ class CrystalView(ISpyBSafeQuerySet):
     serializer_class = CrystalSerializer
     filter_fields = (
         "crystal_name",
-        "visit__number",
         "target__target_name",
         "compound__smiles",
         "visit__filename",
