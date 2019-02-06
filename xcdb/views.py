@@ -11,7 +11,7 @@ from xchem_db.models import (
     ProasisOut,
 )
 from xchem_db.serializers import (
-    # CrystalSerializer,
+    CrystalSerializer,
     DataProcessingSerializer,
     DimpleSerializer,
     LabSerializer,
@@ -23,22 +23,7 @@ from xchem_db.serializers import (
     ProasisOutSerializer,
 )
 
-from rest_framework import serializers
-
 from api.security import ISpyBSafeQuerySet
-
-class CrystalSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Crystal
-        fields = (
-            "crystal_name",
-            "target",
-            "compound",
-            "visit",
-            "status",
-            "visit__number",
-        )
 
 
 class CrystalView(ISpyBSafeQuerySet):
