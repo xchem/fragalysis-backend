@@ -32,6 +32,7 @@ class CrystalView(ISpyBSafeQuerySet):
     serializer_class = CrystalSerializer
     filter_fields = (
         "crystal_name",
+        "visit__number",
         "target__target_name",
         "compound__smiles",
         "visit__filename",
