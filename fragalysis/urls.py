@@ -27,7 +27,7 @@ urlpatterns = [
     url(r"^media/", include("media_serve.urls")),
     url(r"^scoring/", include("scoring.urls")),
     url(r"^xcdb/", include("xcdb.urls")),
-    url(r"^fragspect", include("fragspect.urls")),
+    url(r"^fragspect/", include("fragspect.urls")),
     url(r"^graphql/", GraphQLView.as_view(graphiql=True)),
     url(r"^accounts/login/", django_cas_ng.views.login, name="cas_ng_login"),
     url(r"^accounts/logout/", django_cas_ng.views.logout, name="cas_ng_logout"),
