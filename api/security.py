@@ -27,11 +27,6 @@ def get_conn():
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
-    def __init__(self, xcdb=False):
-
-        self.xcdb = xcdb
-
-
     def get_queryset(self):
         """
         Optionally restricts the returned purchases to a given proposals
