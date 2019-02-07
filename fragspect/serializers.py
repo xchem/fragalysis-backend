@@ -81,7 +81,7 @@ class FragspectSerializer(serializers.ModelSerializer):
             'lig_id',
             'target_name',
             'smiles',
-            'resolution',
+            # 'resolution',
             'spacegroup',
             'unit_cell',
         )
