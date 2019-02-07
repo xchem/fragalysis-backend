@@ -101,7 +101,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return self.get_proposals_for_user_from_django(user)
 
     def get_filter_dict(self, proposal_list):
-        return {self.filter_permissions + "__title__in": [proposal_list]}
+        return {self.filter_permissions + "__title__in": proposal_list}
 
 
 class ISpyBSafeStaticFiles:
