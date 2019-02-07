@@ -2,16 +2,16 @@ from django.conf.urls import include, url
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 
-from xchem_db.views import TargetView, CompoundsView, ReferenceView, SoakdbFilesView, CrystalView, DataProcessingView, \
+from xcdb.views import CrystalView, DataProcessingView, \
     DimpleView, LabView, RefinementView, PanddaAnalysisView, PanddaRunView, PanddaSiteView, PanddaEventView, \
     ProasisOutView
 
 router = DefaultRouter()
 # Register the basic data
-router.register(r"target", TargetView)
-router.register(r"compound", CompoundsView)
-router.register(r'reference', ReferenceView)
-router.register(r'soakdb', SoakdbFilesView)
+# router.register(r"target", TargetView)
+# router.register(r"compound", CompoundsView)
+# router.register(r'reference', ReferenceView)
+# router.register(r'soakdb', SoakdbFilesView)
 router.register(r'crystal', CrystalView)
 router.register(r'dataproc', DataProcessingView)
 router.register(r'dimple', DimpleView)
