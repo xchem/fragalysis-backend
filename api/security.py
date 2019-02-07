@@ -28,6 +28,7 @@ def get_conn():
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def __init__(self, xcdb=False):
+
         self.xcdb = xcdb
 
 
@@ -107,7 +108,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_filter_dict(self, proposal_list):
         if self.xcdb:
             return {self.filter_permissions + '__in': proposal_list}
-        return {self.filter_permissions + "__title__in": proposal_list}
+        else:
+            return {self.filter_permissions + "__title__in": proposal_list}
 
 
 class ISpyBSafeStaticFiles:
