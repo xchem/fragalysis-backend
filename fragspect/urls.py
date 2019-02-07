@@ -6,7 +6,7 @@ from fragspect.views import FragspectView
 
 router = DefaultRouter()
 
-router.register(r'fragspect', FragspectView)
+router.register(r'list', FragspectView)
 
 urlpatterns = [
     url(r"^", include(router.urls)),
