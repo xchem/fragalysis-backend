@@ -25,11 +25,11 @@ def get_conn():
     return conn
 
 
-class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet, xcdb=False):
 
     def get_queryset(self):
         """
-        Optionally restricts the returned purchases to a given propsals
+        Optionally restricts the returned purchases to a given proposals
         """
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user()
@@ -101,7 +101,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return self.get_proposals_for_user_from_django(user)
 
     def get_filter_dict(self, proposal_list):
-        return {self.filter_permissions + "__title__in": proposal_list}
+        if self.xcdb:
+            return {self.filter_permissions + '__in': proposal_list}
+        else:
+            return {self.filter_permissions + "__title__in": proposal_list}
 
 
 class ISpyBSafeStaticFiles:
