@@ -25,7 +25,7 @@ def get_conn():
     return conn
 
 
-class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet, xcdb=False):
+class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """
