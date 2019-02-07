@@ -34,7 +34,7 @@ class FragspectSerializer(serializers.ModelSerializer):
     target_name = serializers.SerializerMethodField()
     smiles = serializers.SerializerMethodField()
     # pandda_model_found = serializers.SerializerMethodField()
-    resolution = serializers.SerializerMethodField()
+    # resolution = serializers.SerializerMethodField()
     space_group = serializers.SerializerMethodField()
     unit_cell = serializers.SerializerMethodField()
 
@@ -59,8 +59,11 @@ class FragspectSerializer(serializers.ModelSerializer):
     # def get_pandda_model_found(self, obj):
     #     pass
 
-    def get_resolution(self, obj):
-        return [PanddaEventStats.objects.get(event=e).resolution for e in PanddaEvent.objects.filter(crystal=obj)]
+    # def get_resolution(self, obj):
+    #     try:
+    #         return [PanddaEventStats.objects.get(event=e).resolution for e in PanddaEvent.objects.filter(crystal=obj)]
+    #     except:
+
 
     def get_space_group(self, obj):
         return [DataProcessing.objects.get(crystal_name=e.crystal).spacegroup
