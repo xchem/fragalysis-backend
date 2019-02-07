@@ -1,4 +1,4 @@
-from xchem_db.models import Crystal, PanddaSites, PanddaEvent, PanddaEventStats, DataProcessing
+from xchem_db.models import Crystal, PanddaSite, PanddaEvent, PanddaEventStats, DataProcessing
 
 from rest_framework import serializers
 
