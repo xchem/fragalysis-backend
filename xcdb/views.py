@@ -28,7 +28,7 @@ from api.security import ISpyBSafeQuerySet
 
 class CrystalView(ISpyBSafeQuerySet):
     queryset = Crystal.objects.filter()
-    filter_permissions = "visit"
+    filter_permissions = "visit__proposal"
     serializer_class = CrystalSerializer
     filter_fields = (
         "crystal_name",
