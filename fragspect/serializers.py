@@ -1,4 +1,4 @@
-from xchem_db.models import Crystal, PanddaSite, PanddaEvent, PanddaEventStats, DataProcessing
+from xchem_db.models import Crystal
 
 from rest_framework import serializers
 
@@ -27,15 +27,11 @@ from rest_framework import serializers
 
 
 class FragspectSerializer(serializers.ModelSerializer):
-    smiles = serializers.SerializerMethodField()
-
-    def get_smiles(self, obj):
-        return obj.compound.smiles
 
     class Meta:
         Model = Crystal
         fields = (
-            'smiles',
+            'compound__smiles',
         )
 
 
