@@ -175,8 +175,3 @@ class ProasisOutView(ISpyBSafeQuerySet):
         "start",
     )
 
-
-def fragspect(request):
-    target = request.target
-    crystals = Crystal.objects.filter(target__target_name__iexact=target)
-    return Response(crystals)

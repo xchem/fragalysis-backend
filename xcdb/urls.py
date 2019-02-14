@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from xcdb.views import CrystalView, DataProcessingView, \
     DimpleView, LabView, RefinementView, PanddaEventView, \
-    ProasisOutView, PanddaEventStatsView, fragspect
+    ProasisOutView, PanddaEventStatsView
 
 router = DefaultRouter()
 
@@ -16,7 +16,6 @@ router.register(r'refinement', RefinementView)
 router.register(r'pandda_event', PanddaEventView)
 router.register(r'pandda_event_stats', PanddaEventStatsView)
 router.register(r'proasis_out', ProasisOutView)
-router.register(r'fragspect', fragspect)
 
 urlpatterns = [
     url(r"^", include(router.urls)),
