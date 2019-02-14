@@ -26,7 +26,7 @@ from rest_framework import serializers
 # "cell_angles": "90, 90, 90"
 
 
-class FragspectSerializer(serializers.ModelSerializer):
+class CrystalSerializer(serializers.ModelSerializer):
 
     class Meta:
         Model = Crystal
