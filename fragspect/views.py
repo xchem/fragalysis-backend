@@ -1,5 +1,5 @@
 from xchem_db.models import Crystal
-from xchem_db.serailizers import CrystalSerializer
+from xchem_db.serializers import CrystalSerializer
 
 from api.security import ISpyBSafeQuerySet
 
