@@ -39,22 +39,22 @@ class FragspectSerializer(serializers.ModelSerializer):
     unit_cell = serializers.SerializerMethodField()
 
     def get_site_number(self, obj):
-        return [e.site.site for e in PanddaEvent.objects.filter(crystal=obj)]
+        return [e.site.site for e in PanddaEvent.objects.filter(crystal__in=obj)]
 
     def get_event_number(self, obj):
-        return [e.event for e in PanddaEvent.objects.filter(crystal=obj)]
+        return [e.event for e in PanddaEvent.objects.filter(crystal__in=obj)]
 
     # def get_code(self, obj):
     #     pass
 
     def get_lig_id(self, obj):
-        return [e.lig_id for e in PanddaEvent.objects.filter(crystal=obj)]
+        return [e.lig_id for e in PanddaEvent.objects.filter(crystal__in=obj)]
 
     def get_target_name(self, obj):
-        return [e.crystal.target.target_name for e in PanddaEvent.objects.filter(crystal=obj)]
+        return [e.crystal.target.target_name for e in PanddaEvent.objects.filter(crystal__in=obj)]
 
     def get_smiles(self, obj):
-        return [e.crystal.compound.smiles for e in PanddaEvent.objects.filter(crystal=obj)]
+        return [e.crystal.compound.smiles for e in PanddaEvent.objects.filter(crystal__in=obj)]
 
     # def get_pandda_model_found(self, obj):
     #     pass
@@ -65,13 +65,13 @@ class FragspectSerializer(serializers.ModelSerializer):
     #     except:
 
 
-    def get_space_group(self, obj):
-        return [DataProcessing.objects.get(crystal_name=e.crystal).spacegroup
-                for e in PanddaEvent.objects.filter(crystal=obj)]
-
-    def get_unit_cell(self, obj):
-        return [DataProcessing.objects.get(crystal_name=e.crystal).unit_cell
-                for e in PanddaEvent.objects.filter(crystal=obj)]
+    # def get_space_group(self, obj):
+    #     return [DataProcessing.objects.get(crystal_name=e.crystal).spacegroup
+    #             for e in PanddaEvent.objects.filter(crystal=obj)]
+    #
+    # def get_unit_cell(self, obj):
+    #     return [DataProcessing.objects.get(crystal_name=e.crystal).unit_cell
+    #             for e in PanddaEvent.objects.filter(crystal=obj)]
 
     class Meta:
         Model = Crystal
@@ -82,8 +82,8 @@ class FragspectSerializer(serializers.ModelSerializer):
             'target_name',
             'smiles',
             # 'resolution',
-            'spacegroup',
-            'unit_cell',
+            # 'spacegroup',
+            # 'unit_cell',
         )
 
 
