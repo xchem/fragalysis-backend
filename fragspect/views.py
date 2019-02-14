@@ -1,5 +1,5 @@
 from xchem_db.models import Crystal
-from xchem_db.serializers import CrystalSerializer
+from xchem_db.serializers import FragspectSerializer
 
 from api.security import ISpyBSafeQuerySet
 
@@ -7,6 +7,6 @@ from api.security import ISpyBSafeQuerySet
 class CrystalView(ISpyBSafeQuerySet):
     queryset = Crystal.objects.filter()
     filter_permissions = "visit__proposal"
-    serializer_class = CrystalSerializer
+    serializer_class = FragspectSerializer
     filter_fields = ("target__target_name",)
 
