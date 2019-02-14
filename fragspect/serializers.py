@@ -31,7 +31,7 @@ class CrystalSerializer(serializers.ModelSerializer):
     class Meta:
         Model = Crystal
         fields = (
-            'compound__smiles',
+            'compound',
         )
 
 
