@@ -25,6 +25,9 @@ from xchem_db.serializers import (
     PanddaEventStatsSerializer,
 )
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+
 from api.security import ISpyBSafeQuerySet
 
 
@@ -119,9 +122,9 @@ class PanddaEventView(ISpyBSafeQuerySet):
         # "pandda_run__sites_file",
         # "pandda_run__events_file",
         # "pandda_run__input_dir",
-        "site__site",
-        "event",
-        "lig_id",
+        # "site__site",
+        # "event",
+        # "lig_id",
         # "pandda_event_map_native",
         # "pandda_model_pdb",
         # "pandda_input_mtz",
@@ -171,3 +174,11 @@ class ProasisOutView(ISpyBSafeQuerySet):
         "root",
         "start",
     )
+
+
+class FragspectView(ISpyBSafeQuerySet):
+
+    def get(self, request):
+        target = request.target
+        crystals = Crystal.objects.filter(target__target_name__iexact=target)
+        return Response(crystals)
