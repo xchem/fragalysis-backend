@@ -7,6 +7,7 @@ from hotspots import views as hostpot_views
 from hypothesis import views as hypo_views
 from scoring import views as score_views
 from viewer import views as viewer_views
+from xcdb import views as xcdb_views
 
 router = DefaultRouter()
 # Register the basic data
@@ -42,6 +43,8 @@ router.register(r"viewscene", score_views.ViewSceneView)
 router.register(r"molgroup", score_views.MolGroupView)
 # Get the information
 router.register(r"molannotation", score_views.MolAnnotationView)
+# fragspect
+router.register(r"fragspect", xcdb_views.FragspectCrystalView)
 
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
