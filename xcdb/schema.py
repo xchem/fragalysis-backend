@@ -5,7 +5,7 @@ from xchem_db.serializers import (TargetSerializer, CompoundsSerializer, Referen
                                   CrystalSerializer, DataProcessingSerializer, DimpleSerializer, LabSerializer,
                                   RefinementSerializer, PanddaAnalysisSerializer,
                                   PanddaRunSerializer, PanddaSiteSerializer, PanddaEventSerializer,
-                                  ProasisOutSerializer, FragspectCrystalView)
+                                  ProasisOutSerializer, FragspectCrystalSerializer)
 
 relay = graphene.relay
 
