@@ -23,6 +23,7 @@ from xchem_db.serializers import (
     PanddaEventSerializer,
     ProasisOutSerializer,
     PanddaEventStatsSerializer,
+    FragspectCrystalView,
 )
 
 from rest_framework.views import APIView
@@ -175,3 +176,8 @@ class ProasisOutView(ISpyBSafeQuerySet):
         "start",
     )
 
+
+class FragspectCrystalView(ISpyBSafeQuerySet):
+    queryset = Refinement.objects.filter()
+    serializer_class = FragspectCrystalView
+    filter_fields = ('crystal_name__target__target_name',)
