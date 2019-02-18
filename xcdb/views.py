@@ -180,4 +180,4 @@ class FragspectCrystalView(ISpyBSafeQuerySet):
     queryset = Refinement.objects.filter()
     filter_permissions = "crystal_name__visit__proposal"
     serializer_class = FragspectCrystalSerializer
-    filter_fields = ("crystal_name__target__target_name__iexact",)
+    filter_fields = ("crystal_name__target__target_name",)
