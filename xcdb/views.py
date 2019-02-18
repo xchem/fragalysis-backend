@@ -26,8 +26,6 @@ from xchem_db.serializers import (
     FragspectCrystalSerializer,
 )
 
-from rest_framework import viewsets
-
 from api.security import ISpyBSafeQuerySet
 
 
