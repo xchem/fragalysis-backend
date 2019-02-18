@@ -5,7 +5,7 @@ from xchem_db.serializers import (TargetSerializer, CompoundsSerializer, Referen
                                   CrystalSerializer, DataProcessingSerializer, DimpleSerializer, LabSerializer,
                                   RefinementSerializer, PanddaAnalysisSerializer,
                                   PanddaRunSerializer, PanddaSiteSerializer, PanddaEventSerializer,
-                                  ProasisOutSerializer)
+                                  ProasisOutSerializer, FragspectCrystalSerializer)
 
 relay = graphene.relay
 
@@ -79,6 +79,10 @@ class ProasisOut(SerializerMutation):
     serializer_class = ProasisOutSerializer
     interfaces = (relay.Node,)
 
+class Fragspect(SerializerMutation):
+    serializer_class = FragspectCrystalView
+    interfaces = (relay.Node,)
+
 
 class Query(graphene.ObjectType):
     target = graphene.list(Target)
@@ -95,6 +99,7 @@ class Query(graphene.ObjectType):
     pandda_site = graphene.list(PanddaSite)
     pandda_event = graphene.list(PanddaEvent)
     proasis_out = graphene.list(ProasisOut)
+    fragspect = graphene.list(Fragspect)
 
 
 schema = graphene.Schema(query=Query)
