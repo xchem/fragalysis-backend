@@ -80,7 +80,7 @@ class ProasisOut(SerializerMutation):
     interfaces = (relay.Node,)
 
 class Fragspect(SerializerMutation):
-    serializer_class = FragspectCrystalView
+    serializer_class = FragspectCrystalSerializer
     interfaces = (relay.Node,)
 
 
