@@ -177,6 +177,12 @@ class ProasisOutView(ISpyBSafeQuerySet):
 
 
 class FragspectCrystalView(ISpyBSafeQuerySet):
+    # To get all sql queries sent by Django from py shell
+    import logging
+    l = logging.getLogger('django.db.backends')
+    l.setLevel(logging.DEBUG)
+    l.addHandler(logging.StreamHandler())
+
     queryset = Refinement.objects.filter().prefetch_related('crystal_name')
     filter_permissions = "crystal_name__visit__proposal"
     serializer_class = FragspectCrystalSerializer
