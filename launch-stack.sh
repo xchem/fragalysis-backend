@@ -37,7 +37,6 @@ gunicorn fragalysis.wsgi:application \
     --log-level=debug \
     --log-file=/srv/logs/gunicorn.log \
     --access-logfile=/srv/logs/access.log \
-    --max-requests 10000
 echo "Testing nginx config..."
 nginx -t
 echo "Running nginx..."
