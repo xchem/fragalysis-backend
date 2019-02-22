@@ -177,7 +177,7 @@ class ProasisOutView(ISpyBSafeQuerySet):
 
 
 class FragspectCrystalView(ISpyBSafeQuerySet):
-    queryset = Refinement.objects.filter().prefetch_related('crystal_name')
-    filter_permissions = "crystal_name__visit__proposal"
+    queryset = PanddaEvent.objects.filter().prefetch_related('crystal', 'site', 'refinement', 'data_proc')
     serializer_class = FragspectCrystalSerializer
-    filter_fields = ("crystal_name__target__target_name",)
+    filter_fields = {'crystal__target__target_name': ['iexact']}
+    filter_permissions = "crystal_name__visit__proposal"
