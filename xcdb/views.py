@@ -180,4 +180,4 @@ class FragspectCrystalView(ISpyBSafeQuerySet):
     queryset = PanddaEvent.objects.filter().prefetch_related('crystal', 'site', 'refinement', 'data_proc')
     serializer_class = FragspectCrystalSerializer
     filter_fields = {'crystal__target__target_name': ['iexact']}
-    filter_permissions = "crystal_name__visit__proposal"
+    filter_permissions = "crystal__visit__proposal"

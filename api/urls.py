@@ -44,7 +44,7 @@ router.register(r"molgroup", score_views.MolGroupView)
 # Get the information
 router.register(r"molannotation", score_views.MolAnnotationView)
 # fragspect
-# router.register(r"fragspect", xcdb_views.FragspectCrystalView)
+router.register(r"fragspect", xcdb_views.FragspectCrystalView)
 
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
