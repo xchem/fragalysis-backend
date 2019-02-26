@@ -120,7 +120,7 @@ class ISpyBSafeStaticFiles:
             filter_dict = {self.field_name + "__endswith": self.input_string}
             object = queryset.get(**filter_dict)
             file_name = os.path.basename(str(getattr(object, self.field_name)))
-            response = HttpResponse(mimetype='application/force-download')
+            response = HttpResponse()
             response["Content-Type"] = self.content_type
             response["X-Accel-Redirect"] = self.prefix + file_name
             response["Content-Disposition"] = "attachment;filename=" + file_name
