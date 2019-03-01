@@ -1,4 +1,4 @@
-FROM informaticsmatters/rdkit-python-debian:Release_2018_03_01
+FROM informaticsmatters/rdkit-python-debian:Release_2018_09_01
 ENV PYTHONUNBUFFERED 1
 ADD . /code/
 WORKDIR /code
