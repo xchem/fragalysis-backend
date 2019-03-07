@@ -59,3 +59,5 @@ coveralls
 django-treebeard
 django-rest-swagger
 django-extensions
+django-unused-media
+django-cleanup
