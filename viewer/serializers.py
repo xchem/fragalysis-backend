@@ -58,13 +58,13 @@ class MoleculeSerializer(serializers.ModelSerializer):
         return obj.prot_id.code
 
     def get_mw(self, obj):
-        return round(obj.cmpd_id.mol_wt)
+        return round(obj.cmpd_id.mol_wt, 2)
 
     def get_logp(self, obj):
-        return round(obj.cmpd_id.mol_log_p)
+        return round(obj.cmpd_id.mol_log_p, 2)
 
     def get_tpsa(self, obj):
-        return round(obj.cmpd_id.tpsa)
+        return round(obj.cmpd_id.tpsa, 2)
 
     def get_ha(self, obj):
         return obj.cmpd_id.heavy_atom_count
