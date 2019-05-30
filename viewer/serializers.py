@@ -58,7 +58,7 @@ class MoleculeSerializer(serializers.ModelSerializer):
         return obj.prot_id.code
 
     def get_mw(self, obj):
-        return obj.cmpd_id.mol_wt
+        return int(round(obj.cmpd_id.mol_wt))
 
     def get_logp(self, obj):
         return obj.cmpd_id.mol_log_p
