@@ -48,6 +48,33 @@ class MoleculeSerializer(serializers.ModelSerializer):
     def get_protein_code(self, obj):
         return obj.prot_id.code
 
+    def get_mw(self, obj):
+        return obj.cmpd_id.mol_wt
+
+    def get_logp(self, obj):
+        return obj.cmpd_id.mol_log_p
+
+    def get_tpsa(self, obj):
+        return obj.cmpd_id.tpsa
+
+    def get_ha(self, obj):
+        return obj.cmpd_id.heavy_atom_count
+
+    def get_hacc(self, obj):
+        return obj.cmpd_id.num_h_acceptors
+
+    def get_hdon(self, obj):
+        return obj.cmpd_id.num_h_donors
+
+    def get_rots(self, obj):
+        return obj.cmpd_id.num_rot_bonds
+
+    def get_rings(self, obj):
+        return obj.cmpd_id.ring_count
+
+    def get_velec(self, obj):
+        return obj.cmpd_id.num_val_electrons
+
     class Meta:
         model = Molecule
         fields = (
@@ -64,6 +91,15 @@ class MoleculeSerializer(serializers.ModelSerializer):
             "x_com",
             "y_com",
             "z_com",
+            "mw",
+            "logp",
+            "tpsa",
+            "ha",
+            "hacc",
+            "hdon",
+            "rots",
+            "rings",
+            "velec"
         )
 
 
