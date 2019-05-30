@@ -41,6 +41,15 @@ class MoleculeSerializer(serializers.ModelSerializer):
 
     molecule_protein = serializers.SerializerMethodField()
     protein_code = serializers.SerializerMethodField()
+    mw = serializers.SerializerMethodField()
+    logp = serializers.SerializerMethodField()
+    tpsa = serializers.SerializerMethodField()
+    ha = serializers.SerializerMethodField()
+    hacc = serializers.SerializerMethodField()
+    hdon = serializers.SerializerMethodField()
+    rots = serializers.SerializerMethodField()
+    rings = serializers.SerializerMethodField()
+    velec = serializers.SerializerMethodField()
 
     def get_molecule_protein(self, obj):
         return obj.prot_id.pdb_info.url
