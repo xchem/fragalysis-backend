@@ -18,7 +18,7 @@ def _mol_choices():
             "MOL2",
         ),
     )
-    return mol_choices, PROASIS
+    return mol_choices, PROASIS, SDF
 
 
 def _prot_choices():
@@ -59,6 +59,8 @@ def get_dict():
     for prot in _prot_choices()[0]:
         out_d[prot[3]] = prot[2]
     for mol in _mol_choices()[0]:
+        out_d[mol[3]] = mol[2]
+    for mol in _mol_choices()[1]:
         out_d[mol[3]] = mol[2]
     out_d["BOUND"] = "_bound.pdb"
     out_d["EVENT"] = "_event.map"
