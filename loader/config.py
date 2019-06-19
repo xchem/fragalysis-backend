@@ -4,10 +4,12 @@ def _mol_choices():
     :return:
     """
     PROASIS = "PR"
+    SDF = "SD"
     HYDROGEN = "HA"
     HYDROGEN_AM1_CHARGES = "HC"
     mol_choices = (
         (PROASIS, "Proasis molecule", ".mol", "MOL"),
+        (SDF, "Sdf molecule", ".sdf", "SDF"),
         (HYDROGEN, "Hydrogens added ", "_h.mol", "H_MOL"),
         (
             HYDROGEN_AM1_CHARGES,
