@@ -3,7 +3,7 @@ ENV PYTHONUNBUFFERED 1
 ADD . /code/
 WORKDIR /code
 USER root
-RUN apt-get update -y
+RUN apt-get --allow-releaseinfo-change update -y
 RUN apt-get install -y nginx curl git default-libmysqlclient-dev
 RUN pip install -r requirements.txt
 COPY django_nginx.conf /etc/nginx/sites-available/default.conf
