@@ -41,12 +41,48 @@ class MoleculeSerializer(serializers.ModelSerializer):
 
     molecule_protein = serializers.SerializerMethodField()
     protein_code = serializers.SerializerMethodField()
+    mw = serializers.SerializerMethodField()
+    logp = serializers.SerializerMethodField()
+    tpsa = serializers.SerializerMethodField()
+    ha = serializers.SerializerMethodField()
+    hacc = serializers.SerializerMethodField()
+    hdon = serializers.SerializerMethodField()
+    rots = serializers.SerializerMethodField()
+    rings = serializers.SerializerMethodField()
+    velec = serializers.SerializerMethodField()
 
     def get_molecule_protein(self, obj):
         return obj.prot_id.pdb_info.url
 
     def get_protein_code(self, obj):
         return obj.prot_id.code
+
+    def get_mw(self, obj):
+        return round(obj.cmpd_id.mol_wt, 2)
+
+    def get_logp(self, obj):
+        return round(obj.cmpd_id.mol_log_p, 2)
+
+    def get_tpsa(self, obj):
+        return round(obj.cmpd_id.tpsa, 2)
+
+    def get_ha(self, obj):
+        return obj.cmpd_id.heavy_atom_count
+
+    def get_hacc(self, obj):
+        return obj.cmpd_id.num_h_acceptors
+
+    def get_hdon(self, obj):
+        return obj.cmpd_id.num_h_donors
+
+    def get_rots(self, obj):
+        return obj.cmpd_id.num_rot_bonds
+
+    def get_rings(self, obj):
+        return obj.cmpd_id.ring_count
+
+    def get_velec(self, obj):
+        return obj.cmpd_id.num_val_electrons
 
     class Meta:
         model = Molecule
@@ -64,6 +100,15 @@ class MoleculeSerializer(serializers.ModelSerializer):
             "x_com",
             "y_com",
             "z_com",
+            "mw",
+            "logp",
+            "tpsa",
+            "ha",
+            "hacc",
+            "hdon",
+            "rots",
+            "rings",
+            "velec"
         )
 
 
