@@ -1,5 +1,4 @@
 # Fragalysis REST Endpoints
-# Fragalysis REST Endpoints
 
 The Fragalysis backend is Python Django application serving up data using a REST API.
 The [django-rest-swagger](https://django-rest-swagger.readthedocs.io/en/latest/) module
