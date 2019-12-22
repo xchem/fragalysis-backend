@@ -222,15 +222,6 @@ class APIUrlsTestCase(APITestCase):
                         "x_com": 0.3,
                         "y_com": 0.4,
                         "z_com": 0.5,
-                        "mw": 0.2,
-                        "logp": 0.1,
-                        "tpsa": 0.3,
-                        "ha": 1,
-                        "hacc": 5,
-                        "hdon": 6,
-                        "rots": 8,
-                        "rings":10,
-                        "velec": 9
                     },
 
                     {
@@ -247,15 +238,6 @@ class APIUrlsTestCase(APITestCase):
                         "x_com": 0.3,
                         "y_com": 0.4,
                         "z_com": 0.5,
-                        "mw": 0.2,
-                        "logp": 0.1,
-                        "tpsa": 0.3,
-                        "ha": 1,
-                        "hacc": 5,
-                        "hdon": 6,
-                        "rots": 8,
-                        "rings": 10,
-                        "velec": 9
                     },
                 ],
             },
@@ -346,15 +328,6 @@ class APIUrlsTestCase(APITestCase):
                         "x_com": 0.3,
                         "y_com": 0.4,
                         "z_com": 0.5,
-                        "mw": 0.2,
-                        "logp": 0.1,
-                        "tpsa": 0.3,
-                        "ha": 1,
-                        "hacc": 5,
-                        "hdon": 6,
-                        "rots": 8,
-                        "rings": 10,
-                        "velec": 9
                     }
                 ],
             },
@@ -426,15 +399,6 @@ class APIUrlsTestCase(APITestCase):
                 "x_com": 0.3,
                 "y_com": 0.4,
                 "z_com": 0.5,
-                "mw": 0.2,
-                "logp": 0.1,
-                "tpsa": 0.3,
-                "ha": 1,
-                "hacc": 5,
-                "hdon": 6,
-                "rots": 8,
-                "rings": 10,
-                "velec": 9
             },
             {
                 "id": 1,
