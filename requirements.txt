@@ -43,7 +43,7 @@ Pygments==2.2.0
 python-cas==1.2.0
 pytz==2018.3
 pyxdg==0.25
-requests==2.18.4
+requests==2.20.0
 scandir==1.7
 SecretStorage==2.3.1
 simplegeneric==0.8.1
