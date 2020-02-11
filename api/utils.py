@@ -265,7 +265,7 @@ def get_params(smiles, request):
 
 
 def get_highlighted_diffs(request):
-    smiles = request.GET['smiles']
+    prb_smiles = request.GET['prb_smiles']
     ref_smiles = request.GET['ref_smiles']
     height = None
     width = None
@@ -273,7 +273,7 @@ def get_highlighted_diffs(request):
         height = int(request.GET["height"])
     if "width" in request.GET:
         width = int(request.GET["width"])
-    return HttpResponse(highlight_diff(prb_mol=smiles, ref_mol=ref_smiles, height=height, width=width))
+    return HttpResponse(highlight_diff(prb_mol=prb_smiles, ref_mol=ref_smiles, height=height, width=width))
 
 
 
