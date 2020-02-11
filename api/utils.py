@@ -74,6 +74,7 @@ def highlight_diff(prb_mol, ref_mol, width, height):
     mols = [Chem.MolFromSmiles(prb_mol), Chem.MolFromSmiles(ref_mol)]
     match = Chem.rdFMCS.FindMCS(mols, ringMatchesRingOnly=True, completeRingsOnly=True)
     match_mol = Chem.MolFromSmarts(match.smartsString)
+    rdDepictor.Compute2DCoords(mols[0])
     unconserved = [i for i in range(mols[0].GetNumAtoms()) if i not in mols[0].GetSubstructMatch(match_mol)]
 
     drawer = rdMolDraw2D.MolDraw2DSVG(width=width, height=height)
