@@ -25,7 +25,7 @@ ISO_COLOUR_MAP = {
 
 def get_token(request):
     """
-    Get the authentication token for a givne request.
+    Get the authentication token for a given request.
     Should just return an un-authenticated user token if nothing.
     :param request:
     :return:
@@ -54,6 +54,33 @@ def _transparentsvg(svg):
     tree.set("xmlns:rdkit", "http://www.rdkit.org/xml")
     tree.set("xmlns:xlink", "http://www.w3.org/1999/xlink")
     return '<?xml version="1.0" encoding="UTF-8"?>' + ET.tostring(tree).strip()
+
+
+def highlight_diff(prb_mol, ref_mol, width, height):
+    """
+    Draw a molecule (prb_mol) with the differences from a reference model highlighted
+    :param prb_mol: smiles of the probe molecule
+    :param ref_mol: smiles of the reference molecule
+    :param width: output image width
+    :param height: output image height
+    :return: svg string of the image
+    """
+    if not width:
+        width = 200
+    if not height:
+        height = 200
+
+    mols = [Chem.MolFromSmiles(prb_mol), Chem.MolFromSmiles(ref_mol)]
+    match = Chem.rdFMCS.FindMCS(mols, ringMatchesRingOnly=True, completeRingsOnly=True)
+    match_mol = Chem.MolFromSmarts(match.smartsString)
+    unconserved = [i for i in range(mols[0].GetNumAtoms()) if i not in mols[0].GetSubstructMatch(match_mol)]
+
+    drawer = rdMolDraw2D.MolDraw2DSVG(width=width, height=height)
+    drawer.DrawMolecule(mols[0], highlightAtoms=unconserved)
+    drawer.FinishDrawing()
+    svg = drawer.GetDrawingText()
+
+    return svg
 
 
 def draw_mol(
@@ -232,6 +259,20 @@ def get_params(smiles, request):
     if type(get_mol) == HttpResponse:
         return get_mol
     return HttpResponse(get_mol)
+
+
+def get_highlighted_diffs(request):
+    prb_smiles = request.GET['prb_smiles']
+    ref_smiles = request.GET['ref_smiles']
+    height = None
+    width = None
+    if "height" in request.GET:
+        height = int(request.GET["height"])
+    if "width" in request.GET:
+        width = int(request.GET["width"])
+    return HttpResponse(highlight_diff(prb_mol=prb_smiles, ref_mol=ref_smiles, height=height, width=width))
+
+
 
 
 def mol_view(request):
