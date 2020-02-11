@@ -4,12 +4,13 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from rdkit import Chem
-from rdkit.Chem import AllChem, Draw, Atom
+from rdkit.Chem import AllChem, Draw, Atom, rdFMCS, rdDepictor
 import re
 from rdkit.Chem.Draw.MolDrawing import DrawingOptions
 from rdkit.Chem.Draw import rdMolDraw2D
 from rest_framework.authtoken.models import Token
 from frag.utils.network_utils import get_fragments, canon_input
+
 
 ISO_COLOUR_MAP = {
     100: (1, 0, 0),
