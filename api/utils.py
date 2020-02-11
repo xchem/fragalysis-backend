@@ -77,7 +77,7 @@ def highlight_diff(prb_mol, ref_mol, width, height):
     rdDepictor.Compute2DCoords(mols[0])
     unconserved = [i for i in range(mols[0].GetNumAtoms()) if i not in mols[0].GetSubstructMatch(match_mol)]
 
-    drawer = rdMolDraw2D.MolDraw2DSVG(width=width, height=height)
+    drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
     drawer.DrawMolecule(mols[0], highlightAtoms=unconserved)
     drawer.FinishDrawing()
     svg = drawer.GetDrawingText()
