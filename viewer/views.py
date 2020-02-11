@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 
 from api.security import ISpyBSafeQuerySet
-from api.utils import get_params
+from api.utils import get_params, get_highlighted_diffs
 from viewer.models import Molecule, Protein, Compound, Target
 from viewer.serializers import (
     MoleculeSerializer,
@@ -123,6 +123,13 @@ def img_from_smiles(request):
             return HttpResponse("Please insert SMILES")
     else:
         return HttpResponse("Please insert SMILES")
+
+
+def highlight_mol_diff(request):
+    if 'prb_smiles' and 'ref_smiles' in request.GET:
+        return HttpResponse(get_highlighted_diffs(request))
+    else:
+        return HttpResponse("Please insert smiles for reference and probe")
 
 
 def similarity_search(request):
