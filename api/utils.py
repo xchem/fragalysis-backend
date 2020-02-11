@@ -265,7 +265,7 @@ def get_params(smiles, request):
 
 
 def get_highlighted_diffs(request):
-    prb_smiles = request.GET['prb_smiles']
+    prb_smiles = request.GET['smiles']
     ref_smiles = request.GET['ref_smiles']
     height = None
     width = None

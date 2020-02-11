@@ -126,8 +126,11 @@ def img_from_smiles(request):
 
 
 def highlight_mol_diff(request):
-    if 'prb_smiles' and 'ref_smiles' in request.GET:
-        return HttpResponse(get_highlighted_diffs(request))
+    if 'smiles' and 'ref_smiles' in request.GET:
+        try:
+            return HttpResponse(get_highlighted_diffs(request))
+        except:
+            img_from_smiles(request)
     else:
         return HttpResponse("Please insert smiles for reference and probe")
 
