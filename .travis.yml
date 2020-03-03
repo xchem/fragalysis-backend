@@ -1,15 +1,61 @@
-sudo: required
+---
+os: linux
 services:
-  - docker
+- docker
+
+env:
+  global:
+  - TARGET_PROJECT=informaticsmatters
+  # 'Stable' version number regex.
+  # Used to test strings against the pattern "N.N[.N]",
+  # i.e. a 2 or 3-field version string of digits separated by periods.
+  - V_REGEX='^([0-9]+\.){1,2}[0-9]+$'
+
+stages:
+- name: test
+- name: publish latest
+  if: branch == master
+- name: publish tag
+  if: tag IS present
+- name: publish stable
+  if: tag IS present AND tag =~ ${V_REGEX}
+
 install:
-  - docker build -t xchem/fragalysis-backend .
-script:
-  -  docker-compose -f docker-compose.test.yml up --build  --exit-code-from tests --abort-on-container-exit
-after_success:
-  - if [ "$TRAVIS_BRANCH" == "master" ]; then
-    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push xchem/fragalysis-backend;
-    fi
-  - coveralls
+# Always build a container image
+# (tagging with the required project name)
+- docker build -t ${TARGET_PROJECT}/fragalysis-backend:latest .
+- docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 
+jobs:
+  include:
 
+  # Test-stage jobs...
+
+  - stage: test
+    name: Container Test
+    script:
+    - docker-compose -f docker-compose.test.yml up --build --exit-code-from tests --abort-on-container-exit
+    - coveralls
+
+  # Publish-stage jobs...
+  # Every successful master build results in a latest image
+  # and every tag results in a tagged image in Docker Hub.
+  # Tags that match V_REGEX are considered 'official' tags
+  # and also result in a 'stable' image tag.
+
+  - stage: publish latest
+    name: Latest Container
+    script:
+    - docker push ${TARGET_PROJECT}/fragalysis-backend:latest
+
+  - stage: publish tag
+    name: Tagged Container
+    script:
+    - docker tag ${TARGET_PROJECT}/fragalysis-backend:latest ${TARGET_PROJECT}/fragalysis-backend:${TRAVIS_TAG}
+    - docker push ${TARGET_PROJECT}/fragalysis-backend:${TRAVIS_TAG}
+
+  - stage: publish stable
+    name: Stable Container
+    script:
+    - docker tag ${TARGET_PROJECT}/fragalysis-backend:latest ${TARGET_PROJECT}/fragalysis-backend:stable
+    - docker push ${TARGET_PROJECT}/fragalysis-backend:stable
