@@ -14,7 +14,7 @@ env:
 stages:
 - name: test
 - name: publish latest
-  if: branch == master
+#  if: branch == master
 - name: publish tag
   if: tag IS present
 - name: publish stable
