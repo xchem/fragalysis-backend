@@ -2,8 +2,9 @@
 
 # In your Travis Settings...
 #
-# set PUBLISH_IMAGES to 'yes' to enable publishing to Docker Hub
-# and TRIGGER_DOWNSTREAM to 'yes' to enable downstream project triggering.
+# Set PUBLISH_IMAGES to 'yes' to enable publishing to Docker Hub
+# You will also need to provide values for  DOCKER_USERNAME and DOCKER_PASSWORD.
+# Set TRIGGER_DOWNSTREAM to 'yes' to enable downstream project triggering.
 # Enabling TRIGGER_DOWNSTREAM is only effective if PUBLISH_IMAGES is also set.
 #
 # Projects triggered by activity in this repository are: -
@@ -64,7 +65,6 @@ before_install:
 
 install:
 # Login to docker and download trigger code
-- docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 - curl --location --retry 3 ${TRIGGER_ORIGIN}/requirements.txt --output trigger-travis-requirements.txt
 - curl --location --retry 3 ${TRIGGER_ORIGIN}/trigger-travis.py --output trigger-travis.py
 - pip install -r trigger-travis-requirements.txt
@@ -90,18 +90,21 @@ jobs:
   - stage: publish latest
     name: Latest Container
     script:
+    - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
     - docker build -t ${BE_NAMESPACE}/fragalysis-backend:latest .
     - docker push ${BE_NAMESPACE}/fragalysis-backend:latest
 
   - stage: publish tag
     name: Tagged Container
     script:
+    - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
     - docker build -t ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} .
     - docker push ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
 
   - stage: publish stable
     name: Stable Container
     script:
+    - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
     - docker pull ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
     - docker tag ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} ${BE_NAMESPACE}/fragalysis-backend:stable
     - docker push ${BE_NAMESPACE}/fragalysis-backend:stable
