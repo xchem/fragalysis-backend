@@ -15,6 +15,10 @@ stages:
 - name: trigger
   if: tag IS present AND tag =~ ^([0-9]+\.){1,2}[0-9]+$
 
+env:
+  global:
+  - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master
+
 before_install:
 # Downstream project triggers (used when we're tagged)
 # The downstream projects are the Fragalsyss Stack and Fragalysis Loader.
@@ -32,18 +36,8 @@ install:
 # Always build a container image
 # (tagging with the required project name)
 - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
-- >-
-    curl
-    --location
-    --retry 3
-    https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master/requirements.txt
-    --output trigger-travis-requirements.txt
-- >-
-    curl
-    --location
-    --retry 3
-    https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master/trigger-travis.py
-    --output trigger-travis.py
+- curl --location --retry 3 ${TRIGGER_ORIGIN}/requirements.txt --output trigger-travis-requirements.txt
+- curl --location --retry 3 ${TRIGGER_ORIGIN}/trigger-travis.py --output trigger-travis.py
 - pip install -r trigger-travis-requirements.txt
 - chmod +x trigger-travis.py
 
@@ -86,16 +80,8 @@ jobs:
     - echo "STACK_NAMESPACE=${STACK_NAMESPACE}"
     - echo "STACK_BRANCH=${STACK_BRANCH}"
     - echo "STACK_VARS=${STACK_VARS}"
-    - >-
-        ./trigger-travis.py
-        ${STACK_NAMESPACE} fragalysis-stack ${TRAVIS_ACCESS_TOKEN}
-        --branch ${STACK_BRANCH}
-        --vars ${STACK_VARS}
+    - ./trigger-travis.py --pro ${STACK_NAMESPACE} fragalysis-stack ${TRAVIS_ACCESS_TOKEN} --branch ${STACK_BRANCH} --vars ${STACK_VARS}
     - echo "LOADER_NAMESPACE=${LOADER_NAMESPACE}"
     - echo "LOADER_BRANCH=${LOADER_BRANCH}"
     - echo "LOADER_VARS=${LOADER_VARS}"
-    - >-
-        ./trigger-travis.py
-        ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN}
-        --branch ${LOADER_BRANCH}
-        --vars ${LOADER_VARS}
+    - ./trigger-travis.py --pro ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN} --branch ${LOADER_BRANCH} --vars ${LOADER_VARS}
