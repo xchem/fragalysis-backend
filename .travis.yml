@@ -23,10 +23,10 @@ before_install:
 - export BE_NAMESPACE=${BE_NAMESPACE-xchem}
 - export STACK_NAMESPACE=${STACK_NAMESPACE:-xchem}
 - export STACK_BRANCH=${STACK_BRANCH:-master}
-- export STACK_VARS=${STACK_VARS:--}
+- export STACK_VARS=BE_IMAGE_TAG=${TRAVIS_TAG},BE_NAMESPACE=${BE_NAMESPACE}
 - export LOADER_NAMESPACE=${LOADER_NAMESPACE:-xchem}
 - export LOADER_BRANCH=${LOADER_BRANCH:-master}
-- export LOADER_VARS=${LOADER_VARS:--}
+- export LOADER_VARS=BE_IMAGE_TAG=${TRAVIS_TAG},BE_NAMESPACE=${BE_NAMESPACE}
 
 install:
 # Always build a container image
@@ -84,11 +84,17 @@ jobs:
   - stage: publish stable
     name: Trigger Downstream
     script:
+    - echo STACK_NAMESPACE=${STACK_NAMESPACE}
+    - echo STACK_BRANCH=${STACK_BRANCH}
+    - echo STACK_VARS=${STACK_VARS}
     - >-
         ./trigger-travis.py
         ${STACK_NAMESPACE} fragalysis-stack ${TRAVIS_ACCESS_TOKEN}
         --branch ${STACK_BRANCH}
         --vars ${STACK_VARS}
+    - echo LOADER_NAMESPACE=${LOADER_NAMESPACE}
+    - echo LOADER_BRANCH=${LOADER_BRANCH}
+    - echo LOADER_BRANCH=${LOADER_BRANCH}
     - >-
         ./trigger-travis.py
         ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN}
