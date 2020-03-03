@@ -35,7 +35,6 @@ jobs:
     name: Container Test
     script:
     - docker-compose -f docker-compose.test.yml up --build --exit-code-from tests --abort-on-container-exit
-    - coveralls
 
   # Publish-stage jobs...
   # Every successful master build results in a latest image
