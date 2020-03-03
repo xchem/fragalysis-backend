@@ -1,21 +1,16 @@
 ---
+
+# In your Travis Settings
+# set PUBLISH_IMAGES to 'yes' to enable publishing to Docker Hub
+# and TRIGGER_DOWNSTREAM to 'yes' to enable downstream project triggering.
+# Enabling TRIGGER_DOWNSTREAM is only effective if PUBLISH_IMAGES is also set.
+
 os: linux
 language: python
 python:
 - '3.8'
 services:
 - docker
-
-env:
-  global:
-  # Set PUBLISH_IMAGES to push images to Docker hub.
-  - PUBLISH_IMAGES=yes
-  # The origin of the trigger code
-  - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master
-  # Set TRIGGER_DOWNSTREAM to 'yes' to enable down-stream triggers.
-  # Triggering will only occur on official tags (i.e. tags like '1.0.0').
-  # Enabling this is only effective if PUBLISH_IMAGES is also set.
-  - TRIGGER_DOWNSTREAM=no
 
 stages:
 - name: test
@@ -38,6 +33,13 @@ stages:
     AND tag =~ ^([0-9]+\.){1,2}[0-9]+$ \
     AND env(PUBLISH_IMAGES) = yes \
     AND env(TRIGGER_DOWNSTREAM) = yes
+
+# Global variables
+# (available to the Job matrix)...
+env:
+  global:
+  # The origin of the trigger code
+  - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master
 
 before_install:
 # Downstream project triggers (used when we're tagged)
