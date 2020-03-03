@@ -1,6 +1,7 @@
 ---
 
 # In your Travis Settings...
+#
 # set PUBLISH_IMAGES to 'yes' to enable publishing to Docker Hub
 # and TRIGGER_DOWNSTREAM to 'yes' to enable downstream project triggering.
 # Enabling TRIGGER_DOWNSTREAM is only effective if PUBLISH_IMAGES is also set.
@@ -84,7 +85,7 @@ jobs:
   # Publish-stage jobs...
   # Every successful master build results in a latest image
   # and every tag results in a tagged image in Docker Hub.
-  # Tags that match V_REGEX are considered 'official' tags
+  # Tags that match a RegEx are considered 'official' tags
   # and also result in a 'stable' image tag.
 
   - stage: publish latest

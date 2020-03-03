@@ -5,7 +5,7 @@ services:
   mysql:
     image: mysql:5.7.23
     volumes:
-     - ../django_data:/var/lib/mysql
+    - ../django_data:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: django_db
