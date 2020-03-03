@@ -12,8 +12,6 @@ stages:
   if: branch == master
 - name: publish tag
   if: tag IS present
-- name: publish stable
-  if: tag IS present AND tag =~ ^([0-9]+\.){1,2}[0-9]+$
 
 before_install:
 # Downstream project triggers (used when we're tagged)
@@ -74,27 +72,25 @@ jobs:
     script:
     - docker tag ${BE_NAMESPACE}/fragalysis-backend:latest ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
     - docker push ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
+    - if [ "${TRAVIS_TAG}" =~ ^([0-9]+\.){1,2}[0-9]+$ ]; then
+      docker tag ${BE_NAMESPACE}/fragalysis-backend:latest ${BE_NAMESPACE}/fragalysis-backend:stable;
+      docker push ${BE_NAMESPACE}/fragalysis-backend:stable;
+      fi
 
-  - stage: publish stable
-    name: Stable Container
-    script:
-    - docker tag ${BE_NAMESPACE}/fragalysis-backend:latest ${BE_NAMESPACE}/fragalysis-backend:stable
-    - docker push ${BE_NAMESPACE}/fragalysis-backend:stable
-
-  - stage: publish stable
+  - stage: trigger
     name: Trigger Downstream
     script:
-    - echo STACK_NAMESPACE=${STACK_NAMESPACE}
-    - echo STACK_BRANCH=${STACK_BRANCH}
-    - echo STACK_VARS=${STACK_VARS}
+    - echo "STACK_NAMESPACE=${STACK_NAMESPACE}"
+    - echo "STACK_BRANCH=${STACK_BRANCH}"
+    - echo "STACK_VARS=${STACK_VARS}"
     - >-
         ./trigger-travis.py
         ${STACK_NAMESPACE} fragalysis-stack ${TRAVIS_ACCESS_TOKEN}
         --branch ${STACK_BRANCH}
         --vars ${STACK_VARS}
-    - echo LOADER_NAMESPACE=${LOADER_NAMESPACE}
-    - echo LOADER_BRANCH=${LOADER_BRANCH}
-    - echo LOADER_VARS=${LOADER_VARS}
+    - echo "LOADER_NAMESPACE=${LOADER_NAMESPACE}"
+    - echo "LOADER_BRANCH=${LOADER_BRANCH}"
+    - echo "LOADER_VARS=${LOADER_VARS}"
     - >-
         ./trigger-travis.py
         ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN}
