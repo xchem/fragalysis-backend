@@ -8,22 +8,32 @@ services:
 
 env:
   global:
+  # Set PUBLISH_IMAGES to push images to Docker hub.
+  - PUBLISH_IMAGES=yes
   # The origin of the trigger code
   - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master
   # Set TRIGGER_DOWNSTREAM to 'yes' to enable down-stream triggers.
-  # Triggering will only occur on official tags (i.e. tags like '1.0.0')
+  # Triggering will only occur on official tags (i.e. tags like '1.0.0').
+  # Enabling this is only effective if PUBLISH_IMAGES is also set.
   - TRIGGER_DOWNSTREAM=no
 
 stages:
 - name: test
 - name: publish latest
-  if: branch == master
+  if: branch == master \
+      AND env(PUBLISH_IMAGES) = yes
 - name: publish tag
-  if: tag IS present
+  if: tag IS present \
+      AND env(PUBLISH_IMAGES) = yes
 - name: publish stable
-  if: tag IS present AND tag =~ ^([0-9]+\.){1,2}[0-9]+$
+  if: tag IS present \
+      AND tag =~ ^([0-9]+\.){1,2}[0-9]+$ \
+      AND env(PUBLISH_IMAGES) = yes
 - name: trigger downstream
-  if: tag IS present AND tag =~ ^([0-9]+\.){1,2}[0-9]+$ AND env(TRIGGER_DOWNSTREAM) = yes
+  if: tag IS present \
+      AND tag =~ ^([0-9]+\.){1,2}[0-9]+$ \
+      AND env(PUBLISH_IMAGES) = yes \
+      AND env(TRIGGER_DOWNSTREAM) = yes
 
 before_install:
 # Downstream project triggers (used when we're tagged)
@@ -75,10 +85,6 @@ jobs:
     script:
     - docker build -t ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} .
     - docker push ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
-    - if [[ ${TRAVIS_TAG} =~ ${V_REGEX} ]]; then
-      docker tag ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} ${BE_NAMESPACE}/fragalysis-backend:stable;
-      docker push ${BE_NAMESPACE}/fragalysis-backend:stable;
-      fi
 
   - stage: publish stable
     name: Stable Container
