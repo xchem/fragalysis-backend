@@ -22,7 +22,7 @@ stages:
 - name: test
 - name: publish latest
   if: |
-    branch = master \
+    branch = im-travis \
     AND env(PUBLISH_IMAGES) = yes
 - name: publish tag
   if: |
@@ -63,8 +63,7 @@ before_install:
 - echo ${TRIGGER_DOWNSTREAM}
 
 install:
-# Always build a container image
-# (tagging with the required project name)
+# Login to docker and download trigger code
 - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 - curl --location --retry 3 ${TRIGGER_ORIGIN}/requirements.txt --output trigger-travis-requirements.txt
 - curl --location --retry 3 ${TRIGGER_ORIGIN}/trigger-travis.py --output trigger-travis.py
