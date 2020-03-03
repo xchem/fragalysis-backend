@@ -1,11 +1,14 @@
 ---
 os: linux
+language: python
+python:
+- '3.8'
 services:
 - docker
 
 env:
   global:
-  - TARGET_PROJECT=informaticsmatters
+  - BE_NAMESPACE=informaticsmatters
   # 'Stable' version number regex.
   # Used to test strings against the pattern "N.N[.N]",
   # i.e. a 2 or 3-field version string of digits separated by periods.
@@ -20,11 +23,37 @@ stages:
 - name: publish stable
   if: tag IS present AND tag =~ ${V_REGEX}
 
+before_install:
+# Downstream project triggers (used when we're tagged)
+# The downstream projects are the Fragalsyss Stack and Fragalysis Loader.
+# The user can define the following variables in their Travis Settings.
+# If they're not defined then apply sensible defaults.
+- export STACK_NAMESPACE=${STACK_NAMESPACE:-informaticsmatters}
+- export STACK_BRANCH=${STACK_BRANCH:-master}
+- export STACK_VARS=${STACK_VARS:--}
+- export LOADER_NAMESPACE=${LOADER_NAMESPACE:-informaticsmatters}
+- export LOADER_BRANCH=${LOADER_BRANCH:-master}
+- export LOADER_VARS=${LOADER_VARS:--}
+
 install:
 # Always build a container image
 # (tagging with the required project name)
-- docker build -t ${TARGET_PROJECT}/fragalysis-backend:latest .
+- docker build -t ${BE_NAMESPACE}/fragalysis-backend:latest .
 - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+- >-
+    curl
+    --location
+    --retry 3
+    https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master/requirements.txt
+    --output trigger-travis-requirements.txt
+- >-
+    curl
+    --location
+    --retry 3
+    https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master/trigger-travis.py
+    --output trigger-travis.py
+- pip install -r trigger-travis-requirements.txt
+- chmod +x trigger-travis.py
 
 jobs:
   include:
@@ -45,16 +74,27 @@ jobs:
   - stage: publish latest
     name: Latest Container
     script:
-    - docker push ${TARGET_PROJECT}/fragalysis-backend:latest
-
-  - stage: publish tag
-    name: Tagged Container
-    script:
-    - docker tag ${TARGET_PROJECT}/fragalysis-backend:latest ${TARGET_PROJECT}/fragalysis-backend:${TRAVIS_TAG}
-    - docker push ${TARGET_PROJECT}/fragalysis-backend:${TRAVIS_TAG}
+    - docker push ${BE_NAMESPACE}/fragalysis-backend:latest
 
   - stage: publish stable
     name: Stable Container
     script:
-    - docker tag ${TARGET_PROJECT}/fragalysis-backend:latest ${TARGET_PROJECT}/fragalysis-backend:stable
-    - docker push ${TARGET_PROJECT}/fragalysis-backend:stable
+    - docker tag ${BE_NAMESPACE}/fragalysis-backend:latest ${BE_NAMESPACE}/fragalysis-backend:stable
+    - docker push ${BE_NAMESPACE}/fragalysis-backend:stable
+
+  - stage: publish tag
+    name: Tagged Container
+    script:
+    - docker tag ${BE_NAMESPACE}/fragalysis-backend:latest ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
+    - docker push ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
+    # Trigger the stack and loader...
+    - >-
+        ./trigger-travis.py
+        ${STACK_NAMESPACE} fragalysis-stack ${TRAVIS_ACCESS_TOKEN}
+        --branch ${STACK_BRANCH}
+        --vars ${STACK_VARS}
+    - >-
+        ./trigger-travis.py
+        ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN}
+        --branch ${LOADER_BRANCH}
+        --vars ${LOADER_VARS}
