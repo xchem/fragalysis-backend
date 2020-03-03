@@ -1,9 +1,14 @@
 ---
 
-# In your Travis Settings
+# In your Travis Settings...
 # set PUBLISH_IMAGES to 'yes' to enable publishing to Docker Hub
 # and TRIGGER_DOWNSTREAM to 'yes' to enable downstream project triggering.
 # Enabling TRIGGER_DOWNSTREAM is only effective if PUBLISH_IMAGES is also set.
+#
+# Projects triggered by activity in this repository are: -
+#
+#   ${STACK_NAMESPACE}/fragalysis-stack
+#   ${LOADER_NAMESPACE}/fragalysis-loader
 
 os: linux
 language: python
@@ -53,6 +58,8 @@ before_install:
 - export LOADER_NAMESPACE=${LOADER_NAMESPACE:-xchem}
 - export LOADER_BRANCH=${LOADER_BRANCH:-master}
 - export LOADER_VARS=BE_IMAGE_TAG=${TRAVIS_TAG},BE_NAMESPACE=${BE_NAMESPACE}
+- echo ${PUBLISH_IMAGES}
+- echo ${TRIGGER_DOWNSTREAM}
 
 install:
 # Always build a container image
