@@ -8,7 +8,6 @@ services:
 
 env:
   global:
-  - BE_NAMESPACE=informaticsmatters
   # 'Stable' version number regex.
   # Used to test strings against the pattern "N.N[.N]",
   # i.e. a 2 or 3-field version string of digits separated by periods.
@@ -28,10 +27,11 @@ before_install:
 # The downstream projects are the Fragalsyss Stack and Fragalysis Loader.
 # The user can define the following variables in their Travis Settings.
 # If they're not defined then apply sensible defaults.
-- export STACK_NAMESPACE=${STACK_NAMESPACE:-informaticsmatters}
+- export BE_NAMESPACE=${BE_NAMESPACE-xchem}
+- export STACK_NAMESPACE=${STACK_NAMESPACE:-xchem}
 - export STACK_BRANCH=${STACK_BRANCH:-master}
 - export STACK_VARS=${STACK_VARS:--}
-- export LOADER_NAMESPACE=${LOADER_NAMESPACE:-informaticsmatters}
+- export LOADER_NAMESPACE=${LOADER_NAMESPACE:-xchem}
 - export LOADER_BRANCH=${LOADER_BRANCH:-master}
 - export LOADER_VARS=${LOADER_VARS:--}
 
