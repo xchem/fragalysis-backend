@@ -80,8 +80,10 @@ jobs:
     script:
     - docker tag ${BE_NAMESPACE}/fragalysis-backend:latest ${BE_NAMESPACE}/fragalysis-backend:stable
     - docker push ${BE_NAMESPACE}/fragalysis-backend:stable
-    # A new 'official' image (and latest and tag)
-    # Trigger the stack and loader downstream projects...
+
+  - stage: publish stable
+    name: Trigger Downstream
+    script:
     - >-
         ./trigger-travis.py
         ${STACK_NAMESPACE} fragalysis-stack ${TRAVIS_ACCESS_TOKEN}
