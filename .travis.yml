@@ -12,6 +12,8 @@ stages:
   if: branch == master
 - name: publish tag
   if: tag IS present
+- name: trigger
+  if: tag IS present AND tag =~ ^([0-9]+\.){1,2}[0-9]+$
 
 before_install:
 # Downstream project triggers (used when we're tagged)
