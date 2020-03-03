@@ -16,7 +16,7 @@ services:
       XCDB_DATABASE: test_xchem
       BUILD_XCDB: 'no'
   tests:
-    image: ${TARGET_PROJECT}/fragalysis-backend:latest
+    image: ${BE_PROJECT}/fragalysis-backend:latest
     command: ["/code/wait-for-it.sh", "mysql:3306", "--", "/bin/bash", "/code/test_entry.sh"]
     volumes:
     - .:/code
