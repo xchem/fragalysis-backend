@@ -8,8 +8,11 @@ services:
 
 env:
   global:
+  # The origin of the trigger code
   - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master
-  - V_REGEX="^([0-9]+\.){1,2}[0-9]+$"
+  # Set TRIGGER_DOWNSTREAM to 'yes' to enable down-stream triggers.
+  # Triggering will only occur on official tags (i.e. tags like '1.0.0')
+  - TRIGGER_DOWNSTREAM=no
 
 stages:
 - name: test
@@ -17,8 +20,10 @@ stages:
   if: branch == master
 - name: publish tag
   if: tag IS present
-- name: trigger
+- name: publish stable
   if: tag IS present AND tag =~ ^([0-9]+\.){1,2}[0-9]+$
+- name: trigger downstream
+  if: tag IS present AND tag =~ ^([0-9]+\.){1,2}[0-9]+$ AND env(TRIGGER_DOWNSTREAM) = yes
 
 before_install:
 # Downstream project triggers (used when we're tagged)
@@ -75,7 +80,14 @@ jobs:
       docker push ${BE_NAMESPACE}/fragalysis-backend:stable;
       fi
 
-  - stage: trigger
+  - stage: publish stable
+    name: Stable Container
+    script:
+    - docker pull ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
+    - docker tag ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} ${BE_NAMESPACE}/fragalysis-backend:stable
+    - docker push ${BE_NAMESPACE}/fragalysis-backend:stable
+
+  - stage: trigger downstream
     name: Trigger Downstream
     script:
     - echo "STACK_NAMESPACE=${STACK_NAMESPACE}"
