@@ -6,21 +6,14 @@ python:
 services:
 - docker
 
-env:
-  global:
-  # 'Stable' version number regex.
-  # Used to test strings against the pattern "N.N[.N]",
-  # i.e. a 2 or 3-field version string of digits separated by periods.
-  - V_REGEX='^([0-9]+\.){1,2}[0-9]+$'
-
 stages:
 - name: test
 - name: publish latest
-#  if: branch == master
+  if: branch == master
 - name: publish tag
   if: tag IS present
 - name: publish stable
-  if: tag IS present AND tag =~ ${V_REGEX}
+  if: tag IS present AND tag =~ ^([0-9]+\.){1,2}[0-9]+$
 
 before_install:
 # Downstream project triggers (used when we're tagged)
