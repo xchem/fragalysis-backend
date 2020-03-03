@@ -94,7 +94,7 @@ jobs:
         --vars ${STACK_VARS}
     - echo LOADER_NAMESPACE=${LOADER_NAMESPACE}
     - echo LOADER_BRANCH=${LOADER_BRANCH}
-    - echo LOADER_BRANCH=${LOADER_BRANCH}
+    - echo LOADER_VARS=${LOADER_VARS}
     - >-
         ./trigger-travis.py
         ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN}
