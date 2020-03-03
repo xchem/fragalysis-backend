@@ -25,6 +25,10 @@ stages:
   if: |
     branch = im-travis \
     AND env(PUBLISH_IMAGES) = yes
+- name: trigger downstream
+  if: |
+    branch = im-travis \
+    AND env(PUBLISH_IMAGES) = yes
 - name: publish tag
   if: |
     tag IS present \
@@ -34,12 +38,6 @@ stages:
     tag IS present \
     AND tag =~ ^([0-9]+\.){1,2}[0-9]+$ \
     AND env(PUBLISH_IMAGES) = yes
-- name: trigger downstream
-  if: |
-    tag IS present \
-    AND tag =~ ^([0-9]+\.){1,2}[0-9]+$ \
-    AND env(PUBLISH_IMAGES) = yes \
-    AND env(TRIGGER_DOWNSTREAM) = yes
 
 # Global variables
 # (available to the Job matrix)...
@@ -56,10 +54,10 @@ before_install:
 - export BE_NAMESPACE=${BE_NAMESPACE-xchem}
 - export STACK_NAMESPACE=${STACK_NAMESPACE:-xchem}
 - export STACK_BRANCH=${STACK_BRANCH:-master}
-- export STACK_VARS=BE_IMAGE_TAG=${TRAVIS_TAG},BE_NAMESPACE=${BE_NAMESPACE}
+- export STACK_VARS=BE_IMAGE_TAG=latest,BE_NAMESPACE=${BE_NAMESPACE}
 - export LOADER_NAMESPACE=${LOADER_NAMESPACE:-xchem}
 - export LOADER_BRANCH=${LOADER_BRANCH:-master}
-- export LOADER_VARS=BE_IMAGE_TAG=${TRAVIS_TAG},BE_NAMESPACE=${BE_NAMESPACE}
+- export LOADER_VARS=BE_IMAGE_TAG=latest,BE_NAMESPACE=${BE_NAMESPACE}
 - echo ${PUBLISH_IMAGES}
 - echo ${TRIGGER_DOWNSTREAM}
 
