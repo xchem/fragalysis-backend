@@ -6,6 +6,11 @@ python:
 services:
 - docker
 
+env:
+  global:
+  - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master
+  - V_REGEX="^([0-9]+\.){1,2}[0-9]+$"
+
 stages:
 - name: test
 - name: publish latest
@@ -13,11 +18,7 @@ stages:
 - name: publish tag
   if: tag IS present
 - name: trigger
-  if: tag IS present AND tag =~ ^([0-9]+\.){1,2}[0-9]+$
-
-env:
-  global:
-  - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master
+  if: tag IS present AND tag =~ ${V_REGEX}
 
 before_install:
 # Downstream project triggers (used when we're tagged)
@@ -69,7 +70,7 @@ jobs:
     script:
     - docker build -t ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} .
     - docker push ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
-    - if [ "${TRAVIS_TAG}" =~ ^([0-9]+\.){1,2}[0-9]+$ ]; then
+    - if [ ${TRAVIS_TAG} =~ ${V_REGEX} ]; then
       docker tag ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} ${BE_NAMESPACE}/fragalysis-backend:stable;
       docker push ${BE_NAMESPACE}/fragalysis-backend:stable;
       fi
