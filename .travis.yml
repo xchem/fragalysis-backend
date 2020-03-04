@@ -64,6 +64,9 @@ install:
 - pip install -r trigger-travis-requirements.txt
 - chmod +x trigger-travis.py
 
+before_script:
+- docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+
 jobs:
   include:
 
@@ -87,14 +90,12 @@ jobs:
   - stage: publish tag
     name: Tagged Container
     script:
-    - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
     - docker build -t ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} .
     - docker push ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
 
   - stage: publish stable
     name: Stable Container
     script:
-    - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
     - docker pull ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
     - docker tag ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} ${BE_NAMESPACE}/fragalysis-backend:stable
     - docker push ${BE_NAMESPACE}/fragalysis-backend:stable
