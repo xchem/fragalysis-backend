@@ -1,16 +1,31 @@
 ---
 
-# In your Travis Settings...
+# -----------------
+# Control variables (Travis Settings)
+# -----------------
 #
-# Set PUBLISH_IMAGES to 'yes' to enable publishing to Docker Hub
-# You will also need to provide values for  DOCKER_USERNAME and DOCKER_PASSWORD.
-# Set TRIGGER_DOWNSTREAM to 'yes' to enable downstream project triggering.
-# Enabling TRIGGER_DOWNSTREAM is only effective if PUBLISH_IMAGES is also set.
+# PUBLISH_IMAGES        Should be 'yes' to enable publishing to Docker Hub.
 #
-# Projects triggered by activity in this repository are: -
+# If you set PUBLISH_IMAGES you must also set the following: -
 #
-#   ${STACK_NAMESPACE}/fragalysis-stack
-#   ${LOADER_NAMESPACE}/fragalysis-loader
+# DOCKER_USERNAME       If PUBLISH_IMAGES is 'yes'
+# DOCKER_PASSWORD       If PUBLISH_IMAGES is 'yes'
+#
+# You control the Backend container's source and destination image names with...
+#
+# BE_NAMESPACE          To over-ride the default namespace of the image
+#                       (which is 'xchem')
+#
+# To trigger the dependent, downstream builds (like the Stack and Loader)...
+#
+# TRIGGER_DOWNSTREAM    Should be set to 'yes'
+#                       Enabling TRIGGER_DOWNSTREAM is only effective
+#                       if PUBLISH_IMAGES is also set.
+#
+# STACK_NAMESPACE       To define the namespace of the Stack repository (default is 'xchem')
+# STACK_BRANCH          The branch to trigger (default is 'master')
+# LOADER_NAMESPACE      To define the namespace of the Loader repository (default is 'xchem')
+# LOADER_BRANCH         The branch to trigger (default is 'master')
 
 os: linux
 language: python
@@ -44,7 +59,7 @@ env:
 
 before_install:
 # Downstream project triggers (used when we're tagged)
-# The downstream projects are the Fragalsyss Stack and Fragalysis Loader.
+# The downstream projects are the Fragalysis Stack and Fragalysis Loader.
 # The user can define the following variables in their Travis Settings.
 # If they're not defined then apply sensible defaults.
 - export BE_NAMESPACE=${BE_NAMESPACE-xchem}
@@ -54,8 +69,6 @@ before_install:
 - export LOADER_NAMESPACE=${LOADER_NAMESPACE:-xchem}
 - export LOADER_BRANCH=${LOADER_BRANCH:-master}
 - export LOADER_VARS=BE_IMAGE_TAG=latest,BE_NAMESPACE=${BE_NAMESPACE}
-- echo ${PUBLISH_IMAGES}
-- echo ${TRIGGER_DOWNSTREAM}
 
 install:
 # Login to docker and download trigger code
@@ -65,6 +78,10 @@ install:
 - chmod +x trigger-travis.py
 
 before_script:
+- echo ${BE_NAMESPACE}
+- echo ${STACK_NAMESPACE}
+- echo ${PUBLISH_IMAGES}
+- echo ${TRIGGER_DOWNSTREAM}
 - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 
 jobs:
