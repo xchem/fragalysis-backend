@@ -20,11 +20,7 @@ services:
 - docker
 
 stages:
-- name: test
 - name: publish latest
-  if: |
-    branch = im-travis \
-    AND env(PUBLISH_IMAGES) = yes
 - name: trigger downstream
   if: |
     branch = im-travis \
@@ -73,24 +69,20 @@ jobs:
 
   # Test-stage jobs...
 
-  - stage: test
-    name: Container Test
+  - stage: publish latest
+    name: Test and Latest Container
     script:
     - docker build -t ${BE_NAMESPACE}/fragalysis-backend:latest .
     - docker-compose -f docker-compose.test.yml up --build --exit-code-from tests --abort-on-container-exit
+    - if [ ${PUBLISH_IMAGES} == "yes" ]; then
+      docker push ${BE_NAMESPACE}/fragalysis-backend:latest;
+      fi
 
   # Publish-stage jobs...
-  # Every successful master build results in a latest image
+  # Every successful master build results in a latest image (above)
   # and every tag results in a tagged image in Docker Hub.
   # Tags that match a RegEx are considered 'official' tags
   # and also result in a 'stable' image tag.
-
-  - stage: publish latest
-    name: Latest Container
-    script:
-    - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
-    - docker build -t ${BE_NAMESPACE}/fragalysis-backend:latest .
-    - docker push ${BE_NAMESPACE}/fragalysis-backend:latest
 
   - stage: publish tag
     name: Tagged Container
