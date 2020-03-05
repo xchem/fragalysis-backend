@@ -39,6 +39,7 @@ stages:
 - name: trigger downstream
   if: |
     branch = im-travis \
+    AND env(TRIGGER_DOWNSTREAM) = yes \
     AND env(PUBLISH_IMAGES) = yes
 - name: publish tag
   if: |
@@ -71,7 +72,7 @@ before_install:
 - export LOADER_VARS=BE_IMAGE_TAG=latest,BE_NAMESPACE=${BE_NAMESPACE}
 
 install:
-# Login to docker and download trigger code
+# Download trigger code
 - curl --location --retry 3 ${TRIGGER_ORIGIN}/requirements.txt --output trigger-travis-requirements.txt
 - curl --location --retry 3 ${TRIGGER_ORIGIN}/trigger-travis.py --output trigger-travis.py
 - pip install -r trigger-travis-requirements.txt
