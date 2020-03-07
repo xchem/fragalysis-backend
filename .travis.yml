@@ -22,6 +22,10 @@
 #                       Enabling TRIGGER_DOWNSTREAM is only effective
 #                       if PUBLISH_IMAGES is also set.
 #
+# The following required if TRIGGER_DOWNSTREAM...
+#
+# TRAVIS_ACCESS_TOKEN   A Travis token
+#
 # STACK_NAMESPACE       To define the namespace of the Stack repository (default is 'xchem')
 # STACK_BRANCH          The branch to trigger (default is 'master')
 # LOADER_NAMESPACE      To define the namespace of the Loader repository (default is 'xchem')
