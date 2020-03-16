@@ -153,15 +153,13 @@ DATABASE_ROUTERS = ['xchem_db.routers.AuthRouter']
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.environ.get("MYSQL_DATABASE", "django_db"),
-        "USER": os.environ.get("MYSQL_USER", "django"),
-        "PASSWORD": os.environ.get("MYSQL_PASSWORD", "django_password"),
-        "HOST": os.environ.get("MYSQL_HOST", "mysql"),
-        "PORT": os.environ.get("MYSQL_PORT", 3306),
-        "TEST": {"NAME": os.environ.get("MYSQL_DATABASE", "django_db")},
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": os.environ.get("POSTGRESQL_DATABASE", "frag"),
+        "USER": os.environ.get("POSTGRESQL_USER", "fragalysis"),
+        "PASSWORD": os.environ.get("POSTGRESQL_PASSWORD", "fragalysis"),
+        "HOST": os.environ.get("POSTGRESQL_HOST", "database"),
+        "PORT": os.environ.get("POSTGRESQL_PORT", 5432),
     }
-
 }
 
 if os.environ.get("BUILD_XCDB") == 'yes':
