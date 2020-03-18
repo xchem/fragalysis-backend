@@ -154,7 +154,7 @@ class Snapshot(models.Model):
    # children = models.ManyToManyField('Snapshot' , related_name='+', null=True)
    #  parent = models.ForeignKey('self', null=True),
    #  children = models.('self', null=True),
-    hierarchy = models.ForeignKey(SnapshotHierarchy)
+   #  hierarchy = models.ForeignKey(SnapshotHierarchy)
     created = models.DateTimeField(default=timezone.now)
     data = models.TextField()
     session_project = models.ForeignKey(SessionProject)

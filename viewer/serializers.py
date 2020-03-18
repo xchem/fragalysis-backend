@@ -292,7 +292,7 @@ class SnapshotHierarchySerializer(serializers.ModelSerializer):
 class SnapshotReadSerializer(serializers.ModelSerializer):
     author  = UserSerializer()
     session_project  = SessionProjectWriteSerializer()
-    hierarchy = SnapshotHierarchySerializer()
+    # hierarchy = SnapshotHierarchySerializer()
     class Meta:
         model = Snapshot
         depth=2
