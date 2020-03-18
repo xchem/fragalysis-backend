@@ -15,6 +15,8 @@ router.register(r"molecules", viewer_views.MoleculeView)
 router.register(r"compounds", viewer_views.CompoundView)
 router.register(r"targets", viewer_views.TargetView)
 router.register(r"proteins", viewer_views.ProteinView)
+router.register(r"session-projects", viewer_views.SessionProjectsView)
+router.register(r"snapshots", viewer_views.SnapshotsView)
 # Get the derived data
 router.register(r"molimg", viewer_views.MolImageView)
 router.register(r"vector", viewer_views.VectorsView)
