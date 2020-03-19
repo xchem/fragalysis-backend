@@ -283,11 +283,11 @@ class SessionProjectWriteSerializer(serializers.ModelSerializer):
         model = SessionProject
         fields = '__all__'
 
-
-class SnapshotHierarchySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SnapshotHierarchy
-        fields = ('id', 'children', 'parent')
+#
+# class SnapshotHierarchySerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = SnapshotHierarchy
+#         fields = ('id', 'children', 'parent')
 # GET
 class SnapshotReadSerializer(serializers.ModelSerializer):
     author  = UserSerializer()
@@ -296,7 +296,7 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Snapshot
         depth=2
-        fields = ('id', 'type', 'title', 'author', 'description', 'hierarchy', 'created', 'data', 'session_project')
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project')
 
 # (POST, PUT, PATCH)
 class SnapshotWriteSerializer(serializers.ModelSerializer):

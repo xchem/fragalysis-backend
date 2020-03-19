@@ -129,13 +129,13 @@ class SessionProject(models.Model):
     class Meta:
         permissions = (("view_project", "View project"),)
 
-
-class SnapshotHierarchy(models.Model):
-    children = models.ManyToManyField('Snapshot', related_name='+', null=True)
-    parent = models.ForeignKey('Snapshot', null=True),
-
-    class Meta:
-        permissions = (("view_project", "View project"),)
+#
+# class SnapshotHierarchy(models.Model):
+#     children = models.ManyToManyField('Snapshot', related_name='+', null=True)
+#     parent = models.ForeignKey('Snapshot', null=True),
+#
+#     class Meta:
+#         permissions = (("view_project", "View project"),)
 
 class Snapshot(models.Model):
     INIT = "INIT"
