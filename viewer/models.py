@@ -129,13 +129,6 @@ class SessionProject(models.Model):
     class Meta:
         permissions = (("view_project", "View project"),)
 
-#
-# class SnapshotHierarchy(models.Model):
-#     children = models.ManyToManyField('Snapshot', related_name='+', null=True)
-#     parent = models.ForeignKey('Snapshot', null=True),
-#
-#     class Meta:
-#         permissions = (("view_project", "View project"),)
 
 class Snapshot(models.Model):
     INIT = "INIT"
@@ -151,16 +144,15 @@ class Snapshot(models.Model):
     title = models.CharField(max_length=255)
     author = models.ForeignKey(User)
     description = models.CharField(max_length=255, default='')
-   # children = models.ManyToManyField('Snapshot' , related_name='+', null=True)
-   #  parent = models.ForeignKey('self', null=True),
-   #  children = models.('self', null=True),
-   #  hierarchy = models.ForeignKey(SnapshotHierarchy)
     created = models.DateTimeField(default=timezone.now)
     data = models.TextField()
     session_project = models.ForeignKey(SessionProject)
+    parent = models.ForeignKey('self', models.DO_NOTHING, blank=True, null=True, related_name='children')
 
     class Meta:
         permissions = (("view_project", "View project"),)
+        managed = True
+        db_table = 'viewer_snapshot'
 
 ### End of Session Project
 

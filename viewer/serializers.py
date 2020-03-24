@@ -272,7 +272,6 @@ class UserSerializer(serializers.ModelSerializer):
 class SessionProjectReadSerializer(serializers.ModelSerializer):
     target = TargetSerializer(read_only=True)
     author = UserSerializer(read_only=True)
-
     class Meta:
         model = SessionProject
         fields = '__all__'
@@ -284,24 +283,24 @@ class SessionProjectWriteSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 #
-# class SnapshotHierarchySerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = SnapshotHierarchy
-#         fields = ('id', 'children', 'parent')
 # GET
 class SnapshotReadSerializer(serializers.ModelSerializer):
     author  = UserSerializer()
     session_project  = SessionProjectWriteSerializer()
-    # hierarchy = SnapshotHierarchySerializer()
     class Meta:
         model = Snapshot
-        depth=2
-        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project')
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
+
+    def get_fields(self):
+        fields = super(SnapshotReadSerializer, self).get_fields()
+        fields['children'] = SnapshotReadSerializer(many=True)
+        fields['parent'] = SnapshotReadSerializer(read_only=True)
+        return fields
+
 
 # (POST, PUT, PATCH)
 class SnapshotWriteSerializer(serializers.ModelSerializer):
-    #hierarchy = SnapshotHierarchySerializer()
     class Meta:
         model = Snapshot
-        fields = '__all__'
-### End of Session Project
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent')
+## End of Session Project
