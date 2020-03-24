@@ -282,7 +282,7 @@ class SessionProjectWriteSerializer(serializers.ModelSerializer):
         model = SessionProject
         fields = '__all__'
 
-#
+
 # GET
 class SnapshotReadSerializer(serializers.ModelSerializer):
     author  = UserSerializer()
@@ -294,7 +294,6 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
     def get_fields(self):
         fields = super(SnapshotReadSerializer, self).get_fields()
         fields['children'] = SnapshotReadSerializer(many=True)
-        fields['parent'] = SnapshotReadSerializer(read_only=True)
         return fields
 
 
