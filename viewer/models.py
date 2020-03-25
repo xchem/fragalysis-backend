@@ -168,7 +168,7 @@ class Snapshot(models.Model):
     description = models.CharField(max_length=255, default='')
     created = models.DateTimeField(default=timezone.now)
     data = models.TextField()
-    session_project = models.ForeignKey(SessionProject)
+    session_project = models.ForeignKey(SessionProject, null=True)
     parent = models.ForeignKey('self', models.DO_NOTHING, blank=True, null=True, related_name='children')
 
     class Meta:
