@@ -301,5 +301,5 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
 class SnapshotWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Snapshot
-        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent')
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
 ## End of Session Project
