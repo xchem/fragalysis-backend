@@ -291,11 +291,6 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
         model = Snapshot
         fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
 
-    def get_fields(self):
-        fields = super(SnapshotReadSerializer, self).get_fields()
-        fields['children'] = SnapshotReadSerializer(many=True)
-        return fields
-
 
 # (POST, PUT, PATCH)
 class SnapshotWriteSerializer(serializers.ModelSerializer):
