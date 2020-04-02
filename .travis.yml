@@ -67,7 +67,7 @@ before_install:
 # The downstream projects are the Fragalysis Stack and Fragalysis Loader.
 # The user can define the following variables in their Travis Settings.
 # If they're not defined then apply sensible defaults.
-- export BE_NAMESPACE=${BE_NAMESPACE-xchem}
+- export BE_NAMESPACE=${BE_NAMESPACE:-xchem}
 - export STACK_NAMESPACE=${STACK_NAMESPACE:-xchem}
 - export STACK_BRANCH=${STACK_BRANCH:-master}
 - export STACK_VARS=BE_IMAGE_TAG=latest,BE_NAMESPACE=${BE_NAMESPACE}
