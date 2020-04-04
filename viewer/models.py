@@ -61,8 +61,8 @@ class Protein(models.Model):
 class Compound(models.Model):
     """A Django model to hold the information for a given compound -> a unique 2D molecule"""
     # Character attributes
-    inchi = models.CharField(max_length=2000, unique=True, db_index=True)
-    smiles = models.CharField(max_length=2000, db_index=True)
+    inchi = models.CharField(max_length=255, unique=True, db_index=True)
+    smiles = models.CharField(max_length=255, db_index=True)
     # A link to the related project
     project_id = models.ManyToManyField(Project)
     # Float attributes
