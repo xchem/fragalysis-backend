@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "rest_framework_swagger",
     "webpack_loader",
+    "django_cleanup",
 ]
 
 MIDDLEWARE = [

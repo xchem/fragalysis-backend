@@ -8,6 +8,7 @@ from rest_framework import viewsets
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot
+
 from viewer.serializers import (
     MoleculeSerializer,
     ProteinSerializer,
