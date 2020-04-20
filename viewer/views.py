@@ -3,10 +3,12 @@ import json
 from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
+from rest_framework import viewsets
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
-from viewer.models import Molecule, Protein, Compound, Target
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot
+
 from viewer.serializers import (
     MoleculeSerializer,
     ProteinSerializer,
@@ -19,6 +21,10 @@ from viewer.serializers import (
     ProtPDBBoundInfoSerialzer,
     VectorsSerializer,
     GraphSerializer,
+    SessionProjectWriteSerializer,
+    SessionProjectReadSerializer,
+    SnapshotReadSerializer,
+    SnapshotWriteSerializer
 )
 
 
@@ -165,3 +171,27 @@ def get_open_targets(request):
                 target_ids.append(t.id)
 
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
+
+
+
+## Start of Session Project
+class SessionProjectsView(viewsets.ModelViewSet):
+    queryset = SessionProject.objects.filter()
+    def get_serializer_class(self):
+        if self.request.method in ['GET']:
+            # GET
+            return SessionProjectReadSerializer
+        # (POST, PUT, PATCH)
+        return SessionProjectWriteSerializer
+    filter_permissions = "target_id__project_id"
+    filter_fields = '__all__'
+
+class SnapshotsView(viewsets.ModelViewSet):
+    queryset = Snapshot.objects.filter()
+    def get_serializer_class(self):
+        if self.request.method in ['GET']:
+            return SnapshotReadSerializer
+        return SnapshotWriteSerializer
+    filter_permissions = "target_id__project_id"
+    filter_fields = '__all__'
+### End of Session Project

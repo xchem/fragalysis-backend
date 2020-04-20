@@ -4,8 +4,8 @@ from frag.network.query import get_full_graph
 from rest_framework import serializers
 
 from api.utils import draw_mol
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target
-
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject
+from django.contrib.auth.models import User
 
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
@@ -259,3 +259,42 @@ class GraphSerializer(serializers.ModelSerializer):
     class Meta:
         model = Molecule
         fields = ("id", "graph")
+
+
+### Start of Session Project
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name')
+
+
+# GET
+class SessionProjectReadSerializer(serializers.ModelSerializer):
+    target = TargetSerializer(read_only=True)
+    author = UserSerializer(read_only=True)
+    class Meta:
+        model = SessionProject
+        fields = '__all__'
+
+# (POST, PUT, PATCH)
+class SessionProjectWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SessionProject
+        fields = '__all__'
+
+
+# GET
+class SnapshotReadSerializer(serializers.ModelSerializer):
+    author  = UserSerializer()
+    session_project  = SessionProjectWriteSerializer()
+    class Meta:
+        model = Snapshot
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
+
+
+# (POST, PUT, PATCH)
+class SnapshotWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Snapshot
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
+## End of Session Project
