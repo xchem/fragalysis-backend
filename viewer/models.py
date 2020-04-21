@@ -151,6 +151,7 @@ class SessionProject(models.Model):
 
     class Meta:
         permissions = (("view_project", "View project"),)
+        db_table = 'viewer_sessionproject'
 
 class Snapshot(models.Model):
     INIT = "INIT"
@@ -184,6 +185,10 @@ class CompoundSet(models.Model):
     name = models.CharField(max_length=50, unique=True)
     # target that this compound set belongs to
     target = models.ForeignKey(Target)
+    # link to the submitted sdf file
+    submitted_sdf = models.FileField(upload_to="compound_sets/", null=False, max_length=255)
+    # file format specification version
+    spec_version = models.FloatField(null=False)
 
 
 class ComputedCompound(models.Model):
@@ -193,7 +198,11 @@ class ComputedCompound(models.Model):
     compound_set = models.ForeignKey(CompoundSet)
     # a name for this compound
     name = models.CharField(max_length=50)
+    # calculated smiles
     smiles = models.CharField(max_length=255)
+    # original smiles
+    original_smiles = models.CharField(max_length=255)
+    # link to pdb file for prot structure
     pdb_info = models.FileField(upload_to="pdbs/", null=False, max_length=255)
 
 
@@ -206,11 +215,20 @@ class ScoreDescription(models.Model):
     description = models.TextField(null=False)
 
 
-class ScoreValues(models.Model):
+class NumericalScoreValues(models.Model):
     # a link to the score name and description
     score = models.ForeignKey(ScoreDescription)
     # the specific value for this score
     value = models.FloatField(null=False)
+    # the compound this score relates to
+    compound = models.ForeignKey(ComputedCompound)
+
+
+class TextScoreValues(models.Model):
+    # a link to the score name and description
+    score = models.ForeignKey(ScoreDescription)
+    # the specific value for this score
+    value = models.TextField(max_length=500, null=False)
     # the compound this score relates to
     compound = models.ForeignKey(ComputedCompound)
 
