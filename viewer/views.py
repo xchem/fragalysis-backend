@@ -3,7 +3,9 @@ import json
 from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.template import loader
 from rest_framework import viewsets
+from django.core.files.storage import FileSystemStorage
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
@@ -118,6 +120,22 @@ def react(request):
     :return:
     """
     return render(request, "viewer/react_temp.html")
+
+
+def upload_cset(request):
+    """
+    :param request:
+    :return:
+    """
+    if request.method == 'POST' and request.FILES['myfile']:
+        myfile = request.FILES['myfile']
+        fs = FileSystemStorage()
+        filename = fs.save(myfile.name, myfile)
+        uploaded_file_url = fs.url(filename)
+        return render(request, 'viewer/upload-cset.html', {
+            'uploaded_file_url': uploaded_file_url
+        })
+    return render(request, 'viewer/upload-cset.html')
 
 
 def img_from_smiles(request):
