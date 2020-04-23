@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 
-from viewer.models import Protein, Molecule, Compound, Target
+from viewer.models import Protein, Molecule, Compound, Target, Snapshot
 
 
 class ViewScene(models.Model):
@@ -22,6 +22,9 @@ class ViewScene(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     # autofield for when the scene was modified
     modified = models.DateTimeField(auto_now=True)
+
+    # for redirecting to project's snapshot
+    snapshot = models.ForeignKey(Snapshot, null=True)
 
     permissions = (("view_scene", "View scene"),)
     
