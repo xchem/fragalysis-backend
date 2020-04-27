@@ -14,6 +14,7 @@ from viewer.models import Molecule, Protein, Compound, Target, SessionProject, S
 from sdf_check import validate
 from forms import CSetForm
 from compound_sets import process_compound_set
+import pandas as pd
 
 from viewer.serializers import (
     MoleculeSerializer,
@@ -151,14 +152,15 @@ def upload_cset(request):
             path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
             tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
-
-            print(target)
             # isfile = os.path.isfile(tmp_file)
             d, v = validate(tmp_file)
             print(d)
             print(v)
             if not v:
-                return ValidationError('We could not validate this file')
+                table = pd.DataFrame.from_dict(d)
+                html_table = table.to_html()
+                return HttpResponse(html_table)
+                # return ValidationError('We could not validate this file')
             process_compound_set(target=target, filename=tmp_file)
             os.remove(tmp_file)
 
