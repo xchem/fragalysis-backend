@@ -164,7 +164,7 @@ def missing_field_check(mol, field, validate_dict):
     if not field in props_dict.keys():
         validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                     field=field,
-                                    warning_string=f'{field} field not found!',
+                                    warning_string=str(field) + ' field not found!',
                                     validate_dict=validate_dict)
 
     return validate_dict
