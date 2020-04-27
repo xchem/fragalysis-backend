@@ -3,13 +3,17 @@ import json
 from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
-from django.template import loader
+# from django.template import loader
 from rest_framework import viewsets
-from django.core.files.storage import FileSystemStorage
+# from django.core.files.storage import FileSystemStorage
+from rest_framework.exceptions import ValidationError, ParseError
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot
+from sdf_check import validate
+from forms import CSetForm
+from compound_sets import process_compound_set
 
 from viewer.serializers import (
     MoleculeSerializer,
@@ -122,19 +126,30 @@ def react(request):
     return render(request, "viewer/react_temp.html")
 
 
+# needs a target to be specified
 def upload_cset(request):
     """
     :param request:
     :return:
     """
     if request.method == 'POST' and request.FILES['myfile']:
-        myfile = request.FILES['myfile']
-        fs = FileSystemStorage()
-        filename = fs.save(myfile.name, myfile)
-        uploaded_file_url = fs.url(filename)
-        return render(request, 'viewer/upload-cset.html', {
-            'uploaded_file_url': uploaded_file_url
-        })
+        # POST, generate form with data from the request
+        form = CSetForm(request.POST, request.FILES)
+        # check if it's valid:
+        if form.is_valid():
+            myfile = request.FILES['myfile']
+            target = request.POST['target']
+            d, v = validate(myfile)
+            if not v:
+                return ValidationError('We could not validate this file')
+            process_compound_set(target=target, filename=myfile)
+
+    else:
+        # GET, generate blank form
+        form = CSetForm()
+        # return render(request, 'viewer/upload-cset.html', {
+        #     'uploaded_file_url': uploaded_file_url
+        # })
     return render(request, 'viewer/upload-cset.html')
 
 
@@ -213,3 +228,24 @@ class SnapshotsView(viewsets.ModelViewSet):
     filter_permissions = "target_id__project_id"
     filter_fields = '__all__'
 ### End of Session Project
+
+# from rest_framework.parsers import FileUploadParser
+# from rest_framework.response import Response
+# from rest_framework.views import APIView
+# from rest_framework import status
+#
+# from .serializers import FileSerializer
+#
+#
+# class FileUploadView(APIView):
+#     parser_class = (FileUploadParser,)
+#
+#     def post(self, request, *args, **kwargs):
+#
+#       file_serializer = FileSerializer(data=request.data)
+#
+#       if file_serializer.is_valid():
+#           file_serializer.save()
+#           return Response(file_serializer.data, status=status.HTTP_201_CREATED)
+#       else:
+#           return Response(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)

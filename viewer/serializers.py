@@ -4,7 +4,7 @@ from frag.network.query import get_full_graph
 from rest_framework import serializers
 
 from api.utils import draw_mol
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject, ComputedCompound
 from django.contrib.auth.models import User
 
 class TargetSerializer(serializers.ModelSerializer):
@@ -298,3 +298,8 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
         model = Snapshot
         fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
 ## End of Session Project
+
+# class FileSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = ComputedCompound
+#         fields = "__all__"
