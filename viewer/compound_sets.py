@@ -97,7 +97,7 @@ def process_mol(mol, compound_set, filename):
 
 
 def set_descriptions(filename, compound_set):
-    suppl = Chem.SDMolSupplier(filename)
+    suppl = Chem.SDMolSupplier(str(filename))
     description_mol = suppl[0]
     description_dict = description_mol.GetPropsAsDict()
     version = description_mol.GetProp('_Name')
@@ -120,7 +120,7 @@ def set_descriptions(filename, compound_set):
 
 def process_compound_set(target, filename):
     print('processing compound set: ' + filename)
-
+    filename = str(filename)
     # create a new compound set
     set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
     compound_set = CompoundSet()
