@@ -11,6 +11,10 @@ from viewer.models import (
 import ast
 import os.path
 
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
+import django
+django.setup()
+
 
 def dataType(str):
     str = str.strip()
