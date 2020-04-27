@@ -4,7 +4,7 @@
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <input type="file" name="myfile">
-    p><label for="target">Subject:</label>
+    <p><label for="target">Target:</label>
     <input id="target" type="text" name="target" maxlength="100" required></p>
     <button type="submit">Upload</button>
   </form>
