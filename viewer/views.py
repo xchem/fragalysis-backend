@@ -11,7 +11,7 @@ from django.conf import settings
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound
 from sdf_check import validate
 from forms import CSetForm
 from compound_sets import process_compound_set
@@ -158,8 +158,14 @@ def upload_cset(request):
                 html_table = table.to_html()
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
                 # return ValidationError('We could not validate this file')
-            process_compound_set(target=target, filename=tmp_file)
+            cset = process_compound_set(target=target, filename=tmp_file)
             os.remove(tmp_file)
+
+            computed = ComputedCompound.objects.filter(compound_set=cset).values()
+            table = pd.DataFrame(computed)
+            html_table = table.to_html()
+
+            return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
 
     else:
         # GET, generate blank form

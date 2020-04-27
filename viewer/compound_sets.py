@@ -167,3 +167,5 @@ def process_compound_set(target, filename):
         compound_set.delete()
         print('No molecules processed... deleting ' + set_name + ' compound set')
 
+    return compound_set
+
