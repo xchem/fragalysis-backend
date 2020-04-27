@@ -64,7 +64,7 @@ def set_props(cpd, props, compound_set):
     set_obj = ScoreDescription.objects.filter(compound_set=compound_set)
     set_props_list = [s.name for s in set_obj]
     for key in props.keys():
-        if key in set_props_list not in ['ref_mols', 'ref_pdb']:
+        if key in set_props_list not in ['ref_mols', 'ref_pdb', 'original SMILES']:
             if dataType(str(props[key]))=='TEXT':
                 score_value = TextScoreValues()
             else:
@@ -88,6 +88,8 @@ def set_mol(mol, compound_set, filename):
     insp = [i.strip() for i in insp]
     insp_frags = [Molecule.objects.get(prot_id__code=str(compound_set.target.title + '-' + i)) for i in insp]
 
+    orig = mol.GetProp('original SMILES')
+
     prot_field = get_prot(mol, compound_set, filename)
 
     cpd = ComputedCompound()
@@ -96,6 +98,7 @@ def set_mol(mol, compound_set, filename):
     cpd.name = name
     cpd.smiles = smiles
     cpd.pdb_info = prot_field
+    cpd.original_smiles = orig
 
     cpd.save()
 
