@@ -134,12 +134,17 @@ def upload_cset(request):
     """
     if request.method == 'POST' and request.FILES['myfile']:
         # POST, generate form with data from the request
+        print('data provided... processing')
         form = CSetForm(request.POST, request.FILES)
         # check if it's valid:
         if form.is_valid():
             myfile = request.FILES['myfile']
+            print(myfile)
             target = request.POST['target']
+            print(target)
             d, v = validate(myfile)
+            print(d)
+            print(v)
             if not v:
                 return ValidationError('We could not validate this file')
             process_compound_set(target=target, filename=myfile)
