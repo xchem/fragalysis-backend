@@ -153,13 +153,14 @@ def upload_cset(request):
 
 
             print(target)
-            isfile = os.path.isfile(tmp_file)
+            # isfile = os.path.isfile(tmp_file)
             d, v = validate(str(tmp_file))
             print(d)
             print(v)
             if not v:
                 return ValidationError('We could not validate this file')
-            process_compound_set(target=target, filename=myfile)
+            process_compound_set(target=target, filename=tmp_file)
+            os.remove(tmp_file)
 
     else:
         # GET, generate blank form
