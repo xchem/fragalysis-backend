@@ -1,4 +1,4 @@
-import json
+import json, os
 
 from django.db import connections
 from django.http import HttpResponse
@@ -141,8 +141,19 @@ def upload_cset(request):
             myfile = request.FILES['sdf_file']
             print(myfile)
             target = request.POST['target_name']
+
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            from django.conf import settings
+
+            # data = request.FILES['image']  # or self.files['image'] in your form
+            name = myfile.name
+            path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
+            tmp_file = os.path.join(settings.MEDIA_ROOT, path)
+
+
             print(target)
-            d, v = validate(myfile)
+            d, v = validate(tmp_file)
             print(d)
             print(v)
             if not v:
