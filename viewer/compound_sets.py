@@ -1,3 +1,8 @@
+import os
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
+import django
+django.setup()
+
 from rdkit import Chem
 from viewer.models import (
     Target,
@@ -10,10 +15,6 @@ from viewer.models import (
     Molecule)
 import ast
 import os.path
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
-import django
-django.setup()
 
 
 def dataType(str):
