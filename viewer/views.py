@@ -149,12 +149,12 @@ def upload_cset(request):
             # data = request.FILES['image']  # or self.files['image'] in your form
             name = myfile.name
             path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
-            tmp_file = os.path.join(settings.MEDIA_ROOT, path)
+            tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
 
             print(target)
             # isfile = os.path.isfile(tmp_file)
-            d, v = validate(str(tmp_file))
+            d, v = validate(tmp_file)
             print(d)
             print(v)
             if not v:
