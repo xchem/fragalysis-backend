@@ -204,6 +204,8 @@ class ComputedCompound(models.Model):
     original_smiles = models.CharField(max_length=255)
     # link to pdb file for prot structure
     pdb_info = models.FileField(upload_to="pdbs/", null=False, max_length=255)
+    # inpiration frags - one to many?
+    inspiration_frags = models.ManyToManyField(Molecule)
 
 
 class ScoreDescription(models.Model):

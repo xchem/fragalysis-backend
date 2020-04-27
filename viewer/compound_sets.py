@@ -6,7 +6,8 @@ from viewer.models import (
     ScoreDescription,
     NumericalScoreValues,
     TextScoreValues,
-    Protein)
+    Protein,
+    Molecule)
 import ast
 import os.path
 
@@ -33,6 +34,8 @@ def dataType(str):
         else:
             return 'TEXT'
 
+def get_inspiration_frags(cpd, compound_set):
+    pass
 
 def get_prot(mol, compound_set, filename):
     pdb_option = mol.GetProp('ref_pdb')
@@ -56,7 +59,7 @@ def set_props(cpd, props, compound_set):
     set_obj = ScoreDescription.objects.filter(compound_set=compound_set)
     set_props_list = [s.name for s in set_obj]
     for key in props.keys():
-        if key in set_props_list:
+        if key in set_props_list not in ['ref_mols', 'ref_pdb']:
             if dataType(str(props[key]))=='TEXT':
                 score_value = TextScoreValues()
             else:
@@ -75,6 +78,11 @@ def set_mol(mol, compound_set, filename):
     name = mol.GetProp('_Name')
     mol_block = Chem.MolToMolBlock(mol)
 
+    insp = mol.GetProp('ref_mols')
+    insp = insp.split(',')
+    insp = [i.strip() for i in insp]
+    insp_frags = [Molecule.objects.get(prot_id__code=str(compound_set.target + '-' + i)) for i in insp]
+
     prot_field = get_prot(mol, compound_set, filename)
 
     cpd = ComputedCompound()
@@ -83,6 +91,7 @@ def set_mol(mol, compound_set, filename):
     cpd.name = name
     cpd.smiles = smiles
     cpd.pdb_info = prot_field
+    [cpd.inspiration_frags.add(mol) for mol in insp_frags]
     cpd.save()
 
     return cpd
