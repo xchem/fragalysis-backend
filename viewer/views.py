@@ -159,6 +159,7 @@ def upload_cset(request):
             if not v:
                 table = pd.DataFrame.from_dict(d)
                 html_table = table.to_html()
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
                 return HttpResponse(html_table)
                 # return ValidationError('We could not validate this file')
             process_compound_set(target=target, filename=tmp_file)
@@ -170,7 +171,7 @@ def upload_cset(request):
         # return render(request, 'viewer/upload-cset.html', {
         #     'uploaded_file_url': uploaded_file_url
         # })
-    return render(request, 'viewer/upload-cset.html', {'form': form})
+    return render(request, 'viewer/upload-cset.html', {'form': form, 'table':''})
 
 
 def img_from_smiles(request):
