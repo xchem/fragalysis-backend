@@ -138,7 +138,7 @@ def upload_cset(request):
         form = CSetForm(request.POST, request.FILES)
         # check if it's valid:
         if form.is_valid():
-            myfile = request.FILES['myfile']['sdf_file']
+            myfile = request.FILES['sdf_file']
             print(myfile)
             target = request.POST['target']
             print(target)
