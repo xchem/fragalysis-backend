@@ -132,7 +132,7 @@ def upload_cset(request):
     :param request:
     :return:
     """
-    if request.method == 'POST' and request.FILES['myfile']:
+    if request.method == 'POST':
         # POST, generate form with data from the request
         print('data provided... processing')
         form = CSetForm(request.POST, request.FILES)
