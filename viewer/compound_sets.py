@@ -81,7 +81,7 @@ def set_mol(mol, compound_set, filename):
     insp = mol.GetProp('ref_mols')
     insp = insp.split(',')
     insp = [i.strip() for i in insp]
-    insp_frags = [Molecule.objects.get(prot_id__code=str(compound_set.target + '-' + i)) for i in insp]
+    insp_frags = [Molecule.objects.get(prot_id__code=str(compound_set.target.title + '-' + i)) for i in insp]
 
     prot_field = get_prot(mol, compound_set, filename)
 
