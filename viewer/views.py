@@ -140,7 +140,7 @@ def upload_cset(request):
         if form.is_valid():
             myfile = request.FILES['sdf_file']
             print(myfile)
-            target = request.POST['target']
+            target = request.POST['target_name']
             print(target)
             d, v = validate(myfile)
             print(d)
