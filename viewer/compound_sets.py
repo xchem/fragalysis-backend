@@ -91,7 +91,11 @@ def set_mol(mol, compound_set, filename):
     cpd.name = name
     cpd.smiles = smiles
     cpd.pdb_info = prot_field
+
+    cpd.save()
+
     [cpd.inspiration_frags.add(mol) for mol in insp_frags]
+
     cpd.save()
 
     return cpd
