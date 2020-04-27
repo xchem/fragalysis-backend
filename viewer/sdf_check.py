@@ -207,7 +207,7 @@ def validate(sdf_file):
         for diff in diff_list:
             add_warning(molecule_name=mol.GetProp('_Name'),
                         field='property (missing)',
-                        warning_string=f'{diff} property is missing from this molecule',
+                        warning_string=str(diff) + ' property is missing from this molecule',
                         validate_dict=validate_dict)
 
     # Check version in blank mol
