@@ -1,5 +1,4 @@
 import json
-
 from django.http import HttpResponse
 from frag.conf.functions import generate_confs_for_vector
 from rest_framework import viewsets
@@ -23,9 +22,9 @@ from scoring.serializers import (
     MolGroupSerializer,
 )
 
-
 class ViewSceneView(viewsets.ModelViewSet):
     queryset = ViewScene.objects.filter().order_by('-modified')
+    # filter_backends = (filters.DjangoFilterBackend,)
     serializer_class = ViewSceneSerializer
     filter_fields = ("user_id", "uuid")
 

@@ -8,7 +8,7 @@ from rest_framework import viewsets
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot
-
+from viewer import filters
 from viewer.serializers import (
     MoleculeSerializer,
     ProteinSerializer,
@@ -192,6 +192,7 @@ class SnapshotsView(viewsets.ModelViewSet):
         if self.request.method in ['GET']:
             return SnapshotReadSerializer
         return SnapshotWriteSerializer
-    filter_permissions = "target_id__project_id"
-    filter_fields = '__all__'
+    filter_class = filters.SnapshotFilter
+    # filter_permissions = "target_id__project_id"
+    # filter_fields = '__all__'
 ### End of Session Project
