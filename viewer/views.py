@@ -3,10 +3,11 @@ import json, os
 from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
-# from django.template import loader
 from rest_framework import viewsets
-# from django.core.files.storage import FileSystemStorage
-from rest_framework.exceptions import ValidationError, ParseError
+
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.conf import settings
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
@@ -143,11 +144,6 @@ def upload_cset(request):
             print(myfile)
             target = request.POST['target_name']
 
-            from django.core.files.storage import default_storage
-            from django.core.files.base import ContentFile
-            from django.conf import settings
-
-            # data = request.FILES['image']  # or self.files['image'] in your form
             name = myfile.name
             path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
             tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
@@ -157,10 +153,10 @@ def upload_cset(request):
             print(d)
             print(v)
             if not v:
+                pd.set_option('display.max_colwidth', -1)
                 table = pd.DataFrame.from_dict(d)
                 html_table = table.to_html()
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
-                return HttpResponse(html_table)
                 # return ValidationError('We could not validate this file')
             process_compound_set(target=target, filename=tmp_file)
             os.remove(tmp_file)
@@ -171,7 +167,7 @@ def upload_cset(request):
         # return render(request, 'viewer/upload-cset.html', {
         #     'uploaded_file_url': uploaded_file_url
         # })
-    return render(request, 'viewer/upload-cset.html', {'form': form, 'table':''})
+    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': ''})
 
 
 def img_from_smiles(request):
