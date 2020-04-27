@@ -154,7 +154,7 @@ def upload_cset(request):
 
             print(target)
             isfile = os.path.isfile(tmp_file)
-            d, v = validate(tmp_file)
+            d, v = validate(str(tmp_file))
             print(d)
             print(v)
             if not v:
