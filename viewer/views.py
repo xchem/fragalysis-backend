@@ -12,6 +12,7 @@ from django.contrib.sites.shortcuts import get_current_site
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
+
 from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet
 from sdf_check import validate
 from forms import CSetForm
@@ -237,6 +238,17 @@ def get_open_targets(request):
 
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
 
+  
+ def cset_download(request, name):
+    compound_set = CompoundSet.objects.get(name=name)
+    filepath = compound_set.submitted_sdf
+    with open(filepath.path, 'r') as fp:
+        data = fp.read()
+    filename = 'compund-set_' + compound_set.name + '.sdf'
+    response = HttpResponse(content_type='text/plain')
+    response['Content-Disposition'] = 'attachment; filename=%s' % filename # force browser to download file
+    response.write(data)
+    return response
 
 
 ## Start of Session Project
@@ -257,46 +269,7 @@ class SnapshotsView(viewsets.ModelViewSet):
         if self.request.method in ['GET']:
             return SnapshotReadSerializer
         return SnapshotWriteSerializer
-    filter_permissions = "target_id__project_id"
-    filter_fields = '__all__'
+    filter_class = filters.SnapshotFilter
+    # filter_permissions = "target_id__project_id"
+    # filter_fields = '__all__'
 ### End of Session Project
-
-# from rest_framework.parsers import FileUploadParser
-# from rest_framework.response import Response
-# from rest_framework.views import APIView
-# from rest_framework import status
-#
-# from .serializers import FileSerializer
-#
-#
-# class FileUploadView(APIView):
-#     parser_class = (FileUploadParser,)
-#
-#     def post(self, request, *args, **kwargs):
-#
-#       file_serializer = FileSerializer(data=request.data)
-#
-#       if file_serializer.is_valid():
-#           file_serializer.save()
-#           return Response(file_serializer.data, status=status.HTTP_201_CREATED)
-#       else:
-#           return Response(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-def cset_download(request, name):
-    compound_set = CompoundSet.objects.get(name=name)
-    filepath = compound_set.submitted_sdf
-    with open(filepath.path, 'r') as fp:
-        data = fp.read()
-    filename = 'compund-set_' + compound_set.name + '.sdf'
-    response = HttpResponse(content_type='text/plain')
-    response['Content-Disposition'] = 'attachment; filename=%s' % filename # force browser to download file
-    response.write(data)
-    return response
-
-
-
-# filename = object_name.file.name.split('/')[-1]
-# response = HttpResponse(object_name.file, content_type='text/plain')
-# response['Content-Disposition'] = 'attachment; filename=%s' % filename
-#
-# return response
