@@ -189,14 +189,8 @@ class CompoundSet(models.Model):
     submitted_sdf = models.FileField(upload_to="compound_sets/", null=False, max_length=255)
     # file format specification version
     spec_version = models.FloatField(null=False)
+    method_url = models.TextField(max_length=1000, unique=True)
 
-    def file_link(self):
-        if self.submitted_sdf:
-            return "<a href='%s'>download</a>" % (self.submitted_sdf.url,)
-        else:
-            return "No attachment"
-
-    file_link.allow_tags = True
 
 
 class ComputedCompound(models.Model):

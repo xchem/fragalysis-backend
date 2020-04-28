@@ -124,6 +124,8 @@ def set_descriptions(filename, compound_set):
     description_dict = description_mol.GetPropsAsDict()
     version = description_mol.GetProp('_Name')
     compound_set.spec_version = version.split('_')[-1]
+    method = description_mol.GetProp('ref_url')
+    compound_set.method_url = method
     compound_set.save()
 
     for key in description_dict.keys():
