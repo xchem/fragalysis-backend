@@ -89,8 +89,21 @@ def set_mol(mol, compound_set, filename):
     insp = mol.GetProp('ref_mols')
     insp = insp.split(',')
     insp = [i.strip() for i in insp]
-    insp_frags = [Molecule.objects.get(prot_id__code=str(compound_set.target.title + '-' + i),
-                                       prot_id__target_id=compound_set.target) for i in insp]
+    insp_frags = []
+    for i in insp:
+        mols = Molecule.objects.get(prot_id__code=str(compound_set.target.title + '-' + i),
+                                    prot_id__target_id=compound_set.target)
+        if len(mols)>1:
+            ids = [m.cmpd_id.id for m in mols]
+            ind = ids.index(max(ids))
+            mol = mols[ind]
+        if len(mols)==1:
+            mol = mols[0]
+        if len(mols)==0:
+            raise Exception('No matching molecules found for inspiration frag ' + i)
+
+        insp_frags.append(mol)
+
 
     orig = mol.GetProp('original SMILES')
 
