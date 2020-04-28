@@ -247,7 +247,7 @@ def cset_download(request, name):
     filepath = compound_set.submitted_sdf
     with open(filepath.path, 'r') as fp:
         data = fp.read()
-    filename = 'compund-set_' + compound_set.name + '.sdf'
+    filename = 'compund-set_' + name + '.sdf'
     response = HttpResponse(content_type='text/plain')
     response['Content-Disposition'] = 'attachment; filename=%s' % filename # force browser to download file
     response.write(data)

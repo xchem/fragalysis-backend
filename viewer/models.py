@@ -190,7 +190,7 @@ class CompoundSetSubmitter(models.Model):
 
     def save(self):
         if not self.unique_name:
-            unique_name = self.name.rstrip() + '-' + self.method.rstrip()
+            unique_name = "".join(self.name.split()) + '-' + "".join(self.method.split())
             self.unique_name = unique_name
         super(CompoundSetSubmitter, self).save()
 
