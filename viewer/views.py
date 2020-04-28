@@ -134,6 +134,7 @@ def upload_cset(request):
     :param request:
     :return:
     """
+    choice = 'none yet'
     if request.method == 'POST':
         # POST, generate form with data from the request
         print('data provided... processing')
