@@ -8,6 +8,7 @@ from rest_framework import viewsets
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
+from django.contrib.sites.shortcuts import get_current_site
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
@@ -164,7 +165,8 @@ def upload_cset(request):
             if str(choice)=='1':
                 cset = process_compound_set(target=target, filename=tmp_file)
                 # os.remove(tmp_file)
-                url = cset.file_link()
+                # url = cset.file_link()
+                url = request.build_absolute_url()
 
                 computed = ComputedCompound.objects.filter(compound_set=cset).values()
                 table = pd.DataFrame(computed)
