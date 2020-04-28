@@ -21,7 +21,7 @@ def check_compound_set(description_mol, validate_dict):
 
     submitter_dict = {'submitter__name': description_mol.GetProp('submitter_name'),
                       'submitter__email': description_mol.GetProp('submitter_email'),
-                      'sumbmitter__institution': description_mol.GetProp('submitter_institution'),
+                      'submitter__institution': description_mol.GetProp('submitter_institution'),
                       'submitter__generation_date': datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
                       'submitter__method': description_mol.GetProp('method')}
 
