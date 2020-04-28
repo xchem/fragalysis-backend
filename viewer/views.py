@@ -143,7 +143,7 @@ def upload_cset(request):
             myfile = request.FILES['sdf_file']
             print(myfile)
             target = request.POST['target_name']
-            choice = request.POST['submit_choice']
+            # choice = request.POST['submit_choice']
 
             name = myfile.name
             path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
@@ -160,7 +160,7 @@ def upload_cset(request):
                 html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
                 # return ValidationError('We could not validate this file')
-            if choice==2:
+            if form.fields['submit_choice'].choices[2]:
                 cset = process_compound_set(target=target, filename=tmp_file)
                 os.remove(tmp_file)
 
@@ -170,7 +170,7 @@ def upload_cset(request):
                 html_table += '''<p> Your data was validated. The table above shows the compounds in the set</p>'''
 
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
-            elif choice==1 and v:
+            elif form.fields['submit_choice'].choices[1] and v:
                 html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
     else:
