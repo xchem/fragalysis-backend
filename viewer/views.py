@@ -166,7 +166,7 @@ def upload_cset(request):
                 cset = process_compound_set(target=target, filename=tmp_file)
                 computed = ComputedCompound.objects.filter(compound_set=cset).values()
 
-                download_url = '<a href="{% url compound_set %}/%s">Go back home</a>' %cset.name
+                download_url = '<a href="{% url compound_set %}' + '/%s">Go back home</a>' %cset.name
 
                 table = pd.DataFrame(computed)
                 html_table = table.to_html()
