@@ -89,7 +89,8 @@ def set_mol(mol, compound_set, filename):
     insp = mol.GetProp('ref_mols')
     insp = insp.split(',')
     insp = [i.strip() for i in insp]
-    insp_frags = [Molecule.objects.get(prot_id__code=str(compound_set.target.title + '-' + i)) for i in insp]
+    insp_frags = [Molecule.objects.get(prot_id__code=str(compound_set.target.title + '-' + i),
+                                       prot_id__target_id=compound_set.target) for i in insp]
 
     orig = mol.GetProp('original SMILES')
 
