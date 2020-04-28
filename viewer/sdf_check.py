@@ -53,7 +53,7 @@ def check_pdb(mol, validate_dict):
     # Check if pdb filepath given and exists
     test_fp = mol.GetProp('ref_pdb')
 
-    if test_fp.endswith('_0') or test_fp.endswith('.pdb') is False:
+    if not test_fp.endswith('_0') or not test_fp.endswith('.pdb'):
         validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                     field='ref_pdb',
                                     warning_string="illegal pdb assingment for " + str(test_fp),
