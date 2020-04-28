@@ -34,10 +34,10 @@ def check_sdf(sdf_file, validate_dict):
     :return: Updates validate dictionary with pass/fail message
     """
     # Check filename
-    if sdf_file.startswith("compound-set_") == False or sdf_file.endswith(".sdf") == False:
+    if sdf_file.startswith("compound-set_") and sdf_file.endswith(".sdf") is False:
         validate_dict = add_warning(molecule_name='File error',
                                     field='_File_name',
-                                    warning_string="illegal sdf filename: %s found" % (sdf_file,),
+                                    warning_string="illegal filename: " + str(sdf_file) + " found",
                                     validate_dict=validate_dict)
 
     return validate_dict
