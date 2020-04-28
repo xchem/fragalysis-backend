@@ -189,7 +189,7 @@ class CompoundSet(models.Model):
     submitted_sdf = models.FileField(upload_to="compound_sets/", null=False, max_length=255)
     # file format specification version
     spec_version = models.FloatField(null=False)
-    method_url = models.TextField(max_length=1000, null=True)
+    method_url = models.TextField(max_length=1000)
 
 
 
