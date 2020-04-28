@@ -126,7 +126,7 @@ def get_submission_info(description_mol):
     submitter_dict = {'name': description_mol.GetProp('submitter_name'),
                       'email': description_mol.GetProp('submitter_email'),
                       'institution': description_mol.GetProp('submitter_institution'),
-                      'generation_date': datetime.date(y_m_d[0], y_m_d[1], y_m_d[2]),
+                      'generation_date': datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
                       'method': description_mol.GetProp('method')}
 
     submitter = CompoundSetSubmitter(**submitter_dict)
