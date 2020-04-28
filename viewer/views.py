@@ -11,7 +11,7 @@ from django.conf import settings
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet
 from sdf_check import validate
 from forms import CSetForm
 from compound_sets import process_compound_set
@@ -281,3 +281,22 @@ class SnapshotsView(viewsets.ModelViewSet):
 #           return Response(file_serializer.data, status=status.HTTP_201_CREATED)
 #       else:
 #           return Response(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+def cset_download(request):
+    compound_set = CompoundSet.objects.get(name=request['name'])
+    filepath = compound_set.submitted_sdf
+    with open(filepath, 'r') as fp:
+        data = fp.read()
+    filename = 'compund-set_' + compound_set.name + '.sdf'
+    response = HttpResponse(content_type='text/plain')
+    response['Content-Disposition'] = 'attachment; filename=%s' % filename # force browser to download file
+    response.write(data)
+    return response
+
+
+
+# filename = object_name.file.name.split('/')[-1]
+# response = HttpResponse(object_name.file, content_type='text/plain')
+# response['Content-Disposition'] = 'attachment; filename=%s' % filename
+#
+# return response
