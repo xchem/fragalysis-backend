@@ -10,10 +10,30 @@ from rdkit import Chem
 import validators
 import numpy as np
 import os
-from viewer.models import Protein
+from viewer.models import Protein, CompoundSet
+import datetime
 
 # Set .sdf format version here
-version = 'ver_1.1'
+version = 'ver_1.2'
+
+def check_compound_set(description_mol, validate_dict):
+    y_m_d = description_mol.GetProp('generation_date').split('-')
+
+    submitter_dict = {'submitter__name': description_mol.GetProp('submitter_name'),
+                      'submitter__email': description_mol.GetProp('submitter_email'),
+                      'submitter__institution': description_mol.GetProp('submitter_institution'),
+                      'submitter__generation_date': datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
+                      'submitter__method': description_mol.GetProp('method')}
+
+    query = CompoundSet.objects.filter(**submitter_dict)
+
+    if len(query)!=0:
+        validate_dict = add_warning(molecule_name='File error',
+                                    field='compound set',
+                                    warning_string="a compound set with the auto_generated name " + query[0].submitter.unique_name + " already exists (change method name in blank mol method field)",
+                                    validate_dict=validate_dict)
+
+    return validate_dict
 
 
 def add_warning(molecule_name, field, warning_string, validate_dict):
@@ -121,7 +141,7 @@ def check_ver_name(blank_mol, version, validate_dict):
 
 def check_blank_mol_props(mol, validate_dict):
     # check for compulsory fields in blank mols
-    fields = ['ref_url']
+    fields = ['ref_url', 'submitter_name', 'submitter_email', 'submitter_institution', 'generation_date', 'method']
     for field in fields:
         validate_dict = missing_field_check(mol, field, validate_dict)
 
@@ -242,6 +262,7 @@ def validate(sdf_file, target=None):
     suppl = Chem.SDMolSupplier(sdf_file)
     print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
+    validate_dict = check_compound_set(blank_mol, validate_dict)
     other_mols = []
     for i in range(1, len(suppl)):
         other_mols.append(suppl[i])

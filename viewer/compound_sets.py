@@ -1,4 +1,5 @@
 import os
+import datetime
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
 django.setup()
@@ -13,7 +14,8 @@ from viewer.models import (
     NumericalScoreValues,
     TextScoreValues,
     Protein,
-    Molecule)
+    Molecule,
+    CompoundSetSubmitter)
 import ast
 import os.path
 
@@ -87,7 +89,21 @@ def set_mol(mol, compound_set, filename):
     insp = mol.GetProp('ref_mols')
     insp = insp.split(',')
     insp = [i.strip() for i in insp]
-    insp_frags = [Molecule.objects.get(prot_id__code=str(compound_set.target.title + '-' + i)) for i in insp]
+    insp_frags = []
+    for i in insp:
+        mols = Molecule.objects.filter(prot_id__code=str(compound_set.target.title + '-' + i),
+                                       prot_id__target_id=compound_set.target)
+        if len(mols)>1:
+            ids = [m.cmpd_id.id for m in mols]
+            ind = ids.index(max(ids))
+            ref = mols[ind]
+        if len(mols)==1:
+            ref = mols[0]
+        if len(mols)==0:
+            raise Exception('No matching molecules found for inspiration frag ' + i)
+
+        insp_frags.append(ref)
+
 
     orig = mol.GetProp('original SMILES')
 
@@ -118,14 +134,32 @@ def process_mol(mol, compound_set, filename):
     return compound_set
 
 
+def get_submission_info(description_mol):
+    y_m_d = description_mol.GetProp('generation_date').split('-')
+
+    submitter_dict = {'name': description_mol.GetProp('submitter_name'),
+                      'email': description_mol.GetProp('submitter_email'),
+                      'institution': description_mol.GetProp('submitter_institution'),
+                      'generation_date': datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
+                      'method': description_mol.GetProp('method')}
+
+    submitter = CompoundSetSubmitter(**submitter_dict)
+    submitter.save()
+    return submitter
+
+
 def set_descriptions(filename, compound_set):
     suppl = Chem.SDMolSupplier(str(filename))
     description_mol = suppl[0]
+
+    submitter = get_submission_info(description_mol)
+
     description_dict = description_mol.GetPropsAsDict()
     version = description_mol.GetProp('_Name')
     compound_set.spec_version = version.split('_')[-1]
     method = description_mol.GetProp('ref_url')
     compound_set.method_url = method
+    compound_set.submitter = submitter
     compound_set.save()
 
     for key in description_dict.keys():

@@ -180,6 +180,24 @@ class Snapshot(models.Model):
 
 
 # Start of compound sets
+class CompoundSetSubmitter(models.Model):
+    name = models.CharField(max_length=50, null=False)
+    email = models.CharField(max_length=100, null=False)
+    institution = models.CharField(max_length=50, null=False)
+    generation_date = models.DateField()
+    method = models.CharField(max_length=50, null=False)
+    unique_name = models.CharField(max_length=101, null=False)
+
+    def save(self):
+        if not self.unique_name:
+            unique_name = "".join(self.name.split()) + '-' + "".join(self.method.split())
+            self.unique_name = unique_name
+        super(CompoundSetSubmitter, self).save()
+
+    class Meta:
+        unique_together = (("name", "method"),)
+
+
 class CompoundSet(models.Model):
     # a (unique) name for this compound set
     name = models.CharField(max_length=50, unique=True)
@@ -190,7 +208,7 @@ class CompoundSet(models.Model):
     # file format specification version
     spec_version = models.FloatField(null=False)
     method_url = models.TextField(max_length=1000, null=True)
-
+    submitter = models.ForeignKey(CompoundSetSubmitter, null=True)
 
 
 class ComputedCompound(models.Model):
