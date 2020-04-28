@@ -2,6 +2,7 @@ import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
 django.setup()
+from django.conf import settings
 
 from rdkit import Chem
 from viewer.models import (
@@ -148,8 +149,6 @@ def process_compound_set(target, filename):
     compound_set.name = set_name
     matching_target = Target.objects.get(title=target)
     compound_set.target = matching_target
-    compound_set.submitted_sdf = filename
-
 
     # set descriptions and get all other mols back
     mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
@@ -162,7 +161,10 @@ def process_compound_set(target, filename):
     check = ComputedCompound.objects.filter(compound_set=compound_set)
     print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
 
-    # save the compound set
+    # move and save the compound set
+    new_filename = settings.MEDIA_ROOT + '/compound_sets/' + filename.split('/')[-1]
+    os.rename(filename, new_filename)
+    compound_set.submitted_sdf = new_filename
     compound_set.save()
 
     # if no molecules were processed, delete the compound set
