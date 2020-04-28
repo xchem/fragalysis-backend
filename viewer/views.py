@@ -282,8 +282,8 @@ class SnapshotsView(viewsets.ModelViewSet):
 #       else:
 #           return Response(file_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-def cset_download(request):
-    compound_set = CompoundSet.objects.get(name=request['name'])
+def cset_download(request, name):
+    compound_set = CompoundSet.objects.get(name=name)
     filepath = compound_set.submitted_sdf
     with open(filepath, 'r') as fp:
         data = fp.read()
