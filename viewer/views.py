@@ -152,11 +152,11 @@ def upload_cset(request):
             d, v = validate(tmp_file, target=target)
             print(d)
             print(v)
+            pd.set_option('display.max_colwidth', -1)
             if not v:
-                pd.set_option('display.max_colwidth', -1)
                 table = pd.DataFrame.from_dict(d)
                 html_table = table.to_html()
-                html_table += '''<p> Your data was not validated. The table above shows errors</p>'''
+                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
                 # return ValidationError('We could not validate this file')
             cset = process_compound_set(target=target, filename=tmp_file)
