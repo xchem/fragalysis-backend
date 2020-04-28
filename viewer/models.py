@@ -208,7 +208,7 @@ class CompoundSet(models.Model):
     # file format specification version
     spec_version = models.FloatField(null=False)
     method_url = models.TextField(max_length=1000, null=True)
-    submitter = models.ForeignKey(CompoundSetSubmitter)
+    submitter = models.ForeignKey(CompoundSetSubmitter, null=True)
 
 
 class ComputedCompound(models.Model):
