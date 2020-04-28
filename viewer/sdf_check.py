@@ -1,6 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Apr 22 13:19:51 2020
+@author: Warren
+Script to check sdf file format for Fragalysis upload
+"""
+
 from rdkit import Chem
+import validators
 import numpy as np
 import os
+
+# Set .sdf format version here
+version = 'ver_1.1'
 
 
 def add_warning(molecule_name, field, warning_string, validate_dict):
@@ -24,7 +36,7 @@ def check_sdf(sdf_file, validate_dict):
     if sdf_file.startswith("compound-set_") and sdf_file.endswith(".sdf") is False:
         validate_dict = add_warning(molecule_name='File error',
                                     field='_File_name',
-                                    warning_string="illegal filename: " + str(sdf_file) + " found",
+                                    warning_string=f"illegal filename: {sdf_file} found",
                                     validate_dict=validate_dict)
 
     return validate_dict
@@ -41,17 +53,17 @@ def check_pdb(mol, validate_dict):
     # Check if pdb filepath given and exists
     test_fp = mol.GetProp('ref_pdb')
 
-    # if test_fp.endswith('_0') is False or test_fp.endswith('.pdb') is False:
-    #     validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-    #                                 field='ref_pdb',
-    #                                 warning_string="illegal pdb assingment for " + str(test_fp),
-    #                                 validate_dict=validate_dict)
+    if test_fp.endswith('_0') or test_fp.endswith('.pdb') is False:
+        validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+                                    field='ref_pdb',
+                                    warning_string=f"illegal pdb assingment for {test_fp}",
+                                    validate_dict=validate_dict)
 
     if test_fp.endswith(".pdb"):
         if os.path.exists(test_fp) is False:
             validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field='ref_pdb',
-                                        warning_string="path " + str(test_fp) + " does not exist",
+                                        warning_string=f"path {test_fp} does not exist",
                                         validate_dict=validate_dict)
 
     return validate_dict
@@ -71,13 +83,13 @@ def check_SMILES(mol, validate_dict):
     if m is None:
         validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                     field='original SMILES',
-                                    warning_string="invalid SMILES " + str(smi_check),
+                                    warning_string=f"invalid SMILES {smi_check}",
                                     validate_dict=validate_dict)
 
     return validate_dict
 
 
-def check_ver_name(blank_mol, validate_dict):
+def check_ver_name(blank_mol, version, validate_dict):
     """
     Checks if blank mol:
     The name (title line) of this molecule should be the
@@ -88,10 +100,10 @@ def check_ver_name(blank_mol, validate_dict):
     """
 
     ver_name = blank_mol.GetProp('_Name')
-    if ver_name != 'ver_1.0':
+    if ver_name != version:
         validate_dict = add_warning(molecule_name=blank_mol.GetProp('_Name'),
                                     field='_Name',
-                                    warning_string='illegal version: ' +  str(ver_name) + ' found',
+                                    warning_string=f'illegal version: {ver_name} found',
                                     validate_dict=validate_dict)
 
     return validate_dict
@@ -115,7 +127,7 @@ def check_blank_prop(blank_mol, validate_dict):
         if value == '' and key not in prop_ignore_list:
             validate_dict = add_warning(molecule_name=blank_mol.GetProp('_Name'),
                                         field=key,
-                                        warning_string='description for ' + str(key) + ' missing',
+                                        warning_string=f'description for {key} missing',
                                         validate_dict=validate_dict)
 
     return validate_dict
@@ -135,16 +147,36 @@ def check_field_populated(mol, validate_dict):
     """
 
     # Compuslory fields
-    compulsory_fields = ['ref_pdb', 'ref_mols', 'original SMILES']
+    compulsory_fields = ['ref_pdb', 'ref_mols', 'ref_url', 'original SMILES']
 
     property_dict = mol.GetPropsAsDict()
     for key, value in zip(property_dict.keys(), property_dict.values()):
         if value == '' and key in compulsory_fields:
             validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field=key,
-                                        warning_string='value for ' + str(key) + ' missing',
+                                        warning_string=f'value for {key} missing',
                                         validate_dict=validate_dict)
+        if key == 'ref_url' and check_url(value) == False:
+            validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+                                        field='ref_url',
+                                        warning_string=f'illegal URL {value} provided',
+                                        validate_dict=validate_dict)
+
     return validate_dict
+
+
+def check_url(value):
+    """
+    Checks if url provided exists. No internet connection required.
+    Checks URL using Vlaidotors package
+
+    :value: value associated with 'ref_url' key
+    :return: False if URL can not be validated
+    """
+
+    valid = validators.url(value)
+    if valid != True:
+        return False
 
 
 def check_name_characters(name, validate_dict):
@@ -153,7 +185,7 @@ def check_name_characters(name, validate_dict):
         if not char.isalnum() and char not in legal_non_alnum:
             validate_dict = add_warning(molecule_name=name,
                                         field='_Name',
-                                        warning_string='illegal character' +  str(char) + ' found',
+                                        warning_string=f'illegal character {char} found',
                                         validate_dict=validate_dict)
 
     return validate_dict
@@ -164,7 +196,7 @@ def missing_field_check(mol, field, validate_dict):
     if not field in props_dict.keys():
         validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                     field=field,
-                                    warning_string=str(field) + ' field not found!',
+                                    warning_string=f'{field} field not found!',
                                     validate_dict=validate_dict)
 
     return validate_dict
@@ -172,7 +204,7 @@ def missing_field_check(mol, field, validate_dict):
 
 def check_mol_props(mol, validate_dict):
     # check for missing fields
-    fields = ['ref_pdb', 'ref_mols', 'original SMILES']
+    fields = ['ref_pdb', 'ref_mols', 'ref_url', 'original SMILES']
     for field in fields:
         validate_dict = missing_field_check(mol, field, validate_dict)
 
@@ -189,7 +221,7 @@ def validate(sdf_file):
     check_sdf(sdf_file, validate_dict)
 
     suppl = Chem.SDMolSupplier(sdf_file)
-    print(str(len(suppl)) + ' mols detected (including blank mol)')
+    print(f'{len(suppl)} mols detected (including blank mol)')
     blank_mol = suppl[0]
     other_mols = []
     for i in range(1, len(suppl)):
@@ -207,11 +239,11 @@ def validate(sdf_file):
         for diff in diff_list:
             add_warning(molecule_name=mol.GetProp('_Name'),
                         field='property (missing)',
-                        warning_string=str(diff) + ' property is missing from this molecule',
+                        warning_string=f'{diff} property is missing from this molecule',
                         validate_dict=validate_dict)
 
     # Check version in blank mol
-    validate_dict = check_ver_name(blank_mol, validate_dict)
+    validate_dict = check_ver_name(blank_mol, version, validate_dict)
 
     # Check properties have been described
     validate_dict = check_blank_prop(blank_mol, validate_dict)
