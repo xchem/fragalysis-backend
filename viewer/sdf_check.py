@@ -10,6 +10,7 @@ from rdkit import Chem
 import validators
 import numpy as np
 import os
+from viewer.models import Protein
 
 # Set .sdf format version here
 version = 'ver_1.1'
