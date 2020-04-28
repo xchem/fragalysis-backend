@@ -164,27 +164,25 @@ def upload_cset(request):
                 # return ValidationError('We could not validate this file')
             if str(choice)=='1':
                 cset = process_compound_set(target=target, filename=tmp_file)
-                from django.urls import resolve
-                current_url = resolve(request.path_info).url_name
-
-
                 computed = ComputedCompound.objects.filter(compound_set=cset).values()
+
+                download_url = '<a href="{% url compound_set %}/%s">Go back home</a>' %cset.name
+
                 table = pd.DataFrame(computed)
                 html_table = table.to_html()
                 html_table += '''<p> Your data was validated. The table above shows the compounds in the set</p>'''
-                html_table += current_url
 
-                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url': download_url})
             if str(choice)=='0' and v:
                 html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
-                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
     else:
         # GET, generate blank form
         form = CSetForm()
         # return render(request, 'viewer/upload-cset.html', {
         #     'uploaded_file_url': uploaded_file_url
         # })
-    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': choice})
+    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': '', 'download_url':''})
 
 
 def img_from_smiles(request):
