@@ -179,7 +179,7 @@ def upload_cset(request):
         # return render(request, 'viewer/upload-cset.html', {
         #     'uploaded_file_url': uploaded_file_url
         # })
-    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': ''})
+    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': choice})
 
 
 def img_from_smiles(request):
