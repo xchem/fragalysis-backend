@@ -91,8 +91,8 @@ def set_mol(mol, compound_set, filename):
     insp = [i.strip() for i in insp]
     insp_frags = []
     for i in insp:
-        mols = Molecule.objects.get(prot_id__code=str(compound_set.target.title + '-' + i),
-                                    prot_id__target_id=compound_set.target)
+        mols = Molecule.objects.filter(prot_id__code=str(compound_set.target.title + '-' + i),
+                                       prot_id__target_id=compound_set.target)
         if len(mols)>1:
             ids = [m.cmpd_id.id for m in mols]
             ind = ids.index(max(ids))
