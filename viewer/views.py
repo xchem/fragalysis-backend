@@ -170,7 +170,7 @@ def upload_cset(request):
                 html_table += '''<p> Your data was validated. The table above shows the compounds in the set</p>'''
 
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
-            elif choice=='validate' and v:
+            if choice=='validate' and v:
                 html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
     else:
