@@ -186,11 +186,11 @@ class CompoundSetSubmitter(models.Model):
     institution = models.CharField(max_length=50, null=False)
     generation_date = models.DateField()
     method = models.CharField(max_length=50, null=False)
-    unique_name = models.CharField(max_length=101, null=True)
+    unique_name = models.CharField(max_length=101, null=False, primary_key=True)
 
     def save(self):
         if not self.unique_name:
-            unique_name = self.name.strip() + '-' + self.method.strip()
+            unique_name = self.name.rstrip() + '-' + self.method.rstrip()
             self.unique_name = unique_name
         super(CompoundSetSubmitter, self).save()
 
