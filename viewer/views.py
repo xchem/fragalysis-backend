@@ -143,6 +143,7 @@ def upload_cset(request):
             myfile = request.FILES['sdf_file']
             print(myfile)
             target = request.POST['target_name']
+            choice = request.POST['submit_choice']
 
             name = myfile.name
             path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
@@ -159,15 +160,19 @@ def upload_cset(request):
                 html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
                 # return ValidationError('We could not validate this file')
-            cset = process_compound_set(target=target, filename=tmp_file)
-            os.remove(tmp_file)
+            if choice=='upload':
+                cset = process_compound_set(target=target, filename=tmp_file)
+                os.remove(tmp_file)
 
-            computed = ComputedCompound.objects.filter(compound_set=cset).values()
-            table = pd.DataFrame(computed)
-            html_table = table.to_html()
-            html_table += '''<p> Your data was validated. The table above shows the compounds in the set</p>'''
+                computed = ComputedCompound.objects.filter(compound_set=cset).values()
+                table = pd.DataFrame(computed)
+                html_table = table.to_html()
+                html_table += '''<p> Your data was validated. The table above shows the compounds in the set</p>'''
 
-            return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
+            elif choice=='validate' and v:
+                html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
 
     else:
         # GET, generate blank form

@@ -4,7 +4,7 @@
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     {{ form.as_ul }}
-    <button type="submit">Upload</button>
+    <button type="submit">Submit</button>
   </form>
    {% autoescape off %}
        {{ table }}
