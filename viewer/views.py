@@ -170,7 +170,7 @@ def upload_cset(request):
 
                 # table = pd.DataFrame(computed)
                 # html_table = table.to_html()
-                html_table = '''<p> Your data was validated. The link above will allow you to download the submitted file</p>'''
+                html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
 
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url': download_url})
             if str(choice)=='0' and v:
