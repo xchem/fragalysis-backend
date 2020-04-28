@@ -180,7 +180,7 @@ class Snapshot(models.Model):
 
 
 # Start of compound sets
-class CompoundSetSubmitter(models.model):
+class CompoundSetSubmitter(models.Model):
     name = models.CharField(max_length=50, null=False)
     email = models.CharField(max_length=100, null=False)
     institution = models.CharField(max_length=50, null=False)
