@@ -164,15 +164,15 @@ def upload_cset(request):
                 # return ValidationError('We could not validate this file')
             if str(choice)=='1':
                 cset = process_compound_set(target=target, filename=tmp_file)
-                # os.remove(tmp_file)
-                # url = cset.file_link()
-                url = request.build_absolute_url()
+                from django.urls import resolve
+                current_url = resolve(request.path_info).url_name
+
 
                 computed = ComputedCompound.objects.filter(compound_set=cset).values()
                 table = pd.DataFrame(computed)
                 html_table = table.to_html()
                 html_table += '''<p> Your data was validated. The table above shows the compounds in the set</p>'''
-                html_table += url
+                html_table += current_url
 
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
             if str(choice)=='0' and v:
