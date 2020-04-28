@@ -96,13 +96,13 @@ def set_mol(mol, compound_set, filename):
         if len(mols)>1:
             ids = [m.cmpd_id.id for m in mols]
             ind = ids.index(max(ids))
-            mol = mols[ind]
+            ref = mols[ind]
         if len(mols)==1:
-            mol = mols[0]
+            ref = mols[0]
         if len(mols)==0:
             raise Exception('No matching molecules found for inspiration frag ' + i)
 
-        insp_frags.append(mol)
+        insp_frags.append(ref)
 
 
     orig = mol.GetProp('original SMILES')
