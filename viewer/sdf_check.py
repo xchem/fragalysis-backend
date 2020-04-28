@@ -141,7 +141,7 @@ def check_ver_name(blank_mol, version, validate_dict):
 
 def check_blank_mol_props(mol, validate_dict):
     # check for compulsory fields in blank mols
-    fields = ['ref_url', 'submitter_name', 'subbmitter_email', 'submitter_institution', 'generation_date', 'method']
+    fields = ['ref_url', 'submitter_name', 'submitter_email', 'submitter_institution', 'generation_date', 'method']
     for field in fields:
         validate_dict = missing_field_check(mol, field, validate_dict)
 
