@@ -161,7 +161,7 @@ def upload_cset(request):
                 html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
                 # return ValidationError('We could not validate this file')
-            if choice==1:
+            if str(choice)=='1':
                 cset = process_compound_set(target=target, filename=tmp_file)
                 os.remove(tmp_file)
 
@@ -171,7 +171,7 @@ def upload_cset(request):
                 html_table += '''<p> Your data was validated. The table above shows the compounds in the set</p>'''
 
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
-            if choice==0 and v:
+            if str(choice)=='0' and v:
                 html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
     else:
