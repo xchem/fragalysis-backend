@@ -1,14 +1,24 @@
-import json
+import json, os
 
 from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
 from rest_framework import viewsets
 
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.conf import settings
+from django.contrib.sites.shortcuts import get_current_site
+
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot
-from viewer import filters
+
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet
+from sdf_check import validate
+from forms import CSetForm
+from compound_sets import process_compound_set
+import pandas as pd
+
 from viewer.serializers import (
     MoleculeSerializer,
     ProteinSerializer,
@@ -120,6 +130,62 @@ def react(request):
     return render(request, "viewer/react_temp.html")
 
 
+# needs a target to be specified
+def upload_cset(request):
+    """
+    :param request:
+    :return:
+    """
+    choice = 'none yet'
+    if request.method == 'POST':
+        # POST, generate form with data from the request
+        print('data provided... processing')
+        form = CSetForm(request.POST, request.FILES)
+        # check if it's valid:
+        if form.is_valid():
+            myfile = request.FILES['sdf_file']
+            print(myfile)
+            target = request.POST['target_name']
+            choice = request.POST['submit_choice']
+
+            name = myfile.name
+            path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
+            tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+
+            # isfile = os.path.isfile(tmp_file)
+            d, v = validate(tmp_file, target=target)
+            print(d)
+            print(v)
+            pd.set_option('display.max_colwidth', -1)
+            if not v:
+                table = pd.DataFrame.from_dict(d)
+                html_table = table.to_html()
+                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
+                # return ValidationError('We could not validate this file')
+            if str(choice)=='1':
+                cset = process_compound_set(target=target, filename=tmp_file)
+                computed = ComputedCompound.objects.filter(compound_set=cset).values()
+
+                download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %cset.name
+
+                # table = pd.DataFrame(computed)
+                # html_table = table.to_html()
+                html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
+
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url': download_url})
+            if str(choice)=='0' and v:
+                html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
+    else:
+        # GET, generate blank form
+        form = CSetForm()
+        # return render(request, 'viewer/upload-cset.html', {
+        #     'uploaded_file_url': uploaded_file_url
+        # })
+    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': '', 'download_url':''})
+
+
 def img_from_smiles(request):
     if "smiles" in request.GET:
         smiles = request.GET["smiles"]
@@ -172,6 +238,17 @@ def get_open_targets(request):
 
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
 
+  
+ def cset_download(request, name):
+    compound_set = CompoundSet.objects.get(name=name)
+    filepath = compound_set.submitted_sdf
+    with open(filepath.path, 'r') as fp:
+        data = fp.read()
+    filename = 'compund-set_' + compound_set.name + '.sdf'
+    response = HttpResponse(content_type='text/plain')
+    response['Content-Disposition'] = 'attachment; filename=%s' % filename # force browser to download file
+    response.write(data)
+    return response
 
 
 ## Start of Session Project

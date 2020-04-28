@@ -1,0 +1,22 @@
+{% load static %}
+
+{% block content %}
+    <h1>Compound set upload</h1>
+    <h2>Instructions</h2>
+    <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>
+    <p>The current instructions are here: </p><a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a>
+    <p>The current specification version is <b>ver_1.1</b></p>
+    <br>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_ul }}
+    <button type="submit">Submit</button>
+  </form>
+   {% autoescape off %}
+       {{ download_url }}
+       {{ table }}
+   {% endautoescape %}
+
+
+
+{% endblock %}

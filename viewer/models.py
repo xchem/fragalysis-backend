@@ -140,7 +140,7 @@ class ActivityPoint(models.Model):
 
 
 
-### Start of Session Project
+# Start of Session Project
 class SessionProject(models.Model):
     title = models.CharField(max_length=200)
     init_date = models.DateTimeField(default=timezone.now)
@@ -151,6 +151,7 @@ class SessionProject(models.Model):
 
     class Meta:
         permissions = (("view_project", "View project"),)
+        db_table = 'viewer_sessionproject'
 
 class Snapshot(models.Model):
     INIT = "INIT"
@@ -175,4 +176,64 @@ class Snapshot(models.Model):
         permissions = (("view_project", "View project"),)
         managed = True
         db_table = 'viewer_snapshot'
-### End of Session Project
+# End of Session Project
+
+
+# Start of compound sets
+class CompoundSet(models.Model):
+    # a (unique) name for this compound set
+    name = models.CharField(max_length=50, unique=True)
+    # target that this compound set belongs to
+    target = models.ForeignKey(Target)
+    # link to the submitted sdf file
+    submitted_sdf = models.FileField(upload_to="compound_sets/", null=False, max_length=255)
+    # file format specification version
+    spec_version = models.FloatField(null=False)
+    method_url = models.TextField(max_length=1000, null=True)
+
+
+
+class ComputedCompound(models.Model):
+    # the 3D coordinates of a computed molecule
+    sdf_info = models.TextField(null=False)
+    # a link to the compound set this molecule belongs to
+    compound_set = models.ForeignKey(CompoundSet)
+    # a name for this compound
+    name = models.CharField(max_length=50)
+    # calculated smiles
+    smiles = models.CharField(max_length=255)
+    # original smiles
+    original_smiles = models.CharField(max_length=255)
+    # link to pdb file for prot structure
+    pdb_info = models.FileField(upload_to="pdbs/", null=False, max_length=255)
+    # inpiration frags - one to many?
+    inspiration_frags = models.ManyToManyField(Molecule)
+
+
+class ScoreDescription(models.Model):
+    # which compound set this score belongs to
+    compound_set = models.ForeignKey(CompoundSet)
+    # a name for this score
+    name = models.CharField(max_length=50)
+    # a description for this score
+    description = models.TextField(null=False)
+
+
+class NumericalScoreValues(models.Model):
+    # a link to the score name and description
+    score = models.ForeignKey(ScoreDescription)
+    # the specific value for this score
+    value = models.FloatField(null=False)
+    # the compound this score relates to
+    compound = models.ForeignKey(ComputedCompound)
+
+
+class TextScoreValues(models.Model):
+    # a link to the score name and description
+    score = models.ForeignKey(ScoreDescription)
+    # the specific value for this score
+    value = models.TextField(max_length=500, null=False)
+    # the compound this score relates to
+    compound = models.ForeignKey(ComputedCompound)
+
+# End of compound sets
