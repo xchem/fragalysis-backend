@@ -162,7 +162,7 @@ def process_compound_set(target, filename):
     print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
 
     # move and save the compound set
-    new_filename = settings.MEDIA_ROOT + '/compound_sets/' + filename.split('/')[-1]
+    new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
     os.rename(filename, new_filename)
     compound_set.submitted_sdf = new_filename
     compound_set.save()

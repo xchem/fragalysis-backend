@@ -163,7 +163,7 @@ def upload_cset(request):
                 # return ValidationError('We could not validate this file')
             if str(choice)=='1':
                 cset = process_compound_set(target=target, filename=tmp_file)
-                os.remove(tmp_file)
+                # os.remove(tmp_file)
                 url = cset.file_link()
 
                 computed = ComputedCompound.objects.filter(compound_set=cset).values()
