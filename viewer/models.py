@@ -184,7 +184,7 @@ class CompoundSetSubmitter(models.Model):
     name = models.CharField(max_length=50, null=False)
     email = models.CharField(max_length=100, null=False)
     institution = models.CharField(max_length=50, null=False)
-    generation_date = models.models.DateField()
+    generation_date = models.DateField()
     method = models.CharField(max_length=50, null=False)
     unique_name = models.CharField(max_length=101, null=True)
 
