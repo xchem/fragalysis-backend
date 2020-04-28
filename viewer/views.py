@@ -285,7 +285,7 @@ class SnapshotsView(viewsets.ModelViewSet):
 def cset_download(request, name):
     compound_set = CompoundSet.objects.get(name=name)
     filepath = compound_set.submitted_sdf
-    with open(filepath, 'r') as fp:
+    with open(filepath.path, 'r') as fp:
         data = fp.read()
     filename = 'compund-set_' + compound_set.name + '.sdf'
     response = HttpResponse(content_type='text/plain')
