@@ -14,6 +14,7 @@ from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
 from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet
+from viewer import filters
 from sdf_check import validate
 from forms import CSetForm
 from compound_sets import process_compound_set
