@@ -239,7 +239,7 @@ def get_open_targets(request):
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
 
   
- def cset_download(request, name):
+def cset_download(request, name):
     compound_set = CompoundSet.objects.get(name=name)
     filepath = compound_set.submitted_sdf
     with open(filepath.path, 'r') as fp:
