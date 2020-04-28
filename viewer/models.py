@@ -186,7 +186,7 @@ class CompoundSetSubmitter(models.Model):
     institution = models.CharField(max_length=50, null=False)
     generation_date = models.DateField()
     method = models.CharField(max_length=50, null=False)
-    unique_name = models.CharField(max_length=101, null=False, primary_key=True)
+    unique_name = models.CharField(max_length=101, null=False)
 
     def save(self):
         if not self.unique_name:
@@ -195,7 +195,7 @@ class CompoundSetSubmitter(models.Model):
         super(CompoundSetSubmitter, self).save()
 
     class Meta:
-        unique_together = ("name", "method")
+        unique_together = (("name", "method"),)
 
 
 class CompoundSet(models.Model):
