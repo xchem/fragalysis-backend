@@ -69,7 +69,7 @@ def check_pdb(mol, validate_dict, target=None):
 
     else:
         if target:
-            query = Protein.objects.filter(title=str(target + '-' + test_fp))
+            query = Protein.objects.filter(code=str(target + '-' + test_fp))
             if len(query)==0:
                 validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                             field='ref_pdb',
