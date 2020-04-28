@@ -1,4 +1,5 @@
 import os
+import datetime
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
 django.setup()
@@ -13,7 +14,8 @@ from viewer.models import (
     NumericalScoreValues,
     TextScoreValues,
     Protein,
-    Molecule)
+    Molecule,
+    CompoundSetSubmitter)
 import ast
 import os.path
 
@@ -118,12 +120,32 @@ def process_mol(mol, compound_set, filename):
     return compound_set
 
 
+def get_submission_info(description_mol):
+    y_m_d = description_mol.GetProp('generation_date').split('-')
+
+    submitter_dict = {'name': description_mol.GetProp('submitter_name'),
+                      'email': description_mol.GetProp('submitter_email'),
+                      'institution': description_mol.GetProp('submitter_institution'),
+                      'generation_date': datetime.date(y_m_d[0], y_m_d[1], y_m_d[2]),
+                      'method': description_mol.GetProp('method')}
+
+    submitter = CompoundSetSubmitter(**submitter_dict)
+    submitter.save()
+    return submitter
+
+
 def set_descriptions(filename, compound_set):
     suppl = Chem.SDMolSupplier(str(filename))
     description_mol = suppl[0]
+
+    submitter = get_submission_info(description_mol)
+
     description_dict = description_mol.GetPropsAsDict()
     version = description_mol.GetProp('_Name')
     compound_set.spec_version = version.split('_')[-1]
+    method = description_mol.GetProp('ref_url')
+    compound_set.method_url = method
+    compound_set.submitter = submitter
     compound_set.save()
 
     for key in description_dict.keys():

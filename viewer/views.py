@@ -166,9 +166,11 @@ def upload_cset(request):
                 # return ValidationError('We could not validate this file')
             if str(choice)=='1':
                 cset = process_compound_set(target=target, filename=tmp_file)
-                computed = ComputedCompound.objects.filter(compound_set=cset).values()
+                # computed = ComputedCompound.objects.filter(compound_set=cset).values()
+                submitter = cset.submitter
+                name = submitter.unique_name
 
-                download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %cset.name
+                download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %name
 
                 # table = pd.DataFrame(computed)
                 # html_table = table.to_html()
@@ -241,7 +243,7 @@ def get_open_targets(request):
 
   
 def cset_download(request, name):
-    compound_set = CompoundSet.objects.get(name=name)
+    compound_set = CompoundSet.objects.get(submitter__unique_name=name)
     filepath = compound_set.submitted_sdf
     with open(filepath.path, 'r') as fp:
         data = fp.read()
