@@ -173,8 +173,6 @@ def upload_cset(request):
             elif choice==1 and v:
                 html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
-    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': ''})
-
     else:
         # GET, generate blank form
         form = CSetForm()
