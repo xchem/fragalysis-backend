@@ -190,6 +190,14 @@ class CompoundSet(models.Model):
     # file format specification version
     spec_version = models.FloatField(null=False)
 
+    def file_link(self):
+        if self.submitted_sdf:
+            return "<a href='%s'>download</a>" % (self.submitted_sdf.url,)
+        else:
+            return "No attachment"
+
+    file_link.allow_tags = True
+
 
 class ComputedCompound(models.Model):
     # the 3D coordinates of a computed molecule
