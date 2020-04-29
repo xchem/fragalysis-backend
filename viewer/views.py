@@ -282,7 +282,7 @@ def cset_download(request, name):
 
 
 def pset_download(request, name):
-    response = HttpResponse(mimetype='application/zip')
+    response = HttpResponse(content_type='application/zip')
     filename = 'protein-set_' + name + '.sdf'
     response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
 
