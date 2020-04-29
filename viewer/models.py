@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
+import uuid
 
 from loader.config import get_mol_choices, get_prot_choices
 
@@ -197,6 +198,12 @@ class CompoundSetSubmitter(models.Model):
     class Meta:
         unique_together = (("name", "method"),)
 
+class CSetKeys(models.Model):
+    user = models.TextField(max_length=50, null=False)
+    uuid = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False)
 
 class CompoundSet(models.Model):
     # a (unique) name for this compound set

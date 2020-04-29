@@ -14,7 +14,7 @@ from django.conf import settings
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet, CSetKeys
 from viewer import filters
 from sdf_check import validate
 from forms import CSetForm
@@ -143,9 +143,15 @@ def upload_cset(request):
     cset = None
     if request.method == 'POST':
         try:
-            # POST, generate form with data from the request
-            print('data provided... processing')
             form = CSetForm(request.POST, request.FILES)
+            # POST, generate form with data from the request
+            key = request.POST['upload_key']
+            all_keys = CSetKeys.objects.all()
+            if key not in [key.uuid for key in all_keys]:
+                html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
+            print('data provided... processing')
+
             # check if it's valid:
             if form.is_valid():
                 myfile = request.FILES['sdf_file']
@@ -186,7 +192,7 @@ def upload_cset(request):
                     table = pd.DataFrame.from_dict(d)
                     html_table = table.to_html()
                     html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
+                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url':''})
                     # return ValidationError('We could not validate this file')
                 if str(choice)=='1':
                     cset = process_compound_set(target=target, filename=tmp_file, zfile=zfile)

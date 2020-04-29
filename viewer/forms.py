@@ -12,6 +12,7 @@ class CSetForm(forms.Form):
     sdf_file = forms.FileField(label='All compounds sdf (.sdf)')
     pdb_zip = forms.FileField(required=False, label='PDB files (.zip)')
     submit_choice = forms.CharField(widget=forms.RadioSelect(choices=CHOICES))
+    upload_key = forms.TextField(label='Upload Key', help='Upload key is provided by rachael.skyner@diamond.ac.uk. Please contact for more info')
 
     # def clean_zipfile(self):
     #     if self.zip_file.get('content-type') != 'application/zip':
