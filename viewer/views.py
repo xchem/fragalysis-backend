@@ -160,12 +160,13 @@ def upload_cset(request):
 
             if pdb_file:
                 zf = zipfile.ZipFile(pdb_file)
-                zip_names = zf.namelist()
-                # for filename in sorted(zf.namelist()):
-                #     # only handle pdb files
-                #     if filename.split('.')[-1] == '.pdb':
-                #         # store filenames?
-                #         zip_names.append(filename)
+                zip_lst = zf.namelist()
+                zip_names = []
+                for filename in zip_lst:
+                    # only handle pdb files
+                    if filename.split('.')[-1] == '.pdb':
+                        # store filenames?
+                        zip_names.append(filename)
 
                 zfile = {'zip_obj': zf, 'zf_list': zip_names}
 
