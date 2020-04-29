@@ -87,14 +87,14 @@ def check_pdb(mol, validate_dict, target=None):
     #                                     warning_string="path " + str(test_fp) + " does not exist",
     #                                     validate_dict=validate_dict)
 
-    else:
-        if target:
-            query = Protein.objects.filter(code=str(target + '-' + test_fp))
-            if len(query)==0:
-                validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-                                            field='ref_pdb',
-                                            warning_string="pdb for " + str(test_fp) + " does not exist in fragalysis",
-                                            validate_dict=validate_dict)
+    # else:
+    if target:
+        query = Protein.objects.filter(code=str(target + '-' + test_fp))
+        if len(query)==0:
+            validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+                                        field='ref_pdb',
+                                        warning_string="pdb for " + str(test_fp) + " does not exist in fragalysis",
+                                        validate_dict=validate_dict)
 
     return validate_dict
 
