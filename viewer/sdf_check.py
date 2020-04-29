@@ -83,7 +83,7 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
             if pdb_option not in zfile['zf_list']:
                 validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                             field='ref_pdb',
-                                            warning_string="path " + str(pdb_option) + " can't be found in uploaded zip file (list: " + str(zfile['zf_list'] +")"),
+                                            warning_string="path " + str(pdb_option) + " can't be found in uploaded zip file (list: " + str(zfile['zf_list']) + ")",
                                             validate_dict=validate_dict)
 
 
