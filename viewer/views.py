@@ -151,7 +151,7 @@ def upload_cset(request):
             target = request.POST['target_name']
             choice = request.POST['submit_choice']
 
-            if request.FILES['pdb_zip']:
+            if request.FILES['pdb_zip']!='':
                 # check it's actually a zip file
                 if form.cleaned_data['pdb_zip'] != None:
                     zf = zipfile.ZipFile(form.cleaned_data['zip'])
