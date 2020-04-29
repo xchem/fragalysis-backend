@@ -80,12 +80,12 @@ def check_pdb(mol, validate_dict, target=None):
     #                                 warning_string="illegal pdb assingment for " + str(test_fp),
     #                                 validate_dict=validate_dict)
 
-    if test_fp.endswith(".pdb"):
-        if os.path.exists(test_fp) is False:
-            validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-                                        field='ref_pdb',
-                                        warning_string="path " + str(test_fp) + " does not exist",
-                                        validate_dict=validate_dict)
+    # if test_fp.endswith(".pdb"):
+    #     if os.path.exists(test_fp) is False:
+    #         validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+    #                                     field='ref_pdb',
+    #                                     warning_string="path " + str(test_fp) + " does not exist",
+    #                                     validate_dict=validate_dict)
 
     else:
         if target:
