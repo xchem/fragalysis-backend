@@ -164,7 +164,7 @@ def upload_cset(request):
                 zip_names = []
                 for filename in zip_lst:
                     # only handle pdb files
-                    if filename.split('.')[-1] == '.pdb':
+                    if filename.split('.')[-1] == 'pdb':
                         # store filenames?
                         zip_names.append(filename)
 
