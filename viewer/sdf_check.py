@@ -275,6 +275,13 @@ def validate(sdf_file, target=None, zfile=None):
     suppl = Chem.SDMolSupplier(sdf_file)
     print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
+    if blank_mol is None:
+        validate_dict = add_warning(molecule_name='Blank Mol',
+                        field='N/A',
+                        warning_string='your blank molecule could not be read by rdkit. The molecule must have at least one atom! No other checks were done',
+                        validate_dict=validate_dict)
+        validated = False
+        return validate_dict, validated
     validate_dict = check_compound_set(blank_mol, validate_dict)
     other_mols = []
     for i in range(1, len(suppl)):
