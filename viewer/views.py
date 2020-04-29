@@ -136,7 +136,7 @@ def cset_key(request):
     form = UploadKeyForm()
     if request.method == 'POST':
         form = UploadKeyForm(request.POST)
-        email = request.POST['email']
+        email = request.POST['contact_email']
         new_key = CSetKeys()
         new_key.user = email
         new_key.save()
