@@ -63,7 +63,7 @@ def check_sdf(sdf_file, validate_dict):
     return validate_dict
 
 
-def check_pdb(mol, validate_dict, target=None):
+def check_pdb(mol, validate_dict, target=None, zfile=None):
     """
     Checks if .pdb file can be read
 
@@ -74,27 +74,40 @@ def check_pdb(mol, validate_dict, target=None):
     # Check if pdb filepath given and exists
     test_fp = mol.GetProp('ref_pdb')
 
+    # {'zip_obj': zf, 'zf_list': zip_names}
+
+    if zfile:
+        pdb_option = mol.GetProp('ref_pdb')
+        # name = pdb_option.split('/')[-1]
+        if zfile:
+            if pdb_option not in zfile['zf_list']:
+                validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+                                            field='ref_pdb',
+                                            warning_string="path " + str(pdb_option) + " can't be found in uploaded zip file (list: " + str(zfile['zf_list']) + ")",
+                                            validate_dict=validate_dict)
+
+
     # if not '_0' in test_fp or not '.pdb' in test_fp:
     #     validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
     #                                 field='ref_pdb',
     #                                 warning_string="illegal pdb assingment for " + str(test_fp),
     #                                 validate_dict=validate_dict)
 
-    if test_fp.endswith(".pdb"):
-        if os.path.exists(test_fp) is False:
+    # if test_fp.endswith(".pdb"):
+    #     if os.path.exists(test_fp) is False:
+    #         validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+    #                                     field='ref_pdb',
+    #                                     warning_string="path " + str(test_fp) + " does not exist",
+    #                                     validate_dict=validate_dict)
+
+    # else:
+    if target and not test_fp.endswith(".pdb"):
+        query = Protein.objects.filter(code=str(target + '-' + test_fp))
+        if len(query)==0:
             validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field='ref_pdb',
-                                        warning_string="path " + str(test_fp) + " does not exist",
+                                        warning_string="pdb for " + str(test_fp) + " does not exist in fragalysis",
                                         validate_dict=validate_dict)
-
-    else:
-        if target:
-            query = Protein.objects.filter(code=str(target + '-' + test_fp))
-            if len(query)==0:
-                validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-                                            field='ref_pdb',
-                                            warning_string="pdb for " + str(test_fp) + " does not exist in fragalysis",
-                                            validate_dict=validate_dict)
 
     return validate_dict
 
@@ -250,7 +263,7 @@ def check_mol_props(mol, validate_dict):
     return validate_dict
 
 
-def validate(sdf_file, target=None):
+def validate(sdf_file, target=None, zfile=None):
     validated = True
     validate_dict = {'molecule_name': [],
                      'field': [],
@@ -262,6 +275,13 @@ def validate(sdf_file, target=None):
     suppl = Chem.SDMolSupplier(sdf_file)
     print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
+    if blank_mol is None:
+        validate_dict = add_warning(molecule_name='Blank Mol',
+                        field='N/A',
+                        warning_string='your blank molecule could not be read by rdkit. The molecule must have at least one atom! No other checks were done',
+                        validate_dict=validate_dict)
+        validated = False
+        return validate_dict, validated
     validate_dict = check_compound_set(blank_mol, validate_dict)
     other_mols = []
     for i in range(1, len(suppl)):
@@ -301,7 +321,7 @@ def validate(sdf_file, target=None):
     for m in other_mols:
         validate_dict = check_mol_props(m, validate_dict)
         validate_dict = check_name_characters(m.GetProp('_Name'), validate_dict)
-        validate_dict = check_pdb(m, validate_dict, target)
+        validate_dict = check_pdb(m, validate_dict, target, zfile)
         validate_dict = check_field_populated(m, validate_dict)
         validate_dict = check_SMILES(m, validate_dict)
 

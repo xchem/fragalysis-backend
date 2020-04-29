@@ -10,4 +10,5 @@ urlpatterns = [
     url(r"^sim_search/$", views.similarity_search, name="sim_search"),
     url(r"^open_targets/", views.get_open_targets, name="get_open_targets"),
     url(r'^compound_set/(?P<name>.+)/$', views.cset_download, name='compound_set'),
+    url(r'^protein_set/(?P<name>.+)/$', views.pset_download, name='protein_set'),
 ]
