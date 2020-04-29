@@ -176,7 +176,7 @@ def upload_cset(request):
             tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
             # isfile = os.path.isfile(tmp_file)
-            d, v = validate(tmp_file, target=target)
+            d, v = validate(tmp_file, target=target, zfile)
             print(d)
             print(v)
             pd.set_option('display.max_colwidth', -1)
