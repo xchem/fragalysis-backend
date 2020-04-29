@@ -153,8 +153,8 @@ def cset_key(request):
 
         msg = 'Your key will be emailed to: <b>' + email + '</b>'
 
-        return render(request, 'viewer/generate-key.html.html', {'form': form, 'message':msg})
-    return render(request, 'viewer/generate-key.html.html', {'form': form, 'message': ''})
+        return render(request, 'viewer/generate-key.html', {'form': form, 'message':msg})
+    return render(request, 'viewer/generate-key.html', {'form': form, 'message': ''})
 
 
 # needs a target to be specified
