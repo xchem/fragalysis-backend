@@ -140,7 +140,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
 
 
 def process_mol(mol, compound_set, filename, zfile=None):
-    cpd = set_mol(mol, compound_set, filename)
+    cpd = set_mol(mol, compound_set, filename, zfile)
     other_props = mol.GetPropsAsDict()
     compound_set = set_props(cpd, other_props, compound_set)
 
