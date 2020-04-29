@@ -147,7 +147,7 @@ def upload_cset(request):
             # POST, generate form with data from the request
             key = request.POST['upload_key']
             all_keys = CSetKeys.objects.all()
-            if key not in [key.uuid for key in all_keys]:
+            if key not in [str(key.uuid) for key in all_keys]:
                 html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
             print('data provided... processing')
