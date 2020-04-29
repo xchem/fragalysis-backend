@@ -139,7 +139,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
     return cpd
 
 
-def process_mol(mol, compound_set, filename):
+def process_mol(mol, compound_set, filename, zfile=None):
     cpd = set_mol(mol, compound_set, filename)
     other_props = mol.GetPropsAsDict()
     compound_set = set_props(cpd, other_props, compound_set)
@@ -204,7 +204,7 @@ def process_compound_set(target, filename, zfile=None):
 
     # process every other mol
     for mol in mols_to_process:
-        process_mol(mol, compound_set, filename)
+        process_mol(mol, compound_set, filename, zfile)
 
     # check that molecules have been added to the compound set
     check = ComputedCompound.objects.filter(compound_set=compound_set)
