@@ -117,6 +117,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
     prot_field = get_prot(mol, compound_set, zfile)
     if 'tmp' in prot_field.split('/'):
         # move and save the compound set
+        old_filename = settings.MEDIA_ROOT + prot_field
         new_filename = settings.MEDIA_ROOT + 'pdbs/' + prot_field.split('/')[-1]
         os.rename(prot_field, new_filename)
         prot_field = new_filename
