@@ -17,7 +17,7 @@ from api.utils import get_params, get_highlighted_diffs
 from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet, CSetKeys
 from viewer import filters
 from sdf_check import validate
-from forms import CSetForm
+from forms import CSetForm, UploadKeyForm
 from compound_sets import process_compound_set
 import pandas as pd
 
@@ -130,6 +130,31 @@ def react(request):
     :return:
     """
     return render(request, "viewer/react_temp.html")
+
+# email cset upload key
+def cset_key(request):
+    form = UploadKeyForm()
+    if request.method == 'POST':
+        form = UploadKeyForm(request.POST)
+        email = request.POST['email']
+        new_key = CSetKeys()
+        new_key.user = email
+        new_key.save()
+        key_value = new_key.uuid
+
+        from django.core.mail import send_mail
+        from django.conf import settings
+
+        subject = 'Fragalysis: upload compound set key'
+        message = 'Your upload key is: ' + key_value + ' store it somewhere safe. Only one key will be issued per user'
+        email_from = settings.EMAIL_HOST_USER
+        recipient_list = [email, ]
+        send_mail(subject, message, email_from, recipient_list)
+
+        msg = 'Your key will be emailed to: <b>' + email + '</b>'
+
+        return render(request, 'viewer/generate-key.html.html', {'form': form, 'message':msg})
+    return render(request, 'viewer/generate-key.html.html', {'form': form, 'message': ''})
 
 
 # needs a target to be specified
