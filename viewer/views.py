@@ -146,7 +146,7 @@ def cset_key(request):
         from django.conf import settings
 
         subject = 'Fragalysis: upload compound set key'
-        message = 'Your upload key is: ' + key_value + ' store it somewhere safe. Only one key will be issued per user'
+        message = 'Your upload key is: ' + str(key_value) + ' store it somewhere safe. Only one key will be issued per user'
         email_from = settings.EMAIL_HOST_USER
         recipient_list = [email, ]
         send_mail(subject, message, email_from, recipient_list)
