@@ -14,10 +14,10 @@ from django.conf import settings
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet, CSetKeys
 from viewer import filters
 from sdf_check import validate
-from forms import CSetForm
+from forms import CSetForm, UploadKeyForm
 from compound_sets import process_compound_set
 import pandas as pd
 
@@ -131,6 +131,31 @@ def react(request):
     """
     return render(request, "viewer/react_temp.html")
 
+# email cset upload key
+def cset_key(request):
+    form = UploadKeyForm()
+    if request.method == 'POST':
+        form = UploadKeyForm(request.POST)
+        email = request.POST['contact_email']
+        new_key = CSetKeys()
+        new_key.user = email
+        new_key.save()
+        key_value = new_key.uuid
+
+        from django.core.mail import send_mail
+        from django.conf import settings
+
+        subject = 'Fragalysis: upload compound set key'
+        message = 'Your upload key is: ' + str(key_value) + ' store it somewhere safe. Only one key will be issued per user'
+        email_from = settings.EMAIL_HOST_USER
+        recipient_list = [email, ]
+        send_mail(subject, message, email_from, recipient_list)
+
+        msg = 'Your key will be emailed to: <b>' + email + '</b>'
+
+        return render(request, 'viewer/generate-key.html', {'form': form, 'message':msg})
+    return render(request, 'viewer/generate-key.html', {'form': form, 'message': ''})
+
 
 # needs a target to be specified
 def upload_cset(request):
@@ -142,11 +167,16 @@ def upload_cset(request):
     zf = None
     cset = None
     if request.method == 'POST':
+        form = CSetForm(request.POST, request.FILES)
+        # POST, generate form with data from the request
+        key = request.POST['upload_key']
+        all_keys = CSetKeys.objects.all()
+        if key not in [str(key.uuid) for key in all_keys]:
+            html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
+            return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
+        print('data provided... processing')
         try:
-            # POST, generate form with data from the request
-            print('data provided... processing')
-            form = CSetForm(request.POST, request.FILES)
-            # check if it's valid:
+        # check if it's valid:
             if form.is_valid():
                 myfile = request.FILES['sdf_file']
                 print(myfile)
@@ -186,7 +216,7 @@ def upload_cset(request):
                     table = pd.DataFrame.from_dict(d)
                     html_table = table.to_html()
                     html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
+                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url':''})
                     # return ValidationError('We could not validate this file')
                 if str(choice)=='1':
                     cset = process_compound_set(target=target, filename=tmp_file, zfile=zfile)
