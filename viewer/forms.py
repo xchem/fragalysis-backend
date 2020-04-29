@@ -9,8 +9,8 @@ CHOICES = [
 
 class CSetForm(forms.Form):
     target_name = forms.CharField(label='Target', max_length=100)
-    sdf_file = forms.FileField()
-    pdb_zip = forms.FileField(blank=True, null=True)
+    sdf_file = forms.FileField(label='All compounds sdf (.sdf)')
+    pdb_zip = forms.FileField(blank=True, label='PDB files (.zip)')
     submit_choice = forms.CharField(widget=forms.RadioSelect(choices=CHOICES))
 
     # def clean_zipfile(self):
