@@ -151,18 +151,18 @@ def upload_cset(request):
             target = request.POST['target_name']
             choice = request.POST['submit_choice']
 
-            if request.FILES['pdb_zip']!='':
+            # if request.FILES['pdb_zip']!='':
                 # check it's actually a zip file
-                if form.cleaned_data['pdb_zip'] != None:
-                    zf = zipfile.ZipFile(form.cleaned_data['zip'])
-                    zip_names = []
-                    for filename in sorted(zf.namelist()):
-                        # only handle pdb files
-                        if filename.split('.')[-1] == '.pdb':
-                            # store filenames?
-                            zip_names.append(filename)
+            if request.FILES['pdb_zip'] != None:
+                zf = zipfile.ZipFile(form.FILES['pdb_zip'])
+                zip_names = []
+                for filename in sorted(zf.namelist()):
+                    # only handle pdb files
+                    if filename.split('.')[-1] == '.pdb':
+                        # store filenames?
+                        zip_names.append(filename)
 
-                    zfile = {'zip_obj': zf, 'zf_list': zip_names}
+                zfile = {'zip_obj': zf, 'zf_list': zip_names}
 
 
             name = myfile.name
