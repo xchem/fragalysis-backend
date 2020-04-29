@@ -1,5 +1,6 @@
 import json, os
 import zipfile
+from cStringIO import StringIO
 
 from django.db import connections
 from django.http import HttpResponse
@@ -9,7 +10,6 @@ from rest_framework import viewsets
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
-from django.contrib.sites.shortcuts import get_current_site
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
@@ -194,7 +194,10 @@ def upload_cset(request):
                 submitter = cset.submitter
                 name = submitter.unique_name
 
-                download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %name
+                cset_download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %name
+                pset_download_url = '<a href="/viewer/protein_set/%s">Download Protein Set</a>' % name
+
+                download_url = cset_download_url + '<br>' + pset_download_url
 
                 # table = pd.DataFrame(computed)
                 # html_table = table.to_html()
@@ -275,6 +278,31 @@ def cset_download(request, name):
     response = HttpResponse(content_type='text/plain')
     response['Content-Disposition'] = 'attachment; filename=%s' % filename # force browser to download file
     response.write(data)
+    return response
+
+
+def pset_download(request, name):
+    response = HttpResponse(mimetype='application/zip')
+    filename = 'protein-set_' + name + '.sdf'
+    response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
+
+    compound_set = CompoundSet.objects.get(submitter__unique_name=name)
+    computed = ComputedCompound.objects.filter(compound_set=compound_set)
+    pdb_filepaths = [c.pdb_info.path for c in computed]
+
+    buff = StringIO()
+    zip_obj = zipfile.ZipFile(buff, 'w')
+
+    for fp in pdb_filepaths:
+        data = open(fp, 'r').read()
+        zip_obj.writestr(fp.split('/')[-1], data)
+    zip_obj.close()
+
+    buff.flush()
+    ret_zip = buff.getvalue()
+    buff.close()
+    response.write(ret_zip)
+
     return response
 
 
