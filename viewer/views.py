@@ -283,7 +283,7 @@ def cset_download(request, name):
 
 def pset_download(request, name):
     response = HttpResponse(content_type='application/zip')
-    filename = 'protein-set_' + name + '.sdf'
+    filename = 'protein-set_' + name + '.zip'
     response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
 
     compound_set = CompoundSet.objects.get(submitter__unique_name=name)
