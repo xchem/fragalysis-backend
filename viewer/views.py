@@ -1,4 +1,5 @@
 import json, os
+import zipfile
 
 from django.db import connections
 from django.http import HttpResponse
@@ -137,7 +138,8 @@ def upload_cset(request):
     :param request:
     :return:
     """
-    choice = 'none yet'
+    zfile = None
+    zf = None
     if request.method == 'POST':
         # POST, generate form with data from the request
         print('data provided... processing')
@@ -148,6 +150,20 @@ def upload_cset(request):
             print(myfile)
             target = request.POST['target_name']
             choice = request.POST['submit_choice']
+
+            if request.FILES['pdb_zip']:
+                # check it's actually a zip file
+                if form.cleaned_data['pdb_zip'] != None:
+                    zf = zipfile.ZipFile(form.cleaned_data['zip'])
+                    zip_names = []
+                    for filename in sorted(zf.namelist()):
+                        # only handle pdb files
+                        if filename.split('.')[-1] == '.pdb':
+                            # store filenames?
+                            zip_names.append(filename)
+
+                    zfile = {'zip_obj': zf, 'zf_list': zip_names}
+
 
             name = myfile.name
             path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
@@ -165,7 +181,9 @@ def upload_cset(request):
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
                 # return ValidationError('We could not validate this file')
             if str(choice)=='1':
-                cset = process_compound_set(target=target, filename=tmp_file)
+                cset = process_compound_set(target=target, filename=tmp_file, zfile=zfile)
+                if zf:
+                    zf.close()
                 # computed = ComputedCompound.objects.filter(compound_set=cset).values()
                 submitter = cset.submitter
                 name = submitter.unique_name

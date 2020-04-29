@@ -5,6 +5,9 @@ import django
 django.setup()
 from django.conf import settings
 
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+
 from rdkit import Chem
 from viewer.models import (
     Target,
@@ -45,13 +48,15 @@ def dataType(str):
 def get_inspiration_frags(cpd, compound_set):
     pass
 
-def get_prot(mol, compound_set, filename):
+# use zfile object for pdb files uploaded in zip
+def get_prot(mol, compound_set, zfile):
     pdb_option = mol.GetProp('ref_pdb')
-    path = os.path.abspath(filename)
-    base = '/'.join(path.split('/')[:-1])
-    if os.path.isdir(os.path.join(base, pdb_option)):
-        field = os.path.join(base, pdb_option)
-        print('PROT: ' + field)
+    name = pdb_option.split('/')[-1]
+    if zfile:
+        if pdb_option in zfile['zf_list']:
+            data = zfile['zip_obj'].read(pdb_option)
+            field = default_storage.save('tmp/' + name, ContentFile(data))
+
     else:
         name = compound_set.target.title + '-' + pdb_option
         print('PROT: ' + name)
@@ -81,7 +86,9 @@ def set_props(cpd, props, compound_set):
     return set_obj
 
 
-def set_mol(mol, compound_set, filename):
+def set_mol(mol, compound_set, filename, zfile=None):
+    # zfile = {'zip_obj': zf, 'zf_list': zip_names}
+
     smiles = Chem.MolToSmiles(mol)
     name = mol.GetProp('_Name')
     mol_block = Chem.MolToMolBlock(mol)
@@ -107,7 +114,13 @@ def set_mol(mol, compound_set, filename):
 
     orig = mol.GetProp('original SMILES')
 
-    prot_field = get_prot(mol, compound_set, filename)
+    prot_field = get_prot(mol, compound_set, zfile)
+    if 'tmp' in prot_field.split('/'):
+        # move and save the compound set
+        new_filename = settings.MEDIA_ROOT + 'pdbs/' + prot_field.split('/')[-1]
+        os.rename(prot_field, new_filename)
+        prot_field = new_filename
+        # compound_set.save()
 
     cpd = ComputedCompound()
     cpd.sdf_info = mol_block
@@ -176,7 +189,7 @@ def set_descriptions(filename, compound_set):
     return mols
 
 
-def process_compound_set(target, filename):
+def process_compound_set(target, filename, zfile=None):
     print('processing compound set: ' + filename)
     filename = str(filename)
     # create a new compound set
