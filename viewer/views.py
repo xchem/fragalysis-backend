@@ -142,7 +142,7 @@ def upload_cset(request):
     zf = None
     cset = None
     if request.method == 'POST':
-        try:
+
             form = CSetForm(request.POST, request.FILES)
             # POST, generate form with data from the request
             key = request.POST['upload_key']
@@ -151,7 +151,7 @@ def upload_cset(request):
                 html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
             print('data provided... processing')
-
+        try:
             # check if it's valid:
             if form.is_valid():
                 myfile = request.FILES['sdf_file']
