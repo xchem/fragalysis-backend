@@ -215,7 +215,7 @@ class ComputedCompound(models.Model):
     # the 3D coordinates of a computed molecule
     sdf_info = models.TextField(null=False)
     # a link to the compound set this molecule belongs to
-    compound_set = models.ForeignKey(CompoundSet)
+    compound_set = models.ForeignKey(CompoundSet, on_delete=models.CASCADE)
     # a name for this compound
     name = models.CharField(max_length=50)
     # calculated smiles

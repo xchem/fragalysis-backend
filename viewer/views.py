@@ -140,73 +140,82 @@ def upload_cset(request):
     """
     zfile = None
     zf = None
+    cset = None
     if request.method == 'POST':
-        # POST, generate form with data from the request
-        print('data provided... processing')
-        form = CSetForm(request.POST, request.FILES)
-        # check if it's valid:
-        if form.is_valid():
-            myfile = request.FILES['sdf_file']
-            print(myfile)
-            target = request.POST['target_name']
-            choice = request.POST['submit_choice']
-            if 'pdb_zip' in request.FILES.keys():
-                pdb_file = request.FILES['pdb_zip']
-            else:
-                pdb_file = None
+        try:
+            # POST, generate form with data from the request
+            print('data provided... processing')
+            form = CSetForm(request.POST, request.FILES)
+            # check if it's valid:
+            if form.is_valid():
+                myfile = request.FILES['sdf_file']
+                print(myfile)
+                target = request.POST['target_name']
+                choice = request.POST['submit_choice']
+                if 'pdb_zip' in request.FILES.keys():
+                    pdb_file = request.FILES['pdb_zip']
+                else:
+                    pdb_file = None
 
-            # if request.FILES['pdb_zip']!='':
-                # check it's actually a zip file
+                # if request.FILES['pdb_zip']!='':
+                    # check it's actually a zip file
 
-            if pdb_file:
-                zf = zipfile.ZipFile(pdb_file)
-                zip_lst = zf.namelist()
-                zip_names = []
-                for filename in zip_lst:
-                    # only handle pdb files
-                    if filename.split('.')[-1] == 'pdb':
-                        # store filenames?
-                        zip_names.append(filename)
+                if pdb_file:
+                    zf = zipfile.ZipFile(pdb_file)
+                    zip_lst = zf.namelist()
+                    zip_names = []
+                    for filename in zip_lst:
+                        # only handle pdb files
+                        if filename.split('.')[-1] == 'pdb':
+                            # store filenames?
+                            zip_names.append(filename)
 
-                zfile = {'zip_obj': zf, 'zf_list': zip_names}
+                    zfile = {'zip_obj': zf, 'zf_list': zip_names}
 
 
-            name = myfile.name
-            path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
-            tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+                name = myfile.name
+                path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
+                tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
-            # isfile = os.path.isfile(tmp_file)
-            d, v = validate(tmp_file, target=target, zfile=zfile)
-            print(d)
-            print(v)
-            pd.set_option('display.max_colwidth', -1)
-            if not v:
-                table = pd.DataFrame.from_dict(d)
-                html_table = table.to_html()
-                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
-                # return ValidationError('We could not validate this file')
-            if str(choice)=='1':
-                cset = process_compound_set(target=target, filename=tmp_file, zfile=zfile)
-                if zf:
-                    zf.close()
-                # computed = ComputedCompound.objects.filter(compound_set=cset).values()
-                submitter = cset.submitter
-                name = submitter.unique_name
+                # isfile = os.path.isfile(tmp_file)
+                d, v = validate(tmp_file, target=target, zfile=zfile)
+                print(d)
+                print(v)
+                pd.set_option('display.max_colwidth', -1)
+                if not v:
+                    table = pd.DataFrame.from_dict(d)
+                    html_table = table.to_html()
+                    html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
+                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table})
+                    # return ValidationError('We could not validate this file')
+                if str(choice)=='1':
+                    cset = process_compound_set(target=target, filename=tmp_file, zfile=zfile)
+                    if zf:
+                        zf.close()
+                    # computed = ComputedCompound.objects.filter(compound_set=cset).values()
+                    submitter = cset.submitter
+                    name = submitter.unique_name
 
-                cset_download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %name
-                pset_download_url = '<a href="/viewer/protein_set/%s">Download Protein Set</a>' % name
+                    cset_download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %name
+                    pset_download_url = '<a href="/viewer/protein_set/%s">Download Protein Set</a>' % name
 
-                download_url = cset_download_url + '<br>' + pset_download_url
+                    download_url = cset_download_url + '<br>' + pset_download_url
 
-                # table = pd.DataFrame(computed)
-                # html_table = table.to_html()
-                html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
+                    # table = pd.DataFrame(computed)
+                    # html_table = table.to_html()
+                    html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
 
-                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url': download_url})
-            if str(choice)=='0' and v:
-                html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
-                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
+                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url': download_url})
+                if str(choice)=='0' and v:
+                    html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
+                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
+        except:
+            if cset:
+                cset.delete()
+                computed = ComputedCompound.objects.filter(compound_set=cset)
+                for c in computed:
+                    c.delete()
+            return HttpResponse(status=500)
     else:
         # GET, generate blank form
         form = CSetForm()
