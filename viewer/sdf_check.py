@@ -65,7 +65,7 @@ def check_sdf(sdf_file, validate_dict):
 
 def check_refmol(mol, validate_dict, target=None):
     if target:
-        refmols = mol.GetProp('ref_mol').split(',')
+        refmols = mol.GetProp('ref_mols').split(',')
         for ref in refmols:
             query = Protein.objects.filter(code=target + '-' + ref.strip())
             if len(query)==0:
