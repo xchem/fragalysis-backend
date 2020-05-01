@@ -115,7 +115,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
     orig = mol.GetProp('original SMILES')
 
     prot_field = get_prot(mol, compound_set, zfile)
-    if 'tmp' in prot_field.split('/'):
+    if 'tmp' in prot_field:
         # move and save the compound set
         old_filename = settings.MEDIA_ROOT + prot_field
         new_filename = settings.MEDIA_ROOT + 'pdbs/' + prot_field.split('/')[-1]
