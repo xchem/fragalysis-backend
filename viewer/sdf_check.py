@@ -63,6 +63,19 @@ def check_sdf(sdf_file, validate_dict):
     return validate_dict
 
 
+def check_refmol(mol, validate_dict, target=None):
+    if target:
+        refmols = mol.GetProp('ref_mol').split(',')
+        for ref in refmols:
+            query = Protein.objects.filter(code=target + '-' + ref.strip())
+            if len(query)==0:
+                validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+                                        field='ref_mol',
+                                        warning_string="molecule for " + str(ref.strip()) + " does not exist in fragalysis (make sure the code is exactly as it appears in fragalysis - e.g. Mpro-x0123_0)",
+                                        validate_dict=validate_dict)
+    return validate_dict
+    
+
 def check_pdb(mol, validate_dict, target=None, zfile=None):
     """
     Checks if .pdb file can be read
@@ -85,20 +98,6 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
                                             field='ref_pdb',
                                             warning_string="path " + str(pdb_option) + " can't be found in uploaded zip file (list: " + str(zfile['zf_list']) + ")",
                                             validate_dict=validate_dict)
-
-
-    # if not '_0' in test_fp or not '.pdb' in test_fp:
-    #     validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-    #                                 field='ref_pdb',
-    #                                 warning_string="illegal pdb assingment for " + str(test_fp),
-    #                                 validate_dict=validate_dict)
-
-    # if test_fp.endswith(".pdb"):
-    #     if os.path.exists(test_fp) is False:
-    #         validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-    #                                     field='ref_pdb',
-    #                                     warning_string="path " + str(test_fp) + " does not exist",
-    #                                     validate_dict=validate_dict)
 
     # else:
     if target and not test_fp.endswith(".pdb"):
@@ -322,6 +321,7 @@ def validate(sdf_file, target=None, zfile=None):
         validate_dict = check_mol_props(m, validate_dict)
         validate_dict = check_name_characters(m.GetProp('_Name'), validate_dict)
         validate_dict = check_pdb(m, validate_dict, target, zfile)
+        validate_dict = check_refmol(m, validate_dict, target)
         validate_dict = check_field_populated(m, validate_dict)
         validate_dict = check_SMILES(m, validate_dict)
 
