@@ -7,3 +7,4 @@
 # Fragalysis backend
 Django server for Fragalysis with DRF API and loaders for data. Has components to serve React web-app but doesn't actually do that.
 
+Test
