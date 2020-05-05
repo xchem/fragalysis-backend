@@ -78,10 +78,10 @@ mkdir -p data/neo4j/logs
 mkdir -p data/stack/media
 mkdir -p data/stack/logs
 ```
-**4.Copy** 
+**4.Populating database** 
 
 
-Copy to `fragalysis/data/input/django_data/EXAMPLE` your data, before you can launch the application.
+Copy to `fragalysis/data/input/django_data/EXAMPLE` your PDB data, before you can launch the application.
 
 If not exists file `fragalysis/data/input/django_data/EXAMPLE/TARGET_LIST` create it and content with list of your data, for example:
 ```
@@ -113,3 +113,26 @@ retry run start script again.
 change value of `DEBUG` variable to `True` in this file
 `fragalysis-backend/fragalysis/settings.py`
 Note: **please don't push this change into git**
+
+### Populate database with CompoundSet
+The first you need to have upload key.
+#### Generate upload key
+connect to web_dock service and run following script
+```
+python manage.py shell
+from viewer.models import CSetKeys
+new_key = CSetKeys()
+new_key.name = 'test'
+new_key.save()
+print(new_key.uuid)
+```
+
+It is important to have key in following format (with `-`)
+`f8c4ea0f-6b81-46d0-b85a-3601135756bc` 
+
+#### Upload page
+Visit `localhost:8080/viewer/upload_cset`
+
+The target name is for example `Mpro`, select `sdf` file and you don't need a `pdb` file. 
+Before upload generate upload key.
+
