@@ -54,6 +54,7 @@ You can clone original `xchem` repositories or your forked e.g. `m2ms` and check
 git clone https://github.com/xchem/fragalysis-backend.git
 git clone https://github.com/xchem/fragalysis-frontend.git
 git clone https://github.com/xchem/fragalysis-loader.git
+git clone https://github.com/InformaticsMatters/dls-fragalysis-stack-openshift.git
 ```
 Note: 
 To successful build, it should exist following directories from repository cloning.
@@ -62,6 +63,7 @@ Frontend is also important, because DJANGO server will serve this directory!
 fragalysis/fragalysis-loader/
 fragalysis/fragalysis-frontend/
 fragalysis/fragalysis-backend/
+fragalysis/dls-fragalysis-stack-openshift/
 ```
 
 **3.Create some key data directories**
@@ -81,7 +83,12 @@ mkdir -p data/stack/logs
 
 Copy to `fragalysis/data/input/django_data/EXAMPLE` your data, before you can launch the application.
 
-##Start
+If not exists file `fragalysis/data/input/django_data/EXAMPLE/TARGET_LIST` create it and content with list of your data, for example:
+```
+Mpro, NUDT7A,...
+```
+
+## Start
 Start `Fragalysis stack` (All infrastructure - databases + populating data)
 
 ```
@@ -102,7 +109,7 @@ Note: The first run will be probably not successful run `loader` and `web_dock` 
 (process of first starting has long duration). Wait for successful running of `neo4j` and `mysql` services and 
 retry run start script again.
 
-##Develop mode in DJANGO
+## Develop mode in DJANGO
 change value of `DEBUG` variable to `True` in this file
 `fragalysis-backend/fragalysis/settings.py`
 Note: **please don't push this change into git**
