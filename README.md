@@ -39,13 +39,14 @@ The repositories are:
 
 ## Setup
 
-#### 1. Create project directory, e.g.
+**1.Create project directory, e.g.**
+
 
 ```
 mkdir fragalysis
 ```
 
-####2. Clone repositories inside your project's directory
+**2.Clone repositories inside your project's directory**
 
 
 You can clone original `xchem` repositories or your forked e.g. `m2ms` and checkout any branch if necessary
@@ -63,7 +64,9 @@ fragalysis/fragalysis-frontend/
 fragalysis/fragalysis-backend/
 ```
 
-####3. Create some key data directories
+**3.Create some key data directories**
+
+
 In `fragalysis/` directory run script to create data directory structure
 ```
 mkdir -p data/input/django_data/EXAMPLE
@@ -73,7 +76,9 @@ mkdir -p data/neo4j/logs
 mkdir -p data/stack/media
 mkdir -p data/stack/logs
 ```
-####4. Copy 
+**4.Copy** 
+
+
 Copy to `fragalysis/data/input/django_data/EXAMPLE` your data, before you can launch the application.
 
 ##Start
