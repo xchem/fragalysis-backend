@@ -34,13 +34,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: xchem/fragalysis-stack:latest
     command: /bin/bash /code/launch-stack.sh
     volumes:
       - ../data/logs:/code/logs/
       - ../data/media:/code/media/
       - ../fragalysis-frontend:/code/frontend/
       - .:/code/
+      - ../dls-fragalysis-stack-openshift/images/loader/docker-entrypoint.sh:/code/docker-entrypoint.sh
+      - ../fragalysis-loader/run_loader.sh:/code/run_loader.sh
+      - ../fragalysis-loader/loader.py:/code/loader.py
+      - ../fragalysis-loader/test_entry.sh:/code/test_entry.sh
+      - ../fragalysis-loader/wait-for-it.sh:/code/wait-for-it.sh
+      - ../fragalysis-loader/database_check.py:/code/database_check.py
+      - ../fragalysis-loader/tests:/code/tests
+      - ../fragalysis-loader/loader:/code/loader
+      - ./loader/config.py:/code/loader/config.py
     ports:
       - "8080:80"
     depends_on:
@@ -48,7 +56,9 @@ services:
       - graph
   loader:
     container_name: loader
-    image: xchem/fragalysis-stack:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: /bin/bash /code/docker-entrypoint.sh
     volumes:
       - ../data/input:/fragalysis/
@@ -63,6 +73,7 @@ services:
       - ../fragalysis-loader/database_check.py:/code/database_check.py
       - ../fragalysis-loader/tests:/code/tests
       - ../fragalysis-loader/loader:/code/loader
+      - ./loader/config.py:/code/loader/config.py
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: django_db
@@ -71,3 +82,4 @@ services:
       DATA_ORIGIN: EXAMPLE
     depends_on:
       - mysql
+      - web
