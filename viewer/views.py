@@ -234,13 +234,13 @@ class UploadCSet(View):
                 if zf:
                     zf.close()
 
-                if cset_name:
-                    cset = CompoundSet.objects.get(cset_name)
-                    submitter = cset.submitter
-                    name = submitter.unique_name
-
-                    context['cset_download_url'] = '/viewer/compound_set/%s' %name
-                    context['pset_download_url'] = '/viewer/protein_set/%s' % name
+                # if cset_name:
+                #     cset = CompoundSet.objects.get(cset_name)
+                #     submitter = cset.submitter
+                #     name = submitter.unique_name
+                #
+                #     context['cset_download_url'] = '/viewer/compound_set/%s' %name
+                #     context['pset_download_url'] = '/viewer/protein_set/%s' % name
 
 
 
@@ -254,13 +254,22 @@ class UploadCSet(View):
             context['form'] = form
             return render(request, 'viewer/upload-cset.html', context)
 
+
 class TaskView(View):
     def get(self, request, task_id):
         task = current_app.AsyncResult(task_id)
         response_data = {'task_status': task.status, 'task_id': task.id}
 
         if task.status == 'SUCCESS':
-            response_data['results'] = task.get()
+            cset_name = task.get()
+            if cset_name:
+                cset = CompoundSet.objects.get(cset_name)
+                submitter = cset.submitter
+                name = submitter.unique_name
+
+                response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
+                response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
+            # response_data['results'] = task.get()
 
         return JsonResponse(response_data)
 
