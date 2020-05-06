@@ -5,8 +5,8 @@ from cStringIO import StringIO
 from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
-from rest_framework import viewsets
-
+from rest_framework import viewsets, views
+from rest_framework.response import Response
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
@@ -19,7 +19,7 @@ from celery import current_app
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet, CSetKeys
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet, CSetKeys, NumericalScoreValues
 from viewer import filters
 from sdf_check import validate
 from forms import CSetForm, UploadKeyForm
@@ -41,7 +41,8 @@ from viewer.serializers import (
     SessionProjectWriteSerializer,
     SessionProjectReadSerializer,
     SnapshotReadSerializer,
-    SnapshotWriteSerializer
+    SnapshotWriteSerializer,
+    TargetCompoundSetsSerializer
 )
 
 
@@ -490,3 +491,25 @@ class SnapshotsView(viewsets.ModelViewSet):
     # filter_permissions = "target_id__project_id"
     # filter_fields = '__all__'
 ### End of Session Project
+
+
+class TargetCompoundSetsView(views.APIView):
+    def get(self, request, targetID):
+        # yourdata= [{"likes": 10, "comments": 0}, {"likes": 4, "comments": 23}]
+        target = Target.objects.get(id=targetID)
+        compound_sets = CompoundSet.objects.filter(target=target)
+        a_compound_set = compound_sets[0]
+        compound_mols = ComputedCompound.objects.filter(compound_set=a_compound_set)
+        numerical_scores = NumericalScoreValues.objects.filter(compound=compound_mols[0])
+        for ns in numerical_scores:
+            print(ns.score.name)
+            print(ns.score.description)
+            print(ns.value)
+
+        results = TargetCompoundSetsSerializer(numerical_scores, many=True).data
+        # results = TargetSerializer(target).data
+        return Response(results)
+    # queryset = Target.objects.filter()
+    # serializer_class = TargetSerializer
+    # filter_permissions = "project_id"
+    # filter_fields = ("id",)
