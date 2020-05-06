@@ -18,7 +18,7 @@ from viewer.models import Molecule, Protein, Compound, Target, SessionProject, S
 from viewer import filters
 from sdf_check import validate
 from forms import CSetForm, UploadKeyForm
-from compound_sets import process_compound_set
+from tasks import process_compound_set
 import pandas as pd
 
 from viewer.serializers import (
