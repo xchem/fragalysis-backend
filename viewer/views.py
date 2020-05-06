@@ -234,6 +234,22 @@ class UploadCSet(View):
                 if zf:
                     zf.close()
 
+                if cset_name:
+                    cset = CompoundSet.objects.get(cset_name)
+                    submitter = cset.submitter
+                    name = submitter.unique_name
+
+                    context['cset_download_url'] = '/viewer/compound_set/%s' %name
+                    context['pset_download_url'] = '/viewer/protein_set/%s' % name
+
+
+
+                    # download_url = cset_download_url + '<br>' + pset_download_url
+                    #
+                    # # table = pd.DataFrame(computed)
+                    # # html_table = table.to_html()
+                    # html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
+
                 return render(request, 'viewer/upload-cset.html', context)
             context['form'] = form
             return render(request, 'viewer/upload-cset.html', context)

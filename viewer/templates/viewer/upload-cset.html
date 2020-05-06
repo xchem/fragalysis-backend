@@ -52,7 +52,7 @@
 
 
 
-  <section class="hero is-primary is-fullheight-with-navbar">
+  <section class="hero is-primary has-background-grey is-fullheight-with-navbar">
     <div class="hero-body">
       <div class="container">
         <h1 class="title is-size-1 has-text-centered">Compound Set Upload</h1>
@@ -103,16 +103,16 @@
               .then(function(response){
                 var taskStatus = response.data.task_status
                 if (taskStatus === 'SUCCESS') {
-                  clearTimer('Check downloads for results');
-                  {#var url = window.location.protocol + '//' + window.location.host + response.data.results.archive_path;#}
-                  {#var a = document.createElement("a");#}
-                  {#a.target = '_BLANK';#}
-                  {#document.body.appendChild(a);#}
-                  {#a.style = "display: none";#}
-                  {#a.href = url;#}
+                  clearTimer('Your files were uploaded! The download links are:');
+                  var url = window.location.protocol + '//' + window.location.host + response.data.results.cset_download_url;
+                  var a = document.createElement("a");
+                  a.target = '_BLANK';
+                  document.body.appendChild(a);
+                  a.style = "display: none";
+                  a.href = url;
                   {#a.download = 'results.zip';#}
-                  {#a.click();#}
-                  {#document.body.removeChild(a);#}
+                  a.click();
+                  document.body.removeChild(a);
                 } else if (taskStatus === 'FAILURE') {
                   clearTimer('An error occurred');
                 }
