@@ -194,7 +194,7 @@ def set_descriptions(filename, compound_set):
 
 
 @shared_task(bind=True)
-def process_compound_set(target, filename, zfile=None):
+def process_compound_set(self, target, filename, zfile=None):
     progress_recorder = ProgressRecorder(self)
     print('processing compound set: ' + filename)
     filename = str(filename)
