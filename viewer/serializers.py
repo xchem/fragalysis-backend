@@ -303,3 +303,11 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = ComputedCompound
 #         fields = "__all__"
+
+class ScoreDescriptionSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    description = serializers.CharField()
+
+class TargetCompoundSetsSerializer(serializers.Serializer):
+    score = ScoreDescriptionSerializer()
+    value = serializers.FloatField()
