@@ -223,7 +223,7 @@ def upload_cset(request):
                 if zf:
                     zf.close()
 
-                return render(request, 'viewer/upload-cset.html', context={'task_id': cset.task_id})
+                return render(request, 'viewer/upload-cset.html', context={'task_id': cset_name.task_id})
                 ### ALL OF THIS NOW HAS TO HAPPEN AFTER WE GET TASK ID?
                 # computed = ComputedCompound.objects.filter(compound_set=cset).values()
                 if cset_name:
