@@ -219,9 +219,12 @@ def upload_cset(request):
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url':''})
                 # return ValidationError('We could not validate this file')
             if str(choice)=='1':
-                cset = process_compound_set(target=target, filename=tmp_file, zfile=zfile)
+                cset = process_compound_set.delay(target=target, filename=tmp_file, zfile=zfile)
                 if zf:
                     zf.close()
+
+                return render(request, 'viewer/upload-cset.html', context={'task_id': cset.task_id})
+                ### ALL OF THIS NOW HAS TO HAPPEN AFTER WE GET TASK ID?
                 # computed = ComputedCompound.objects.filter(compound_set=cset).values()
                 submitter = cset.submitter
                 name = submitter.unique_name
