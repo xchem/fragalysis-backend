@@ -365,28 +365,16 @@ class SnapshotsView(viewsets.ModelViewSet):
             return SnapshotReadSerializer
         return SnapshotWriteSerializer
     filter_class = filters.SnapshotFilter
-    # filter_permissions = "target_id__project_id"
-    # filter_fields = '__all__'
 ### End of Session Project
 
 
 class TargetCompoundSetsView(views.APIView):
     def get(self, request, targetID):
-        # yourdata= [{"likes": 10, "comments": 0}, {"likes": 4, "comments": 23}]
         target = Target.objects.get(id=targetID)
         compound_sets = CompoundSet.objects.filter(target=target)
         a_compound_set = compound_sets[0]
         compound_mols = ComputedCompound.objects.filter(compound_set=a_compound_set)
         numerical_scores = NumericalScoreValues.objects.filter(compound=compound_mols[0])
-        for ns in numerical_scores:
-            print(ns.score.name)
-            print(ns.score.description)
-            print(ns.value)
 
         results = TargetCompoundSetsSerializer(numerical_scores, many=True).data
-        # results = TargetSerializer(target).data
         return Response(results)
-    # queryset = Target.objects.filter()
-    # serializer_class = TargetSerializer
-    # filter_permissions = "project_id"
-    # filter_fields = ("id",)

@@ -17,7 +17,6 @@ router.register(r"targets", viewer_views.TargetView)
 router.register(r"proteins", viewer_views.ProteinView)
 router.register(r"session-projects", viewer_views.SessionProjectsView)
 router.register(r"snapshots", viewer_views.SnapshotsView)
-# router.register(r'target-compound-sets', viewer_views.TargetCompoundSetsView.as_view(), base_name='target-compound-sets')
 
 # Get the derived data
 router.register(r"molimg", viewer_views.MolImageView)
@@ -66,6 +65,7 @@ def schema_view(request):
 
 urlpatterns = [
     url(r"^", include(router.urls)),
+    url(r'^target-compound-sets/(?P<targetID>.+)/$', viewer_views.TargetCompoundSetsView.as_view(), name='target-compound-sets'),
     url(r"^auth$", drf_views.obtain_auth_token, name="auth"),
     url(r"^swagger$", schema_view),
 ]
