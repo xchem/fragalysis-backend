@@ -20,7 +20,7 @@ from django.views.generic.base import RedirectView
 from graphene_django.views import GraphQLView
 
 urlpatterns = [
-    url(r"^celery-progress/", include('celery_progress.urls')),
+    url(r"^celery-progress/", include('celery_progress.urls'), namespace="celery_progress"),
     url(r"^admin/", admin.site.urls),
     url(r"^viewer/", include("viewer.urls")),
     url(r"^network/", include("network.urls")),
