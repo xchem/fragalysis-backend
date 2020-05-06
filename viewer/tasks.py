@@ -229,6 +229,7 @@ def process_compound_set(self, target, filename, zfile=None):
     if len(check) == 0:
         compound_set.delete()
         print('No molecules processed... deleting ' + set_name + ' compound set')
+        return None
 
-    return compound_set
+    return compound_set.name
 

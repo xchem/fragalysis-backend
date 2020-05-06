@@ -219,26 +219,28 @@ def upload_cset(request):
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url':''})
                 # return ValidationError('We could not validate this file')
             if str(choice)=='1':
-                cset = process_compound_set.delay(target=target, filename=tmp_file, zfile=zfile)
+                cset_name = process_compound_set.delay(target=target, filename=tmp_file, zfile=zfile)
                 if zf:
                     zf.close()
 
                 return render(request, 'viewer/upload-cset.html', context={'task_id': cset.task_id})
                 ### ALL OF THIS NOW HAS TO HAPPEN AFTER WE GET TASK ID?
                 # computed = ComputedCompound.objects.filter(compound_set=cset).values()
-                submitter = cset.submitter
-                name = submitter.unique_name
+                if cset_name:
+                    cset = CompoundSet.objects.get(cset_name)
+                    submitter = cset.submitter
+                    name = submitter.unique_name
 
-                cset_download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %name
-                pset_download_url = '<a href="/viewer/protein_set/%s">Download Protein Set</a>' % name
+                    cset_download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %name
+                    pset_download_url = '<a href="/viewer/protein_set/%s">Download Protein Set</a>' % name
 
-                download_url = cset_download_url + '<br>' + pset_download_url
+                    download_url = cset_download_url + '<br>' + pset_download_url
 
-                # table = pd.DataFrame(computed)
-                # html_table = table.to_html()
-                html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
+                    # table = pd.DataFrame(computed)
+                    # html_table = table.to_html()
+                    html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
 
-                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url': download_url})
+                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url': download_url})
             if str(choice)=='0' and v:
                 html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
                 return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
