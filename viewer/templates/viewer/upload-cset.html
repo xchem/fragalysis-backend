@@ -1,41 +1,71 @@
 {% load static %}
 
 {% block content %}
-    <h1>Compound set upload</h1>
-    <h2>Instructions</h2>
-    <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>
-    <p>The current instructions are here: </p><a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a>
-    <p>The current specification version is <b>ver_1.2</b></p>
-    <br>
-  <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_ul }}
-    <button type="submit">Submit</button>
-  </form>
-   {% autoescape off %}
-       {{ download_url }}
-       {{ table }}
-   {% endautoescape %}
+{#    <h1>Compound set upload</h1>#}
+{#    <h2>Instructions</h2>#}
+{#    <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>#}
+{#    <p>The current instructions are here: </p><a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a>#}
+{#    <p>The current specification version is <b>ver_1.2</b></p>#}
+{#    <br>#}
+{#  <form method="post" enctype="multipart/form-data">#}
+{#    {% csrf_token %}#}
+{#    {{ form.as_ul }}#}
+{#    <button type="submit">Submit</button>#}
+{#  </form>#}
+{#   {% autoescape off %}#}
+{#       {{ download_url }}#}
+{#       {{ table }}#}
+{#   {% endautoescape %}#}
+{##}
+{#    <div class='progress-wrapper'>#}
+{#      <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>#}
+{#    </div>#}
+{#    <div id="progress-bar-message">#}
+{#        Waiting for progress to start...#}
+{#    </div>#}
+{##}
+{#    <script src="{% static 'celery_progress/celery_progress.js' %}"></script>#}
+{#    <script>#}
+{#        // vanilla JS version#}
+{#        document.addEventListener("DOMContentLoaded", function () {#}
+{#            // on page load#}
+{#            var progressUrl = "{% url 'celery_progress:task_status' 'task-id-stub' %}";#}
+{#            // in callback function - assumes api response returns the task id#}
+{#            var taskUrl = progressUrl.replace('task-id-stub', response.text);#}
+{#            CeleryProgressBar.initProgressBar(progressUrl);#}
+{#        });#}
+{#    </script>#}
+{##}
+{#    <div id="celery-result"></div>#}
 
-    <div class='progress-wrapper'>
-      <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+{#{% endblock %}#}
+
+
+
+
+  <section class="hero is-primary is-fullheight-with-navbar">
+    <div class="hero-body">
+      <div class="container">
+        <h1 class="title is-size-1 has-text-centered">Thumbnail Generator</h1>
+        <p class="subtitle has-text-centered" id="progress-title"></p>
+        <div class="columns is-centered">
+          <div class="column is-8">
+              <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>
+              <p>The current instructions are here: </p><a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a>
+              <p>The current specification version is <b>ver_1.2</b></p>
+              <br>
+              <form method="post" enctype="multipart/form-data">
+                  {% csrf_token %}
+                  {{ form.as_ul }}
+                <button type="submit">Submit</button>
+            </form>
+              {% autoescape off %}
+                  {{ download_url }}
+                  {{ table }}
+              {% endautoescape %}
+          </div>
+        </div>
+      </div>
     </div>
-    <div id="progress-bar-message">
-        Waiting for progress to start...
-    </div>
-
-    <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
-    <script>
-        // vanilla JS version
-        document.addEventListener("DOMContentLoaded", function () {
-            // on page load
-            var progressUrl = "{% url 'celery_progress:task_status' 'task-id-stub' %}";
-            // in callback function - assumes api response returns the task id
-            var taskUrl = progressUrl.replace('task-id-stub', response.text);
-            CeleryProgressBar.initProgressBar(progressUrl);
-        });
-    </script>
-
-    <div id="celery-result"></div>
-
+  </section>
 {% endblock %}
