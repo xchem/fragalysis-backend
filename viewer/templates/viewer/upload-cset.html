@@ -22,8 +22,12 @@
         <div class="hero-body">
             <div class="columns is-centered">
               <div class="column is-8" id="content">
-                  <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>
-                  <p>The current instructions are here: <a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a></p>
+                  <p>
+                      Here, you can upload compound sets for follow up compounds (computed 3D coordinates)
+                      The current instructions are here:
+                      <a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a>
+                  </p>
+                  <br>
                   <p>The current specification version is <b>ver_1.2</b></p>
                   <br>
                   <form method="post" enctype="multipart/form-data">
@@ -78,6 +82,9 @@
                   a.title = 'compound set';
                   a.href = url_a;
                   content.appendChild(a);
+
+                  var br = document.createElement('br');
+                  content.appendChild(br);
 
                   var url_b = response.data.results.pset_download_url;
                   var b = document.createElement("a");
