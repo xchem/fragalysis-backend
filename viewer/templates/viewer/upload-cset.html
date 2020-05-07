@@ -63,10 +63,10 @@
               .then(function(response){
                 var taskStatus = response.data.task_status
                 if (taskStatus === 'SUCCESS') {
-                  clearTimer('Your files were uploaded! The download links are shown at the bottom of the page');
+                  clearTimer('Your files were uploaded! The download links are:');
 
                   var url_a = response.data.results.cset_download_url;
-                  var content = document.getElementById('content');
+                  var content = document.getElementById('progress-title');
                   var a = document.createElement("a");
                   var link = document.createTextNode("    Compound Set    ");
                   a.appendChild(link);
