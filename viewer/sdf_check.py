@@ -67,7 +67,7 @@ def check_refmol(mol, validate_dict, target=None):
     if target:
         refmols = mol.GetProp('ref_mols').split(',')
         for ref in refmols:
-            query = Protein.objects.filter(code__cointains=target + '-' + ref.strip())
+            query = Protein.objects.filter(code__contains=target + '-' + ref.strip())
             if len(query)==0:
                 validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field='ref_mol',
