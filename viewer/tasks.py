@@ -22,6 +22,9 @@ from viewer.models import (
 import ast
 import os.path
 
+from celery import shared_task
+from celery_progress.backend import ProgressRecorder
+import time
 
 def dataType(str):
     str = str.strip()
@@ -190,7 +193,9 @@ def set_descriptions(filename, compound_set):
     return mols
 
 
-def process_compound_set(target, filename, zfile=None):
+@shared_task(bind=True)
+def process_compound_set(self, target, filename, zfile=None):
+    progress_recorder = ProgressRecorder(self)
     print('processing compound set: ' + filename)
     filename = str(filename)
     # create a new compound set
@@ -204,8 +209,11 @@ def process_compound_set(target, filename, zfile=None):
     mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
 
     # process every other mol
-    for mol in mols_to_process:
-        process_mol(mol, compound_set, filename, zfile)
+    for i in range(0, len(mols_to_process)):
+        process_mol(mols_to_process[i], compound_set, filename, zfile)
+        progress_recorder.set_progress(i + 1, len(mols_to_process), description='Processing mols...')
+    # for mol in mols_to_process:
+    #     process_mol(mol, compound_set, filename, zfile)
 
     # check that molecules have been added to the compound set
     check = ComputedCompound.objects.filter(compound_set=compound_set)
@@ -221,6 +229,7 @@ def process_compound_set(target, filename, zfile=None):
     if len(check) == 0:
         compound_set.delete()
         print('No molecules processed... deleting ' + set_name + ' compound set')
+        return None
 
-    return compound_set
+    return compound_set.name
 
