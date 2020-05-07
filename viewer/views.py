@@ -23,7 +23,7 @@ from viewer.models import Molecule, Protein, Compound, Target, SessionProject, S
 from viewer import filters
 from sdf_check import validate
 from forms import CSetForm, UploadKeyForm
-from tasks import process_compound_set
+from tasks import process_compound_set, check_services
 import pandas as pd
 
 from viewer.serializers import (
@@ -168,6 +168,7 @@ class UploadCSet(View):
         return render(request, 'viewer/upload-cset.html', {'form': form})
 
     def post(self, request):
+        check_services()
         zfile = None
         zf = None
         cset = None
