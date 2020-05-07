@@ -74,10 +74,10 @@
 
                   var url_b = response.data.results.pset_download_url;
                   var b = document.createElement("b");
-                  var link_b = document.createTextNode("Compound Set");
+                  var link_b = document.createTextNode("Protein Set");
                   b.appendChild(link_b);
                   b.title = 'compound set';
-                  b.href = url_a;
+                  b.href = url_b;
                   document.body.appendChild(b);
 
                 } else if (taskStatus === 'FAILURE') {
