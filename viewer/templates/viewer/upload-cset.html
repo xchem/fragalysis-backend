@@ -16,6 +16,7 @@
           <div class="container">
             <h1 class="title is-size-1 has-text-centered">Compound Set Upload</h1>
             <p class="subtitle has-text-centered" id="progress-title"></p>
+            <p class="subtitle has-text-centered has-text-info" id="links"></p>
             <div class="columns is-centered">
               <div class="column is-8" id="content">
                   <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>
@@ -66,7 +67,7 @@
                   clearTimer('Your files were uploaded! The download links are:');
 
                   var url_a = response.data.results.cset_download_url;
-                  var content = document.getElementById('progress-title');
+                  var content = document.getElementById('links');
                   var a = document.createElement("a");
                   var link = document.createTextNode("    Compound Set    ");
                   a.appendChild(link);
@@ -78,7 +79,7 @@
                   var b = document.createElement("a");
                   var link_b = document.createTextNode("    Protein Set    ");
                   b.appendChild(link_b);
-                  b.title = 'compound set';
+                  b.title = 'protein set';
                   b.href = url_b;
                   content.appendChild(b);
 
