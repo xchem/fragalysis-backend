@@ -51,6 +51,8 @@
 
       {% if task_id %}
           <script>
+          var content = document.getElementById('content');
+          content.innerHTML = "";
           var taskUrl = "{% url 'task' task_id=task_id %}";
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
