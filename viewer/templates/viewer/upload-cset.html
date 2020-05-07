@@ -10,45 +10,44 @@
   <script defer src="https://use.fontawesome.com/releases/v5.0.7/js/all.js"></script>
 </head>
 {% block content %}
-
-  <section class="hero is-primary has-background-grey is-fullheight-with-navbar">
-    <div class="hero-body">
-      <div class="container">
-        <h1 class="title is-size-1 has-text-centered">Compound Set Upload</h1>
-        <p class="subtitle has-text-centered" id="progress-title"></p>
-        <div class="columns is-centered">
-          <div class="column is-8">
-              <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>
-              <p>The current instructions are here: <a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a></p>
-              <p>The current specification version is <b>ver_1.2</b></p>
-              <br>
-              <form method="post" enctype="multipart/form-data">
-                  {% csrf_token %}
-                  {{ form.as_ul }}
-                <button type="submit">Submit</button>
-            </form>
-              {% autoescape off %}
-                  {% if download_url %}
-                    {{ download_url }}
-                  {% endif %}
-                  {% if table %}
-                    {{ table }}
-                  {% endif %}
-              {% endautoescape %}
+    <body>
+      <section class="hero is-primary has-background-grey is-fullheight-with-navbar">
+        <div class="hero-body">
+          <div class="container">
+            <h1 class="title is-size-1 has-text-centered">Compound Set Upload</h1>
+            <p class="subtitle has-text-centered" id="progress-title"></p>
+            <div class="columns is-centered">
+              <div class="column is-8" id="content">
+                  <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>
+                  <p>The current instructions are here: <a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a></p>
+                  <p>The current specification version is <b>ver_1.2</b></p>
+                  <br>
+                  <form method="post" enctype="multipart/form-data">
+                      {% csrf_token %}
+                      {{ form.as_ul }}
+                    <button type="submit">Submit</button>
+                </form>
+                  {% autoescape off %}
+                      {% if download_url %}
+                        {{ download_url }}
+                      {% endif %}
+                      {% if table %}
+                        {{ table }}
+                      {% endif %}
+                  {% endautoescape %}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  </section>
-
-    <script>
-      var file = document.getElementById('{{form.sdf_file.id_for_label}}');
-      file.onchange = function() {
-        if(file.files.length > 0) {
-          document.getElementById('file-name').innerHTML = file.files[0].name;
-        }
-      };
-     </script>
+      </section>
+    </body>
+{#    <script>#}
+      {#var file = document.getElementById('{{form.sdf_file.id_for_label}}');#}
+      {#file.onchange = function() {#}
+      {#  if(file.files.length > 0) {#}
+      {#    document.getElementById('file-name').innerHTML = file.files[0].name;#}
+      {#  }#}
+{#     </script>#}
 
       {% if task_id %}
           <script>
@@ -65,17 +64,18 @@
                   clearTimer('Your files were uploaded! The download links are shown at the bottom of the page');
 
                   var url_a = response.data.results.cset_download_url;
+                  var content = document.getElementById('content');
                   var a = document.createElement("a");
-                  var link = document.createTextNode("Compound Set");
-                  a.appendChild(link);
+                  var link = document.createTextNode("    Compound Set    ");
+                  content.appendChild(link);
                   a.title = 'compound set';
                   a.href = url_a;
                   document.body.appendChild(a);
 
                   var url_b = response.data.results.pset_download_url;
-                  var b = document.createElement("b");
-                  var link_b = document.createTextNode("Protein Set");
-                  b.appendChild(link_b);
+                  var b = document.createElement("a");
+                  var link_b = document.createTextNode("    Protein Set    ");
+                  content.appendChild(link_b);
                   b.title = 'compound set';
                   b.href = url_b;
                   document.body.appendChild(b);
