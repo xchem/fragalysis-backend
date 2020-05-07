@@ -62,7 +62,7 @@ def get_prot(mol, compound_set, zfile):
     else:
         name = compound_set.target.title + '-' + pdb_option
         print('PROT: ' + name)
-        prot = Protein.objects.get(code=name)
+        prot = Protein.objects.get(code__contains=name)
         field = prot.pdb_info
 
     return field
@@ -100,7 +100,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
     insp = [i.strip() for i in insp]
     insp_frags = []
     for i in insp:
-        mols = Molecule.objects.filter(prot_id__code=str(compound_set.target.title + '-' + i),
+        mols = Molecule.objects.filter(prot_id__code__contains=str(compound_set.target.title + '-' + i),
                                        prot_id__target_id=compound_set.target)
         if len(mols)>1:
             ids = [m.cmpd_id.id for m in mols]
