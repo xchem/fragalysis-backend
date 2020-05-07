@@ -42,7 +42,4 @@ echo "Testing nginx config..."
 nginx -t
 echo "Running nginx..."
 nginx
-echo "starting redis server..."
-redis-server &
-echo "starting celery daemon..."
-celery -A fragalysis worker -l info &
+
