@@ -36,13 +36,10 @@ gunicorn fragalysis.wsgi:application \
     --workers 3 \
     --log-level=debug \
     --log-file=/srv/logs/gunicorn.log \
-    --access-logfile=/srv/logs/access.log &
+    --access-logfile=/srv/logs/access.log
 
 echo "Testing nginx config..."
 nginx -t
 echo "Running nginx..."
 nginx
-echo "starting redis server..."
-redis-server &
-echo "starting celery daemon..."
-celery -A fragalysis worker -l info &
+
