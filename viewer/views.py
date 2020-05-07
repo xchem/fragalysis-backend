@@ -263,10 +263,10 @@ class TaskView(View):
         if task.status == 'SUCCESS':
             cset_name = task.get()
             if cset_name:
-                cset = CompoundSet.objects.get(cset_name)
+                cset = CompoundSet.objects.get(name=cset_name)
                 submitter = cset.submitter
                 name = submitter.unique_name
-
+                response_data['results'] = {}
                 response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
                 response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
             # response_data['results'] = task.get()

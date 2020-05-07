@@ -103,16 +103,24 @@
               .then(function(response){
                 var taskStatus = response.data.task_status
                 if (taskStatus === 'SUCCESS') {
-                  clearTimer('Your files were uploaded! The download links are:');
-                  var url = window.location.protocol + '//' + window.location.host + response.data.results.cset_download_url;
+                  clearTimer('Your files were uploaded! The download links are shown at the bottom of the page');
+
+                  var url_a = response.data.results.cset_download_url;
                   var a = document.createElement("a");
-                  a.target = '_BLANK';
+                  var link = document.createTextNode("Compound Set");
+                  a.appendChild(link);
+                  a.title = 'compound set';
+                  a.href = url_a;
                   document.body.appendChild(a);
-                  a.style = "display: none";
-                  a.href = url;
-                  {#a.download = 'results.zip';#}
-                  a.click();
-                  document.body.removeChild(a);
+
+                  var url_b = response.data.results.pset_download_url;
+                  var b = document.createElement("b");
+                  var link_b = document.createTextNode("Compound Set");
+                  b.appendChild(link_b);
+                  b.title = 'compound set';
+                  b.href = url_a;
+                  document.body.appendChild(b);
+
                 } else if (taskStatus === 'FAILURE') {
                   clearTimer('An error occurred');
                 }
