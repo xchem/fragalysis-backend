@@ -11,12 +11,12 @@
 </head>
 {% block content %}
     <body>
-      <section class="hero is-primary has-background-grey is-fullheight-with-navbar">
+      <section class="hero is-primary has-background-grey">
         <div class="hero-body">
           <div class="container">
             <h1 class="title is-size-1 has-text-centered">Compound Set Upload</h1>
             <p class="subtitle has-text-centered" id="progress-title"></p>
-            <p class="subtitle has-text-centered has-text-info" id="links"></p>
+
             <div class="columns is-centered">
               <div class="column is-8" id="content">
                   <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>
@@ -41,6 +41,7 @@
           </div>
         </div>
       </section>
+        <p class="has-text-centered" id="links"></p>
     </body>
 {#    <script>#}
       {#var file = document.getElementById('{{form.sdf_file.id_for_label}}');#}
