@@ -49,7 +49,8 @@ from viewer.serializers import (
     SnapshotReadSerializer,
     SnapshotWriteSerializer,
     TargetCompoundSetsSerializer,
-    CompoundSetSerializer
+    CompoundSetSerializer,
+    CompoundMoleculeSerializer
 )
 
 
@@ -396,3 +397,10 @@ class CompoundSetView(viewsets.ReadOnlyModelViewSet):
     serializer_class = CompoundSetSerializer
     filter_permissions = "project_id"
     filter_fields = ('target',)
+
+
+class CompoundMoleculesView(viewsets.ReadOnlyModelViewSet):
+    queryset = ComputedCompound.objects.filter()
+    serializer_class = CompoundMoleculeSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound_set',)

@@ -19,6 +19,7 @@ router.register(r"session-projects", viewer_views.SessionProjectsView)
 router.register(r"snapshots", viewer_views.SnapshotsView)
 # Compounds sets
 router.register(r"compound-sets", viewer_views.CompoundSetView)
+router.register(r"compound-molecules", viewer_views.CompoundMoleculesView)
 
 # Get the derived data
 router.register(r"molimg", viewer_views.MolImageView)
