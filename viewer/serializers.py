@@ -316,4 +316,12 @@ class TargetCompoundSetsSerializer(serializers.Serializer):
 class CompoundSetSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompoundSet
-        fields = ('id', 'name', 'target')
+        fields = '__all__'
+
+
+class CompoundMoleculeSerializer(serializers.ModelSerializer):
+    # performance issue
+    # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
+    class Meta:
+        model = ComputedCompound
+        fields = '__all__'
