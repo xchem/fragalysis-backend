@@ -50,7 +50,8 @@ from viewer.serializers import (
     SnapshotWriteSerializer,
     TargetCompoundSetsSerializer,
     CompoundSetSerializer,
-    CompoundMoleculeSerializer
+    CompoundMoleculeSerializer,
+    NumericalScoreSerializer
 )
 
 
@@ -404,3 +405,9 @@ class CompoundMoleculesView(viewsets.ReadOnlyModelViewSet):
     serializer_class = CompoundMoleculeSerializer
     filter_permissions = "project_id"
     filter_fields = ('compound_set',)
+
+class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
+    queryset = NumericalScoreValues.objects.filter()
+    serializer_class = NumericalScoreSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound',)
