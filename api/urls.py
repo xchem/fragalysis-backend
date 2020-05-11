@@ -21,6 +21,7 @@ router.register(r"snapshots", viewer_views.SnapshotsView)
 router.register(r"compound-sets", viewer_views.CompoundSetView)
 router.register(r"compound-molecules", viewer_views.CompoundMoleculesView)
 router.register(r"numerical-scores", viewer_views.NumericalScoresView)
+router.register(r"compound-scores", viewer_views.CompoundScoresView)
 
 # Get the derived data
 router.register(r"molimg", viewer_views.MolImageView)
