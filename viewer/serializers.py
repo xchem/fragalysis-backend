@@ -351,3 +351,4 @@ class NumericalScoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = NumericalScoreValues
         fields = '__all__'
+

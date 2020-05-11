@@ -29,7 +29,8 @@ from viewer.models import (
     ComputedCompound,
     CompoundSet,
     CSetKeys,
-    NumericalScoreValues
+    NumericalScoreValues,
+    ScoreDescription
 )
 from viewer import filters
 from sdf_check import validate
@@ -56,7 +57,8 @@ from viewer.serializers import (
     TargetCompoundSetsSerializer,
     CompoundSetSerializer,
     CompoundMoleculeSerializer,
-    NumericalScoreSerializer
+    NumericalScoreSerializer,
+    ScoreDescriptionAllSerializer
 )
 
 
@@ -534,3 +536,10 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
     serializer_class = NumericalScoreSerializer
     filter_permissions = "project_id"
     filter_fields = ('compound',)
+
+
+class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
+    queryset = ScoreDescription.objects.filter()
+    serializer_class = ScoreDescriptionAllSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound_set',)
