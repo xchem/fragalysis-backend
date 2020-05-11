@@ -14,7 +14,18 @@ from django.conf import settings
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet, CSetKeys, NumericalScoreValues
+from viewer.models import (
+    Molecule,
+    Protein,
+    Compound,
+    Target,
+    SessionProject,
+    Snapshot,
+    ComputedCompound,
+    CompoundSet,
+    CSetKeys,
+    NumericalScoreValues
+)
 from viewer import filters
 from sdf_check import validate
 from forms import CSetForm, UploadKeyForm
@@ -37,7 +48,8 @@ from viewer.serializers import (
     SessionProjectReadSerializer,
     SnapshotReadSerializer,
     SnapshotWriteSerializer,
-    TargetCompoundSetsSerializer
+    TargetCompoundSetsSerializer,
+    CompoundSetSerializer
 )
 
 
@@ -378,3 +390,9 @@ class TargetCompoundSetsView(views.APIView):
 
         results = TargetCompoundSetsSerializer(numerical_scores, many=True).data
         return Response(results)
+
+class CompoundSetView(viewsets.ReadOnlyModelViewSet):
+    queryset = CompoundSet.objects.filter()
+    serializer_class = CompoundSetSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('target',)

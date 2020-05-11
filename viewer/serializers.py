@@ -4,7 +4,7 @@ from frag.network.query import get_full_graph
 from rest_framework import serializers
 
 from api.utils import draw_mol
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject, ComputedCompound
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject, ComputedCompound, CompoundSet
 from django.contrib.auth.models import User
 
 class TargetSerializer(serializers.ModelSerializer):
@@ -311,3 +311,9 @@ class ScoreDescriptionSerializer(serializers.Serializer):
 class TargetCompoundSetsSerializer(serializers.Serializer):
     score = ScoreDescriptionSerializer()
     value = serializers.FloatField()
+
+
+class CompoundSetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompoundSet
+        fields = ('id', 'name', 'target')
