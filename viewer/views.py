@@ -167,6 +167,7 @@ def cset_key(request):
 # - validation
 # - upload
 # Also need to check that all data is going into the database
+# Worth looking at chaining tasks together: https://docs.celeryproject.org/en/stable/userguide/canvas.html
 class UploadCSet(View):
     def get(self, request):
         form = CSetForm()

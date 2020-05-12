@@ -9,7 +9,6 @@ Script to check sdf file format for Fragalysis upload
 from rdkit import Chem
 import validators
 import numpy as np
-import os
 from viewer.models import Protein, CompoundSet
 import datetime
 
