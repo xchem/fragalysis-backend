@@ -168,6 +168,7 @@ def cset_key(request):
 # - upload
 # Also need to check that all data is going into the database
 # Worth looking at chaining tasks together: https://docs.celeryproject.org/en/stable/userguide/canvas.html
+# https://stackoverflow.com/questions/39099267/how-can-i-create-a-chain-of-conditional-subtasks-in-celery
 class UploadCSet(View):
     def get(self, request):
         form = CSetForm()
