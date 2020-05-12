@@ -51,6 +51,7 @@ class MoleculeSerializer(serializers.ModelSerializer):
     rings = serializers.SerializerMethodField()
     velec = serializers.SerializerMethodField()
 
+
     def get_molecule_protein(self, obj):
         return obj.prot_id.pdb_info.url
 

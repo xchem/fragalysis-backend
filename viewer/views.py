@@ -162,6 +162,11 @@ def cset_key(request):
     return render(request, 'viewer/generate-key.html', {'form': form, 'message': ''})
 
 
+# overall view for upload compound set - needs to include task for:
+# - saving the data from pdb zip to temporary storage
+# - validation
+# - upload
+# Also need to check that all data is going into the database
 class UploadCSet(View):
     def get(self, request):
         form = CSetForm()
@@ -185,7 +190,6 @@ class UploadCSet(View):
 
             # get all of the variables needed from the form
             myfile = request.FILES['sdf_file']
-            print(myfile)
             target = request.POST['target_name']
             choice = request.POST['submit_choice']
             if 'pdb_zip' in request.FILES.keys():
@@ -212,12 +216,26 @@ class UploadCSet(View):
             tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
             # validate the file (make this a task)
-            d, v = validate(tmp_file, target=target, zfile=zfile)
+            # How to use two outputs in celery?
+            # d, v = validate(tmp_file, target=target, zfile=zfile)
+
+            d, v = validate.delay(tmp_file, target=target, zfile=zfile)
+
+            context['validate_task_id'] = d.id
+            context['validate_task_status'] = d.status
+
+            # where does this actually belong?
+            if zf:
+                zf.close()
+
+            # need to add JS for handling validation task to template
+            return render(request, 'viewer/upload-cset.html', context)
 
             # set pandas options to display all column data
             pd.set_option('display.max_colwidth', -1)
 
             # if the data isn't validated make a table of errors and return it
+            # All of this needs moving to the validate task view
             if not v:
                 table = pd.DataFrame.from_dict(d)
                 html_table = table.to_html()
@@ -229,37 +247,21 @@ class UploadCSet(View):
             if str(choice) == '1':
                 cset_name = process_compound_set.delay(target=target, filename=tmp_file, zfile=zfile)
 
-                context['task_id'] = cset_name.id
-                context['task_status'] = cset_name.status
+                context['upload_task_id'] = cset_name.id
+                context['upload_task_status'] = cset_name.status
 
                 if zf:
                     zf.close()
-
-                # if cset_name:
-                #     cset = CompoundSet.objects.get(cset_name)
-                #     submitter = cset.submitter
-                #     name = submitter.unique_name
-                #
-                #     context['cset_download_url'] = '/viewer/compound_set/%s' %name
-                #     context['pset_download_url'] = '/viewer/protein_set/%s' % name
-
-
-
-                    # download_url = cset_download_url + '<br>' + pset_download_url
-                    #
-                    # # table = pd.DataFrame(computed)
-                    # # html_table = table.to_html()
-                    # html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
 
                 return render(request, 'viewer/upload-cset.html', context)
             context['form'] = form
             return render(request, 'viewer/upload-cset.html', context)
 
-
-class TaskView(View):
+# Needs to be something like UploadTaskView
+class UploadTaskView(View):
     def get(self, request, task_id):
         task = current_app.AsyncResult(task_id)
-        response_data = {'task_status': task.status, 'task_id': task.id}
+        response_data = {'upload_task_status': task.status, 'upload_task_id': task.id}
 
         if task.status == 'SUCCESS':
             cset_name = task.get()
@@ -270,112 +272,28 @@ class TaskView(View):
                 response_data['results'] = {}
                 response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
                 response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
-            # response_data['results'] = task.get()
 
         return JsonResponse(response_data)
 
 
-# needs a target to be specified
-def upload_cset(request):
-    """
-    :param request:
-    :return:
-    """
-    zfile = None
-    zf = None
-    cset = None
-    if request.method == 'POST':
-        form = CSetForm(request.POST, request.FILES)
-        # POST, generate form with data from the request
-        key = request.POST['upload_key']
-        all_keys = CSetKeys.objects.all()
-        if key not in [str(key.uuid) for key in all_keys]:
-            html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
-            return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
-        print('data provided... processing')
-#         try:
-        # check if it's valid:
-        if form.is_valid():
-            myfile = request.FILES['sdf_file']
-            print(myfile)
-            target = request.POST['target_name']
-            choice = request.POST['submit_choice']
-            if 'pdb_zip' in request.FILES.keys():
-                pdb_file = request.FILES['pdb_zip']
+# Add ValidateTaskView
+class ValidateTaskView(View):
+    def get(self, request, task_id):
+        task = current_app.AsyncResult(task_id)
+        response_data = {'validate_task_status': task.status, 'validate_task_id': task.id}
+
+        if task.status == 'SUCCESS':
+            validate_dict, validated = task.get()
+            if validated:
+                # return that the set was validated, and kick off upload task if requested
+                pass
             else:
-                pdb_file = None
+                # return the dict to be turned into table, and don't do upload
+                pass
 
-            # if request.FILES['pdb_zip']!='':
-                # check it's actually a zip file
+        return JsonResponse(response_data)
 
-            if pdb_file:
-                zf = zipfile.ZipFile(pdb_file)
-                zip_lst = zf.namelist()
-                zip_names = []
-                for filename in zip_lst:
-                    # only handle pdb files
-                    if filename.split('.')[-1] == 'pdb':
-                        # store filenames?
-                        zip_names.append(filename)
-
-                zfile = {'zip_obj': zf, 'zf_list': zip_names}
-
-
-            name = myfile.name
-            path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
-            tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
-
-            # isfile = os.path.isfile(tmp_file)
-            d, v = validate(tmp_file, target=target, zfile=zfile)
-            print(d)
-            print(v)
-            pd.set_option('display.max_colwidth', -1)
-            if not v:
-                table = pd.DataFrame.from_dict(d)
-                html_table = table.to_html()
-                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url':''})
-                # return ValidationError('We could not validate this file')
-            if str(choice)=='1':
-                cset_name = process_compound_set.delay(target=target, filename=tmp_file, zfile=zfile)
-                if zf:
-                    zf.close()
-
-                return render(request, 'viewer/upload-cset.html', context={'task_id': cset_name.task_id})
-                ### ALL OF THIS NOW HAS TO HAPPEN AFTER WE GET TASK ID?
-                # computed = ComputedCompound.objects.filter(compound_set=cset).values()
-                if cset_name:
-                    cset = CompoundSet.objects.get(cset_name)
-                    submitter = cset.submitter
-                    name = submitter.unique_name
-
-                    cset_download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %name
-                    pset_download_url = '<a href="/viewer/protein_set/%s">Download Protein Set</a>' % name
-
-                    download_url = cset_download_url + '<br>' + pset_download_url
-
-                    # table = pd.DataFrame(computed)
-                    # html_table = table.to_html()
-                    html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
-
-                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url': download_url})
-            if str(choice)=='0' and v:
-                html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
-                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
-#         except:
-#             if cset:
-#                 cset.delete()
-#                 computed = ComputedCompound.objects.filter(compound_set=cset)
-#                 for c in computed:
-#                     c.delete()
-#             return HttpResponse(status=500)
-    else:
-        # GET, generate blank form
-        form = CSetForm()
-        # return render(request, 'viewer/upload-cset.html', {
-        #     'uploaded_file_url': uploaded_file_url
-        # })
-    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': '', 'download_url':''})
+# Add SaveFilesTaskView
 
 
 def img_from_smiles(request):

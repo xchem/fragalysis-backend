@@ -46,23 +46,16 @@
               </div>
             </div>
           </div>
-{#        </div>#}
       </section>
         <p class="has-text-centered" id="links"></p>
     </body>
-{#    <script>#}
-      {#var file = document.getElementById('{{form.sdf_file.id_for_label}}');#}
-      {#file.onchange = function() {#}
-      {#  if(file.files.length > 0) {#}
-      {#    document.getElementById('file-name').innerHTML = file.files[0].name;#}
-      {#  }#}
-{#     </script>#}
 
-      {% if task_id %}
+
+      {% if upload_task_id %}
           <script>
           var content = document.getElementById('content');
           content.innerHTML = "";
-          var taskUrl = "{% url 'task' task_id=task_id %}";
+          var taskUrl = "{% url 'task' upload_task_id=upload_task_id %}";
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
           updateProgressTitle();
@@ -70,7 +63,7 @@
             updateProgressTitle();
             axios.get(taskUrl)
               .then(function(response){
-                var taskStatus = response.data.task_status
+                var taskStatus = response.data.upload_task_status
                 if (taskStatus === 'SUCCESS') {
                   clearTimer('Your files were uploaded! The download links are:');
 
@@ -119,6 +112,6 @@
             progressTitle.innerHTML = message;
           }
          </script>
-  {% endif %}
+      {% endif %}
 
 {% endblock %}
