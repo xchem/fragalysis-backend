@@ -317,15 +317,6 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 #         model = ComputedCompound
 #         fields = "__all__"
 
-class ScoreDescriptionSerializer(serializers.Serializer):
-    name = serializers.CharField()
-    description = serializers.CharField()
-
-class TargetCompoundSetsSerializer(serializers.Serializer):
-    score = ScoreDescriptionSerializer()
-    value = serializers.FloatField()
-
-
 class CompoundSetSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompoundSet
@@ -341,13 +332,13 @@ class CompoundMoleculeSerializer(serializers.ModelSerializer):
 
 
 
-class ScoreDescriptionAllSerializer(serializers.ModelSerializer):
+class ScoreDescriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScoreDescription
         fields = '__all__'
 
 class NumericalScoreSerializer(serializers.ModelSerializer):
-    score = ScoreDescriptionAllSerializer(read_only=True)
+    score = ScoreDescriptionSerializer(read_only=True)
     class Meta:
         model = NumericalScoreValues
         fields = '__all__'
