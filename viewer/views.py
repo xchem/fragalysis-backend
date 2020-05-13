@@ -24,7 +24,7 @@ from celery import current_app
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet, CSetKeys
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedMolecule, ComputedSet, CSetKeys
 from viewer import filters
 from sdf_check import validate
 from forms import CSetForm, UploadKeyForm
@@ -273,7 +273,7 @@ class UploadTaskView(View):
         if task.status == 'SUCCESS':
             cset_name = task.get()
             if cset_name:
-                cset = CompoundSet.objects.get(name=cset_name)
+                cset = ComputedSet.objects.get(name=cset_name)
                 submitter = cset.submitter
                 name = submitter.unique_name
                 response_data['results'] = {}
@@ -357,7 +357,7 @@ def get_open_targets(request):
 
   
 def cset_download(request, name):
-    compound_set = CompoundSet.objects.get(submitter__unique_name=name)
+    compound_set = ComputedSet.objects.get(submitter__unique_name=name)
     filepath = compound_set.submitted_sdf
     with open(filepath.path, 'r') as fp:
         data = fp.read()
@@ -373,8 +373,8 @@ def pset_download(request, name):
     filename = 'protein-set_' + name + '.zip'
     response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
 
-    compound_set = CompoundSet.objects.get(submitter__unique_name=name)
-    computed = ComputedCompound.objects.filter(compound_set=compound_set)
+    compound_set = ComputedSet.objects.get(submitter__unique_name=name)
+    computed = ComputedMolecule.objects.filter(compound_set=compound_set)
     pdb_filepaths = [c.pdb_info.path for c in computed]
 
     buff = StringIO()
