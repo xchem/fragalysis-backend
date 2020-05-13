@@ -70,7 +70,6 @@ def schema_view(request):
 
 urlpatterns = [
     url(r"^", include(router.urls)),
-    url(r'^target-compound-sets/(?P<targetID>.+)/$', viewer_views.TargetCompoundSetsView.as_view(), name='target-compound-sets'),
     url(r"^auth$", drf_views.obtain_auth_token, name="auth"),
     url(r"^swagger$", schema_view),
 ]

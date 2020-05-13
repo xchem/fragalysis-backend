@@ -5,8 +5,7 @@ from cStringIO import StringIO
 from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
-from rest_framework import viewsets, views
-from rest_framework.response import Response
+from rest_framework import viewsets
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
@@ -49,11 +48,10 @@ from viewer.serializers import (
     SessionProjectReadSerializer,
     SnapshotReadSerializer,
     SnapshotWriteSerializer,
-    TargetCompoundSetsSerializer,
     CompoundSetSerializer,
     CompoundMoleculeSerializer,
     NumericalScoreSerializer,
-    ScoreDescriptionAllSerializer
+    ScoreDescriptionSerializer
 )
 
 
@@ -384,17 +382,6 @@ class SnapshotsView(viewsets.ModelViewSet):
 ### End of Session Project
 
 
-class TargetCompoundSetsView(views.APIView):
-    def get(self, request, targetID):
-        target = Target.objects.get(id=targetID)
-        compound_sets = CompoundSet.objects.filter(target=target)
-        a_compound_set = compound_sets[0]
-        compound_mols = ComputedCompound.objects.filter(compound_set=a_compound_set)
-        numerical_scores = NumericalScoreValues.objects.filter(compound=compound_mols[0])
-
-        results = TargetCompoundSetsSerializer(numerical_scores, many=True).data
-        return Response(results)
-
 class CompoundSetView(viewsets.ReadOnlyModelViewSet):
     queryset = CompoundSet.objects.filter()
     serializer_class = CompoundSetSerializer
@@ -417,6 +404,6 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
 
 class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = ScoreDescription.objects.filter()
-    serializer_class = ScoreDescriptionAllSerializer
+    serializer_class = ScoreDescriptionSerializer
     filter_permissions = "project_id"
     filter_fields = ('compound_set',)
