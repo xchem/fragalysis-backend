@@ -4,7 +4,7 @@ from frag.network.query import get_full_graph
 from rest_framework import serializers
 
 from api.utils import draw_mol
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject, ComputedCompound
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject
 from django.contrib.auth.models import User
 
 class TargetSerializer(serializers.ModelSerializer):
