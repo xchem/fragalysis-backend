@@ -1,22 +1,124 @@
 {% load static %}
-
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Compound set upload</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
+  <script defer src="https://use.fontawesome.com/releases/v5.0.7/js/all.js"></script>
+</head>
 {% block content %}
-    <h1>Compound set upload</h1>
-    <h2>Instructions</h2>
-    <p>Here, you can upload compound sets for follow up compounds (computed 3D coordinates)</p>
-    <p>The current instructions are here: </p><a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a>
-    <p>The current specification version is <b>ver_1.2</b></p>
-    <br>
-  <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_ul }}
-    <button type="submit">Submit</button>
-  </form>
-   {% autoescape off %}
-       {{ download_url }}
-       {{ table }}
-   {% endautoescape %}
+    <body>
+      <section class="hero is-primary has-background-grey">
+        <div class="hero-body">
+{#          <div class="container">#}
+            <h1 class="title is-size-1 has-text-centered">Compound Set Upload</h1>
+            <p class="subtitle has-text-centered" id="progress-title"></p>
+        </div>
+        </section>
+      <section class="hero is-light has-background-white">
+        <div class="hero-body">
+            <div class="columns is-centered">
+              <div class="column is-8" id="content">
+                  <p>
+                      Here, you can upload compound sets for follow up compounds (computed 3D coordinates)
+                      The current instructions are here:
+                      <a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a>
+                  </p>
+                  <br>
+                  <p>The current specification version is <b>ver_1.2</b></p>
+                  <br>
+                  <form method="post" enctype="multipart/form-data">
+                      {% csrf_token %}
+                      {{ form.as_ul }}
+                    <button type="submit">Submit</button>
+                </form>
+                  {% autoescape off %}
+                      {% if download_url %}
+                        {{ download_url }}
+                      {% endif %}
+                      {% if table %}
+                        {{ table }}
+                      {% endif %}
+                  {% endautoescape %}
+              </div>
+            </div>
+          </div>
+{#        </div>#}
+      </section>
+        <p class="has-text-centered" id="links"></p>
+    </body>
+{#    <script>#}
+      {#var file = document.getElementById('{{form.sdf_file.id_for_label}}');#}
+      {#file.onchange = function() {#}
+      {#  if(file.files.length > 0) {#}
+      {#    document.getElementById('file-name').innerHTML = file.files[0].name;#}
+      {#  }#}
+{#     </script>#}
 
+      {% if task_id %}
+          <script>
+          var content = document.getElementById('content');
+          content.innerHTML = "";
+          var taskUrl = "{% url 'task' task_id=task_id %}";
+          var dots = 1;
+          var progressTitle = document.getElementById('progress-title');
+          updateProgressTitle();
+          var timer = setInterval(function() {
+            updateProgressTitle();
+            axios.get(taskUrl)
+              .then(function(response){
+                var taskStatus = response.data.task_status
+                if (taskStatus === 'SUCCESS') {
+                  clearTimer('Your files were uploaded! The download links are:');
 
+                  var url_a = response.data.results.cset_download_url;
+                  var content = document.getElementById('links');
+                  var a = document.createElement("a");
+                  var link = document.createTextNode("    Compound Set    ");
+                  a.appendChild(link);
+                  a.title = 'compound set';
+                  a.href = url_a;
+                  content.appendChild(a);
+
+                  var br = document.createElement('br');
+                  content.appendChild(br);
+
+                  var url_b = response.data.results.pset_download_url;
+                  var b = document.createElement("a");
+                  var link_b = document.createTextNode("    Protein Set    ");
+                  b.appendChild(link_b);
+                  b.title = 'protein set';
+                  b.href = url_b;
+                  content.appendChild(b);
+
+                } else if (taskStatus === 'FAILURE') {
+                  clearTimer('An error occurred');
+                }
+              })
+              .catch(function(err){
+                console.log('err', err);
+                clearTimer('An error occurred');
+              });
+          }, 800);
+
+          function updateProgressTitle() {
+            dots++;
+            if (dots > 3) {
+              dots = 1;
+            }
+            progressTitle.innerHTML = 'processing uploaded files';
+            for (var i = 0; i < dots; i++) {
+              progressTitle.innerHTML += '.';
+            }
+          }
+          function clearTimer(message) {
+            clearInterval(timer);
+            progressTitle.innerHTML = message;
+          }
+         </script>
+  {% endif %}
 
 {% endblock %}

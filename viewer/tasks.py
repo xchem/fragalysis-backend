@@ -22,6 +22,9 @@ from viewer.models import (
 import ast
 import os.path
 
+from celery import shared_task
+import psutil
+
 
 def dataType(str):
     str = str.strip()
@@ -60,7 +63,7 @@ def get_prot(mol, compound_set, zfile):
     else:
         name = compound_set.target.title + '-' + pdb_option
         print('PROT: ' + name)
-        prot = Protein.objects.get(code=name)
+        prot = Protein.objects.get(code__contains=name)
         field = prot.pdb_info
 
     return field
@@ -98,7 +101,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
     insp = [i.strip() for i in insp]
     insp_frags = []
     for i in insp:
-        mols = Molecule.objects.filter(prot_id__code=str(compound_set.target.title + '-' + i),
+        mols = Molecule.objects.filter(prot_id__code__contains=str(compound_set.target.title + '-' + i),
                                        prot_id__target_id=compound_set.target)
         if len(mols)>1:
             ids = [m.cmpd_id.id for m in mols]
@@ -189,8 +192,20 @@ def set_descriptions(filename, compound_set):
 
     return mols
 
+def check_services():
+    services = [p.name() for p in psutil.process_iter()]
+    if 'redis-server' not in services:
+        os.system('redis-server &')
+    if 'celery' not in services:
+        os.system('celery -A fragalysis worker -l info &')
+    services = [p.name() for p in psutil.process_iter()]
+    if 'redis-server' not in services or 'celery' not in services:
+        return False
+    return True
 
-def process_compound_set(target, filename, zfile=None):
+
+@shared_task(bind=True)
+def process_compound_set(self, target, filename, zfile=None):
     print('processing compound set: ' + filename)
     filename = str(filename)
     # create a new compound set
@@ -204,8 +219,8 @@ def process_compound_set(target, filename, zfile=None):
     mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
 
     # process every other mol
-    for mol in mols_to_process:
-        process_mol(mol, compound_set, filename, zfile)
+    for i in range(0, len(mols_to_process)):
+        process_mol(mols_to_process[i], compound_set, filename, zfile)
 
     # check that molecules have been added to the compound set
     check = ComputedCompound.objects.filter(compound_set=compound_set)
@@ -221,6 +236,7 @@ def process_compound_set(target, filename, zfile=None):
     if len(check) == 0:
         compound_set.delete()
         print('No molecules processed... deleting ' + set_name + ' compound set')
+        return None
 
-    return compound_set
+    return compound_set.name
 

@@ -42,3 +42,4 @@ echo "Testing nginx config..."
 nginx -t
 echo "Running nginx..."
 nginx
+
