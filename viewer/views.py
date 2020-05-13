@@ -522,7 +522,7 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = NumericalScoreValues.objects.filter()
     serializer_class = NumericalScoreSerializer
     filter_permissions = "project_id"
-    filter_fields = ('compound',)
+    filter_fields = ('compound', 'score')
 
 
 class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
