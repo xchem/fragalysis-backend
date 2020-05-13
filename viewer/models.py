@@ -65,6 +65,7 @@ class Compound(models.Model):
     # Character attributes
     inchi = models.CharField(max_length=255, unique=True, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
+    identifier = models.CharField(max_length=255, db_index=True, blank=True, null=True)
     # A link to the related project
     project_id = models.ManyToManyField(Project)
     # Float attributes
