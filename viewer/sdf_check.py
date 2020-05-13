@@ -9,7 +9,7 @@ Script to check sdf file format for Fragalysis upload
 from rdkit import Chem
 import validators
 import numpy as np
-from viewer.models import Protein, CompoundSet
+from viewer.models import Protein, ComputedSet
 import datetime
 
 # Set .sdf format version here
@@ -24,7 +24,7 @@ def check_compound_set(description_mol, validate_dict):
                       'submitter__generation_date': datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
                       'submitter__method': description_mol.GetProp('method')}
 
-    query = CompoundSet.objects.filter(**submitter_dict)
+    query = ComputedSet.objects.filter(**submitter_dict)
 
     if len(query)!=0:
         validate_dict = add_warning(molecule_name='File error',
