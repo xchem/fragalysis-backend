@@ -12,6 +12,11 @@ from django.core.files.base import ContentFile
 from django.conf import settings
 from django.http import JsonResponse
 
+from rest_framework.parsers import JSONParser, BaseParser
+from rest_framework.exceptions import ParseError
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from django.views import View
 
 from celery import current_app
@@ -23,7 +28,7 @@ from viewer.models import Molecule, Protein, Compound, Target, SessionProject, S
 from viewer import filters
 from sdf_check import validate
 from forms import CSetForm, UploadKeyForm
-from tasks import process_compound_set, check_services
+from tasks import *
 import pandas as pd
 
 from viewer.serializers import (
@@ -410,3 +415,36 @@ class SnapshotsView(viewsets.ModelViewSet):
     # filter_permissions = "target_id__project_id"
     # filter_fields = '__all__'
 ### End of Session Project
+
+## Design sets upload
+# Custom parser class for a csv file
+
+
+
+class DSetCSVParser(BaseParser):
+    """
+    CSV parser class specific to design set csv spec
+    """
+    media_type = 'text/csv'
+
+
+class DSetUpload(APIView):
+    parser_class = (DSetCSVParser,)
+
+    def put(self, request, format=None):
+        if 'file' not in request.data:
+            raise ParseError("Empty content")
+
+        f = request.data['file']
+
+        df = pd.read_csv(f.name)
+        cols = ['set_name', 'smiles', 'identifier', 'inspirations']
+
+        for col in df.columns():
+            if col not in cols:
+                raise ParseError("The 4 following columns are mandatory: set_name, smiles, identifier, inspirations")
+
+        process_design_sets(df)
+
+        # mymodel.my_file_field.save(f.name, f, save=True)
+        return Response(status=status.HTTP_201_CREATED)

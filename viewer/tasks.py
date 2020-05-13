@@ -6,7 +6,8 @@ django.setup()
 from django.conf import settings
 
 from rdkit import Chem
-from viewer.models import Target
+from rdkit.Chem import Descriptors
+from viewer.models import Target, Compound, DesignSet
 import os.path
 
 from celery import shared_task
@@ -127,3 +128,71 @@ def validate(self, sdf_file, target=None, zfile=None):
 
     return validate_dict, validated
 ### End Validating ###
+
+### Design sets ###
+
+def process_design_compound(compound_row):
+    # add molecule and return the object
+    new_mol = Compound()
+
+    # sanitize, generate mol and inchi
+    smiles = compound_row['smiles']
+    name = compound_row['identifier']
+    mol = Chem.MolFromSmiles(smiles, sanitize=True)
+    sanitized_mol_smiles = Chem.MolToSmiles(mol, canonical=True)
+    sanitized_mol = Chem.MolFromSmiles(sanitized_mol_smiles)
+    inchi = Chem.inchi.MolToInchi(sanitized_mol)
+
+    new_mol.smiles = sanitized_mol_smiles
+    new_mol.inchi = inchi
+    new_mol.identifier = name
+
+    # descriptors
+    new_mol.mol_log_p = Chem.Crippen.MolLogP(sanitized_mol)
+    new_mol.mol_wt = float(Chem.rdMolDescriptors.CalcExactMolWt(sanitized_mol))
+    new_mol.heavy_atom_count = Chem.Lipinski.HeavyAtomCount(sanitized_mol)
+    new_mol.heavy_atom_mol_wt = float(Descriptors.HeavyAtomMolWt(sanitized_mol))
+    new_mol.nhoh_count = Chem.Lipinski.NHOHCount(sanitized_mol)
+    new_mol.no_count = Chem.Lipinski.NOCount(sanitized_mol)
+    new_mol.num_h_acceptors = Chem.Lipinski.NumHAcceptors(sanitized_mol)
+    new_mol.num_h_donors = Chem.Lipinski.NumHDonors(sanitized_mol)
+    new_mol.num_het_atoms = Chem.Lipinski.NumHeteroatoms(sanitized_mol)
+    new_mol.num_rot_bonds = Chem.Lipinski.NumRotatableBonds(sanitized_mol)
+    new_mol.num_val_electrons = Descriptors.NumValenceElectrons(sanitized_mol)
+    new_mol.ring_count = Chem.Lipinski.RingCount(sanitized_mol)
+    new_mol.tpsa = Chem.rdMolDescriptors.CalcTPSA(sanitized_mol)
+
+    # deal with inspirations
+    inspirations = compound_row['inspirations'].split(',')
+    for insp in inspirations:
+        # find matching compounds
+        molecules = Molecule.objects.filter(prot_id__code__contains=insp)
+        for molecule in molecules:
+            new_mol.inspirations.add(molecule)
+
+    # save the molecule and return it
+    new_mol.save()
+    return new_mol
+
+
+def process_one_set(set_df, name):
+    # add new set
+    new_set = DesignSet()
+    new_set.set_name = name
+    compounds = []
+    for i, row in set_df.iterrows():
+        compounds.append(process_design_compound(row))
+
+    for compound in compounds:
+        new_set.compounds.add(compound)
+
+    new_set.save()
+
+    return compounds
+
+
+def process_design_sets(df):
+    set_names = list(set(df['set_name']))
+    for name in set_names:
+        set_df = df[df['set_name'] == name]
+        process_one_set(set_df, name)

@@ -47,6 +47,8 @@ router.register(r"molgroup", score_views.MolGroupView)
 router.register(r"molannotation", score_views.MolAnnotationView)
 # fragspect
 router.register(r"fragspect", xcdb_views.FragspectCrystalView)
+# upload design sets
+router.register(r"upload_designs", viewer_views.DSetUpload)
 
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
