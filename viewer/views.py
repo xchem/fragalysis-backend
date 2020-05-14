@@ -46,7 +46,8 @@ from viewer.serializers import (
     SessionProjectWriteSerializer,
     SessionProjectReadSerializer,
     SnapshotReadSerializer,
-    SnapshotWriteSerializer
+    SnapshotWriteSerializer,
+    FileSerializer,
 )
 
 
@@ -431,7 +432,11 @@ class DSetCSVParser(BaseParser):
 class DSetUpload(APIView):
     parser_class = (DSetCSVParser,)
 
-    def put(self, request, format=None):
+    def post(self, request, format=None):
+        file_serializer = FileSerializer(data=request.data)
+
+        if file_serializer.is_valid():
+            file_serializer.save()
         if 'file' not in request.data:
             raise ParseError("Empty content")
 

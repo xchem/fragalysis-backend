@@ -4,8 +4,17 @@ from frag.network.query import get_full_graph
 from rest_framework import serializers
 
 from api.utils import draw_mol
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject
+from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject, File
 from django.contrib.auth.models import User
+
+from rest_framework import serializers
+
+class FileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = File
+        fields = "__all__"
+
+
 
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
