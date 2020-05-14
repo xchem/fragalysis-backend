@@ -13,10 +13,22 @@ from celery import shared_task
 from sdf_check import *
 from compound_set_upload import *
 
+# Bit to check if redis and celery services are working and available
+def check_services():
+    services = [p.name() for p in psutil.process_iter()]
+    if 'redis-server' not in services:
+        os.system('redis-server &')
+    if 'celery' not in services:
+        os.system('celery -A fragalysis worker -l info &')
+    services = [p.name() for p in psutil.process_iter()]
+    if 'redis-server' not in services or 'celery' not in services:
+        return False
+    return True
+
 ### Uploading ###
 
-@shared_task(bind=True)
-def process_compound_set(self, target, filename, zfile=None):
+@shared_task
+def process_compound_set(target, filename, zfile=None):
     print('processing compound set: ' + filename)
     filename = str(filename)
     # create a new compound set
@@ -58,8 +70,8 @@ def process_compound_set(self, target, filename, zfile=None):
 # Set .sdf format version here
 version = 'ver_1.2'
 
-@shared_task(bind=True)
-def validate(self, sdf_file, target=None, zfile=None):
+@shared_task
+def validate(sdf_file, target=None, zfile=None):
     validated = True
     validate_dict = {'molecule_name': [],
                      'field': [],
@@ -125,5 +137,5 @@ def validate(self, sdf_file, target=None, zfile=None):
     if len(validate_dict['molecule_name']) != 0:
         validated = False
 
-    return validate_dict, validated
+    return (validate_dict, validated)
 ### End Validating ###
