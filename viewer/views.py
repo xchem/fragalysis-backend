@@ -24,7 +24,7 @@ from celery import current_app
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedMolecule, ComputedSet, CSetKeys
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedMolecule, ComputedSet, CSetKeys, File
 from viewer import filters
 from sdf_check import validate
 from forms import CSetForm, UploadKeyForm
@@ -431,12 +431,13 @@ class DSetCSVParser(BaseParser):
 
 class DSetUpload(APIView):
     parser_class = (DSetCSVParser,)
+    file_serializer = FileSerializer(data=request.data)
+    queryset = File.objects.all()
 
     def post(self, request, format=None):
-        file_serializer = FileSerializer(data=request.data)
 
-        if file_serializer.is_valid():
-            file_serializer.save()
+        if self.file_serializer.is_valid():
+            self.file_serializer.save()
         if 'file' not in request.data:
             raise ParseError("Empty content")
 
