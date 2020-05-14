@@ -431,7 +431,7 @@ class DSetCSVParser(BaseParser):
 
 class DSetUpload(APIView):
     parser_class = (DSetCSVParser,)
-    file_serializer = FileSerializer(data=request.data)
+    file_serializer = FileSerializer
     queryset = File.objects.all()
 
     def post(self, request, format=None):
