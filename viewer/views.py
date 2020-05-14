@@ -14,7 +14,8 @@ from django.http import JsonResponse
 
 from django.views import View
 
-from celery import current_app
+from celery import current_app, chain
+from celery.result import AsyncResult
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
@@ -193,6 +194,7 @@ class UploadCSet(View):
             myfile = request.FILES['sdf_file']
             target = request.POST['target_name']
             choice = request.POST['submit_choice']
+
             if 'pdb_zip' in request.FILES.keys():
                 pdb_file = request.FILES['pdb_zip']
             else:
@@ -211,7 +213,7 @@ class UploadCSet(View):
 
                 zfile = {'zip_obj': zf, 'zf_list': zip_names}
 
-            # where does this actually belong?
+            # Close the zip file
             if zf:
                 zf.close()
 
@@ -220,66 +222,26 @@ class UploadCSet(View):
             path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
             tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
+            # Settings for if validate option selected
             if str(choice) == '0':
-                # validate the file (make this a task)
-                # How to use two outputs in celery?
-                #d, v = validate(tmp_file, target=target, zfile=zfile)
-
+                # Start celery task
                 task_validate = validate.delay(tmp_file, target=target, zfile=zfile)
 
-                #d,v = task_validate.get()
+                context['validate_task_id'] = task_validate.id
+                context['validate_task_status'] = task_validate.status
 
-                # Task id (get id)
-                context['validate_task_id'] = d.id
-                context['validate_task_status'] = d.status
-
-                if v:
-                    # need to add JS for handling validation task to template
-                    return render(request, 'viewer/upload-cset.html', context)
-
-                # if the data isn't validated make a table of errors and return it
-                # All of this needs moving to the validate task view
-
-                if not v:
-                    # set pandas options to display all column data
-                    pd.set_option('display.max_colwidth', -1)
-
-                    table = pd.DataFrame.from_dict(d)
-                    html_table = table.to_html()
-                    html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-                    return render(request, 'viewer/upload-cset.html',
-                                  {'form': form, 'table': html_table, 'download_url': ''})
-                    # return ValidationError('We could not validate this file')
+                return render(request, 'viewer/upload-cset.html', context)
 
             # if it's an upload, run the compound set task
             if str(choice) == '1':
-                task_validate = validate.delay(tmp_file, target=target, zfile=zfile)
+                # Start chained celery tasks
+                task_upload = chain(validate.s(tmp_file, target=target, zfile=zfile),
+                                    process_compound_set.s(target=target, filename=tmp_file, zfile=zfile))()
 
-                d,v = task_validate.get()
+                context['upload_task_id'] = task_upload.id
+                context['upload_task_status'] = task_upload.status
 
-                # If validation fails
-                if not v:
-                    # set pandas options to display all column data
-                    pd.set_option('display.max_colwidth', -1)
-
-                    table = pd.DataFrame.from_dict(d)
-                    html_table = table.to_html()
-                    html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-                    return render(request, 'viewer/upload-cset.html',
-                                  {'form': form, 'table': html_table, 'download_url': ''})
-
-                if v:
-                    # Move to class below
-                    task_upload = process_compound_set.delay(target=target, filename=tmp_file, zfile=zfile)
-
-                    cset_name = task_upload.get()
-                    #cset_name = process_compound_set.delay(target=target, filename=tmp_file, zfile=zfile)
-
-                    # Need to figure these out - same as above
-                    #context['upload_task_id'] = cset_name.id
-                    #context['upload_task_status'] = cset_name.status
-
-                    return render(request, 'viewer/upload-cset.html', context)
+                return render(request, 'viewer/upload-cset.html', context)
 
         context['form'] = form
         return render(request, 'viewer/upload-cset.html', context)
@@ -288,16 +250,28 @@ class UploadCSet(View):
 class ValidateTaskView(View):
     def get(self, request, task_id):
         task = current_app.AsyncResult(task_id)
-        response_data = {'validate_task_status': task.status, 'validate_task_id': task.id}
+        response_data = {'task_status': task.status, 'task_id': task.id}
 
-        if task.status == 'SUCCESS':
+        # Check if results ready
+        if task.status == "SUCCESS":
             validate_dict, validated = task.get()
             if validated:
-                # return that the set was validated, and kick off upload task if requested
-                pass
-            else:
-                # return the dict to be turned into table, and don't do upload
-                pass
+                # need to add JS for handling validation task to template
+                return render(request, 'viewer/upload-cset.html', context)
+
+            # if the data isn't validated make a table of errors and return it
+            # All of this needs moving to the validate task view
+
+            if not validated:
+                # set pandas options to display all column data
+                pd.set_option('display.max_colwidth', -1)
+
+                table = pd.DataFrame.from_dict(validate_dict)
+                html_table = table.to_html()
+                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
+                return render(request, 'viewer/upload-cset.html',
+                              {'form': form, 'table': html_table, 'download_url': ''})
+                # return ValidationError('We could not validate this file')
 
         return JsonResponse(response_data)
 
@@ -309,7 +283,24 @@ class UploadTaskView(View):
 
         if task.status == 'SUCCESS':
             cset_name = task.get()
-            if cset_name:
+
+            # Check for d,v vs csetname output
+            if len(cset_name) == 2:
+                # Get dictionary
+                validate_dict = cset_name[0]
+
+                # set pandas options to display all column data
+                pd.set_option('display.max_colwidth', -1)
+
+                table = pd.DataFrame.from_dict(validate_dict)
+                html_table = table.to_html()
+                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
+                return render(request, 'viewer/upload-cset.html',
+                              {'form': form, 'table': html_table, 'download_url': ''})
+                # 'Validation failed message'
+
+            # Check for d,v vs csetname output
+            if len(cset_name) == 1:
                 cset = CompoundSet.objects.get(name=cset_name)
                 submitter = cset.submitter
                 name = submitter.unique_name

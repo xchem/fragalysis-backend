@@ -28,40 +28,46 @@ def check_services():
 ### Uploading ###
 
 @shared_task
-def process_compound_set(target, filename, zfile=None):
-    print('processing compound set: ' + filename)
-    filename = str(filename)
-    # create a new compound set
-    set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
-    compound_set = CompoundSet()
-    compound_set.name = set_name
-    matching_target = Target.objects.get(title=target)
-    compound_set.target = matching_target
+def process_compound_set(validate_output, target, filename, zfile=None):
+    d, v = validate_output
 
-    # set descriptions and get all other mols back
-    mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
+    if not v:
+        return d,v
 
-    # process every other mol
-    for i in range(0, len(mols_to_process)):
-        process_mol(mols_to_process[i], compound_set, filename, zfile)
+    if v:
+        print('processing compound set: ' + filename)
+        filename = str(filename)
+        # create a new compound set
+        set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
+        compound_set = CompoundSet()
+        compound_set.name = set_name
+        matching_target = Target.objects.get(title=target)
+        compound_set.target = matching_target
 
-    # check that molecules have been added to the compound set
-    check = ComputedCompound.objects.filter(compound_set=compound_set)
-    print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
+        # set descriptions and get all other mols back
+        mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
 
-    # move and save the compound set
-    new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
-    os.rename(filename, new_filename)
-    compound_set.submitted_sdf = new_filename
-    compound_set.save()
+        # process every other mol
+        for i in range(0, len(mols_to_process)):
+            process_mol(mols_to_process[i], compound_set, filename, zfile)
 
-    # if no molecules were processed, delete the compound set
-    if len(check) == 0:
-        compound_set.delete()
-        print('No molecules processed... deleting ' + set_name + ' compound set')
-        return None
+        # check that molecules have been added to the compound set
+        check = ComputedCompound.objects.filter(compound_set=compound_set)
+        print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
 
-    return compound_set.name
+        # move and save the compound set
+        new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
+        os.rename(filename, new_filename)
+        compound_set.submitted_sdf = new_filename
+        compound_set.save()
+
+        # if no molecules were processed, delete the compound set
+        if len(check) == 0:
+            compound_set.delete()
+            print('No molecules processed... deleting ' + set_name + ' compound set')
+            return None
+
+        return compound_set.name
 
 ### End Uploading ###
 
