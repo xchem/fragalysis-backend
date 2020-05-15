@@ -238,8 +238,7 @@ class UploadCSet(View):
             if str(choice) == '1':
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
-                task_upload = chain(validate.s(tmp_file, target=target, zfile=zfile),
-                                    process_compound_set.s())()
+                task_upload = (validate.s(tmp_file, target=target, zfile=zfile) | process_compound_set.s()).apply_async()
 
                 context['upload_task_id'] = task_upload.id
                 context['upload_task_status'] = task_upload.status
@@ -290,12 +289,12 @@ class UploadTaskView(View):
         response_data = {'upload_task_status': task.status, 'upload_task_id': task.id}
 
         if task.status == 'SUCCESS':
-            cset_name = task.get()
+            results = task.get()
 
             # Check for d,v vs csetname output
-            if isinstance(cset_name, tuple):
+            if isinstance(results, tuple):
                 # Get dictionary
-                validate_dict = cset_name[0]
+                validate_dict = results[0]
 
                 # set pandas options to display all column data
                 pd.set_option('display.max_colwidth', -1)
@@ -309,13 +308,20 @@ class UploadTaskView(View):
 
             # Check for d,v vs csetname output
             # Check in with Rachael if we are expecting a string here?
-            if isinstance(cset_name, str):
+            if isinstance(results, str):
+                cset_name = results
                 cset = CompoundSet.objects.get(name=cset_name)
                 submitter = cset.submitter
                 name = submitter.unique_name
                 response_data['results'] = {}
                 response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
                 response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
+
+            # NB need to deal with possible None from process_compound_set call
+            # if no molecules were processed, delete the compound set
+            else:
+                # "No molecules were processed"
+                pass
 
         return JsonResponse(response_data)
 
