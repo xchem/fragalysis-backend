@@ -230,17 +230,22 @@ class UploadCSet(View):
                 context['validate_task_id'] = task_validate.id
                 context['validate_task_status'] = task_validate.status
 
+                # Need to check what url shoudl load here - kinda like a progress
+                # or just a message that pops up saying we're busy
                 return render(request, 'viewer/upload-cset.html', context)
 
             # if it's an upload, run the compound set task
             if str(choice) == '1':
-                # Start chained celery tasks
+                # Start chained celery tasks. NB first function passes tuple
+                # to second function - see tasks.py
                 task_upload = chain(validate.s(tmp_file, target=target, zfile=zfile),
-                                    process_compound_set.s(target=target, filename=tmp_file, zfile=zfile))()
+                                    process_compound_set.s())()
 
                 context['upload_task_id'] = task_upload.id
                 context['upload_task_status'] = task_upload.status
 
+                # Need to check what url shoudl load here - kinda like a progress
+                # or just a message that pops up saying we're busy
                 return render(request, 'viewer/upload-cset.html', context)
 
         context['form'] = form
@@ -285,7 +290,7 @@ class UploadTaskView(View):
             cset_name = task.get()
 
             # Check for d,v vs csetname output
-            if len(cset_name) == 2:
+            if isinstance(cset_name, tuple):
                 # Get dictionary
                 validate_dict = cset_name[0]
 
@@ -300,7 +305,8 @@ class UploadTaskView(View):
                 # 'Validation failed message'
 
             # Check for d,v vs csetname output
-            if len(cset_name) == 1:
+            # Check in with Rachael if we are expecting a string here?
+            if isinstance(cset_name, str):
                 cset = CompoundSet.objects.get(name=cset_name)
                 submitter = cset.submitter
                 name = submitter.unique_name

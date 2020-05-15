@@ -28,13 +28,16 @@ def check_services():
 ### Uploading ###
 
 @shared_task
-def process_compound_set(validate_output, target, filename, zfile=None):
-    d, v = validate_output
+def process_compound_set(validate_output):
+    # Validate output is a tuple - this is one way to get
+    # Celery chaining to work where second function uses tuple output
+    # from first function called
+    validate_dict, validated, target, filename, zfile = validate_output
 
-    if not v:
-        return d,v
+    if not validated:
+        return (validate_dict,validated)
 
-    if v:
+    if validated:
         print('processing compound set: ' + filename)
         filename = str(filename)
         # create a new compound set
@@ -143,5 +146,5 @@ def validate(sdf_file, target=None, zfile=None):
     if len(validate_dict['molecule_name']) != 0:
         validated = False
 
-    return (validate_dict, validated)
+    return (validate_dict, validated, sdf_file, target, zfile)
 ### End Validating ###
