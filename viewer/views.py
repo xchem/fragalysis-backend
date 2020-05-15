@@ -259,7 +259,10 @@ class ValidateTaskView(View):
 
         # Check if results ready
         if task.status == "SUCCESS":
-            validate_dict, validated = task.get()
+            results = task.get()
+            # NB get tuple from validate task
+            validate_dict = results[0]
+            validated = results[1]
             if validated:
                 # need to add JS for handling validation task to template
                 return render(request, 'viewer/upload-cset.html', context)
