@@ -4,7 +4,20 @@ from frag.network.query import get_full_graph
 from rest_framework import serializers
 
 from api.utils import draw_mol
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target, Snapshot, SessionProject, ComputedCompound
+from viewer.models import (
+    ActivityPoint,
+    Molecule,
+    Project,
+    Protein,
+    Compound,
+    Target,
+    Snapshot,
+    SessionProject,
+    ComputedCompound,
+    CompoundSet,
+    NumericalScoreValues,
+    ScoreDescription
+)
 from django.contrib.auth.models import User
 
 class TargetSerializer(serializers.ModelSerializer):
@@ -303,3 +316,30 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = ComputedCompound
 #         fields = "__all__"
+
+class CompoundSetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompoundSet
+        fields = '__all__'
+
+
+class CompoundMoleculeSerializer(serializers.ModelSerializer):
+    # performance issue
+    # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
+    class Meta:
+        model = ComputedCompound
+        fields = '__all__'
+
+
+
+class ScoreDescriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ScoreDescription
+        fields = '__all__'
+
+class NumericalScoreSerializer(serializers.ModelSerializer):
+    score = ScoreDescriptionSerializer(read_only=True)
+    class Meta:
+        model = NumericalScoreValues
+        fields = '__all__'
+

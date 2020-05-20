@@ -6,7 +6,6 @@ from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
 from rest_framework import viewsets
-
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
@@ -19,7 +18,19 @@ from celery import current_app
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet, CSetKeys
+from viewer.models import (
+    Molecule,
+    Protein,
+    Compound,
+    Target,
+    SessionProject,
+    Snapshot,
+    ComputedCompound,
+    CompoundSet,
+    CSetKeys,
+    NumericalScoreValues,
+    ScoreDescription
+)
 from viewer import filters
 from sdf_check import validate
 from forms import CSetForm, UploadKeyForm
@@ -41,7 +52,11 @@ from viewer.serializers import (
     SessionProjectWriteSerializer,
     SessionProjectReadSerializer,
     SnapshotReadSerializer,
-    SnapshotWriteSerializer
+    SnapshotWriteSerializer,
+    CompoundSetSerializer,
+    CompoundMoleculeSerializer,
+    NumericalScoreSerializer,
+    ScoreDescriptionSerializer
 )
 
 
@@ -487,6 +502,31 @@ class SnapshotsView(viewsets.ModelViewSet):
             return SnapshotReadSerializer
         return SnapshotWriteSerializer
     filter_class = filters.SnapshotFilter
-    # filter_permissions = "target_id__project_id"
-    # filter_fields = '__all__'
 ### End of Session Project
+
+
+class CompoundSetView(viewsets.ReadOnlyModelViewSet):
+    queryset = CompoundSet.objects.filter()
+    serializer_class = CompoundSetSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('target',)
+
+
+class CompoundMoleculesView(viewsets.ReadOnlyModelViewSet):
+    queryset = ComputedCompound.objects.filter()
+    serializer_class = CompoundMoleculeSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound_set',)
+
+class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
+    queryset = NumericalScoreValues.objects.filter()
+    serializer_class = NumericalScoreSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound', 'score')
+
+
+class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
+    queryset = ScoreDescription.objects.filter()
+    serializer_class = ScoreDescriptionSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound_set',)
