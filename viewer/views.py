@@ -6,7 +6,6 @@ from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
 from rest_framework import viewsets
-
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
@@ -25,7 +24,20 @@ from celery.result import AsyncResult
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedMolecule, ComputedSet, CSetKeys, File
+from viewer.models import (
+    Molecule,
+    Protein,
+    Compound,
+    Target,
+    SessionProject,
+    Snapshot,
+    ComputedCompound,
+    CompoundSet,
+    CSetKeys,
+    NumericalScoreValues,
+    ScoreDescription,
+    File
+)
 from viewer import filters
 from forms import CSetForm, UploadKeyForm
 
@@ -52,6 +64,11 @@ from viewer.serializers import (
     SnapshotReadSerializer,
     SnapshotWriteSerializer,
     FileSerializer,
+    CompoundSetSerializer,
+    CompoundMoleculeSerializer,
+    NumericalScoreSerializer,
+    ScoreDescriptionSerializer
+
 )
 
 
@@ -146,6 +163,7 @@ def react(request):
     """
     return render(request, "viewer/react_temp.html")
 
+
 # email cset upload key
 def cset_key(request):
     form = UploadKeyForm()
@@ -161,14 +179,15 @@ def cset_key(request):
         from django.conf import settings
 
         subject = 'Fragalysis: upload compound set key'
-        message = 'Your upload key is: ' + str(key_value) + ' store it somewhere safe. Only one key will be issued per user'
+        message = 'Your upload key is: ' + str(
+            key_value) + ' store it somewhere safe. Only one key will be issued per user'
         email_from = settings.EMAIL_HOST_USER
         recipient_list = [email, ]
         send_mail(subject, message, email_from, recipient_list)
 
         msg = 'Your key will be emailed to: <b>' + email + '</b>'
 
-        return render(request, 'viewer/generate-key.html', {'form': form, 'message':msg})
+        return render(request, 'viewer/generate-key.html', {'form': form, 'message': msg})
     return render(request, 'viewer/generate-key.html', {'form': form, 'message': ''})
 
 
@@ -248,7 +267,8 @@ class UploadCSet(View):
             if str(choice) == '1':
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
-                task_upload = (validate.s(tmp_file, target=target, zfile=zfile) | process_compound_set.s()).apply_async()
+                task_upload = (
+                            validate.s(tmp_file, target=target, zfile=zfile) | process_compound_set.s()).apply_async()
 
                 context['upload_task_id'] = task_upload.id
                 context['upload_task_status'] = task_upload.status
@@ -259,6 +279,7 @@ class UploadCSet(View):
 
         context['form'] = form
         return render(request, 'viewer/upload-cset.html', context)
+
 
 # Add ValidateTaskView
 class ValidateTaskView(View):
@@ -291,6 +312,7 @@ class ValidateTaskView(View):
                 # return ValidationError('We could not validate this file')
 
         return JsonResponse(response_data)
+
 
 # Needs to be something like UploadTaskView
 class UploadTaskView(View):
@@ -336,6 +358,7 @@ class UploadTaskView(View):
                 pass
 
         return JsonResponse(response_data)
+
 
 # Add SaveFilesTaskView
 
@@ -391,7 +414,7 @@ def get_open_targets(request):
 
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
 
-  
+
 def cset_download(request, name):
     compound_set = ComputedSet.objects.get(submitter__unique_name=name)
     filepath = compound_set.submitted_sdf
@@ -399,7 +422,7 @@ def cset_download(request, name):
         data = fp.read()
     filename = 'compund-set_' + name + '.sdf'
     response = HttpResponse(content_type='text/plain')
-    response['Content-Disposition'] = 'attachment; filename=%s' % filename # force browser to download file
+    response['Content-Disposition'] = 'attachment; filename=%s' % filename  # force browser to download file
     response.write(data)
     return response
 
@@ -432,24 +455,29 @@ def pset_download(request, name):
 ## Start of Session Project
 class SessionProjectsView(viewsets.ModelViewSet):
     queryset = SessionProject.objects.filter()
+
     def get_serializer_class(self):
         if self.request.method in ['GET']:
             # GET
             return SessionProjectReadSerializer
         # (POST, PUT, PATCH)
         return SessionProjectWriteSerializer
+
     filter_permissions = "target_id__project_id"
     filter_fields = '__all__'
 
+
 class SnapshotsView(viewsets.ModelViewSet):
     queryset = Snapshot.objects.filter()
+
     def get_serializer_class(self):
         if self.request.method in ['GET']:
             return SnapshotReadSerializer
         return SnapshotWriteSerializer
+
     filter_class = filters.SnapshotFilter
-    # filter_permissions = "target_id__project_id"
-    # filter_fields = '__all__'
+
+
 ### End of Session Project
 
 
@@ -483,7 +511,6 @@ class DSetUploadView(APIView):
             if col not in actual_cols:
                 raise ParseError("The 4 following columns are mandatory: set_name, smiles, identifier, inspirations")
 
-
         set_names, compounds = process_design_sets(df, set_type, set_description)
 
         string = 'Design set(s) successfully created: '
@@ -491,6 +518,35 @@ class DSetUploadView(APIView):
         length = len(set_names)
         string += str(length) + '; '
         for i in range(0, length):
-            string += str(i+1) + ' - ' + set_names[i] + ') number of compounds = ' + str(len(compounds[i])) + '; '
+            string += str(i + 1) + ' - ' + set_names[i] + ') number of compounds = ' + str(len(compounds[i])) + '; '
 
         return HttpResponse(json.dumps(string))
+
+
+class CompoundSetView(viewsets.ReadOnlyModelViewSet):
+    queryset = CompoundSet.objects.filter()
+    serializer_class = CompoundSetSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('target',)
+
+
+class CompoundMoleculesView(viewsets.ReadOnlyModelViewSet):
+    queryset = ComputedCompound.objects.filter()
+    serializer_class = CompoundMoleculeSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound_set',)
+
+
+class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
+    queryset = NumericalScoreValues.objects.filter()
+    serializer_class = NumericalScoreSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound', 'score')
+
+
+class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
+    queryset = ScoreDescription.objects.filter()
+    serializer_class = ScoreDescriptionSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound_set',)
+
