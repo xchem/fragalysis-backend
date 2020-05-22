@@ -6,7 +6,8 @@ django.setup()
 from django.conf import settings
 
 from rdkit import Chem
-from viewer.models import Target
+from rdkit.Chem import Descriptors
+from viewer.models import Target, Compound, DesignSet
 import os.path
 
 from celery import shared_task
@@ -147,4 +148,102 @@ def validate(sdf_file, target=None, zfile=None):
         validated = False
 
     return (validate_dict, validated, sdf_file, target, zfile)
+
 ### End Validating ###
+
+### Design sets ###
+
+def process_design_compound(compound_row):
+    # sanitize, generate mol and inchi
+    smiles = compound_row['smiles']
+    name = compound_row['identifier']
+    mol = Chem.MolFromSmiles(smiles, sanitize=True)
+    sanitized_mol_smiles = Chem.MolToSmiles(mol, canonical=True)
+    sanitized_mol = Chem.MolFromSmiles(sanitized_mol_smiles)
+    inchi = Chem.inchi.MolToInchi(sanitized_mol)
+    long_inchi = None
+
+    if len(inchi)>255:
+        # TODO: get_inchi in model
+        inchi = str(inchi)[0:255]
+        long_inchi = inchi
+
+
+    # check for an existing compound
+    cpd = Compound.objects.filter(inchi=inchi)
+
+    if len(cpd)!=0:
+        new_mol=cpd[0]
+    else:
+
+        # add molecule and return the object
+        new_mol = Compound()
+
+    new_mol.smiles = sanitized_mol_smiles
+    new_mol.inchi = inchi
+    if long_inchi:
+        new_mol.long_inchi = long_inchi
+    new_mol.identifier = name
+
+    # descriptors
+    new_mol.mol_log_p = Chem.Crippen.MolLogP(sanitized_mol)
+    new_mol.mol_wt = float(Chem.rdMolDescriptors.CalcExactMolWt(sanitized_mol))
+    new_mol.heavy_atom_count = Chem.Lipinski.HeavyAtomCount(sanitized_mol)
+    new_mol.heavy_atom_mol_wt = float(Descriptors.HeavyAtomMolWt(sanitized_mol))
+    new_mol.nhoh_count = Chem.Lipinski.NHOHCount(sanitized_mol)
+    new_mol.no_count = Chem.Lipinski.NOCount(sanitized_mol)
+    new_mol.num_h_acceptors = Chem.Lipinski.NumHAcceptors(sanitized_mol)
+    new_mol.num_h_donors = Chem.Lipinski.NumHDonors(sanitized_mol)
+    new_mol.num_het_atoms = Chem.Lipinski.NumHeteroatoms(sanitized_mol)
+    new_mol.num_rot_bonds = Chem.Lipinski.NumRotatableBonds(sanitized_mol)
+    new_mol.num_val_electrons = Descriptors.NumValenceElectrons(sanitized_mol)
+    new_mol.ring_count = Chem.Lipinski.RingCount(sanitized_mol)
+    new_mol.tpsa = Chem.rdMolDescriptors.CalcTPSA(sanitized_mol)
+
+    # make sure there is an id so inspirations can be added
+    new_mol.save()
+
+    # deal with inspirations
+    inspirations = compound_row['inspirations'].split(',')
+    for insp in inspirations:
+        # TODO: find matching molecules - change to molecules and search history to find the correct version.
+        #  -- search all history and find most recent with matching code? or code most closely matching design date?
+        # (Can this be accessed, or does the view need changing to display the correct one? Not implemented yet anyway)
+        molecules = Molecule.objects.filter(prot_id__code__contains=insp)
+        # compounds = [m.cmpd_id for m in molecules]
+        for molecule in molecules:
+            new_mol.inspirations.add(molecule)
+
+    # save the molecule and return it
+    new_mol.save()
+    return new_mol
+
+
+def process_one_set(set_df, name, set_type=None, set_description=None):
+    # add new set
+    new_set = DesignSet()
+    new_set.set_name = name
+    new_set.set_type = set_type
+    new_set.set_description = set_description
+    new_set.save()
+    compounds = []
+    for i, row in set_df.iterrows():
+        compounds.append(process_design_compound(row))
+
+    for compound in compounds:
+        new_set.compounds.add(compound)
+
+    new_set.save()
+
+    return compounds
+
+
+def process_design_sets(df, set_type=None, set_description=None):
+    set_names = list(set(df['set_name']))
+    sets = []
+    for name in set_names:
+        set_df = df[df['set_name'] == name]
+        compounds = process_one_set(set_df, name)
+        sets.append(compounds)
+
+    return set_names, sets

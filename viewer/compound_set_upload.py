@@ -10,14 +10,13 @@ from django.core.files.base import ContentFile
 
 from rdkit import Chem
 from viewer.models import (
-
-    ComputedCompound,
+    ComputedMolecule,
     ScoreDescription,
     NumericalScoreValues,
     TextScoreValues,
     Protein,
     Molecule,
-    CompoundSetSubmitter)
+    ComputedSetSubmitter)
 import ast
 import os.path
 
@@ -125,7 +124,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
         prot_field = new_filename
         # compound_set.save()
 
-    cpd = ComputedCompound()
+    cpd = ComputedMolecule()
     cpd.sdf_info = mol_block
     cpd.compound_set = compound_set
     cpd.name = name
@@ -159,7 +158,7 @@ def get_submission_info(description_mol):
                       'generation_date': datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
                       'method': description_mol.GetProp('method')}
 
-    submitter = CompoundSetSubmitter(**submitter_dict)
+    submitter = ComputedSetSubmitter(**submitter_dict)
     submitter.save()
     return submitter
 

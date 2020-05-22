@@ -1,6 +1,9 @@
-from django.conf.urls import url
+from django.conf.urls import include, url
+from rest_framework.routers import DefaultRouter
 
 from . import views
+
+
 
 urlpatterns = [
     url(r"^react/*", views.react, name="react"),
@@ -13,4 +16,5 @@ urlpatterns = [
     url(r"^open_targets/", views.get_open_targets, name="get_open_targets"),
     url(r'^compound_set/(?P<name>.+)/$', views.cset_download, name='compound_set'),
     url(r'^protein_set/(?P<name>.+)/$', views.pset_download, name='protein_set'),
+    url(r'upload_designs/', views.DSetUploadView.as_view(), name='upload_designs')
 ]

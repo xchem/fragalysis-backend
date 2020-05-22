@@ -12,6 +12,11 @@ from django.core.files.base import ContentFile
 from django.conf import settings
 from django.http import JsonResponse
 
+from rest_framework.parsers import JSONParser, BaseParser
+from rest_framework.exceptions import ParseError
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from django.views import View
 
 from celery import current_app, chain
@@ -20,10 +25,14 @@ from celery.result import AsyncResult
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 
-from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedCompound, CompoundSet, CSetKeys
+from viewer.models import Molecule, Protein, Compound, Target, SessionProject, Snapshot, ComputedMolecule, ComputedSet, CSetKeys, File
 from viewer import filters
 from forms import CSetForm, UploadKeyForm
+
 from tasks import check_services, process_compound_set, validate
+
+from tasks import *
+
 import pandas as pd
 
 from viewer.serializers import (
@@ -41,7 +50,8 @@ from viewer.serializers import (
     SessionProjectWriteSerializer,
     SessionProjectReadSerializer,
     SnapshotReadSerializer,
-    SnapshotWriteSerializer
+    SnapshotWriteSerializer,
+    FileSerializer,
 )
 
 
@@ -289,6 +299,7 @@ class UploadTaskView(View):
         response_data = {'upload_task_status': task.status, 'upload_task_id': task.id}
 
         if task.status == 'SUCCESS':
+
             results = task.get()
 
             # Check for d,v vs csetname output
@@ -311,6 +322,7 @@ class UploadTaskView(View):
             if isinstance(results, str):
                 cset_name = results
                 cset = CompoundSet.objects.get(name=cset_name)
+
                 submitter = cset.submitter
                 name = submitter.unique_name
                 response_data['results'] = {}
@@ -381,7 +393,7 @@ def get_open_targets(request):
 
   
 def cset_download(request, name):
-    compound_set = CompoundSet.objects.get(submitter__unique_name=name)
+    compound_set = ComputedSet.objects.get(submitter__unique_name=name)
     filepath = compound_set.submitted_sdf
     with open(filepath.path, 'r') as fp:
         data = fp.read()
@@ -397,8 +409,8 @@ def pset_download(request, name):
     filename = 'protein-set_' + name + '.zip'
     response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
 
-    compound_set = CompoundSet.objects.get(submitter__unique_name=name)
-    computed = ComputedCompound.objects.filter(compound_set=compound_set)
+    compound_set = ComputedSet.objects.get(submitter__unique_name=name)
+    computed = ComputedMolecule.objects.filter(compound_set=compound_set)
     pdb_filepaths = [c.pdb_info.path for c in computed]
 
     buff = StringIO()
@@ -439,3 +451,46 @@ class SnapshotsView(viewsets.ModelViewSet):
     # filter_permissions = "target_id__project_id"
     # filter_fields = '__all__'
 ### End of Session Project
+
+
+### Design sets upload
+# Custom parser class for a csv file
+class DSetCSVParser(BaseParser):
+    """
+    CSV parser class specific to design set csv spec
+    """
+    media_type = 'text/csv'
+
+
+class DSetUploadView(APIView):
+    parser_class = (DSetCSVParser,)
+
+    def put(self, request, format=None):
+
+        f = request.FILES['file']
+        set_type = request.PUT['type']
+        set_description = request.PUT['description']
+
+        # save uploaded file to temporary storage
+        name = f.name
+        path = default_storage.save('tmp/' + name, ContentFile(f.read()))
+        tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+
+        df = pd.read_csv(tmp_file)
+        mandatory_cols = ['set_name', 'smiles', 'identifier', 'inspirations']
+        actual_cols = df.columns
+        for col in mandatory_cols:
+            if col not in actual_cols:
+                raise ParseError("The 4 following columns are mandatory: set_name, smiles, identifier, inspirations")
+
+
+        set_names, compounds = process_design_sets(df, set_type, set_description)
+
+        string = 'Design set(s) successfully created: '
+
+        length = len(set_names)
+        string += str(length) + '; '
+        for i in range(0, length):
+            string += str(i+1) + ' - ' + set_names[i] + ') number of compounds = ' + str(len(compounds[i])) + '; '
+
+        return HttpResponse(json.dumps(string))
