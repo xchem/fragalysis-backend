@@ -14,43 +14,64 @@ from celery import shared_task
 from sdf_check import *
 from compound_set_upload import *
 
+# Bit to check if redis and celery services are working and available
+def check_services():
+    services = [p.name() for p in psutil.process_iter()]
+    if 'redis-server' not in services:
+        os.system('redis-server &')
+    if 'celery' not in services:
+        os.system('celery -A fragalysis worker -l info &')
+    services = [p.name() for p in psutil.process_iter()]
+    if 'redis-server' not in services or 'celery' not in services:
+        return False
+    return True
+
 ### Uploading ###
 
-@shared_task(bind=True)
-def process_compound_set(self, target, filename, zfile=None):
-    print('processing compound set: ' + filename)
-    filename = str(filename)
-    # create a new compound set
-    set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
-    compound_set = CompoundSet()
-    compound_set.name = set_name
-    matching_target = Target.objects.get(title=target)
-    compound_set.target = matching_target
+@shared_task
+def process_compound_set(validate_output):
+    # Validate output is a tuple - this is one way to get
+    # Celery chaining to work where second function uses tuple output
+    # from first function called
+    validate_dict, validated, target, filename, zfile = validate_output
 
-    # set descriptions and get all other mols back
-    mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
+    if not validated:
+        return (validate_dict,validated)
 
-    # process every other mol
-    for i in range(0, len(mols_to_process)):
-        process_mol(mols_to_process[i], compound_set, filename, zfile)
+    if validated:
+        print('processing compound set: ' + filename)
+        filename = str(filename)
+        # create a new compound set
+        set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
+        compound_set = CompoundSet()
+        compound_set.name = set_name
+        matching_target = Target.objects.get(title=target)
+        compound_set.target = matching_target
 
-    # check that molecules have been added to the compound set
-    check = ComputedCompound.objects.filter(compound_set=compound_set)
-    print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
+        # set descriptions and get all other mols back
+        mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
 
-    # move and save the compound set
-    new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
-    os.rename(filename, new_filename)
-    compound_set.submitted_sdf = new_filename
-    compound_set.save()
+        # process every other mol
+        for i in range(0, len(mols_to_process)):
+            process_mol(mols_to_process[i], compound_set, filename, zfile)
 
-    # if no molecules were processed, delete the compound set
-    if len(check) == 0:
-        compound_set.delete()
-        print('No molecules processed... deleting ' + set_name + ' compound set')
-        return None
+        # check that molecules have been added to the compound set
+        check = ComputedCompound.objects.filter(compound_set=compound_set)
+        print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
 
-    return compound_set.name
+        # move and save the compound set
+        new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
+        os.rename(filename, new_filename)
+        compound_set.submitted_sdf = new_filename
+        compound_set.save()
+
+        # if no molecules were processed, delete the compound set
+        if len(check) == 0:
+            compound_set.delete()
+            print('No molecules processed... deleting ' + set_name + ' compound set')
+            return None
+
+        return compound_set.name
 
 ### End Uploading ###
 
@@ -59,8 +80,8 @@ def process_compound_set(self, target, filename, zfile=None):
 # Set .sdf format version here
 version = 'ver_1.2'
 
-@shared_task(bind=True)
-def validate(self, sdf_file, target=None, zfile=None):
+@shared_task
+def validate(sdf_file, target=None, zfile=None):
     validated = True
     validate_dict = {'molecule_name': [],
                      'field': [],
@@ -126,7 +147,8 @@ def validate(self, sdf_file, target=None, zfile=None):
     if len(validate_dict['molecule_name']) != 0:
         validated = False
 
-    return validate_dict, validated
+    return (validate_dict, validated, sdf_file, target, zfile)
+
 ### End Validating ###
 
 ### Design sets ###
