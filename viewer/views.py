@@ -417,11 +417,9 @@ class SnapshotsView(viewsets.ModelViewSet):
     # filter_fields = '__all__'
 ### End of Session Project
 
-## Design sets upload
+
+### Design sets upload
 # Custom parser class for a csv file
-
-
-
 class DSetCSVParser(BaseParser):
     """
     CSV parser class specific to design set csv spec
@@ -429,28 +427,35 @@ class DSetCSVParser(BaseParser):
     media_type = 'text/csv'
 
 
-class DSetUpload(APIView):
+class DSetUploadView(APIView):
     parser_class = (DSetCSVParser,)
-    file_serializer = FileSerializer
-    queryset = File.objects.all()
 
-    def post(self, request, format=None):
+    def put(self, request, format=None):
 
-        if self.file_serializer.is_valid():
-            self.file_serializer.save()
-        if 'file' not in request.data:
-            raise ParseError("Empty content")
+        f = request.FILES['file']
+        set_type = request.PUT['type']
+        set_description = request.PUT['description']
 
-        f = request.data['file']
+        # save uploaded file to temporary storage
+        name = f.name
+        path = default_storage.save('tmp/' + name, ContentFile(f.read()))
+        tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
-        df = pd.read_csv(f.name)
-        cols = ['set_name', 'smiles', 'identifier', 'inspirations']
-
-        for col in df.columns():
-            if col not in cols:
+        df = pd.read_csv(tmp_file)
+        mandatory_cols = ['set_name', 'smiles', 'identifier', 'inspirations']
+        actual_cols = df.columns
+        for col in mandatory_cols:
+            if col not in actual_cols:
                 raise ParseError("The 4 following columns are mandatory: set_name, smiles, identifier, inspirations")
 
-        process_design_sets(df)
 
-        # mymodel.my_file_field.save(f.name, f, save=True)
-        return Response(status=status.HTTP_201_CREATED)
+        set_names, compounds = process_design_sets(df, set_type, set_description)
+
+        string = 'Design set(s) successfully created: '
+
+        length = len(set_names)
+        string += str(length) + '; '
+        for i in range(0, length):
+            string += str(i+1) + ' - ' + set_names[i] + ') number of compounds = ' + str(len(compounds[i])) + '; '
+
+        return HttpResponse(json.dumps(string))

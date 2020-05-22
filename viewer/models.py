@@ -2,6 +2,9 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 import uuid
+import json
+
+from simple_history.models import HistoricalRecords
 
 from loader.config import get_mol_choices, get_prot_choices
 
@@ -64,8 +67,10 @@ class Compound(models.Model):
     """A Django model to hold the information for a given compound -> a unique 2D molecule"""
     # Character attributes
     inchi = models.CharField(max_length=255, unique=True, db_index=True)
+    long_inchi = models.TextField(max_length=1000, blank=True, null=True)
     smiles = models.CharField(max_length=255, db_index=True)
-    identifier = models.CharField(max_length=255, db_index=True, blank=True, null=True)
+    current_identifier = models.CharField(max_length=255, db_index=True, blank=True, null=True)
+    all_identifiers = models.TextField(blaank=True, null=True)
     # A link to the related project
     project_id = models.ManyToManyField(Project)
     # Float attributes
@@ -83,10 +88,19 @@ class Compound(models.Model):
     num_rot_bonds = models.IntegerField()
     num_val_electrons = models.IntegerField()
     ring_count = models.IntegerField()
-    inspirations = models.ManyToManyField("self", blank=True, null=True, symmetrical=False)
+    inspirations = models.ManyToManyField("Molecule", blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    comments = models.TextField(blank=True, null=True)
+
+    def set_all_identifiers(self, x):
+        self.all_identifiers = json.dumps(x)
+
+    def get_all_identifiers(self):
+        return json.loads(self.foo)
 
     class Meta:
         permissions = (("view_compound", "View compound"),)
+        # unique_together = (("inchi", "long_inchi"),)
 
 
 class Molecule(models.Model):
@@ -112,6 +126,7 @@ class Molecule(models.Model):
     # Foreign key relations
     prot_id = models.ForeignKey(Protein)
     cmpd_id = models.ForeignKey(Compound)
+    history = HistoricalRecords()
 
     # Unique constraints
     class Meta:
@@ -186,8 +201,20 @@ class Snapshot(models.Model):
 # Start of compound sets
 # Design sets = 2D compounds that have been designed but do not yet have a 3D structure
 class DesignSet(models.Model):
+    LIB = "library"
+    FUP = "follow-up"
+    USR = "user-submitted"
+    ENM = "enumerated"
+    SET_TYPE = (
+        (LIB, "library"),  # library - e.g. DSiPoised
+        (FUP, 'follow-up'),  # follow-up - e.g. purchased compounds
+        (USR, 'user-submitted'),  # user submitted - can be submitted by anyone
+        (ENM, 'enumerated'),  # enumerated - e.g. similarity search or something
+    )
     compounds = models.ManyToManyField(Compound)
     set_name = models.CharField(max_length=50)
+    set_type = models.CharField(choices=SET_TYPE, default=USR)
+    set_description = models.TextField(max_length=1000, blank=True, null=True)
 
 
 class ComputedSetSubmitter(models.Model):
@@ -202,14 +229,11 @@ class ComputedSetSubmitter(models.Model):
 
 
 class CSetKeys(models.Model):
-    user = models.TextField(max_length=50, null=False)
+    user = models.CharField(max_length=50, null=False, unique=True)
     uuid = models.UUIDField(
-        primary_key=True,
+        unique=True,
         default=uuid.uuid4,
         editable=False)
-
-    class Meta:
-        unique_together = (("user", "uuid"),)
 
 
 # computed sets = sets of poses calculated computationally
@@ -248,6 +272,7 @@ class ComputedMolecule(models.Model):
     # link to pdb file for prot structure
     pdb_info = models.FileField(upload_to="pdbs/", null=False, max_length=255)
     design_set = models.ForeignKey(DesignSet) # needs to be linked to find inspiration fragments
+    computed_inspirations = models.ManyToManyField(Molecule, null=True, blank=True) # if we use our own method of calculating them
 
 
 class ScoreDescription(models.Model):
