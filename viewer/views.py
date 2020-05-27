@@ -31,8 +31,8 @@ from viewer.models import (
     Target,
     SessionProject,
     Snapshot,
-    ComputedCompound,
-    CompoundSet,
+    ComputedMolecule, # Need to double check! Was ComputedCompound
+    ComputedSet,
     CSetKeys,
     NumericalScoreValues,
     ScoreDescription,
@@ -267,8 +267,7 @@ class UploadCSet(View):
             if str(choice) == '1':
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
-                task_upload = (
-                            validate.s(tmp_file, target=target, zfile=zfile) | process_compound_set.s()).apply_async()
+                task_upload = (validate.s(tmp_file, target=target, zfile=zfile) | process_compound_set.s()).apply_async()
 
                 context['upload_task_id'] = task_upload.id
                 context['upload_task_status'] = task_upload.status
@@ -343,7 +342,7 @@ class UploadTaskView(View):
             # Check in with Rachael if we are expecting a string here?
             if isinstance(results, str):
                 cset_name = results
-                cset = CompoundSet.objects.get(name=cset_name)
+                cset = ComputedSet.objects.get(name=cset_name)
 
                 submitter = cset.submitter
                 name = submitter.unique_name
@@ -524,14 +523,14 @@ class DSetUploadView(APIView):
 
 
 class CompoundSetView(viewsets.ReadOnlyModelViewSet):
-    queryset = CompoundSet.objects.filter()
+    queryset = ComputedSet.objects.filter()
     serializer_class = CompoundSetSerializer
     filter_permissions = "project_id"
     filter_fields = ('target',)
 
 
 class CompoundMoleculesView(viewsets.ReadOnlyModelViewSet):
-    queryset = ComputedCompound.objects.filter()
+    queryset = ComputedMolecule.objects.filter()
     serializer_class = CompoundMoleculeSerializer
     filter_permissions = "project_id"
     filter_fields = ('compound_set',)

@@ -14,8 +14,8 @@ from viewer.models import (
     Target,
     Snapshot,
     SessionProject,
-    ComputedCompound,
-    CompoundSet,
+    ComputedMolecule,
+    ComputedSet,
     NumericalScoreValues,
     ScoreDescription
 )
@@ -326,12 +326,12 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 
 # class FileSerializer(serializers.ModelSerializer):
 #     class Meta:
-#         model = ComputedCompound
+#         model = ComputedMolecule
 #         fields = "__all__"
 
 class CompoundSetSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CompoundSet
+        model = ComputedSet
         fields = '__all__'
 
 
@@ -339,7 +339,7 @@ class CompoundMoleculeSerializer(serializers.ModelSerializer):
     # performance issue
     # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
     class Meta:
-        model = ComputedCompound
+        model = ComputedMolecule
         fields = '__all__'
 
 

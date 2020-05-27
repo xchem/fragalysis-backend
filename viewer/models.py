@@ -70,7 +70,7 @@ class Compound(models.Model):
     long_inchi = models.TextField(max_length=1000, blank=True, null=True)
     smiles = models.CharField(max_length=255, db_index=True)
     current_identifier = models.CharField(max_length=255, db_index=True, blank=True, null=True)
-    all_identifiers = models.TextField(blaank=True, null=True)
+    all_identifiers = models.TextField(blank=True, null=True)
     # A link to the related project
     project_id = models.ManyToManyField(Project)
     # Float attributes
