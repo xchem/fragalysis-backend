@@ -69,9 +69,9 @@ def check_refmol(mol, validate_dict, target=None):
             query = Protein.objects.filter(code__contains=target + '-' + ref.strip())
             if len(query)==0:
                 validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-                                        field='ref_mol',
-                                        warning_string="molecule for " + str(ref.strip()) + " does not exist in fragalysis (make sure the code is exactly as it appears in fragalysis - e.g. x0123_0)",
-                                        validate_dict=validate_dict)
+                                            field='ref_mol',
+                                            warning_string="molecule for " + str(ref.strip()) + " does not exist in fragalysis (make sure the code is exactly as it appears in fragalysis - e.g. x0123_0)",
+                                            validate_dict=validate_dict)
     return validate_dict
     
 

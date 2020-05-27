@@ -43,6 +43,8 @@ def process_compound_set(validate_output):
         filename = str(filename)
         # create a new compound set
         set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
+
+        ## What is now CompoundSet()? Is it now Compound()?
         compound_set = CompoundSet()
         compound_set.name = set_name
         matching_target = Target.objects.get(title=target)
@@ -56,6 +58,8 @@ def process_compound_set(validate_output):
             process_mol(mols_to_process[i], compound_set, filename, zfile)
 
         # check that molecules have been added to the compound set
+        ## What should this be? I could only find 'compound_set' in ShortDescription
+        ## class in models.py
         check = ComputedCompound.objects.filter(compound_set=compound_set)
         print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
 
