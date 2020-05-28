@@ -55,7 +55,7 @@
           <script>
           var content = document.getElementById('content');
           content.innerHTML = "";
-          var taskUrl = "{% url 'task' upload_task_id=upload_task_id %}";
+          var taskUrl = "{% url 'upload_task' upload_task_id=upload_task_id %}";
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
           updateProgressTitle();
@@ -91,10 +91,10 @@
                   clearTimer('An error occurred');
                 }
               })
-              .catch(function(err){
+{% comment %}              .catch(function(err){
                 console.log('err', err);
                 clearTimer('An error occurred');
-              });
+              });{% endcomment %}
           }, 800);
 
           function updateProgressTitle() {

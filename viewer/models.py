@@ -302,7 +302,6 @@ class TextScoreValues(models.Model):
     compound = models.ForeignKey(ComputedMolecule)
 
 # End of compound sets
-
 class File(models.Model):
     file = models.FileField(blank=False, null=False)
     def __str__(self):

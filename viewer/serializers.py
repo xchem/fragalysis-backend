@@ -17,7 +17,8 @@ from viewer.models import (
     ComputedMolecule,
     ComputedSet,
     NumericalScoreValues,
-    ScoreDescription
+    ScoreDescription,
+    File
 )
 
 from django.contrib.auth.models import User
