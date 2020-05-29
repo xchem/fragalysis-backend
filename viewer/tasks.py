@@ -46,7 +46,7 @@ def process_compound_set(validate_output):
 
         compound_set = ComputedSet()
         compound_set.name = set_name
-        matching_target = Target.objects.get(title=target)
+        matching_target = Target.objects.get(title=target.decode('ascii'))
         compound_set.target = matching_target
 
         # set descriptions and get all other mols back
@@ -88,8 +88,6 @@ def validate(sdf_file, target=None, zfile=None):
                      'field': [],
                      'warning_string': []}
 
-    # Check sdf filename & can be read
-    validate_dict = check_sdf(sdf_file, validate_dict)
 
     suppl = Chem.SDMolSupplier(sdf_file)
     print('%d mols detected (including blank mol)' % (len(suppl),))
@@ -100,7 +98,8 @@ def validate(sdf_file, target=None, zfile=None):
                                     warning_string='your blank molecule could not be read by rdkit. The molecule must have at least one atom! No other checks were done',
                                     validate_dict=validate_dict)
         validated = False
-        return validate_dict, validated
+        return (validate_dict, validated, sdf_file, target, zfile)
+
     validate_dict = check_compound_set(blank_mol, validate_dict)
     other_mols = []
     for i in range(1, len(suppl)):

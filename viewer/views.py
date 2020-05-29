@@ -41,7 +41,7 @@ from viewer.models import (
 from viewer import filters
 from forms import CSetForm, UploadKeyForm
 
-from tasks import check_services, process_compound_set, validate
+#from tasks import check_services, process_compound_set, validate
 
 from tasks import *
 
@@ -256,11 +256,11 @@ class UploadCSet(View):
                 # Start celery task
                 task_validate = validate.delay(tmp_file, target=target, zfile=zfile)
 
+                context = {}
                 context['validate_task_id'] = task_validate.id
-                context['validate_task_status'] = task_validate.status
+                context['validate_task_status'] = task_validate.state
 
-                # Need to check what url shoudl load here - kinda like a progress
-                # or just a message that pops up saying we're busy
+                # Update client side with task id and status
                 return render(request, 'viewer/upload-cset.html', context)
 
             # if it's an upload, run the compound set task
@@ -269,11 +269,11 @@ class UploadCSet(View):
                 # to second function - see tasks.py
                 task_upload = (validate.s(tmp_file, target=target, zfile=zfile) | process_compound_set.s()).apply_async()
 
+                context = {}
                 context['upload_task_id'] = task_upload.id
-                context['upload_task_status'] = task_upload.status
+                context['upload_task_status'] = task_upload.state
 
-                # Need to check what url shoudl load here - kinda like a progress
-                # or just a message that pops up saying we're busy
+                # Update client side with task id and status
                 return render(request, 'viewer/upload-cset.html', context)
 
         context['form'] = form
@@ -282,9 +282,12 @@ class UploadCSet(View):
 
 # Add ValidateTaskView
 class ValidateTaskView(View):
-    def get(self, request, task_id):
-        task = current_app.AsyncResult(task_id)
-        response_data = {'task_status': task.status, 'task_id': task.id}
+
+    def get(self, request, validate_task_id):
+        form = CSetForm()
+        task = AsyncResult(validate_task_id)
+        response_data = {'validate_task_status': task.state,
+                         'validate_task_id': task.id}
 
         # Check if results ready
         if task.status == "SUCCESS":
@@ -293,8 +296,10 @@ class ValidateTaskView(View):
             validate_dict = results[0]
             validated = results[1]
             if validated:
+                html_table = "Your data was validated"
                 # need to add JS for handling validation task to template
-                return render(request, 'viewer/upload-cset.html', context)
+                return render(request, 'viewer/upload-cset.html',
+                              {'form': form, 'table': html_table, 'download_url': ''})
 
             # if the data isn't validated make a table of errors and return it
             # All of this needs moving to the validate task view
@@ -315,9 +320,16 @@ class ValidateTaskView(View):
 
 # Needs to be something like UploadTaskView
 class UploadTaskView(View):
-    def get(self, request, task_id):
-        task = current_app.AsyncResult(task_id)
-        response_data = {'upload_task_status': task.status, 'upload_task_id': task.id}
+    def get(self, request, upload_task_id):
+        task = AsyncResult(upload_task_id)
+        response_data = {'upload_task_status': task.state,
+                         'upload_task_id': task.id}
+
+        if task.status == 'FAILURE':
+            result = task.traceback
+            response_data = {'upload_task_status': task.state,
+                             'upload_task_id': task.id,
+                             'upload_task_result': str(result)}
 
         if task.status == 'SUCCESS':
 
@@ -325,7 +337,7 @@ class UploadTaskView(View):
 
             # Check for d,v vs csetname output
             if isinstance(results, tuple):
-                # Get dictionary
+                # Get dictionary results
                 validate_dict = results[0]
 
                 # set pandas options to display all column data

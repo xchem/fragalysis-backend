@@ -213,7 +213,7 @@ class DesignSet(models.Model):
     )
     compounds = models.ManyToManyField(Compound)
     set_name = models.CharField(max_length=50)
-    set_type = models.CharField(choices=SET_TYPE, default=USR)
+    set_type = models.CharField(max_length=100, choices=SET_TYPE, default=USR)
     set_description = models.TextField(max_length=1000, blank=True, null=True)
 
 

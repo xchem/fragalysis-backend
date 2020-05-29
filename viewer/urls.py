@@ -9,6 +9,7 @@ urlpatterns = [
     url(r"^react/*", views.react, name="react"),
     url(r"^upload_cset/", views.UploadCSet.as_view(), name="upload_cset"),
     url(r"^cset_key/", views.cset_key, name="cset_key"),
+    url(r"^validate_task/(?P<validate_task_id>.+)/$", views.ValidateTaskView.as_view(), name='validate_task'),
     url(r"^upload_task/(?P<upload_task_id>.+)/$", views.UploadTaskView.as_view(), name='upload_task'),
     url(r"^img_from_smiles/$", views.img_from_smiles, name="img_from_smiles"),
     url(r"^highlight_mol_diff/$", views.highlight_mol_diff, name="highlight_mol_diff"),
