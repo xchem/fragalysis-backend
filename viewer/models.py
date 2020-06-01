@@ -249,7 +249,8 @@ class ComputedSet(models.Model):
     method_url = models.TextField(max_length=1000, null=True)
     submitter = models.ForeignKey(ComputedSetSubmitter, null=True)
     unique_name = models.CharField(max_length=101, null=False)
-    design_set = models.ForeignKey(DesignSet)
+    # Check if needed? Rachael still having a look.
+    #design_set = models.ForeignKey(DesignSet, null=False, blank=False)
 
     def save(self):
         if not self.unique_name:

@@ -64,8 +64,13 @@
               .then(function(response){
                 var taskStatus = response.data.validate_task_status
                 if (taskStatus === 'SUCCESS') {
-                  clearTimer('Your files were validated!');
+
+                  var content = document.getElementById('links');
+                  content.innerHTML = response.data.html;
+
+                  clearTimer('');
                 } else if (taskStatus === 'FAILURE') {
+
                   clearTimer('An error occurred');
                 }
               })

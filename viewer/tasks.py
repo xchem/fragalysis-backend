@@ -28,25 +28,26 @@ def check_services():
 
 ### Uploading ###
 
-@shared_task
+@shared_task(bind=True, track_started=True)
 def process_compound_set(validate_output):
     # Validate output is a tuple - this is one way to get
     # Celery chaining to work where second function uses tuple output
     # from first function called
-    validate_dict, validated, target, filename, zfile = validate_output
+    validate_dict, validated, filename, target, zfile = validate_output
 
     if not validated:
         return (validate_dict,validated)
 
     if validated:
-        print('processing compound set: ' + filename)
+        #print('processing compound set: ' + filename)
         filename = str(filename)
+
         # create a new compound set
         set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
 
         compound_set = ComputedSet()
         compound_set.name = set_name
-        matching_target = Target.objects.get(title=target.decode('ascii'))
+        matching_target = Target.objects.get(title=target)
         compound_set.target = matching_target
 
         # set descriptions and get all other mols back
@@ -58,7 +59,7 @@ def process_compound_set(validate_output):
 
         # check that molecules have been added to the compound set
         check = ComputedMolecule.objects.filter(compound_set=compound_set)
-        print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
+        #print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
 
         # move and save the compound set
         new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
@@ -69,7 +70,7 @@ def process_compound_set(validate_output):
         # if no molecules were processed, delete the compound set
         if len(check) == 0:
             compound_set.delete()
-            print('No molecules processed... deleting ' + set_name + ' compound set')
+            #print('No molecules processed... deleting ' + set_name + ' compound set')
             return None
 
         return compound_set.name

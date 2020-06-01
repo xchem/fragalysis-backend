@@ -199,7 +199,12 @@ def cset_key(request):
 # Worth looking at chaining tasks together: https://docs.celeryproject.org/en/stable/userguide/canvas.html
 # https://stackoverflow.com/questions/39099267/how-can-i-create-a-chain-of-conditional-subtasks-in-celery
 class UploadCSet(View):
+
     def get(self, request):
+
+        #test = TargetView().get_queryset(request=request)
+        #targets = request.get('/api/targets/')
+        #int(targets)
         form = CSetForm()
         return render(request, 'viewer/upload-cset.html', {'form': form})
 
@@ -258,7 +263,7 @@ class UploadCSet(View):
 
                 context = {}
                 context['validate_task_id'] = task_validate.id
-                context['validate_task_status'] = task_validate.state
+                context['validate_task_status'] = task_validate.status
 
                 # Update client side with task id and status
                 return render(request, 'viewer/upload-cset.html', context)
@@ -271,7 +276,7 @@ class UploadCSet(View):
 
                 context = {}
                 context['upload_task_id'] = task_upload.id
-                context['upload_task_status'] = task_upload.state
+                context['upload_task_status'] = task_upload.status
 
                 # Update client side with task id and status
                 return render(request, 'viewer/upload-cset.html', context)
@@ -286,8 +291,14 @@ class ValidateTaskView(View):
     def get(self, request, validate_task_id):
         form = CSetForm()
         task = AsyncResult(validate_task_id)
-        response_data = {'validate_task_status': task.state,
+        response_data = {'validate_task_status': task.status,
                          'validate_task_id': task.id}
+
+        if task.status == 'FAILURE':
+            result = task.traceback
+            response_data = {'upload_task_status': task.status,
+                             'upload_task_id': task.id,
+                             'upload_task_result': str(result)}
 
         # Check if results ready
         if task.status == "SUCCESS":
@@ -296,10 +307,9 @@ class ValidateTaskView(View):
             validate_dict = results[0]
             validated = results[1]
             if validated:
-                html_table = "Your data was validated"
+                response_data["html"] = "Your data was validated. \n It can now be uploaded using the upload option."
                 # need to add JS for handling validation task to template
-                return render(request, 'viewer/upload-cset.html',
-                              {'form': form, 'table': html_table, 'download_url': ''})
+                return JsonResponse(response_data)
 
             # if the data isn't validated make a table of errors and return it
             # All of this needs moving to the validate task view
@@ -311,9 +321,10 @@ class ValidateTaskView(View):
                 table = pd.DataFrame.from_dict(validate_dict)
                 html_table = table.to_html()
                 html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-                return render(request, 'viewer/upload-cset.html',
-                              {'form': form, 'table': html_table, 'download_url': ''})
-                # return ValidationError('We could not validate this file')
+
+                response_data["html"] = html_table
+
+                return JsonResponse(response_data)
 
         return JsonResponse(response_data)
 
@@ -322,12 +333,12 @@ class ValidateTaskView(View):
 class UploadTaskView(View):
     def get(self, request, upload_task_id):
         task = AsyncResult(upload_task_id)
-        response_data = {'upload_task_status': task.state,
+        response_data = {'upload_task_status': task.status,
                          'upload_task_id': task.id}
 
         if task.status == 'FAILURE':
             result = task.traceback
-            response_data = {'upload_task_status': task.state,
+            response_data = {'upload_task_status': task.status,
                              'upload_task_id': task.id,
                              'upload_task_result': str(result)}
 
@@ -361,6 +372,7 @@ class UploadTaskView(View):
                 response_data['results'] = {}
                 response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
                 response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
+
 
             # NB need to deal with possible None from process_compound_set call
             # if no molecules were processed, delete the compound set

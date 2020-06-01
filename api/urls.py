@@ -13,7 +13,7 @@ router = DefaultRouter()
 # Register the basic data
 router.register(r"molecules", viewer_views.MoleculeView)
 router.register(r"compounds", viewer_views.CompoundView)
-router.register(r"targets", viewer_views.TargetView)
+router.register(r"targets", viewer_views.TargetView, "targets")
 router.register(r"proteins", viewer_views.ProteinView)
 router.register(r"session-projects", viewer_views.SessionProjectsView)
 router.register(r"snapshots", viewer_views.SnapshotsView)
