@@ -91,6 +91,9 @@ def set_mol(mol, compound_set, filename, zfile=None):
     # zfile = {'zip_obj': zf, 'zf_list': zip_names}
 
     smiles = Chem.MolToSmiles(mol)
+    inchi = Chem.inchi.MolToInchi(mol)
+    from .tasks import create_mol
+    ref_cpd = create_mol(inchi)
     name = mol.GetProp('_Name')
     mol_block = Chem.MolToMolBlock(mol)
 
@@ -124,15 +127,17 @@ def set_mol(mol, compound_set, filename, zfile=None):
         prot_field = new_filename
         # compound_set.save()
 
+    #  need to add Compound before saving
     cpd = ComputedMolecule()
+    cpd.compound = ref_cpd
+    cpd.save()
     cpd.sdf_info = mol_block
     cpd.compound_set = compound_set
+    cpd.save()
     cpd.name = name
     cpd.smiles = smiles
     cpd.pdb_info = prot_field
     cpd.original_smiles = orig
-
-    cpd.save()
 
     [cpd.inspiration_frags.add(mol) for mol in insp_frags]
 
