@@ -4,6 +4,7 @@ from frag.network.query import get_full_graph
 from rest_framework import serializers
 
 from api.utils import draw_mol
+
 from viewer.models import (
     ActivityPoint,
     Molecule,
@@ -13,12 +14,23 @@ from viewer.models import (
     Target,
     Snapshot,
     SessionProject,
-    ComputedCompound,
-    CompoundSet,
+    ComputedMolecule,
+    ComputedSet,
     NumericalScoreValues,
-    ScoreDescription
+    ScoreDescription,
+    File
 )
+
 from django.contrib.auth.models import User
+
+from rest_framework import serializers
+
+class FileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = File
+        fields = "__all__"
+
+
 
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
@@ -63,6 +75,7 @@ class MoleculeSerializer(serializers.ModelSerializer):
     rots = serializers.SerializerMethodField()
     rings = serializers.SerializerMethodField()
     velec = serializers.SerializerMethodField()
+
 
     def get_molecule_protein(self, obj):
         return obj.prot_id.pdb_info.url
@@ -314,12 +327,12 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 
 # class FileSerializer(serializers.ModelSerializer):
 #     class Meta:
-#         model = ComputedCompound
+#         model = ComputedMolecule
 #         fields = "__all__"
 
 class CompoundSetSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CompoundSet
+        model = ComputedSet
         fields = '__all__'
 
 
@@ -327,7 +340,7 @@ class CompoundMoleculeSerializer(serializers.ModelSerializer):
     # performance issue
     # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
     class Meta:
-        model = ComputedCompound
+        model = ComputedMolecule
         fields = '__all__'
 
 
