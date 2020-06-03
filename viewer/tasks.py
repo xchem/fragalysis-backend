@@ -44,11 +44,18 @@ def process_compound_set(validate_output):
 
         # create a new compound set
         set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
-
         compound_set = ComputedSet()
-        compound_set.name = set_name
+        ### Rachael Check from here - NB looked like random characters/numbers already
+        ### added to set_name (test using int(set_name)). 'Nonetype' error for name still a mystery
+        compound_set.unique_name = set_name
+        ### Rachael check end
         matching_target = Target.objects.get(title=target)
         compound_set.target = matching_target
+        ### Rachael Check this change - asked for version
+        ver = float(version.strip('ver_'))
+        compound_set.spec_version = ver
+        #compound_set.save()
+        ### Rachael check end
 
         # set descriptions and get all other mols back
         mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
@@ -154,9 +161,10 @@ def validate(sdf_file, target=None, zfile=None):
 
 ### Design sets ###
 
-def create_mol(inchi):
+def create_mol(inchi, long_inchi=None, name=None):
     # check for an existing compound
     cpd = Compound.objects.filter(inchi=inchi)
+    sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
 
     if len(cpd) != 0:
         new_mol = cpd[0]
@@ -165,7 +173,7 @@ def create_mol(inchi):
         # add molecule and return the object
         new_mol = Compound()
 
-    new_mol.smiles = sanitized_mol_smiles
+    new_mol.smiles = Chem.MolToSmiles(sanitized_mol)
     new_mol.inchi = inchi
     if long_inchi:
         new_mol.long_inchi = long_inchi

@@ -93,8 +93,9 @@ def set_mol(mol, compound_set, filename, zfile=None):
     smiles = Chem.MolToSmiles(mol)
     inchi = Chem.inchi.MolToInchi(mol)
     from .tasks import create_mol
-    ref_cpd = create_mol(inchi)
     name = mol.GetProp('_Name')
+    ref_cpd = create_mol(inchi, name=name)
+
     mol_block = Chem.MolToMolBlock(mol)
 
     insp = mol.GetProp('ref_mols')
@@ -130,10 +131,10 @@ def set_mol(mol, compound_set, filename, zfile=None):
     #  need to add Compound before saving
     cpd = ComputedMolecule()
     cpd.compound = ref_cpd
+    cpd.compound_set = compound_set
+
     cpd.save()
     cpd.sdf_info = mol_block
-    cpd.compound_set = compound_set
-    cpd.save()
     cpd.name = name
     cpd.smiles = smiles
     cpd.pdb_info = prot_field

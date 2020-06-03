@@ -253,6 +253,8 @@ class ComputedSet(models.Model):
     #design_set = models.ForeignKey(DesignSet, null=False, blank=False)
 
     def save(self):
+        if not self.submitter:
+            super(ComputedSet, self).save()
         if not self.unique_name:
             unique_name = "".join(self.submitter.name.split()) + '-' + "".join(self.submitter.method.split())
             self.unique_name = unique_name
