@@ -1,0 +1,19 @@
+{% load static %}
+
+{% block content %}
+    <h1>Compound set upload key</h1>
+    <h2>Instructions</h2>
+    <p>Enter your email address below. Your upload key will be emailed to you. If you lose your upload key, please email rachael.skyner@diamond.ac.uk to retrieve it</p>
+    <br>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit">Submit</button>
+  </form>
+   {% autoescape off %}
+       {{ message }}
+   {% endautoescape %}
+
+
+
+{% endblock %}

@@ -1,12 +1,42 @@
-import json
+import json, os
+import zipfile
+from cStringIO import StringIO
 
 from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
+from rest_framework import viewsets
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.conf import settings
+from django.http import JsonResponse
+
+from django.views import View
+
+from celery import current_app
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
-from viewer.models import Molecule, Protein, Compound, Target
+
+from viewer.models import (
+    Molecule,
+    Protein,
+    Compound,
+    Target,
+    SessionProject,
+    Snapshot,
+    ComputedCompound,
+    CompoundSet,
+    CSetKeys,
+    NumericalScoreValues,
+    ScoreDescription
+)
+from viewer import filters
+from sdf_check import validate
+from forms import CSetForm, UploadKeyForm
+from tasks import process_compound_set, check_services
+import pandas as pd
+
 from viewer.serializers import (
     MoleculeSerializer,
     ProteinSerializer,
@@ -19,6 +49,14 @@ from viewer.serializers import (
     ProtPDBBoundInfoSerialzer,
     VectorsSerializer,
     GraphSerializer,
+    SessionProjectWriteSerializer,
+    SessionProjectReadSerializer,
+    SnapshotReadSerializer,
+    SnapshotWriteSerializer,
+    CompoundSetSerializer,
+    CompoundMoleculeSerializer,
+    NumericalScoreSerializer,
+    ScoreDescriptionSerializer
 )
 
 
@@ -113,6 +151,247 @@ def react(request):
     """
     return render(request, "viewer/react_temp.html")
 
+# email cset upload key
+def cset_key(request):
+    form = UploadKeyForm()
+    if request.method == 'POST':
+        form = UploadKeyForm(request.POST)
+        email = request.POST['contact_email']
+        new_key = CSetKeys()
+        new_key.user = email
+        new_key.save()
+        key_value = new_key.uuid
+
+        from django.core.mail import send_mail
+        from django.conf import settings
+
+        subject = 'Fragalysis: upload compound set key'
+        message = 'Your upload key is: ' + str(key_value) + ' store it somewhere safe. Only one key will be issued per user'
+        email_from = settings.EMAIL_HOST_USER
+        recipient_list = [email, ]
+        send_mail(subject, message, email_from, recipient_list)
+
+        msg = 'Your key will be emailed to: <b>' + email + '</b>'
+
+        return render(request, 'viewer/generate-key.html', {'form': form, 'message':msg})
+    return render(request, 'viewer/generate-key.html', {'form': form, 'message': ''})
+
+
+class UploadCSet(View):
+    def get(self, request):
+        form = CSetForm()
+        return render(request, 'viewer/upload-cset.html', {'form': form})
+
+    def post(self, request):
+        check_services()
+        zfile = None
+        zf = None
+        cset = None
+        form = CSetForm(request.POST, request.FILES)
+        context = {}
+        if form.is_valid():
+            # get the upload key
+            key = request.POST['upload_key']
+            all_keys = CSetKeys.objects.all()
+            # if it's not valid, return a message
+            if key not in [str(key.uuid) for key in all_keys]:
+                html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
+
+            # get all of the variables needed from the form
+            myfile = request.FILES['sdf_file']
+            print(myfile)
+            target = request.POST['target_name']
+            choice = request.POST['submit_choice']
+            if 'pdb_zip' in request.FILES.keys():
+                pdb_file = request.FILES['pdb_zip']
+            else:
+                pdb_file = None
+
+            # if there is a zip file of pdbs, check it for .pdb files, and ignore others
+            if pdb_file:
+                zf = zipfile.ZipFile(pdb_file)
+                zip_lst = zf.namelist()
+                zip_names = []
+                for filename in zip_lst:
+                    # only handle pdb files
+                    if filename.split('.')[-1] == 'pdb':
+                        # store filenames?
+                        zip_names.append(filename)
+
+                zfile = {'zip_obj': zf, 'zf_list': zip_names}
+
+            # save uploaded sdf to tmp storage
+            name = myfile.name
+            path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
+            tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+
+            # validate the file (make this a task)
+            d, v = validate(tmp_file, target=target, zfile=zfile)
+
+            # set pandas options to display all column data
+            pd.set_option('display.max_colwidth', -1)
+
+            # if the data isn't validated make a table of errors and return it
+            if not v:
+                table = pd.DataFrame.from_dict(d)
+                html_table = table.to_html()
+                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
+                return render(request, 'viewer/upload-cset.html',
+                              {'form': form, 'table': html_table, 'download_url': ''})
+                # return ValidationError('We could not validate this file')
+            # if it's an upload, run the compound set task
+            if str(choice) == '1':
+                cset_name = process_compound_set.delay(target=target, filename=tmp_file, zfile=zfile)
+
+                context['task_id'] = cset_name.id
+                context['task_status'] = cset_name.status
+
+                if zf:
+                    zf.close()
+
+                # if cset_name:
+                #     cset = CompoundSet.objects.get(cset_name)
+                #     submitter = cset.submitter
+                #     name = submitter.unique_name
+                #
+                #     context['cset_download_url'] = '/viewer/compound_set/%s' %name
+                #     context['pset_download_url'] = '/viewer/protein_set/%s' % name
+
+
+
+                    # download_url = cset_download_url + '<br>' + pset_download_url
+                    #
+                    # # table = pd.DataFrame(computed)
+                    # # html_table = table.to_html()
+                    # html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
+
+                return render(request, 'viewer/upload-cset.html', context)
+            context['form'] = form
+            return render(request, 'viewer/upload-cset.html', context)
+
+
+class TaskView(View):
+    def get(self, request, task_id):
+        task = current_app.AsyncResult(task_id)
+        response_data = {'task_status': task.status, 'task_id': task.id}
+
+        if task.status == 'SUCCESS':
+            cset_name = task.get()
+            if cset_name:
+                cset = CompoundSet.objects.get(name=cset_name)
+                submitter = cset.submitter
+                name = submitter.unique_name
+                response_data['results'] = {}
+                response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
+                response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
+            # response_data['results'] = task.get()
+
+        return JsonResponse(response_data)
+
+
+# needs a target to be specified
+def upload_cset(request):
+    """
+    :param request:
+    :return:
+    """
+    zfile = None
+    zf = None
+    cset = None
+    if request.method == 'POST':
+        form = CSetForm(request.POST, request.FILES)
+        # POST, generate form with data from the request
+        key = request.POST['upload_key']
+        all_keys = CSetKeys.objects.all()
+        if key not in [str(key.uuid) for key in all_keys]:
+            html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
+            return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
+        print('data provided... processing')
+#         try:
+        # check if it's valid:
+        if form.is_valid():
+            myfile = request.FILES['sdf_file']
+            print(myfile)
+            target = request.POST['target_name']
+            choice = request.POST['submit_choice']
+            if 'pdb_zip' in request.FILES.keys():
+                pdb_file = request.FILES['pdb_zip']
+            else:
+                pdb_file = None
+
+            # if request.FILES['pdb_zip']!='':
+                # check it's actually a zip file
+
+            if pdb_file:
+                zf = zipfile.ZipFile(pdb_file)
+                zip_lst = zf.namelist()
+                zip_names = []
+                for filename in zip_lst:
+                    # only handle pdb files
+                    if filename.split('.')[-1] == 'pdb':
+                        # store filenames?
+                        zip_names.append(filename)
+
+                zfile = {'zip_obj': zf, 'zf_list': zip_names}
+
+
+            name = myfile.name
+            path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
+            tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+
+            # isfile = os.path.isfile(tmp_file)
+            d, v = validate(tmp_file, target=target, zfile=zfile)
+            print(d)
+            print(v)
+            pd.set_option('display.max_colwidth', -1)
+            if not v:
+                table = pd.DataFrame.from_dict(d)
+                html_table = table.to_html()
+                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url':''})
+                # return ValidationError('We could not validate this file')
+            if str(choice)=='1':
+                cset_name = process_compound_set.delay(target=target, filename=tmp_file, zfile=zfile)
+                if zf:
+                    zf.close()
+
+                return render(request, 'viewer/upload-cset.html', context={'task_id': cset_name.task_id})
+                ### ALL OF THIS NOW HAS TO HAPPEN AFTER WE GET TASK ID?
+                # computed = ComputedCompound.objects.filter(compound_set=cset).values()
+                if cset_name:
+                    cset = CompoundSet.objects.get(cset_name)
+                    submitter = cset.submitter
+                    name = submitter.unique_name
+
+                    cset_download_url = '<a href="/viewer/compound_set/%s">Download Compound Set</a>' %name
+                    pset_download_url = '<a href="/viewer/protein_set/%s">Download Protein Set</a>' % name
+
+                    download_url = cset_download_url + '<br>' + pset_download_url
+
+                    # table = pd.DataFrame(computed)
+                    # html_table = table.to_html()
+                    html_table = '''<p> Your data was validated and added to the fragalysis database. The link above will allow you to download the submitted file</p>'''
+
+                    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html_table, 'download_url': download_url})
+            if str(choice)=='0' and v:
+                html = '<p> Your data was validated. You can upload it by checking the upload radio button</p>'
+                return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html, 'download_url':''})
+#         except:
+#             if cset:
+#                 cset.delete()
+#                 computed = ComputedCompound.objects.filter(compound_set=cset)
+#                 for c in computed:
+#                     c.delete()
+#             return HttpResponse(status=500)
+    else:
+        # GET, generate blank form
+        form = CSetForm()
+        # return render(request, 'viewer/upload-cset.html', {
+        #     'uploaded_file_url': uploaded_file_url
+        # })
+    return render(request, 'viewer/upload-cset.html', {'form': form, 'table': '', 'download_url':''})
+
 
 def img_from_smiles(request):
     if "smiles" in request.GET:
@@ -165,3 +444,89 @@ def get_open_targets(request):
                 target_ids.append(t.id)
 
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
+
+  
+def cset_download(request, name):
+    compound_set = CompoundSet.objects.get(submitter__unique_name=name)
+    filepath = compound_set.submitted_sdf
+    with open(filepath.path, 'r') as fp:
+        data = fp.read()
+    filename = 'compund-set_' + name + '.sdf'
+    response = HttpResponse(content_type='text/plain')
+    response['Content-Disposition'] = 'attachment; filename=%s' % filename # force browser to download file
+    response.write(data)
+    return response
+
+
+def pset_download(request, name):
+    response = HttpResponse(content_type='application/zip')
+    filename = 'protein-set_' + name + '.zip'
+    response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
+
+    compound_set = CompoundSet.objects.get(submitter__unique_name=name)
+    computed = ComputedCompound.objects.filter(compound_set=compound_set)
+    pdb_filepaths = [c.pdb_info.path for c in computed]
+
+    buff = StringIO()
+    zip_obj = zipfile.ZipFile(buff, 'w')
+
+    for fp in pdb_filepaths:
+        data = open(fp, 'r').read()
+        zip_obj.writestr(fp.split('/')[-1], data)
+    zip_obj.close()
+
+    buff.flush()
+    ret_zip = buff.getvalue()
+    buff.close()
+    response.write(ret_zip)
+
+    return response
+
+
+## Start of Session Project
+class SessionProjectsView(viewsets.ModelViewSet):
+    queryset = SessionProject.objects.filter()
+    def get_serializer_class(self):
+        if self.request.method in ['GET']:
+            # GET
+            return SessionProjectReadSerializer
+        # (POST, PUT, PATCH)
+        return SessionProjectWriteSerializer
+    filter_permissions = "target_id__project_id"
+    filter_fields = '__all__'
+
+class SnapshotsView(viewsets.ModelViewSet):
+    queryset = Snapshot.objects.filter()
+    def get_serializer_class(self):
+        if self.request.method in ['GET']:
+            return SnapshotReadSerializer
+        return SnapshotWriteSerializer
+    filter_class = filters.SnapshotFilter
+### End of Session Project
+
+
+class CompoundSetView(viewsets.ReadOnlyModelViewSet):
+    queryset = CompoundSet.objects.filter()
+    serializer_class = CompoundSetSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('target',)
+
+
+class CompoundMoleculesView(viewsets.ReadOnlyModelViewSet):
+    queryset = ComputedCompound.objects.filter()
+    serializer_class = CompoundMoleculeSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound_set',)
+
+class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
+    queryset = NumericalScoreValues.objects.filter()
+    serializer_class = NumericalScoreSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound', 'score')
+
+
+class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
+    queryset = ScoreDescription.objects.filter()
+    serializer_class = ScoreDescriptionSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('compound_set',)

@@ -1,0 +1,85 @@
+version: '3'
+
+services:
+  mysql:
+    image: mysql:5.7
+    volumes:
+      - ../data/mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: django_db
+      MYSQL_PASSWORD: django_password
+      MYSQL_USER: django
+    ports:
+      - "3306:3306"
+  graph:
+    container_name: neo4j
+    image: neo4j:3.5
+    ports:
+      # Comment these two out in production
+      - "7474:7474"
+      - "7687:7687"
+    ulimits:
+      nofile:
+        soft: 40000
+        hard: 40000
+    volumes:
+      - ../data/neo4j/data:/data
+      - ../data/neo4j/logs:/logs
+    environment:
+      - NEO4J_AUTH=none
+      - NEO4J_dbms_memory_pagecache_size=4G
+  web:
+    container_name: web_dock
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /bin/bash /code/launch-stack.sh
+    volumes:
+      - ../data/logs:/code/logs/
+      - ../data/media:/code/media/
+      - ../fragalysis-frontend:/code/frontend/
+      - .:/code/
+      - ../dls-fragalysis-stack-openshift/images/loader/docker-entrypoint.sh:/code/docker-entrypoint.sh
+      - ../fragalysis-loader/run_loader.sh:/code/run_loader.sh
+      - ../fragalysis-loader/loader.py:/code/loader.py
+      - ../fragalysis-loader/test_entry.sh:/code/test_entry.sh
+      - ../fragalysis-loader/wait-for-it.sh:/code/wait-for-it.sh
+      - ../fragalysis-loader/database_check.py:/code/database_check.py
+      - ../fragalysis-loader/tests:/code/tests
+      - ../fragalysis-loader/loader:/code/loader
+      - ./loader/config.py:/code/loader/config.py
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
+      - graph
+  loader:
+    container_name: loader
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /bin/bash /code/docker-entrypoint.sh
+    volumes:
+      - ../data/input:/fragalysis/
+      - ../data/media:/code/media/
+      - ../fragalysis-frontend:/code/frontend/
+      - .:/code/
+      - ../dls-fragalysis-stack-openshift/images/loader/docker-entrypoint.sh:/code/docker-entrypoint.sh
+      - ../fragalysis-loader/run_loader.sh:/code/run_loader.sh
+      - ../fragalysis-loader/loader.py:/code/loader.py
+      - ../fragalysis-loader/test_entry.sh:/code/test_entry.sh
+      - ../fragalysis-loader/wait-for-it.sh:/code/wait-for-it.sh
+      - ../fragalysis-loader/database_check.py:/code/database_check.py
+      - ../fragalysis-loader/tests:/code/tests
+      - ../fragalysis-loader/loader:/code/loader
+      - ./loader/config.py:/code/loader/config.py
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: django_db
+      MYSQL_PASSWORD: django_password
+      MYSQL_USER: django
+      DATA_ORIGIN: EXAMPLE
+    depends_on:
+      - mysql
+      - web

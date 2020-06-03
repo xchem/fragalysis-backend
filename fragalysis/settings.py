@@ -50,13 +50,12 @@ REST_FRAMEWORK = {
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.QueryParameterVersioning",
 }
 
-# Celery settings
-CELERY_BROKER_URL = "amqp://guest:guest@localhost//"
-#: Only add pickle to this list if your broker is secured
-#: from unwanted access (see userguide/security.html)
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_RESULT_BACKEND = "db+sqlite:///results.sqlite"
-CELERY_TASK_SERIALIZER = "json"
+# CELERY STUFF
+CELERY_BROKER_URL = 'redis://localhost:6379'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 
 # This can be injected as an ENV var
 NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
@@ -92,6 +91,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "rest_framework_swagger",
     "webpack_loader",
+    "django_cleanup",
 ]
 
 MIDDLEWARE = [
@@ -227,3 +227,11 @@ WEBPACK_LOADER = {
 GRAPHENE = {"SCHEMA": "fragalysis.schema.schema"}  # Where your Graphene schema lives
 
 GRAPH_MODELS = {"all_applications": True, "group_models": True}
+
+# email settings for upload key stuff
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_USE_TLS = True
+EMAIL_PORT = 587
+EMAIL_HOST_USER = os.environ.get("EMAIL_USER")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PASSWORD")
