@@ -28,7 +28,7 @@ def check_services():
 
 ### Uploading ###
 
-@shared_task(bind=True, track_started=True)
+@shared_task
 def process_compound_set(validate_output):
     # Validate output is a tuple - this is one way to get
     # Celery chaining to work where second function uses tuple output
@@ -44,11 +44,20 @@ def process_compound_set(validate_output):
 
         # create a new compound set
         set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
-
         compound_set = ComputedSet()
+        ### Rachael Check from here - NB looked like random characters/numbers already
+        ### added to set_name (test using int(set_name)). 'Nonetype' error for name still a mystery
+        #compound_set.unique_name = set_name
         compound_set.name = set_name
+        #compound_set.save()
+        ### Rachael check end
         matching_target = Target.objects.get(title=target)
         compound_set.target = matching_target
+        ### Rachael Check this change - asked for version
+        ver = float(version.strip('ver_'))
+        compound_set.spec_version = ver
+        #compound_set.save()
+        ### Rachael check end
 
         # set descriptions and get all other mols back
         mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
@@ -154,33 +163,19 @@ def validate(sdf_file, target=None, zfile=None):
 
 ### Design sets ###
 
-def process_design_compound(compound_row):
-    # sanitize, generate mol and inchi
-    smiles = compound_row['smiles']
-    name = compound_row['identifier']
-    mol = Chem.MolFromSmiles(smiles, sanitize=True)
-    sanitized_mol_smiles = Chem.MolToSmiles(mol, canonical=True)
-    sanitized_mol = Chem.MolFromSmiles(sanitized_mol_smiles)
-    inchi = Chem.inchi.MolToInchi(sanitized_mol)
-    long_inchi = None
-
-    if len(inchi)>255:
-        # TODO: get_inchi in model
-        inchi = str(inchi)[0:255]
-        long_inchi = inchi
-
-
+def create_mol(inchi, long_inchi=None, name=None):
     # check for an existing compound
     cpd = Compound.objects.filter(inchi=inchi)
+    sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
 
-    if len(cpd)!=0:
-        new_mol=cpd[0]
+    if len(cpd) != 0:
+        new_mol = cpd[0]
     else:
 
         # add molecule and return the object
         new_mol = Compound()
 
-    new_mol.smiles = sanitized_mol_smiles
+    new_mol.smiles = Chem.MolToSmiles(sanitized_mol)
     new_mol.inchi = inchi
     if long_inchi:
         new_mol.long_inchi = long_inchi
@@ -203,6 +198,26 @@ def process_design_compound(compound_row):
 
     # make sure there is an id so inspirations can be added
     new_mol.save()
+
+    return new_mol
+
+def process_design_compound(compound_row):
+    # sanitize, generate mol and inchi
+    smiles = compound_row['smiles']
+    name = compound_row['identifier']
+    mol = Chem.MolFromSmiles(smiles, sanitize=True)
+    sanitized_mol_smiles = Chem.MolToSmiles(mol, canonical=True)
+    sanitized_mol = Chem.MolFromSmiles(sanitized_mol_smiles)
+    inchi = Chem.inchi.MolToInchi(sanitized_mol)
+    long_inchi = None
+
+    if len(inchi)>255:
+        # TODO: get_inchi in model
+        inchi = str(inchi)[0:255]
+        long_inchi = inchi
+
+
+    new_mol = create_mol(inchi)
 
     # deal with inspirations
     inspirations = compound_row['inspirations'].split(',')

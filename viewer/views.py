@@ -289,16 +289,16 @@ class UploadCSet(View):
 class ValidateTaskView(View):
 
     def get(self, request, validate_task_id):
-        form = CSetForm()
+        #form = CSetForm()
         task = AsyncResult(validate_task_id)
         response_data = {'validate_task_status': task.status,
                          'validate_task_id': task.id}
 
         if task.status == 'FAILURE':
             result = task.traceback
-            response_data = {'upload_task_status': task.status,
-                             'upload_task_id': task.id,
-                             'upload_task_result': str(result)}
+            response_data['validate_task_result'] = str(result)
+
+            return JsonResponse(response_data)
 
         # Check if results ready
         if task.status == "SUCCESS":
@@ -307,7 +307,7 @@ class ValidateTaskView(View):
             validate_dict = results[0]
             validated = results[1]
             if validated:
-                response_data["html"] = "Your data was validated. \n It can now be uploaded using the upload option."
+                response_data['html'] = 'Your data was validated. \n It can now be uploaded using the upload option.'
                 # need to add JS for handling validation task to template
                 return JsonResponse(response_data)
 
@@ -338,16 +338,15 @@ class UploadTaskView(View):
 
         if task.status == 'FAILURE':
             result = task.traceback
-            response_data = {'upload_task_status': task.status,
-                             'upload_task_id': task.id,
-                             'upload_task_result': str(result)}
+            response_data['upload_task_result'] = str(result)
+            return JsonResponse(response_data)
 
         if task.status == 'SUCCESS':
 
             results = task.get()
 
             # Check for d,v vs csetname output
-            if isinstance(results, tuple):
+            if isinstance(results, list):
                 # Get dictionary results
                 validate_dict = results[0]
 
@@ -357,9 +356,11 @@ class UploadTaskView(View):
                 table = pd.DataFrame.from_dict(validate_dict)
                 html_table = table.to_html()
                 html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-                return render(request, 'viewer/upload-cset.html',
-                              {'form': form, 'table': html_table, 'download_url': ''})
-                # 'Validation failed message'
+
+                response_data['validated'] = 'Not validated'
+                response_data['html'] = html_table
+
+                return JsonResponse(response_data)
 
             # Check for d,v vs csetname output
             # Check in with Rachael if we are expecting a string here?
@@ -369,9 +370,12 @@ class UploadTaskView(View):
 
                 submitter = cset.submitter
                 name = submitter.unique_name
+                response_data['validated'] = 'Validated'
                 response_data['results'] = {}
                 response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
                 response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
+
+                return JsonResponse(response_data)
 
 
             # NB need to deal with possible None from process_compound_set call
