@@ -47,7 +47,9 @@ def process_compound_set(validate_output):
         compound_set = ComputedSet()
         ### Rachael Check from here - NB looked like random characters/numbers already
         ### added to set_name (test using int(set_name)). 'Nonetype' error for name still a mystery
-        compound_set.unique_name = set_name
+        #compound_set.unique_name = set_name
+        compound_set.name = set_name
+        #compound_set.save()
         ### Rachael check end
         matching_target = Target.objects.get(title=target)
         compound_set.target = matching_target

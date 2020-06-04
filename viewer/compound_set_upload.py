@@ -126,7 +126,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
         new_filename = settings.MEDIA_ROOT + 'pdbs/' + prot_field.split('/')[-1]
         os.rename(old_filename, new_filename)
         prot_field = new_filename
-        # compound_set.save()
+        compound_set.save()
 
     #  need to add Compound before saving
     cpd = ComputedMolecule()
