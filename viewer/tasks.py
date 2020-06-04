@@ -33,7 +33,8 @@ def process_compound_set(validate_output):
     # Validate output is a tuple - this is one way to get
     # Celery chaining to work where second function uses tuple output
     # from first function called
-    validate_dict, validated, filename, target, zfile = validate_output
+    validate_dict, validated, filename, target, zfile, \
+    submitter_name,  submitter_method = validate_output
 
     if not validated:
         return (validate_dict,validated)
@@ -56,7 +57,9 @@ def process_compound_set(validate_output):
         ### Rachael Check this change - asked for version
         ver = float(version.strip('ver_'))
         compound_set.spec_version = ver
-        #compound_set.save()
+        ### Rachael - set submitter info
+        compound_set.unique_name = "".join(submitter_name.split()) + '-' + "".join(submitter_method.split())
+        compound_set.save()
         ### Rachael check end
 
         # set descriptions and get all other mols back
@@ -67,7 +70,7 @@ def process_compound_set(validate_output):
             process_mol(mols_to_process[i], compound_set, filename, zfile)
 
         # check that molecules have been added to the compound set
-        check = ComputedMolecule.objects.filter(compound_set=compound_set)
+        check = ComputedMolecule.objects.filter(computed_set=compound_set)
         #print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
 
         # move and save the compound set
@@ -102,6 +105,7 @@ def validate(sdf_file, target=None, zfile=None):
     suppl = Chem.SDMolSupplier(sdf_file)
     print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
+
     if blank_mol is None:
         validate_dict = add_warning(molecule_name='Blank Mol',
                                     field='N/A',
@@ -109,6 +113,10 @@ def validate(sdf_file, target=None, zfile=None):
                                     validate_dict=validate_dict)
         validated = False
         return (validate_dict, validated, sdf_file, target, zfile)
+
+    # Get submitter name/info
+    submitter_name = blank_mol.GetProp('submitter_name')
+    submitter_method = blank_mol.GetProp('method')
 
     validate_dict = check_compound_set(blank_mol, validate_dict)
     other_mols = []
@@ -157,7 +165,8 @@ def validate(sdf_file, target=None, zfile=None):
     if len(validate_dict['molecule_name']) != 0:
         validated = False
 
-    return (validate_dict, validated, sdf_file, target, zfile)
+    return (validate_dict, validated, sdf_file, target, zfile,
+            submitter_name,  submitter_method)
 
 ### End Validating ###
 

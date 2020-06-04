@@ -369,7 +369,7 @@ class UploadTaskView(View):
                 cset = ComputedSet.objects.get(name=cset_name)
 
                 submitter = cset.submitter
-                name = submitter.unique_name
+                name = cset.unique_name
                 response_data['validated'] = 'Validated'
                 response_data['results'] = {}
                 response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name

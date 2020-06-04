@@ -129,18 +129,20 @@ def set_mol(mol, compound_set, filename, zfile=None):
         compound_set.save()
 
     #  need to add Compound before saving
+    ### Warren changed CompputedCompound to ComputedMolecule. ComputedMolecule
+    ### has no compound_set attribute plus a couple others. Must check with
+    ### Rachael
     cpd = ComputedMolecule()
     cpd.compound = ref_cpd
-    cpd.compound_set = compound_set
-
-    cpd.save()
+    cpd.computed_set = compound_set
     cpd.sdf_info = mol_block
     cpd.name = name
     cpd.smiles = smiles
     cpd.pdb_info = prot_field
-    cpd.original_smiles = orig
+    #cpd.original_smiles = orig
+    cpd.save()
 
-    [cpd.inspiration_frags.add(mol) for mol in insp_frags]
+    [cpd.computed_inspirations.add(mol) for mol in insp_frags]
 
     cpd.save()
 
