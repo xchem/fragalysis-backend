@@ -553,7 +553,7 @@ class CompoundSetView(viewsets.ReadOnlyModelViewSet):
     filter_fields = ('target',)
 
 
-class CompoundMoleculesView(viewsets.ReadOnlyModelViewSet):
+class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedMolecule.objects.filter()
     serializer_class = CompoundMoleculeSerializer
     filter_permissions = "project_id"
