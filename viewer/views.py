@@ -432,7 +432,7 @@ def get_open_targets(request):
 
 
 def cset_download(request, name):
-    compound_set = ComputedSet.objects.get(submitter__unique_name=name)
+    compound_set = ComputedSet.objects.get(unique_name=name)
     filepath = compound_set.submitted_sdf
     with open(filepath.path, 'r') as fp:
         data = fp.read()
@@ -448,9 +448,9 @@ def pset_download(request, name):
     filename = 'protein-set_' + name + '.zip'
     response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
 
-    compound_set = ComputedSet.objects.get(submitter__unique_name=name)
+    compound_set = ComputedSet.objects.get(unique_name=name)
     computed = ComputedMolecule.objects.filter(computed_set=compound_set)
-    pdb_filepaths = [c.pdb_info.path for c in computed]
+    pdb_filepaths = list(set([c.pdb_info.path for c in computed]))
 
     buff = StringIO()
     zip_obj = zipfile.ZipFile(buff, 'w')
