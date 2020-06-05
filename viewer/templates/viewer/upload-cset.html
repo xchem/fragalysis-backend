@@ -73,7 +73,10 @@
 
                 else if (taskStatus === 'FAILURE') {
 
-                  clearTimer('An error occurred');
+                    clearTimer('An error occurred - see traceback below');
+                    var content = document.getElementById('links');
+                    content.innerHTML = response.data.validate_traceback;
+
                 }
               })
           }, 800);
@@ -142,14 +145,24 @@
                           content.appendChild(b);
 
                       }
+                      var moleculesProcessed = response.data.processed
+
+                      if (moleculesProcessed === 'None') {
+
+                          var content = document.getElementById('links');
+                          content.innerHTML = response.data.html;
+
+                          clearTimer('');
+
+                      }
                   }
                     else if (taskStatus === 'FAILURE') {
-                  clearTimer('An error occurred');
+
+                        clearTimer('An error occurred - see traceback below');
+                        var content = document.getElementById('links');
+                        content.innerHTML = response.data.upload_traceback;
+
                 }
-{% comment %}              .catch(function(err){
-                console.log('err', err);
-                clearTimer('An error occurred');
-              });{% endcomment %}
               })
           }, 800);
 

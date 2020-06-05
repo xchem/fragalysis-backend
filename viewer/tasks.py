@@ -32,7 +32,7 @@ def check_services():
 def process_compound_set(validate_output):
     # Validate output is a tuple - this is one way to get
     # Celery chaining to work where second function uses tuple output
-    # from first function called
+    # from first function (validate) called
     validate_dict, validated, filename, target, zfile, \
     submitter_name,  submitter_method = validate_output
 
@@ -46,21 +46,13 @@ def process_compound_set(validate_output):
         # create a new compound set
         set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
         compound_set = ComputedSet()
-        ### Rachael Check from here - NB looked like random characters/numbers already
-        ### added to set_name (test using int(set_name)). 'Nonetype' error for name still a mystery
-        #compound_set.unique_name = set_name
         compound_set.name = set_name
-        #compound_set.save()
-        ### Rachael check end
         matching_target = Target.objects.get(title=target)
         compound_set.target = matching_target
-        ### Rachael Check this change - asked for version
         ver = float(version.strip('ver_'))
         compound_set.spec_version = ver
-        ### Rachael - set submitter info
         compound_set.unique_name = "".join(submitter_name.split()) + '-' + "".join(submitter_method.split())
         compound_set.save()
-        ### Rachael check end
 
         # set descriptions and get all other mols back
         mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
@@ -106,17 +98,18 @@ def validate(sdf_file, target=None, zfile=None):
     print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
 
+    # Get submitter name/info for passing into upload to get unique name
+    submitter_name = blank_mol.GetProp('submitter_name')
+    submitter_method = blank_mol.GetProp('method')
+
     if blank_mol is None:
         validate_dict = add_warning(molecule_name='Blank Mol',
                                     field='N/A',
                                     warning_string='your blank molecule could not be read by rdkit. The molecule must have at least one atom! No other checks were done',
                                     validate_dict=validate_dict)
         validated = False
-        return (validate_dict, validated, sdf_file, target, zfile)
-
-    # Get submitter name/info
-    submitter_name = blank_mol.GetProp('submitter_name')
-    submitter_method = blank_mol.GetProp('method')
+        return (validate_dict, validated, sdf_file, target, zfile,
+                submitter_name, submitter_method)
 
     validate_dict = check_compound_set(blank_mol, validate_dict)
     other_mols = []
@@ -141,7 +134,7 @@ def validate(sdf_file, target=None, zfile=None):
     # Check version in blank mol
     validate_dict = check_ver_name(blank_mol, version, validate_dict)
 
-    # Check compuslory fields in blank mol props
+    # Check compulsory fields in blank mol props
     validate_dict = check_blank_mol_props(blank_mol, validate_dict)
 
     # Check properties have been described and validate url

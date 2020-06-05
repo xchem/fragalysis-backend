@@ -31,7 +31,7 @@ from viewer.models import (
     Target,
     SessionProject,
     Snapshot,
-    ComputedMolecule, # Need to double check! Was ComputedCompound
+    ComputedMolecule,
     ComputedSet,
     CSetKeys,
     NumericalScoreValues,
@@ -40,8 +40,6 @@ from viewer.models import (
 )
 from viewer import filters
 from forms import CSetForm, UploadKeyForm
-
-#from tasks import check_services, process_compound_set, validate
 
 from tasks import *
 
@@ -191,13 +189,6 @@ def cset_key(request):
     return render(request, 'viewer/generate-key.html', {'form': form, 'message': ''})
 
 
-# overall view for upload compound set - needs to include task for:
-# - saving the data from pdb zip to temporary storage
-# - validation
-# - upload
-# Also need to check that all data is going into the database
-# Worth looking at chaining tasks together: https://docs.celeryproject.org/en/stable/userguide/canvas.html
-# https://stackoverflow.com/questions/39099267/how-can-i-create-a-chain-of-conditional-subtasks-in-celery
 class UploadCSet(View):
 
     def get(self, request):
@@ -289,14 +280,13 @@ class UploadCSet(View):
 class ValidateTaskView(View):
 
     def get(self, request, validate_task_id):
-        #form = CSetForm()
         task = AsyncResult(validate_task_id)
         response_data = {'validate_task_status': task.status,
                          'validate_task_id': task.id}
 
         if task.status == 'FAILURE':
             result = task.traceback
-            response_data['validate_task_result'] = str(result)
+            response_data['validate_traceback'] = str(result)
 
             return JsonResponse(response_data)
 
@@ -308,11 +298,9 @@ class ValidateTaskView(View):
             validated = results[1]
             if validated:
                 response_data['html'] = 'Your data was validated. \n It can now be uploaded using the upload option.'
-                # need to add JS for handling validation task to template
+
                 return JsonResponse(response_data)
 
-            # if the data isn't validated make a table of errors and return it
-            # All of this needs moving to the validate task view
 
             if not validated:
                 # set pandas options to display all column data
@@ -338,7 +326,8 @@ class UploadTaskView(View):
 
         if task.status == 'FAILURE':
             result = task.traceback
-            response_data['upload_task_result'] = str(result)
+            response_data['upload_traceback'] = str(result)
+
             return JsonResponse(response_data)
 
         if task.status == 'SUCCESS':
@@ -377,12 +366,12 @@ class UploadTaskView(View):
 
                 return JsonResponse(response_data)
 
-
-            # NB need to deal with possible None from process_compound_set call
-            # if no molecules were processed, delete the compound set
             else:
-                # "No molecules were processed"
-                pass
+
+                html_table = '''<p> Your data was <b>not</b> processed.</p>'''
+                response_data['processed'] = 'None'
+                response_data['html'] = html_table
+                return JsonResponse(response_data)
 
         return JsonResponse(response_data)
 

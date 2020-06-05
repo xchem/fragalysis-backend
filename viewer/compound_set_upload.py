@@ -129,9 +129,6 @@ def set_mol(mol, compound_set, filename, zfile=None):
         compound_set.save()
 
     #  need to add Compound before saving
-    ### Warren changed CompputedCompound to ComputedMolecule. ComputedMolecule
-    ### has no compound_set attribute plus a couple others. Must check with
-    ### Rachael
     cpd = ComputedMolecule()
     cpd.compound = ref_cpd
     cpd.computed_set = compound_set
