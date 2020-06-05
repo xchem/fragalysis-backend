@@ -281,7 +281,7 @@ class ComputedMolecule(models.Model):
 
 class ScoreDescription(models.Model):
     # which compound set this score belongs to
-    compound_set = models.ForeignKey(ComputedSet)
+    computed_set = models.ForeignKey(ComputedSet)
     # a name for this score
     name = models.CharField(max_length=50)
     # a description for this score

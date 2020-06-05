@@ -449,7 +449,7 @@ def pset_download(request, name):
     response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
 
     compound_set = ComputedSet.objects.get(submitter__unique_name=name)
-    computed = ComputedMolecule.objects.filter(compound_set=compound_set)
+    computed = ComputedMolecule.objects.filter(computed_set=compound_set)
     pdb_filepaths = [c.pdb_info.path for c in computed]
 
     buff = StringIO()
@@ -550,7 +550,7 @@ class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedMolecule.objects.filter()
     serializer_class = ComputedMoleculeSerializer
     filter_permissions = "project_id"
-    filter_fields = ('compound_set',)
+    filter_fields = ('computed_set',)
 
 
 class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
@@ -564,5 +564,5 @@ class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = ScoreDescription.objects.filter()
     serializer_class = ScoreDescriptionSerializer
     filter_permissions = "project_id"
-    filter_fields = ('compound_set',)
+    filter_fields = ('computed_set',)
 

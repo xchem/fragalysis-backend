@@ -29,7 +29,7 @@ def check_compound_set(description_mol, validate_dict):
     if len(query)!=0:
         validate_dict = add_warning(molecule_name='File error',
                                     field='compound set',
-                                    warning_string="a compound set with the auto_generated name " + query[0].submitter.unique_name + " already exists (change method name in blank mol method field)",
+                                    warning_string="a compound set with the auto_generated name " + query[0].unique_name + " already exists (change method name in blank mol method field)",
                                     validate_dict=validate_dict)
 
     return validate_dict

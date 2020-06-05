@@ -167,8 +167,12 @@ def validate(sdf_file, target=None, zfile=None):
 
 def create_mol(inchi, long_inchi=None, name=None):
     # check for an existing compound
-    cpd = Compound.objects.filter(inchi=inchi)
-    sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
+    if long_inchi:
+        cpd = Compound.objects.filter(long_inchi=long_inchi)
+        sanitized_mol = Chem.MolFromInchi(long_inchi, sanitize=True)
+    else:
+        cpd = Compound.objects.filter(inchi=inchi)
+        sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
 
     if len(cpd) != 0:
         new_mol = cpd[0]

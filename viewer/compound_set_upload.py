@@ -70,7 +70,7 @@ def get_prot(mol, compound_set, zfile):
 def set_props(cpd, props, compound_set):
     if 'ref_mols' and 'ref_pdb' not in props.keys():
         raise Exception('ref_mols and ref_pdb not set!')
-    set_obj = ScoreDescription.objects.filter(compound_set=compound_set)
+    set_obj = ScoreDescription.objects.filter(computed_set=compound_set)
     set_props_list = [s.name for s in set_obj]
     for key in props.keys():
         if key in set_props_list not in ['ref_mols', 'ref_pdb', 'original SMILES']:
@@ -78,7 +78,7 @@ def set_props(cpd, props, compound_set):
                 score_value = TextScoreValues()
             else:
                 score_value = NumericalScoreValues()
-            score_value.score = ScoreDescription.objects.get(compound_set=compound_set,
+            score_value.score = ScoreDescription.objects.get(computed_set=compound_set,
                                                              name=key)
             score_value.value = props[key]
             score_value.compound = cpd
@@ -94,7 +94,12 @@ def set_mol(mol, compound_set, filename, zfile=None):
     inchi = Chem.inchi.MolToInchi(mol)
     from .tasks import create_mol
     name = mol.GetProp('_Name')
-    ref_cpd = create_mol(inchi, name=name)
+    long_inchi=None
+    if len(inchi)>255:
+        long_inchi = inchi
+        inchi = inchi[0:254]
+
+    ref_cpd = create_mol(inchi, name=name, long_inchi=long_inchi)
 
     mol_block = Chem.MolToMolBlock(mol)
 
@@ -184,7 +189,7 @@ def set_descriptions(filename, compound_set):
 
     for key in description_dict.keys():
         desc = ScoreDescription()
-        desc.compound_set = compound_set
+        desc.computed_set = compound_set
         desc.name = key
         desc.description = description_dict[key]
         desc.save()
