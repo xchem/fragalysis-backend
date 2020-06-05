@@ -95,7 +95,7 @@ def validate(sdf_file, target=None, zfile=None):
 
 
     suppl = Chem.SDMolSupplier(sdf_file)
-    print('%d mols detected (including blank mol)' % (len(suppl),))
+    #print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
 
     # Get submitter name/info for passing into upload to get unique name
@@ -145,7 +145,7 @@ def validate(sdf_file, target=None, zfile=None):
     # - check name characters
     # - check pdb assignment and if pdb filepath exists
     # - check compulsory field populated
-    # - check SMILES can be opended by rdkit
+    # - check SMILES can be opened by rdkit
     # (check api for pdb if fragalysis)
     for m in other_mols:
         validate_dict = check_mol_props(m, validate_dict)
@@ -157,6 +157,10 @@ def validate(sdf_file, target=None, zfile=None):
 
     if len(validate_dict['molecule_name']) != 0:
         validated = False
+
+    unique_name = "".join(submitter_name.split()) + '-' + "".join(submitter_method.split())
+    csets = ComputedSet.objects.filter(unique_name=unique_name)
+    [c.delete() for c in csets]
 
     return (validate_dict, validated, sdf_file, target, zfile,
             submitter_name,  submitter_method)
