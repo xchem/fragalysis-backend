@@ -330,13 +330,13 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 #         model = ComputedMolecule
 #         fields = "__all__"
 
-class CompoundSetSerializer(serializers.ModelSerializer):
+class ComputedSetSerializer(serializers.ModelSerializer):
     class Meta:
         model = ComputedSet
         fields = '__all__'
 
 
-class CompoundMoleculeSerializer(serializers.ModelSerializer):
+class ComputedMoleculeSerializer(serializers.ModelSerializer):
     # performance issue
     # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
     class Meta:
