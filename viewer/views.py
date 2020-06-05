@@ -64,8 +64,8 @@ from viewer.serializers import (
     SnapshotReadSerializer,
     SnapshotWriteSerializer,
     FileSerializer,
-    CompoundSetSerializer,
-    CompoundMoleculeSerializer,
+    ComputedSetSerializer,
+    ComputedMoleculeSerializer,
     NumericalScoreSerializer,
     ScoreDescriptionSerializer
 
@@ -550,16 +550,16 @@ class DSetUploadView(APIView):
         return HttpResponse(json.dumps(string))
 
 
-class CompoundSetView(viewsets.ReadOnlyModelViewSet):
+class ComputedSetView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedSet.objects.filter()
-    serializer_class = CompoundSetSerializer
+    serializer_class = ComputedSetSerializer
     filter_permissions = "project_id"
     filter_fields = ('target',)
 
 
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedMolecule.objects.filter()
-    serializer_class = CompoundMoleculeSerializer
+    serializer_class = ComputedMoleculeSerializer
     filter_permissions = "project_id"
     filter_fields = ('compound_set',)
 
