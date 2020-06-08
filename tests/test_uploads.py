@@ -5,7 +5,7 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors
 
 
-class ValidateTestValid(unittest.Testcase):
+class ValidateTestValid(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
