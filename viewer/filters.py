@@ -4,8 +4,8 @@ from django_filters import rest_framework as filters
 from viewer.models import Snapshot
 
 class SnapshotFilter(filters.FilterSet):
-    session_project = django_filters.CharFilter(name='session_project', lookup_expr='id')
-    session_project__isnull = django_filters.BooleanFilter(name='session_project', lookup_expr='isnull')
+    session_project = django_filters.CharFilter(field_name='session_project', lookup_expr='id')
+    session_project__isnull = django_filters.BooleanFilter(field_name='session_project', lookup_expr='isnull')
 
     class Meta:
         model = Snapshot
