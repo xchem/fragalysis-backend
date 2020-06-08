@@ -15,6 +15,9 @@ import datetime
 # Set .sdf format version here
 version = 'ver_1.2'
 
+def check_property_descriptions():
+    pass
+
 def check_compound_set(description_mol, validate_dict):
     y_m_d = description_mol.GetProp('generation_date').split('-')
 
