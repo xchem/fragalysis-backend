@@ -265,9 +265,11 @@ class GraphSerializer(serializers.ModelSerializer):
 
     graph = serializers.SerializerMethodField()
     graph_choice = os.environ.get("NEO4J_QUERY", "neo4j")
+    graph_auth = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
 
     def get_graph(self, obj):
-        return get_full_graph(obj.smiles, self.graph_choice, isomericSmiles=True)
+        return get_full_graph(obj.smiles, self.graph_choice, self.graph_auth,
+                              isomericSmiles=True)
 
     class Meta:
         model = Molecule
