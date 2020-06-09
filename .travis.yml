@@ -42,7 +42,7 @@ stages:
 - name: publish latest
 - name: trigger downstream
   if: |
-    branch = im-travis \
+    branch = master \
     AND env(TRIGGER_DOWNSTREAM) = yes \
     AND env(PUBLISH_IMAGES) = yes
 - name: publish tag
