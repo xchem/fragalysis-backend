@@ -22,7 +22,7 @@ class SSHConnector(Connector):
                  ssh_host=None,
                  conn_inactivity=360,
                  ):
-
+        self.conn_inactivity = conn_inactivity
         self.lock = threading.Lock()
 
         if remote:
