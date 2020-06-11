@@ -116,7 +116,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             if connector=='ssh_ispyb':
                 conn = get_remote_conn()
 
-            rs = self.run_query_with_connector(conn=conn, user=user.username)
+            rs = self.run_query_with_connector(conn=conn, user=user)
 
             visit_ids = list(set([
                 str(x["proposalNumber"]) + "-" + str(x["sessionNumber"]) for x in rs
