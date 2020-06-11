@@ -102,6 +102,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             rs = core.retrieve_sessions_for_person_login(user.username)
         except ISPyBNoResultException:
             rs = []
+        if self.server:
+            self.server.stop()
         return rs
 
     def get_proposals_for_user_from_ispyb(self, user):

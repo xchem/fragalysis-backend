@@ -24,6 +24,7 @@ class SSHConnector(Connector):
                  ):
         self.conn_inactivity = conn_inactivity
         self.lock = threading.Lock()
+        self.server = None
 
         if remote:
             creds = {'ssh_host': ssh_host,
