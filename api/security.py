@@ -7,9 +7,36 @@ from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from ispyb.connector.mysqlsp.main import ISPyBNoResultException
 from rest_framework import viewsets
 
+from remote_ispyb_connector import SSHConnector
+
 from viewer.models import Project
 
 USER_LIST_DICT = {}
+
+connector = os.environ["SECURITY_CONNECTOR"]
+
+
+def get_remote_conn():
+    ispyb_credentials = {
+        "user": os.environ["ISPYB_USER"],
+        "pw": os.environ["ISPYB_PASSWORD"],
+        "host": os.environ["ISPYB_HOST"],
+        "port": os.environ["ISPYB_PORT"],
+        "db": "ispyb",
+        "conn_inactivity": 360,
+    }
+
+    ssh_credentials = {
+        'ssh_host': os.environ["SSH_HOST"],
+        'ssh_user': os.environ["SSH_USER"],
+        'ssh_password': os.environ["SSH_PASSWORD"],
+        'remote': True
+    }
+
+    ispyb_credentials.update(**ssh_credentials)
+
+    conn = SSHConnector(**ispyb_credentials)
+    return conn
 
 
 def get_conn():
@@ -69,16 +96,26 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return True
         return False
 
+    def run_query_with_connector(self, conn, user):
+        core = conn.core
+        try:
+            rs = core.retrieve_sessions_for_person_login(user.username)
+        except ISPyBNoResultException:
+            rs = []
+        return rs
+
     def get_proposals_for_user_from_ispyb(self, user):
         # First check if it's updated in the past 1 hour
         global USER_LIST_DICT
         if self.needs_updating(user):
-            with get_conn() as conn:
-                core = conn.core
-                try:
-                    rs = core.retrieve_sessions_for_person_login(user.username)
-                except ISPyBNoResultException:
-                    rs = []
+            conn = ''
+            if connector=='ispyb':
+                conn = get_conn()
+            if connector=='ssh_ispyb':
+                conn = get_remote_conn()
+
+            rs = self.run_query_with_connector(conn=conn, user=user.username)
+
             visit_ids = [
                 str(x["proposalNumber"]) + "-" + str(x["sessionNumber"]) for x in rs
             ]
