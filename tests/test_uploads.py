@@ -9,7 +9,7 @@ class ValidateTestValid(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.sdf_file = 'test_data/compund-set_AlessandroContini-NwatMM-GBSAcovalentrun1.sdf'
+        cls.sdf_file = '/code/tests/test_data/compund-set_AlessandroContini-NwatMM-GBSAcovalentrun1.sdf'
         cls.Target = 'Mpro'
         cls.version = 'ver_1.2'
         cls.suppl = Chem.SDMolSupplier(cls.sdf_file)
