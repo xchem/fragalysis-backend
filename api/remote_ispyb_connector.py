@@ -30,7 +30,7 @@ class SSHConnector(Connector):
                      'ssh_user': ssh_user,
                      'ssh_pass': ssh_password,
                      'db_host': host,
-                     'db_port': port,
+                     'db_port': int(port),
                      'db_user': user,
                      'db_pass': pw,
                      'db_name': db}
