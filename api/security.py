@@ -118,10 +118,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
             rs = self.run_query_with_connector(conn=conn, user=user.username)
 
-            visit_ids = [
+            visit_ids = list(set([
                 str(x["proposalNumber"]) + "-" + str(x["sessionNumber"]) for x in rs
-            ]
-            prop_ids = [str(x["proposalNumber"]) for x in rs]
+            ]))
+            prop_ids = list(set([str(x["proposalNumber"]) for x in rs]))
             prop_ids.extend(visit_ids)
             USER_LIST_DICT[user.username]["RESULTS"] = prop_ids
             return prop_ids
