@@ -28,7 +28,7 @@ def get_remote_conn():
 
     ssh_credentials = {
         'ssh_host': os.environ["SSH_HOST"],
-        'ssh_user': os.environ["SSH_HOST"],
+        'ssh_user': os.environ["SSH_USER"],
         'ssh_password': os.environ["SSH_PASSWORD"],
         'remote': True
     }
