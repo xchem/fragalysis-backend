@@ -13,7 +13,7 @@ from viewer.models import Project
 
 USER_LIST_DICT = {}
 
-connector = os.environ["SECURITY_CONNECTOR"]
+connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 
 
 def get_remote_conn():
