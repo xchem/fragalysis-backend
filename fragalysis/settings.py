@@ -11,15 +11,16 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
+
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
 sentry_sdk.init(
     # This should be an environment variabl
     dsn="https://"
-    + os.environ.get("DJANGO_SENTRY_DSN", "9871a59d9a4f49448e6611d43fa34360")
-    + "@sentry.io/"
-    + os.environ.get("DJANGO_SENTRY_ID", "1298297"),
+        + os.environ.get("DJANGO_SENTRY_DSN", "9871a59d9a4f49448e6611d43fa34360")
+        + "@sentry.io/"
+        + os.environ.get("DJANGO_SENTRY_ID", "1298297"),
     integrations=[DjangoIntegration()],
 )
 
@@ -40,29 +41,26 @@ DEBUG = False
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-
 ALLOWED_HOSTS = ["*"]
 
 REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
-    "PAGE_SIZE": 24,
+    "PAGE_SIZE": 1000,
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.QueryParameterVersioning",
 }
 
-# Celery settings
-CELERY_BROKER_URL = "amqp://guest:guest@localhost//"
-#: Only add pickle to this list if your broker is secured
-#: from unwanted access (see userguide/security.html)
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_RESULT_BACKEND = "db+sqlite:///results.sqlite"
-CELERY_TASK_SERIALIZER = "json"
+# CELERY STUFF
+CELERY_BROKER_URL = 'redis://localhost:6379'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 
 # This can be injected as an ENV var
 NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
     "NEO4J_BOLT_URL", "bolt://neo4j:test@neo4j:7687"
 )
-
 
 # Application definition
 INSTALLED_APPS = [
@@ -93,6 +91,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "rest_framework_swagger",
     "webpack_loader",
+    "django_cleanup",
 ]
 
 MIDDLEWARE = [
@@ -125,9 +124,7 @@ CAS_FORCE_CHANGE_USERNAME_CASE = "lower"
 
 ROOT_URLCONF = "fragalysis.urls"
 
-
 STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
-
 
 TEMPLATES = [
     {
@@ -145,26 +142,36 @@ TEMPLATES = [
     }
 ]
 
-
 WSGI_APPLICATION = "fragalysis.wsgi.application"
-
 
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKOWN")
 
+DATABASE_ROUTERS = ['xchem_db.routers.AuthRouter']
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.environ.get("MYSQL_DATABASE", "django_db"),
-        "USER": os.environ.get("MYSQL_USER", "django"),
-        "PASSWORD": os.environ.get("MYSQL_PASSWORD", "django_password"),
-        "HOST": os.environ.get("MYSQL_HOST", "mysql"),
-        "PORT": os.environ.get("MYSQL_PORT", 3306),
-        "TEST": {"NAME": os.environ.get("MYSQL_DATABASE", "django_db")},
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": os.environ.get("POSTGRESQL_DATABASE", "frag"),
+        "USER": os.environ.get("POSTGRESQL_USER", "fragalysis"),
+        "PASSWORD": os.environ.get("POSTGRESQL_PASSWORD", "fragalysis"),
+        "HOST": os.environ.get("POSTGRESQL_HOST", "database"),
+        "PORT": os.environ.get("POSTGRESQL_PORT", 5432),
     }
 }
+
+if os.environ.get("BUILD_XCDB") == 'yes':
+    DATABASES["xchem_db"] = {
+        "ENGINE": 'django.db.backends.postgresql',
+        "NAME": os.environ.get("XCHEM_NAME"),
+        "USER": os.environ.get("XCHEM_USER"),
+        "PASSWORD": os.environ.get("XCHEM_PASSWORD"),
+        "HOST": os.environ.get("XCHEM_HOST"),
+        "PORT": os.environ.get("XCHEM_PORT")
+    }
+
 if CHEMCENTRAL_DB_NAME != "UNKOWN":
     DATABASES["chemcentral"] = {
         "ENGINE": "django.db.backends.postgresql",
@@ -187,7 +194,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
 
@@ -201,7 +207,6 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
@@ -211,7 +216,6 @@ MEDIA_URL = "/media/"
 # Swagger loging / logout
 LOGIN_URL = "/accounts/login/"
 LOGOUT_URL = "/accounts/logout/"
-
 
 WEBPACK_LOADER = {
     "DEFAULT": {
@@ -223,3 +227,11 @@ WEBPACK_LOADER = {
 GRAPHENE = {"SCHEMA": "fragalysis.schema.schema"}  # Where your Graphene schema lives
 
 GRAPH_MODELS = {"all_applications": True, "group_models": True}
+
+# email settings for upload key stuff
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_USE_TLS = True
+EMAIL_PORT = 587
+EMAIL_HOST_USER = os.environ.get("EMAIL_USER")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PASSWORD")

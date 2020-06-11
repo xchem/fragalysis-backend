@@ -9,6 +9,7 @@ from xchem_db.models import (
     PanddaSite,
     PanddaEvent,
     ProasisOut,
+    PanddaEventStats,
 )
 from xchem_db.serializers import (
     CrystalSerializer,
@@ -21,9 +22,13 @@ from xchem_db.serializers import (
     PanddaSiteSerializer,
     PanddaEventSerializer,
     ProasisOutSerializer,
+    PanddaEventStatsSerializer,
+    FragspectCrystalSerializer,
 )
 
-from .security import ISpyBSafeQuerySet
+from rest_framework import viewsets
+
+from api.security import ISpyBSafeQuerySet
 
 
 class CrystalView(ISpyBSafeQuerySet):
@@ -42,7 +47,7 @@ class CrystalView(ISpyBSafeQuerySet):
 
 class DataProcessingView(ISpyBSafeQuerySet):
     queryset = DataProcessing.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
+    filter_permissions = "crystal_name__visit__proposal"
     serializer_class = DataProcessingSerializer
     filter_fields = (
         "crystal_name__crystal_name",
@@ -56,7 +61,7 @@ class DataProcessingView(ISpyBSafeQuerySet):
 
 class DimpleView(ISpyBSafeQuerySet):
     queryset = Dimple.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
+    filter_permissions = "crystal_name__visit__proposal"
     serializer_class = DimpleSerializer
     filter_fields = (
         "crystal_name__crystal_name",
@@ -71,7 +76,7 @@ class DimpleView(ISpyBSafeQuerySet):
 
 class LabView(ISpyBSafeQuerySet):
     queryset = Lab.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
+    filter_permissions = "crystal_name__visit__proposal"
     serializer_class = LabSerializer
     filter_fields = (
         "crystal_name__crystal_name",
@@ -88,7 +93,7 @@ class LabView(ISpyBSafeQuerySet):
 
 class RefinementView(ISpyBSafeQuerySet):
     queryset = Refinement.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
+    filter_permissions = "crystal_name__visit__proposal"
     serializer_class = RefinementSerializer
     filter_fields = (
         "crystal_name__crystal_name",
@@ -98,41 +103,6 @@ class RefinementView(ISpyBSafeQuerySet):
         "crystal_name__visit__proposal__proposal",
         "crystal_name__visit__visit",
         "outcome",
-    )
-
-
-class PanddaAnalysisView(ISpyBSafeQuerySet):
-    queryset = PanddaAnalysis.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
-    serializer_class = PanddaAnalysisSerializer
-    filter_fields = ("pandda_dir",)
-
-
-class PanddaRunView(ISpyBSafeQuerySet):
-    queryset = PanddaRun.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
-    serializer_class = PanddaRunSerializer
-    filter_fields = (
-        "input_dir",
-        "pandda_analysis__pandda_dir",
-        "pandda_log",
-        "pandda_version",
-        "sites_file",
-        "events_file",
-    )
-
-
-class PanddaSiteView(ISpyBSafeQuerySet):
-    queryset = PanddaSite.objects.filter()
-    filter_permissions = "crystal__visit__proposal"
-    serializer_class = PanddaSiteSerializer
-    filter_fields = (
-        "pandda_run__pandda_analysis__pandda_dir",
-        "pandda_run__pandda_log",
-        "pandda_run__pandda_sites_file",
-        "pandda_run__pandda_events_file",
-        "pandda_run__input_dir",
-        "site",
     )
 
 
@@ -147,18 +117,32 @@ class PanddaEventView(ISpyBSafeQuerySet):
         "crystal__visit__filename",
         "crystal__visit__proposal__proposal",
         "crystal__visit__visit",
-        "pandda_run__pandda_analysis__pandda_dir",
-        "pandda_run__pandda_log",
-        "pandda_run__pandda_sites_file",
-        "pandda_run__pandda_events_file",
-        "pandda_run__input_dir",
-        "site__site",
-        "event",
-        "lig_id",
-        "pandda_event_map_native",
-        "pandda_model_pdb",
-        "pandda_input_mtz",
-        "pandda_input_pdb",
+        # "pandda_run__pandda_analysis__pandda_dir",
+        # "pandda_run__pandda_log",
+        # "pandda_run__sites_file",
+        # "pandda_run__events_file",
+        # "pandda_run__input_dir",
+        # "site__site",
+        # "event",
+        # "lig_id",
+        # "pandda_event_map_native",
+        # "pandda_model_pdb",
+        # "pandda_input_mtz",
+        # "pandda_input_pdb",
+    )
+
+
+class PanddaEventStatsView(ISpyBSafeQuerySet):
+    queryset = PanddaEventStats.objects.filter()
+    filter_permissions = 'event__crystal__visit__proposal'
+    serializer_class = PanddaEventStatsSerializer
+    filter_fields = (
+        "event__crystal__crystal_name",
+        "event__crystal__target__target_name",
+        "event__crystal__compound__smiles",
+        "event__crystal__visit__filename",
+        "event__crystal__visit__proposal__proposal",
+        "event__crystal__visit__visit",
     )
 
 
@@ -190,3 +174,11 @@ class ProasisOutView(ISpyBSafeQuerySet):
         "root",
         "start",
     )
+
+
+class FragspectCrystalView(ISpyBSafeQuerySet):
+    queryset = PanddaEvent.objects.filter().prefetch_related(
+        'crystal__target', 'crystal__compound', 'crystal', 'site', 'refinement', 'data_proc')
+    serializer_class = FragspectCrystalSerializer
+    filter_fields = {'crystal__target__target_name': ['iexact']}
+    filter_permissions = "crystal__visit__proposal"

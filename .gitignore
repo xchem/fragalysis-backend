@@ -1,3 +1,5 @@
+static/
+
 .idea/
 
 # Byte-compiled / optimized / DLL files
@@ -101,3 +103,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# ignore migrations
+/viewer/migrations/
+/scoring/migrations/
+/hypothesis/migrations/
+/hotspots/migrations/

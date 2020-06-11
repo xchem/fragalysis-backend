@@ -1,15 +1,135 @@
-sudo: required
+---
+
+# -----------------
+# Control variables (Travis Settings)
+# -----------------
+#
+# PUBLISH_IMAGES        Should be 'yes' to enable publishing to Docker Hub.
+#
+# If you set PUBLISH_IMAGES you must also set the following: -
+#
+# DOCKER_USERNAME       If PUBLISH_IMAGES is 'yes'
+# DOCKER_PASSWORD       If PUBLISH_IMAGES is 'yes'
+#
+# You control the Backend container's source and destination image names with...
+#
+# BE_NAMESPACE          To over-ride the default namespace of the image
+#                       (which is 'xchem')
+#
+# To trigger the dependent, downstream builds (like the Stack and Loader)...
+#
+# TRIGGER_DOWNSTREAM    Should be set to 'yes'
+#                       Enabling TRIGGER_DOWNSTREAM is only effective
+#                       if PUBLISH_IMAGES is also set.
+#
+# The following required if TRIGGER_DOWNSTREAM...
+#
+# TRAVIS_ACCESS_TOKEN   A Travis token
+#
+# STACK_NAMESPACE       To define the namespace of the Stack repository (default is 'xchem')
+# STACK_BRANCH          The branch to trigger (default is 'master')
+# LOADER_NAMESPACE      To define the namespace of the Loader repository (default is 'xchem')
+# LOADER_BRANCH         The branch to trigger (default is 'master')
+
+os: linux
+language: python
+python:
+- '3.8'
 services:
-  - docker
+- docker
+
+stages:
+- name: publish latest
+- name: trigger downstream
+  if: |
+    branch = master \
+    AND env(TRIGGER_DOWNSTREAM) = yes \
+    AND env(PUBLISH_IMAGES) = yes
+- name: publish tag
+  if: |
+    tag IS present \
+    AND env(PUBLISH_IMAGES) = yes
+- name: publish stable
+  if: |
+    tag IS present \
+    AND tag =~ ^([0-9]+\.){1,2}[0-9]+$ \
+    AND env(PUBLISH_IMAGES) = yes
+
+# Global variables
+# (available to the Job matrix)...
+env:
+  global:
+  # The origin of the trigger code
+  - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master
+
+before_install:
+# Downstream project triggers (used when we're tagged)
+# The downstream projects are the Fragalysis Stack and Fragalysis Loader.
+# The user can define the following variables in their Travis Settings.
+# If they're not defined then apply sensible defaults.
+- export BE_NAMESPACE=${BE_NAMESPACE:-xchem}
+- export STACK_NAMESPACE=${STACK_NAMESPACE:-xchem}
+- export STACK_BRANCH=${STACK_BRANCH:-master}
+- export STACK_VARS=BE_IMAGE_TAG=latest,BE_NAMESPACE=${BE_NAMESPACE}
+- export LOADER_NAMESPACE=${LOADER_NAMESPACE:-xchem}
+- export LOADER_BRANCH=${LOADER_BRANCH:-master}
+- export LOADER_VARS=BE_IMAGE_TAG=latest,BE_NAMESPACE=${BE_NAMESPACE}
+
 install:
-  - docker build -t xchem/fragalysis-backend .
-script:
-  -  docker-compose -f docker-compose.test.yml up --build  --exit-code-from tests --abort-on-container-exit
-after_success:
-  - if [ "$TRAVIS_BRANCH" == "master" ]; then
-    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push xchem/fragalysis-backend;
-    fi
-  - coveralls
+# Download trigger code
+- curl --location --retry 3 ${TRIGGER_ORIGIN}/requirements.txt --output trigger-travis-requirements.txt
+- curl --location --retry 3 ${TRIGGER_ORIGIN}/trigger-travis.py --output trigger-travis.py
+- pip install -r trigger-travis-requirements.txt
+- chmod +x trigger-travis.py
 
+before_script:
+- echo ${BE_NAMESPACE}
+- echo ${STACK_NAMESPACE}
+- echo ${PUBLISH_IMAGES}
+- echo ${TRIGGER_DOWNSTREAM}
+- docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 
+jobs:
+  include:
+
+  # Test-stage jobs...
+
+  - stage: publish latest
+    name: Test and Latest Container
+    script:
+    - docker build -t ${BE_NAMESPACE}/fragalysis-backend:latest .
+    - docker-compose -f docker-compose.test.yml up --build --exit-code-from tests --abort-on-container-exit
+    - if [ ${PUBLISH_IMAGES} == "yes" ]; then
+      docker push ${BE_NAMESPACE}/fragalysis-backend:latest;
+      fi
+
+  # Publish-stage jobs...
+  # Every successful master build results in a latest image (above)
+  # and every tag results in a tagged image in Docker Hub.
+  # Tags that match a RegEx are considered 'official' tags
+  # and also result in a 'stable' image tag.
+
+  - stage: publish tag
+    name: Tagged Container
+    script:
+    - docker build -t ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} .
+    - docker push ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
+
+  - stage: publish stable
+    name: Stable Container
+    script:
+    - docker pull ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
+    - docker tag ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} ${BE_NAMESPACE}/fragalysis-backend:stable
+    - docker push ${BE_NAMESPACE}/fragalysis-backend:stable
+
+  - stage: trigger downstream
+    name: Trigger Downstream
+    script:
+    - echo "STACK_NAMESPACE=${STACK_NAMESPACE}"
+    - echo "STACK_BRANCH=${STACK_BRANCH}"
+    - echo "STACK_VARS=${STACK_VARS}"
+    - ./trigger-travis.py --pro ${STACK_NAMESPACE} fragalysis-stack ${TRAVIS_ACCESS_TOKEN} --branch ${STACK_BRANCH} --vars ${STACK_VARS}
+    - echo "LOADER_NAMESPACE=${LOADER_NAMESPACE}"
+    - echo "LOADER_BRANCH=${LOADER_BRANCH}"
+    - echo "LOADER_VARS=${LOADER_VARS}"
+    - ./trigger-travis.py --pro ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN} --branch ${LOADER_BRANCH} --vars ${LOADER_VARS}

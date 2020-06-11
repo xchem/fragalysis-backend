@@ -4,10 +4,12 @@ def _mol_choices():
     :return:
     """
     PROASIS = "PR"
+    SDF = "SD"
     HYDROGEN = "HA"
     HYDROGEN_AM1_CHARGES = "HC"
     mol_choices = (
         (PROASIS, "Proasis molecule", ".mol", "MOL"),
+        (SDF, "Sdf molecule", ".sdf", "SDF"),
         (HYDROGEN, "Hydrogens added ", "_h.mol", "H_MOL"),
         (
             HYDROGEN_AM1_CHARGES,
@@ -16,7 +18,7 @@ def _mol_choices():
             "MOL2",
         ),
     )
-    return mol_choices, PROASIS
+    return mol_choices, PROASIS, SDF
 
 
 def _prot_choices():
@@ -28,11 +30,13 @@ def _prot_choices():
     STRIPPED = "ST"
     TLEAPED = "TL"
     CHUNKED = "CH"
+    BOUND = "BO"
     prot_choices = (
         (APO, "Apo", "_apo.pdb", "APO"),
         (STRIPPED, "Stripped", "_no_buffer_altlocs.pdb", "STRIPPED"),
         (TLEAPED, "Tleaped", "_tleap.pdb", "TLEAP"),
         (CHUNKED, "Chunked", "_chunk.pdb", "CHUNK"),
+        (BOUND, "Bound", '_bound.pdb', "BOUND")
     )
     return prot_choices, APO
 
@@ -56,6 +60,7 @@ def get_dict():
         out_d[prot[3]] = prot[2]
     for mol in _mol_choices()[0]:
         out_d[mol[3]] = mol[2]
+    out_d["BOUND"] = "_bound.pdb"
     out_d["EVENT"] = "_event.map"
     out_d["MTZ"] = ".mtz"
     out_d["PMAP"] = "_pandda.map"

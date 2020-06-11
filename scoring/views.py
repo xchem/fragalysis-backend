@@ -1,5 +1,4 @@
 import json
-
 from django.http import HttpResponse
 from frag.conf.functions import generate_confs_for_vector
 from rest_framework import viewsets
@@ -25,6 +24,7 @@ from scoring.serializers import (
 
 class ViewSceneView(viewsets.ModelViewSet):
     queryset = ViewScene.objects.filter().order_by('-modified')
+    # filter_backends = (filters.DjangoFilterBackend,)
     serializer_class = ViewSceneSerializer
     filter_fields = ("user_id", "uuid")
 
@@ -78,14 +78,11 @@ class MolGroupView(viewsets.ModelViewSet):
 
 def gen_conf_from_vect(request):
     input_dict = json.loads(request.body)
-    input_vector = sorted(input_dict["INPUT_VECTOR"].split("."), reverse=True)[
-        0
-    ].replace("Xe", "H")
     input_smiles = input_dict["INPUT_SMILES"]
     input_mol_block = input_dict["INPUT_MOL_BLOCK"]
     return HttpResponse(
         json.dumps(
-            generate_confs_for_vector(input_vector, input_smiles, input_mol_block)
+            generate_confs_for_vector(input_smiles, input_mol_block)
         )
     )
 

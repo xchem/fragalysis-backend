@@ -29,7 +29,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """
-        Optionally restricts the returned purchases to a given propsals
+        Optionally restricts the returned purchases to a given proposals
         """
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user()

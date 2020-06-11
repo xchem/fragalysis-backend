@@ -4,8 +4,21 @@ from frag.network.query import get_full_graph
 from rest_framework import serializers
 
 from api.utils import draw_mol
-from viewer.models import ActivityPoint, Molecule, Project, Protein, Compound, Target
-
+from viewer.models import (
+    ActivityPoint,
+    Molecule,
+    Project,
+    Protein,
+    Compound,
+    Target,
+    Snapshot,
+    SessionProject,
+    ComputedCompound,
+    CompoundSet,
+    NumericalScoreValues,
+    ScoreDescription
+)
+from django.contrib.auth.models import User
 
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
@@ -41,12 +54,48 @@ class MoleculeSerializer(serializers.ModelSerializer):
 
     molecule_protein = serializers.SerializerMethodField()
     protein_code = serializers.SerializerMethodField()
+    mw = serializers.SerializerMethodField()
+    logp = serializers.SerializerMethodField()
+    tpsa = serializers.SerializerMethodField()
+    ha = serializers.SerializerMethodField()
+    hacc = serializers.SerializerMethodField()
+    hdon = serializers.SerializerMethodField()
+    rots = serializers.SerializerMethodField()
+    rings = serializers.SerializerMethodField()
+    velec = serializers.SerializerMethodField()
 
     def get_molecule_protein(self, obj):
         return obj.prot_id.pdb_info.url
 
     def get_protein_code(self, obj):
         return obj.prot_id.code
+
+    def get_mw(self, obj):
+        return round(obj.cmpd_id.mol_wt, 2)
+
+    def get_logp(self, obj):
+        return round(obj.cmpd_id.mol_log_p, 2)
+
+    def get_tpsa(self, obj):
+        return round(obj.cmpd_id.tpsa, 2)
+
+    def get_ha(self, obj):
+        return obj.cmpd_id.heavy_atom_count
+
+    def get_hacc(self, obj):
+        return obj.cmpd_id.num_h_acceptors
+
+    def get_hdon(self, obj):
+        return obj.cmpd_id.num_h_donors
+
+    def get_rots(self, obj):
+        return obj.cmpd_id.num_rot_bonds
+
+    def get_rings(self, obj):
+        return obj.cmpd_id.ring_count
+
+    def get_velec(self, obj):
+        return obj.cmpd_id.num_val_electrons
 
     class Meta:
         model = Molecule
@@ -64,6 +113,15 @@ class MoleculeSerializer(serializers.ModelSerializer):
             "x_com",
             "y_com",
             "z_com",
+            "mw",
+            "logp",
+            "tpsa",
+            "ha",
+            "hacc",
+            "hdon",
+            "rots",
+            "rings",
+            "velec"
         )
 
 
@@ -94,6 +152,7 @@ class ProteinSerializer(serializers.ModelSerializer):
             "target_id",
             "prot_type",
             "pdb_info",
+            "bound_info",
             "mtz_info",
             "map_info",
             "cif_info",
@@ -145,7 +204,10 @@ class ProtMapInfoSerialzer(serializers.ModelSerializer):
     map_data = serializers.SerializerMethodField()
 
     def get_map_data(self, obj):
-        return obj.map_info
+        if obj.map_info:
+            return open(obj.map_info.path).read()
+        else:
+            return None
 
     class Meta:
         model = Protein
@@ -159,9 +221,25 @@ class ProtPDBInfoSerialzer(serializers.ModelSerializer):
     def get_pdb_data(self, obj):
         return open(obj.pdb_info.path).read()
 
+
     class Meta:
         model = Protein
         fields = ("id", "pdb_data", "prot_type")
+
+
+class ProtPDBBoundInfoSerialzer(serializers.ModelSerializer):
+
+    bound_pdb_data = serializers.SerializerMethodField()
+
+    def get_bound_pdb_data(self, obj):
+        if obj.bound_info:
+            return open(obj.bound_info.path).read()
+        else:
+            return None
+
+    class Meta:
+        model = Protein
+        fields = ("id", "bound_pdb_data", "target_id")
 
 
 class VectorsSerializer(serializers.ModelSerializer):
@@ -187,10 +265,83 @@ class GraphSerializer(serializers.ModelSerializer):
 
     graph = serializers.SerializerMethodField()
     graph_choice = os.environ.get("NEO4J_QUERY", "neo4j")
+    graph_auth = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
 
     def get_graph(self, obj):
-        return get_full_graph(obj.smiles, self.graph_choice, isomericSmiles=True)
+        return get_full_graph(obj.smiles, self.graph_choice, self.graph_auth,
+                              isomericSmiles=True)
 
     class Meta:
         model = Molecule
         fields = ("id", "graph")
+
+
+### Start of Session Project
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name')
+
+
+# GET
+class SessionProjectReadSerializer(serializers.ModelSerializer):
+    target = TargetSerializer(read_only=True)
+    author = UserSerializer(read_only=True)
+    class Meta:
+        model = SessionProject
+        fields = '__all__'
+
+# (POST, PUT, PATCH)
+class SessionProjectWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SessionProject
+        fields = '__all__'
+
+
+# GET
+class SnapshotReadSerializer(serializers.ModelSerializer):
+    author  = UserSerializer()
+    session_project  = SessionProjectWriteSerializer()
+    class Meta:
+        model = Snapshot
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
+
+
+# (POST, PUT, PATCH)
+class SnapshotWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Snapshot
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
+## End of Session Project
+
+# class FileSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = ComputedCompound
+#         fields = "__all__"
+
+class CompoundSetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompoundSet
+        fields = '__all__'
+
+
+class CompoundMoleculeSerializer(serializers.ModelSerializer):
+    # performance issue
+    # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
+    class Meta:
+        model = ComputedCompound
+        fields = '__all__'
+
+
+
+class ScoreDescriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ScoreDescription
+        fields = '__all__'
+
+class NumericalScoreSerializer(serializers.ModelSerializer):
+    score = ScoreDescriptionSerializer(read_only=True)
+    class Meta:
+        model = NumericalScoreValues
+        fields = '__all__'
+

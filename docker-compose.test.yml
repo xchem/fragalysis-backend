@@ -1,23 +1,31 @@
+---
 version: '3'
 
 services:
-  mysql:
-    image: mysql:5.7.23
+  database:
+    image: postgres:12.2
     volumes:
-       - ../django_data:/var/lib/mysql
+    - ../django_data:/var/lib/postgresql/data
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: django_db
-      MYSQL_PASSWORD: django_password
-      MYSQL_USER: django
-  tests:
-    image: xchem/fragalysis-backend
-    command: ["/code/wait-for-it.sh", "mysql:3306", "--", "/bin/bash", "/code/test_entry.sh"]
-    volumes:
-      - .:/code
-      - ../logs:/code/logs/
-      - ../media:/code/media/
+      POSTGRES_PASSWORD: fragalysis
+      POSTGRES_DB: frag
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "80:80"
+    - "5432:5432"
+  tests:
+    image: ${BE_NAMESPACE}/fragalysis-backend:latest
+    command: ["/code/wait-for-it.sh", "database:5432", "--", "/bin/bash", "/code/test_entry.sh"]
+    volumes:
+    - .:/code
+    - ../logs:/code/logs/
+    - ../media:/code/media/
+    environment:
+      POSTGRESQL_DATABASE: frag
+      POSTGRESQL_USER: postgres
+      POSTGRESQL_PASSWORD: fragalysis
+      POSTGRESQL_HOST: database
+      POSTGRESQL_PORT: 5432
+    ports:
+    - "80:80"
     depends_on:
-      - mysql
+    - database
