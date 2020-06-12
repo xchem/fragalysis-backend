@@ -22,15 +22,16 @@ class SSHConnector(Connector):
                  ssh_host=None,
                  conn_inactivity=360,
                  ):
-
+        self.conn_inactivity = conn_inactivity
         self.lock = threading.Lock()
+        self.server = None
 
         if remote:
             creds = {'ssh_host': ssh_host,
                      'ssh_user': ssh_user,
                      'ssh_pass': ssh_password,
                      'db_host': host,
-                     'db_port': port,
+                     'db_port': int(port),
                      'db_user': user,
                      'db_pass': pw,
                      'db_name': db}

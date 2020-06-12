@@ -15,6 +15,21 @@ USER_LIST_DICT = {}
 
 connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 
+# example test:
+# from rest_framework.test import APIRequestFactory
+#
+# In [2]: from rest_framework.test import force_authenticate
+#    ...: from viewer.views import TargetView
+#    ...: from django.contrib.auth.models import User
+#    ...:
+#    ...: factory = APIRequestFactory()
+#    ...: view = TargetView.as_view({'get': 'list'})
+#    ...: user = User.objects.get(username='uzw12877')
+#    ...: # Make an authenticated request to the view...
+#    ...: request = factory.get('/api/targets/')
+#    ...: force_authenticate(request, user=user)
+#    ...: response = view(request)
+
 
 def get_remote_conn():
     ispyb_credentials = {
@@ -102,6 +117,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             rs = core.retrieve_sessions_for_person_login(user.username)
         except ISPyBNoResultException:
             rs = []
+        if conn.server:
+            conn.server.stop()
         return rs
 
     def get_proposals_for_user_from_ispyb(self, user):
@@ -114,12 +131,12 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             if connector=='ssh_ispyb':
                 conn = get_remote_conn()
 
-            rs = self.run_query_with_connector(conn=conn, user=user.username)
+            rs = self.run_query_with_connector(conn=conn, user=user)
 
-            visit_ids = [
+            visit_ids = list(set([
                 str(x["proposalNumber"]) + "-" + str(x["sessionNumber"]) for x in rs
-            ]
-            prop_ids = [str(x["proposalNumber"]) for x in rs]
+            ]))
+            prop_ids = list(set([str(x["proposalNumber"]) for x in rs]))
             prop_ids.extend(visit_ids)
             USER_LIST_DICT[user.username]["RESULTS"] = prop_ids
             return prop_ids
