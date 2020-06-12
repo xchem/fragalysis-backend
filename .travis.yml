@@ -133,3 +133,5 @@ jobs:
     - echo "LOADER_BRANCH=${LOADER_BRANCH}"
     - echo "LOADER_VARS=${LOADER_VARS}"
     - ./trigger-travis.py --pro ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN} --branch ${LOADER_BRANCH} --vars ${LOADER_VARS}
+notifications:
+  slack: fragalysis:a6ADA8gLyx8tpHQfyzucMB8B
