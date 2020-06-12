@@ -67,4 +67,3 @@ django-extensions
 django-unused-media
 django-cleanup==4.0.0
 psutil
-sshtunnel

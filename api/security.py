@@ -6,7 +6,6 @@ from django.http import HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from ispyb.connector.mysqlsp.main import ISPyBNoResultException
 from rest_framework import viewsets
-
 from remote_ispyb_connector import SSHConnector
 
 from viewer.models import Project
