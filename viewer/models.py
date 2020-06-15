@@ -230,18 +230,15 @@ class ComputedSetSubmitter(models.Model):
 
 class CSetKeys(models.Model):
     user = models.CharField(max_length=50, default='User', editable=False)
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False)
-
-    class Meta:
-        unique_together = (("user", "uuid"),)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
 
 
 # computed sets = sets of poses calculated computationally
 class ComputedSet(models.Model):
     # a (unique) name for this compound set
-    name = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=50, unique=True, primary_key=True)
     # target that this compound set belongs to
-    target = models.ForeignKey(Target)
+    target = models.ForeignKey(Target, null=True)
     # link to the submitted sdf file
     submitted_sdf = models.FileField(upload_to="compound_sets/", null=False, max_length=255)
     # file format specification version
@@ -281,7 +278,7 @@ class ComputedMolecule(models.Model):
 
 class ScoreDescription(models.Model):
     # which compound set this score belongs to
-    computed_set = models.ForeignKey(ComputedSet)
+    computed_set = models.ForeignKey(ComputedSet, null=True)
     # a name for this score
     name = models.CharField(max_length=50)
     # a description for this score
