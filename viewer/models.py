@@ -229,11 +229,11 @@ class ComputedSetSubmitter(models.Model):
 
 
 class CSetKeys(models.Model):
-    user = models.CharField(max_length=50, null=False, unique=True)
-    uuid = models.UUIDField(
-        unique=True,
-        default=uuid.uuid4,
-        editable=False)
+    user = models.CharField(max_length=50, default='User', editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False)
+
+    class Meta:
+        unique_together = (("user", "uuid"),)
 
 
 # computed sets = sets of poses calculated computationally
