@@ -103,7 +103,7 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
 
     # else:
     if target and not test_fp.endswith(".pdb"):
-        query = Protein.objects.filter(code__contains=str(target + '-' + test_fp))
+        query = Protein.objects.filter(code__contains=str(target + '-' + test_fp.split('_')[0]))
         if len(query)==0:
             validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field='ref_pdb',
