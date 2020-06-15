@@ -13,13 +13,13 @@ router = DefaultRouter()
 # Register the basic data
 router.register(r"molecules", viewer_views.MoleculeView)
 router.register(r"compounds", viewer_views.CompoundView)
-router.register(r"targets", viewer_views.TargetView)
+router.register(r"targets", viewer_views.TargetView, "targets")
 router.register(r"proteins", viewer_views.ProteinView)
 router.register(r"session-projects", viewer_views.SessionProjectsView)
 router.register(r"snapshots", viewer_views.SnapshotsView)
 # Compounds sets
-router.register(r"compound-sets", viewer_views.CompoundSetView)
-router.register(r"compound-molecules", viewer_views.CompoundMoleculesView)
+router.register(r"compound-sets", viewer_views.ComputedSetView)
+router.register(r"compound-molecules", viewer_views.ComputedMoleculesView)
 router.register(r"numerical-scores", viewer_views.NumericalScoresView)
 router.register(r"compound-scores", viewer_views.CompoundScoresView)
 
@@ -53,6 +53,7 @@ router.register(r"molgroup", score_views.MolGroupView)
 router.register(r"molannotation", score_views.MolAnnotationView)
 # fragspect
 router.register(r"fragspect", xcdb_views.FragspectCrystalView)
+
 
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer

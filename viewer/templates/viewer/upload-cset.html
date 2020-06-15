@@ -46,23 +46,15 @@
               </div>
             </div>
           </div>
-{#        </div>#}
       </section>
         <p class="has-text-centered" id="links"></p>
     </body>
-{#    <script>#}
-      {#var file = document.getElementById('{{form.sdf_file.id_for_label}}');#}
-      {#file.onchange = function() {#}
-      {#  if(file.files.length > 0) {#}
-      {#    document.getElementById('file-name').innerHTML = file.files[0].name;#}
-      {#  }#}
-{#     </script>#}
 
-      {% if task_id %}
+    {% if validate_task_id %}
           <script>
           var content = document.getElementById('content');
           content.innerHTML = "";
-          var taskUrl = "{% url 'task' task_id=task_id %}";
+          var taskUrl = "{% url 'validate_task' validate_task_id=validate_task_id %}";
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
           updateProgressTitle();
@@ -70,38 +62,108 @@
             updateProgressTitle();
             axios.get(taskUrl)
               .then(function(response){
-                var taskStatus = response.data.task_status
+                var taskStatus = response.data.validate_task_status
                 if (taskStatus === 'SUCCESS') {
-                  clearTimer('Your files were uploaded! The download links are:');
 
-                  var url_a = response.data.results.cset_download_url;
                   var content = document.getElementById('links');
-                  var a = document.createElement("a");
-                  var link = document.createTextNode("    Compound Set    ");
-                  a.appendChild(link);
-                  a.title = 'compound set';
-                  a.href = url_a;
-                  content.appendChild(a);
+                  content.innerHTML = response.data.html;
 
-                  var br = document.createElement('br');
-                  content.appendChild(br);
+                  clearTimer('');
+                }
 
-                  var url_b = response.data.results.pset_download_url;
-                  var b = document.createElement("a");
-                  var link_b = document.createTextNode("    Protein Set    ");
-                  b.appendChild(link_b);
-                  b.title = 'protein set';
-                  b.href = url_b;
-                  content.appendChild(b);
+                else if (taskStatus === 'FAILURE') {
 
-                } else if (taskStatus === 'FAILURE') {
-                  clearTimer('An error occurred');
+                    clearTimer('An error occurred - see traceback below');
+                    var content = document.getElementById('links');
+                    content.innerHTML = response.data.validate_traceback;
+
                 }
               })
-              .catch(function(err){
-                console.log('err', err);
-                clearTimer('An error occurred');
-              });
+          }, 800);
+
+          function updateProgressTitle() {
+            dots++;
+            if (dots > 3) {
+              dots = 1;
+            }
+            progressTitle.innerHTML = 'validating files';
+            for (var i = 0; i < dots; i++) {
+              progressTitle.innerHTML += '.';
+            }
+          }
+          function clearTimer(message) {
+            clearInterval(timer);
+            progressTitle.innerHTML = message;
+          }
+         </script>
+      {% endif %}
+
+      {% if upload_task_id %}
+          <script>
+          var content = document.getElementById('content');
+          content.innerHTML = "";
+          var taskUrl = "{% url 'upload_task' upload_task_id=upload_task_id %}";
+          var dots = 1;
+          var progressTitle = document.getElementById('progress-title');
+          updateProgressTitle();
+          var timer = setInterval(function() {
+            updateProgressTitle();
+            axios.get(taskUrl)
+              .then(function(response) {
+                  var taskStatus = response.data.upload_task_status
+                  if (taskStatus === 'SUCCESS') {
+                      var validatedStatus = response.data.validated
+                      if (validatedStatus === 'Not validated') {
+
+                          var content = document.getElementById('links');
+                          content.innerHTML = response.data.html;
+
+                          clearTimer('');
+
+                      }
+                      if (validatedStatus === 'Validated') {
+                          clearTimer('Your files were uploaded! The download links are:');
+
+                          var url_a = response.data.results.cset_download_url;
+                          var content = document.getElementById('links');
+                          var a = document.createElement("a");
+                          var link = document.createTextNode("    Compound Set    ");
+                          a.appendChild(link);
+                          a.title = 'compound set';
+                          a.href = url_a;
+                          content.appendChild(a);
+
+                          var br = document.createElement('br');
+                          content.appendChild(br);
+
+                          var url_b = response.data.results.pset_download_url;
+                          var b = document.createElement("a");
+                          var link_b = document.createTextNode("    Protein Set    ");
+                          b.appendChild(link_b);
+                          b.title = 'protein set';
+                          b.href = url_b;
+                          content.appendChild(b);
+
+                      }
+                      var moleculesProcessed = response.data.processed
+
+                      if (moleculesProcessed === 'None') {
+
+                          var content = document.getElementById('links');
+                          content.innerHTML = response.data.html;
+
+                          clearTimer('');
+
+                      }
+                  }
+                    else if (taskStatus === 'FAILURE') {
+
+                        clearTimer('An error occurred - see traceback below');
+                        var content = document.getElementById('links');
+                        content.innerHTML = response.data.upload_traceback;
+
+                }
+              })
           }, 800);
 
           function updateProgressTitle() {
@@ -119,6 +181,6 @@
             progressTitle.innerHTML = message;
           }
          </script>
-  {% endif %}
+      {% endif %}
 
 {% endblock %}

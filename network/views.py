@@ -14,11 +14,12 @@ def full_graph(request):
     :return:
     """
     graph_choice = os.environ.get("NEO4J_QUERY", "neo4j")
+    graph_auth = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
     if "graph_choice" in request.GET:
         graph_choice = request.GET["graph_choice"]
     if "smiles" in request.GET:
         smiles = request.GET["smiles"]
-        out_dict = get_full_graph(smiles, graph_choice)
+        out_dict = get_full_graph(smiles, graph_choice, graph_auth)
         decoration_list = get_add_del_link(smiles)
         if not out_dict:
             return HttpResponse("EMPTY RESULT SET")

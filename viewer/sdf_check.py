@@ -9,12 +9,14 @@ Script to check sdf file format for Fragalysis upload
 from rdkit import Chem
 import validators
 import numpy as np
-import os
-from viewer.models import Protein, CompoundSet
+from viewer.models import Protein, ComputedSet
 import datetime
 
 # Set .sdf format version here
 version = 'ver_1.2'
+
+def check_property_descriptions():
+    pass
 
 def check_compound_set(description_mol, validate_dict):
     y_m_d = description_mol.GetProp('generation_date').split('-')
@@ -25,12 +27,12 @@ def check_compound_set(description_mol, validate_dict):
                       'submitter__generation_date': datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
                       'submitter__method': description_mol.GetProp('method')}
 
-    query = CompoundSet.objects.filter(**submitter_dict)
+    query = ComputedSet.objects.filter(**submitter_dict)
 
     if len(query)!=0:
         validate_dict = add_warning(molecule_name='File error',
                                     field='compound set',
-                                    warning_string="a compound set with the auto_generated name " + query[0].submitter.unique_name + " already exists (change method name in blank mol method field)",
+                                    warning_string="a compound set with the auto_generated name " + query[0].unique_name + " already exists (change method name in blank mol method field)",
                                     validate_dict=validate_dict)
 
     return validate_dict
@@ -67,12 +69,12 @@ def check_refmol(mol, validate_dict, target=None):
     if target:
         refmols = mol.GetProp('ref_mols').split(',')
         for ref in refmols:
-            query = Protein.objects.filter(code__contains=target + '-' + ref.strip())
+            query = Protein.objects.filter(code__contains=target + '-' + ref.strip().split('_')[0])
             if len(query)==0:
                 validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-                                        field='ref_mol',
-                                        warning_string="molecule for " + str(ref.strip()) + " does not exist in fragalysis (make sure the code is exactly as it appears in fragalysis - e.g. x0123_0)",
-                                        validate_dict=validate_dict)
+                                            field='ref_mol',
+                                            warning_string="molecule for " + str(ref.strip()) + " does not exist in fragalysis (make sure the code is exactly as it appears in fragalysis - e.g. x0123_0)",
+                                            validate_dict=validate_dict)
     return validate_dict
     
 
@@ -101,7 +103,7 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
 
     # else:
     if target and not test_fp.endswith(".pdb"):
-        query = Protein.objects.filter(code__contains=str(target + '-' + test_fp))
+        query = Protein.objects.filter(code__contains=str(target + '-' + test_fp.split('_')[0]))
         if len(query)==0:
             validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field='ref_pdb',
@@ -261,71 +263,3 @@ def check_mol_props(mol, validate_dict):
 
     return validate_dict
 
-
-def validate(sdf_file, target=None, zfile=None):
-    validated = True
-    validate_dict = {'molecule_name': [],
-                     'field': [],
-                     'warning_string': []}
-
-    # Check sdf filename & can be read
-    validate_dict = check_sdf(sdf_file, validate_dict)
-
-    suppl = Chem.SDMolSupplier(sdf_file)
-    print('%d mols detected (including blank mol)' % (len(suppl),))
-    blank_mol = suppl[0]
-    if blank_mol is None:
-        validate_dict = add_warning(molecule_name='Blank Mol',
-                        field='N/A',
-                        warning_string='your blank molecule could not be read by rdkit. The molecule must have at least one atom! No other checks were done',
-                        validate_dict=validate_dict)
-        validated = False
-        return validate_dict, validated
-    validate_dict = check_compound_set(blank_mol, validate_dict)
-    other_mols = []
-    for i in range(1, len(suppl)):
-        other_mols.append(suppl[i])
-
-    # all mol checks
-    # - all mols have the same properties
-    all_props = []
-    for mol in suppl:
-        all_props.extend([key for key in mol.GetPropsAsDict().keys()])
-    unique_props = list(set(all_props))
-    for mol in suppl:
-        props = [key for key in mol.GetPropsAsDict().keys()]
-        diff_list = np.setdiff1d(props, unique_props)
-        for diff in diff_list:
-            add_warning(molecule_name=mol.GetProp('_Name'),
-                        field='property (missing)',
-                        warning_string='%s property is missing from this molecule' % (diff,),
-                        validate_dict=validate_dict)
-
-    # Check version in blank mol
-    validate_dict = check_ver_name(blank_mol, version, validate_dict)
-
-    # Check compuslory fields in blank mol props
-    validate_dict = check_blank_mol_props(blank_mol, validate_dict)
-
-    # Check properties have been described and validate url
-    validate_dict = check_blank_prop(blank_mol, validate_dict)
-
-    # main mols checks
-    # - missing compulsary fields
-    # - check name characters
-    # - check pdb assignment and if pdb filepath exists
-    # - check compulsory field populated
-    # - check SMILES can be opended by rdkit
-    # (check api for pdb if fragalysis)
-    for m in other_mols:
-        validate_dict = check_mol_props(m, validate_dict)
-        validate_dict = check_name_characters(m.GetProp('_Name'), validate_dict)
-        validate_dict = check_pdb(m, validate_dict, target, zfile)
-        validate_dict = check_refmol(m, validate_dict, target)
-        validate_dict = check_field_populated(m, validate_dict)
-        validate_dict = check_SMILES(m, validate_dict)
-
-    if len(validate_dict['molecule_name']) != 0:
-        validated = False
-
-    return validate_dict, validated

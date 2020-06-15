@@ -2,6 +2,9 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 import uuid
+import json
+
+from simple_history.models import HistoricalRecords
 
 from loader.config import get_mol_choices, get_prot_choices
 
@@ -64,7 +67,10 @@ class Compound(models.Model):
     """A Django model to hold the information for a given compound -> a unique 2D molecule"""
     # Character attributes
     inchi = models.CharField(max_length=255, unique=True, db_index=True)
+    long_inchi = models.TextField(max_length=1000, blank=True, null=True)
     smiles = models.CharField(max_length=255, db_index=True)
+    current_identifier = models.CharField(max_length=255, db_index=True, blank=True, null=True)
+    all_identifiers = models.TextField(blank=True, null=True)
     # A link to the related project
     project_id = models.ManyToManyField(Project)
     # Float attributes
@@ -82,9 +88,19 @@ class Compound(models.Model):
     num_rot_bonds = models.IntegerField()
     num_val_electrons = models.IntegerField()
     ring_count = models.IntegerField()
+    inspirations = models.ManyToManyField("Molecule", blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    comments = models.TextField(blank=True, null=True)
+
+    def set_all_identifiers(self, x):
+        self.all_identifiers = json.dumps(x)
+
+    def get_all_identifiers(self):
+        return json.loads(self.foo)
 
     class Meta:
         permissions = (("view_compound", "View compound"),)
+        # unique_together = (("inchi", "long_inchi"),)
 
 
 class Molecule(models.Model):
@@ -110,11 +126,13 @@ class Molecule(models.Model):
     # Foreign key relations
     prot_id = models.ForeignKey(Protein)
     cmpd_id = models.ForeignKey(Compound)
+    history = HistoricalRecords()
 
     # Unique constraints
     class Meta:
         unique_together = ("prot_id", "cmpd_id", "mol_type")
         permissions = (("view_molecule", "View molecule"),)
+
 
 class ActivityPoint(models.Model):
     """A Django model to hold the activity information for a given compound"""
@@ -181,63 +199,86 @@ class Snapshot(models.Model):
 
 
 # Start of compound sets
-class CompoundSetSubmitter(models.Model):
+# Design sets = 2D compounds that have been designed but do not yet have a 3D structure
+class DesignSet(models.Model):
+    LIB = "library"
+    FUP = "follow-up"
+    USR = "user-submitted"
+    ENM = "enumerated"
+    SET_TYPE = (
+        (LIB, "library"),  # library - e.g. DSiPoised
+        (FUP, 'follow-up'),  # follow-up - e.g. purchased compounds
+        (USR, 'user-submitted'),  # user submitted - can be submitted by anyone
+        (ENM, 'enumerated'),  # enumerated - e.g. similarity search or something
+    )
+    compounds = models.ManyToManyField(Compound)
+    set_name = models.CharField(max_length=50)
+    set_type = models.CharField(max_length=100, choices=SET_TYPE, default=USR)
+    set_description = models.TextField(max_length=1000, blank=True, null=True)
+
+
+class ComputedSetSubmitter(models.Model):
     name = models.CharField(max_length=50, null=False)
     email = models.CharField(max_length=100, null=False)
     institution = models.CharField(max_length=50, null=False)
     generation_date = models.DateField()
     method = models.CharField(max_length=50, null=False)
-    unique_name = models.CharField(max_length=101, null=False)
-
-    def save(self):
-        if not self.unique_name:
-            unique_name = "".join(self.name.split()) + '-' + "".join(self.method.split())
-            self.unique_name = unique_name
-        super(CompoundSetSubmitter, self).save()
 
     class Meta:
         unique_together = (("name", "method"),)
 
-class CSetKeys(models.Model):
-    user = models.TextField(max_length=50, null=False)
-    uuid = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False)
 
-class CompoundSet(models.Model):
+class CSetKeys(models.Model):
+    user = models.CharField(max_length=50, default='User', editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)
+
+
+# computed sets = sets of poses calculated computationally
+class ComputedSet(models.Model):
     # a (unique) name for this compound set
-    name = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=50, unique=True, primary_key=True)
     # target that this compound set belongs to
-    target = models.ForeignKey(Target)
+    target = models.ForeignKey(Target, null=True)
     # link to the submitted sdf file
     submitted_sdf = models.FileField(upload_to="compound_sets/", null=False, max_length=255)
     # file format specification version
     spec_version = models.FloatField(null=False)
     method_url = models.TextField(max_length=1000, null=True)
-    submitter = models.ForeignKey(CompoundSetSubmitter, null=True)
+    submitter = models.ForeignKey(ComputedSetSubmitter, null=True)
+    unique_name = models.CharField(max_length=101, null=False)
+    # Check if needed? Rachael still having a look.
+    #design_set = models.ForeignKey(DesignSet, null=False, blank=False)
+
+    def save(self):
+        if not self.submitter:
+            super(ComputedSet, self).save()
+        if not self.unique_name:
+            unique_name = "".join(self.submitter.name.split()) + '-' + "".join(self.submitter.method.split())
+            self.unique_name = unique_name
+        super(ComputedSet, self).save()
 
 
-class ComputedCompound(models.Model):
+class ComputedMolecule(models.Model):
+    compound = models.ForeignKey(Compound)
     # the 3D coordinates of a computed molecule
     sdf_info = models.TextField(null=False)
     # a link to the compound set this molecule belongs to
-    compound_set = models.ForeignKey(CompoundSet, on_delete=models.CASCADE)
+    computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE)
     # a name for this compound
     name = models.CharField(max_length=50)
     # calculated smiles
     smiles = models.CharField(max_length=255)
-    # original smiles
-    original_smiles = models.CharField(max_length=255)
+    # comes from compound
+    #original_smiles = models.CharField(max_length=255)
     # link to pdb file for prot structure
     pdb_info = models.FileField(upload_to="pdbs/", null=False, max_length=255)
-    # inpiration frags - one to many?
-    inspiration_frags = models.ManyToManyField(Molecule)
+    #design_set = models.ForeignKey(DesignSet) # needs to be linked to find inspiration fragments
+    computed_inspirations = models.ManyToManyField(Molecule, null=True, blank=True) # if we use our own method of calculating them
 
 
 class ScoreDescription(models.Model):
     # which compound set this score belongs to
-    compound_set = models.ForeignKey(CompoundSet)
+    computed_set = models.ForeignKey(ComputedSet, null=True)
     # a name for this score
     name = models.CharField(max_length=50)
     # a description for this score
@@ -250,7 +291,7 @@ class NumericalScoreValues(models.Model):
     # the specific value for this score
     value = models.FloatField(null=False)
     # the compound this score relates to
-    compound = models.ForeignKey(ComputedCompound)
+    compound = models.ForeignKey(ComputedMolecule)
 
 
 class TextScoreValues(models.Model):
@@ -259,6 +300,12 @@ class TextScoreValues(models.Model):
     # the specific value for this score
     value = models.TextField(max_length=500, null=False)
     # the compound this score relates to
-    compound = models.ForeignKey(ComputedCompound)
+    compound = models.ForeignKey(ComputedMolecule)
 
 # End of compound sets
+class File(models.Model):
+    file = models.FileField(blank=False, null=False)
+    def __str__(self):
+        return self.file.name
+
+

@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/xchem/fragalysis-backend.svg?branch=master)](https://travis-ci.org/xchem/fragalysis-backend)
+[![Build Status](https://travis-ci.com/xchem/fragalysis-backend.svg?branch=master)](https://travis-ci.com/xchem/fragalysis-backend)
 [![stable](http://badges.github.io/stability-badges/dist/stable.svg)](http://github.com/badges/stability-badges)
 [![Version](http://img.shields.io/badge/version-0.0.1-blue.svg?style=flat)](https://github.com/xchem/fragalysis-backend)
 [![License](http://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat)](https://github.com/xchem/fragalysis-backend/blob/master/LICENSE.txt)
@@ -105,9 +105,19 @@ If needed stop containers
 docker-compose -f docker-compose.dev.yml down
 ```
 
-Note: The first run will be probably not successful run `loader` and `web_dock` service, it is caused by databases
-(process of first starting has long duration). Wait for successful running of `neo4j` and `mysql` services and 
-retry run start script again.
+
+Note: The first run will be probably not successful. To fix after first run: 
+- Delete the 'mysql_data' folder located in the data folder (Step 3) 
+- Delete the migrations by running the commands below in the project directory (Step 1)
+```
+find . -path "*/migrations/*.py" -not -name "__init__.py" -delete
+find . -path "*/migrations/*.pyc"  -delete
+```
+- In the 'fragalysis-frontend' folder rerun the docker compose command another two times 
+```
+docker-compose -f docker-compose.dev.yml up
+```
+
 
 ## Develop mode in DJANGO
 change value of `DEBUG` variable to `True` in this file
