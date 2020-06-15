@@ -1,6 +1,9 @@
 #!/bin/bash
 echo "Running migrations..."
 cd /code
+# initial migrations for existing stack
+python manage.py migrate
+# make and apply new migrations not already in stack
 python /code/manage.py makemigrations auth
 python /code/manage.py migrate
 python /code/manage.py makemigrations xchem_db
