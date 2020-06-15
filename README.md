@@ -105,6 +105,7 @@ If needed stop containers
 docker-compose -f docker-compose.dev.yml down
 ```
 
+
 Note: The first run will be probably not successful. To fix after first run: 
 - Delete the 'mysql_data' folder located in the data folder (Step 3) 
 - Delete the migrations by running the commands below in the project directory (Step 1)
@@ -116,6 +117,7 @@ find . -path "*/migrations/*.pyc"  -delete
 ```
 docker-compose -f docker-compose.dev.yml up
 ```
+
 
 ## Develop mode in DJANGO
 change value of `DEBUG` variable to `True` in this file

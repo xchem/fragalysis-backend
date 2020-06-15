@@ -66,7 +66,6 @@ from viewer.serializers import (
     ComputedMoleculeSerializer,
     NumericalScoreSerializer,
     ScoreDescriptionSerializer
-
 )
 
 
@@ -493,7 +492,6 @@ class SnapshotsView(viewsets.ModelViewSet):
 
     filter_class = filters.SnapshotFilter
 
-
 ### End of Session Project
 
 
@@ -544,7 +542,6 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
     serializer_class = ComputedSetSerializer
     filter_permissions = "project_id"
     filter_fields = ('target',)
-
 
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedMolecule.objects.filter()
