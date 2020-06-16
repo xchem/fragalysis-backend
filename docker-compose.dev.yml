@@ -74,10 +74,11 @@ services:
       - ../fragalysis-loader/loader:/code/loader
       - ./loader/config.py:/code/loader/config.py
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: django_db
-      MYSQL_PASSWORD: django_password
-      MYSQL_USER: django
+      POSTGRESQL_DATABASE: frag
+      POSTGRESQL_USER: postgres
+      POSTGRESQL_PASSWORD: fragalysis
+      POSTGRESQL_HOST: database
+      POSTGRESQL_PORT: 5432
       DATA_ORIGIN: EXAMPLE
     depends_on:
       - database
