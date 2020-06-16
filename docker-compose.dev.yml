@@ -1,17 +1,16 @@
 version: '3'
 
 services:
-  mysql:
-    image: mysql:5.7
+  database:
+    image: postgres:12.2
     volumes:
-      - ../data/mysql_data:/var/lib/mysql
+    - ../django_data:/var/lib/postgresql/data
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: django_db
-      MYSQL_PASSWORD: django_password
-      MYSQL_USER: django
+      POSTGRES_PASSWORD: fragalysis
+      POSTGRES_DB: frag
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "3306:3306"
+    - "5432:5432"
   graph:
     container_name: neo4j
     image: neo4j:3.5
@@ -52,7 +51,7 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - mysql
+      - database
       - graph
   loader:
     container_name: loader
@@ -81,5 +80,5 @@ services:
       MYSQL_USER: django
       DATA_ORIGIN: EXAMPLE
     depends_on:
-      - mysql
+      - database
       - web
