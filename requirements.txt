@@ -31,7 +31,7 @@ pickleshare==0.7.4
 Pillow==6.2.0
 pprint==0.1
 fragalysis==0.4.0
-sentry-sdk==0.3.4
+sentry-sdk==0.14.4
 ispyb==4.10.0
 xchem-db==0.1.26b0
 prompt-toolkit==1.0.15
