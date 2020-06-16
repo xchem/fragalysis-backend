@@ -16,12 +16,12 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
 sentry_sdk.init(
-    # This should be an environment variabl
-    dsn="https://"
-        + os.environ.get("DJANGO_SENTRY_DSN", "9871a59d9a4f49448e6611d43fa34360")
-        + "@sentry.io/"
-        + os.environ.get("DJANGO_SENTRY_ID", "1298297"),
+    dsn="https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290",
     integrations=[DjangoIntegration()],
+
+    # If you wish to associate users to errors (assuming you are using
+    # django.contrib.auth) you may enable sending PII data.
+    send_default_pii=True
 )
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
