@@ -229,10 +229,10 @@ def parse_xenons(input_smi):
 
 
 def get_params(smiles, request):
-    try:
-        smiles = canon_input(smiles)
-    except:
-        smiles = ""
+    # try:
+    smiles = canon_input(smiles)
+    # except:
+    #     smiles = ""
     height = None
     mol = None
     bond_id_list = []

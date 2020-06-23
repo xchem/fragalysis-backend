@@ -17,17 +17,17 @@ connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 # example test:
 # from rest_framework.test import APIRequestFactory
 #
-# In [2]: from rest_framework.test import force_authenticate
-#    ...: from viewer.views import TargetView
-#    ...: from django.contrib.auth.models import User
-#    ...:
-#    ...: factory = APIRequestFactory()
-#    ...: view = TargetView.as_view({'get': 'list'})
-#    ...: user = User.objects.get(username='uzw12877')
-#    ...: # Make an authenticated request to the view...
-#    ...: request = factory.get('/api/targets/')
-#    ...: force_authenticate(request, user=user)
-#    ...: response = view(request)
+# from rest_framework.test import force_authenticate
+# from viewer.views import TargetView
+# from django.contrib.auth.models import User
+#
+# factory = APIRequestFactory()
+# view = TargetView.as_view({'get': 'list'})
+# user = User.objects.get(username='uzw12877')
+# # Make an authenticated request to the view...
+# request = factory.get('/api/targets/')
+# force_authenticate(request, user=user)
+# response = view(request)
 
 
 def get_remote_conn():

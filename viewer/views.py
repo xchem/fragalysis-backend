@@ -1,4 +1,5 @@
-import json, os
+import json
+import os
 import zipfile
 from cStringIO import StringIO
 
