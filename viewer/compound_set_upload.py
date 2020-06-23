@@ -177,6 +177,19 @@ def set_descriptions(filename, compound_set):
     suppl = Chem.SDMolSupplier(str(filename))
     description_mol = suppl[0]
 
+    mols = []
+
+    for i in range(1, len(suppl)):
+        mols.append(suppl[i])
+    #
+    # description_keys = []
+    #
+    # for i in range(1, len(suppl)):
+    #     description_keys.extend(suppl[i].GetPropsAsDict().keys())
+
+    descriptions_needed = list(set([item for sublist in [m.GetPropsAsDict().keys() for m in mols] for item in sublist]))
+     # list(set())
+
     submitter = get_submission_info(description_mol)
 
     description_dict = description_mol.GetPropsAsDict()
@@ -188,15 +201,14 @@ def set_descriptions(filename, compound_set):
     compound_set.save()
 
     for key in description_dict.keys():
-        desc = ScoreDescription()
-        desc.computed_set = compound_set
-        desc.name = key
-        desc.description = description_dict[key]
-        desc.save()
+        if key in descriptions_needed and key not in ['ref_mols', 'ref_pdb', 'index', 'Name', 'original SMILES']:
+            desc = ScoreDescription()
+            desc.computed_set = compound_set
+            desc.name = key
+            desc.description = description_dict[key]
+            desc.save()
 
-    mols = []
-    for i in range(1, len(suppl)):
-        mols.append(suppl[i])
+
 
     return mols
 

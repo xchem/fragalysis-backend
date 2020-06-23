@@ -18,7 +18,8 @@ from viewer.models import (
     ComputedSet,
     NumericalScoreValues,
     ScoreDescription,
-    File
+    File,
+    TextScoreValues
 )
 
 from django.contrib.auth.models import User
@@ -356,5 +357,11 @@ class NumericalScoreSerializer(serializers.ModelSerializer):
     score = ScoreDescriptionSerializer(read_only=True)
     class Meta:
         model = NumericalScoreValues
+        fields = '__all__'
+
+class TextScoreSerializer(serializers.ModelSerializer):
+    score = ScoreDescriptionSerializer(read_only=True)
+    class Meta:
+        model = TextScoreValues
         fields = '__all__'
 

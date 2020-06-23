@@ -72,11 +72,12 @@ fragalysis/dls-fragalysis-stack-openshift/
 In `fragalysis/` directory run script to create data directory structure
 ```
 mkdir -p data/input/django_data/EXAMPLE
-mkdir -p data/mysql/data
 mkdir -p data/neo4j/data
 mkdir -p data/neo4j/logs
 mkdir -p data/stack/media
 mkdir -p data/stack/logs
+mkdir -p data/media/compound_sets
+mkdir -p data/postgre/data
 ```
 **4.Populating database** 
 
