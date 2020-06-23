@@ -4,9 +4,10 @@ services:
   database:
     image: postgres:12.2
     volumes:
-    - ../django_data:/var/lib/postgresql/data
+    - ../data/postgre/data:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD: fragalysis
+      POSTGRES_USER: fragalysis
       POSTGRES_DB: frag
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
@@ -48,6 +49,12 @@ services:
       - ../fragalysis-loader/tests:/code/tests
       - ../fragalysis-loader/loader:/code/loader
       - ./loader/config.py:/code/loader/config.py
+    environment:
+      POSTGRESQL_DATABASE: frag
+      POSTGRESQL_USER: fragalysis
+      POSTGRESQL_PASSWORD: fragalysis
+      POSTGRESQL_HOST: database
+      POSTGRESQL_PORT: 5432
     ports:
       - "8080:80"
     depends_on:
@@ -75,7 +82,7 @@ services:
       - ./loader/config.py:/code/loader/config.py
     environment:
       POSTGRESQL_DATABASE: frag
-      POSTGRESQL_USER: postgres
+      POSTGRESQL_USER: fragalysis
       POSTGRESQL_PASSWORD: fragalysis
       POSTGRESQL_HOST: database
       POSTGRESQL_PORT: 5432
