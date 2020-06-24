@@ -75,3 +75,5 @@ class MolGroupSerializer(serializers.ModelSerializer):
             "z_com",
             "description",
         )
+
+

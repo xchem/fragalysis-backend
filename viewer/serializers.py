@@ -365,3 +365,36 @@ class TextScoreSerializer(serializers.ModelSerializer):
         model = TextScoreValues
         fields = '__all__'
 
+
+class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
+    numerical_scores = serializers.SerializerMethodField()
+    text_scores = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ComputedMolecule
+        fields = (
+            "id",
+            "sdf_info",
+            "name",
+            "smiles",
+            "pdb_info",
+            "compound",
+            "computed_set",
+            "computed_inspirations",
+            "numerical_scores",
+            "text_scores",
+        )
+
+    def get_numerical_scores(self, obj):
+        scores = NumericalScoreValues.objects.filter(compound=obj)
+        score_dict = {}
+        for score in scores:
+            score_dict[score.score.name] = score.value
+        return score_dict
+
+    def get_text_scores(self, obj):
+        scores = TextScoreValues.objects.filter(compound=obj)
+        score_dict = {}
+        for score in scores:
+            score_dict[score.score.name] = score.value
+        return score_dict

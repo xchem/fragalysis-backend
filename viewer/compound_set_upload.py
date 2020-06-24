@@ -37,7 +37,9 @@ def dataType(str):
 
     else:
         if type(t) in [int, long, float, bool]:
-            if t in {True, False, 'TRUE', 'FALSE', 'true', 'false', 'yes', 'no', 'YES', 'NO', 'Yes', 'No'}:
+            if t in [
+                True, False, 'TRUE', 'FALSE', 'true', 'false', 'yes', 'no', 'YES', 'NO', 'Yes', 'No', "Y", "N", "y", "n"
+            ]:
                 return 'BIT'
             if type(t) is int or type(t) is long:
                 return 'INT'
