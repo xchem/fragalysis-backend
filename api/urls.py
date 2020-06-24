@@ -17,12 +17,14 @@ router.register(r"targets", viewer_views.TargetView, "targets")
 router.register(r"proteins", viewer_views.ProteinView)
 router.register(r"session-projects", viewer_views.SessionProjectsView)
 router.register(r"snapshots", viewer_views.SnapshotsView)
+
 # Compounds sets
 router.register(r"compound-sets", viewer_views.ComputedSetView)
 router.register(r"compound-molecules", viewer_views.ComputedMoleculesView)
 router.register(r"numerical-scores", viewer_views.NumericalScoresView)
 router.register(r"text-scores", viewer_views.TextScoresView)
 router.register(r"compound-scores", viewer_views.CompoundScoresView)
+router.register(r"compound-mols-scores", viewer_views.ComputedMolAndScoreView)
 
 # Get the derived data
 router.register(r"molimg", viewer_views.MolImageView)
@@ -32,8 +34,10 @@ router.register(r"cmpdimg", viewer_views.CompoundImageView)
 router.register(r"protmap", viewer_views.ProteinMapInfoView)
 router.register(r"protpdb", viewer_views.ProteinPDBInfoView)
 router.register(r"protpdbbound", viewer_views.ProteinPDBBoundInfoView)
+
 # Hotspot maps
 router.register(r"hotspots", hostpot_views.HotspotView)
+
 # Register the vectors and hypothesis
 router.register(r"vectors", hypo_views.VectorView)
 router.register(r"vector3ds", hypo_views.Vector3DView)
@@ -41,17 +45,22 @@ router.register(r"interactions", hypo_views.InteractionView)
 router.register(r"proteinres", hypo_views.ProteinResidueView)
 router.register(r"targetres", hypo_views.TargetResidueView)
 router.register(r"interactionpoints", hypo_views.InteractionPointView)
+
 # Register the  choices
 router.register(r"scorechoice", score_views.ScoreChoiceView)
 router.register(r"molchoice", score_views.MolChoiceView)
 router.register(r"protchoice", score_views.ProtChoiceView)
 router.register(r"cmpdchoice", score_views.CmpdChoiceView)
+
 # Register the scenese
 router.register(r"viewscene", score_views.ViewSceneView)
+
 # Register the groups
 router.register(r"molgroup", score_views.MolGroupView)
+
 # Get the information
 router.register(r"molannotation", score_views.MolAnnotationView)
+
 # fragspect
 router.register(r"fragspect", xcdb_views.FragspectCrystalView)
 

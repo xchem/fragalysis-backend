@@ -67,7 +67,8 @@ from viewer.serializers import (
     ComputedMoleculeSerializer,
     NumericalScoreSerializer,
     ScoreDescriptionSerializer,
-    TextScoreSerializer
+    TextScoreSerializer,
+    ComputedMolAndScoreSerializer,
 )
 
 
@@ -569,6 +570,13 @@ class TextScoresView(viewsets.ReadOnlyModelViewSet):
 class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = ScoreDescription.objects.filter()
     serializer_class = ScoreDescriptionSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('computed_set',)
+
+
+class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
+    queryset = ComputedMolecule.objects.filter()
+    serializer_class = ComputedMolAndScoreSerializer
     filter_permissions = "project_id"
     filter_fields = ('computed_set',)
 
