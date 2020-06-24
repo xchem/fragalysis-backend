@@ -230,14 +230,20 @@ class UploadCSet(View):
             if pdb_file:
                 zf = zipfile.ZipFile(pdb_file)
                 zip_lst = zf.namelist()
-                zip_names = []
+                #zip_names = []
+                #zip_filepaths = []
+                zfile = {}
                 for filename in zip_lst:
                     # only handle pdb files
                     if filename.split('.')[-1] == 'pdb':
+                        path = default_storage.save('tmp/' + filename, ContentFile(zf.read(filename)))
+                        #tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+                        #zip_filepaths.append(path)
                         # store filenames?
-                        zip_names.append(filename)
+                        #zip_names.append(filename)
+                        zfile[filename]=path
 
-                zfile = {'zip_obj': zf, 'zf_list': zip_names}
+                #zfile = {'zf_list': zip_names, 'zf_fp': zip_filepaths}
 
             # Close the zip file
             if zf:
