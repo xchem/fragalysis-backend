@@ -14,14 +14,16 @@ import os
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration 
+from sentry_sdk.integrations.redis import RedisIntegration
 
 sentry_sdk.init(
-    # This should be an environment variabl
-    dsn="https://"
-        + os.environ.get("DJANGO_SENTRY_DSN", "9871a59d9a4f49448e6611d43fa34360")
-        + "@sentry.io/"
-        + os.environ.get("DJANGO_SENTRY_ID", "1298297"),
-    integrations=[DjangoIntegration()],
+    dsn="https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290",
+    integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
+
+    # If you wish to associate users to errors (assuming you are using
+    # django.contrib.auth) you may enable sending PII data.
+    send_default_pii=True
 )
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -239,4 +241,3 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = os.environ.get("EMAIL_USER")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
-DEBUG = True
