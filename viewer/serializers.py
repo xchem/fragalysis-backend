@@ -369,6 +369,7 @@ class TextScoreSerializer(serializers.ModelSerializer):
 class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
     numerical_scores = serializers.SerializerMethodField()
     text_scores = serializers.SerializerMethodField()
+    # score_descriptions = serializers.SerializerMethodField()
 
     class Meta:
         model = ComputedMolecule
@@ -383,6 +384,7 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
             "computed_inspirations",
             "numerical_scores",
             "text_scores",
+            # "score_descriptions",
         )
 
     def get_numerical_scores(self, obj):
@@ -398,3 +400,10 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
         for score in scores:
             score_dict[score.score.name] = score.value
         return score_dict
+
+    # def get_score_descriptions(self, obj):
+    #     descriptions = ScoreDescription.objects.filter(computed_set=obj.computed_set)
+    #     desc_dict = {}
+    #     for desc in descriptions:
+    #         desc_dict[desc.name] = desc.description
+    #     return desc_dict
