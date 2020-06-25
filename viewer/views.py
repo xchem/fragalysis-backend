@@ -229,16 +229,16 @@ class UploadCSet(View):
 
             # if there is a zip file of pdbs, check it for .pdb files, and ignore others
             if pdb_file:
+
                 zf = zipfile.ZipFile(pdb_file)
                 zip_lst = zf.namelist()
-                zip_names = []
+                zfile = {}
+
                 for filename in zip_lst:
                     # only handle pdb files
                     if filename.split('.')[-1] == 'pdb':
-                        # store filenames?
-                        zip_names.append(filename)
-
-                zfile = {'zip_obj': zf, 'zf_list': zip_names}
+                        path = default_storage.save('pdbs/' + filename, ContentFile(zf.read(filename)))
+                        zfile[filename]=path
 
             # Close the zip file
             if zf:

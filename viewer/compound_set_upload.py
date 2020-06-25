@@ -55,10 +55,10 @@ def get_inspiration_frags(cpd, compound_set):
 def get_prot(mol, compound_set, zfile):
     pdb_option = mol.GetProp('ref_pdb')
     name = pdb_option.split('/')[-1]
+
     if zfile:
-        if pdb_option in zfile['zf_list']:
-            data = zfile['zip_obj'].read(pdb_option)
-            field = default_storage.save('tmp/' + name, ContentFile(data))
+        if pdb_option in zfile:
+            field = zfile[pdb_option]
 
     else:
         name = compound_set.target.title + '-' + pdb_option
@@ -128,11 +128,9 @@ def set_mol(mol, compound_set, filename, zfile=None):
 
     prot_field = get_prot(mol, compound_set, zfile)
     if 'tmp' in prot_field:
-        # move and save the compound set
-        old_filename = settings.MEDIA_ROOT + prot_field
-        new_filename = settings.MEDIA_ROOT + 'pdbs/' + prot_field.split('/')[-1]
-        os.rename(old_filename, new_filename)
-        prot_field = new_filename
+        # Save the compound set
+        filename = settings.MEDIA_ROOT + prot_field
+        prot_field = filename
         compound_set.save()
 
     #  need to add Compound before saving

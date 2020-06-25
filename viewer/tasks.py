@@ -31,7 +31,7 @@ def check_services():
 @shared_task
 def process_compound_set(validate_output):
     # Validate output is a tuple - this is one way to get
-    # Celery chaining to work where second function uses tuple output
+    # Celery chaining to work where second function uses list output
     # from first function (validate) called
     validate_dict, validated, filename, target, zfile, \
     submitter_name,  submitter_method = validate_output
