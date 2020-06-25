@@ -571,7 +571,7 @@ class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = ScoreDescription.objects.filter()
     serializer_class = ScoreDescriptionSerializer
     filter_permissions = "project_id"
-    filter_fields = ('computed_set',)
+    filter_fields = ('computed_set', 'name')
 
 
 class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
