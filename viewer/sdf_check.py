@@ -99,7 +99,16 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
                                             warning_string="path " + str(pdb_option) + " can't be found in uploaded zip file",
                                             validate_dict=validate_dict)
 
-    # else:
+    # Custom pdb added but no zfile - double check if pdb does exist before throwing error
+    if target and test_fp.endswith(".pdb") and not zfile:
+        query = Protein.objects.filter(code__contains=str(target + '-' + test_fp.split('_')[0]))
+        if len(query) == 0:
+            validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+                                        field='ref_pdb',
+                                        warning_string="pdb for " + str(test_fp) + " does not exist in fragalysis. Please upload pdb files.",
+                                        validate_dict=validate_dict)
+
+    # If anything else given example x1408
     if target and not test_fp.endswith(".pdb"):
         query = Protein.objects.filter(code__contains=str(target + '-' + test_fp.split('_')[0]))
         if len(query)==0:
