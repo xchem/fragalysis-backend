@@ -117,19 +117,31 @@ def validate(sdf_file, target=None, zfile=None):
         other_mols.append(suppl[i])
 
     # all mol checks
+    # Check if all mols can be read by rdkit
     # - all mols have the same properties
     all_props = []
+    # Use index and check_mol to see if any sdf entries are None type mol objects
+    index = 1
     for mol in suppl:
-        all_props.extend([key for key in mol.GetPropsAsDict().keys()])
-    unique_props = list(set(all_props))
-    for mol in suppl:
-        props = [key for key in mol.GetPropsAsDict().keys()]
-        diff_list = np.setdiff1d(props, unique_props)
-        for diff in diff_list:
-            add_warning(molecule_name=mol.GetProp('_Name'),
-                        field='property (missing)',
-                        warning_string='%s property is missing from this molecule' % (diff,),
+        if not mol:
+            add_warning(molecule_name='Unknown',
+                        field='N/A',
+                        warning_string='SDF entry number: %s can not be converted into an rdkit mol object' % (index,),
                         validate_dict=validate_dict)
+        if mol:
+            all_props.extend([key for key in mol.GetPropsAsDict().keys()])
+        index += 1
+    unique_props = list(set(all_props))
+
+    for mol in suppl:
+        if mol:
+            props = [key for key in mol.GetPropsAsDict().keys()]
+            diff_list = np.setdiff1d(props, unique_props)
+            for diff in diff_list:
+                add_warning(molecule_name=mol.GetProp('_Name'),
+                            field='property (missing)',
+                            warning_string='%s property is missing from this molecule' % (diff,),
+                            validate_dict=validate_dict)
 
     # Check version in blank mol
     validate_dict = check_ver_name(blank_mol, version, validate_dict)
@@ -148,12 +160,13 @@ def validate(sdf_file, target=None, zfile=None):
     # - check SMILES can be opened by rdkit
     # (check api for pdb if fragalysis)
     for m in other_mols:
-        validate_dict = check_mol_props(m, validate_dict)
-        validate_dict = check_name_characters(m.GetProp('_Name'), validate_dict)
-        validate_dict = check_pdb(m, validate_dict, target, zfile)
-        validate_dict = check_refmol(m, validate_dict, target)
-        validate_dict = check_field_populated(m, validate_dict)
-        validate_dict = check_SMILES(m, validate_dict)
+        if m:
+            validate_dict = check_mol_props(m, validate_dict)
+            validate_dict = check_name_characters(m.GetProp('_Name'), validate_dict)
+            validate_dict = check_pdb(m, validate_dict, target, zfile)
+            validate_dict = check_refmol(m, validate_dict, target)
+            validate_dict = check_field_populated(m, validate_dict)
+            validate_dict = check_SMILES(m, validate_dict)
 
     if len(validate_dict['molecule_name']) != 0:
         validated = False
