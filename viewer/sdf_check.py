@@ -90,14 +90,11 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
     test_fp = mol.GetProp('ref_pdb')
 
     if zfile:
-        pdb_option = mol.GetProp('ref_pdb')
-
-        if zfile:
-            if pdb_option not in zfile:
-                validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-                                            field='ref_pdb',
-                                            warning_string="path " + str(pdb_option) + " can't be found in uploaded zip file",
-                                            validate_dict=validate_dict)
+        if test_fp not in zfile:
+            validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+                                        field='ref_pdb',
+                                        warning_string="path " + str(test_fp) + " can't be found in uploaded zip file",
+                                        validate_dict=validate_dict)
 
     # Custom pdb added but no zfile - double check if pdb does exist before throwing error
     if target and test_fp.endswith(".pdb") and not zfile:
