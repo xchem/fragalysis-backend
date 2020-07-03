@@ -33,6 +33,8 @@ class Target(models.Model):
     project_id = models.ManyToManyField(Project)
     # Indicates the uniprot_id id for the target. Is a unique key
     uniprot_id = models.CharField(max_length=100, null=True)
+    # metadatafile containing sites info for download
+    metadata = models.FileField(upload_to="metadata/", null=True, max_length=255)
 
     class Meta:
         permissions = (("view_target", "View target"),)
