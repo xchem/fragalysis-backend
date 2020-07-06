@@ -179,7 +179,7 @@ class APIUrlsTestCase(APITestCase):
 
         self.url_base = "/api"
 
-        self.get_types = ["targets", "molecules"]
+        self.get_types = ["targets"] #, "molecules"]
 
         self.secret_target_data = {
             "targets": {
