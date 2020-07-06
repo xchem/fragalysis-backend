@@ -528,8 +528,8 @@ class APIUrlsTestCase(APITestCase):
             response = self.client.get(self.url_base + "/" + get_type + "/")
             self.assertEqual(response.status_code, 200)
             self.assertDictEqual(
-                json.loads(json.dumps(response.json()), sort_keys=True),
-                json.loads(json.dumps(test_data_set[get_type]), sort_keys=True),
+                json.loads(json.dumps(response.json(), sort_keys=True)),
+                json.loads(json.dumps(test_data_set[get_type], sort_keys=True)),
             )
 
     def test_secure(self):
