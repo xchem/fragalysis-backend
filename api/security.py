@@ -168,7 +168,7 @@ class ISpyBSafeStaticFiles:
         return queryset
 
     def get_response(self):
-        try:
+        # try:
             queryset = self.get_queryset()
             filter_dict = {self.field_name + "__endswith": self.input_string}
             object = queryset.get(**filter_dict)
@@ -178,5 +178,5 @@ class ISpyBSafeStaticFiles:
             response["X-Accel-Redirect"] = self.prefix + file_name
             response["Content-Disposition"] = "attachment;filename=" + file_name
             return response
-        except Exception:
-            raise Http404
+        # except Exception:
+        #     raise Http404
