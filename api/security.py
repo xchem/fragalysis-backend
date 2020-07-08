@@ -1,6 +1,6 @@
 import os
 import time
-
+from wsgiref.util import FileWrapper
 from django.http import Http404
 from django.http import HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
@@ -168,15 +168,26 @@ class ISpyBSafeStaticFiles:
         return queryset
 
     def get_response(self):
-        # try:
+        try:
             queryset = self.get_queryset()
             filter_dict = {self.field_name + "__endswith": self.input_string}
             object = queryset.get(**filter_dict)
             file_name = os.path.basename(str(getattr(object, self.field_name)))
-            response = HttpResponse()
-            response["Content-Type"] = self.content_type
-            response["X-Accel-Redirect"] = self.prefix + file_name
-            response["Content-Disposition"] = "attachment;filename=" + file_name
+
+            if hasattr(self, 'file_format'):
+                if self.file_format=='raw':
+                    file_field = getattr(object, self.field_name)
+                    filepath = file_field.path
+                    zip_file = open(filepath, 'rb')
+                    response = HttpResponse(FileWrapper(zip_file), content_type='application/zip')
+                    response['Content-Disposition'] = 'attachment; filename="%s"' % file_name
+
+            else:
+                response = HttpResponse()
+                response["Content-Type"] = self.content_type
+                response["X-Accel-Redirect"] = self.prefix + file_name
+                response["Content-Disposition"] = "attachment;filename=" + file_name
+
             return response
-        # except Exception:
-        #     raise Http404
+        except Exception:
+            raise Http404

@@ -86,7 +86,8 @@ def archive_download(request, file_path):
     ispy_b_static.request = request
     ispy_b_static.permission_string = "project_id"
     ispy_b_static.field_name = "zip_archive"
-    ispy_b_static.content_type = "application/octet-stream"
+    ispy_b_static.content_type = "application/zip"
     ispy_b_static.prefix = "/targets/"
     ispy_b_static.input_string = file_path
+    ispy_b_static.file_format = 'raw'
     return ispy_b_static.get_response()
