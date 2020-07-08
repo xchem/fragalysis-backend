@@ -194,6 +194,7 @@ class APIUrlsTestCase(APITestCase):
                         "protein_set": [1],
                         "template_protein": "/media/my_pdb.pdb",
                         "metadata": None,
+                        "zip_archive": None,
                     },
                     {
                         "id": 2,
@@ -201,7 +202,8 @@ class APIUrlsTestCase(APITestCase):
                         "project_id": [2],
                         "protein_set": [2],
                         "template_protein": "/media/secret_pdb.pdb",
-                        "metadata": None
+                        "metadata": None,
+                        "zip_archive": None,
                     },
                 ],
             },
@@ -326,6 +328,7 @@ class APIUrlsTestCase(APITestCase):
                         "protein_set": [1],
                         "template_protein": "/media/my_pdb.pdb",
                         "metadata": None,
+                        "zip_archive": None,
                     }
                 ],
             },
@@ -454,6 +457,7 @@ class APIUrlsTestCase(APITestCase):
                 "protein_set": [1],
                 "template_protein": "/media/my_pdb.pdb",
                 "metadata": None,
+                "zip_archive": None,
             },
             {
                 "id": 1,

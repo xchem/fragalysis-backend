@@ -45,7 +45,7 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Target
-        fields = ("id", "title", "project_id", "protein_set", "template_protein", "metadata")
+        fields = ("id", "title", "project_id", "protein_set", "template_protein", "metadata", "zip_archive")
 
 
 class CompoundSerializer(serializers.ModelSerializer):

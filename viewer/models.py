@@ -35,6 +35,8 @@ class Target(models.Model):
     uniprot_id = models.CharField(max_length=100, null=True)
     # metadatafile containing sites info for download
     metadata = models.FileField(upload_to="metadata/", null=True, max_length=255)
+    # zip archive to download uploaded data from
+    zip_archive = models.FileField(upload_to="archive/", null=True, max_length=255)
 
     class Meta:
         permissions = (("view_target", "View target"),)

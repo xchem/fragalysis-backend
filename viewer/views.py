@@ -580,3 +580,5 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
     filter_permissions = "project_id"
     filter_fields = ('computed_set',)
 
+
+

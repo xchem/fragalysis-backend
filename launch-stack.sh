@@ -32,7 +32,7 @@ gunicorn fragalysis.wsgi:application \
     --daemon \
     --name fragalysis \
     --bind unix:django_app.sock \
-    --timeout 300 \
+    --timeout 3000 \
     --workers 3 \
     --log-level=debug \
     --log-file=/srv/logs/gunicorn.log \
