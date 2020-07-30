@@ -1,5 +1,5 @@
 from api.security import ISpyBSafeStaticFiles
-from viewer.models import Protein, Target
+from viewer.models import Protein, Target, ComputedMolecule
 
 
 def prot_download(request, file_path):
@@ -16,6 +16,24 @@ def prot_download(request, file_path):
     ispy_b_static.field_name = "pdb_info"
     ispy_b_static.content_type = "application/x-pilot"
     ispy_b_static.prefix = "/pdbs/"
+    ispy_b_static.input_string = file_path
+    return ispy_b_static.get_response()
+
+
+def uploaded_prot_download(request, file_path):
+    """
+    Download a protein by nginx redirect
+    :param request: the initial request
+    :param file_path: the file path we're getting from the static
+    :return: the response (a redirect to nginx internal)
+    """
+    ispy_b_static = ISpyBSafeStaticFiles()
+    ispy_b_static.model = ComputedMolecule
+    ispy_b_static.request = request
+    ispy_b_static.permission_string = "computed_set__target__project_id"
+    ispy_b_static.field_name = "pdb_info"
+    ispy_b_static.content_type = "application/x-pilot"
+    ispy_b_static.prefix = "/uploaded_pdbs/"
     ispy_b_static.input_string = file_path
     return ispy_b_static.get_response()
 

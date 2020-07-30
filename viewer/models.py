@@ -275,9 +275,18 @@ class ComputedMolecule(models.Model):
     # comes from compound
     #original_smiles = models.CharField(max_length=255)
     # link to pdb file for prot structure
-    pdb_info = models.FileField(upload_to="pdbs/", null=False, max_length=255)
+    # instead link to a Protein
+    protein = models.ForeignKey(Protein, null=True)
+    pdb_info = models.FileField(upload_to="uploaded_pdbs/", null=False, max_length=255)
     #design_set = models.ForeignKey(DesignSet) # needs to be linked to find inspiration fragments
     computed_inspirations = models.ManyToManyField(Molecule, null=True, blank=True) # if we use our own method of calculating them
+
+    def get_pdb_info(self):
+        if not self.pdb_info:
+            pdb_info = self.protein.pdb_info
+
+            return pdb_info
+        return self.pdb_info
 
 
 class ScoreDescription(models.Model):

@@ -235,10 +235,20 @@ class UploadCSet(View):
                 zfile = {}
 
                 for filename in zip_lst:
+                    # create Protein object, code=filename minus .pdb, pdb_info = file (default_storage.save)
+                    prot = Protein()
+                    prot.code = filename.split('/')[-1].replace('.pdb', '') + '_uploaded'
+                    target_obj = Target.objects.get(title=target)
+                    prot.target_id = target_obj
+                    path = default_storage.save('pdbs/' + filename.split('/')[-1] + '_uploaded',
+                                                ContentFile(zf.read(filename)))
+                    prot.pdb_info = path
+                    prot.save()
+
                     # only handle pdb files
                     if filename.split('.')[-1] == 'pdb':
-                        path = default_storage.save('pdbs/' + filename, ContentFile(zf.read(filename)))
-                        zfile[filename]=path
+                        path = default_storage.save('uploaded_pdbs/' + filename.split('/')[-1], ContentFile(zf.read(filename)))
+                        zfile[filename] = path
 
             # Close the zip file
             if zf:
@@ -546,10 +556,11 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
     filter_permissions = "project_id"
     filter_fields = ('target',)
 
-class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
+
+class ComputedMoleculeView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedMolecule.objects.filter()
     serializer_class = ComputedMoleculeSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "computed_set__target__project_id"
     filter_fields = ('computed_set',)
 
 

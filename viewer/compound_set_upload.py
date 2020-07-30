@@ -53,20 +53,24 @@ def get_inspiration_frags(cpd, compound_set):
 
 # use zfile object for pdb files uploaded in zip
 def get_prot(mol, compound_set, zfile):
+    # Link to existing protein
     pdb_option = mol.GetProp('ref_pdb')
     name = pdb_option.split('/')[-1]
 
     if zfile:
         if pdb_option in zfile:
             field = zfile[pdb_option]
+            name = field.split('/')[-1].replace('.pdb', '') + '_uploaded'
+            prot = Protein.objects.get(code__contains=name)
 
     else:
         name = compound_set.target.title + '-' + pdb_option
         print('PROT: ' + name)
+        # make prot = this
         prot = Protein.objects.get(code__contains=name.split('_')[0])
-        field = prot.pdb_info
+        # field = prot.pdb_info
 
-    return field
+    return prot
 
 
 def set_props(cpd, props, compound_set):
@@ -127,11 +131,13 @@ def set_mol(mol, compound_set, filename, zfile=None):
     orig = mol.GetProp('original SMILES')
 
     prot_field = get_prot(mol, compound_set, zfile)
-    if 'tmp' in prot_field:
-        # Save the compound set
-        filename = settings.MEDIA_ROOT + prot_field
-        prot_field = filename
-        compound_set.save()
+    # if 'tmp' in prot_field:
+    #     # Save the compound set
+    #     filename = settings.MEDIA_ROOT + prot_field
+    #     prot_field = filename
+    #     compound_set.save()
+
+    compound_set.save()
 
     #  need to add Compound before saving
     cpd = ComputedMolecule()
@@ -141,6 +147,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
     cpd.name = name
     cpd.smiles = smiles
     cpd.pdb_info = prot_field
+    cpd.protein = prot_field
     #cpd.original_smiles = orig
     cpd.save()
 
