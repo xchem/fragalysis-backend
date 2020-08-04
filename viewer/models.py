@@ -19,9 +19,6 @@ class Project(models.Model):
     # The users it's related to
     user_id = models.ManyToManyField(User)
 
-    class Meta:
-        permissions = (("view_project", "View project"),)
-
 
 class Target(models.Model):
     """A Django model to define a given protein target"""
@@ -37,9 +34,6 @@ class Target(models.Model):
     metadata = models.FileField(upload_to="metadata/", null=True, max_length=255)
     # zip archive to download uploaded data from
     zip_archive = models.FileField(upload_to="archive/", null=True, max_length=255)
-
-    class Meta:
-        permissions = (("view_target", "View target"),)
 
 
 class Protein(models.Model):
@@ -64,7 +58,6 @@ class Protein(models.Model):
 
     class Meta:
         unique_together = ("code", "prot_type")
-        permissions = (("view_protein", "View protein"),)
 
 
 class Compound(models.Model):
@@ -102,10 +95,6 @@ class Compound(models.Model):
     def get_all_identifiers(self):
         return json.loads(self.foo)
 
-    class Meta:
-        permissions = (("view_compound", "View compound"),)
-        # unique_together = (("inchi", "long_inchi"),)
-
 
 class Molecule(models.Model):
     """A Django model to hold the information for a molecule -> a 3D set of
@@ -135,7 +124,6 @@ class Molecule(models.Model):
     # Unique constraints
     class Meta:
         unique_together = ("prot_id", "cmpd_id", "mol_type")
-        permissions = (("view_molecule", "View molecule"),)
 
 
 class ActivityPoint(models.Model):
@@ -159,8 +147,6 @@ class ActivityPoint(models.Model):
 
     class Meta:
         unique_together = ("target_id", "activity", "cmpd_id", "units")
-        permissions = (("view_activitypoint", "View activitypoint"),)
-
 
 
 # Start of Session Project
@@ -173,7 +159,6 @@ class SessionProject(models.Model):
     tags = models.TextField(default='[]')
 
     class Meta:
-        permissions = (("view_project", "View project"),)
         db_table = 'viewer_sessionproject'
 
 class Snapshot(models.Model):
@@ -196,7 +181,6 @@ class Snapshot(models.Model):
     parent = models.ForeignKey('self', models.DO_NOTHING, blank=True, null=True, related_name='children')
 
     class Meta:
-        permissions = (("view_project", "View project"),)
         managed = True
         db_table = 'viewer_snapshot'
 # End of Session Project

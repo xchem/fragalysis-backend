@@ -26,9 +26,6 @@ class ViewScene(models.Model):
     # for redirecting to project's snapshot
     snapshot = models.ForeignKey(Snapshot, null=True, on_delete=models.CASCADE)
 
-    permissions = (("view_scene", "View scene"),)
-    
-
 
 class ProtChoice(models.Model):
     """
@@ -45,7 +42,6 @@ class ProtChoice(models.Model):
 
     class Meta:
         unique_together = ("user_id", "prot_id", "choice_type")
-        permissions = (("view_protchoice", "View protchoice"),)
 
 
 class MolChoice(models.Model):
@@ -68,7 +64,6 @@ class MolChoice(models.Model):
 
     class Meta:
         unique_together = ("user_id", "mol_id", "choice_type")
-        permissions = (("view_molchoice", "View molchoice"),)
 
 
 class MolAnnotation(models.Model):
@@ -108,7 +103,6 @@ class ScoreChoice(models.Model):
 
     class Meta:
         unique_together = ("user_id", "mol_id", "prot_id", "choice_type")
-        permissions = (("view_scorechoice", "View scorechoice"),)
 
 
 class CmpdChoice(models.Model):
@@ -128,7 +122,6 @@ class CmpdChoice(models.Model):
 
     class Meta:
         unique_together = ("user_id", "cmpd_id", "choice_type")
-        permissions = (("view_cmpdchoice", "View cmpdhoice"),)
 
 
 class MolGroup(models.Model):
@@ -165,5 +158,3 @@ class MolGroup(models.Model):
     y_com = models.FloatField(null=True)
     z_com = models.FloatField(null=True)
 
-    class Meta:
-        permissions = (("view_molgroup", "View molecule group"),)

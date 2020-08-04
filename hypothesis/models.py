@@ -17,7 +17,6 @@ class TargetResidue(models.Model):
 
     class Meta:
         unique_together = ("target_id", "res_num", "res_name", "chain_id")
-        permissions = (("view_targetresidue", "View targetresidue"),)
 
 
 class ProteinResidue(models.Model):
