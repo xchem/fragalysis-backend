@@ -7,7 +7,7 @@ from viewer.models import Protein, Molecule, Target, Compound
 class TargetResidue(models.Model):
     """Model to store residue information - to curate the probes"""
     # The target it relates to
-    target_id = models.ForeignKey(Target)
+    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     # The residue name
     res_name = models.CharField(max_length=20)
     # The residue number
@@ -23,9 +23,9 @@ class TargetResidue(models.Model):
 class ProteinResidue(models.Model):
     """Model to store residue information - to curate the probes"""
     # The target it relates to
-    prot_id = models.ForeignKey(Protein)
+    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
     # The target Residue it relates to
-    targ_res_id = models.ForeignKey(TargetResidue)
+    targ_res_id = models.ForeignKey(TargetResidue, on_delete=models.CASCADE)
 
     class Meta:
         unique_together = ("prot_id", "targ_res_id")
@@ -33,9 +33,9 @@ class ProteinResidue(models.Model):
 
 class InteractionPoint(models.Model):
     # The protein residue id
-    prot_res_id = models.ForeignKey(ProteinResidue)
+    prot_res_id = models.ForeignKey(ProteinResidue, on_delete=models.CASCADE)
     # The molecule id
-    mol_id = models.ForeignKey(Molecule)
+    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
     # Set the molecule and protein identifier
     protein_atom_name = models.CharField(max_length=255)
     molecule_atom_name = models.CharField(max_length=255)
@@ -60,7 +60,7 @@ class Interaction(models.Model):
     interaction_type = models.CharField(
         choices=int_type_choices, max_length=2, default=default_int_type
     )
-    interaction_point = models.ForeignKey(InteractionPoint)
+    interaction_point = models.ForeignKey(InteractionPoint, on_delete=models.CASCADE)
     distance = models.FloatField(null=True)
     score = models.FloatField(null=True)
     prot_smarts = models.TextField(null=True)
@@ -76,7 +76,7 @@ class Interaction(models.Model):
 
 class Vector(models.Model):
     # The compound it relates to
-    cmpd_id = models.ForeignKey(Compound)
+    cmpd_id = models.ForeignKey(Compound, on_delete=models.CASCADE)
     # The smiles of the vector
     smiles = models.CharField(max_length=255)
     # Vector type
@@ -88,9 +88,9 @@ class Vector(models.Model):
 
 class Vector3D(models.Model):
     # The molecule it relates to
-    mol_id = models.ForeignKey(Molecule)
+    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
     # The vector it relates to
-    vector_id = models.ForeignKey(Vector)
+    vector_id = models.ForeignKey(Vector, on_delete=models.CASCADE)
     # The number on this
     number = models.IntegerField()
     # The start position
