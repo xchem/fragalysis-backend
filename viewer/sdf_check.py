@@ -180,7 +180,7 @@ def check_blank_prop(blank_mol, validate_dict):
     # Properties to ignore
     prop_ignore_list = ['ref_mols', 'ref_pdb']
 
-    for key, value in zip(property_dict.keys(), property_dict.values()):
+    for key, value in zip(list(property_dict.keys()), list(property_dict.values())):
         if value == '' and key not in prop_ignore_list:
             validate_dict = add_warning(molecule_name=blank_mol.GetProp('_Name'),
                                         field=key,
@@ -212,7 +212,7 @@ def check_field_populated(mol, validate_dict):
     compulsory_fields = ['ref_pdb', 'ref_mols', 'original SMILES']
 
     property_dict = mol.GetPropsAsDict()
-    for key, value in zip(property_dict.keys(), property_dict.values()):
+    for key, value in zip(list(property_dict.keys()), list(property_dict.values())):
         if value == '' and key in compulsory_fields:
             validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field=key,
@@ -250,7 +250,7 @@ def check_name_characters(name, validate_dict):
 
 def missing_field_check(mol, field, validate_dict):
     props_dict = mol.GetPropsAsDict()
-    if not field in props_dict.keys():
+    if not field in list(props_dict.keys()):
         validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                     field=field,
                                     warning_string='%s field not found!' % (field,),

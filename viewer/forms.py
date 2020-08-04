@@ -1,6 +1,6 @@
 from django import forms
 import zipfile
-from cStringIO import StringIO
+from io import StringIO
 
 CHOICES = [
     (0, 'validate'),

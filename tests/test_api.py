@@ -39,12 +39,12 @@ class APIUtilsTestCase(APITestCase):
         request = self.factory.get("/viewer/react/")
         request.user = self.user
         token_one = get_token(request)
-        self.assertTrue(type(token_one) == unicode)
+        self.assertTrue(type(token_one) == str)
         self.assertNotEqual(token_one, "")
         request.user = AnonymousUser()
         token_two = get_token(request)
         self.assertNotEqual(token_two, "")
-        self.assertTrue(type(token_two) == unicode)
+        self.assertTrue(type(token_two) == str)
 
 
 class APIUrlsTestCase(APITestCase):
@@ -514,7 +514,7 @@ class APIUrlsTestCase(APITestCase):
         self.client.login(username=self.user.username, password=self.user.password)
         # Currently empty
         post_data = [{} for x in response_data]
-        post_resp = [{u"detail": u'Method "POST" not allowed.'} for x in response_data]
+        post_resp = [{"detail": 'Method "POST" not allowed.'} for x in response_data]
         for i, url in enumerate(urls):
             # GET basic request
             response = self.client.get(self.url_base + "/" + url + "/1/")

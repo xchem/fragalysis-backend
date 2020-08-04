@@ -36,12 +36,12 @@ def dataType(str):
         return 'TEXT'
 
     else:
-        if type(t) in [int, long, float, bool]:
+        if type(t) in [int, int, float, bool]:
             if t in [
                 True, False, 'TRUE', 'FALSE', 'true', 'false', 'yes', 'no', 'YES', 'NO', 'Yes', 'No', "Y", "N", "y", "n"
             ]:
                 return 'BIT'
-            if type(t) is int or type(t) is long:
+            if type(t) is int or type(t) is int:
                 return 'INT'
             if type(t) is float:
                 return 'FLOAT'
@@ -62,7 +62,7 @@ def get_prot(mol, compound_set, zfile):
 
     else:
         name = compound_set.target.title + '-' + pdb_option
-        print('PROT: ' + name)
+        print(('PROT: ' + name))
         prot = Protein.objects.get(code__contains=name.split('_')[0])
         field = prot.pdb_info
 
@@ -70,11 +70,11 @@ def get_prot(mol, compound_set, zfile):
 
 
 def set_props(cpd, props, compound_set):
-    if 'ref_mols' and 'ref_pdb' not in props.keys():
+    if 'ref_mols' and 'ref_pdb' not in list(props.keys()):
         raise Exception('ref_mols and ref_pdb not set!')
     set_obj = ScoreDescription.objects.filter(computed_set=compound_set)
     set_props_list = [s.name for s in set_obj]
-    for key in props.keys():
+    for key in list(props.keys()):
         if key in set_props_list not in ['ref_mols', 'ref_pdb', 'original SMILES']:
             if dataType(str(props[key]))=='TEXT':
                 score_value = TextScoreValues()
@@ -187,7 +187,7 @@ def set_descriptions(filename, compound_set):
     # for i in range(1, len(suppl)):
     #     description_keys.extend(suppl[i].GetPropsAsDict().keys())
 
-    descriptions_needed = list(set([item for sublist in [m.GetPropsAsDict().keys() for m in mols] for item in sublist]))
+    descriptions_needed = list(set([item for sublist in [list(m.GetPropsAsDict().keys()) for m in mols] for item in sublist]))
      # list(set())
 
     submitter = get_submission_info(description_mol)
@@ -200,7 +200,7 @@ def set_descriptions(filename, compound_set):
     compound_set.submitter = submitter
     compound_set.save()
 
-    for key in description_dict.keys():
+    for key in list(description_dict.keys()):
         if key in descriptions_needed and key not in ['ref_mols', 'ref_pdb', 'index', 'Name', 'original SMILES']:
             desc = ScoreDescription()
             desc.computed_set = compound_set
