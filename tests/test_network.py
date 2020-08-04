@@ -35,4 +35,5 @@ class NetworkUtilsTestCase(TestCase):
         results = {"ONE_DEPTH_TYPEONE": "SMILES"}
         decoration_list = ["ONE_ME", "TWO_ME", "THREE_ME"]
         out_json = order_stuctures(results, decoration_list)
-        self.assertEqual(out_json, test_json)
+        self.maxDiff = None
+        self.assertEqual(out_json, test_json,)
