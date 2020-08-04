@@ -87,15 +87,15 @@ def highlight_diff(prb_mol, ref_mol, width, height):
 
 
 def draw_mol(
-    smiles,
-    height=200,
-    width=200,
-    img_type=None,
-    highlightAtoms=[],
-    atomcolors=[],
-    highlightBonds=[],
-    bondcolors={},
-    mol=None,
+        smiles,
+        height=34,
+        width=150,
+        img_type=None,
+        highlightAtoms=[],
+        atomcolors=[],
+        highlightBonds=[],
+        bondcolors={},
+        mol=None,
 ):
     """
     Draw a molecule from a smiles
@@ -108,7 +108,7 @@ def draw_mol(
         mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return "None Mol"
-    AllChem.Compute2DCoords(mol)
+    # AllChem.Compute2DCoords(mol)
     Chem.Kekulize(mol)
     if not height:
         height = 200
@@ -133,9 +133,18 @@ def draw_mol(
         img.save(response, "PNG")
         return response
     else:
+        rdMolDraw2D.PrepareMolForDrawing(mol, wedgeBonds=False)
         drawer = rdMolDraw2D.MolDraw2DSVG(height, width)
+
         drawopt = drawer.drawOptions()
         drawopt.clearBackground = False
+        drawopt.fixedBondLength = 30
+        drawopt.padding = 0.01
+        drawopt.bondLineWidth = 1
+        drawopt.additionalAtomLabelPadding = 0.05
+
+        drawer.SetFontSize(1)
+
         drawer.DrawMolecule(
             mol,
             highlightAtoms=highlightAtoms,
@@ -143,9 +152,9 @@ def draw_mol(
             highlightBonds=highlightBonds,
             highlightBondColors=bondcolors,
         )
-        drawer.DrawMolecule(mol)
+
         drawer.FinishDrawing()
-        return drawer.GetDrawingText().replace("svg:", "")
+        return drawer.GetDrawingText().replace("svg:", "").replace('stroke-width:2px', 'stroke-width:1.5px')
 
 
 def parse_vectors(vector_list):
