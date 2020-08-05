@@ -63,6 +63,7 @@ class SSHConnector(Connector):
         if self.conn is not None:
             self.conn.autocommit = True
         else:
+            self.server.stop()
             raise ISPyBConnectionException
         self.last_activity_ts = time.time()
 
