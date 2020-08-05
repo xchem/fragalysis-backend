@@ -14,6 +14,7 @@ from viewer.models import (
     ScoreDescription,
     NumericalScoreValues,
     TextScoreValues,
+    Target,
     Protein,
     Molecule,
     ComputedSetSubmitter)
@@ -51,26 +52,52 @@ def dataType(str):
 def get_inspiration_frags(cpd, compound_set):
     pass
 
-# use zfile object for pdb files uploaded in zip
-def get_prot(mol, compound_set, zfile):
+def process_pdb(pdb_code, target, zfile):
+    pdb_fn  = zfile[pdb_code].split('/')[-1]
+    pdb_fp =  zfile[pdb_code]
+    
+    # Move and save the protein pdb from tmp to pdbs folder
+    # pdb may have already been moved and Protein object created
+    try:
+        new_filename = settings.MEDIA_ROOT + 'pdbs/' + pdb_fn 
+        old_filename = settings.MEDIA_ROOT + pdb_fp
+        os.rename(old_filename, new_filename)
+
+        # Create Protein object 
+        prot = Protein()
+        prot.code = pdb_code
+        target_obj = Target.objects.get(title=target)
+        prot.target_id = target_obj
+        prot.pdb_info = new_filename
+        prot.save()
+
+        # Get Protein object
+        prot_obj = Protein.objects.get(code=pdb_code)     
+
+    # If exception means file has already been moved and Protein obj created
+    except:
+        # Get Protein object
+        prot_obj = Protein.objects.get(code=pdb_code)     
+
+    return prot_obj
+
+# use zfile object for pdb files uploaded in zip and convert to Protein objects
+def get_prot(mol, target, compound_set, zfile):
     # Link to existing protein
-    pdb_option = mol.GetProp('ref_pdb')
-    name = pdb_option.split('/')[-1]
+    pdb_fn = mol.GetProp('ref_pdb')
 
     if zfile:
-        if pdb_option in zfile:
-            field = zfile[pdb_option]
-            name = field.split('/')[-1].replace('.pdb', '') + '_uploaded'
-            prot = Protein.objects.get(code__contains=name)
+        pdb_code = pdb_fn.split('/')[-1].replace('.pdb', '')
+        prot_obj = process_pdb(pdb_code=pdb_code, target=target, zfile=zfile)     
+        return prot_obj
 
     else:
-        name = compound_set.target.title + '-' + pdb_option
+        name = compound_set.target.title + '-' + pdb_fn
         print('PROT: ' + name)
         # make prot = this
-        prot = Protein.objects.get(code__contains=name.split('_')[0])
+        prot_obj = Protein.objects.get(code__contains=name.split('_')[0])
         # field = prot.pdb_info
-
-    return prot
+        return prot_obj
 
 
 def set_props(cpd, props, compound_set):
@@ -93,7 +120,7 @@ def set_props(cpd, props, compound_set):
     return set_obj
 
 
-def set_mol(mol, compound_set, filename, zfile=None):
+def set_mol(mol, target, compound_set, filename, zfile=None):
     # zfile = {'zip_obj': zf, 'zf_list': zip_names}
 
     smiles = Chem.MolToSmiles(mol)
@@ -130,7 +157,7 @@ def set_mol(mol, compound_set, filename, zfile=None):
 
     orig = mol.GetProp('original SMILES')
 
-    prot_field = get_prot(mol, compound_set, zfile)
+    prot_obj = get_prot(mol, target, compound_set, zfile)
     # if 'tmp' in prot_field:
     #     # Save the compound set
     #     filename = settings.MEDIA_ROOT + prot_field
@@ -146,8 +173,8 @@ def set_mol(mol, compound_set, filename, zfile=None):
     cpd.sdf_info = mol_block
     cpd.name = name
     cpd.smiles = smiles
-    cpd.pdb_info = prot_field
-    cpd.protein = prot_field
+    cpd.pdb_info = prot_obj.pdb_info
+    cpd.protein = prot_obj
     #cpd.original_smiles = orig
     cpd.save()
 
@@ -158,8 +185,8 @@ def set_mol(mol, compound_set, filename, zfile=None):
     return cpd
 
 
-def process_mol(mol, compound_set, filename, zfile=None):
-    cpd = set_mol(mol, compound_set, filename, zfile)
+def process_mol(mol, target, compound_set, filename, zfile=None):
+    cpd = set_mol(mol, target, compound_set, filename, zfile)
     other_props = mol.GetPropsAsDict()
     compound_set = set_props(cpd, other_props, compound_set)
 

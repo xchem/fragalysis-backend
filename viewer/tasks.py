@@ -39,7 +39,7 @@ def process_compound_set(validate_output):
     if not validated:
         return (validate_dict,validated)
 
-    if validated:
+    if validated:                              
         #print('processing compound set: ' + filename)
         filename = str(filename)
 
@@ -59,7 +59,7 @@ def process_compound_set(validate_output):
 
         # process every other mol
         for i in range(0, len(mols_to_process)):
-            process_mol(mols_to_process[i], compound_set, filename, zfile)
+            process_mol(mols_to_process[i], target, compound_set, filename, zfile)
 
         # check that molecules have been added to the compound set
         check = ComputedMolecule.objects.filter(computed_set=compound_set)
@@ -163,7 +163,7 @@ def validate(sdf_file, target=None, zfile=None):
         if m:
             validate_dict = check_mol_props(m, validate_dict)
             validate_dict = check_name_characters(m.GetProp('_Name'), validate_dict)
-            validate_dict = check_pdb(m, validate_dict, target, zfile)
+            validate_dict = check_pdb(m, submitter_method, validate_dict, target, zfile)
             validate_dict = check_refmol(m, validate_dict, target)
             validate_dict = check_field_populated(m, validate_dict)
             validate_dict = check_SMILES(m, validate_dict)
@@ -171,10 +171,14 @@ def validate(sdf_file, target=None, zfile=None):
     if len(validate_dict['molecule_name']) != 0:
         validated = False
 
+    # Delete computed sets and computedset names created for validation
     unique_name = "".join(submitter_name.split()) + '-' + "".join(submitter_method.split())
     csets = ComputedSet.objects.filter(unique_name=unique_name)
     [c.delete() for c in csets]
 
+    cname = ComputedSetSubmitter.objects.filter(name=unique_name)
+    [c.delete() for c in cname]
+    
     return (validate_dict, validated, sdf_file, target, zfile,
             submitter_name,  submitter_method)
 

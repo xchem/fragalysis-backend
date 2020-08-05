@@ -39,6 +39,7 @@ from viewer.models import (
     ScoreDescription,
     File
 )
+
 from viewer import filters
 from forms import CSetForm, UploadKeyForm
 
@@ -235,20 +236,34 @@ class UploadCSet(View):
                 zfile = {}
 
                 for filename in zip_lst:
-                    # create Protein object, code=filename minus .pdb, pdb_info = file (default_storage.save)
-                    prot = Protein()
-                    prot.code = filename.split('/')[-1].replace('.pdb', '') + '_uploaded'
-                    target_obj = Target.objects.get(title=target)
-                    prot.target_id = target_obj
-                    path = default_storage.save('pdbs/' + filename.split('/')[-1] + '_uploaded',
-                                                ContentFile(zf.read(filename)))
-                    prot.pdb_info = path
-                    prot.save()
-
-                    # only handle pdb files
+                     # only handle pdb files
                     if filename.split('.')[-1] == 'pdb':
-                        path = default_storage.save('uploaded_pdbs/' + filename.split('/')[-1], ContentFile(zf.read(filename)))
-                        zfile[filename] = path
+                        # Test if Protein object already exists
+                        try:
+                            test_code = filename.split('/')[-1].replace('.pdb','')
+                            test_prot = Protein.objects.get(code=test_code)
+                        except Exception:
+                            test_prot = None
+                        
+                        # If there is already a Protein object then need to change pdb name
+                        if test_prot:
+                            html = "<br><p>Please rename your pdb file starting with a unique method name </p>"
+                            return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
+
+                        if not test_prot:
+                            # Save pdb file in /tmp folder
+                            code = filename.split('/')[-1].replace('.pdb', '')
+                            path = default_storage.save('tmp/' + filename.split('/')[-1], 
+                                                        ContentFile(zf.read(filename)))
+                            zfile[code] = path
+                          
+                            # # create Protein object, code=filename minus .pdb, pdb_info = file (default_storage.save)
+                            # prot = Protein()
+                            # prot.code = code
+                            # target_obj = Target.objects.get(title=target)
+                            # prot.target_id = target_obj
+                            # prot.pdb_info = path
+                            # prot.save()                                 
 
             # Close the zip file
             if zf:
@@ -273,7 +288,7 @@ class UploadCSet(View):
 
             # if it's an upload, run the compound set task
             if str(choice) == '1':
-                # Start chained celery tasks. NB first function passes tuple
+                # Start chained celery tasks. NB first function passes list
                 # to second function - see tasks.py
                 task_upload = (validate.s(tmp_file, target=target, zfile=zfile) | process_compound_set.s()).apply_async()
 
