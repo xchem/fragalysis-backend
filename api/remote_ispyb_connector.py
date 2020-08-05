@@ -5,6 +5,7 @@ from ispyb.exception import (ISPyBConnectionException, ISPyBNoResultException,
                              ISPyBRetrieveFailed, ISPyBWriteFailed)
 import sshtunnel
 import time
+import pymysql
 
 
 class SSHConnector(Connector):
@@ -40,7 +41,7 @@ class SSHConnector(Connector):
         else:
             self.connect(user=user, pw=pw, host=host, db=db, port=port, conn_inactivity=conn_inactivity)
 
-    def remote_connect(self, ssh_host, ssh_user, ssh_pass, db_host, db_port, db_user, db_pass, db_name, ):
+    def remote_connect(self, ssh_host, ssh_user, ssh_pass, db_host, db_port, db_user, db_pass, db_name):
 
         sshtunnel.SSH_TIMEOUT = 5.0
         sshtunnel.TUNNEL_TIMEOUT = 5.0
@@ -52,9 +53,11 @@ class SSHConnector(Connector):
             remote_bind_address=(db_host, db_port)
         )
 
+        self.server.daemon_forward_servers = True
+
         self.server.start()
 
-        self.conn = mysql.connector.connect(
+        self.conn = pymysql.connect(
             user=db_user, password=db_pass,
             host='127.0.0.1', port=self.server.local_bind_port,
             database=db_name,
