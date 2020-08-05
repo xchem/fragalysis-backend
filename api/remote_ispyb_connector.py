@@ -53,7 +53,9 @@ class SSHConnector(Connector):
             remote_bind_address=(db_host, db_port)
         )
 
+        # stops hanging connections in transport
         self.server.daemon_forward_servers = True
+        self.server.daemon_transport = True
 
         self.server.start()
 
