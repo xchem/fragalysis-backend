@@ -8,9 +8,9 @@ class HotspotMap(models.Model):
     Django model for Hotspot Maps
     """
     # The site
-    prot_id = models.ForeignKey(Protein)
+    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
     # The pdb, map and mtz
-    target_id = models.ForeignKey(Target)
+    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     # The type of map
     APOLAR = "AP"
     ACCEPTOR = "AC"

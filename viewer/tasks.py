@@ -11,8 +11,8 @@ from viewer.models import Target, Compound, DesignSet
 import os.path
 
 from celery import shared_task
-from sdf_check import *
-from compound_set_upload import *
+from .sdf_check import *
+from .compound_set_upload import *
 
 # Bit to check if redis and celery services are working and available
 def check_services():
@@ -129,13 +129,13 @@ def validate(sdf_file, target=None, zfile=None):
                         warning_string='SDF entry number: %s can not be converted into an rdkit mol object' % (index,),
                         validate_dict=validate_dict)
         if mol:
-            all_props.extend([key for key in mol.GetPropsAsDict().keys()])
+            all_props.extend([key for key in list(mol.GetPropsAsDict().keys())])
         index += 1
     unique_props = list(set(all_props))
 
     for mol in suppl:
         if mol:
-            props = [key for key in mol.GetPropsAsDict().keys()]
+            props = [key for key in list(mol.GetPropsAsDict().keys())]
             diff_list = np.setdiff1d(props, unique_props)
             for diff in diff_list:
                 add_warning(molecule_name=mol.GetProp('_Name'),

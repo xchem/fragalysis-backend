@@ -2,8 +2,7 @@
 echo "Running migrations..."
 cd /code
 # initial migrations for existing stack
-python manage.py migrate viewer 0001_initial
-python manage.py migrate viewer 0002_auto_20200615_1422
+python manage.py migrate viewer 
 python manage.py migrate auth
 python manage.py migrate xchem_db
 python manage.py migrate scoring hypothesis hotspots

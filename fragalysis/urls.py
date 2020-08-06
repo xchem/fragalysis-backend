@@ -28,12 +28,8 @@ urlpatterns = [
     url(r"^scoring/", include("scoring.urls")),
     url(r"^xcdb/", include("xcdb.urls")),
     url(r"^graphql/", GraphQLView.as_view(graphiql=True)),
-    url(r"^accounts/login/", django_cas_ng.views.login, name="cas_ng_login"),
-    url(r"^accounts/logout/", django_cas_ng.views.logout, name="cas_ng_logout"),
-    url(
-        r"^accounts/callback$",
-        django_cas_ng.views.callback,
-        name="cas_ng_proxy_callback",
-    ),
+    url("accounts/login/", django_cas_ng.views.LoginView.as_view(), name="cas_ng_login"),
+    url("accounts/logout/", django_cas_ng.views.LogoutView.as_view(), name="cas_ng_logout"),
+    url("accounts/callback/", django_cas_ng.views.CallbackView.as_view(), name="cas_ng_proxy_callback"),
     url(r"^$", RedirectView.as_view(url="/viewer/react/landing")),
 ]

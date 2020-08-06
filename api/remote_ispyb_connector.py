@@ -5,6 +5,7 @@ from ispyb.exception import (ISPyBConnectionException, ISPyBNoResultException,
                              ISPyBRetrieveFailed, ISPyBWriteFailed)
 import sshtunnel
 import time
+import pymysql
 
 
 class SSHConnector(Connector):
@@ -40,7 +41,7 @@ class SSHConnector(Connector):
         else:
             self.connect(user=user, pw=pw, host=host, db=db, port=port, conn_inactivity=conn_inactivity)
 
-    def remote_connect(self, ssh_host, ssh_user, ssh_pass, db_host, db_port, db_user, db_pass, db_name, ):
+    def remote_connect(self, ssh_host, ssh_user, ssh_pass, db_host, db_port, db_user, db_pass, db_name):
 
         sshtunnel.SSH_TIMEOUT = 5.0
         sshtunnel.TUNNEL_TIMEOUT = 5.0
@@ -52,9 +53,13 @@ class SSHConnector(Connector):
             remote_bind_address=(db_host, db_port)
         )
 
+        # stops hanging connections in transport
+        self.server.daemon_forward_servers = True
+        self.server.daemon_transport = True
+
         self.server.start()
 
-        self.conn = mysql.connector.connect(
+        self.conn = pymysql.connect(
             user=db_user, password=db_pass,
             host='127.0.0.1', port=self.server.local_bind_port,
             database=db_name,
@@ -63,7 +68,36 @@ class SSHConnector(Connector):
         if self.conn is not None:
             self.conn.autocommit = True
         else:
+            self.server.stop()
             raise ISPyBConnectionException
         self.last_activity_ts = time.time()
+
+    def create_cursor(self):
+        if time.time() - self.last_activity_ts > self.conn_inactivity:
+            # re-connect:
+            self.connect(self.user, self.pw, self.host, self.db, self.port)
+        self.last_activity_ts = time.time()
+        if self.conn is None:
+            raise ISPyBConnectionException
+
+        cursor = self.conn.cursor(pymysql.cursors.DictCursor)
+        if cursor is None:
+            raise ISPyBConnectionException
+        return cursor
+
+    def call_sp_retrieve(self, procname, args):
+        with self.lock:
+            cursor = self.create_cursor()
+            try:
+                cursor.callproc(procname=procname, args=args)
+            except DataError as e:
+                raise ISPyBRetrieveFailed("DataError({0}): {1}".format(e.errno, traceback.format_exc()))
+
+            result = cursor.fetchall()
+
+            cursor.close()
+        if result == []:
+            raise ISPyBNoResultException
+        return result
 
 

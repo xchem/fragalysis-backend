@@ -11,7 +11,7 @@ class ViewScene(models.Model):
 
     """
     # The user who made the scene
-    user_id = models.ForeignKey(User, null=True)
+    user_id = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     # The uuid that will enable this to be shared
     uuid = models.UUIDField(unique=True)
     # The title - optional
@@ -24,18 +24,15 @@ class ViewScene(models.Model):
     modified = models.DateTimeField(auto_now=True)
 
     # for redirecting to project's snapshot
-    snapshot = models.ForeignKey(Snapshot, null=True)
-
-    permissions = (("view_scene", "View scene"),)
-    
+    snapshot = models.ForeignKey(Snapshot, null=True, on_delete=models.CASCADE)
 
 
 class ProtChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
-    user_id = models.ForeignKey(User)
-    prot_id = models.ForeignKey(Protein)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
     # Set the groups types
     DEFAULT = "DE"
     PROT_CHOICES = ((DEFAULT, "Default"),)
@@ -45,15 +42,14 @@ class ProtChoice(models.Model):
 
     class Meta:
         unique_together = ("user_id", "prot_id", "choice_type")
-        permissions = (("view_protchoice", "View protchoice"),)
 
 
 class MolChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
-    user_id = models.ForeignKey(User)
-    mol_id = models.ForeignKey(Molecule)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
     DEFAULT = "DE"
     PANDDA = "PA"
     GOOD_MOL = "GM"
@@ -68,14 +64,13 @@ class MolChoice(models.Model):
 
     class Meta:
         unique_together = ("user_id", "mol_id", "choice_type")
-        permissions = (("view_molchoice", "View molchoice"),)
 
 
 class MolAnnotation(models.Model):
     """
     A Django model to annotate a molecule with free text
     """
-    mol_id = models.ForeignKey(Molecule)
+    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
     annotation_type = models.CharField(max_length=50)
     annotation_text = models.CharField(max_length=100)
 
@@ -88,9 +83,9 @@ class ScoreChoice(models.Model):
     A Django model to store a selection from a user
     """
     # IN THIS CASE THIS WOULD INDICATE THE SOFTWARE USED - WE WILL GENERATE DIFFERENT USERS FOR EACH SOFTWARE
-    user_id = models.ForeignKey(User)
-    mol_id = models.ForeignKey(Molecule)
-    prot_id = models.ForeignKey(Protein)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
+    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
     is_done = models.BooleanField(default=False)
     DEFAULT = "DE"
     DOCKING = "AU"
@@ -108,15 +103,14 @@ class ScoreChoice(models.Model):
 
     class Meta:
         unique_together = ("user_id", "mol_id", "prot_id", "choice_type")
-        permissions = (("view_scorechoice", "View scorechoice"),)
 
 
 class CmpdChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
-    user_id = models.ForeignKey(User)
-    cmpd_id = models.ForeignKey(Compound)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    cmpd_id = models.ForeignKey(Compound, on_delete=models.CASCADE)
     DEFAULT = "DE"
     PRICE = "PR"
     TOXIC = "TO"
@@ -128,7 +122,6 @@ class CmpdChoice(models.Model):
 
     class Meta:
         unique_together = ("user_id", "cmpd_id", "choice_type")
-        permissions = (("view_cmpdchoice", "View cmpdhoice"),)
 
 
 class MolGroup(models.Model):
@@ -155,7 +148,7 @@ class MolGroup(models.Model):
         choices=MOL_GROUP_CHOICES, max_length=2, default=DEFAULT
     )
     # Set the target id
-    target_id = models.ForeignKey(Target)
+    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     # Set the description
     description = models.TextField(null=True)
     # Set the ManyToMany
@@ -165,5 +158,3 @@ class MolGroup(models.Model):
     y_com = models.FloatField(null=True)
     z_com = models.FloatField(null=True)
 
-    class Meta:
-        permissions = (("view_molgroup", "View molecule group"),)

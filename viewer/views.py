@@ -1,7 +1,7 @@
 import json
 import os
 import zipfile
-from cStringIO import StringIO
+from io import StringIO
 
 from django.db import connections
 from django.http import HttpResponse
@@ -40,9 +40,9 @@ from viewer.models import (
     File
 )
 from viewer import filters
-from forms import CSetForm, UploadKeyForm
+from .forms import CSetForm, UploadKeyForm
 
-from tasks import *
+from .tasks import *
 
 import pandas as pd
 
@@ -222,7 +222,7 @@ class UploadCSet(View):
             target = request.POST['target_name']
             choice = request.POST['submit_choice']
 
-            if 'pdb_zip' in request.FILES.keys():
+            if 'pdb_zip' in list(request.FILES.keys()):
                 pdb_file = request.FILES['pdb_zip']
             else:
                 pdb_file = None

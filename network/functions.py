@@ -35,7 +35,7 @@ def order_stuctures(results, decoration_list):
             annotation = "DEL_DEC"
         if position in decoration_list[2]:
             annotation = "LINK_DEC"
-        out_d[depth][this_type][position] = {"smiles": results[key],"annotation":annotation}
+        out_d[depth][this_type][position] = {"smiles": results[key], "annotation":annotation}
     depth = -1
     out_d = add_empty(out_d,tot_position,decoration_list[0],depth,"ADDITION","ADD_MISS")
     out_d = add_empty(out_d, tot_position, decoration_list[1], depth, "DELETION","DEL_MISS")

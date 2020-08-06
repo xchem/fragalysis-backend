@@ -19,9 +19,6 @@ class Project(models.Model):
     # The users it's related to
     user_id = models.ManyToManyField(User)
 
-    class Meta:
-        permissions = (("view_project", "View project"),)
-
 
 class Target(models.Model):
     """A Django model to define a given protein target"""
@@ -38,15 +35,12 @@ class Target(models.Model):
     # zip archive to download uploaded data from
     zip_archive = models.FileField(upload_to="archive/", null=True, max_length=255)
 
-    class Meta:
-        permissions = (("view_target", "View target"),)
-
 
 class Protein(models.Model):
     """A Django model to hold the information for a given protein, unique set of coords"""
     # code for this protein (e.g. NUDT5A-x0001_1)
     code = models.CharField(max_length=50, db_index=True)
-    target_id = models.ForeignKey(Target)
+    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     apo_holo = models.NullBooleanField()
     # Set the groups types
     prot_choices, default_prot = get_prot_choices()
@@ -59,12 +53,11 @@ class Protein(models.Model):
     mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=255)
     map_info = models.FileField(upload_to="maps/", null=True, max_length=255)
     aligned = models.NullBooleanField()
-    aligned_to = models.ForeignKey("self", null=True)
+    aligned_to = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
     has_eds = models.NullBooleanField()
 
     class Meta:
         unique_together = ("code", "prot_type")
-        permissions = (("view_protein", "View protein"),)
 
 
 class Compound(models.Model):
@@ -102,10 +95,6 @@ class Compound(models.Model):
     def get_all_identifiers(self):
         return json.loads(self.foo)
 
-    class Meta:
-        permissions = (("view_compound", "View compound"),)
-        # unique_together = (("inchi", "long_inchi"),)
-
 
 class Molecule(models.Model):
     """A Django model to hold the information for a molecule -> a 3D set of
@@ -128,14 +117,13 @@ class Molecule(models.Model):
     z_com = models.FloatField(null=True)
     rmsd = models.FloatField(null=True)
     # Foreign key relations
-    prot_id = models.ForeignKey(Protein)
-    cmpd_id = models.ForeignKey(Compound)
+    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
+    cmpd_id = models.ForeignKey(Compound, on_delete=models.CASCADE)
     history = HistoricalRecords()
 
     # Unique constraints
     class Meta:
         unique_together = ("prot_id", "cmpd_id", "mol_type")
-        permissions = (("view_molecule", "View molecule"),)
 
 
 class ActivityPoint(models.Model):
@@ -143,9 +131,9 @@ class ActivityPoint(models.Model):
     # This should encompass the activity type too
     source = models.CharField(max_length=50, null=True, db_index=True)
     # Foreign key to Target object
-    target_id = models.ForeignKey(Target)
+    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     # Foreign key to compound object
-    cmpd_id = models.ForeignKey(Compound)
+    cmpd_id = models.ForeignKey(Compound, on_delete=models.CASCADE)
     # Measured -log(10) activity
     activity = models.FloatField(db_index=True)
     # The units (uM or whatever). Should be more option
@@ -159,8 +147,6 @@ class ActivityPoint(models.Model):
 
     class Meta:
         unique_together = ("target_id", "activity", "cmpd_id", "units")
-        permissions = (("view_activitypoint", "View activitypoint"),)
-
 
 
 # Start of Session Project
@@ -168,12 +154,11 @@ class SessionProject(models.Model):
     title = models.CharField(max_length=200)
     init_date = models.DateTimeField(default=timezone.now)
     description = models.CharField(max_length=255, default='')
-    target = models.ForeignKey(Target)
-    author = models.ForeignKey(User, null=True)
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    author = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     tags = models.TextField(default='[]')
 
     class Meta:
-        permissions = (("view_project", "View project"),)
         db_table = 'viewer_sessionproject'
 
 class Snapshot(models.Model):
@@ -188,15 +173,14 @@ class Snapshot(models.Model):
     id = models.AutoField(primary_key=True)
     type = models.CharField(choices=SNAPSHOT_TYPE, default=INIT, max_length=8)
     title = models.CharField(max_length=255)
-    author = models.ForeignKey(User, null=True)
+    author = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     description = models.CharField(max_length=255, default='')
     created = models.DateTimeField(default=timezone.now)
     data = models.TextField()
-    session_project = models.ForeignKey(SessionProject, null=True)
+    session_project = models.ForeignKey(SessionProject, null=True, on_delete=models.CASCADE)
     parent = models.ForeignKey('self', models.DO_NOTHING, blank=True, null=True, related_name='children')
 
     class Meta:
-        permissions = (("view_project", "View project"),)
         managed = True
         db_table = 'viewer_snapshot'
 # End of Session Project
@@ -242,13 +226,13 @@ class ComputedSet(models.Model):
     # a (unique) name for this compound set
     name = models.CharField(max_length=50, unique=True, primary_key=True)
     # target that this compound set belongs to
-    target = models.ForeignKey(Target, null=True)
+    target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
     # link to the submitted sdf file
     submitted_sdf = models.FileField(upload_to="compound_sets/", null=False, max_length=255)
     # file format specification version
     spec_version = models.FloatField(null=False)
     method_url = models.TextField(max_length=1000, null=True)
-    submitter = models.ForeignKey(ComputedSetSubmitter, null=True)
+    submitter = models.ForeignKey(ComputedSetSubmitter, null=True, on_delete=models.CASCADE)
     unique_name = models.CharField(max_length=101, null=False)
     # Check if needed? Rachael still having a look.
     #design_set = models.ForeignKey(DesignSet, null=False, blank=False)
@@ -263,7 +247,7 @@ class ComputedSet(models.Model):
 
 
 class ComputedMolecule(models.Model):
-    compound = models.ForeignKey(Compound)
+    compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
     # the 3D coordinates of a computed molecule
     sdf_info = models.TextField(null=False)
     # a link to the compound set this molecule belongs to
@@ -282,7 +266,7 @@ class ComputedMolecule(models.Model):
 
 class ScoreDescription(models.Model):
     # which compound set this score belongs to
-    computed_set = models.ForeignKey(ComputedSet, null=True)
+    computed_set = models.ForeignKey(ComputedSet, null=True, on_delete=models.CASCADE)
     # a name for this score
     name = models.CharField(max_length=50)
     # a description for this score
@@ -291,20 +275,20 @@ class ScoreDescription(models.Model):
 
 class NumericalScoreValues(models.Model):
     # a link to the score name and description
-    score = models.ForeignKey(ScoreDescription)
+    score = models.ForeignKey(ScoreDescription, on_delete=models.CASCADE)
     # the specific value for this score
     value = models.FloatField(null=False)
     # the compound this score relates to
-    compound = models.ForeignKey(ComputedMolecule)
+    compound = models.ForeignKey(ComputedMolecule, on_delete=models.CASCADE)
 
 
 class TextScoreValues(models.Model):
     # a link to the score name and description
-    score = models.ForeignKey(ScoreDescription)
+    score = models.ForeignKey(ScoreDescription, on_delete=models.CASCADE)
     # the specific value for this score
     value = models.TextField(max_length=500, null=False)
     # the compound this score relates to
-    compound = models.ForeignKey(ComputedMolecule)
+    compound = models.ForeignKey(ComputedMolecule, on_delete=models.CASCADE)
 
 # End of compound sets
 class File(models.Model):

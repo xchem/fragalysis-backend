@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from ispyb.connector.mysqlsp.main import ISPyBNoResultException
 from rest_framework import viewsets
-from remote_ispyb_connector import SSHConnector
+from .remote_ispyb_connector import SSHConnector
 
 from viewer.models import Project
 
@@ -114,10 +114,12 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         core = conn.core
         try:
             rs = core.retrieve_sessions_for_person_login(user.username)
+            if conn.server:
+                conn.server.stop()
         except ISPyBNoResultException:
             rs = []
-        if conn.server:
-            conn.server.stop()
+            if conn.server:
+                conn.server.stop()
         return rs
 
     def get_proposals_for_user_from_ispyb(self, user):
