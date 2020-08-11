@@ -59,7 +59,7 @@ def process_compound_set(validate_output):
 
         # process every other mol
         for i in range(0, len(mols_to_process)):
-            process_mol(mols_to_process[i], compound_set, filename, zfile)
+            process_mol(mols_to_process[i], target, compound_set, filename, zfile)
 
         # check that molecules have been added to the compound set
         check = ComputedMolecule.objects.filter(computed_set=compound_set)
@@ -92,7 +92,6 @@ def validate(sdf_file, target=None, zfile=None):
     validate_dict = {'molecule_name': [],
                      'field': [],
                      'warning_string': []}
-
 
     suppl = Chem.SDMolSupplier(sdf_file)
     #print('%d mols detected (including blank mol)' % (len(suppl),))

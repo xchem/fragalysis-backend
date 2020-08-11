@@ -237,8 +237,24 @@ class UploadCSet(View):
                 for filename in zip_lst:
                     # only handle pdb files
                     if filename.split('.')[-1] == 'pdb':
-                        path = default_storage.save('pdbs/' + filename, ContentFile(zf.read(filename)))
-                        zfile[filename]=path
+                        # Test if Protein object already exists
+                        try:
+                            test_code = filename.split('/')[-1].replace('.pdb', '')
+                            test_prot = Protein.objects.get(code=test_code)
+                        except:
+                            test_prot = None
+
+                        # If there is already a Protein object then need to change pdb name
+                        if test_prot:
+                            html = "<br><p>Please rename your pdb file starting with a unique method name </p>"
+                            return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
+
+                        if not test_prot:
+                            # Save pdb file in /tmp folder
+                            code = filename.split('/')[-1].replace('.pdb', '')
+                            path = default_storage.save('tmp/' + filename.split('/')[-1],
+                                                        ContentFile(zf.read(filename)))
+                            zfile[code] = path
 
             # Close the zip file
             if zf:
