@@ -59,10 +59,10 @@ def process_pdb(pdb_code, target, zfile):
 
     # Move and save the protein pdb from tmp to pdbs folder
     # pdb may have already been moved and Protein object created
-    try:
-        # Get Protein object
-        prot_obj = Protein.objects.get(code=pdb_code)
-    except:
+
+    prot_objs = Protein.objects.filter(code=pdb_code)
+
+    if len(prot_objs) == 0:
         new_filename = settings.MEDIA_ROOT + 'pdbs/' + pdb_fn
         old_filename = settings.MEDIA_ROOT + pdb_fp
         os.rename(old_filename, new_filename)
@@ -77,6 +77,30 @@ def process_pdb(pdb_code, target, zfile):
 
         # Get Protein object
         prot_obj = Protein.objects.get(code=pdb_code)
+
+    elif len(prot_objs) == 1:
+        prot_obj = prot_objs[0]
+    else:
+        raise Exception('something went wrong - multiple matching proteins found')
+
+    # try:
+    #     # Get Protein object
+    #     prot_obj = Protein.objects.get(code=pdb_code)
+    # except:
+    #     new_filename = settings.MEDIA_ROOT + 'pdbs/' + pdb_fn
+    #     old_filename = settings.MEDIA_ROOT + pdb_fp
+    #     os.rename(old_filename, new_filename)
+    #
+    #     # Create Protein object
+    #     prot = Protein()
+    #     prot.code = pdb_code
+    #     target_obj = Target.objects.get(title=target)
+    #     prot.target_id = target_obj
+    #     prot.pdb_info = 'pdbs/' + pdb_fn
+    #     prot.save()
+    #
+    #     # Get Protein object
+    #     prot_obj = Protein.objects.get(code=pdb_code)
 
     return prot_obj
 
@@ -157,11 +181,6 @@ def set_mol(mol, target, compound_set, filename, zfile=None):
     orig = mol.GetProp('original SMILES')
 
     prot_field = get_prot(mol, target, compound_set, zfile)
-    # if 'tmp' in prot_field:
-    #     # Save the compound set
-    #     filename = settings.MEDIA_ROOT + prot_field
-    #     prot_field = filename
-    #     compound_set.save()
 
     #  need to add Compound before saving
     cpd = ComputedMolecule()
@@ -171,7 +190,6 @@ def set_mol(mol, target, compound_set, filename, zfile=None):
     cpd.name = name
     cpd.smiles = smiles
     cpd.pdb_info = prot_field
-    #cpd.original_smiles = orig
     cpd.save()
 
     [cpd.computed_inspirations.add(mol) for mol in insp_frags]

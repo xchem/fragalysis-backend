@@ -238,23 +238,21 @@ class UploadCSet(View):
                     # only handle pdb files
                     if filename.split('.')[-1] == 'pdb':
                         # Test if Protein object already exists
-                        try:
-                            test_code = filename.split('/')[-1].replace('.pdb', '')
-                            test_prot = Protein.objects.get(code=test_code)
-                        except:
-                            test_prot = None
+                        test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
+                        test_prot_objs = Protein.objects.filter(code=test_pdb_code)
 
-                        # If there is already a Protein object then need to change pdb name
-                        if test_prot:
-                            html = "<br><p>Please rename your pdb file starting with a unique method name </p>"
-                            return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
-
-                        if not test_prot:
+                        # If no prot obj found then save to tmp/ file and link pdb_code with
+                        # pdb_path in dict
+                        if len(test_prot_objs) == 0:
                             # Save pdb file in /tmp folder
-                            code = filename.split('/')[-1].replace('.pdb', '')
-                            path = default_storage.save('tmp/' + filename.split('/')[-1],
-                                                        ContentFile(zf.read(filename)))
-                            zfile[code] = path
+                            pdb_path = default_storage.save('tmp/' + filename.split('/')[-1],
+                                                            ContentFile(zf.read(filename)))
+                            zfile[test_pdb_code] = pdb_path
+
+                        # If prot object/s exist then yiled warning and stop validation/upload task
+                        if len(test_prot_objs) != 0:
+                            html = "<br><p>Protein found in DB. Please rename your pdb file starting with a unique method name </p>"
+                            return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
 
             # Close the zip file
             if zf:

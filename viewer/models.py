@@ -258,7 +258,6 @@ class ComputedMolecule(models.Model):
     smiles = models.CharField(max_length=255)
     # the protein link
     pdb_info = models.FileField(upload_to="pdbs/", null=False, max_length=255)
-    #design_set = models.ForeignKey(DesignSet) # needs to be linked to find inspiration fragments
     # if we use our own method of calculating them
     computed_inspirations = models.ManyToManyField(Molecule, null=True, blank=True)
 
