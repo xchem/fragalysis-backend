@@ -1,0 +1,712 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Viewer Models &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Welcome to Fragalysis-Backend’s documentation!" href="../index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-viewer.models">
+<span id="viewer-models"></span><h1>Viewer Models<a class="headerlink" href="#module-viewer.models" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="viewer.models.ActivityPoint">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ActivityPoint</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ActivityPoint" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about the activity of a compound - currently unused</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The source of the activity data</p></li>
+<li><p><strong>target_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the relevant target</p></li>
+<li><p><strong>cmpd_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – ForeignKey link to the relevant compound</p></li>
+<li><p><strong>activity</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Measured -log(10) activity</p></li>
+<li><p><strong>units</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – The units (e.g. uM or whatever) TODO: Convert to choices</p></li>
+<li><p><strong>confidence</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – The confidence level set for the activity measurement (optional)</p></li>
+<li><p><strong>internal_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The ID of the compound for internal use</p></li>
+<li><p><strong>operator</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – The operator &gt; &lt; or = (= is default)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.ActivityPoint.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.ActivityPoint.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.ActivityPoint.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.ActivityPoint.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.CSetKeys">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">CSetKeys</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.CSetKeys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for authentication when uploading computed sets - each user is given an upload key associated with
+their email address in the form of a uuid. This is entered on the computed set upload page to allow a user upload.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – User email address</p></li>
+<li><p><strong>uuid</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">UUIDField</span></code>) – Auto-generated unique uuid4 string for the user</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.CSetKeys.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.CSetKeys.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.CSetKeys.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.CSetKeys.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.Compound">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Compound</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Compound" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about a compound, which is a unique 2D molecule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inchi</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The inchi key of the compound</p></li>
+<li><p><strong>long_inchi</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – For historical reasons, the inchifield cannot be removed, but has a max limit of 255 characters. If the inchi
+key for a compound is longer than this, it is stored in the long_inchi field, and the inchi key is concatenated
+to the first 255 characters. (optional)
+TODO: Use a method to get the inchi key</p></li>
+<li><p><strong>smiles</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – The SMILES string representation of the compound</p></li>
+<li><p><strong>current_identifier</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – The identifier for this compound that is used in Fragalysis to represent it’s 3D molecule (optional)</p></li>
+<li><p><strong>all_identifiers</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A comma separated list of all identifiers that have been used in the past to represent this 2D compound</p></li>
+<li><p><strong>project_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Many to Many foreign key relationship to all projects that this compound is associated to (prevents duplication
+of compounds across multiple targets)</p></li>
+<li><p><strong>mol_log_p</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Computed LogP value (from rdkit)</p></li>
+<li><p><strong>mol_wt</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Computed molecular weight (Da) (from rdkit)</p></li>
+<li><p><strong>tpsa</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Computed Topological Polar Surface Area (from rdkit)</p></li>
+<li><p><strong>heavy_atom_count</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed heavy (non-hydrogen) atom count (from rdkit)</p></li>
+<li><p><strong>heavy_atom_mol_wt</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Computed molecular weight of all heavy (non-hydrogen) atoms (from rdkit)</p></li>
+<li><p><strong>nhoh_count</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of hydroxylamine groups (from rdkit)</p></li>
+<li><p><strong>no_count</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of nitroso groups (from rdkit)</p></li>
+<li><p><strong>num_h_acceptors</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of hydrogen-bond acceptor groups (from rdkit)</p></li>
+<li><p><strong>num_h_donors</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of hydrogen-bond donor groups (from rdkit)</p></li>
+<li><p><strong>num_het_atoms</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of heterogeneous atoms (from rdkit)</p></li>
+<li><p><strong>num_rot_bonds</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of rotatable bonds (from rdkit)</p></li>
+<li><p><strong>num_val_electrons</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of valence electrons (from rdkit)</p></li>
+<li><p><strong>ring_count</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of rings in the molecule (from rdkit)</p></li>
+<li><p><strong>inspirations</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Foreign key link to any number of 3D Molecules that inspired the design of this compound</p></li>
+<li><p><strong>description</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A description of the compound added by a user (optional)</p></li>
+<li><p><strong>comments</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A free-text comments field (optional)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.Compound.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.Compound.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.Compound.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.Compound.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.ComputedMolecule">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedMolecule</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedMolecule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model to hold the 3D information for a computed set molecule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>compound</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the molecule 2D information</p></li>
+<li><p><strong>sdf_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – The 3D coordinates for the molecule in MDL (mol file) format. Taken directly from the uploaded file</p></li>
+<li><p><strong>computed_set</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the computed set that this molecule is a part of</p></li>
+<li><p><strong>name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – A name for the molecule</p></li>
+<li><p><strong>smiles</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – SMILES string for the molecule</p></li>
+<li><p><strong>pdb_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – A file link to a user-uploaded apo structure for this molecule, if an existing fragalysis protein was not used
+(optional)</p></li>
+<li><p><strong>computed_inspirations</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Foreign key links to existing fragalysis molecules that were inspirations in the design/calculation of the
+molecule</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.ComputedMolecule.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.ComputedMolecule.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.ComputedMolecule.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.ComputedMolecule.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.ComputedSet">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedSet</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model holding information about computed sets - sets of 3D poses of molecules calculated computationally
+and uploaded by a user</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – A unique name for the computed set</p></li>
+<li><p><strong>target</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the relevant target</p></li>
+<li><p><strong>submitted_sdf</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to a stored version of the sdf file that the user uploaded</p></li>
+<li><p><strong>spec_version</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Version number of the sdf file format specification for upload of computed sets</p></li>
+<li><p><strong>method_url</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A url linking to a write-up of the methodology used to create a computed set</p></li>
+<li><p><strong>submitter</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the submitter information</p></li>
+<li><p><strong>unique_name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – Auto-generated unique name for a computed set</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.ComputedSet.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.ComputedSet.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.ComputedSet.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.ComputedSet.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="viewer.models.ComputedSet.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedSet.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Custom save method for the ComputedSet model, including the method to auto-generate the unique name:
+unique_name = “”.join(self.submitter.name.split()) + ‘-‘ + “”.join(self.submitter.method.split())</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.ComputedSetSubmitter">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedSetSubmitter</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedSetSubmitter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about the submitter of a computed set</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The name of the computed set submitter</p></li>
+<li><p><strong>email</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The email address of the computed set submitter</p></li>
+<li><p><strong>institution</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – The institution or organizational affiliation of the compound set submitter</p></li>
+<li><p><strong>generation_date</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DateField</span></code>) – The date that the uploaded data was generated on</p></li>
+<li><p><strong>method</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – A name for the method that was used to produce the uploaded data</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.ComputedSetSubmitter.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.ComputedSetSubmitter.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.ComputedSetSubmitter.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.ComputedSetSubmitter.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.DesignSet">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">DesignSet</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.DesignSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about a design sets - sets of 2D compounds that have been designed but do
+not yet have a 3D structure - unused</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>compounds</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Foreign key links to all 2D compounds that are in the design set</p></li>
+<li><p><strong>set_name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – A user-defined name for the design set</p></li>
+<li><p><strong>set_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – <dl>
+<dt>The type of design set, from a pre-defined set of choices:</dt><dd><dl>
+<dt>SET_TYPE = (</dt><dd><blockquote>
+<div><p>(LIB, “library”),  # library - e.g. DSiPoised
+(FUP, ‘follow-up’),  # follow-up - e.g. purchased compounds
+(USR, ‘user-submitted’),  # user submitted - can be submitted by anyone
+(ENM, ‘enumerated’),  # enumerated - e.g. similarity search or something</p>
+</div></blockquote>
+<p>)</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>set_description</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A user-input description of the design set (optional)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.DesignSet.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.DesignSet.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.DesignSet.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.DesignSet.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.File">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">File</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">id</span></em>, <em class="sig-param"><span class="n">file</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.File" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="py exception">
+<dt id="viewer.models.File.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.File.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.File.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.File.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.HistoricalMolecule">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">HistoricalMolecule</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">id</span></em>, <em class="sig-param"><span class="n">smiles</span></em>, <em class="sig-param"><span class="n">lig_id</span></em>, <em class="sig-param"><span class="n">chain_id</span></em>, <em class="sig-param"><span class="n">mol_type</span></em>, <em class="sig-param"><span class="n">sdf_info</span></em>, <em class="sig-param"><span class="n">rscc</span></em>, <em class="sig-param"><span class="n">occupancy</span></em>, <em class="sig-param"><span class="n">x_com</span></em>, <em class="sig-param"><span class="n">y_com</span></em>, <em class="sig-param"><span class="n">z_com</span></em>, <em class="sig-param"><span class="n">rmsd</span></em>, <em class="sig-param"><span class="n">prot_id</span></em>, <em class="sig-param"><span class="n">cmpd_id</span></em>, <em class="sig-param"><span class="n">history_id</span></em>, <em class="sig-param"><span class="n">history_date</span></em>, <em class="sig-param"><span class="n">history_change_reason</span></em>, <em class="sig-param"><span class="n">history_type</span></em>, <em class="sig-param"><span class="n">history_user</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.HistoricalMolecule" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="py exception">
+<dt id="viewer.models.HistoricalMolecule.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.HistoricalMolecule.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.HistoricalMolecule.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.HistoricalMolecule.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="viewer.models.HistoricalMolecule.get_default_history_user">
+<em class="property">static </em><code class="sig-name descname">get_default_history_user</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">instance</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.HistoricalMolecule.get_default_history_user" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the user specified by <cite>get_user</cite> method for manually creating
+historical objects</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.models.HistoricalMolecule.instance_type">
+<code class="sig-name descname">instance_type</code><a class="headerlink" href="#viewer.models.HistoricalMolecule.instance_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#viewer.models.Molecule" title="viewer.models.Molecule"><code class="xref py py-class docutils literal notranslate"><span class="pre">Molecule</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="viewer.models.HistoricalMolecule.next_record">
+<em class="property">property </em><code class="sig-name descname">next_record</code><a class="headerlink" href="#viewer.models.HistoricalMolecule.next_record" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the next history record for the instance. <cite>None</cite> if last.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="viewer.models.HistoricalMolecule.prev_record">
+<em class="property">property </em><code class="sig-name descname">prev_record</code><a class="headerlink" href="#viewer.models.HistoricalMolecule.prev_record" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the previous history record for the instance. <cite>None</cite> if first.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="viewer.models.HistoricalMolecule.revert_url">
+<code class="sig-name descname">revert_url</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.HistoricalMolecule.revert_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>URL for this change in the default admin site.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.Molecule">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Molecule</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Molecule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about a Molecule. A molecule is linked to a compound, and represents the
+unique 3D coordinates for that molecule. Note a compound can be linked to multiple molecules, each with a different
+3D structure, but the same 2D structure</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>smiles</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The smiles string of the molecule. (optional) TODO: Check if this is needed…</p></li>
+<li><p><strong>lig_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The ligand ID from the pdb file it originated from (e.g. LIG 1 A) (optional)</p></li>
+<li><p><strong>chain_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The chain from the protein structure pdb file that this ligand is from (e.g. A) (optional)</p></li>
+<li><p><strong>mol_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – <p>molecule type - from a pre-defined list and determined by file extension on upload (defined in
+loader.config.get_mol_choices):
+mol_choices = (
+(PROASIS, “Proasis molecule”, “.mol”, “MOL”),
+(SDF, “Sdf molecule”, “.sdf”, “SDF”),
+(HYDROGEN, “Hydrogens added “, “_h.mol”, “H_MOL”),
+(</p>
+<blockquote>
+<div><p>HYDROGEN_AM1_CHARGES,
+“Mol2 format with Hydrogens and AM1 BCC”,
+“.mol2”,
+“MOL2”,</p>
+</div></blockquote>
+<p>),
+)</p>
+</p></li>
+<li><p><strong>sdf_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – The 3D coordinates for the molecule in MDL (mol file) format. Taken directly from the uploaded file</p></li>
+<li><p><strong>rscc</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – The RSCC score of the molecule 3D coordinates vs. PANDDA event map (optional)</p></li>
+<li><p><strong>occupancy</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – The occupancy (electron density) of the molecule (optional)</p></li>
+<li><p><strong>x_com</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – x-coordinate for centre of mass (optional)</p></li>
+<li><p><strong>y_com</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – y-coordinate for centre of mass (optional)</p></li>
+<li><p><strong>z_com</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – z-coordinate for centre of mass (optional)</p></li>
+<li><p><strong>rmsd</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – RMSD of this molecule compared to ? (optional - unused)</p></li>
+<li><p><strong>prot_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the associated protein (apo) that this ligand was pulled from</p></li>
+<li><p><strong>cmpd_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the associated 2D compound</p></li>
+<li><p><strong>history</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">HistoricalRecords</span></code>) – Tracks the changes made to an instance of this model over time</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.Molecule.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.Molecule.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.Molecule.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.Molecule.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="viewer.models.Molecule.save_without_historical_record">
+<code class="sig-name descname">save_without_historical_record</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Molecule.save_without_historical_record" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save model without saving a historical record</p>
+<p>Make sure you know what you’re doing before you use this method.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.NumericalScoreValues">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">NumericalScoreValues</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.NumericalScoreValues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model to store the values of numerical scores that the user uploads with each computed set molecule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>score</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the relevant score name and description</p></li>
+<li><p><strong>value</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – The numerical value for the score</p></li>
+<li><p><strong>compound</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the computed molecule that the score corresponds to</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.NumericalScoreValues.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.NumericalScoreValues.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.NumericalScoreValues.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.NumericalScoreValues.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.Project">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Project</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Project" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about a project. This is used on the Targets level, adding a new project for
+each target, and saving a list of users that can access a target during the authentication step</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>title</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The title of the project</p></li>
+<li><p><strong>init_date</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DateTimeField</span></code>) – The date the project was initiated (autofield)</p></li>
+<li><p><strong>user_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Links to the User model</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.Project.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.Project.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.Project.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.Project.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.Protein">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Protein</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Protein" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about a protein. A protein is a protein structure which has a unique set of
+3D coordinates, rather than a target, which is a set of protein objects of the same protein. A Molecule object is
+also linked to a protein, so that a complete structure is comprised of the molecule and protein in separate parts in
+fragalysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>code</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – A unique name for the protein (e.g. NUDT5A-x0001_1)</p></li>
+<li><p><strong>target_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key linking the protein to it’s target</p></li>
+<li><p><strong>apo_holo</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">NullBooleanField</span></code>) – 0 for apo (ligand removed), 1 for holo (ligand in tact)</p></li>
+<li><p><strong>prot_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – <p>protein type - from a pre-defined list and determined by file extension on upload (defined in
+loader.config.get_prot_choices):</p>
+<blockquote>
+<div><p>prot_choices = (
+(APO, “Apo”, “_apo.pdb”, “APO”),
+(STRIPPED, “Stripped”, “_no_buffer_altlocs.pdb”, “STRIPPED”),
+(TLEAPED, “Tleaped”, “_tleap.pdb”, “TLEAP”),
+(CHUNKED, “Chunked”, “_chunk.pdb”, “CHUNK”),
+(BOUND, “Bound”, ‘_bound.pdb’, “BOUND”)
+)</p>
+</div></blockquote>
+</p></li>
+<li><p><strong>pdb_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to apo pdb structure - pdb file with ligand removed</p></li>
+<li><p><strong>bound_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to bound state structure - same as apo pdb but with ligand in-tact</p></li>
+<li><p><strong>cif_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to cif file for ligand restraints (optional)</p></li>
+<li><p><strong>mtz_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to uploaded mtz file (optional)</p></li>
+<li><p><strong>map_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to uploaded map file (optional)</p></li>
+<li><p><strong>aligned</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">NullBooleanField</span></code>) – Bool - 1 if aligned, 0 if not</p></li>
+<li><p><strong>aligned_to</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span> <span class="pre">(self)</span></code>) – Foreign key to another instance of a protein to which this protein is aligned (optional)</p></li>
+<li><p><strong>has_eds</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">NullBooleanField</span></code>) – Bool - 1 if has ED, 0 it not (optional)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.Protein.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.Protein.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.Protein.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.Protein.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.ScoreDescription">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ScoreDescription</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ScoreDescription" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model to store the names and descriptions of scores that the user uploads with each computed set molecule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>computed_set</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the relevant computed set</p></li>
+<li><p><strong>name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – A name for the score</p></li>
+<li><p><strong>description</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A description of the score, which should describe how to interpret it</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.ScoreDescription.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.ScoreDescription.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.ScoreDescription.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.ScoreDescription.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.SessionProject">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">SessionProject</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.SessionProject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about a fragalysis user project - a set of sessions saved by a user</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>title</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The title of the project</p></li>
+<li><p><strong>init_date</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DateTimeField</span></code>) – The date the project was initiated (autofield)</p></li>
+<li><p><strong>description</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – A short user-defined description for the project</p></li>
+<li><p><strong>target</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign Key link to the relevent project target</p></li>
+<li><p><strong>author</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – A link to the user that created the project</p></li>
+<li><p><strong>tags</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A comma separated list of user-defined tags - for searching and tagging projects</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.SessionProject.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.SessionProject.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.SessionProject.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.SessionProject.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.Snapshot">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Snapshot</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Snapshot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for storing information describing a static snapshot of a fragalysis page - multiple snapshots make
+up a project</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Autofied</span></code>) – Auto-created id for the session, used in url accession</p></li>
+<li><p><strong>type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – <dl class="simple">
+<dt>Describes the session type:</dt><dd><p>SNAPSHOT_TYPE = (
+(INIT, “INIT”),  # Initial snapshot generated by system
+(AUTO, ‘AUTO’),  # Automatic generated by system
+(MANUAL, ‘MANUAL’)  # Manual generated by user action</p>
+</dd>
+</dl>
+<p>)</p>
+</p></li>
+<li><p><strong>title</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – The title of the snapshot</p></li>
+<li><p><strong>author</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the user that created the snapshot</p></li>
+<li><p><strong>description</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – Short user-provided description for the snapshot</p></li>
+<li><p><strong>created</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DateTimeField</span></code>) – Auto-created timestamp for when the snapshot was created</p></li>
+<li><p><strong>data</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – Field to hold the json data that is passed from the front-end describing what to load into the react components
+to reproduce the session state</p></li>
+<li><p><strong>session_project</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – If the snapshot is part of a project, a foreign key link to the relevant project (optional)</p></li>
+<li><p><strong>parent</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey(self)</span></code>) – Foreign key link to another Snapshot instance describing the current Snapshot parent (optional)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.Snapshot.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.Snapshot.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.Snapshot.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.Snapshot.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.Target">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Target</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Target" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model to define a Target - a protein.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>title</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The name of the target</p></li>
+<li><p><strong>init_date</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DateTimeField</span></code>) – The date the target was initiated (autofield)</p></li>
+<li><p><strong>project_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Links targets to projects for authentication</p></li>
+<li><p><strong>uniprot_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – Optional field where a uniprot id can be stored</p></li>
+<li><p><strong>metadata</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – Optional file upload defining metadata about the target - can be used to add custom site labels</p></li>
+<li><p><strong>zip_archive</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – Link to zip file created from targets uploaded with the loader</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.Target.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.Target.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.Target.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.Target.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.TextScoreValues">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">TextScoreValues</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.TextScoreValues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model to store the values of text scores that the user uploads with each computed set molecule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>score</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the relevant score name and description</p></li>
+<li><p><strong>value</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – The text value for the score</p></li>
+<li><p><strong>compound</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the computed molecule that the score corresponds to</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py exception">
+<dt id="viewer.models.TextScoreValues.DoesNotExist">
+<em class="property">exception </em><code class="sig-name descname">DoesNotExist</code><a class="headerlink" href="#viewer.models.TextScoreValues.DoesNotExist" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt id="viewer.models.TextScoreValues.MultipleObjectsReturned">
+<em class="property">exception </em><code class="sig-name descname">MultipleObjectsReturned</code><a class="headerlink" href="#viewer.models.TextScoreValues.MultipleObjectsReturned" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Viewer Models</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../index.html" title="previous chapter">Welcome to Fragalysis-Backend’s documentation!</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/viewer/viewer.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
