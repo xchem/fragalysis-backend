@@ -80,27 +80,9 @@ def process_pdb(pdb_code, target, zfile):
 
     elif len(prot_objs) == 1:
         prot_obj = prot_objs[0]
+
     else:
         raise Exception('something went wrong - multiple matching proteins found')
-
-    # try:
-    #     # Get Protein object
-    #     prot_obj = Protein.objects.get(code=pdb_code)
-    # except:
-    #     new_filename = settings.MEDIA_ROOT + 'pdbs/' + pdb_fn
-    #     old_filename = settings.MEDIA_ROOT + pdb_fp
-    #     os.rename(old_filename, new_filename)
-    #
-    #     # Create Protein object
-    #     prot = Protein()
-    #     prot.code = pdb_code
-    #     target_obj = Target.objects.get(title=target)
-    #     prot.target_id = target_obj
-    #     prot.pdb_info = 'pdbs/' + pdb_fn
-    #     prot.save()
-    #
-    #     # Get Protein object
-    #     prot_obj = Protein.objects.get(code=pdb_code)
 
     return prot_obj
 
