@@ -102,7 +102,7 @@ class Protein(models.Model):
         Foreign key to another instance of a protein to which this protein is aligned (optional)
     has_eds: NullBooleanField
         Bool - 1 if has ED, 0 it not (optional)
-        """
+    """
     # code for this protein (e.g. NUDT5A-x0001_1)
     code = models.CharField(max_length=50, db_index=True)
     target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
