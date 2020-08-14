@@ -995,6 +995,24 @@ def similarity_search(request):
 
 
 def get_open_targets(request):
+    """ View to return a list of all open targets
+
+    Methods
+    -------
+    allowed requests:
+        - GET: return a list of all open targets
+    url:
+        viewer/open_targets
+    request params:
+        None
+
+    Returns
+    -------
+    HTTPResponse (JSON/dict):
+        - target_names (list): list of open targets
+        - target_ids (list): list of ids for open targets in same order as target_names
+
+    """
     targets = Target.objects.all()
     target_names = []
     target_ids = []
@@ -1009,6 +1027,23 @@ def get_open_targets(request):
 
 
 def cset_download(request, name):
+    """ View to download an SDF file of a computed set by name
+
+    Methods
+    -------
+    allowed requests:
+        - GET: return the SDF file as a download
+    url:
+        viewer/compound_set/(<name>)
+    request params:
+        - name (str): the name of the computed set to download
+
+    Returns
+    -------
+    Response (attachment; text/plain):
+        - <name>.sdf: sdf file for the computed set
+
+    """
     compound_set = ComputedSet.objects.get(unique_name=name)
     filepath = compound_set.submitted_sdf
     with open(filepath.path, 'r') as fp:
@@ -1021,6 +1056,23 @@ def cset_download(request, name):
 
 
 def pset_download(request, name):
+    """ View to download a zip file of all protein structures (apo) for a computed set
+
+     Methods
+     -------
+     allowed requests:
+         - GET: return the zip file as a download
+     url:
+         viewer/compound_set/(<name>)
+     request params:
+         - name (str): the name of the computed set to download
+
+     Returns
+     -------
+     Response (attachment; application/zip):
+         - <name>.zip: zip file for the computed set
+
+     """
     response = HttpResponse(content_type='application/zip')
     filename = 'protein-set_' + name + '.zip'
     response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
@@ -1047,9 +1099,82 @@ def pset_download(request, name):
 
 ## Start of Session Project
 class SessionProjectsView(viewsets.ModelViewSet):
+    """ Djagno view to retrieve information about user projects (collection of sessions) (GET). Also used for saving
+    project information (PUT, POST, PATCH)
+
+    Methods
+    -------
+    url:
+        api/session-projects
+    queryset:
+        `viewer.models.SessionProject.objects.filter()`
+    filter fields:
+        - `viewer.models.SessionProject.title` - ?title=<str>
+        - `viewer.models.SessionProject.init_date` - ?date=<str>
+        - `viewer.models.SessionProject.description` - ?description=<str>
+        - `viewer.models.SessionProject.target` - ?target=<int>
+        - `viewer.models.SessionProject.author` - ?author=<str>
+        - `viewer.models.SessionProject.tags` - ?tags=<list>
+    returns: JSON
+        - id: id of the project
+        - target: dict of target info:
+            - id: target id
+            - title: name of the target protein
+            - project_id: id of the project
+            - protein_set: list of protein objects associated with the target
+            - template_protein: link to the file used as the reference in fragalysis frontend
+            - metadata: link to the target metadata file
+            - zip_archive: link to the zip archive of uploaded files
+        - author: name of the author that created the session
+        - title: title for the project
+        - init_date: timestamp for when the project was created
+        - description: author defined description of the project
+        - tags: list of tags given to the project by the author
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+            {
+                "id": 122,
+                "target": {
+                    "id": 62,
+                    "title": "Mpro",
+                    "project_id": [
+                        2
+                    ],
+                    "protein_set": [
+                        29281,
+                        29274,
+                        29259,
+                        29305,
+                        29250,
+                        ...,
+                    ],
+                    "template_protein": "/media/pdbs/Mpro-x10417_0_apo.pdb",
+                    "metadata": "http://fragalysis.diamond.ac.uk/media/metadata/metadata_2FdP5OJ.csv",
+                    "zip_archive": "http://fragalysis.diamond.ac.uk/media/targets/Mpro.zip"
+                },
+                "author": null,
+                "title": "READ_ONLY",
+                "init_date": "2020-07-09T19:52:10.506119Z",
+                "description": "READ_ONLY",
+                "tags": "[]"
+            },]
+
+   """
     queryset = SessionProject.objects.filter()
 
     def get_serializer_class(self):
+        """Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request
+
+        Returns
+        -------
+        Serializer (rest_framework.serializers.ModelSerializer):
+            - if GET: `viewer.serializers.SessionProjectReadSerializer`
+            - if other: `viewer.serializers.SessionProjectWriteSerializer`
+        """
         if self.request.method in ['GET']:
             # GET
             return SessionProjectReadSerializer
@@ -1061,9 +1186,84 @@ class SessionProjectsView(viewsets.ModelViewSet):
 
 
 class SnapshotsView(viewsets.ModelViewSet):
+    """ Djagno view to retrieve information about user sessions (snapshots) (GET). Also used for saving
+    session information (PUT, POST, PATCH)
+
+    Methods
+    -------
+    url:
+        api/snapshots
+    queryset:
+        `viewer.models.Snapshot.objects.filter()`
+    filter class:
+        `viewer.filters.SnapshotFilter`
+    filter fields:
+        - `viewer.models.Snapshot.id` - ?id=<int>
+        - `viewer.models.Snapshot.type` - ?type=<str>
+        - `viewer.models.Snapshot.author` - ?author=<str>
+        - `viewer.models.Snapshot.description` ?description=<str>
+        - `viewer.models.Snapshot.created` - ?created=<str>
+        - `viewer.models.Snapshot.data` - ?data=<JSON str>
+        - `viewer.models.Snapshot.session_project_id` - ?session_project_id=<int>
+        - `viewer.models.Snapshot.parent` - ?parent=<int>
+        - `viewer.models.Snapshot.children` - ?children=<list>
+        - `viewer.models.Snapshot.session_project` - ?session_project=<int>
+    returns: JSON
+        - id: id of the snapshot
+        - type: type of snapshot
+        - title: title of snapshot given by author
+        - description: description of the snapshot given by author
+        - created: timestamp for when the snapshot was created
+        - data: json string describing data needed to reproduce state of the snapshot by the front-end
+        - session_project: dict describing the project that the snapshot belongs to:
+            - id: project id
+            - title: project title
+            - init_data: timestamp for when the project was initiated
+            - description: description of the project given by the author
+            - tags: tags given to the project by the author
+            - target: id of the target that the project is associated with
+            - author: name of the author who created the project
+        - parent: parent snapshot id of the current snapshot
+        - children: list of children ids of the current snapshot
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                {
+                    "id": 132,
+                    "type": "INIT",
+                    "title": "-- 2020-07-09 -- 16:01:35",
+                    "author": null,
+                    "description": "Snapshot generated by anonymous user",
+                    "created": "2020-07-09T20:01:36.901552Z",
+                    "data": '"{\"apiReducers\":{\"target_id_list\":[{\"id\":2,\"title\":\"NUDT7A\",\'
+                    "session_project": {
+                        "id": 124,
+                        "title": "READ_ONLY",
+                        "init_date": "2020-07-09T20:01:35.715324Z",
+                        "description": "READ_ONLY",
+                        "tags": "[]",
+                        "target": 62,
+                        "author": null
+                    },
+                    "parent": null,
+                    "children": []
+                },]
+
+   """
     queryset = Snapshot.objects.filter()
 
     def get_serializer_class(self):
+        """Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request
+
+        Returns
+        -------
+        Serializer (rest_framework.serializers.ModelSerializer):
+            - if GET: `viewer.serializers.SnapshotReadSerializer`
+            - if other: `viewer.serializers.SnapshotWriteSerializer`
+        """
         if self.request.method in ['GET']:
             return SnapshotReadSerializer
         return SnapshotWriteSerializer
@@ -1078,15 +1278,41 @@ class SnapshotsView(viewsets.ModelViewSet):
 # Custom parser class for a csv file
 class DSetCSVParser(BaseParser):
     """
-    CSV parser class specific to design set csv spec
+    CSV parser class specific to design set csv spec - sets media_type for DSetUploadView to text/csv
     """
     media_type = 'text/csv'
 
 
 class DSetUploadView(APIView):
+    """DjangoRF view to upload a design set (PUT) from a csv file
+
+    Methods
+    -------
+    allowed requests:
+        - PUT: takes a csv file and uploads it as a design set (of 2D compounds)
+    url:
+       viewer/upload_designs
+    request params:
+        - file (csv file): csv file containing design set information
+        - type (str): design set type (options in `viewer.models.DesignSet.set_type`)
+        - description (str): short description of the design set - e.g. method of creation
+    csv file columns (mandatory):
+        - set_name - the name of the design set to upload the molecule to
+        - smiles - smiles string for the 2D molecule
+        - identifier - an identifier for the molecule
+        - inspirations - inspiration molecules from fragalysis used in the design of the 2D molecule
+
+    Returns
+    -------
+    HTTPResponse (JSON (string))
+        A message telling the user whether the upload was successful or not
+
+    """
     parser_class = (DSetCSVParser,)
 
     def put(self, request, format=None):
+        """Method to handle PUT request and upload a design set
+        """
 
         f = request.FILES['file']
         set_type = request.PUT['type']
@@ -1117,6 +1343,41 @@ class DSetUploadView(APIView):
 
 
 class ComputedSetView(viewsets.ReadOnlyModelViewSet):
+    """ DjagnoRF view to retrieve information about computed sets
+
+    Methods
+    -------
+    url:
+        api/compound-sets
+    queryset:
+        `viewer.models.ComputedSet.objects.filter()`
+    filter fields:
+        - `viewer.models.ComputedSet.target` - ?target=<int>
+    returns: JSON
+        - name: name of the computed set
+        - submitted_sdf: link to the uploaded sdf file
+        - spec_version: version of the upload specification used to generate the computed set sdf
+        - method_url: link to url describing the methodology used to create the computed set
+        - unique_name: auto-generated human-readable name for the computed set
+        - target: id for the associated target
+        - submitter: id for the associated submitter
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                {
+                    "name": "100threehop2020-07-27S8vv3vx",
+                    "submitted_sdf": "http://fragalysis.diamond.ac.uk/media/code/media/compound_sets/Top_100_three_hop_2020-07-27_S8vv3vx.sdf",
+                    "spec_version": 1.2,
+                    "method_url": "https://github.com/Waztom/xchem-xCOS",
+                    "unique_name": "WT-xCOS2-ThreeHop",
+                    "target": 62,
+                    "submitter": 13
+                },]
+
+    """
     queryset = ComputedSet.objects.filter()
     serializer_class = ComputedSetSerializer
     filter_permissions = "project_id"
@@ -1124,6 +1385,44 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
 
 
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
+    """ DjagnoRF view to retrieve information about computed molecules - 3D info
+
+    Methods
+    -------
+    url:
+        api/compound-molecules
+    queryset:
+        `viewer.models.ComputedMolecule.objects.filter()`
+    filter fields:
+        - `viewer.models.ComputedMolecule.computed_set` - ?computed_set=<int>
+    returns: JSON
+        - id: id of the molecule
+        - sdf_info: 3D coordinates of the molecule in MDL format
+        - name: a name for the molecule
+        - smiles: SMILES string
+        - pdb_info: link to the associated pdb file (apo)
+        - compound: id for the associated 2D compound
+        - computed_set: name for the associated computed set
+        - computed_inspirations: list of ids for the inspirations used in the design/computation of the molecule
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                {
+                    "id": 1997,
+                    "sdf_info": "FRA-DIA-8640f307-1    RDKit          3D 38 42  0  0  0  0  0  0  0  0999 V2000..."
+                    "name": "FRA-DIA-8640f307-1",
+                    "smiles": "CC(=O)NCCc1c[nH]c2c([C@H](CN(Cc3cc(C)on3)C(=O)NC3CC3)c3nnc(C)s3)cc(F)cc12",
+                    "pdb_info": "http://fragalysis.diamond.ac.uk/media/pdbs/Fragmenstein_J6Sfvrs.pdb",
+                    "compound": 4030,
+                    "computed_set": "100XCOS2Teo2020-07-23yuZJZFY",
+                    "computed_inspirations": []
+                },]
+
+
+    """
     queryset = ComputedMolecule.objects.filter()
     serializer_class = ComputedMoleculeSerializer
     filter_permissions = "project_id"
@@ -1131,6 +1430,48 @@ class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
 
 
 class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
+    """ DjagnoRF view to retrieve information about numerical computed molecule scores
+
+    Methods
+    -------
+    url:
+        api/numerical-scores
+    queryset:
+        `viewer.models.NumericalScoreValues.objects.filter()`
+    filter fields:
+        - `viewer.models.NumericalScoreValues.compound` - ?compound=<int>
+        - `viewer.models.NumericalScoreValues.score` - ?score=<int>
+    returns: JSON
+        - id: id of the score
+        - score: dict of the score info:
+            - id: id of the score description
+            - name: name of the score
+            - description: description of the score
+            - computed_set: name of the computed set that the score is associated to
+        - value: numerical value of the score
+        - compound: id of the associated compound object
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                "results": [
+                    {
+                        "id": 8145,
+                        "score": {
+                            "id": 48,
+                            "name": "Score_1",
+                            "description": "The score is scaled by the number of bit atoms",
+                            "computed_set": "100XCOS2Teo2020-07-23yuZJZFY"
+                        },
+                        "value": 19.8653,
+                        "compound": 1997
+                    },
+
+
+    """
+
     queryset = NumericalScoreValues.objects.filter()
     serializer_class = NumericalScoreSerializer
     filter_permissions = "project_id"
@@ -1138,6 +1479,47 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
 
 
 class TextScoresView(viewsets.ReadOnlyModelViewSet):
+    """ DjagnoRF view to retrieve information about text computed molecule scores
+
+    Methods
+    -------
+    url:
+        api/text-scores
+    queryset:
+        `viewer.models.TextScoreValues.objects.filter()`
+    filter fields:
+        - `viewer.models.TextScoreValues.compound` - ?compound=<int>
+        - `viewer.models.TextScoreValues.score` - ?score=<int>
+    returns: JSON
+        - id: id of the score
+        - score: dict of the score info:
+            - id: id of the score description
+            - name: name of the score
+            - description: description of the score
+            - computed_set: name of the computed set that the score is associated to
+        - value: text value of the score
+        - compound: id of the associated compound object
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                "results": [
+                    {
+                        "id": 8145,
+                        "score": {
+                            "id": 48,
+                            "name": "Score_1",
+                            "description": "Desctription",
+                            "computed_set": "100XCOS2Teo2020-07-23yuZJZFY"
+                        },
+                        "value": "Yes",
+                        "compound": 1997
+                    },
+
+
+    """
     queryset = TextScoreValues.objects.filter()
     serializer_class = TextScoreSerializer
     filter_permissions = "project_id"
@@ -1145,6 +1527,39 @@ class TextScoresView(viewsets.ReadOnlyModelViewSet):
 
 
 class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
+    """ DjagnoRF view to retrieve descriptions of scores for a given name or computed set
+
+    Methods
+    -------
+    url:
+        api/compound-scores
+    queryset:
+        `viewer.models.ScoreDescription.objects.filter()`
+    filter fields:
+        - `viewer.models.ScoreDescription.computed_set` - ?computed_set=<int>
+        - `viewer.models..ScoreDescription.name` - ?name=<str>
+    returns: JSON
+        - id: id of the score
+        - score: dict of the score info:
+            - id: id of the score description
+            - name: name of the score
+            - description: description of the score
+            - computed_set: name of the computed set that the score is associated to
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                {
+                    "id": 22,
+                    "name": "FeatureSteinScore",
+                    "description": "FeatureStein Score",
+                    "computed_set": "top26062020axX6Vqt"
+                },]
+
+
+    """
     queryset = ScoreDescription.objects.filter()
     serializer_class = ScoreDescriptionSerializer
     filter_permissions = "project_id"
@@ -1152,6 +1567,51 @@ class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
 
 
 class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
+    """ DjagnoRF view to retrieve all information about molecules from a computed set, along with all of their scores
+
+    Methods
+    -------
+    url:
+        api/compound-mols-scores
+    queryset:
+        `viewer.models.ComputedMolecule.objects.filter()`
+    filter fields:
+        - `viewer.models.ComputedMolecule.computed_set` - ?computed_set=<int>
+    returns: JSON
+        - id: id of the molecule
+        - sdf_info: 3D coordinates of the molecule in MDL format
+        - name: a name for the molecule
+        - smiles: SMILES string
+        - pdb_info: link to the associated pdb file (apo)
+        - compound: id for the associated 2D compound
+        - computed_set: name for the associated computed set
+        - computed_inspirations: list of ids for the inspirations used in the design/computation of the molecule
+        - numerical_scores: dict of numerical scores, where each key is a score name, and each value is the associated score
+        - text_scores: dict of text scores, where each key is a score name, and each value is the associated score
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                {
+                    "id": 1997,
+                    "sdf_info": "FRA-DIA-8640f307-1     RDKit          3D 38 42  0  0  0  0  0  0  0"
+                    "name": "FRA-DIA-8640f307-1",
+                    "smiles": "CC(=O)NCCc1c[nH]c2c([C@H](CN(Cc3cc(C)on3)C(=O)NC3CC3)c3nnc(C)s3)cc(F)cc12",
+                    "pdb_info": "http://fragalysis.diamond.ac.uk/media/pdbs/Fragmenstein_J6Sfvrs.pdb",
+                    "compound": 4030,
+                    "computed_set": "100XCOS2Teo2020-07-23yuZJZFY",
+                    "computed_inspirations": [],
+                    "numerical_scores": {
+                        "Score_1": 19.8653,
+                        "N_hits": 4.0
+                    },
+                    "text_scores": {}
+                },]
+
+
+    """
     queryset = ComputedMolecule.objects.filter()
     serializer_class = ComputedMolAndScoreSerializer
     filter_permissions = "project_id"
