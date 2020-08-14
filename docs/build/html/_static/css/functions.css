@@ -9,3 +9,9 @@
     padding-bottom: 10px;
     padding-top: 20px;
 }
+
+.section {
+    border-bottom: 1px solid #dadeff;
+    padding-bottom: 5px;
+    padding-top: 10px;
+}

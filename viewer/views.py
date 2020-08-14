@@ -14,12 +14,10 @@ from django.http import JsonResponse
 
 from rest_framework.parsers import JSONParser, BaseParser
 from rest_framework.exceptions import ParseError
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from django.views import View
 
-from celery import current_app, chain
 from celery.result import AsyncResult
 
 from api.security import ISpyBSafeQuerySet
@@ -71,31 +69,6 @@ from viewer.serializers import (
     ComputedMolAndScoreSerializer,
 )
 
-
-# # Register the basic data
-# router.register(r"molecules", viewer_views.MoleculeView)
-# router.register(r"compounds", viewer_views.CompoundView)
-# router.register(r"targets", viewer_views.TargetView, "targets")
-# router.register(r"proteins", viewer_views.ProteinView)
-# router.register(r"session-projects", viewer_views.SessionProjectsView)
-# router.register(r"snapshots", viewer_views.SnapshotsView)
-#
-# # Compounds sets
-# router.register(r"compound-sets", viewer_views.ComputedSetView)
-# router.register(r"compound-molecules", viewer_views.ComputedMoleculesView)
-# router.register(r"numerical-scores", viewer_views.NumericalScoresView)
-# router.register(r"text-scores", viewer_views.TextScoresView)
-# router.register(r"compound-scores", viewer_views.CompoundScoresView)
-# router.register(r"compound-mols-scores", viewer_views.ComputedMolAndScoreView)
-#
-# # Get the derived data
-# router.register(r"molimg", viewer_views.MolImageView)
-# router.register(r"vector", viewer_views.VectorsView)
-# router.register(r"graph", viewer_views.GraphView)
-# router.register(r"cmpdimg", viewer_views.CompoundImageView)
-# router.register(r"protmap", viewer_views.ProteinMapInfoView)
-# router.register(r"protpdb", viewer_views.ProteinPDBInfoView)
-# router.register(r"protpdbbound", viewer_views.ProteinPDBBoundInfoView)
 
 class VectorsView(ISpyBSafeQuerySet):
     """ DjagnoRF view for vectors
