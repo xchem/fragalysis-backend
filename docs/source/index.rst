@@ -14,6 +14,7 @@ Contents
    intro
    dev_setup/stack_setup
    dev_setup/production
+   crystallographic_data/schema
 
 
 Indices and tables
