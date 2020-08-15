@@ -1,0 +1,273 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Local developer environment setup &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Running in Production (+CI/CD)" href="production.html" />
+    <link rel="prev" title="Introduction" href="../intro.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="local-developer-environment-setup">
+<span id="stack-setup"></span><h1>Local developer environment setup<a class="headerlink" href="#local-developer-environment-setup" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="background">
+<h2>Background<a class="headerlink" href="#background" title="Permalink to this headline">¶</a></h2>
+<p>The stack consists of three services, running as containers: -</p>
+<ul class="simple">
+<li><p>a MySQL database</p></li>
+<li><p>a neo4j graph database</p></li>
+<li><p>the fraglaysis stack</p></li>
+<li><p>a transient data loader container</p></li>
+</ul>
+<p>The stack is formed from code resident in a number of repositories.
+Begin by forking repositories you anticipate editing (although you really want
+to consider forking all the repositories as this is a relatively low-cost
+operation).</p>
+<p>The repositories are:</p>
+<ul class="simple">
+<li><p>[xchem/fragalysis](<a class="reference external" href="https://github.com/xchem/fragalysis">https://github.com/xchem/fragalysis</a>)</p></li>
+<li><p>[xchem/fragalysis-frontend](<a class="reference external" href="https://github.com/xchem/fragalysis-frontend">https://github.com/xchem/fragalysis-frontend</a>)</p></li>
+<li><p>[xchem/fragalysis-backend](<a class="reference external" href="https://github.com/xchem/fragalysis-backend">https://github.com/xchem/fragalysis-backend</a>)</p></li>
+<li><p>[xchem/fragalysis-stack](<a class="reference external" href="https://github.com/xchem/fragalysis-stack">https://github.com/xchem/fragalysis-stack</a>)</p></li>
+<li><p>[xchem/fragalysis-loader](<a class="reference external" href="https://github.com/xchem/fragalysis-loader">https://github.com/xchem/fragalysis-loader</a>)</p></li>
+</ul>
+</div>
+<div class="section" id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Docker</p></li>
+<li><p>Docker-compose</p></li>
+<li><p>Git</p></li>
+<li><p>NodeJS (v12)</p></li>
+<li><p>Yarn</p></li>
+<li><p>Some target data</p></li>
+</ul>
+</div>
+<div class="section" id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h2>
+<p><strong>1. Create project directory, e.g.</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir fragalysis
+</pre></div>
+</div>
+<p><strong>2. Clone repositories inside your project’s directory</strong></p>
+<p>You can clone original <code class="code docutils literal notranslate"><span class="pre">xchem</span></code> repositories or your forked e.g. <code class="code docutils literal notranslate"><span class="pre">m2ms</span></code> and checkout any branch if necessary</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/xchem/fragalysis-backend.git
+git clone https://github.com/xchem/fragalysis-frontend.git
+git clone https://github.com/xchem/fragalysis-loader.git
+git clone https://github.com/InformaticsMatters/dls-fragalysis-stack-openshift.git
+</pre></div>
+</div>
+<p><strong>3. Create some key data directories</strong></p>
+<p>In the <code class="code docutils literal notranslate"><span class="pre">fragalysis/</span></code> directory run script to create data directory structure</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir -p data/input/django_data/EXAMPLE
+mkdir -p data/neo4j/data
+mkdir -p data/neo4j/logs
+mkdir -p data/stack/media
+mkdir -p data/stack/logs
+mkdir -p data/media/compound_sets
+mkdir -p data/postgre/data
+</pre></div>
+</div>
+<p><strong>4. Build images locally</strong></p>
+<p><em>Optional</em></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">pushd</span> fragalysis-backend <span class="o">||</span> <span class="nb">exit</span>
+docker build . -t xchem/fragalysis-backend:latest
+<span class="nb">popd</span> <span class="o">||</span> <span class="nb">exit</span>
+
+<span class="nb">pushd</span> fragalysis-loader <span class="o">||</span> <span class="nb">exit</span>
+docker build . -t xchem/fragalysis-loader:latest
+<span class="nb">popd</span> <span class="o">||</span> <span class="nb">exit</span>
+
+<span class="nb">pushd</span> fragalysis-stack <span class="o">||</span> <span class="nb">exit</span>
+docker build . -t xchem/fragalysis-stack:latest
+<span class="nb">popd</span> <span class="o">||</span> <span class="nb">exit</span>
+</pre></div>
+</div>
+<p><em>Mandatory</em></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">pushd</span> dls-fragalysis-stack-openshift/images/loader <span class="o">||</span> <span class="nb">exit</span>
+docker build . -f Dockerfile-local -t loader:latest
+<span class="nb">popd</span> <span class="o">||</span> <span class="nb">exit</span>
+</pre></div>
+</div>
+<p><em>Optional</em></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">pushd</span> dls-fragalysis-stack-openshift/images/graph <span class="o">||</span> <span class="nb">exit</span>
+docker build . -t xchem/graph:latest
+<span class="nb">popd</span> <span class="o">||</span> <span class="nb">exit</span>
+</pre></div>
+</div>
+<p><strong>4. Populating the database</strong></p>
+<p>Copy your example data to <code class="code docutils literal notranslate"><span class="pre">fragalysis/data/input/django_data/EXAMPLE</span></code>, before you can launch the application.</p>
+</div>
+<div class="section" id="launch-the-stack">
+<h2>Launch the stack<a class="headerlink" href="#launch-the-stack" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><p>To build the <code class="code docutils literal notranslate"><span class="pre">Fragalysis</span> <span class="pre">stack</span></code> (All infrastructure - databases + populating data):</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> fragalysis-backend
+docker-compose -f docker-compose.dev.yml up -d
+</pre></div>
+</div>
+<p><em>Note</em>: sometimes the database does not finish building before the data loader starts. If this happens, allow the build
+to finish, kill it, and then run the build again</p>
+<ol class="arabic simple" start="2">
+<li><p>Navigate to <code class="code docutils literal notranslate"><span class="pre">localhost:8080</span></code> to check that the front-end is running, and that the data has successfully loaded
+into the back-end</p></li>
+<li><p>If needed, stop containers</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose -f docker-compose.dev.yml down
+</pre></div>
+</div>
+<p><strong>Note:</strong> If you want to connect to get into the stack container (<code class="code docutils literal notranslate"><span class="pre">web_dock</span></code>) run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker <span class="nb">exec</span> -it web_dock /bin/bash
+</pre></div>
+</div>
+</div>
+<div class="section" id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this headline">¶</a></h2>
+<p><strong>Problem:</strong> The database keeps throwing errors when I try to build the stack</p>
+<p><strong>Problem:</strong> The data in my local stack has disappeared.</p>
+<p><strong>Solution:</strong> Sometimes the postgres database becomes corrupted, or there are problems with migrations. To fix:</p>
+<ul class="simple">
+<li><p>Delete the ‘mysql_data’ folder located in the data folder (Step 3)</p></li>
+<li><p>Delete the migrations by running the commands below in the project directory (Step 1)</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>find . -path <span class="s2">&quot;*/migrations/*.py&quot;</span> -not -name <span class="s2">&quot;__init__.py&quot;</span> -delete
+find . -path <span class="s2">&quot;*/migrations/*.pyc&quot;</span>  -delete
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>In the ‘fragalysis-frontend’ folder rerun the docker compose command another two times</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker-compose -f docker-compose.dev.yml up
+</pre></div>
+</div>
+<hr class="docutils" />
+<p><strong>Problem:</strong> I keep getting 500 codes when I make changes to the backend code, but I don’t know why</p>
+<p><strong>Solution:</strong> Turn on Django’s debug mode</p>
+<ul class="simple">
+<li><p>change the value of <code class="code docutils literal notranslate"><span class="pre">DEBUG</span></code> to <code class="code docutils literal notranslate"><span class="pre">True</span></code> in <code class="code docutils literal notranslate"><span class="pre">fragalysis-backend/fragalysis/settings.py</span></code></p></li>
+</ul>
+<p>Note: <strong>please don’t push this change into git</strong></p>
+<hr class="docutils" />
+<p><strong>Problem:</strong> No matter what I try, the stack won’t build anymore (it did before)</p>
+<p><strong>Solution:</strong> Clean up and rebuild:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># remove all old images</span>
+docker system prune -a
+
+<span class="c1"># rebuild the loader image (and any other images needed)</span>
+<span class="nb">pushd</span> dls-fragalysis-stack-openshift/images/loader <span class="o">||</span> <span class="nb">exit</span>
+docker build . -f Dockerfile-local -t loader:latest
+<span class="nb">popd</span> <span class="o">||</span> <span class="nb">exit</span> <span class="c1">#etc</span>
+
+<span class="c1"># re-run docker compose</span>
+docker-compose -f docker-compose.dev.yml up
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Local developer environment setup</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#background">Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup">Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#launch-the-stack">Launch the stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../intro.html" title="previous chapter">Introduction</a></li>
+      <li>Next: <a href="production.html" title="next chapter">Running in Production (+CI/CD)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/dev_setup/stack_setup.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
