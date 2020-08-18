@@ -35,7 +35,7 @@ djangorestframework==3.11.0
 docopt==0.6.2
 enum-compat==0.0.3
 enum34==1.1.10
-fragalysis==0.5.2
+fragalysis==0.5.5
 future==0.18.2
 graphene==2.1.8
 graphene-django==2.12.1
