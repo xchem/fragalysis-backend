@@ -1,0 +1,249 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Computational data (Models) &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Projects data (Models)" href="../projects/schema.html" />
+    <link rel="prev" title="Crystallographic data (Models)" href="../crystallographic_data/schema.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="computational-data-models">
+<span id="comp-models"></span><h1>Computational data (Models)<a class="headerlink" href="#computational-data-models" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="schema-overview">
+<h2>Schema overview<a class="headerlink" href="#schema-overview" title="Permalink to this headline">¶</a></h2>
+<img alt="../_images/schema.png" src="../_images/schema.png" />
+<p>[Explain schema]</p>
+</div>
+<div class="section" id="model-details">
+<h2>Model details<a class="headerlink" href="#model-details" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="viewer.models.ComputedSetSubmitter">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedSetSubmitter</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedSetSubmitter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about the submitter of a computed set</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>CharField</em>) – The name of the computed set submitter</p></li>
+<li><p><strong>email</strong> (<em>CharField</em>) – The email address of the computed set submitter</p></li>
+<li><p><strong>institution</strong> (<em>Charfield</em>) – The institution or organizational affiliation of the compound set submitter</p></li>
+<li><p><strong>generation_date</strong> (<em>DateField</em>) – The date that the uploaded data was generated on</p></li>
+<li><p><strong>method</strong> (<em>Charfield</em>) – A name for the method that was used to produce the uploaded data</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.ComputedSet">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedSet</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model holding information about computed sets - sets of 3D poses of molecules calculated computationally
+and uploaded by a user</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>CharField</em>) – A unique name for the computed set</p></li>
+<li><p><strong>target</strong> (<em>ForeignKey</em>) – Foreign key link to the relevant target</p></li>
+<li><p><strong>submitted_sdf</strong> (<em>FileField</em>) – File link to a stored version of the sdf file that the user uploaded</p></li>
+<li><p><strong>spec_version</strong> (<em>FloatField</em>) – Version number of the sdf file format specification for upload of computed sets</p></li>
+<li><p><strong>method_url</strong> (<em>TextField</em>) – A url linking to a write-up of the methodology used to create a computed set</p></li>
+<li><p><strong>submitter</strong> (<em>ForeignKey</em>) – Foreign key link to the submitter information</p></li>
+<li><p><strong>unique_name</strong> (<em>CharField</em>) – Auto-generated unique name for a computed set</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.ComputedMolecule">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedMolecule</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedMolecule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model to hold the 3D information for a computed set molecule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>compound</strong> (<em>ForeignKey</em>) – Foreign key link to the molecule 2D information</p></li>
+<li><p><strong>sdf_info</strong> (<em>TextField</em>) – The 3D coordinates for the molecule in MDL (mol file) format. Taken directly from the uploaded file</p></li>
+<li><p><strong>computed_set</strong> (<em>ForeignKey</em>) – Foreign key link to the computed set that this molecule is a part of</p></li>
+<li><p><strong>name</strong> (<em>CharField</em>) – A name for the molecule</p></li>
+<li><p><strong>smiles</strong> (<em>Charfield</em>) – SMILES string for the molecule</p></li>
+<li><p><strong>pdb_info</strong> (<em>FileField</em>) – A file link to a user-uploaded apo structure for this molecule, if an existing fragalysis protein was not used
+(optional)</p></li>
+<li><p><strong>computed_inspirations</strong> (<em>ManyToManyField</em>) – Foreign key links to existing fragalysis molecules that were inspirations in the design/calculation of the
+molecule</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.ScoreDescription">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ScoreDescription</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ScoreDescription" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model to store the names and descriptions of scores that the user uploads with each computed set molecule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>computed_set</strong> (<em>ForeignKey</em>) – Foreign key link to the relevant computed set</p></li>
+<li><p><strong>name</strong> (<em>Charfield</em>) – A name for the score</p></li>
+<li><p><strong>description</strong> (<em>TextField</em>) – A description of the score, which should describe how to interpret it</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.TextScoreValues">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">TextScoreValues</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.TextScoreValues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model to store the values of text scores that the user uploads with each computed set molecule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>score</strong> (<em>ForeignKey</em>) – Foreign key link to the relevant score name and description</p></li>
+<li><p><strong>value</strong> (<em>TextField</em>) – The text value for the score</p></li>
+<li><p><strong>compound</strong> (<em>ForeignKey</em>) – Foreign key link to the computed molecule that the score corresponds to</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.NumericalScoreValues">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">NumericalScoreValues</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.NumericalScoreValues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model to store the values of numerical scores that the user uploads with each computed set molecule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>score</strong> (<em>ForeignKey</em>) – Foreign key link to the relevant score name and description</p></li>
+<li><p><strong>value</strong> (<em>FloatField</em>) – The numerical value for the score</p></li>
+<li><p><strong>compound</strong> (<em>ForeignKey</em>) – Foreign key link to the computed molecule that the score corresponds to</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.CSetKeys">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">CSetKeys</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.CSetKeys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for authentication when uploading computed sets - each user is given an upload key associated with
+their email address in the form of a uuid. This is entered on the computed set upload page to allow a user upload.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user</strong> (<em>CharField</em>) – User email address</p></li>
+<li><p><strong>uuid</strong> (<em>UUIDField</em>) – Auto-generated unique uuid4 string for the user</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Computational data (Models)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#schema-overview">Schema overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model-details">Model details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/api_intro.html">RESTful API (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data (Views)</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../crystallographic_data/schema.html" title="previous chapter">Crystallographic data (Models)</a></li>
+      <li>Next: <a href="../projects/schema.html" title="next chapter">Projects data (Models)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/computational_data/schema.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

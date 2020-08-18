@@ -1,0 +1,258 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Miscellaneous data (Views) &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Project data (Views)" href="../projects/views.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="miscellaneous-data-views">
+<h1>Miscellaneous data (Views)<a class="headerlink" href="#miscellaneous-data-views" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="view-details">
+<h2>View details<a class="headerlink" href="#view-details" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="viewer.views.img_from_smiles">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">img_from_smiles</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.img_from_smiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to generate a 2D molecule image for a given smiles string</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: generate a 2D molecule image for a given smiles string</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>viewer/img_from_smiles</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">request params:</code></dt>
+<dd><ul class="simple">
+<li><p>smiles (str): smiles string to generate image for</p></li>
+</ul>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><dl class="simple">
+<dt>if smiles provided:</dt><dd><p>string for SVG image of molecule</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>if smiles not provided:</dt><dd><p>”Please insert SMILES”</p>
+</dd>
+</dl>
+</li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>HTTPResponse (str)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.highlight_mol_diff">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">highlight_mol_diff</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.highlight_mol_diff" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to generate a 2D molecule image highlighting the difference between a reference and new molecule</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: generate a 2D molecule image highlighting the difference between a reference and new molecule</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>viewer/highlight_mol_diff</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">request params:</code></dt>
+<dd><ul class="simple">
+<li><p>prb_smiles (str): smiles string to generate image for</p></li>
+<li><p>ref_smiles (str): reference smiles for highlighting by MCS</p></li>
+</ul>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><dl class="simple">
+<dt>if smiles provided:</dt><dd><p>string for SVG image of molecule</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>if smiles not provided:</dt><dd><p>”Please insert smiles for reference and probe”</p>
+</dd>
+</dl>
+</li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>HTTPResponse (str)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.get_open_targets">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">get_open_targets</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.get_open_targets" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to return a list of all open targets</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: return a list of all open targets</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>viewer/open_targets</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">request params:</code></dt>
+<dd><p>None</p>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p>target_names (list): list of open targets</p></li>
+<li><p>target_ids (list): list of ids for open targets in same order as target_names</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>HTTPResponse (JSON/dict)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_intro.html">RESTful API (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Miscellaneous data (Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#view-details">View details</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../projects/views.html" title="previous chapter">Project data (Views)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/API/misc_views.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

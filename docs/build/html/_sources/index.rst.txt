@@ -15,6 +15,13 @@ Contents
    dev_setup/stack_setup
    dev_setup/production
    crystallographic_data/schema
+   computational_data/schema
+   projects/schema
+   API/api_intro
+   crystallographic_data/views
+   computational_data/views
+   projects/views
+   API/misc_views
 
 
 Indices and tables

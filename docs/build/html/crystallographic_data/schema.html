@@ -16,6 +16,7 @@
     <script src="../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Computational data (Models)" href="../computational_data/schema.html" />
     <link rel="prev" title="Running in Production (+CI/CD)" href="../dev_setup/production.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -34,7 +35,7 @@
           <div class="body" role="main">
             
   <div class="section" id="crystallographic-data-models">
-<h1>Crystallographic data (Models)<a class="headerlink" href="#crystallographic-data-models" title="Permalink to this headline">¶</a></h1>
+<span id="crys-models"></span><h1>Crystallographic data (Models)<a class="headerlink" href="#crystallographic-data-models" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="schema-overview">
 <h2>Schema overview<a class="headerlink" href="#schema-overview" title="Permalink to this headline">¶</a></h2>
 <img alt="../_images/crys_schema.jpg" src="../_images/crys_schema.jpg" />
@@ -50,9 +51,9 @@ each target, and saving a list of users that can access a target during the auth
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>title</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The title of the project</p></li>
-<li><p><strong>init_date</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DateTimeField</span></code>) – The date the project was initiated (autofield)</p></li>
-<li><p><strong>user_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Links to the User model</p></li>
+<li><p><strong>title</strong> (<em>CharField</em>) – The title of the project</p></li>
+<li><p><strong>init_date</strong> (<em>DateTimeField</em>) – The date the project was initiated (autofield)</p></li>
+<li><p><strong>user_id</strong> (<em>ManyToManyField</em>) – Links to the User model</p></li>
 </ul>
 </dd>
 </dl>
@@ -65,12 +66,12 @@ each target, and saving a list of users that can access a target during the auth
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>title</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The name of the target</p></li>
-<li><p><strong>init_date</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DateTimeField</span></code>) – The date the target was initiated (autofield)</p></li>
-<li><p><strong>project_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Links targets to projects for authentication</p></li>
-<li><p><strong>uniprot_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – Optional field where a uniprot id can be stored</p></li>
-<li><p><strong>metadata</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – Optional file upload defining metadata about the target - can be used to add custom site labels</p></li>
-<li><p><strong>zip_archive</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – Link to zip file created from targets uploaded with the loader</p></li>
+<li><p><strong>title</strong> (<em>CharField</em>) – The name of the target</p></li>
+<li><p><strong>init_date</strong> (<em>DateTimeField</em>) – The date the target was initiated (autofield)</p></li>
+<li><p><strong>project_id</strong> (<em>ManyToManyField</em>) – Links targets to projects for authentication</p></li>
+<li><p><strong>uniprot_id</strong> (<em>Charfield</em>) – Optional field where a uniprot id can be stored</p></li>
+<li><p><strong>metadata</strong> (<em>FileField</em>) – Optional file upload defining metadata about the target - can be used to add custom site labels</p></li>
+<li><p><strong>zip_archive</strong> (<em>FileField</em>) – Link to zip file created from targets uploaded with the loader</p></li>
 </ul>
 </dd>
 </dl>
@@ -86,10 +87,10 @@ fragalysis.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>code</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – A unique name for the protein (e.g. NUDT5A-x0001_1)</p></li>
-<li><p><strong>target_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key linking the protein to it’s target</p></li>
-<li><p><strong>apo_holo</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">NullBooleanField</span></code>) – 0 for apo (ligand removed), 1 for holo (ligand in tact)</p></li>
-<li><p><strong>prot_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – <p>protein type - from a pre-defined list and determined by file extension on upload (defined in
+<li><p><strong>code</strong> (<em>CharField</em>) – A unique name for the protein (e.g. NUDT5A-x0001_1)</p></li>
+<li><p><strong>target_id</strong> (<em>ForeignKey</em>) – Foreign key linking the protein to it’s target</p></li>
+<li><p><strong>apo_holo</strong> (<em>NullBooleanField</em>) – 0 for apo (ligand removed), 1 for holo (ligand in tact)</p></li>
+<li><p><strong>prot_type</strong> (<em>CharField</em>) – <p>protein type - from a pre-defined list and determined by file extension on upload (defined in
 loader.config.get_prot_choices):</p>
 <blockquote>
 <div><p>prot_choices = (
@@ -101,14 +102,14 @@ loader.config.get_prot_choices):</p>
 )</p>
 </div></blockquote>
 </p></li>
-<li><p><strong>pdb_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to apo pdb structure - pdb file with ligand removed</p></li>
-<li><p><strong>bound_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to bound state structure - same as apo pdb but with ligand in-tact</p></li>
-<li><p><strong>cif_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to cif file for ligand restraints (optional)</p></li>
-<li><p><strong>mtz_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to uploaded mtz file (optional)</p></li>
-<li><p><strong>map_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FileField</span></code>) – File link to uploaded map file (optional)</p></li>
-<li><p><strong>aligned</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">NullBooleanField</span></code>) – Bool - 1 if aligned, 0 if not</p></li>
-<li><p><strong>aligned_to</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span> <span class="pre">(self)</span></code>) – Foreign key to another instance of a protein to which this protein is aligned (optional)</p></li>
-<li><p><strong>has_eds</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">NullBooleanField</span></code>) – Bool - 1 if has ED, 0 it not (optional)</p></li>
+<li><p><strong>pdb_info</strong> (<em>FileField</em>) – File link to apo pdb structure - pdb file with ligand removed</p></li>
+<li><p><strong>bound_info</strong> (<em>FileField</em>) – File link to bound state structure - same as apo pdb but with ligand in-tact</p></li>
+<li><p><strong>cif_info</strong> (<em>FileField</em>) – File link to cif file for ligand restraints (optional)</p></li>
+<li><p><strong>mtz_info</strong> (<em>FileField</em>) – File link to uploaded mtz file (optional)</p></li>
+<li><p><strong>map_info</strong> (<em>FileField</em>) – File link to uploaded map file (optional)</p></li>
+<li><p><strong>aligned</strong> (<em>NullBooleanField</em>) – Bool - 1 if aligned, 0 if not</p></li>
+<li><p><strong>aligned_to</strong> (<em>ForeignKey</em><em> (</em><em>self</em><em>)</em>) – Foreign key to another instance of a protein to which this protein is aligned (optional)</p></li>
+<li><p><strong>has_eds</strong> (<em>NullBooleanField</em>) – Bool - 1 if has ED, 0 it not (optional)</p></li>
 </ul>
 </dd>
 </dl>
@@ -121,32 +122,32 @@ loader.config.get_prot_choices):</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>inchi</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The inchi key of the compound</p></li>
-<li><p><strong>long_inchi</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – For historical reasons, the inchifield cannot be removed, but has a max limit of 255 characters. If the inchi
+<li><p><strong>inchi</strong> (<em>CharField</em>) – The inchi key of the compound</p></li>
+<li><p><strong>long_inchi</strong> (<em>TextField</em>) – For historical reasons, the inchifield cannot be removed, but has a max limit of 255 characters. If the inchi
 key for a compound is longer than this, it is stored in the long_inchi field, and the inchi key is concatenated
 to the first 255 characters. (optional)
 TODO: Use a method to get the inchi key</p></li>
-<li><p><strong>smiles</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – The SMILES string representation of the compound</p></li>
-<li><p><strong>current_identifier</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Charfield</span></code>) – The identifier for this compound that is used in Fragalysis to represent it’s 3D molecule (optional)</p></li>
-<li><p><strong>all_identifiers</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A comma separated list of all identifiers that have been used in the past to represent this 2D compound</p></li>
-<li><p><strong>project_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Many to Many foreign key relationship to all projects that this compound is associated to (prevents duplication
+<li><p><strong>smiles</strong> (<em>Charfield</em>) – The SMILES string representation of the compound</p></li>
+<li><p><strong>current_identifier</strong> (<em>Charfield</em>) – The identifier for this compound that is used in Fragalysis to represent it’s 3D molecule (optional)</p></li>
+<li><p><strong>all_identifiers</strong> (<em>TextField</em>) – A comma separated list of all identifiers that have been used in the past to represent this 2D compound</p></li>
+<li><p><strong>project_id</strong> (<em>ManyToManyField</em>) – Many to Many foreign key relationship to all projects that this compound is associated to (prevents duplication
 of compounds across multiple targets)</p></li>
-<li><p><strong>mol_log_p</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Computed LogP value (from rdkit)</p></li>
-<li><p><strong>mol_wt</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Computed molecular weight (Da) (from rdkit)</p></li>
-<li><p><strong>tpsa</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Computed Topological Polar Surface Area (from rdkit)</p></li>
-<li><p><strong>heavy_atom_count</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed heavy (non-hydrogen) atom count (from rdkit)</p></li>
-<li><p><strong>heavy_atom_mol_wt</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – Computed molecular weight of all heavy (non-hydrogen) atoms (from rdkit)</p></li>
-<li><p><strong>nhoh_count</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of hydroxylamine groups (from rdkit)</p></li>
-<li><p><strong>no_count</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of nitroso groups (from rdkit)</p></li>
-<li><p><strong>num_h_acceptors</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of hydrogen-bond acceptor groups (from rdkit)</p></li>
-<li><p><strong>num_h_donors</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of hydrogen-bond donor groups (from rdkit)</p></li>
-<li><p><strong>num_het_atoms</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of heterogeneous atoms (from rdkit)</p></li>
-<li><p><strong>num_rot_bonds</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of rotatable bonds (from rdkit)</p></li>
-<li><p><strong>num_val_electrons</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of valence electrons (from rdkit)</p></li>
-<li><p><strong>ring_count</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code>) – Computed number of rings in the molecule (from rdkit)</p></li>
-<li><p><strong>inspirations</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ManyToManyField</span></code>) – Foreign key link to any number of 3D Molecules that inspired the design of this compound</p></li>
-<li><p><strong>description</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A description of the compound added by a user (optional)</p></li>
-<li><p><strong>comments</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – A free-text comments field (optional)</p></li>
+<li><p><strong>mol_log_p</strong> (<em>FloatField</em>) – Computed LogP value (from rdkit)</p></li>
+<li><p><strong>mol_wt</strong> (<em>FloatField</em>) – Computed molecular weight (Da) (from rdkit)</p></li>
+<li><p><strong>tpsa</strong> (<em>FloatField</em>) – Computed Topological Polar Surface Area (from rdkit)</p></li>
+<li><p><strong>heavy_atom_count</strong> (<em>IntegerField</em>) – Computed heavy (non-hydrogen) atom count (from rdkit)</p></li>
+<li><p><strong>heavy_atom_mol_wt</strong> (<em>FloatField</em>) – Computed molecular weight of all heavy (non-hydrogen) atoms (from rdkit)</p></li>
+<li><p><strong>nhoh_count</strong> (<em>IntegerField</em>) – Computed number of hydroxylamine groups (from rdkit)</p></li>
+<li><p><strong>no_count</strong> (<em>IntegerField</em>) – Computed number of nitroso groups (from rdkit)</p></li>
+<li><p><strong>num_h_acceptors</strong> (<em>IntegerField</em>) – Computed number of hydrogen-bond acceptor groups (from rdkit)</p></li>
+<li><p><strong>num_h_donors</strong> (<em>IntegerField</em>) – Computed number of hydrogen-bond donor groups (from rdkit)</p></li>
+<li><p><strong>num_het_atoms</strong> (<em>IntegerField</em>) – Computed number of heterogeneous atoms (from rdkit)</p></li>
+<li><p><strong>num_rot_bonds</strong> (<em>IntegerField</em>) – Computed number of rotatable bonds (from rdkit)</p></li>
+<li><p><strong>num_val_electrons</strong> (<em>IntegerField</em>) – Computed number of valence electrons (from rdkit)</p></li>
+<li><p><strong>ring_count</strong> (<em>IntegerField</em>) – Computed number of rings in the molecule (from rdkit)</p></li>
+<li><p><strong>inspirations</strong> (<em>ManyToManyField</em>) – Foreign key link to any number of 3D Molecules that inspired the design of this compound</p></li>
+<li><p><strong>description</strong> (<em>TextField</em>) – A description of the compound added by a user (optional)</p></li>
+<li><p><strong>comments</strong> (<em>TextField</em>) – A free-text comments field (optional)</p></li>
 </ul>
 </dd>
 </dl>
@@ -161,10 +162,10 @@ unique 3D coordinates for that molecule. Note a compound can be linked to multip
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>smiles</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The smiles string of the molecule. (optional) TODO: Check if this is needed…</p></li>
-<li><p><strong>lig_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The ligand ID from the pdb file it originated from (e.g. LIG 1 A) (optional)</p></li>
-<li><p><strong>chain_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – The chain from the protein structure pdb file that this ligand is from (e.g. A) (optional)</p></li>
-<li><p><strong>mol_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">CharField</span></code>) – <p>molecule type - from a pre-defined list and determined by file extension on upload (defined in
+<li><p><strong>smiles</strong> (<em>CharField</em>) – The smiles string of the molecule. (optional) TODO: Check if this is needed…</p></li>
+<li><p><strong>lig_id</strong> (<em>CharField</em>) – The ligand ID from the pdb file it originated from (e.g. LIG 1 A) (optional)</p></li>
+<li><p><strong>chain_id</strong> (<em>CharField</em>) – The chain from the protein structure pdb file that this ligand is from (e.g. A) (optional)</p></li>
+<li><p><strong>mol_type</strong> (<em>CharField</em>) – <p>molecule type - from a pre-defined list and determined by file extension on upload (defined in
 loader.config.get_mol_choices):
 mol_choices = (
 (PROASIS, “Proasis molecule”, “.mol”, “MOL”),
@@ -180,16 +181,16 @@ mol_choices = (
 <p>),
 )</p>
 </p></li>
-<li><p><strong>sdf_info</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code>) – The 3D coordinates for the molecule in MDL (mol file) format. Taken directly from the uploaded file</p></li>
-<li><p><strong>rscc</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – The RSCC score of the molecule 3D coordinates vs. PANDDA event map (optional)</p></li>
-<li><p><strong>occupancy</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – The occupancy (electron density) of the molecule (optional)</p></li>
-<li><p><strong>x_com</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – x-coordinate for centre of mass (optional)</p></li>
-<li><p><strong>y_com</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – y-coordinate for centre of mass (optional)</p></li>
-<li><p><strong>z_com</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – z-coordinate for centre of mass (optional)</p></li>
-<li><p><strong>rmsd</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">FloatField</span></code>) – RMSD of this molecule compared to ? (optional - unused)</p></li>
-<li><p><strong>prot_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the associated protein (apo) that this ligand was pulled from</p></li>
-<li><p><strong>cmpd_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">ForeignKey</span></code>) – Foreign key link to the associated 2D compound</p></li>
-<li><p><strong>history</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">HistoricalRecords</span></code>) – Tracks the changes made to an instance of this model over time</p></li>
+<li><p><strong>sdf_info</strong> (<em>TextField</em>) – The 3D coordinates for the molecule in MDL (mol file) format. Taken directly from the uploaded file</p></li>
+<li><p><strong>rscc</strong> (<em>FloatField</em>) – The RSCC score of the molecule 3D coordinates vs. PANDDA event map (optional)</p></li>
+<li><p><strong>occupancy</strong> (<em>FloatField</em>) – The occupancy (electron density) of the molecule (optional)</p></li>
+<li><p><strong>x_com</strong> (<em>FloatField</em>) – x-coordinate for centre of mass (optional)</p></li>
+<li><p><strong>y_com</strong> (<em>FloatField</em>) – y-coordinate for centre of mass (optional)</p></li>
+<li><p><strong>z_com</strong> (<em>FloatField</em>) – z-coordinate for centre of mass (optional)</p></li>
+<li><p><strong>rmsd</strong> (<em>FloatField</em>) – RMSD of this molecule compared to ? (optional - unused)</p></li>
+<li><p><strong>prot_id</strong> (<em>ForeignKey</em>) – Foreign key link to the associated protein (apo) that this ligand was pulled from</p></li>
+<li><p><strong>cmpd_id</strong> (<em>ForeignKey</em>) – Foreign key link to the associated 2D compound</p></li>
+<li><p><strong>history</strong> (<em>HistoricalRecords</em>) – Tracks the changes made to an instance of this model over time</p></li>
 </ul>
 </dd>
 </dl>
@@ -224,6 +225,13 @@ mol_choices = (
 <li class="toctree-l2"><a class="reference internal" href="#model-details">Model details</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/api_intro.html">RESTful API (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data (Views)</a></li>
 </ul>
 
 <div class="relations">
@@ -231,6 +239,7 @@ mol_choices = (
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
       <li>Previous: <a href="../dev_setup/production.html" title="previous chapter">Running in Production (+CI/CD)</a></li>
+      <li>Next: <a href="../computational_data/schema.html" title="next chapter">Computational data (Models)</a></li>
   </ul></li>
 </ul>
 </div>
@@ -260,7 +269,7 @@ mol_choices = (
       &copy;2020, Rachael Skyner.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.0</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

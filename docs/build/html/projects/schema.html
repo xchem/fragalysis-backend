@@ -1,0 +1,188 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Projects data (Models) &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="RESTful API (Views)" href="../API/api_intro.html" />
+    <link rel="prev" title="Computational data (Models)" href="../computational_data/schema.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="projects-data-models">
+<span id="proj-models"></span><h1>Projects data (Models)<a class="headerlink" href="#projects-data-models" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="schema-overview">
+<h2>Schema overview<a class="headerlink" href="#schema-overview" title="Permalink to this headline">¶</a></h2>
+<img alt="../_images/schema1.png" src="../_images/schema1.png" />
+<p>[Explain schema]</p>
+</div>
+<div class="section" id="model-details">
+<h2>Model details<a class="headerlink" href="#model-details" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="viewer.models.User">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">User</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.User" title="Permalink to this definition">¶</a></dt>
+<dd><p>Users within the Django authentication system are represented by this
+model.</p>
+<p>Username and password are required. Other fields are optional.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.SessionProject">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">SessionProject</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.SessionProject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for holding information about a fragalysis user project - a set of sessions saved by a user</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>title</strong> (<em>CharField</em>) – The title of the project</p></li>
+<li><p><strong>init_date</strong> (<em>DateTimeField</em>) – The date the project was initiated (autofield)</p></li>
+<li><p><strong>description</strong> (<em>Charfield</em>) – A short user-defined description for the project</p></li>
+<li><p><strong>target</strong> (<em>ForeignKey</em>) – Foreign Key link to the relevent project target</p></li>
+<li><p><strong>author</strong> (<em>ForeignKey</em>) – A link to the user that created the project</p></li>
+<li><p><strong>tags</strong> (<em>TextField</em>) – A comma separated list of user-defined tags - for searching and tagging projects</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.Snapshot">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Snapshot</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Snapshot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model for storing information describing a static snapshot of a fragalysis page - multiple snapshots make
+up a project</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> (<em>Autofied</em>) – Auto-created id for the session, used in url accession</p></li>
+<li><p><strong>type</strong> (<em>CharField</em>) – <dl class="simple">
+<dt>Describes the session type:</dt><dd><p>SNAPSHOT_TYPE = (
+(INIT, “INIT”),  # Initial snapshot generated by system
+(AUTO, ‘AUTO’),  # Automatic generated by system
+(MANUAL, ‘MANUAL’)  # Manual generated by user action</p>
+</dd>
+</dl>
+<p>)</p>
+</p></li>
+<li><p><strong>title</strong> (<em>Charfield</em>) – The title of the snapshot</p></li>
+<li><p><strong>author</strong> (<em>ForeignKey</em>) – Foreign key link to the user that created the snapshot</p></li>
+<li><p><strong>description</strong> (<em>Charfield</em>) – Short user-provided description for the snapshot</p></li>
+<li><p><strong>created</strong> (<em>DateTimeField</em>) – Auto-created timestamp for when the snapshot was created</p></li>
+<li><p><strong>data</strong> (<em>TextField</em>) – Field to hold the json data that is passed from the front-end describing what to load into the react components
+to reproduce the session state</p></li>
+<li><p><strong>session_project</strong> (<em>ForeignKey</em>) – If the snapshot is part of a project, a foreign key link to the relevant project (optional)</p></li>
+<li><p><strong>parent</strong> (<em>ForeignKey</em><em>(</em><em>self</em><em>)</em>) – Foreign key link to another Snapshot instance describing the current Snapshot parent (optional)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Projects data (Models)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#schema-overview">Schema overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model-details">Model details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../API/api_intro.html">RESTful API (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data (Views)</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../computational_data/schema.html" title="previous chapter">Computational data (Models)</a></li>
+      <li>Next: <a href="../API/api_intro.html" title="next chapter">RESTful API (Views)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/projects/schema.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

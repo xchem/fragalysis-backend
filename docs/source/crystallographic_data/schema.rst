@@ -1,3 +1,5 @@
+.. _crys-models:
+
 Crystallographic data (Models)
 ==============================
 

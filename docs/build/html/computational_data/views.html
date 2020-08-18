@@ -1,0 +1,921 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Computational data (Views) &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Project data (Views)" href="../projects/views.html" />
+    <link rel="prev" title="Crystallographic data (Views)" href="../crystallographic_data/views.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="computational-data-views">
+<span id="comp-views"></span><h1>Computational data (Views)<a class="headerlink" href="#computational-data-views" title="Permalink to this headline">¶</a></h1>
+<p>The models that these views work on can be found in <a class="reference internal" href="schema.html#comp-models"><span class="std std-ref">Computational data (Models)</span></a></p>
+<div class="section" id="where-the-views-are-used-frontend">
+<h2>Where the views are used (frontend)<a class="headerlink" href="#where-the-views-are-used-frontend" title="Permalink to this headline">¶</a></h2>
+<p><strong>Note:</strong> For the Diamond instance of fragalysis, authentication is handled by <code class="code docutils literal notranslate"><span class="pre">api.security.ISpyBSafeQuerySet</span></code>,
+a version of the standard DRF (see <a class="reference internal" href="../API/api_intro.html#api-intro"><span class="std std-ref">RESTful API (Views)</span></a>) <code class="code docutils literal notranslate"><span class="pre">viewsets.ReadOnlyModelViewSet</span></code>.</p>
+<ul class="simple">
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.ComputedSetView</span></code>: This view is used to generate a list of all of the computed sets that exist for a
+specific target, so that the drop-down list for the third tab on the right-hand side (RHS) can be generated for each
+target-specific page</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.ComputedMolAndScoreView</span></code>: This view is used to get all information about 3D molecules in a given
+computed set for a given target (computed sets obtained from <code class="code docutils literal notranslate"><span class="pre">viewer.views.ComputedSetView</span></code>). The smiles string
+is used to generate the 2D image shown on each molecule in the RHS computed set tab using
+<code class="code docutils literal notranslate"><span class="pre">viewer.views.img_from_smiles</span></code>. The scores for each molecule are displayed on the respective molecule card.</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.cset_key</span></code>: This view is used to generate a computed set upload key at <code class="code docutils literal notranslate"><span class="pre">&lt;root&gt;/viewer/cset_key</span></code>
+, and email it to the user to allow them to upload new computed sets at <code class="code docutils literal notranslate"><span class="pre">&lt;root&gt;/viewer/upload_cset</span></code></p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.UploadCSet</span></code>: This view is used to generate the form found at <code class="code docutils literal notranslate"><span class="pre">&lt;root&gt;/viewer/upload_cset</span></code>, and
+to pass the values to the celery tasks controlled through <code class="code docutils literal notranslate"><span class="pre">viewer.views.ValidateTaskView</span></code> and
+<code class="code docutils literal notranslate"><span class="pre">viewer.views.UploadTaskView</span></code> that validate and process the uploaded data, saving it into the relevant models
+(see <a class="reference internal" href="schema.html#comp-models"><span class="std std-ref">Computational data (Models)</span></a>)so that the data can be displayed on the RHS of a target specific
+page.</p></li>
+</ul>
+<p>Other views listed below are currently not in use by the front-end.</p>
+</div>
+<div class="section" id="view-details">
+<h2>View details<a class="headerlink" href="#view-details" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="viewer.views.ComputedSetView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ComputedSetView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ComputedSetView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve information about computed sets</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/compound-sets</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.ComputedSet.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.ComputedSet.target</cite> - ?target=&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>name: name of the computed set</p></li>
+<li><p>submitted_sdf: link to the uploaded sdf file</p></li>
+<li><p>spec_version: version of the upload specification used to generate the computed set sdf</p></li>
+<li><p>method_url: link to url describing the methodology used to create the computed set</p></li>
+<li><p>unique_name: auto-generated human-readable name for the computed set</p></li>
+<li><p>target: id for the associated target</p></li>
+<li><p>submitter: id for the associated submitter</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="s2">&quot;100threehop2020-07-27S8vv3vx&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;submitted_sdf&quot;</span><span class="o">:</span> <span class="s2">&quot;http://fragalysis.diamond.ac.uk/media/code/media/compound_sets/Top_100_three_hop_2020-07-27_S8vv3vx.sdf&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;spec_version&quot;</span><span class="o">:</span> <span class="mf">1.2</span><span class="p">,</span>
+        <span class="s2">&quot;method_url&quot;</span><span class="o">:</span> <span class="s2">&quot;https://github.com/Waztom/xchem-xCOS&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;unique_name&quot;</span><span class="o">:</span> <span class="s2">&quot;WT-xCOS2-ThreeHop&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;target&quot;</span><span class="o">:</span> <span class="mi">62</span><span class="p">,</span>
+        <span class="s2">&quot;submitter&quot;</span><span class="o">:</span> <span class="mi">13</span>
+    <span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.ComputedSetView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ComputedSetView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ComputedSetSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.ComputedMoleculesView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ComputedMoleculesView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ComputedMoleculesView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve information about computed molecules - 3D info</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/compound-molecules</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.ComputedMolecule.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.ComputedMolecule.computed_set</cite> - ?computed_set=&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the molecule</p></li>
+<li><p>sdf_info: 3D coordinates of the molecule in MDL format</p></li>
+<li><p>name: a name for the molecule</p></li>
+<li><p>smiles: SMILES string</p></li>
+<li><p>pdb_info: link to the associated pdb file (apo)</p></li>
+<li><p>compound: id for the associated 2D compound</p></li>
+<li><p>computed_set: name for the associated computed set</p></li>
+<li><p>computed_inspirations: list of ids for the inspirations used in the design/computation of the molecule</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">1997</span><span class="p">,</span>
+        <span class="s2">&quot;sdf_info&quot;</span><span class="o">:</span> <span class="s2">&quot;FRA-DIA-8640f307-1    RDKit          3D 38 42  0  0  0  0  0  0  0  0999 V2000...&quot;</span>
+        <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="s2">&quot;FRA-DIA-8640f307-1&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;smiles&quot;</span><span class="o">:</span> <span class="s2">&quot;CC(=O)NCCc1c[nH]c2c([C@H](CN(Cc3cc(C)on3)C(=O)NC3CC3)c3nnc(C)s3)cc(F)cc12&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;pdb_info&quot;</span><span class="o">:</span> <span class="s2">&quot;http://fragalysis.diamond.ac.uk/media/pdbs/Fragmenstein_J6Sfvrs.pdb&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;compound&quot;</span><span class="o">:</span> <span class="mi">4030</span><span class="p">,</span>
+        <span class="s2">&quot;computed_set&quot;</span><span class="o">:</span> <span class="s2">&quot;100XCOS2Teo2020-07-23yuZJZFY&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;computed_inspirations&quot;</span><span class="o">:</span> <span class="p">[]</span>
+    <span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.ComputedMoleculesView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ComputedMoleculesView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ComputedMoleculeSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.NumericalScoresView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">NumericalScoresView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.NumericalScoresView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve information about numerical computed molecule scores</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/numerical-scores</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.NumericalScoreValues.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.NumericalScoreValues.compound</cite> - ?compound=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.NumericalScoreValues.score</cite> - ?score=&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the score</p></li>
+<li><dl class="simple">
+<dt>score: dict of the score info:</dt><dd><ul>
+<li><p>id: id of the score description</p></li>
+<li><p>name: name of the score</p></li>
+<li><p>description: description of the score</p></li>
+<li><p>computed_set: name of the computed set that the score is associated to</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>value: numerical value of the score</p></li>
+<li><p>compound: id of the associated compound object</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">8145</span><span class="p">,</span>
+            <span class="s2">&quot;score&quot;</span><span class="o">:</span> <span class="p">{</span>
+                <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">48</span><span class="p">,</span>
+                <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="s2">&quot;Score_1&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;description&quot;</span><span class="o">:</span> <span class="s2">&quot;The score is scaled by the number of bit atoms&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;computed_set&quot;</span><span class="o">:</span> <span class="s2">&quot;100XCOS2Teo2020-07-23yuZJZFY&quot;</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;value&quot;</span><span class="o">:</span> <span class="mf">19.8653</span><span class="p">,</span>
+            <span class="s2">&quot;compound&quot;</span><span class="o">:</span> <span class="mi">1997</span>
+        <span class="p">},</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.NumericalScoresView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.NumericalScoresView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.NumericalScoreSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.TextScoresView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TextScoresView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TextScoresView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve information about text computed molecule scores</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/text-scores</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.TextScoreValues.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.TextScoreValues.compound</cite> - ?compound=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.TextScoreValues.score</cite> - ?score=&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the score</p></li>
+<li><dl class="simple">
+<dt>score: dict of the score info:</dt><dd><ul>
+<li><p>id: id of the score description</p></li>
+<li><p>name: name of the score</p></li>
+<li><p>description: description of the score</p></li>
+<li><p>computed_set: name of the computed set that the score is associated to</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>value: text value of the score</p></li>
+<li><p>compound: id of the associated compound object</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">8145</span><span class="p">,</span>
+            <span class="s2">&quot;score&quot;</span><span class="o">:</span> <span class="p">{</span>
+                <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">48</span><span class="p">,</span>
+                <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="s2">&quot;Score_1&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;description&quot;</span><span class="o">:</span> <span class="s2">&quot;Desctription&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;computed_set&quot;</span><span class="o">:</span> <span class="s2">&quot;100XCOS2Teo2020-07-23yuZJZFY&quot;</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;value&quot;</span><span class="o">:</span> <span class="s2">&quot;Yes&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;compound&quot;</span><span class="o">:</span> <span class="mi">1997</span>
+        <span class="p">},</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.TextScoresView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.TextScoresView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.TextScoreSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.CompoundScoresView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">CompoundScoresView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.CompoundScoresView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve descriptions of scores for a given name or computed set</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/compound-scores</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.ScoreDescription.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.ScoreDescription.computed_set</cite> - ?computed_set=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models..ScoreDescription.name</cite> - ?name=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the score</p></li>
+<li><dl class="simple">
+<dt>score: dict of the score info:</dt><dd><ul>
+<li><p>id: id of the score description</p></li>
+<li><p>name: name of the score</p></li>
+<li><p>description: description of the score</p></li>
+<li><p>computed_set: name of the computed set that the score is associated to</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">22</span><span class="p">,</span>
+        <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="s2">&quot;FeatureSteinScore&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;description&quot;</span><span class="o">:</span> <span class="s2">&quot;FeatureStein Score&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;computed_set&quot;</span><span class="o">:</span> <span class="s2">&quot;top26062020axX6Vqt&quot;</span>
+    <span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.CompoundScoresView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.CompoundScoresView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ScoreDescriptionSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.ComputedMolAndScoreView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ComputedMolAndScoreView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ComputedMolAndScoreView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve all information about molecules from a computed set, along with all of their scores</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/compound-mols-scores</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.ComputedMolecule.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.ComputedMolecule.computed_set</cite> - ?computed_set=&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the molecule</p></li>
+<li><p>sdf_info: 3D coordinates of the molecule in MDL format</p></li>
+<li><p>name: a name for the molecule</p></li>
+<li><p>smiles: SMILES string</p></li>
+<li><p>pdb_info: link to the associated pdb file (apo)</p></li>
+<li><p>compound: id for the associated 2D compound</p></li>
+<li><p>computed_set: name for the associated computed set</p></li>
+<li><p>computed_inspirations: list of ids for the inspirations used in the design/computation of the molecule</p></li>
+<li><p>numerical_scores: dict of numerical scores, where each key is a score name, and each value is the associated score</p></li>
+<li><p>text_scores: dict of text scores, where each key is a score name, and each value is the associated score</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">1997</span><span class="p">,</span>
+        <span class="s2">&quot;sdf_info&quot;</span><span class="o">:</span> <span class="s2">&quot;FRA-DIA-8640f307-1     RDKit          3D 38 42  0  0  0  0  0  0  0&quot;</span>
+        <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="s2">&quot;FRA-DIA-8640f307-1&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;smiles&quot;</span><span class="o">:</span> <span class="s2">&quot;CC(=O)NCCc1c[nH]c2c([C@H](CN(Cc3cc(C)on3)C(=O)NC3CC3)c3nnc(C)s3)cc(F)cc12&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;pdb_info&quot;</span><span class="o">:</span> <span class="s2">&quot;http://fragalysis.diamond.ac.uk/media/pdbs/Fragmenstein_J6Sfvrs.pdb&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;compound&quot;</span><span class="o">:</span> <span class="mi">4030</span><span class="p">,</span>
+        <span class="s2">&quot;computed_set&quot;</span><span class="o">:</span> <span class="s2">&quot;100XCOS2Teo2020-07-23yuZJZFY&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;computed_inspirations&quot;</span><span class="o">:</span> <span class="p">[],</span>
+        <span class="s2">&quot;numerical_scores&quot;</span><span class="o">:</span> <span class="p">{</span>
+            <span class="s2">&quot;Score_1&quot;</span><span class="o">:</span> <span class="mf">19.8653</span><span class="p">,</span>
+            <span class="s2">&quot;N_hits&quot;</span><span class="o">:</span> <span class="mf">4.0</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;text_scores&quot;</span><span class="o">:</span> <span class="p">{}</span>
+    <span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.ComputedMolAndScoreView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ComputedMolAndScoreView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ComputedMolAndScoreSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.cset_key">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">cset_key</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.cset_key" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to render and control viewer/generate-key.html - a page allowing an upload key to be generated for a user
+allowing upload of computed sets</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: renders form</p></li>
+<li><p>POST: generates an upload key, emails it to the user, and informs the user that this will happen</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>viewer/cset_key</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">template:</code></dt>
+<dd><p>viewer/generate-key.html</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">request params:</code></dt>
+<dd><ul class="simple">
+<li><p>contact_email (django.forms.FormField): user contact email</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">context:</code></dt>
+<dd><ul class="simple">
+<li><p>form (<cite>django.Forms.form</cite>): instance of <cite>viewer.forms.UploadKeyForm</cite></p></li>
+<li><p>message (str): A message rendered in the template. Informs the user that their upload key will be emailed</p></li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.UploadCSet">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadCSet</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadCSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to render and control viewer/upload-cset.html  - a page allowing upload of computed sets. Validation and
+upload tasks are defined in <cite>viewer.compound_set_upload</cite>, <cite>viewer.sdf_check</cite> and <cite>viewer.tasks</cite> and the task
+response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cite>viewer.views.UploadTaskView</cite></p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: renders form</p></li>
+<li><p>POST: validates and optionally uploads the computed set that the user provides via the template form</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>viewer/upload_cset</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">template:</code></dt>
+<dd><p>viewer/upload-cset.html</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">request params:</code></dt>
+<dd><ul class="simple">
+<li><p>target_name (<cite>django.forms.CharField</cite>): Name of the existing fragalysis target to add the computed set to</p></li>
+<li><p>sdf_file (<cite>django.forms.FileField</cite>): SDF file of all computed molecules to upload for the computed set</p></li>
+<li><p>pdb_zip (<cite>django.forms.FileField</cite>): zip file of apo pdb files referenced in the ref_pdb field for molecules in sdf_file (optional)</p></li>
+<li><p>submit_choice (<cite>django.forms.CharField</cite>): 0 to validate, 1 to validate and upload</p></li>
+<li><p>upload_key (<cite>django.forms.CharField</cite>): users unique upload key, generated by <cite>viewer.views.cset_key</cite></p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">context:</code></dt>
+<dd><ul class="simple">
+<li><p>form (<cite>django.Forms.form</cite>): instance of <cite>viewer.forms.CSetForm</cite></p></li>
+<li><p>validate_task_id (str): celery task id for validation step</p></li>
+<li><p>validate_task_status (str): celery task status for validation step</p></li>
+<li><p>upload_task_id (str): celery task id for upload step</p></li>
+<li><p>upload_task_status (str): celery task status for upload step</p></li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.ValidateTaskView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ValidateTaskView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ValidateTaskView" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to handle dynamic loading of validation results from <cite>viewer.tasks.validate</cite> - the validation of files
+uploaded to viewer/upload_cset</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: takes a task id, checks it’s status and returns the status, and result if the task is complete</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>validate_task/&lt;validate_task_id&gt;</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">template:</code></dt>
+<dd><p>viewer/upload-cset.html</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="viewer.views.ValidateTaskView.get">
+<code class="sig-name descname">get</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em>, <em class="sig-param"><span class="n">validate_task_id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ValidateTaskView.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get method for <cite>ValidateTaskView</cite>. Takes a validate task id, checks it’s status and returns the status,
+and result if the task is complete</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>request</strong> (<em>request</em>) – Context sent by <cite>UploadCSet</cite></p></li>
+<li><p><strong>validate_task_id</strong> (<em>str</em>) – task id provided by <cite>UploadCSet</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><p><strong>response_data</strong> –</p>
+<dl class="simple">
+<dt>response data (dict) in JSON format:</dt><dd><ul class="simple">
+<li><dl class="simple">
+<dt>if status = ‘RUNNING’:</dt><dd><ul>
+<li><p>validate_task_status (str): task.status</p></li>
+<li><p>validate_task_id (str): task.id</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>if status = ‘FAILURE’:</dt><dd><ul>
+<li><p>validate_task_status (str): task.status</p></li>
+<li><p>validate_task_id (str): task.id</p></li>
+<li><p>validate_traceback (str): task.traceback</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>if status = ‘SUCCESS’:</dt><dd><ul>
+<li><p>validate_task_status (str): task.status</p></li>
+<li><p>validate_task_id (str): task.id</p></li>
+<li><p>html (str): html of task outcome - success message or html table of errors &amp; fail message</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>JSON</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.UploadTaskView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadTaskView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTaskView" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to handle dynamic loading of upload results from <cite>viewer.tasks.process_compound_set</cite> - the upload of files
+for a computed set by a user at viewer/upload_cset</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: takes a task id, checks it’s status and returns the status, and result if the task is complete</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>upload_task/&lt;uploads_task_id&gt;</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">template:</code></dt>
+<dd><p>viewer/upload-cset.html</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="viewer.views.UploadTaskView.get">
+<code class="sig-name descname">get</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em>, <em class="sig-param"><span class="n">upload_task_id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTaskView.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get method for <cite>UploadTaskView</cite>. Takes an upload task id, checks it’s status and returns the status,
+and result if the task is complete</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>request</strong> (<em>request</em>) – Context sent by <cite>UploadCSet</cite></p></li>
+<li><p><strong>upload_task_id</strong> (<em>str</em>) – task id provided by <cite>UploadCSet</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><p><strong>response_data</strong> –</p>
+<dl class="simple">
+<dt>response data (dict) in JSON format:</dt><dd><ul class="simple">
+<li><dl class="simple">
+<dt>if status = ‘RUNNING’:</dt><dd><ul>
+<li><p>upload_task_status (str): task.status</p></li>
+<li><p>upload_task_id (str): task.id</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>if status = ‘FAILURE’:</dt><dd><ul>
+<li><p>upload_task_status (str): task.status</p></li>
+<li><p>upload_task_id (str): task.id</p></li>
+<li><p>upload_traceback (str): task.traceback</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>if status = ‘SUCCESS’:</dt><dd><ul>
+<li><p>upload_task_status (str): task.status</p></li>
+<li><p>upload_task_id (str): task.id</p></li>
+<li><dl class="simple">
+<dt>if results are a list (data was not validated):</dt><dd><ul>
+<li><p>validated (str): ‘Not validated’</p></li>
+<li><p>html (str): html table of validation errors</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>if results are a string (data was validated and uploaded:</dt><dd><ul>
+<li><p>validated (str): ‘Validated’</p></li>
+<li><p>results (dict): results</p></li>
+<li><p>results[‘cset_download_url’] (str): download url for computed set sdf file</p></li>
+<li><p>results[‘pset_download_url’] (str): download url for computed set pdb files (zip)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>if results are not string or list:</dt><dd><ul>
+<li><p>processed (str): ‘None’</p></li>
+<li><p>html (str): message to tell the user their data was not processed</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>JSON</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.cset_download">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">cset_download</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em>, <em class="sig-param"><span class="n">name</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.cset_download" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to download an SDF file of a computed set by name</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: return the SDF file as a download</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>viewer/compound_set/(&lt;name&gt;)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">request params:</code></dt>
+<dd><ul class="simple">
+<li><p>name (str): the name of the computed set to download</p></li>
+</ul>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p>&lt;name&gt;.sdf: sdf file for the computed set</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>Response (attachment; text/plain)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.pset_download">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">pset_download</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em>, <em class="sig-param"><span class="n">name</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.pset_download" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to download a zip file of all protein structures (apo) for a computed set</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: return the zip file as a download</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>viewer/compound_set/(&lt;name&gt;)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">request params:</code></dt>
+<dd><ul class="simple">
+<li><p>name (str): the name of the computed set to download</p></li>
+</ul>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p>&lt;name&gt;.zip: zip file for the computed set</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>Response (attachment; application/zip)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/api_intro.html">RESTful API (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Computational data (Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#where-the-views-are-used-frontend">Where the views are used (frontend)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#view-details">View details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data (Views)</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../crystallographic_data/views.html" title="previous chapter">Crystallographic data (Views)</a></li>
+      <li>Next: <a href="../projects/views.html" title="next chapter">Project data (Views)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/computational_data/views.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

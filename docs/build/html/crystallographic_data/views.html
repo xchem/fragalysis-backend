@@ -1,0 +1,711 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crystallographic data (Views) &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Computational data (Views)" href="../computational_data/views.html" />
+    <link rel="prev" title="RESTful API (Views)" href="../API/api_intro.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="crystallographic-data-views">
+<span id="crys-views"></span><h1>Crystallographic data (Views)<a class="headerlink" href="#crystallographic-data-views" title="Permalink to this headline">¶</a></h1>
+<p>The models that these views work on can be found in <a class="reference internal" href="schema.html#crys-models"><span class="std std-ref">Crystallographic data (Models)</span></a></p>
+<div class="section" id="where-the-views-are-used-frontend">
+<h2>Where the views are used (frontend)<a class="headerlink" href="#where-the-views-are-used-frontend" title="Permalink to this headline">¶</a></h2>
+<p><strong>Note:</strong> For the Diamond instance of fragalysis, authentication is handled by <code class="code docutils literal notranslate"><span class="pre">api.security.ISpyBSafeQuerySet</span></code>,
+a version of the standard DRF (see <a class="reference internal" href="../API/api_intro.html#api-intro"><span class="std std-ref">RESTful API (Views)</span></a>) <code class="code docutils literal notranslate"><span class="pre">viewsets.ReadOnlyModelViewSet</span></code>.</p>
+<ul class="simple">
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.TargetView</span></code>: This view is used on the landing page
+(e.g. <a class="reference external" href="https://fragalysis.diamond.ac.uk/viewer/react/landing">https://fragalysis.diamond.ac.uk/viewer/react/landing</a>) to populate the Target list with either open targets (if
+the user is not logged in) or the Target list of targets that the user is authenticated to see.</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.ProteinView</span></code>: This view is used on each target specific page to populate protein information on the
+left-hand side (LHS)</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.ProteinPDBInfoView</span></code>: This view is used to retrieve the raw pdb file info to display in the central
+3D viewer when a protein for a specific ligand is turned on from the LHS when the ‘P’ button is clicked in the hit
+navigator.</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.ProteinPDBBoundInfoView</span></code>: This view was previously used to store the bound-state information for
+each crystal in a target set, and the full list for each target was zipped into a file by the front-end for download
+with the download button in the menu bar of a target specific page. This has been replaced by serving a zip file of all
+of the information uploaded to fragalysis for a specific target. (see: [link])</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.ProteinMapInfoView</span></code>: This view is currently un-used, but is intended to serve the raw electron
+density data for each ligand when the ‘D’ button is clicked for a ligand in the hit navigator</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.MoleculeView</span></code>: This view is used to retrieve 2D information about molecules - the properties in the
+view are displayed on each ligand card on the LHS.</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.MolImageView</span></code>: This view is used to retreive the 2D image created by the loader, and display it on
+the LHS</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.CompoundView</span></code>: This view is used to obtain the 3D coordinates for a molecule, and display them in
+the central 3D viewer on a target specific page when the ‘L’ button on a specific ligand card in the hit navigator is
+turned on.</p></li>
+</ul>
+<p>Other views listed below are currently not in use by the front-end.</p>
+</div>
+<div class="section" id="view-details">
+<h2>View details<a class="headerlink" href="#view-details" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="viewer.views.TargetView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TargetView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TargetView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve info about targets</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/targets</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Target.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Target.title</cite> - ?title=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the target object</p></li>
+<li><p>title: name of the target</p></li>
+<li><p>project_id: list of the ids of the projects the target is linked to</p></li>
+<li><p>protein_set: list of the ids of the protein sets the target is linked to</p></li>
+<li><p>template_protein: the template protein displayed in fragalysis front-end for this target</p></li>
+<li><p>metadata: link to the metadata file for the target if it was uploaded</p></li>
+<li><p>zip_archive: link to the zip archive of the uploaded data</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span>   <span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">62</span><span class="p">,</span>
+        <span class="s2">&quot;title&quot;</span><span class="o">:</span> <span class="s2">&quot;Mpro&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;project_id&quot;</span><span class="o">:</span> <span class="p">[</span>
+            <span class="mi">2</span>
+        <span class="p">],</span>
+        <span class="s2">&quot;protein_set&quot;</span><span class="o">:</span> <span class="p">[</span>
+            <span class="mi">29281</span><span class="p">,</span>
+            <span class="mi">29274</span><span class="p">,</span>
+            <span class="mi">29259</span><span class="p">,</span>
+            <span class="mi">29305</span><span class="p">,</span>
+            <span class="p">...,</span>
+        <span class="p">],</span>
+        <span class="s2">&quot;template_protein&quot;</span><span class="o">:</span> <span class="s2">&quot;/media/pdbs/Mpro-x10417_0_apo.pdb&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;metadata&quot;</span><span class="o">:</span> <span class="s2">&quot;http://fragalysis.diamond.ac.uk/media/metadata/metadata_2FdP5OJ.csv&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;zip_archive&quot;</span><span class="o">:</span> <span class="s2">&quot;http://fragalysis.diamond.ac.uk/media/targets/Mpro.zip&quot;</span>
+    <span class="p">}</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.TargetView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.TargetView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.TargetSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.ProteinView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve bound pdb info (file) for a given protein</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/proteins</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Protein.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Protein.code</cite> - ?code=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Protein.target_id</cite> - ?target_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Protein.prot_type</cite> - ?prot_type=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the protein object</p></li>
+<li><p>code: the code/name of the protein</p></li>
+<li><p>target_id: the id of the related target object</p></li>
+<li><p>prot_type: the type of protein (e.g. AP for apo)</p></li>
+<li><p>pdb_info: link to the apo pdb file</p></li>
+<li><p>bound_info: link to the bound pdb file</p></li>
+<li><p>mtz_info: link to the mtz file</p></li>
+<li><p>map_info: link to the map file</p></li>
+<li><p>cif_info: link to the cif file</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+ <span class="p">{</span>
+     <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">14902</span><span class="p">,</span>
+     <span class="s2">&quot;code&quot;</span><span class="o">:</span> <span class="s2">&quot;XX02KALRNA-x1376_1&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;target_id&quot;</span><span class="o">:</span> <span class="mi">51</span><span class="p">,</span>
+     <span class="s2">&quot;prot_type&quot;</span><span class="o">:</span> <span class="s2">&quot;AP&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;pdb_info&quot;</span><span class="o">:</span> <span class="s2">&quot;http://fragalysis.diamond.ac.uk/media/pdbs/XX02KALRNA-x1376_1_apo_9VSCvR8.pdb&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;bound_info&quot;</span><span class="o">:</span> <span class="s2">&quot;http://fragalysis.diamond.ac.uk/media/bound/XX02KALRNA-x1376_1_bound_6xmXkUm.pdb&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;mtz_info&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+     <span class="s2">&quot;map_info&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+     <span class="s2">&quot;cif_info&quot;</span><span class="o">:</span> <span class="kc">null</span>
+ <span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.ProteinView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ProteinView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ProteinSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.ProteinPDBInfoView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinPDBInfoView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinPDBInfoView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve apo pdb info (file) for a given protein</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/protpdb</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Protein.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Protein.code</cite> - ?code=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Protein.target_id</cite> - ?target_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Protein.prot_type</cite> - ?prot_type=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the protein object</p></li>
+<li><p>pdb_data: If a pdb file has been uploaded for the protein <cite>bound_info.path.read()</cite></p></li>
+<li><p>prot_type: type of protein (e.g. AP for apo - see docs for model)</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+ <span class="p">{</span>
+     <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">27387</span><span class="p">,</span>
+     <span class="s2">&quot;pdb_data&quot;</span><span class="o">:</span> <span class="s2">&quot;REMARK warning: chains may be ommitted for alignment REMARK ...&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;prot_type&quot;</span><span class="o">:</span> <span class="s2">&quot;AP&quot;</span>
+ <span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.ProteinPDBInfoView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ProteinPDBInfoView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ProtPDBInfoSerialzer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.ProteinPDBBoundInfoView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinPDBBoundInfoView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinPDBBoundInfoView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve bound pdb info (file) for a given protein</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/protpdbbound</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Protein.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Protein.code</cite> - ?code=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Protein.target_id</cite> - ?target_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Protein.prot_type</cite> - ?prot_type=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the protein object</p></li>
+<li><p>pdb_data: If a pdb file has been uploaded for the protein <cite>bound_info.path.read()</cite></p></li>
+<li><p>prot_type: type of protein (e.g. AP for apo - see docs for model)</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+ <span class="p">{</span>
+     <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">27387</span><span class="p">,</span>
+     <span class="s2">&quot;pdb_data&quot;</span><span class="o">:</span> <span class="s2">&quot;REMARK warning: chains may be ommitted for alignment REMARK ...&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;prot_type&quot;</span><span class="o">:</span> <span class="s2">&quot;AP&quot;</span>
+ <span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.ProteinPDBBoundInfoView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ProteinPDBBoundInfoView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ProtPDBBoundInfoSerialzer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.ProteinMapInfoView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinMapInfoView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinMapInfoView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve map info (file) for a given protein</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/protmap</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Protein.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Protein.code</cite> - ?code=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Protein.target_id</cite> - ?target_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Protein.prot_type</cite> - ?prot_type=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns:</code></dt>
+<dd><p>If a map file has been uploaded for the protein <cite>map_info.path.read()</cite> (JSON)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.ProteinMapInfoView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ProteinMapInfoView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ProtMapInfoSerialzer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.MoleculeView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">MoleculeView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.MoleculeView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view to retrieve info about molecules</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/molecules</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Molecule.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Molecule.prot_id</cite> - ?prot_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Molecule.cmpd_id</cite> - ?cmpd_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Molecule.smiles</cite> - ?smiles=&lt;string&gt;</p></li>
+<li><p><cite>viewer.models.Molecule.prot_id__target_id</cite> - ?target_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Molecule.mol_type</cite> - ?mol_type=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Molecule.mol_groups</cite> - ?mol_groups=&lt;int&gt;,&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the target object</p></li>
+<li><p>smiles: smiles string of the molecule</p></li>
+<li><p>cmpd_id: id of the related 2D compound object</p></li>
+<li><p>prot_id: id of the related protein object</p></li>
+<li><p>protein_code: code of the related protein object</p></li>
+<li><p>mol_type: type of molecule - see Molecule model docs</p></li>
+<li><p>molecule_protein: filepath of the apo protein structure for the molecule</p></li>
+<li><p>lig_id: residue label for the ligand</p></li>
+<li><p>chain_id: chain in the pdb file that the ligand belongs to</p></li>
+<li><p>sdf_info: 3D coordinated of the molecule in MDL file format</p></li>
+<li><p>x_com: x-coordinate for molecule centre of mass</p></li>
+<li><p>y_com: y-coordinate for molecule centre of mass</p></li>
+<li><p>z_com: z-coordinate for molecule centre of mass</p></li>
+<li><p>mw: molecular weight</p></li>
+<li><p>logp: LogP</p></li>
+<li><p>tpsa: Topological Polar Surface Area</p></li>
+<li><p>ha: heavy atom count</p></li>
+<li><p>hacc: hydrogen-bond acceptors</p></li>
+<li><p>hdon: hydrogen-bond donors</p></li>
+<li><p>rots: number of rotatable bonds</p></li>
+<li><p>rings: number of rings</p></li>
+<li><p>velec: number of valence electrons</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+ <span class="p">{</span>
+     <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">13912</span><span class="p">,</span>
+     <span class="s2">&quot;smiles&quot;</span><span class="o">:</span> <span class="s2">&quot;CN(C)c1ccc(C(=O)Nc2ccccn2)cc1&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;cmpd_id&quot;</span><span class="o">:</span> <span class="mi">796</span><span class="p">,</span>
+     <span class="s2">&quot;prot_id&quot;</span><span class="o">:</span> <span class="mi">13923</span><span class="p">,</span>
+     <span class="s2">&quot;protein_code&quot;</span><span class="o">:</span> <span class="s2">&quot;NUDT7A_Crude-x2226_2&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;mol_type&quot;</span><span class="o">:</span> <span class="s2">&quot;PR&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;molecule_protein&quot;</span><span class="o">:</span> <span class="s2">&quot;/media/pdbs/NUDT7A_Crude-x2226_2_apo_x5GxiLq.pdb&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;lig_id&quot;</span><span class="o">:</span> <span class="s2">&quot;LIG&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;chain_id&quot;</span><span class="o">:</span> <span class="s2">&quot;Z&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;sdf_info&quot;</span><span class="o">:</span> <span class="s2">&quot;     RDKit          3D 18 19  0  0  0  0  0  0  0  0999...&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;x_com&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+     <span class="s2">&quot;y_com&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+     <span class="s2">&quot;z_com&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+     <span class="s2">&quot;mw&quot;</span><span class="o">:</span> <span class="mf">241.12</span><span class="p">,</span>
+     <span class="s2">&quot;logp&quot;</span><span class="o">:</span> <span class="mf">2.4</span><span class="p">,</span>
+     <span class="s2">&quot;tpsa&quot;</span><span class="o">:</span> <span class="mf">45.23</span><span class="p">,</span>
+     <span class="s2">&quot;ha&quot;</span><span class="o">:</span> <span class="mi">18</span><span class="p">,</span>
+     <span class="s2">&quot;hacc&quot;</span><span class="o">:</span> <span class="mi">3</span><span class="p">,</span>
+     <span class="s2">&quot;hdon&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+     <span class="s2">&quot;rots&quot;</span><span class="o">:</span> <span class="mi">3</span><span class="p">,</span>
+     <span class="s2">&quot;rings&quot;</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span>
+     <span class="s2">&quot;velec&quot;</span><span class="o">:</span> <span class="mi">92</span>
+ <span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.MoleculeView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.MoleculeView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.MoleculeSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.MolImageView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">MolImageView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.MolImageView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view for molecule images</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/molimg</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Molecule.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Molecule.prot_id</cite> - ?prot_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Molecule.cmpd_id</cite> - ?cmpd_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Molecule.smiles</cite> - ?smiles=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Molecule.prot_id__target_id</cite> - ?target_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Molecule.mol_groups</cite> - ?mol_groups=&lt;int&gt;,&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns:</code></dt>
+<dd><p>SVG image text for query molecule generated by <cite>api.utils.draw_mol()</cite> (JSON)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+       <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">13912</span><span class="p">,</span>
+           <span class="s2">&quot;mol_image&quot;</span><span class="o">:</span> <span class="s2">&quot;&lt;?xml version=&#39;1.0&#39; encoding=&#39;iso-8859-1&#39;?&gt;&lt;svg version=&#39;1.1&#39; nk&#39;...&quot;</span><span class="p">}]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.MolImageView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.MolImageView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.MolImageSerialzier</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.CompoundView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">CompoundView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.CompoundView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view for compound info</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/compounds</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Compound.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Molecule.smiles</cite> - ?smiles=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns:</code></dt>
+<dd><ul class="simple">
+<li><p>id: id for compound object</p></li>
+<li><p>inchi: inchi key for compound</p></li>
+<li><p>smiles: smiles string for compound</p></li>
+<li><p>mol_log_p: LogP for compound</p></li>
+<li><p>num_h_acceptors: number of hydrogen-bond acceptors</p></li>
+<li><p>num_h_donors: number of hydrogen-bond donors</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+<span class="p">{</span>
+    <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;inchi&quot;</span><span class="o">:</span> <span class="s2">&quot;InChI=1S/C9H15NOS/c1-7(11)5-10-6-9-4-3-8(2)12-9/h3-4,7,10-11H,5-6H2,1-2H3/t7-/m0/s1&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;smiles&quot;</span><span class="o">:</span> <span class="s2">&quot;Cc1ccc(CNC[C@H](C)O)s1&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mol_log_p&quot;</span><span class="o">:</span> <span class="mf">1.52692</span><span class="p">,</span>
+    <span class="s2">&quot;mol_wt&quot;</span><span class="o">:</span> <span class="mf">185.0874351</span><span class="p">,</span>
+    <span class="s2">&quot;num_h_acceptors&quot;</span><span class="o">:</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="s2">&quot;num_h_donors&quot;</span><span class="o">:</span> <span class="mi">2</span>
+<span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.CompoundView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.CompoundView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.CompoundSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.CompoundImageView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">CompoundImageView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.CompoundImageView" title="Permalink to this definition">¶</a></dt>
+<dd><p>DjagnoRF view for compound images</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/cmpdimg</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Compound.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Molecule.smiles</cite> - ?smiles=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns:</code></dt>
+<dd><p>SVG image text for query compound generated by <cite>api.utils.draw_mol()</cite> (JSON)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">13912</span><span class="p">,</span>
+            <span class="s2">&quot;mol_image&quot;</span><span class="o">:</span> <span class="s2">&quot;&lt;?xml version=&#39;1.0&#39; encoding=&#39;iso-8859-1&#39;?&gt;&lt;svg version=&#39;1.1&#39; nk&#39;...&quot;</span><span class="p">}]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.CompoundImageView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.CompoundImageView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.CmpdImageSerialzier</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/api_intro.html">RESTful API (Views)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Crystallographic data (Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#where-the-views-are-used-frontend">Where the views are used (frontend)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#view-details">View details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data (Views)</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../API/api_intro.html" title="previous chapter">RESTful API (Views)</a></li>
+      <li>Next: <a href="../computational_data/views.html" title="next chapter">Computational data (Views)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/crystallographic_data/views.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

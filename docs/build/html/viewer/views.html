@@ -1451,8 +1451,8 @@ and result if the task is complete</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>request</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">request</span></code>) – Context sent by <cite>UploadCSet</cite></p></li>
-<li><p><strong>upload_task_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – task id provided by <cite>UploadCSet</cite></p></li>
+<li><p><strong>request</strong> (<em>request</em>) – Context sent by <cite>UploadCSet</cite></p></li>
+<li><p><strong>upload_task_id</strong> (<em>str</em>) – task id provided by <cite>UploadCSet</cite></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1516,7 +1516,7 @@ and result if the task is complete</p>
 </p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSON</span></code></p>
+<dd class="field-odd"><p>JSON</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1556,8 +1556,8 @@ and result if the task is complete</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>request</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">request</span></code>) – Context sent by <cite>UploadCSet</cite></p></li>
-<li><p><strong>validate_task_id</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – task id provided by <cite>UploadCSet</cite></p></li>
+<li><p><strong>request</strong> (<em>request</em>) – Context sent by <cite>UploadCSet</cite></p></li>
+<li><p><strong>validate_task_id</strong> (<em>str</em>) – task id provided by <cite>UploadCSet</cite></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1596,7 +1596,7 @@ and result if the task is complete</p>
 </p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSON</span></code></p>
+<dd class="field-odd"><p>JSON</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1939,6 +1939,13 @@ allowing upload of computed sets</p>
 <li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/api_intro.html">RESTful API (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data (Views)</a></li>
 </ul>
 
 <div class="relations">
@@ -1974,7 +1981,7 @@ allowing upload of computed sets</p>
       &copy;2020, Rachael Skyner.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.0</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
