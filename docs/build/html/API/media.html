@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Serving static files (media) &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Uploading computational data (Celery tasks and django template)" href="../computational_data/tasks.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="serving-static-files-media">
+<h1>Serving static files (media)<a class="headerlink" href="#serving-static-files-media" title="Permalink to this headline">¶</a></h1>
+<p>There are some files, such as PDB files, that need to be served by fragalysis. These are either:</p>
+<ul class="simple">
+<li><p><strong>Served to the front-end</strong> - files retrieved from a specific URL to be loaded and rendered in the front-end - most
+commonly PDB files loaded by NGL into the central 3D viewer</p></li>
+<li><p><strong>Served as downloads</strong> - files retrieved from a specific URL to be downloaded directly by a user.</p></li>
+</ul>
+<p>It is not recommended to use Django to serve static files in production, so fragalysis makes use of nginx to serve its
+media.
+(<a class="reference external" href="https://docs.djangoproject.com/en/3.1/howto/static-files/deployment/#serving-static-files-from-a-dedicated-server">https://docs.djangoproject.com/en/3.1/howto/static-files/deployment/#serving-static-files-from-a-dedicated-server</a>).</p>
+<div class="section" id="nginx">
+<h2>NGINX<a class="headerlink" href="#nginx" title="Permalink to this headline">¶</a></h2>
+<p>According to the NGINX website (<a class="reference external" href="https://www.nginx.com/resources/glossary/nginx/">https://www.nginx.com/resources/glossary/nginx/</a>):</p>
+<blockquote>
+<div><p>NGINX is open source software for web serving, reverse proxying, caching, load balancing, media streaming, and more.
+It started out as a web server designed for maximum performance and stability.</p>
+</div></blockquote>
+</div>
+<div class="section" id="adding-an-endpoint-that-serves-media">
+<h2>Adding an endpoint that serves media<a class="headerlink" href="#adding-an-endpoint-that-serves-media" title="Permalink to this headline">¶</a></h2>
+<p>In fragalysis, we use a <code class="code docutils literal notranslate"><span class="pre">FileField</span></code> in a <code class="code docutils literal notranslate"><span class="pre">Model</span></code> to specify a file, and where it is stored. For example, in
+the target model we have two files that are served as files:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Target</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Django model to define a Target - a protein.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    title: CharField</span>
+<span class="sd">        The name of the target</span>
+<span class="sd">    init_date: DateTimeField</span>
+<span class="sd">        The date the target was initiated (autofield)</span>
+<span class="sd">    project_id: ManyToManyField</span>
+<span class="sd">        Links targets to projects for authentication</span>
+<span class="sd">    uniprot_id: Charfield</span>
+<span class="sd">        Optional field where a uniprot id can be stored</span>
+<span class="sd">    metadata: FileField</span>
+<span class="sd">        Optional file upload defining metadata about the target - can be used to add custom site labels</span>
+<span class="sd">    zip_archive: FileField</span>
+<span class="sd">        Link to zip file created from targets uploaded with the loader</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># The title of the project_id -&gt; userdefined</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+    <span class="c1"># The date it was made</span>
+    <span class="n">init_date</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">(</span><span class="n">auto_now_add</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># A field to link projects and targets together</span>
+    <span class="n">project_id</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Project</span><span class="p">)</span>
+    <span class="c1"># Indicates the uniprot_id id for the target. Is a unique key</span>
+    <span class="n">uniprot_id</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># metadatafile containing sites info for download</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">FileField</span><span class="p">(</span><span class="n">upload_to</span><span class="o">=</span><span class="s2">&quot;metadata/&quot;</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">)</span>
+    <span class="c1"># zip archive to download uploaded data from</span>
+    <span class="n">zip_archive</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">FileField</span><span class="p">(</span><span class="n">upload_to</span><span class="o">=</span><span class="s2">&quot;archive/&quot;</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="code docutils literal notranslate"><span class="pre">metadata</span></code> file and the <cite>zip_archive</cite> file. To make sure that these <code class="code docutils literal notranslate"><span class="pre">Files</span></code> are served as download links
+, we have to tell nginx to allow access to the media area where the files are uploaded/saved to.</p>
+<p>We define this in <code class="code docutils literal notranslate"><span class="pre">django_nginx.conf</span></code>, for example for the <code class="code docutils literal notranslate"><span class="pre">metadata</span></code> file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>location /metadata/ <span class="o">{</span>
+        <span class="nb">alias</span> /code/media/metadata/<span class="p">;</span>
+        internal<span class="p">;</span>
+    <span class="o">}</span>
+</pre></div>
+</div>
+<p>This tells nginx that the url <code class="code docutils literal notranslate"><span class="pre">/metadata/</span></code> can be used to access files hosted on the back-end under
+<code class="code docutils literal notranslate"><span class="pre">/code/media/metadata</span></code>.</p>
+<p>In order to tell django to serve these files at the given URL, we need a <code class="code docutils literal notranslate"><span class="pre">View</span></code>, just like any other endpoint. The
+view for serving <code class="code docutils literal notranslate"><span class="pre">metadata</span></code> files can be found in <code class="code docutils literal notranslate"><span class="pre">media_serve/views.py</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">api.security</span> <span class="kn">import</span> <span class="n">ISpyBSafeStaticFiles</span>
+<span class="kn">from</span> <span class="nn">viewer.models</span> <span class="kn">import</span> <span class="n">Target</span>
+
+<span class="k">def</span> <span class="nf">metadata_download</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Download a metadata file by nginx redirect</span>
+<span class="sd">    :param request: the initial request</span>
+<span class="sd">    :param file_path: the file path we&#39;re getting from the static</span>
+<span class="sd">    :return: the response (a redirect to nginx internal)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ispy_b_static</span> <span class="o">=</span> <span class="n">ISpyBSafeStaticFiles</span><span class="p">()</span>
+    <span class="n">ispy_b_static</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">Target</span>
+    <span class="n">ispy_b_static</span><span class="o">.</span><span class="n">request</span> <span class="o">=</span> <span class="n">request</span>
+    <span class="n">ispy_b_static</span><span class="o">.</span><span class="n">permission_string</span> <span class="o">=</span> <span class="s2">&quot;project_id&quot;</span>
+    <span class="n">ispy_b_static</span><span class="o">.</span><span class="n">field_name</span> <span class="o">=</span> <span class="s2">&quot;metadata&quot;</span>
+    <span class="n">ispy_b_static</span><span class="o">.</span><span class="n">content_type</span> <span class="o">=</span> <span class="s2">&quot;application/x-pilot&quot;</span>
+    <span class="n">ispy_b_static</span><span class="o">.</span><span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;/metadata/&quot;</span>
+    <span class="n">ispy_b_static</span><span class="o">.</span><span class="n">input_string</span> <span class="o">=</span> <span class="n">file_path</span>
+    <span class="k">return</span> <span class="n">ispy_b_static</span><span class="o">.</span><span class="n">get_response</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>For our files, we’re authenticating user access to file downloads with <code class="code docutils literal notranslate"><span class="pre">ISpyBSafeStaticFiles</span></code>, which is a custom
+class inheriting <code class="code docutils literal notranslate"><span class="pre">ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet)</span></code>: the same View method we use to authenticate
+user access for all non-media views. The difference between <code class="code docutils literal notranslate"><span class="pre">ISpyBSafeQuerySet</span></code> and <code class="code docutils literal notranslate"><span class="pre">ISpyBSafeStaticFiles</span></code>
+is that <code class="code docutils literal notranslate"><span class="pre">ISpyBSafeStaticFiles</span></code> contains a method that sets the context of the response using NGINX’s redirect
+method, returning the response including the file as an attachment:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">ISpyBSafeStaticFiles</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="nf">get_queryset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">ISpyBSafeQuerySet</span><span class="p">()</span>
+        <span class="n">query</span><span class="o">.</span><span class="n">request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span>
+        <span class="n">query</span><span class="o">.</span><span class="n">filter_permissions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">permission_string</span>
+        <span class="n">query</span><span class="o">.</span><span class="n">queryset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">()</span>
+        <span class="n">queryset</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">get_queryset</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">queryset</span>
+
+    <span class="k">def</span> <span class="nf">get_response</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">queryset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_queryset</span><span class="p">()</span>
+            <span class="n">filter_dict</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">field_name</span> <span class="o">+</span> <span class="s2">&quot;__endswith&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_string</span><span class="p">}</span>
+            <span class="nb">object</span> <span class="o">=</span> <span class="n">queryset</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="o">**</span><span class="n">filter_dict</span><span class="p">)</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="nb">object</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">)))</span>
+
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;file_format&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_format</span><span class="o">==</span><span class="s1">&#39;raw&#39;</span><span class="p">:</span>
+                    <span class="n">file_field</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">object</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">)</span>
+                    <span class="n">filepath</span> <span class="o">=</span> <span class="n">file_field</span><span class="o">.</span><span class="n">path</span>
+                    <span class="n">zip_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span>
+                    <span class="n">response</span> <span class="o">=</span> <span class="n">HttpResponse</span><span class="p">(</span><span class="n">FileWrapper</span><span class="p">(</span><span class="n">zip_file</span><span class="p">),</span> <span class="n">content_type</span><span class="o">=</span><span class="s1">&#39;application/zip&#39;</span><span class="p">)</span>
+                    <span class="n">response</span><span class="p">[</span><span class="s1">&#39;Content-Disposition&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;attachment; filename=&quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="n">file_name</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="n">HttpResponse</span><span class="p">()</span>
+                <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Content-Type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_type</span>
+                <span class="n">response</span><span class="p">[</span><span class="s2">&quot;X-Accel-Redirect&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">file_name</span>
+                <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Content-Disposition&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;attachment;filename=&quot;</span> <span class="o">+</span> <span class="n">file_name</span>
+
+            <span class="k">return</span> <span class="n">response</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Http404</span>
+</pre></div>
+</div>
+<p>Finally, just as with any other view, we have to specify a url. For example, for the <code class="code docutils literal notranslate"><span class="pre">metadata</span></code> file, we specify
+in <code class="code docutils literal notranslate"><span class="pre">media_serve/urls.py</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">url</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^metadata/(?P&lt;file_path&gt;.+)&quot;</span><span class="p">,</span> <span class="n">views</span><span class="o">.</span><span class="n">metadata_download</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;get_metadata&quot;</span><span class="p">),</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_intro.html">RESTful API (Models, Serializers and Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="misc_views.html">Miscellaneous data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Serving static files (media)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#nginx">NGINX</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#adding-an-endpoint-that-serves-media">Adding an endpoint that serves media</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../computational_data/tasks.html" title="previous chapter">Uploading computational data (Celery tasks and django template)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/API/media.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

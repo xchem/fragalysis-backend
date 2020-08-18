@@ -1,0 +1,331 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RESTful API (Models, Serializers and Views) &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Crystallographic data (Models)" href="../crystallographic_data/schema.html" />
+    <link rel="prev" title="Running in Production (+CI/CD)" href="../dev_setup/production.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="restful-api-models-serializers-and-views">
+<span id="api-intro"></span><h1>RESTful API (Models, Serializers and Views)<a class="headerlink" href="#restful-api-models-serializers-and-views" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>An API is an application program interface - a set of functions and procedures that allow the creation of applications
+or scripts that can access the information, features or data of a separate operating system, application or service.</p>
+<p>A RESTful (REpresentational State Transfer) API is an API written in a way that complies to a number of constraints to
+allow it to be used as a web service. These services are written so that different services across the internet are
+interoperable. RESTful web services use stateless operations -  no session information is retained by the receiver – to
+allow requesting systems to manipulate text-based representations of web resources (information identifiable by URL).</p>
+<p>RESTful APIs use HTTP methods to allow a number of different operations to be performed on a web resource over the web.
+The most common operations are:</p>
+<ul class="simple">
+<li><p>GET: retrieve information</p></li>
+<li><p>POST: send information to  the server to create or update a resource</p></li>
+<li><p>PUT: send information to  the server to create or update a resource</p></li>
+<li><p>DELETE: delete a specified resource</p></li>
+</ul>
+<p>A more complex overview of these methods (and others) is available here: <a class="reference external" href="https://www.w3schools.com/tags/ref_httpmethods.asp">https://www.w3schools.com/tags/ref_httpmethods.asp</a></p>
+<p>A more thorough explaination of RESTful APIs is available here: <a class="reference external" href="https://searchapparchitecture.techtarget.com/definition/RESTful-API">https://searchapparchitecture.techtarget.com/definition/RESTful-API</a></p>
+</div>
+<div class="section" id="django-rest-framework-drf">
+<h2>Django REST framework (DRF)<a class="headerlink" href="#django-rest-framework-drf" title="Permalink to this headline">¶</a></h2>
+<p>In fragalysis, our RESTFul API is built using Django and Django REST framework (DRF).</p>
+<p>DRF uses standard classes to define what information can be accessed by users, how they can access that data, and how
+it is returned to the user when they make a request.</p>
+<p>These classes first need a <code class="code docutils literal notranslate"><span class="pre">Model</span></code> object to operate on. <code class="code docutils literal notranslate"><span class="pre">Models</span></code> are the django representation of database
+tables (for an example, see [link]).</p>
+<p>Once we have a model containing data that we want to allow a user to access, we need to be able to convert that data to
+a format that can be rendered in various appropriate forms (e.g. JSON or XML). To do this, we use <code class="code docutils literal notranslate"><span class="pre">Serializers.</span></code>
+These <code class="code docutils literal notranslate"><span class="pre">Serializers</span></code> simply inherit a <code class="code docutils literal notranslate"><span class="pre">ModelSerializer</span></code> class, and all we have to tell the Serializer is what
+<code class="code docutils literal notranslate"><span class="pre">Model</span></code> we want to operate on, and which <code class="code docutils literal notranslate"><span class="pre">fields</span></code> from the model we want to use (make accessible to the
+user).</p>
+<p>Once we’ve serialized our data, we next need to write <code class="code docutils literal notranslate"><span class="pre">Views</span></code>. Views define what types of requests (e.g. GET) can
+be performed against a resource, and what we do with that request to return information. DRF comes with a bunch of
+methods, classes and functions that allow us to do this in a simple way. We can define, using standard django methods,
+what filter we want to perform on the relevant <code class="code docutils literal notranslate"><span class="pre">Model</span></code>, which <code class="code docutils literal notranslate"><span class="pre">fields</span></code> from the model we want to allow the
+user to filter by (<code class="code docutils literal notranslate"><span class="pre">filter_fields</span></code>) and what <code class="code docutils literal notranslate"><span class="pre">Response</span></code> we want to post back to them.</p>
+<p>Finally, we need to specify an <code class="code docutils literal notranslate"><span class="pre">endpoint</span></code> (i.e. URL) that the <code class="code docutils literal notranslate"><span class="pre">View</span></code> is served at, so the user can make
+requests against the web service.</p>
+</div>
+<div class="section" id="example-model-serializer-view-and-url-for-target-model">
+<h2>EXAMPLE - Model, Serializer, View and URL for Target model<a class="headerlink" href="#example-model-serializer-view-and-url-for-target-model" title="Permalink to this headline">¶</a></h2>
+<p><strong>Model</strong></p>
+<p>The Target model contains information about a protein target. In django, we define this as an inhereted Model instance:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">django.db</span> <span class="kn">import</span> <span class="n">models</span>
+
+<span class="k">class</span> <span class="nc">Target</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Model</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Django model to define a Target - a protein.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    title: CharField</span>
+<span class="sd">        The name of the target</span>
+<span class="sd">    init_date: DateTimeField</span>
+<span class="sd">        The date the target was initiated (autofield)</span>
+<span class="sd">    project_id: ManyToManyField</span>
+<span class="sd">        Links targets to projects for authentication</span>
+<span class="sd">    uniprot_id: Charfield</span>
+<span class="sd">        Optional field where a uniprot id can be stored</span>
+<span class="sd">    metadata: FileField</span>
+<span class="sd">        Optional file upload defining metadata about the target - can be used to add custom site labels</span>
+<span class="sd">    zip_archive: FileField</span>
+<span class="sd">        Link to zip file created from targets uploaded with the loader</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># The title of the project_id -&gt; userdefined</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+    <span class="c1"># The date it was made</span>
+    <span class="n">init_date</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">DateTimeField</span><span class="p">(</span><span class="n">auto_now_add</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># A field to link projects and targets together</span>
+    <span class="n">project_id</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">ManyToManyField</span><span class="p">(</span><span class="n">Project</span><span class="p">)</span>
+    <span class="c1"># Indicates the uniprot_id id for the target. Is a unique key</span>
+    <span class="n">uniprot_id</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># metadatafile containing sites info for download</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">FileField</span><span class="p">(</span><span class="n">upload_to</span><span class="o">=</span><span class="s2">&quot;metadata/&quot;</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">)</span>
+    <span class="c1"># zip archive to download uploaded data from</span>
+    <span class="n">zip_archive</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">FileField</span><span class="p">(</span><span class="n">upload_to</span><span class="o">=</span><span class="s2">&quot;archive/&quot;</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This model tells us which fields we want in our database table, what data type each field can contain, and some other
+optional parameters, such as wether the field has to have data in it, or the maximum length of data that can be added to
+the field.</p>
+<p><strong>Serializer</strong></p>
+<p>The Target serializer tells us what information from the Target model we want to pass back to the user when they make a
+request.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">rest_framework</span> <span class="kn">import</span> <span class="n">serializers</span>
+<span class="kn">from</span> <span class="nn">viewer.models</span> <span class="kn">import</span> <span class="n">Target</span>
+
+<span class="k">class</span> <span class="nc">TargetSerializer</span><span class="p">(</span><span class="n">serializers</span><span class="o">.</span><span class="n">ModelSerializer</span><span class="p">):</span>
+    <span class="n">template_protein</span> <span class="o">=</span> <span class="n">serializers</span><span class="o">.</span><span class="n">SerializerMethodField</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_template_protein</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="n">proteins</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">protein_set</span><span class="o">.</span><span class="n">filter</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">protein</span> <span class="ow">in</span> <span class="n">proteins</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">protein</span><span class="o">.</span><span class="n">pdb_info</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">protein</span><span class="o">.</span><span class="n">pdb_info</span><span class="o">.</span><span class="n">url</span>
+        <span class="k">return</span> <span class="s2">&quot;NOT AVAILABLE&quot;</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Target</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;project_id&quot;</span><span class="p">,</span> <span class="s2">&quot;protein_set&quot;</span><span class="p">,</span> <span class="s2">&quot;template_protein&quot;</span><span class="p">,</span> <span class="s2">&quot;metadata&quot;</span><span class="p">,</span> <span class="s2">&quot;zip_archive&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The serializer uses the DRF <code class="code docutils literal notranslate"><span class="pre">serializers.ModelSerializer</span></code> class. We define the <code class="code docutils literal notranslate"><span class="pre">model</span></code> and <code class="code docutils literal notranslate"><span class="pre">fields</span></code> in
+a <code class="code docutils literal notranslate"><span class="pre">Meta</span></code> subclass, where the <code class="code docutils literal notranslate"><span class="pre">model</span></code> is an instance of the <code class="code docutils literal notranslate"><span class="pre">Model</span></code> we want to operate on, and the
+<code class="code docutils literal notranslate"><span class="pre">fields</span></code> parameter is a tuple containing the names of the fields we want to return as strings. Additionally, we
+can add extra fields, and add a method to define how we get the value of the field. For example, in this
+<code class="code docutils literal notranslate"><span class="pre">Serializer</span></code> we have added the <code class="code docutils literal notranslate"><span class="pre">template_protein</span></code> field, and defined how we get its value with
+<code class="code docutils literal notranslate"><span class="pre">get_template_protein</span></code>.</p>
+<p><strong>View</strong></p>
+<p>This <code class="code docutils literal notranslate"><span class="pre">View</span></code> returns a list of information about a specific target, if you pass the <code class="code docutils literal notranslate"><span class="pre">title</span></code> parameter to the
+request, or a list of information about all targets if you make a request against the URL.</p>
+<p>The <code class="code docutils literal notranslate"><span class="pre">View</span></code> is written as a class inheriting the DRF <code class="code docutils literal notranslate"><span class="pre">ReadOnlyModelViewSet</span></code>, which is a standard <code class="code docutils literal notranslate"><span class="pre">View</span></code>
+class that is read-only. That means that only GET requests can be made against this view. There are other ways to define
+this for different types of view, but we won’t go into detail here - this is the method we have chosen to use with most
+of our standard views.</p>
+<p>Additionally, in the actual code, you will notice that <code class="code docutils literal notranslate"><span class="pre">TargetView(viewsets.ReadOnlyModelViewSet)</span></code> is replaced by
+<code class="code docutils literal notranslate"><span class="pre">TargetView(ISpyBSafeQuerySet)</span></code>. <code class="code docutils literal notranslate"><span class="pre">ISpyBSafeQuerySet</span></code> is a version of <code class="code docutils literal notranslate"><span class="pre">viewsets.ReadOnlyModelViewSet</span></code>
+that includes an authentication method specific for the deployment of fragalysis at <a class="reference external" href="https://fragalysis.diamond.ac.uk">https://fragalysis.diamond.ac.uk</a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">rest_framework</span> <span class="kn">import</span> <span class="n">viewsets</span>
+<span class="kn">from</span> <span class="nn">viewer.serializers</span> <span class="kn">import</span> <span class="n">TargetSerializer</span>
+<span class="kn">from</span> <span class="nn">viewer.models</span> <span class="kn">import</span> <span class="n">Target</span>
+
+<span class="k">class</span> <span class="nc">TargetView</span><span class="p">(</span><span class="n">viewsets</span><span class="o">.</span><span class="n">ReadOnlyModelViewSet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; DjagnoRF view to retrieve info about targets</span>
+
+<span class="sd">       Methods</span>
+<span class="sd">       -------</span>
+<span class="sd">       url:</span>
+<span class="sd">           api/targets</span>
+<span class="sd">       queryset:</span>
+<span class="sd">           `viewer.models.Target.objects.filter()`</span>
+<span class="sd">       filter fields:</span>
+<span class="sd">           - `viewer.models.Target.title` - ?title=&lt;str&gt;</span>
+<span class="sd">       returns: JSON</span>
+<span class="sd">           - id: id of the target object</span>
+<span class="sd">           - title: name of the target</span>
+<span class="sd">           - project_id: list of the ids of the projects the target is linked to</span>
+<span class="sd">           - protein_set: list of the ids of the protein sets the target is linked to</span>
+<span class="sd">           - template_protein: the template protein displayed in fragalysis front-end for this target</span>
+<span class="sd">           - metadata: link to the metadata file for the target if it was uploaded</span>
+<span class="sd">           - zip_archive: link to the zip archive of the uploaded data</span>
+
+<span class="sd">       example output:</span>
+
+<span class="sd">           .. code-block:: javascript</span>
+
+<span class="sd">               &quot;results&quot;: [</span>
+<span class="sd">                {</span>
+<span class="sd">                    &quot;id&quot;: 62,</span>
+<span class="sd">                    &quot;title&quot;: &quot;Mpro&quot;,</span>
+<span class="sd">                    &quot;project_id&quot;: [</span>
+<span class="sd">                        2</span>
+<span class="sd">                    ],</span>
+<span class="sd">                    &quot;protein_set&quot;: [</span>
+<span class="sd">                        29281,</span>
+<span class="sd">                        29274,</span>
+<span class="sd">                        29259,</span>
+<span class="sd">                        29305,</span>
+<span class="sd">                        ...,</span>
+<span class="sd">                    ],</span>
+<span class="sd">                    &quot;template_protein&quot;: &quot;/media/pdbs/Mpro-x10417_0_apo.pdb&quot;,</span>
+<span class="sd">                    &quot;metadata&quot;: &quot;http://fragalysis.diamond.ac.uk/media/metadata/metadata_2FdP5OJ.csv&quot;,</span>
+<span class="sd">                    &quot;zip_archive&quot;: &quot;http://fragalysis.diamond.ac.uk/media/targets/Mpro.zip&quot;</span>
+<span class="sd">                }</span>
+<span class="sd">            ]</span>
+
+<span class="sd">       &quot;&quot;&quot;</span>
+    <span class="n">queryset</span> <span class="o">=</span> <span class="n">Target</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">()</span>
+    <span class="n">serializer_class</span> <span class="o">=</span> <span class="n">TargetSerializer</span>
+    <span class="n">filter_permissions</span> <span class="o">=</span> <span class="s2">&quot;project_id&quot;</span>
+    <span class="n">filter_fields</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,)</span>
+</pre></div>
+</div>
+<p>The docstring for this class is formatted in a way to allow a user or developer to easily read the docstring, and
+understand the URL to query, how the information is queried by django, what fields can be queried against, and what
+information is returned from a request against the views URL. All of the views in this documentation are written in the
+same way.</p>
+<p><strong>URL</strong></p>
+<p>Finally, we need to define where the view is served from, in context of the root (e.g. <a class="reference external" href="https://fragalysis.diamond.ac.uk">https://fragalysis.diamond.ac.uk</a>)
+URL. The target view is served at <code class="code docutils literal notranslate"><span class="pre">&lt;root&gt;/api/targets</span></code>. In <code class="code docutils literal notranslate"><span class="pre">api/urls.py</span></code> we use the following lines to add
+the <code class="code docutils literal notranslate"><span class="pre">TargetView</span></code> to that endpoint:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">rest_framework.routers</span> <span class="kn">import</span> <span class="n">DefaultRouter</span>
+<span class="kn">from</span> <span class="nn">viewer</span> <span class="kn">import</span> <span class="n">views</span> <span class="k">as</span> <span class="n">viewer_views</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">DefaultRouter</span><span class="p">()</span>
+<span class="n">router</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;targets&quot;</span><span class="p">,</span> <span class="n">viewer_views</span><span class="o">.</span><span class="n">TargetView</span><span class="p">,</span> <span class="s2">&quot;targets&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The DRF <code class="code docutils literal notranslate"><span class="pre">DefaultRouter</span></code> provides a simple, quick and consistent way of wiring ViewSet logic to a set of URLs.
+Router automatically maps the incoming request to proper viewset action based on the request method type.</p>
+<p>To make sure that we serve the URLS from <code class="code docutils literal notranslate"><span class="pre">api/urls.py</span></code>, we include the URLs from there in
+<code class="code docutils literal notranslate"><span class="pre">fragalysis/urls.py</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="n">url</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^api/&quot;</span><span class="p">,</span> <span class="n">include</span><span class="p">(</span><span class="s2">&quot;api.urls&quot;</span><span class="p">)),</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+<p>and specify this file as the <code class="code docutils literal notranslate"><span class="pre">URL_ROOTCONF</span></code> in <code class="code docutils literal notranslate"><span class="pre">fragalysis/settings.py</span></code> - the django settings file:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ROOT_URLCONF</span> <span class="o">=</span> <span class="s2">&quot;fragalysis.urls&quot;</span>
+</pre></div>
+</div>
+<p>If we navigate to the URL <code class="code docutils literal notranslate"><span class="pre">&lt;root&gt;/api/targets/?title=&lt;target_name&gt;</span></code> we are presented with the following page:</p>
+<img alt="../_images/target_api.png" src="../_images/target_api.png" />
+<p>This is a page automatically generated by DRF, and includes options to see what kinds of requests you can make against
+this endpoint.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">RESTful API (Models, Serializers and Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#django-rest-framework-drf">Django REST framework (DRF)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-model-serializer-view-and-url-for-target-model">EXAMPLE - Model, Serializer, View and URL for Target model</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="misc_views.html">Miscellaneous data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="media.html">Serving static files (media)</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../dev_setup/production.html" title="previous chapter">Running in Production (+CI/CD)</a></li>
+      <li>Next: <a href="../crystallographic_data/schema.html" title="next chapter">Crystallographic data (Models)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/API/api_intro.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

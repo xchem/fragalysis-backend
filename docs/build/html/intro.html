@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Introduction &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Local developer environment setup" href="dev_setup/stack_setup.html" />
+    <link rel="prev" title="Fragalysis Backend - Welcome!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="introduction">
+<h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
+<p>The <em>fragalysis-backend</em> codebase (<a class="reference external" href="https://github.com/xchem/fragalysis-backend">https://github.com/xchem/fragalysis-backend</a>) contains the python code used on the
+back-end of fragalysis (<a class="reference external" href="https://fragalysis.diamond.ac.uk">https://fragalysis.diamond.ac.uk</a>) and controls:</p>
+<ul class="simple">
+<li><p>Models - the database table definitions for the postgres database that serves fragalysis data</p></li>
+<li><p>Views - the Django Rest Framework views that handle which data can be served to either the front-end or a user, and
+how it is served to them</p></li>
+<li><p>Media - serving of files via views and nginx (see
+<a class="reference external" href="https://docs.djangoproject.com/en/3.1/howto/static-files/deployment/#serving-static-files-from-a-dedicated-server">https://docs.djangoproject.com/en/3.1/howto/static-files/deployment/#serving-static-files-from-a-dedicated-server</a>)</p></li>
+<li><p>Tasks - some tasks for uploading files via a user-facing page</p></li>
+<li><p>Templates - some templates to allow users to upload certain files</p></li>
+</ul>
+<p>If you understand all of the concepts briefly mentioned here, you may want to go ahead and
+<a class="reference internal" href="dev_setup/stack_setup.html#stack-setup"><span class="std std-ref">setup your developer stack</span></a></p>
+<div class="section" id="for-newbies">
+<h2>For Newbies<a class="headerlink" href="#for-newbies" title="Permalink to this headline">¶</a></h2>
+<p>If you are unfamiliar with django or RESTful APIs, and are hoping to develop fragalysis backend, we recommend that you
+start by familiarising yourself with the following:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>Django:</dt><dd><ul>
+<li><p>overview: <a class="reference external" href="https://www.djangoproject.com/start/overview/">https://www.djangoproject.com/start/overview/</a></p></li>
+<li><p>tutorial: <a class="reference external" href="https://docs.djangoproject.com/en/3.1/intro/tutorial01/">https://docs.djangoproject.com/en/3.1/intro/tutorial01/</a></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Model, View, Controller software design pattern:</dt><dd><ul>
+<li><p>wiki: <a class="reference external" href="https://en.wikipedia.org/wiki/Model">https://en.wikipedia.org/wiki/Model</a>–view–controller</p></li>
+<li><p>tutorial: <a class="reference external" href="https://blog.codinghorror.com/understanding-model-view-controller/">https://blog.codinghorror.com/understanding-model-view-controller/</a></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>RESTful APIs:</dt><dd><ul>
+<li><p>wiki: <a class="reference external" href="https://en.wikipedia.org/wiki/Representational_state_transfer">https://en.wikipedia.org/wiki/Representational_state_transfer</a></p></li>
+<li><p>restfulapi.net: <a class="reference external" href="https://restfulapi.net">https://restfulapi.net</a></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>Django Rest Framework: <a class="reference external" href="https://www.django-rest-framework.org">https://www.django-rest-framework.org</a></p></li>
+</ul>
+<p>Once you feel like you understand these concepts, a good thing to do is <a class="reference internal" href="dev_setup/stack_setup.html#stack-setup"><span class="std std-ref">setup your developer stack</span></a></p>
+</div>
+<div class="section" id="context">
+<h2>Context<a class="headerlink" href="#context" title="Permalink to this headline">¶</a></h2>
+<p>This section aims to briefly describe the context of the back-end code in terms of the data serverd to the front-end
+application.</p>
+<p>The image below shows a target page from fragalysis (<a class="reference external" href="https://fragalysis.diamond.ac.uk/viewer/react/preview/target/Mpro">https://fragalysis.diamond.ac.uk/viewer/react/preview/target/Mpro</a>)
+and highlights it’s 3 main functions:</p>
+<ol class="arabic simple">
+<li><p>Serving crystallographic data</p></li>
+<li><p>Allowing a user to navigate the data in 3D</p></li>
+<li><p>Serving 2D and 3D information relating to new molecule designs</p></li>
+</ol>
+<p>The image also highlights some of the data-types associated with these functionalities</p>
+<img alt="_images/context.jpg" src="_images/context.jpg" />
+<p>This data is all contained within a number of database tables in the backend codebase, defined by django <em>Models</em>; and
+served to the frontend via. RESTful endpoints, defined through Django and Django Rest Framework <em>Views</em>.</p>
+<p>Although it could, the backend does not directly handle the loading (upload of data to fragalysis server and processing
+to put into database) of <strong>most</strong> data - this is done by the loader (<a class="reference external" href="https://github.com/xchem/fragalysis-loader">https://github.com/xchem/fragalysis-loader</a>).</p>
+<p>The rest of the documentation attempts to present code-level documentation and tutorials to the developer within the
+context described here.</p>
+<ol class="arabic simple">
+<li><dl class="simple">
+<dt>Crystallographic data:</dt><dd><ul class="simple">
+<li><p>links</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Computed data:</dt><dd><ul class="simple">
+<li><p>links</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>API (Restful) - data</dt><dd><ul class="simple">
+<li><p>links</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Serving media - files</dt><dd><ul class="simple">
+<li><p>links</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ol>
+</div>
+<div class="section" id="the-stack">
+<h2>The Stack<a class="headerlink" href="#the-stack" title="Permalink to this headline">¶</a></h2>
+<p>The fragalysis stack is very intentionally split up into many components, each with its own codebase. This documentation
+only covers the backend, as described in the introduction.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Introduction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#for-newbies">For Newbies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#context">Context</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-stack">The Stack</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API/api_intro.html">RESTful API (Models, Serializers and Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API/misc_views.html">Miscellaneous data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API/media.html">Serving static files (media)</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Fragalysis Backend - Welcome!</a></li>
+      <li>Next: <a href="dev_setup/stack_setup.html" title="next chapter">Local developer environment setup</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/intro.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

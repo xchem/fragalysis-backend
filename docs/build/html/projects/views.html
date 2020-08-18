@@ -1,0 +1,372 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Project data (Views) &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Miscellaneous data (Views)" href="../API/misc_views.html" />
+    <link rel="prev" title="Computational data (Views)" href="../computational_data/views.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="project-data-views">
+<span id="proj-views"></span><h1>Project data (Views)<a class="headerlink" href="#project-data-views" title="Permalink to this headline">¶</a></h1>
+<p>The models that these views work on can be found in <a class="reference internal" href="schema.html#proj-models"><span class="std std-ref">Project data (Models)</span></a></p>
+<div class="section" id="where-the-views-are-used-frontend">
+<h2>Where the views are used (frontend)<a class="headerlink" href="#where-the-views-are-used-frontend" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.SnapshotsView</span></code>: the json data in the <code class="code docutils literal notranslate"><span class="pre">data</span></code> field in this view is used by the reducers on
+the front-end to re-create the context of any page that a user saves to a project, or saves as a standalone snapshot.
+The PUT method of this view is what is used by the front-end button push of ‘save’ or ‘share’ in the menu bar of a
+target specific page to send the state of the page to the view so that the data is saved and accessed later. The data
+can be accessed either through an endpoint, or if the user is logged in when they save the session, as part of its
+associated project, all of which are listed on the landing page when a user is logged in. If the user is logged in and
+navigates to a specific project, the project navigator will appear on the bottom right-hand side as a tree, which the
+user can navigate through to access different project snapshots. Information such as who created the snapshot, its
+title and description are also displayed here.</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.SessionProjectsView</span></code>: This view is used to create a project (collection of snaphots) when a user
+is logged in and clicks the ‘+’ button on the projects pane of the landing page. The GET method of this view is used
+to retrieve information about user-created projects, and display it in the projects pane of the landing page.</p></li>
+</ul>
+</div>
+<div class="section" id="view-details">
+<h2>View details<a class="headerlink" href="#view-details" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="viewer.views.SnapshotsView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SnapshotsView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SnapshotsView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Djagno view to retrieve information about user sessions (snapshots) (GET). Also used for saving
+session information (PUT, POST, PATCH)</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/snapshots</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.Snapshot.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter class:</code></dt>
+<dd><p><cite>viewer.filters.SnapshotFilter</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.Snapshot.id</cite> - ?id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Snapshot.type</cite> - ?type=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Snapshot.author</cite> - ?author=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Snapshot.description</cite> ?description=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Snapshot.created</cite> - ?created=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.Snapshot.data</cite> - ?data=&lt;JSON str&gt;</p></li>
+<li><p><cite>viewer.models.Snapshot.session_project_id</cite> - ?session_project_id=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Snapshot.parent</cite> - ?parent=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.Snapshot.children</cite> - ?children=&lt;list&gt;</p></li>
+<li><p><cite>viewer.models.Snapshot.session_project</cite> - ?session_project=&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the snapshot</p></li>
+<li><p>type: type of snapshot</p></li>
+<li><p>title: title of snapshot given by author</p></li>
+<li><p>description: description of the snapshot given by author</p></li>
+<li><p>created: timestamp for when the snapshot was created</p></li>
+<li><p>data: json string describing data needed to reproduce state of the snapshot by the front-end</p></li>
+<li><dl class="simple">
+<dt>session_project: dict describing the project that the snapshot belongs to:</dt><dd><ul>
+<li><p>id: project id</p></li>
+<li><p>title: project title</p></li>
+<li><p>init_data: timestamp for when the project was initiated</p></li>
+<li><p>description: description of the project given by the author</p></li>
+<li><p>tags: tags given to the project by the author</p></li>
+<li><p>target: id of the target that the project is associated with</p></li>
+<li><p>author: name of the author who created the project</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>parent: parent snapshot id of the current snapshot</p></li>
+<li><p>children: list of children ids of the current snapshot</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">132</span><span class="p">,</span>
+        <span class="s2">&quot;type&quot;</span><span class="o">:</span> <span class="s2">&quot;INIT&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;title&quot;</span><span class="o">:</span> <span class="s2">&quot;-- 2020-07-09 -- 16:01:35&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;author&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+        <span class="s2">&quot;description&quot;</span><span class="o">:</span> <span class="s2">&quot;Snapshot generated by anonymous user&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;created&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-07-09T20:01:36.901552Z&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;data&quot;</span><span class="o">:</span> <span class="s1">&#39;&quot;{&quot;apiReducers&quot;:{&quot;target_id_list&quot;:[{&quot;id&quot;:2,&quot;title&quot;:&quot;NUDT7A&quot;,&#39;</span>
+        <span class="s2">&quot;session_project&quot;</span><span class="o">:</span> <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">124</span><span class="p">,</span>
+            <span class="s2">&quot;title&quot;</span><span class="o">:</span> <span class="s2">&quot;READ_ONLY&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;init_date&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-07-09T20:01:35.715324Z&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="o">:</span> <span class="s2">&quot;READ_ONLY&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;tags&quot;</span><span class="o">:</span> <span class="s2">&quot;[]&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;target&quot;</span><span class="o">:</span> <span class="mi">62</span><span class="p">,</span>
+            <span class="s2">&quot;author&quot;</span><span class="o">:</span> <span class="kc">null</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;parent&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+        <span class="s2">&quot;children&quot;</span><span class="o">:</span> <span class="p">[]</span>
+    <span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="viewer.views.SnapshotsView.get_serializer_class">
+<code class="sig-name descname">get_serializer_class</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SnapshotsView.get_serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p>if GET: <cite>viewer.serializers.SnapshotReadSerializer</cite></p></li>
+<li><p>if other: <cite>viewer.serializers.SnapshotWriteSerializer</cite></p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>Serializer (rest_framework.serializers.ModelSerializer)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.SessionProjectsView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionProjectsView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionProjectsView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Djagno view to retrieve information about user projects (collection of sessions) (GET). Also used for saving
+project information (PUT, POST, PATCH)</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/session-projects</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.SessionProject.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.SessionProject.title</cite> - ?title=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.SessionProject.init_date</cite> - ?date=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.SessionProject.description</cite> - ?description=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.SessionProject.target</cite> - ?target=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.SessionProject.author</cite> - ?author=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.SessionProject.tags</cite> - ?tags=&lt;list&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the project</p></li>
+<li><dl class="simple">
+<dt>target: dict of target info:</dt><dd><ul>
+<li><p>id: target id</p></li>
+<li><p>title: name of the target protein</p></li>
+<li><p>project_id: id of the project</p></li>
+<li><p>protein_set: list of protein objects associated with the target</p></li>
+<li><p>template_protein: link to the file used as the reference in fragalysis frontend</p></li>
+<li><p>metadata: link to the target metadata file</p></li>
+<li><p>zip_archive: link to the zip archive of uploaded files</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>author: name of the author that created the session</p></li>
+<li><p>title: title for the project</p></li>
+<li><p>init_date: timestamp for when the project was created</p></li>
+<li><p>description: author defined description of the project</p></li>
+<li><p>tags: list of tags given to the project by the author</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+<span class="p">{</span>
+    <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">122</span><span class="p">,</span>
+    <span class="s2">&quot;target&quot;</span><span class="o">:</span> <span class="p">{</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">62</span><span class="p">,</span>
+        <span class="s2">&quot;title&quot;</span><span class="o">:</span> <span class="s2">&quot;Mpro&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;project_id&quot;</span><span class="o">:</span> <span class="p">[</span>
+            <span class="mi">2</span>
+        <span class="p">],</span>
+        <span class="s2">&quot;protein_set&quot;</span><span class="o">:</span> <span class="p">[</span>
+            <span class="mi">29281</span><span class="p">,</span>
+            <span class="mi">29274</span><span class="p">,</span>
+            <span class="mi">29259</span><span class="p">,</span>
+            <span class="mi">29305</span><span class="p">,</span>
+            <span class="mi">29250</span><span class="p">,</span>
+            <span class="p">...,</span>
+        <span class="p">],</span>
+        <span class="s2">&quot;template_protein&quot;</span><span class="o">:</span> <span class="s2">&quot;/media/pdbs/Mpro-x10417_0_apo.pdb&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;metadata&quot;</span><span class="o">:</span> <span class="s2">&quot;http://fragalysis.diamond.ac.uk/media/metadata/metadata_2FdP5OJ.csv&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;zip_archive&quot;</span><span class="o">:</span> <span class="s2">&quot;http://fragalysis.diamond.ac.uk/media/targets/Mpro.zip&quot;</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;author&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="s2">&quot;title&quot;</span><span class="o">:</span> <span class="s2">&quot;READ_ONLY&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;init_date&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-07-09T19:52:10.506119Z&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;description&quot;</span><span class="o">:</span> <span class="s2">&quot;READ_ONLY&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;tags&quot;</span><span class="o">:</span> <span class="s2">&quot;[]&quot;</span>
+<span class="p">},]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="viewer.views.SessionProjectsView.get_serializer_class">
+<code class="sig-name descname">get_serializer_class</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionProjectsView.get_serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p>if GET: <cite>viewer.serializers.SessionProjectReadSerializer</cite></p></li>
+<li><p>if other: <cite>viewer.serializers.SessionProjectWriteSerializer</cite></p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>Serializer (rest_framework.serializers.ModelSerializer)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/api_intro.html">RESTful API (Models, Serializers and Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Project data (Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#where-the-views-are-used-frontend">Where the views are used (frontend)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#view-details">View details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/media.html">Serving static files (media)</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../computational_data/views.html" title="previous chapter">Computational data (Views)</a></li>
+      <li>Next: <a href="../API/misc_views.html" title="next chapter">Miscellaneous data (Views)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/projects/views.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

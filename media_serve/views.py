@@ -58,7 +58,7 @@ def map_download(request, file_path):
 
 def metadata_download(request, file_path):
     """
-    Download a protein by nginx redirect
+    Download a metadata file by nginx redirect
     :param request: the initial request
     :param file_path: the file path we're getting from the static
     :return: the response (a redirect to nginx internal)

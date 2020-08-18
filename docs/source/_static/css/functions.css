@@ -1,0 +1,17 @@
+.class {
+    border-bottom: 1px solid #c3ddff;
+    padding-bottom: 10px;
+    padding-top: 20px;
+}
+
+.function {
+    border-bottom: 1px solid #fbdfff;
+    padding-bottom: 10px;
+    padding-top: 20px;
+}
+
+.section {
+    border-bottom: 1px solid #dadeff;
+    padding-bottom: 5px;
+    padding-top: 10px;
+}

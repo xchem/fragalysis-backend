@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.views.generic.base import RedirectView
 from graphene_django.views import GraphQLView
 
+
 urlpatterns = [
     url(r"^admin/", admin.site.urls),
     url(r"^viewer/", include("viewer.urls")),

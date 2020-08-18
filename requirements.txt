@@ -125,3 +125,4 @@ xchem-ot==0.0.16
 yarl==1.5.1
 zipp==3.1.0
 pymysql
+sphinx
