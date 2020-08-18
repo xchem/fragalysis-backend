@@ -1,7 +1,7 @@
 .. _api-intro:
 
-RESTful API (Views)
-===================
+RESTful API (Models, Serializers and Views)
+===========================================
 Introduction
 ------------
 

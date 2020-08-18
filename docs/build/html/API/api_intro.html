@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RESTful API (Views) &#8212; Fragalysis-Backend  documentation</title>
+    <title>RESTful API (Models, Serializers and Views) &#8212; Fragalysis-Backend  documentation</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
@@ -16,8 +16,8 @@
     <script src="../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Crystallographic data (Views)" href="../crystallographic_data/views.html" />
-    <link rel="prev" title="Projects data (Models)" href="../projects/schema.html" />
+    <link rel="next" title="Crystallographic data (Models)" href="../crystallographic_data/schema.html" />
+    <link rel="prev" title="Running in Production (+CI/CD)" href="../dev_setup/production.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -34,8 +34,8 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="restful-api-views">
-<span id="api-intro"></span><h1>RESTful API (Views)<a class="headerlink" href="#restful-api-views" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="restful-api-models-serializers-and-views">
+<span id="api-intro"></span><h1>RESTful API (Models, Serializers and Views)<a class="headerlink" href="#restful-api-models-serializers-and-views" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="introduction">
 <h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <p>An API is an application program interface - a set of functions and procedures that allow the creation of applications
@@ -264,27 +264,29 @@ this endpoint.</p>
 <li class="toctree-l1"><a class="reference internal" href="../intro.html">Introduction</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../dev_setup/stack_setup.html">Local developer environment setup</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../dev_setup/production.html">Running in Production (+CI/CD)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">RESTful API (Views)</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">RESTful API (Models, Serializers and Views)</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#django-rest-framework-drf">Django REST framework (DRF)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#example-model-serializer-view-and-url-for-target-model">EXAMPLE - Model, Serializer, View and URL for Target model</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../projects/schema.html">Projects data (Models)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="misc_views.html">Miscellaneous data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="media.html">Serving static files (media)</a></li>
 </ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="../projects/schema.html" title="previous chapter">Projects data (Models)</a></li>
-      <li>Next: <a href="../crystallographic_data/views.html" title="next chapter">Crystallographic data (Views)</a></li>
+      <li>Previous: <a href="../dev_setup/production.html" title="previous chapter">Running in Production (+CI/CD)</a></li>
+      <li>Next: <a href="../crystallographic_data/schema.html" title="next chapter">Crystallographic data (Models)</a></li>
   </ul></li>
 </ul>
 </div>
