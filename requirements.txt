@@ -121,7 +121,6 @@ vine==1.3.0
 wcwidth==0.2.5
 websocket-client==0.57.0
 xchem-db==0.1.26b0
-xchem-ot==0.0.16
 yarl==1.5.1
 zipp==3.1.0
 pymysql
