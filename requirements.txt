@@ -75,7 +75,6 @@ pathlib2==2.3.5
 pexpect==4.8.0
 pickleshare==0.7.5
 Pillow==7.2.0
-pprint==0.1
 promise==2.3
 prompt-toolkit==3.0.5
 protobuf==3.12.4
@@ -121,7 +120,6 @@ vine==1.3.0
 wcwidth==0.2.5
 websocket-client==0.57.0
 xchem-db==0.1.26b0
-xchem-ot==0.0.16
 yarl==1.5.1
 zipp==3.1.0
 pymysql
