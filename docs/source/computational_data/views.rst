@@ -69,3 +69,4 @@ View details
 
 .. autoclass:: viewer.views.pset_download
     :members:
+

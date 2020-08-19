@@ -1,0 +1,17 @@
+name: fragalysis-backend-docs
+channels:
+  - conda-forge
+  - defaults
+  - rdkit
+dependencies:
+  - cython
+  - pip
+  - python
+  - sphinx
+  - rdkit
+  - pip:
+    - configparser
+    - sphinx_rtd_theme
+    - robpol86-sphinxcontrib-googleanalytics
+    - sphinxcontrib-bibtex
+    - sphinxcontrib-spelling

@@ -30,3 +30,5 @@ View details
 
 .. autoclass:: viewer.views.SessionProjectsView
     :members:
+
+
