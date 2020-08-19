@@ -224,8 +224,10 @@ and contains all of the required information (specified here: [link]) to upload 
 the :code:`viewer.views.UploadTaskView` into the relevant models specified in
 :ref:`Computational Data (Models) <comp-models>`.
 
+
 .. autoclass:: viewer.tasks.validate
     :members:
+
 
 Celery task - processing and saving uploaded data
 -------------------------------------------------
@@ -234,5 +236,7 @@ The second task that has to be completed when uploading a computed set is the up
 output of :code:`viewer.tasks.validate` - the uploaded files must be validated before their data can be saved to the
 database.
 
+
 .. autoclass:: viewer.tasks.process_compound_set
     :members:
+
