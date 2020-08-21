@@ -57,12 +57,14 @@
           </div>
       </section>
         <p class="has-text-centered" id="links"></p>
+        <p class="has-text-centered" id="validate-id"></p>
+        <p class="has-text-centered" id="upload-id"></p>
     </body>
 
     {% if validate_task_id %}
           <script>
           var content = document.getElementById('content');
-          content.innerHTML = "";
+          validid.innerHTML = "";
           var taskUrl = "{% url 'validate_task' validate_task_id=validate_task_id %}";
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
@@ -71,6 +73,8 @@
             updateProgressTitle();
             axios.get(taskUrl)
               .then(function(response){
+                var validid = document.getElementById('validate-id');
+                  content.innerHTML = taskUrl;
                 var taskStatus = response.data.validate_task_status
                 if (taskStatus === 'SUCCESS') {
 
@@ -112,6 +116,8 @@
           var content = document.getElementById('content');
           content.innerHTML = "";
           var taskUrl = "{% url 'upload_task' upload_task_id=upload_task_id %}";
+          var validid = document.getElementById('upload-id');
+          validid.innerHTML = taskUrl;
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
           updateProgressTitle();
