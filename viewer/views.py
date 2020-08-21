@@ -623,7 +623,8 @@ class UploadCSet(View):
         # targets = request.get('/api/targets/')
         # int(targets)
         form = CSetForm()
-        return render(request, 'viewer/upload-cset.html', {'form': form})
+        existing_sets = ComputedSet.objects.all()
+        return render(request, 'viewer/upload-cset.html', {'form': form, 'sets': existing_sets})
 
     def post(self, request):
         check_services()
@@ -645,6 +646,9 @@ class UploadCSet(View):
             myfile = request.FILES['sdf_file']
             target = request.POST['target_name']
             choice = request.POST['submit_choice']
+
+            # get update choice
+            update_set = request.POST['update_set']
 
             if 'pdb_zip' in list(request.FILES.keys()):
                 pdb_file = request.FILES['pdb_zip']
@@ -676,7 +680,7 @@ class UploadCSet(View):
             # Settings for if validate option selected
             if str(choice) == '0':
                 # Start celery task
-                task_validate = validate.delay(tmp_file, target=target, zfile=zfile)
+                task_validate = validate.delay(tmp_file, target=target, zfile=zfile, update=update_set)
 
                 context = {}
                 context['validate_task_id'] = task_validate.id
@@ -690,7 +694,7 @@ class UploadCSet(View):
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
                 task_upload = (
-                            validate.s(tmp_file, target=target, zfile=zfile) | process_compound_set.s()).apply_async()
+                            validate.s(tmp_file, target=target, zfile=zfile, update=update_set) | process_compound_set.s()).apply_async()
 
                 context = {}
                 context['upload_task_id'] = task_upload.id

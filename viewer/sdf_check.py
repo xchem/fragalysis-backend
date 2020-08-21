@@ -18,7 +18,7 @@ version = 'ver_1.2'
 def check_property_descriptions():
     pass
 
-def check_compound_set(description_mol, validate_dict):
+def check_compound_set(description_mol, validate_dict, update=None):
     y_m_d = description_mol.GetProp('generation_date').split('-')
 
     submitter_dict = {'submitter__name': description_mol.GetProp('submitter_name'),
@@ -29,7 +29,7 @@ def check_compound_set(description_mol, validate_dict):
 
     query = ComputedSet.objects.filter(**submitter_dict)
 
-    if len(query)!=0:
+    if len(query)!=0 and not update:
         validate_dict = add_warning(molecule_name='File error',
                                     field='compound set',
                                     warning_string="a compound set with the auto_generated name " + query[0].unique_name + " already exists (change method name in blank mol method field)",

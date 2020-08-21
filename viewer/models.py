@@ -534,7 +534,7 @@ class ComputedSet(models.Model):
     # Check if needed? Rachael still having a look.
     # design_set = models.ForeignKey(DesignSet, null=False, blank=False)
 
-    def save(self):
+    def save(self, **kwargs):
         """Custom save method for the ComputedSet model, including the method to auto-generate the unique name:
             unique_name = "".join(self.submitter.name.split()) + '-' + "".join(self.submitter.method.split())
         """
