@@ -134,7 +134,16 @@ def set_mol(mol, compound_set, filename, zfile=None):
         compound_set.save()
 
     #  need to add Compound before saving
-    cpd = ComputedMolecule()
+    # see if anything exists already
+    existing = ComputedMolecule.objects.filter(name=name, smiles=smiles, computed_set=compound_set)
+
+    if len(existing)==1:
+        cpd = existing[0]
+    if len(existing)>1:
+        [c.delete for c in existing]
+        cpd = ComputedMolecule()
+    else:
+        cpd = ComputedMolecule()
     cpd.compound = ref_cpd
     cpd.computed_set = compound_set
     cpd.sdf_info = mol_block
@@ -162,18 +171,26 @@ def process_mol(mol, compound_set, filename, zfile=None):
 def get_submission_info(description_mol):
     y_m_d = description_mol.GetProp('generation_date').split('-')
 
-    submitter_dict = {'name': description_mol.GetProp('submitter_name'),
-                      'email': description_mol.GetProp('submitter_email'),
-                      'institution': description_mol.GetProp('submitter_institution'),
-                      'generation_date': datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
-                      'method': description_mol.GetProp('method')}
+    submitter = ComputedSetSubmitter.objects.get_or_create(name=description_mol.GetProp('submitter_name'),
+                                                           method=description_mol.GetProp('method'),
+                                                           email=description_mol.GetProp('submitter_email'),
+                                                           institution=description_mol.GetProp('submitter_institution')
+                                                           )[0]
 
-    submitter = ComputedSetSubmitter(**submitter_dict)
+    submitter.generation_date = datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2]))
+
     submitter.save()
+
     return submitter
 
 
 def set_descriptions(filename, compound_set):
+    # remove any old scores
+    text_scores = TextScoreValues.objects.filter(score__computed_set=compound_set)
+    [t.delete() for t in text_scores]
+    num_scores = NumericalScoreValues.objects.filter(score__computed_set=compound_set)
+    [n.delete() for n in num_scores]
+
     suppl = Chem.SDMolSupplier(str(filename))
     description_mol = suppl[0]
 
@@ -202,13 +219,10 @@ def set_descriptions(filename, compound_set):
 
     for key in list(description_dict.keys()):
         if key in descriptions_needed and key not in ['ref_mols', 'ref_pdb', 'index', 'Name', 'original SMILES']:
-            desc = ScoreDescription()
-            desc.computed_set = compound_set
-            desc.name = key
-            desc.description = description_dict[key]
-            desc.save()
-
-
+            desc = ScoreDescription.objects.get_or_create(computed_set=compound_set,
+                                                          name=key,
+                                                          description=description_dict[key],
+                                                          )[0]
 
     return mols
 
