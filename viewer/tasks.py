@@ -41,6 +41,41 @@ def check_services():
 
 ### Uploading ###
 
+
+@shared_task
+def add_cset_mols(cset, sdf_file, target=None, zfile=None):
+    # check the computed set exists
+    # for each molecule:
+    # - check there's a ScoreDescription for each score
+    # - add the molecule
+    target = Target.objects.get(title=target)
+
+    existing = ComputedSet.objects.filter(unique_name=cset, target=target)
+
+    if len(existing) == 1:
+        compound_set = existing[0]
+    else:
+        return 'Computed set does not exist, check its name or upload it at viewer/upload_cset'
+
+    mols = get_additional_mols(filename=sdf_file, compound_set=compound_set)
+
+    # if mols is a string (error) return it
+    if isinstance(mols, str):
+        return mols
+
+    # process every other mol
+    for i in range(0, len(mols)):
+        process_mol(mols[i], compound_set, sdf_file, zfile)
+
+    # need to add new mols to old sdf!
+    old_sdf = str(compound_set.submitted_sdf.path)
+    with open(old_sdf, 'ab') as w:
+        w.write(b'\n')
+        w.write(open(sdf_file, 'rb').read())
+
+    return f"{compound_set.unique_name} was successfully updated"
+
+
 @shared_task
 def process_compound_set(validate_output):
     """ Celery task to process a computed set, that takes the output of the validation task, and uploads molecules to a
@@ -50,7 +85,7 @@ def process_compound_set(validate_output):
     ----------
     validate_output: tuple
         contains the following:
-            - validate dict (dict): dict containing any errors found during the calidation step
+            - validate dict (dict): dict containing any errors found during the validation step
             - validated (bool): True if the file(s) were validated, False if not
             - filename (str): name of the uploaded sdf file
             - target (str): name of the target that the computed set is associated with
@@ -79,7 +114,14 @@ def process_compound_set(validate_output):
 
         # create a new compound set
         set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
-        compound_set = ComputedSet()
+
+        existing = ComputedSet.objects.filter(unique_name="".join(submitter_name.split()) + '-' + "".join(submitter_method.split()))
+
+        if len(existing)==1:
+            compound_set=existing[0]
+        else:
+            compound_set = ComputedSet()
+
         compound_set.name = set_name
         matching_target = Target.objects.get(title=target)
         compound_set.target = matching_target
@@ -121,7 +163,7 @@ def process_compound_set(validate_output):
 version = 'ver_1.2'
 
 @shared_task
-def validate(sdf_file, target=None, zfile=None):
+def validate(sdf_file, target=None, zfile=None, update=None):
     """ Celery task to process validate the uploaded files for a computed set upload. SDF file is mandatory, zip file is
     optional
 
@@ -169,7 +211,13 @@ def validate(sdf_file, target=None, zfile=None):
         return (validate_dict, validated, sdf_file, target, zfile,
                 submitter_name, submitter_method)
 
-    validate_dict = check_compound_set(blank_mol, validate_dict)
+
+
+    if not update or update=='None':
+        validate_dict = check_compound_set(blank_mol, validate_dict)
+    else:
+        validate_dict = check_compound_set(blank_mol, validate_dict, update=update)
+
     other_mols = []
     for i in range(1, len(suppl)):
         other_mols.append(suppl[i])
