@@ -86,32 +86,31 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
     :return: Updates validate dictionary with pass/fail message
     """
 
-    # Check if pdb filepath given and exists
-    test_fp = mol.GetProp('ref_pdb')
+    pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
 
+    # Check if pdb filename given and exists
     if zfile:
-        if test_fp not in zfile:
+        pdb_code = pdb_fn.replace('.pdb','')
+        if pdb_code not in zfile:
             validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field='ref_pdb',
-                                        warning_string="path " + str(test_fp) + " can't be found in uploaded zip file",
+                                        warning_string="path " + str(pdb_fn) + " can't be found in uploaded zip file",
                                         validate_dict=validate_dict)
 
     # Custom pdb added but no zfile - double check if pdb does exist before throwing error
-    if target and test_fp.endswith(".pdb") and not zfile:
-        query = Protein.objects.filter(code__contains=str(target + '-' + test_fp.split('_')[0]))
-        if len(query) == 0:
-            validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-                                        field='ref_pdb',
-                                        warning_string="pdb for " + str(test_fp) + " does not exist in fragalysis. Please upload pdb files.",
-                                        validate_dict=validate_dict)
+    if pdb_fn.endswith(".pdb") and not zfile:
+        validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+                                    field='ref_pdb',
+                                    warning_string="custom pdb " + str(pdb_fn) + " used with no zip pdb file uploaded. Please upload zip pdb file.",
+                                    validate_dict=validate_dict)
 
     # If anything else given example x1408
-    if target and not test_fp.endswith(".pdb"):
-        query = Protein.objects.filter(code__contains=str(target + '-' + test_fp.split('_')[0]))
+    if target and not pdb_fn.endswith(".pdb"):
+        query = Protein.objects.filter(code__contains=str(target + '-' + pdb_fn.split('_')[0]))
         if len(query)==0:
             validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field='ref_pdb',
-                                        warning_string="pdb for " + str(test_fp) + " does not exist in fragalysis",
+                                        warning_string="pdb for " + str(pdb_fn) + " does not exist in fragalysis",
                                         validate_dict=validate_dict)
 
     return validate_dict
