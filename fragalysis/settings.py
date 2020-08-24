@@ -243,5 +243,5 @@ EMAIL_HOST_USER = os.environ.get("EMAIL_USER")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
 CAS_CHECK_NEXT = lambda _: True
-DEBUG=True
+
 # DOCS_ROOT = "/code/docs/_build/html "
