@@ -174,14 +174,34 @@ def get_submission_info(description_mol):
     submitter = ComputedSetSubmitter.objects.get_or_create(name=description_mol.GetProp('submitter_name'),
                                                            method=description_mol.GetProp('method'),
                                                            email=description_mol.GetProp('submitter_email'),
-                                                           institution=description_mol.GetProp('submitter_institution')
-                                                           )[0]
-
-    submitter.generation_date = datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2]))
-
-    submitter.save()
+                                                           institution=description_mol.GetProp('submitter_institution'),
+                                                           generation_date=datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])))[0]
 
     return submitter
+
+
+def get_additional_mols(filename, compound_set):
+    suppl = Chem.SDMolSupplier(str(filename))
+    mols = []
+
+    for i in range(0, len(suppl)):
+        mols.append(suppl[i])
+
+    descriptions_list = list(
+        set([item for sublist in [list(m.GetPropsAsDict().keys()) for m in mols] for item in sublist]))
+
+    missing = []
+
+    for desc in descriptions_list:
+        existing = ScoreDescription.objects.filter(computed_set=compound_set, name=desc)
+        if len(existing)==0 and desc not in ['original SMILES', 'ref_mols', 'ref_pdb']:
+            missing.append(desc)
+
+    if len(missing)>0:
+        return f"Missing score descriptions for: {', '.join(missing)}, please re-upload"
+
+    return mols
+
 
 
 def set_descriptions(filename, compound_set):
