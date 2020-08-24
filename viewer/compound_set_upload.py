@@ -92,9 +92,8 @@ def get_prot(mol, target, compound_set, zfile):
 
     if zfile:
         pdb_code = pdb_fn.replace('.pdb','')
-        if pdb_code in zfile:
-            prot_obj = process_pdb(pdb_code=pdb_code, target=target, zfile=zfile)
-            field = prot_obj.pdb_info
+        prot_obj = process_pdb(pdb_code=pdb_code, target=target, zfile=zfile)
+        field = prot_obj.pdb_info
 
     else:
         name = compound_set.target.title + '-' + pdb_fn

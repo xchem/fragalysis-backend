@@ -596,8 +596,21 @@ def save_pdb_zip(pdb_file):
     for filename in zip_lst:
         # only handle pdb files
         if filename.split('.')[-1] == 'pdb':
-            path = default_storage.save('pdbs/' + filename, ContentFile(zf.read(filename)))
-            zfile[filename] = path
+            # Test if Protein object already exists
+            test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
+            test_prot_objs = Protein.objects.filter(code=test_pdb_code)
+
+            # If no prot obj found then save to tmp/ file and link pdb_code with
+            # pdb_path in dict
+            if len(test_prot_objs) == 0:
+                # Save pdb file in /tmp folder
+                pdb_path = default_storage.save('tmp/' + filename.split('/')[-1],
+                                                ContentFile(zf.read(filename)))
+                zfile[test_pdb_code] = pdb_path
+
+            # If prot object/s exist then update dict with pdb path
+            if len(test_prot_objs) != 0:
+                zfile[test_pdb_code] = str(test_prot_objs[0].pdb_info)
 
     # Close the zip file
     if zf:
@@ -757,33 +770,7 @@ class UploadCSet(View):
             # if there is a zip file of pdbs, check it for .pdb files, and ignore others
             if pdb_file:
 
-                zf = zipfile.ZipFile(pdb_file)
-                zip_lst = zf.namelist()
-                zfile = {}
-
-                for filename in zip_lst:
-                    # only handle pdb files
-                    if filename.split('.')[-1] == 'pdb':
-                        # Test if Protein object already exists
-                        test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
-                        test_prot_objs = Protein.objects.filter(code=test_pdb_code)
-
-                        # If no prot obj found then save to tmp/ file and link pdb_code with
-                        # pdb_path in dict
-                        if len(test_prot_objs) == 0:
-                            # Save pdb file in /tmp folder
-                            pdb_path = default_storage.save('tmp/' + filename.split('/')[-1],
-                                                            ContentFile(zf.read(filename)))
-                            zfile[test_pdb_code] = pdb_path
-
-                        # If prot object/s exist then update dict with pdb path
-                        if len(test_prot_objs) != 0:
-                            zfile[test_pdb_code] = str(test_prot_objs[0].pdb_info)
-
-            # Close the zip file
-            if zf:
-                zf.close()
-
+                zfile = save_pdb_zip(pdb_file)
 
             # save uploaded sdf to tmp storage
             tmp_file = save_sdf(myfile)

@@ -48,9 +48,9 @@ def add_cset_mols(cset, sdf_file, target=None, zfile=None):
     # for each molecule:
     # - check there's a ScoreDescription for each score
     # - add the molecule
-    target = Target.objects.get(title=target)
+    target_obj = Target.objects.get(title=target)
 
-    existing = ComputedSet.objects.filter(unique_name=cset, target=target)
+    existing = ComputedSet.objects.filter(unique_name=cset, target=target_obj)
 
     if len(existing) == 1:
         compound_set = existing[0]
@@ -65,7 +65,7 @@ def add_cset_mols(cset, sdf_file, target=None, zfile=None):
 
     # process every other mol
     for i in range(0, len(mols)):
-        process_mol(mols[i], compound_set, sdf_file, zfile)
+        process_mol(mol=mols[i], target=target, compound_set=compound_set, filename=sdf_file, zfile=zfile)
 
     # need to add new mols to old sdf!
     old_sdf = str(compound_set.submitted_sdf.path)
