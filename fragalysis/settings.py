@@ -96,7 +96,7 @@ INSTALLED_APPS = [
     "rest_framework_swagger",
     "webpack_loader",
     "django_cleanup",
-    "simple_history"
+    "simple_history",
 ]
 
 MIDDLEWARE = [
@@ -243,3 +243,5 @@ EMAIL_HOST_USER = os.environ.get("EMAIL_USER")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
 CAS_CHECK_NEXT = lambda _: True
+
+# DOCS_ROOT = "/code/docs/_build/html "

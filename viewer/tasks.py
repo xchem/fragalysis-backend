@@ -14,8 +14,21 @@ from celery import shared_task
 from .sdf_check import *
 from .compound_set_upload import *
 
-# Bit to check if redis and celery services are working and available
+
 def check_services():
+    """ Method to ensure redis and celery services are running to allow handling of tasks - attempts to start either
+    service if it is not running, and returns True or False to indicate whether both services are running
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    status: bool
+        True if both services are running, False if one or both are not
+
+    """
     services = [p.name() for p in psutil.process_iter()]
     if 'redis-server' not in services:
         os.system('redis-server &')
@@ -30,6 +43,27 @@ def check_services():
 
 @shared_task
 def process_compound_set(validate_output):
+    """ Celery task to process a computed set, that takes the output of the validation task, and uploads molecules to a
+    new computed set if the uploaded files are valid
+
+    Parameters
+    ----------
+    validate_output: tuple
+        contains the following:
+            - validate dict (dict): dict containing any errors found during the calidation step
+            - validated (bool): True if the file(s) were validated, False if not
+            - filename (str): name of the uploaded sdf file
+            - target (str): name of the target that the computed set is associated with
+            - zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by `viewer.views.UploadCSet`
+            - submitter_name (str): name of the author of the computed set
+            - submitter_method (str): name of the method used to generate the computed set
+
+    Returns
+    -------
+    compound_set.name: str
+        name of the computed set
+
+    """
     # Validate output is a tuple - this is one way to get
     # Celery chaining to work where second function uses list output
     # from first function (validate) called
@@ -88,6 +122,31 @@ version = 'ver_1.2'
 
 @shared_task
 def validate(sdf_file, target=None, zfile=None):
+    """ Celery task to process validate the uploaded files for a computed set upload. SDF file is mandatory, zip file is
+    optional
+
+    Parameters
+    ----------
+    sdf_file: str
+        filepath of the uploaded sdf file, which is saved to temporary storage by `viewer.views.UploadCSet`
+    target: str
+        name of the target (`viewer.models.Target.title`) to add add the computed set to
+    zfile: dict
+        dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by `viewer.views.UploadCSet`
+
+    Returns
+    -------
+    validate_output: tuple
+        contains the following:
+            - validate dict (dict): dict containing any errors found during the calidation step
+            - validated (bool): True if the file(s) were validated, False if not
+            - filename (str): name of the uploaded sdf file
+            - target (str): name of the target that the computed set is associated with
+            - zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by `viewer.views.UploadCSet`
+            - submitter_name (str): name of the author of the computed set
+            - submitter_method (str): name of the method used to generate the computed set
+
+    """
     validated = True
     validate_dict = {'molecule_name': [],
                      'field': [],

@@ -1,0 +1,201 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fragalysis Backend - Welcome! &#8212; Fragalysis-Backend  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/css/functions.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Introduction" href="intro.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="fragalysis-backend-welcome">
+<h1>Fragalysis Backend - Welcome!<a class="headerlink" href="#fragalysis-backend-welcome" title="Permalink to this headline">¶</a></h1>
+</div>
+<div class="section" id="contents">
+<h1>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="intro.html#for-newbies">For Newbies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="intro.html#context">Context</a></li>
+<li class="toctree-l2"><a class="reference internal" href="intro.html#the-stack">The Stack</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dev_setup/stack_setup.html">Local developer environment setup</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="dev_setup/stack_setup.html#background">Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_setup/stack_setup.html#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_setup/stack_setup.html#setup">Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_setup/stack_setup.html#launch-the-stack">Launch the stack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dev_setup/stack_setup.html#troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API/api_intro.html">RESTful API (Models, Serializers and Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="API/api_intro.html#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="API/api_intro.html#django-rest-framework-drf">Django REST framework (DRF)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="API/api_intro.html#example-model-serializer-view-and-url-for-target-model">EXAMPLE - Model, Serializer, View and URL for Target model</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="crystallographic_data/schema.html">Crystallographic data (Models)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="crystallographic_data/schema.html#schema-overview">Schema overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="crystallographic_data/schema.html#model-details">Model details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/schema.html">Computational data (Models)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="computational_data/schema.html#schema-overview">Schema overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="computational_data/schema.html#model-details">Model details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="projects/schema.html">Projects data (Models)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="projects/schema.html#schema-overview">Schema overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="projects/schema.html#model-details">Model details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="crystallographic_data/views.html">Crystallographic data (Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="crystallographic_data/views.html#where-the-views-are-used-frontend">Where the views are used (frontend)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="crystallographic_data/views.html#view-details">View details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/views.html">Computational data (Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="computational_data/views.html#where-the-views-are-used-frontend">Where the views are used (frontend)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="computational_data/views.html#view-details">View details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="projects/views.html">Project data (Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="projects/views.html#where-the-views-are-used-frontend">Where the views are used (frontend)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="projects/views.html#view-details">View details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="API/misc_views.html">Miscellaneous data (Views)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="API/misc_views.html#view-details">View details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="computational_data/tasks.html#introducton">Introducton</a></li>
+<li class="toctree-l2"><a class="reference internal" href="computational_data/tasks.html#template-the-upload-page-for-computed-sets">Template - the upload page for computed sets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="computational_data/tasks.html#celery-task-validating-uploaded-data">Celery task - validating uploaded data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="computational_data/tasks.html#celery-task-processing-and-saving-uploaded-data">Celery task - processing and saving uploaded data</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="API/media.html">Serving static files (media)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="API/media.html#nginx">NGINX</a></li>
+<li class="toctree-l2"><a class="reference internal" href="API/media.html#adding-an-endpoint-that-serves-media">Adding an endpoint that serves media</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">Fragalysis-Backend</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev_setup/stack_setup.html">Local developer environment setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dev_setup/production.html">Running in Production (+CI/CD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API/api_intro.html">RESTful API (Models, Serializers and Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystallographic_data/schema.html">Crystallographic data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/schema.html">Computational data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="projects/schema.html">Projects data (Models)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="crystallographic_data/views.html">Crystallographic data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/views.html">Computational data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="projects/views.html">Project data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API/misc_views.html">Miscellaneous data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API/media.html">Serving static files (media)</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="intro.html" title="next chapter">Introduction</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Rachael Skyner.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
