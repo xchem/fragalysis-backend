@@ -98,7 +98,6 @@ def get_prot(mol, target, compound_set, zfile):
 
     else:
         name = compound_set.target.title + '-' + pdb_fn
-        # make prot = this
         prot_obj = Protein.objects.get(code__contains=name.split('_')[0])
         field = prot_obj.pdb_info
 

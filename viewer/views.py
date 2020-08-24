@@ -675,9 +675,7 @@ class UploadCSet(View):
 
                         # If prot object/s exist then update dict with pdb path
                         if len(test_prot_objs) != 0:
-                            zfile[test_pdb_code] = test_prot_objs.pdb_info
-#                             html = "<br><p>Protein found in DB. Please rename your pdb file starting with a unique method name </p>"
-#                             return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
+                            zfile[test_pdb_code] = str(test_prot_objs[0].pdb_info)
 
             # Close the zip file
             if zf:
