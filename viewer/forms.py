@@ -30,5 +30,25 @@ class CSetForm(forms.Form):
     upload_key = forms.CharField(label='Upload Key')
 
 
+class CSetUpdateForm(forms.Form):
+    """A Django form used for updating Computed sets at viewer/update_cset
+
+    Parameters
+    ----------
+    target_name: CharField
+        The name of the target, as written in `viewer.models.Targets` that you want to upload a computed set for
+    sdf_file: FileField
+        The sdf file that you want to upload, containing information about the 3D structure of all molecules in the computed set.
+    pdb_zip: FileField
+        A zip file of apo pdb files referenced by the molecules in sdf_file (optional)
+    computed_set: CharField
+        Computed set to update
+    """
+    target_name = forms.CharField(label='Target', max_length=100)
+    sdf_file = forms.FileField(label='All compounds sdf (.sdf)')
+    pdb_zip = forms.FileField(required=False, label='PDB files (.zip)')
+    # computed_set = forms.CharField(label='Update', max_length=100)
+
+
 class UploadKeyForm(forms.Form):
     contact_email = forms.EmailField(widget=forms.TextInput(attrs={'class':'form-control', 'autocomplete':'off'}), required=True)
