@@ -17,6 +17,9 @@ router.register(r"targets", viewer_views.TargetView, "targets")
 router.register(r"proteins", viewer_views.ProteinView)
 router.register(r"session-projects", viewer_views.SessionProjectsView)
 router.register(r"snapshots", viewer_views.SnapshotsView)
+router.register(r"action-type", viewer_views.ActionTypeView)
+router.register(r"session-actions", viewer_views.SessionActionsView)
+router.register(r"snapshot-actions", viewer_views.SnapshotActionsView)
 
 # Compounds sets
 router.register(r"compound-sets", viewer_views.ComputedSetView)

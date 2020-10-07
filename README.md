@@ -14,7 +14,7 @@ Django server for Fragalysis with DRF API and loaders for data. Has components t
 
 The stack consists of three services, running as containers: -
 
-- a MySQL database
+- a Postgres database (note: this used to be MySQL)
 - a neo4j graph database
 - the fraglaysis stack
 - a transient data loader container

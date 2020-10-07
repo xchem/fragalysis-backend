@@ -28,8 +28,11 @@ from viewer.models import (
     Protein,
     Compound,
     Target,
+    ActionType,
     SessionProject,
+    SessionActions,
     Snapshot,
+    SnapshotActions,
     ComputedMolecule,
     ComputedSet,
     CSetKeys,
@@ -56,10 +59,13 @@ from viewer.serializers import (
     ProtPDBBoundInfoSerialzer,
     VectorsSerializer,
     GraphSerializer,
+    ActionTypeSerializer,
     SessionProjectWriteSerializer,
     SessionProjectReadSerializer,
+    SessionActionsSerializer,
     SnapshotReadSerializer,
     SnapshotWriteSerializer,
+    SnapshotActionsSerializer,
     FileSerializer,
     ComputedSetSerializer,
     ComputedMoleculeSerializer,
@@ -1192,8 +1198,54 @@ def pset_download(request, name):
 
     return response
 
+# Start of ActionType
+class ActionTypeView(viewsets.ModelViewSet):
+    """ Djagno view to retrieve information about action types available to users (GET)
 
-## Start of Session Project
+    Methods
+    -------
+    url:
+        api/action-types
+    queryset:
+        `viewer.models.ActionType.objects.filter()`
+    methods:
+        `get, head`
+    filter fields:
+        - `viewer.models.ActionType.description` - ?description=<str>
+        - `viewer.models.ActionType.active` - ?active=<boolean>
+        - `viewer.models.ActionType.activation_date` - ?date=<str>
+
+    returns: JSON
+        - id: id of the action type
+        - description: The description of the action type
+        - active: True if action type is active, False if not
+        - activation_date: The datetime the action type became active
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                {
+                    "id": 1,
+                    "description": "Test Action TYpe",
+                    "active": true,
+                    "activation_date": "2020-10-06T14:42:00Z"
+                }
+            ]
+
+   """
+    queryset = ActionType.objects.filter()
+    serializer_class = ActionTypeSerializer
+
+    # POST method allowed for flexibility in the PoC. In the final design we may want to prevent the POST/PUT methods from being used
+    # for action types so that these can only be updated via the admin panel.
+    #    http_method_names = ['get', 'head']
+
+    filter_fields = '__all__'
+
+
+# Start of Session Project
 class SessionProjectsView(viewsets.ModelViewSet):
     """ Djagno view to retrieve information about user projects (collection of sessions) (GET). Also used for saving
     project information (PUT, POST, PATCH)
@@ -1279,6 +1331,57 @@ class SessionProjectsView(viewsets.ModelViewSet):
 
     filter_permissions = "target_id__project_id"
     filter_fields = '__all__'
+
+
+class SessionActionsView(viewsets.ModelViewSet):
+    """ Djagno view to retrieve information about actions relating to sessions_project (GET). Also used for saving
+    project action information (PUT, POST, PATCH)
+
+    Methods
+    -------
+    url:
+        api/session-actions
+    queryset:
+        `viewer.models.SessionActions.objects.filter()`
+    filter fields:
+        - `viewer.models.SessionProject.author` - ?author=<str>
+        - `viewer.models.SessionProject.session_project` - ?project=<str>
+        - `viewer.models.SessionProject.last_update_date` - ?date=<str>
+
+    returns: JSON
+        - id: id of the session action record
+        - author: id of the user that created the session_project
+        - session_project: id of the related session_project
+        - last_update_date: Timestamp for when the action list was generated or updated
+        - actions: JSON string containing actions related to the session_project
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                {
+                    "id": 1,
+                    "last_update_date": "2020-10-06T15:36:00Z",
+                    "actions": {
+                        "save": false,
+                        "show": true,
+                        "action_type": 1,
+                        "object_name": "",
+                        "object_type": "",
+                        "action_datetime": "2020-09-30T13:44:00.000Z"
+                    },
+                    "author": 1,
+                    "session_project": 1,
+                }
+            ]
+
+   """
+    queryset = SessionActions.objects.filter()
+    serializer_class = SessionActionsSerializer
+
+    #   Note: jsonField for Actions will need specific queries - can introduce if needed.
+    filter_fields = ('id', 'author', 'session_project', 'last_update_date')
 
 
 class SnapshotsView(viewsets.ModelViewSet):
@@ -1367,7 +1470,58 @@ class SnapshotsView(viewsets.ModelViewSet):
     filter_class = filters.SnapshotFilter
 
 
-### End of Session Project
+class SnapshotActionsView(viewsets.ModelViewSet):
+    """ Djagno view to retrieve information about actions relating to snapshots (GET). Also used for saving
+    snapshot action information (PUT, POST, PATCH)
+
+    Methods
+    -------
+    url:
+        api/snapshot-actions
+    queryset:
+        `viewer.models.SnapshotActions.objects.filter()`
+    filter fields:
+        - `viewer.models.SnapshotActions.snapshot` - ?snapshot=<str>
+        - `viewer.models.SnapshotActions.last_update_date` - ?date=<str>
+
+    returns: JSON
+        - id: id of the snapshot action record
+        - author: id of the user that created the snapshot
+        - session_project: id of the related session_project (if present)
+        - snapshot: id of the related snapshot
+        - last_update_date: Timestamp for when the action list was generated or updated
+        - actions: JSON string containing actions related to the session_project
+
+    example output:
+
+        .. code-block:: javascript
+
+            "results": [
+                {
+                    "id": 1,
+                    "last_update_date": "2020-10-06T15:36:00Z",
+                    "actions": {
+                        "save": false,
+                        "show": true,
+                        "action_type": 1,
+                        "object_name": "",
+                        "object_type": "",
+                        "action_datetime": "2020-09-30T13:44:00.000Z"
+                    },
+                    "author": 1,
+                    "session_project": 1,
+                    "snapshot": 1
+                }
+            ]
+
+   """
+    queryset = SnapshotActions.objects.filter()
+    serializer_class = SnapshotActionsSerializer
+
+    #   Note: jsonField for Actions will need specific queries - can introduce if needed.
+    filter_fields = ('id', 'author', 'session_project', 'snapshot', 'last_update_date')
+
+# End of Session Project
 
 
 ### Design sets upload
