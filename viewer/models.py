@@ -477,13 +477,13 @@ class SnapshotActions(models.Model):
     Parameters
     ----------
     id: Autofield
-        Auto-created id for the session actions table, initially should be a 1 to 1 with session project.
+        Auto-created id for the session actions table, initially should be a 1 to 1 with snapshot.
     author_id: ForeignKey
         Foreign key link to the id of the user that created the snapshot
     session_project: ForeignKey
         If the snapshot is part of a project, a foreign key link to the relevant project (optional)
     snapshot: ForeignKey
-        A foreign key link to the relevant project (required)
+        A foreign key link to the relevant snapshot (required)
     last_update_date: DateTimeField
         Timestamp for when the action list was generated or updated
     actions : JSONField
