@@ -376,17 +376,18 @@ class ComputedMoleculeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-
 class ScoreDescriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScoreDescription
         fields = '__all__'
+
 
 class NumericalScoreSerializer(serializers.ModelSerializer):
     score = ScoreDescriptionSerializer(read_only=True)
     class Meta:
         model = NumericalScoreValues
         fields = '__all__'
+
 
 class TextScoreSerializer(serializers.ModelSerializer):
     score = ScoreDescriptionSerializer(read_only=True)
