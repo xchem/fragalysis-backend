@@ -478,24 +478,7 @@ def process_target_set(validate_output):
 
     if validated:
         logger.info('+ processing target set: ' + target_name + ' target_folder:' + tmp_folder)
-        app = 'fragalysis'
-
-        target_path = os.path.join(tmp_folder, target_name)
-        process_target(target_path, target_name, app)
-
-        # move and save the compound set
-        # new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
-        # os.rename(filename, new_filename)
-        # compound_set.submitted_sdf = new_filename
-        # compound_set.save()
-        #
-        # # if no molecules were processed, delete the compound set
-        # if len(check) == 0:
-        #     compound_set.delete()
-        #     #print('No molecules processed... deleting ' + set_name + ' compound set')
-        #     return None
-        #
-        logger.info('- processing target set: ' + target_path)
+        process_target(tmp_folder, target_name)
         return 'process', 'tset', target_name
 
 # End Target Sets ###
