@@ -35,12 +35,6 @@ from rdkit.Geometry import Point3D
 from django.conf import settings
 
 
-def relative_to_media_root(filepath, media_root=settings.MEDIA_ROOT):
-    """Calculate a relative path from the file path to the media root"""
-    relative_path = os.path.relpath(filepath, media_root)
-    return relative_path
-
-
 # Contribution to the RDKit from Hans de Winter
 def _InitialiseNeutralisationReactions():
     """Contribution from Hans de Winter"""
@@ -91,8 +85,7 @@ def NeutraliseCharges(smiles, reactions=None):
 
 
 def desalt_compound(smiles):
-    """
-    Function to desalt compound a given smiles string
+    """Function to desalt compound a given smiles string
 
     Takes a smiles string
     Returns a desalted smiles string.
@@ -106,6 +99,7 @@ def desalt_compound(smiles):
         key=lambda x: x[1],
         reverse=True,
     )[0][0]
+
 
 def sanitize_mol(mol):
     """
@@ -149,9 +143,10 @@ def get_path_or_none(new_path, xtal, dict_input, dict_key):
         print("Path - " + path + " not found.")
         return None
 
+
 def add_target(title):
-    """
-    Add a target
+    """Add a target or return existing target if already exists
+
     :param title: add a target by title
     :return: the created target
     """
@@ -882,6 +877,12 @@ def rename_mols(names_csv):
             prot.save()
 
 
+def relative_to_media_root(filepath, media_root=settings.MEDIA_ROOT):
+    """Calculate a relative path from the file path to the media root"""
+    relative_path = os.path.relpath(filepath, media_root)
+    return relative_path
+
+
 def analyse_target(target_name, target_path):
     """Analyse all the molecules for a particular target.
 
@@ -992,7 +993,7 @@ def analyse_target(target_name, target_path):
     else:
         analyse_mols(mols=mols, target=target)
 
-    # move anything thats not a directory in 'aligned' up a level
+    # move anything that's not a directory in 'aligned' up a level
     files = (f for f in os.listdir(target_path)
              if os.path.isfile(os.path.join(target_path, f)))
 
@@ -1008,7 +1009,7 @@ def analyse_target(target_name, target_path):
 
     # last step - zip up the input file and move it to the archive
     zipped = shutil.make_archive(target_path.replace('aligned', ''), 'zip', target_path.replace('aligned', ''))
-    #shutil.move(zipped, os.path.join(settings.MEDIA_ROOT, 'targets', os.path.basename(zipped)))
+    # shutil.move(zipped, os.path.join(settings.MEDIA_ROOT, 'targets', os.path.basename(zipped)))
     target.zip_archive.name = relative_to_media_root(zipped)
     target.save()
 
@@ -1098,17 +1099,17 @@ def analyse_target(target_name, target_path):
 #
 
 def process_target(target_path, target_name, app):
-    """
-    Process the full target.
-    :param target path:
+    """Process the full target dataset.
+
+    :param target target_path:
     :param target_name:
-    :param target_name:
+    :param app:
     TODO: +proposal/visit -app
     :return:
     """
 
     # e.g. code/media/NEW_DATA/mArh -> replace by upload directory (tmp?).
-    #target_path = os.path.join(prefix, target_name)
+    # target_path = os.path.join(prefix, target_name)
 
     # path to save the media to
     # /code/media/
@@ -1135,7 +1136,7 @@ def process_target(target_path, target_name, app):
 
     # process data in the 'aligned' directory - this does not seem to update the database
     # XX Will be moved to fragalysis-api - does not really belong here.
-    #process_covalent(target_path)
+    # process_covalent(target_path)
 
     # sometimes there is a biomol.txt file in the aligned directory. If so, process it.
     # XX Will be moved to fragalysis-api - does not really belong here.

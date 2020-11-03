@@ -71,6 +71,8 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+# This is to stop Celery overwriting the Django logging defaults.
+CELERYD_HIJACK_ROOT_LOGGER = False
 
 # This can be injected as an ENV var
 NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
@@ -265,6 +267,11 @@ if DEBUG == True:
         'version': 1,
         'disable_existing_loggers': False,
         'handlers': {
+            'celery': {
+                'level': 'INFO',
+                'class': 'logging.FileHandler',
+                'filename': BASE_DIR + "/logs/celery.log",
+            },
             'console': {
                 'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
@@ -273,6 +280,13 @@ if DEBUG == True:
                 'level':'DEBUG',
                 'class':'logging.FileHandler',
                 'filename': BASE_DIR + "/logs/logfile.log",
+            },
+        },
+        'loggers': {
+            'celery': {
+                'handlers': ['celery'],
+                'level': 'INFO',
+                'propagate': False
             },
         },
         'root': {

@@ -869,19 +869,18 @@ class UploadTSet(View):
         if form.is_valid():
             # get all of the variables needed from the form
             target_file = request.FILES['target_zip']
-            target = request.POST['target_name']
+            target_name = request.POST['target_name']
             choice = request.POST['submit_choice']
             # get existing target set if this is an update.
             update_set = request.POST['update_set']
 
-            path = default_storage.save('tmp/' + 'NEW_DATA', ContentFile(target_file.read()))
-            tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
-            # tmp_file = save_tmp_file(target_file)
+            path = default_storage.save('tmp/' + 'NEW_DATA.zip', ContentFile(target_file.read()))
+            new_data_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
             # Settings for if validate option selected
             if str(choice) == '0':
                 # Start celery task
-                task_validate = validate_target.delay(tmp_file, target=target, update=update_set)
+                task_validate = validate_target.delay(new_data_file, target=target_name, update=update_set)
 
                 context = {}
                 context['validate_task_id'] = task_validate.id
@@ -895,7 +894,7 @@ class UploadTSet(View):
             if str(choice) == '1':
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
-                task_upload = (validate_target.s(tmp_file, target=target, update=update_set) | process_target_set.s()).apply_async()
+                task_upload = (validate_target.s(new_data_file, target=target_name, update=update_set) | process_target_set.s()).apply_async()
 
                 context = {}
                 context['upload_task_id'] = task_upload.id
