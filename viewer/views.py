@@ -553,6 +553,7 @@ def react(request):
 
 # Upload Compound set functions
 
+
 # email cset upload key
 def cset_key(request):
     """ View to render and control viewer/generate-key.html - a page allowing an upload key to be generated for a user
@@ -676,8 +677,6 @@ class UpdateCSet(View):
     def post(self, request):
         check_services()
         zfile = None
-        zf = None
-        cset = None
         form = CSetUpdateForm(request.POST, request.FILES)
         context = {}
         if form.is_valid():
@@ -696,7 +695,7 @@ class UpdateCSet(View):
 
             # if there is a zip file of pdbs, check it for .pdb files, and ignore others
             if pdb_file:
-               zfile = save_pdb_zip(pdb_file)
+                zfile = save_pdb_zip(pdb_file)
 
             # save uploaded sdf to tmp storage
             tmp_file = save_tmp_file(myfile)
@@ -765,7 +764,8 @@ class UploadCSet(View):
             # all_keys = CSetKeys.objects.all()
             # if it's not valid, return a message
             # if key not in [str(key.uuid) for key in all_keys]:
-            #     html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
+            #     html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again
+            #     (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
             #     return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
 
             # get all of the variables needed from the form
@@ -817,11 +817,10 @@ class UploadCSet(View):
 
         context['form'] = form
         return render(request, 'viewer/upload-cset.html', context)
-
 # End Upload Compound set functions
 
-# Upload Target datasets functions
 
+# Upload Target datasets functions
 class UploadTSet(View):
     """ View to render and control viewer/upload-tset.html  - a page allowing upload of computed sets. Validation and
     upload tasks are defined in `viewer.target_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
@@ -1033,9 +1032,9 @@ class UploadTaskView(View):
         Parameters
         ----------
         request: request
-            Context sent by `UploadCSet`
+            Context sent by `UploadCSet` or `UploadTSet`
         upload_task_id: str
-            task id provided by `UploadCSet`
+            task id provided by `UploadCSet` or `UploadTSet`
 
         Returns
         -------
@@ -1051,14 +1050,18 @@ class UploadTaskView(View):
                 - if status = 'SUCCESS':
                     - upload_task_status (str): task.status
                     - upload_task_id (str): task.id
-                    - if results are a list (data was not validated):
+                    - if results are a list (data was processed - validated or uploaded):
+                        if this was a validation process
                         - validated (str): 'Not validated'
                         - html (str): html table of validation errors
-                    - if results are a string (data was validated and uploaded:
+                        if results are a validation/upload process:
                         - validated (str): 'Validated'
                         - results (dict): results
+                        For compound sets ('cset')
                         - results['cset_download_url'] (str): download url for computed set sdf file
                         - results['pset_download_url'] (str): download url for computed set pdb files (zip)
+                        For target sets ('tset')
+                        - results['tset_download_url'] (str): download url for processed zip file
                     - if results are not string or list:
                         - processed (str): 'None'
                         - html (str): message to tell the user their data was not processed
@@ -1098,13 +1101,13 @@ class UploadTaskView(View):
 
                     return JsonResponse(response_data)
                 else:
-            # Upload/Update output tasks send back a tuple
-            # First element defines the source (cset, tset)
+                    # Upload/Update output tasks send back a tuple
+                    # First element defines the source of the upload task (cset, tset)
                     response_data['validated'] = 'Validated'
                     if results[1] == 'tset':
-                        name = results[1]
-    #                    response_data['results'] = {}
-    #                    response_data['results']['tset_download_url'] = '/viewer/target/%s' % name
+                        target_name = results[2]
+                        response_data['results'] = {}
+                        response_data['results']['tset_download_url'] = '/viewer/target/%s' % target_name
                     else:
                         cset_name = results[2]
                         cset = ComputedSet.objects.get(name=cset_name)
@@ -1239,6 +1242,7 @@ def get_open_targets(request):
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
 
 
+# This is used in the URL on the process results page after uploading a compound_set
 def cset_download(request, name):
     """ View to download an SDF file of a computed set by name
 
@@ -1309,6 +1313,36 @@ def pset_download(request, name):
 
     return response
 
+
+# This is used in the URL on the process results page after uploading a target_set
+def tset_download(request, title):
+    """ View to download an zip file of a target set by name
+
+    Methods
+    -------
+    allowed requests:
+        - GET: return the zip file as a download
+    url:
+        viewer/target/(<title>)
+    request params:
+        - title (str): the title of the target set to download
+
+    Returns
+    -------
+    Response (attachment; text/plain):
+        - <title>.zip: zip file for the target set
+
+    """
+    target_set = Target.objects.get(title=title)
+    media_root = settings.MEDIA_ROOT
+    filepath = os.path.join(media_root, target_set.zip_archive.name)
+    target_zip = open(filepath, 'rb')
+    filename = 'target-set_' + title + '.zip'
+    response = HttpResponse(target_zip, content_type='application/force-download')
+    response['Content-Disposition'] = 'attachment; filename="%s"' % filename  # force browser to download file
+    return response
+
+
 # Start of ActionType
 class ActionTypeView(viewsets.ModelViewSet):
     """ Djagno view to retrieve information about action types available to users (GET)
@@ -1349,7 +1383,8 @@ class ActionTypeView(viewsets.ModelViewSet):
     queryset = ActionType.objects.filter()
     serializer_class = ActionTypeSerializer
 
-    # POST method allowed for flexibility in the PoC. In the final design we may want to prevent the POST/PUT methods from being used
+    # POST method allowed for flexibility in the PoC. In the final design we may want to prevent the POST/PUT methods
+    # from being used
     # for action types so that these can only be updated via the admin panel.
     #    http_method_names = ['get', 'head']
 
@@ -1635,7 +1670,7 @@ class SnapshotActionsView(viewsets.ModelViewSet):
 # End of Session Project
 
 
-### Design sets upload
+# Design sets upload
 # Custom parser class for a csv file
 class DSetCSVParser(BaseParser):
     """

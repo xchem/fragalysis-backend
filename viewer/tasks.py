@@ -115,7 +115,7 @@ def process_compound_set(validate_output):
     submitter_name,  submitter_method = validate_output
 
     if not validated:
-        return (validate_dict,validated)
+        return (validate_dict, validated)
 
     if validated:
         #print('processing compound set: ' + filename)
@@ -171,6 +171,7 @@ def process_compound_set(validate_output):
 # Set .sdf format version here
 version = 'ver_1.2'
 
+
 @shared_task
 def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
     """ Celery task to process validate the uploaded files for a computed set upload. SDF file is mandatory, zip file is
@@ -183,7 +184,8 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
     target: str
         name of the target (`viewer.models.Target.title`) to add add the computed set to
     zfile: dict
-        dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by `viewer.views.UploadCSet`
+        dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved
+        to temporary storage by `viewer.views.UploadCSet`
 
     Returns
     -------
@@ -193,7 +195,8 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
             - validated (bool): True if the file(s) were validated, False if not
             - filename (str): name of the uploaded sdf file
             - target (str): name of the target that the computed set is associated with
-            - zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by `viewer.views.UploadCSet`
+            - zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the
+              filename, which is saved to temporary storage by `viewer.views.UploadCSet`
             - submitter_name (str): name of the author of the computed set
             - submitter_method (str): name of the method used to generate the computed set
 
@@ -204,7 +207,7 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
                      'warning_string': []}
 
     suppl = Chem.SDMolSupplier(sdf_file)
-    #print('%d mols detected (including blank mol)' % (len(suppl),))
+    # print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
 
     # Get submitter name/info for passing into upload to get unique name
@@ -220,7 +223,7 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
         return (validate_dict, validated, sdf_file, target, zfile,
                 submitter_name, submitter_method)
 
-    if not update or update=='None':
+    if not update or update == 'None':
         validate_dict = check_compound_set(blank_mol, validate_dict)
     else:
         validate_dict = check_compound_set(blank_mol, validate_dict, update=update)
@@ -402,6 +405,7 @@ def process_design_sets(df, set_type=None, set_description=None):
 
 # Target Sets ###
 
+
 @shared_task
 def validate_target(target_zip, target=None, update=None):
     """ Celery task to process validate the uploaded files/format for a target set upload. Zip file is mandatory
@@ -411,9 +415,10 @@ def validate_target(target_zip, target=None, update=None):
     target_zip: str
         filepath of the uploaded target file, which is saved to temporary storage by `viewer.views.UploadTSet`
     target: str
-        name of the target (`viewer.models.Target.title`) to add add the computed set to
+        name of the target (`viewer.models.Target.title`) to add add the target set to
     update: dict
-        dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by `viewer.views.UploadTSet`
+        dictionary where key is the name of the file minus extension and path, and value is the filename, which is
+        saved to temporary storage by `viewer.views.UploadTSet`
 
     Returns
     -------
@@ -439,7 +444,6 @@ def validate_target(target_zip, target=None, update=None):
     with zipfile.ZipFile(target_zip, 'r') as zip_ref:
         zip_ref.extractall(tmp_folder)
 
-    # TODO Remove temporary file
     os.remove(target_zip)
 
     return ('validate', validate_dict, validated, tmp_folder, target,
@@ -474,7 +478,7 @@ def process_target_set(validate_output):
 
     # If there is a validation error, stop here.
     if not validated:
-        return (validate_dict, validated)
+        return validate_dict, validated
 
     if validated:
         logger.info('+ processing target set: ' + target_name + ' target_folder:' + tmp_folder)
