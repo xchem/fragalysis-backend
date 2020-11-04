@@ -850,11 +850,10 @@ class UploadTSet(View):
 
     def get(self, request):
 
+        form = TSetForm()
+        #TODO replace with target sets based on the projects the user is entiled to see or "OPEN"
         # test = TargetView().get_queryset(request=request)
         # targets = request.get('/api/targets/')
-        # int(targets)
-        form = TSetForm()
-        #TODO replace with target sets
         existing_sets = Target.objects.all()
         return render(request, 'viewer/upload-tset.html', {'form': form, 'sets': existing_sets})
 
@@ -870,6 +869,8 @@ class UploadTSet(View):
             target_file = request.FILES['target_zip']
             target_name = request.POST['target_name']
             choice = request.POST['submit_choice']
+            proposal_ref = request.POST['proposal_ref']
+
             # get existing target set if this is an update.
             update_set = request.POST['update_set']
 
@@ -879,7 +880,7 @@ class UploadTSet(View):
             # Settings for if validate option selected
             if str(choice) == '0':
                 # Start celery task
-                task_validate = validate_target.delay(new_data_file, target=target_name, update=update_set)
+                task_validate = validate_target_set.delay(new_data_file, target=target_name, update=update_set, proposal=proposal_ref)
 
                 context = {}
                 context['validate_task_id'] = task_validate.id
@@ -893,7 +894,7 @@ class UploadTSet(View):
             if str(choice) == '1':
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
-                task_upload = (validate_target.s(new_data_file, target=target_name, update=update_set) | process_target_set.s()).apply_async()
+                task_upload = (validate_target_set.s(new_data_file, target=target_name, update=update_set, proposal=proposal_ref) | process_target_set.s()).apply_async()
 
                 context = {}
                 context['upload_task_id'] = task_upload.id
@@ -931,9 +932,9 @@ class ValidateTaskView(View):
         Parameters
         ----------
         request: request
-            Context sent by `UploadCSet`
+            Context sent by `UploadCSet` or `UploadTset`
         validate_task_id: str
-            task id provided by `UploadCSet`
+            task id provided by `UploadCSet` or `UploadTset`
 
         Returns
         -------
@@ -973,6 +974,7 @@ class ValidateTaskView(View):
             validated = results[2]
             if validated:
                 response_data['html'] = 'Your data was validated. \n It can now be uploaded using the upload option.'
+                response_data['validated'] = 'Validated'
 
                 return JsonResponse(response_data)
 
@@ -985,6 +987,7 @@ class ValidateTaskView(View):
                 html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
 
                 response_data["html"] = html_table
+                response_data['validated'] = 'Not validated'
 
                 return JsonResponse(response_data)
 

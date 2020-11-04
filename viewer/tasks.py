@@ -14,7 +14,7 @@ import zipfile
 from celery import shared_task
 from .sdf_check import *
 from .compound_set_upload import *
-from .target_set_upload import process_target
+from .target_set_upload import process_target, validate_target
 
 # import the logging library
 #import logging
@@ -400,14 +400,12 @@ def process_design_sets(df, set_type=None, set_description=None):
         sets.append(compounds)
 
     return set_names, sets
-
 # End Design sets ###
 
+
 # Target Sets ###
-
-
 @shared_task
-def validate_target(target_zip, target=None, update=None):
+def validate_target_set(target_zip, target=None, update=None, proposal=None):
     """ Celery task to process validate the uploaded files/format for a target set upload. Zip file is mandatory
 
     Parameters
@@ -433,9 +431,6 @@ def validate_target(target_zip, target=None, update=None):
     """
     logger.info('+ validating target set: ' + target_zip)
 
-    validated = True
-    validate_dict = {}
-
     # Get submitter name/info for passing into upload to get unique name
     submitter_name = ''
 
@@ -444,9 +439,11 @@ def validate_target(target_zip, target=None, update=None):
     with zipfile.ZipFile(target_zip, 'r') as zip_ref:
         zip_ref.extractall(tmp_folder)
 
+    validated, validate_dict = validate_target(tmp_folder, target, proposal)
+
     os.remove(target_zip)
 
-    return ('validate', validate_dict, validated, tmp_folder, target,
+    return ('validate', validate_dict, validated, tmp_folder, target, proposal,
             submitter_name)
 
 
@@ -474,15 +471,15 @@ def process_target_set(validate_output):
     # Validate output is a tuple - this is one way to get
     # Celery chaining to work where second function uses list output
     # from first function (validate) called
-    process_type, validate_dict, validated, tmp_folder, target_name, submitter_name = validate_output
+    process_type, validate_dict, validated, tmp_folder, target_name, proposal_ref, submitter_name = validate_output
 
     # If there is a validation error, stop here.
     if not validated:
-        return validate_dict, validated
+        return process_type, validate_dict, validated
 
     if validated:
         logger.info('+ processing target set: ' + target_name + ' target_folder:' + tmp_folder)
-        process_target(tmp_folder, target_name)
+        process_target(tmp_folder, target_name, proposal_ref)
         return 'process', 'tset', target_name
 
 # End Target Sets ###

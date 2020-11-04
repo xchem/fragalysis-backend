@@ -16,6 +16,7 @@
 {#          <div class="container">#}
             <h1 class="title is-size-1 has-text-centered">Target Set Upload</h1>
             <p class="subtitle has-text-centered" id="progress-title"></p>
+            </div>
         </div>
         </section>
       <section class="hero is-light has-background-white">
@@ -28,7 +29,7 @@
                   <form method="post" enctype="multipart/form-data">
                       {% csrf_token %}
                       {{ form.as_ul }}
-                      <label for="{{ sets.id_for_label }}" class="col-sm-2 control-label">Update existing set:</label>
+                      <label class="col-sm-2 control-label">Update existing set:</label>
                       <div class="col-sm-10">
                         <select name="update_set" class="form-control">
                           <option value="None" selected>None</option>
@@ -59,6 +60,7 @@
     {% if validate_task_id %}
           <script>
           var content = document.getElementById('content');
+{# TODO : Validate task loops - it is stopped with this hack #}
           validid.innerHTML = "";
           var taskUrl = "{% url 'validate_task' validate_task_id=validate_task_id %}";
           var dots = 1;
@@ -71,12 +73,12 @@
                 var validid = document.getElementById('validate-id');
                   content.innerHTML = taskUrl;
                 var taskStatus = response.data.validate_task_status
-                if (taskStatus === 'SUCCESS') {
 
+                if (taskStatus === 'SUCCESS') {
+                  clearTimer('Validation Results');
                   var content = document.getElementById('links');
                   content.innerHTML = response.data.html;
 
-                  clearTimer('');
                 }
 
                 else if (taskStatus === 'FAILURE') {

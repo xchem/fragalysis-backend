@@ -121,21 +121,21 @@ def sanitize_mol(mol):
     return store_mol
 
 
-def get_path_or_none(new_path, xtal, dict_input, dict_key):
-    """Get a path or none - for loader
+def get_path_or_none(xtal_path, xtal, dict_input, dict_key):
+    """For each folder with crystal info, and a standard dictionary of expected contents, check whether files exist.
 
-    :param new_path:
-    :param xtal:
-    :param dict_input:
-    :param dict_key:
-    :return:
+    :param xtal_path: path to crystal folder
+    :param xtal: crystal name
+    :param dict_input: dictionary containing expected contents of crystal folder
+    :param dict_key: file type in dictionary.
+    :return: path to file or None if file does not exist.
     """
     if dict_key in dict_input:
         suffix = dict_input[dict_key]
     else:
         print("Key - " + dict_key + " not in dictionary.")
         return None
-    path = os.path.join(new_path, xtal + suffix)
+    path = os.path.join(xtal_path, xtal + suffix)
     if os.path.isfile(path):
         return path
     else:
@@ -143,7 +143,7 @@ def get_path_or_none(new_path, xtal, dict_input, dict_key):
         return None
 
 
-def add_target(title):
+def get_create_target(title):
     """Add a target or return existing target if already exists
 
     :param title: add a target by title
@@ -426,44 +426,80 @@ def delete_users(project):
     project.save()
 
 
-def add_visits_or_proposal(target, file_path):
-    """Add visits for a given target
+# def add_visits_or_proposal(target, file_path):
+#     """Add visits for a given target
+#
+#     :param target: the target to add visits to
+#     :param file_path: the path to the file describing the available visits in space delimited format.
+#     :return: the Django projects created in this process
+#     """
+#     visits = [x.strip() for x in open(file_path).readlines() if x.strip()]
+#     projects = []
+#     for visit_line in visits:
+#         visit = visit_line.split()[0]
+#         project = Project.objects.get_or_create(title=visit)[0]
+#         projects.append(project)
+#         delete_users(project)
+#         target.project_id.add(project)
+#         for fedid in visit_line.split()[1:]:
+#             user = User.objects.get_or_create(username=fedid, password="")[0]
+#             project.user_id.add(user)
+#     target.save()
+#     return projects
+#
+#
+# def get_create_projects(new_target, dir_path, proposal_ref):
+#     """Add proposals and visits as projects for a given target.
+#
+#     :param new_target: the target being added
+#     :param dir_path: the path for where the PROPOSALS and VISITS files are held.
+#     :return: a list of the projects added.
+#     """
+#     # Add the proposal information
+#     proposal_path = os.path.join(dir_path, "PROPOSALS")
+#     visit_path = os.path.join(dir_path, "VISITS")
+#     projects = []
+#     if os.path.isfile(proposal_path):
+#         projects.extend(add_visits_or_proposal(new_target, proposal_path))
+#     if os.path.isfile(visit_path):
+#         projects.extend(add_visits_or_proposal(new_target, visit_path))
+#     # remove_not_added(new_target, projects)
+#     return projects
 
-    :param target: the target to add visits to
-    :param file_path: the path to the file describing the available visits in space delimited format.
-    :return: the Django projects created in this process
-    """
-    visits = [x.strip() for x in open(file_path).readlines() if x.strip()]
-    projects = []
-    for visit_line in visits:
-        visit = visit_line.split()[0]
-        project = Project.objects.get_or_create(title=visit)[0]
-        projects.append(project)
-        delete_users(project)
-        target.project_id.add(project)
-        for fedid in visit_line.split()[1:]:
-            user = User.objects.get_or_create(username=fedid, password="")[0]
-            project.user_id.add(user)
-    target.save()
-    return projects
 
-
-def add_projects(new_target, dir_path):
+def get_create_projects(target, proposal_ref):
     """Add proposals and visits as projects for a given target.
 
     :param new_target: the target being added
     :param dir_path: the path for where the PROPOSALS and VISITS files are held.
-    :return: the projects added.
+    :return: a list of the projects added.
     """
-    # Add the proposal information
-    proposal_path = os.path.join(dir_path, "PROPOSALS")
-    visit_path = os.path.join(dir_path, "VISITS")
+
+    # Note that in the loader this is based on information in the PROPOSALS and VISITS files
+    # TODO Multiple Visits can be defined in a file apparently - check this - maybe it's not used.
+    # TODO Could also create a visit/fed_id dictionary and pass this in.
+    # TODO NB LIne above in delete_users - redundant if using ISPYB??.
+    # For the online loader it comes from the proposal_ref
+
     projects = []
-    if os.path.isfile(proposal_path):
-        projects.extend(add_visits_or_proposal(new_target, proposal_path))
-    if os.path.isfile(visit_path):
-        projects.extend(add_visits_or_proposal(new_target, visit_path))
-    # remove_not_added(new_target, projects)
+    # The first word is the ISPY proposal/visit name that is used as the title of the project.
+    # It can be set to OPEN in which case there are no users.
+    visit = proposal_ref.split()[0]
+    project = Project.objects.get_or_create(title=visit)[0]
+    projects.append(project)
+
+    # If not open then delete users for the project and re-add them based on supplied fed-ids.
+    delete_users(project)
+
+    # Update project_id on target.
+    target.project_id.add(project)
+
+    # Remaining words in proposal_ref (if any) must be fedid's which are used to find users information.
+    for fedid in proposal_ref.split()[1:]:
+        user = User.objects.get_or_create(username=fedid, password="")[0]
+        project.user_id.add(user)
+    target.save()
+
     return projects
 
 
@@ -498,29 +534,36 @@ def save_confidence(mol, file_path, annotation_type="ligand_confidence"):
             print(val + " not found in " + str(input_dict) + " for mol " + str(mol.prot_id.code))
 
 
-def load_from_dir(target_name, aligned_path):
+def load_from_dir(target_name, aligned_path, proposal_ref):
     """Load the data for a given target from the directory structure
 
     param: target_name (str): the string title of the target. This will uniquely identify it.
     param: aligned_path (str): the path to the aligned folder for the target.
+    param: proposal_ref (str): A reference to the proposal/visit that the target is attached to.
     return: None
 
     """
+
+    # This seems to be a configuration of the structure of a protein folder
     input_dict = get_dict()
+
+    # Check if there is any data to process
     if os.path.isdir(aligned_path):
         pass
     else:
         print("No data to add: " + target_name)
         return None
 
-    # Create a target
-    new_target = add_target(target_name)
+    # Create the  target
+    new_target = get_create_target(target_name)
 
     # Create a project attached to the target with proposal/visit information if it exists.
-    projects = add_projects(new_target, aligned_path)
+    projects = get_create_projects(new_target, proposal_ref)
 
     directories = sorted(os.listdir(aligned_path))
     xtal_list = []
+
+    # Process crystals in the aligned directory
     for xtal in directories:
         if not os.path.isdir(os.path.join(aligned_path, xtal)):
             continue
@@ -949,12 +992,12 @@ def analyse_target(target_name, aligned_path):
     target.save()
 
 
-def process_target(tmp_folder, target_name):
+def process_target(tmp_folder, target_name, proposal_ref):
     """Process the full target dataset.
 
-    :param target target_path:
-    :param target_name:
-    TODO: +proposal/visit
+    :param target tmp_folder: path where the extracted target folder is located
+    :param target_name: Name of the target - should be the same as folder with the tmp_folder
+    :param proposal_ref: A reference to the proposal/visit used for connecting the target to a project/users
     :return:
     """
 
@@ -981,11 +1024,38 @@ def process_target(tmp_folder, target_name):
     # change the target_path to the new 'aligned' directory
     aligned_path = os.path.join(upload_path, target_name, 'aligned')
 
-    print('TARGET_PATH: ' + aligned_path)
+    print('ALIGNED_PATH: ' + aligned_path)
 
     # "Upsert" data from extracted folder to things like the pdb and bound directories
     # Also updates/creates a new target/project data in database id requested
-    load_from_dir(target_name, aligned_path)
+    load_from_dir(target_name, aligned_path, proposal_ref)
 
     # This updates files like metadata.csv, alternatename.csv, hits_ids.csv etc.
     analyse_target(target_name, aligned_path)
+
+
+def validate_target(tmp_folder, target_name, proposal_ref):
+    """Validate the target dataset. This will initially just be structurally
+
+    :param target tmp_folder: path where the extracted target folder is located
+    :param target_name: Name of the target - should be the same as folder with the tmp_folder
+    :param proposal_ref: A reference to the proposal/visit used for connecting the target to a project/users
+    :return:
+    """
+    validated = True
+    validate_dict = {'warning_string': []}
+
+    # Check if there is any data to process
+    target_path = os.path.join(tmp_folder, target_name)
+
+    if not os.path.isdir(target_path):
+        validate_dict['warning_string'].append('No folder matching target name in extracted zip file')
+        validated = False
+
+    aligned_path = os.path.join(target_path, 'aligned')
+
+    if not os.path.isdir(aligned_path):
+        validate_dict['warning_string'].append('No aligned folder present in target name folder')
+        validated = False
+
+    return validated, validate_dict

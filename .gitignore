@@ -114,3 +114,4 @@ ENV/
 /dump.rdb
 /loader.py
 /run_loader.sh
+/viewer/target_set_upload_debug.py
