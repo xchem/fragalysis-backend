@@ -6,6 +6,11 @@
 #
 # PUBLISH_IMAGES        Should be 'yes' to enable publishing to Docker Hub.
 #
+#                       NOTE: Pull requests from forked repositories will not
+#                       result in encrypted variables being set.
+#                       So, regardless of the state of PUBLISH_IMAGES,
+#                       images will only be published if DOCKER_PASSWORD is defined.
+#
 # If you set PUBLISH_IMAGES you must also set the following: -
 #
 # DOCKER_USERNAME       If PUBLISH_IMAGES is 'yes'
@@ -40,6 +45,9 @@ services:
 
 stages:
 - name: publish latest
+  if: |
+    branch = master \
+    AND env(PUBLISH_IMAGES) = yes
 - name: trigger downstream
   if: |
     branch = master \
@@ -60,7 +68,7 @@ stages:
 env:
   global:
   # The origin of the trigger code
-  - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/master
+  - TRIGGER_ORIGIN=https://raw.githubusercontent.com/informaticsmatters/trigger-travis/2020.1
 
 before_install:
 # Downstream project triggers (used when we're tagged)
@@ -87,7 +95,6 @@ before_script:
 - echo ${STACK_NAMESPACE}
 - echo ${PUBLISH_IMAGES}
 - echo ${TRIGGER_DOWNSTREAM}
-- docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
 
 jobs:
   include:
@@ -99,8 +106,9 @@ jobs:
     script:
     - docker build -t ${BE_NAMESPACE}/fragalysis-backend:latest .
     - docker-compose -f docker-compose.test.yml up --build --exit-code-from tests --abort-on-container-exit
-    - if [ ${PUBLISH_IMAGES} == "yes" ]; then
-      docker push ${BE_NAMESPACE}/fragalysis-backend:latest;
+    - if [ -n "$DOCKER_PASSWORD" ]; then
+        docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+        docker push ${BE_NAMESPACE}/fragalysis-backend:latest;
       fi
 
   # Publish-stage jobs...
@@ -113,25 +121,34 @@ jobs:
     name: Tagged Container
     script:
     - docker build -t ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} .
-    - docker push ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
+    - if [ -n "$DOCKER_PASSWORD" ]; then
+        docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+        docker push ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG};
+      fi
 
   - stage: publish stable
     name: Stable Container
     script:
-    - docker pull ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG}
-    - docker tag ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} ${BE_NAMESPACE}/fragalysis-backend:stable
-    - docker push ${BE_NAMESPACE}/fragalysis-backend:stable
+    - if [ -n "$DOCKER_PASSWORD" ]; then
+        docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+        docker pull ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG};
+        docker tag ${BE_NAMESPACE}/fragalysis-backend:${TRAVIS_TAG} ${BE_NAMESPACE}/fragalysis-backend:stable;
+        docker push ${BE_NAMESPACE}/fragalysis-backend:stable;
+      fi
 
   - stage: trigger downstream
     name: Trigger Downstream
     script:
-    - echo "STACK_NAMESPACE=${STACK_NAMESPACE}"
-    - echo "STACK_BRANCH=${STACK_BRANCH}"
-    - echo "STACK_VARS=${STACK_VARS}"
-    - ./trigger-travis.py --pro ${STACK_NAMESPACE} fragalysis-stack ${TRAVIS_ACCESS_TOKEN} --branch ${STACK_BRANCH} --vars ${STACK_VARS}
-    - echo "LOADER_NAMESPACE=${LOADER_NAMESPACE}"
-    - echo "LOADER_BRANCH=${LOADER_BRANCH}"
-    - echo "LOADER_VARS=${LOADER_VARS}"
-    - ./trigger-travis.py --pro ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN} --branch ${LOADER_BRANCH} --vars ${LOADER_VARS}
+    - if [ -n "$DOCKER_PASSWORD" ]; then
+        echo "STACK_NAMESPACE=${STACK_NAMESPACE}";
+        echo "STACK_BRANCH=${STACK_BRANCH}";
+        echo "STACK_VARS=${STACK_VARS}";
+        ./trigger-travis.py --pro ${STACK_NAMESPACE} fragalysis-stack ${TRAVIS_ACCESS_TOKEN} --branch ${STACK_BRANCH} --vars ${STACK_VARS};
+        echo "LOADER_NAMESPACE=${LOADER_NAMESPACE}";
+        echo "LOADER_BRANCH=${LOADER_BRANCH}";
+        echo "LOADER_VARS=${LOADER_VARS}";
+        ./trigger-travis.py --pro ${LOADER_NAMESPACE} fragalysis-loader ${TRAVIS_ACCESS_TOKEN} --branch ${LOADER_BRANCH} --vars ${LOADER_VARS};
+    fi
+
 notifications:
   slack: fragalysis:a6ADA8gLyx8tpHQfyzucMB8B
