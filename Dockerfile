@@ -1,11 +1,15 @@
 FROM informaticsmatters/rdkit-python3-debian:latest
 ENV PYTHONUNBUFFERED 1
-ADD . /code/
-WORKDIR /code
+
 USER root
+
+WORKDIR /code
+COPY requirements.txt /code/
+RUN pip install -r requirements.txt
+
+ADD . /code/
 RUN apt-get --allow-releaseinfo-change update -y
 RUN apt-get install -y nginx curl git default-libmysqlclient-dev redis-server
-RUN pip install -r requirements.txt
 RUN chmod +x launch-stack.sh
 COPY django_nginx.conf /etc/nginx/sites-available/default.conf
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled

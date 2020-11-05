@@ -14,6 +14,9 @@ from viewer.models import (
     Target,
     Snapshot,
     SessionProject,
+    ActionType,
+    SnapshotActions,
+    SessionActions,
     ComputedMolecule,
     ComputedSet,
     NumericalScoreValues,
@@ -298,6 +301,13 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 # GET
+class ActionTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActionType
+        fields = '__all__'
+
+
+# GET
 class SessionProjectReadSerializer(serializers.ModelSerializer):
     target = TargetSerializer(read_only=True)
     author = UserSerializer(read_only=True)
@@ -305,10 +315,19 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
         model = SessionProject
         fields = '__all__'
 
+
 # (POST, PUT, PATCH)
 class SessionProjectWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = SessionProject
+        fields = '__all__'
+
+
+# (GET, POST, PUT, PATCH)
+class SessionActionsSerializer(serializers.ModelSerializer):
+    actions = serializers.JSONField()
+    class Meta:
+        model = SessionActions
         fields = '__all__'
 
 
@@ -328,6 +347,16 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
         fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
 ## End of Session Project
 
+
+# (GET, POST, PUT, PATCH)
+class SnapshotActionsSerializer(serializers.ModelSerializer):
+    actions = serializers.JSONField()
+    class Meta:
+        model = SnapshotActions
+        fields = '__all__'
+
+
+## End of Session Project
 # class FileSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = ComputedMolecule

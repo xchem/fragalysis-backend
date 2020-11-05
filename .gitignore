@@ -109,3 +109,4 @@ ENV/
 /scoring/migrations/
 /hypothesis/migrations/
 /hotspots/migrations/
+/tmp/

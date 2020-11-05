@@ -1,8 +1,10 @@
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder
 import uuid
 import json
+
 
 from simple_history.models import HistoricalRecords
 
@@ -326,6 +328,29 @@ class ActivityPoint(models.Model):
     class Meta:
         unique_together = ("target_id", "activity", "cmpd_id", "units")
 
+# Start of Action Types
+class ActionType(models.Model):
+    """Django model for holding types of the actions that may be performed by a user during a session or snapshot.
+
+    Parameters
+    ----------
+    id: Autofield
+        Auto-created id for the action type
+    description: CharField
+        The description of the action type
+    active: NullBooleanField
+        Bool - True if action type is active, False if not (historical, not active yet, not important)
+    activation_date: DateTimeField
+        The datetime the action type became active (set with a change of status)
+    """
+    id = models.AutoField(primary_key=True)
+    description = models.CharField(max_length=200, default='')
+    active = models.BooleanField(default=False)
+    activation_date = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'viewer_actiontype'
+
 
 # Start of Session Project
 class SessionProject(models.Model):
@@ -357,6 +382,40 @@ class SessionProject(models.Model):
     class Meta:
         db_table = 'viewer_sessionproject'
 
+class SessionActions(models.Model):
+    """Django model for holding the user actions related to a particular session_project.
+
+    Parameters
+    ----------
+    id: Autofield
+        Auto-created id for the session actions table, initially should be a 1 to 1 with session project.
+    author_id: ForeignKey
+        Foreign key link to the id of the user that created the session_project
+    session_project: ForeignKey
+        A foreign key link to the relevant session_project (required)
+    last_update_date: DateTimeField
+        Timestamp for when the action list was generated or updated
+    actions : JSONField
+        A JSON field containing types of actions related to the session_project.
+        The list elements are (at the time of writing) :
+        {
+        "action_type" : "1",
+        "action_datetime" : "2020-09-30T13:44:00.000Z",
+        "object_type" : "",
+        "object_name" : "",
+        "show" : "true",
+        "save" : "false",
+         }
+    """
+    id = models.AutoField(primary_key=True)
+    author = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    session_project = models.ForeignKey(SessionProject, on_delete=models.CASCADE)
+    last_update_date = models.DateTimeField(default=timezone.now)
+    actions = models.JSONField(encoder=DjangoJSONEncoder)
+
+    class Meta:
+        db_table = 'viewer_sessionactions'
+
 
 class Snapshot(models.Model):
     """Django model for storing information describing a static snapshot of a fragalysis page - multiple snapshots make
@@ -364,7 +423,7 @@ class Snapshot(models.Model):
 
     Parameters
     ----------
-    id: Autofied
+    id: Autofield
         Auto-created id for the session, used in url accession
     type: CharField
         Describes the session type:
@@ -410,6 +469,45 @@ class Snapshot(models.Model):
     class Meta:
         managed = True
         db_table = 'viewer_snapshot'
+
+
+class SnapshotActions(models.Model):
+    """Django model for holding the user actions leading to a particular snapshot or idea.
+
+    Parameters
+    ----------
+    id: Autofield
+        Auto-created id for the session actions table, initially should be a 1 to 1 with snapshot.
+    author_id: ForeignKey
+        Foreign key link to the id of the user that created the snapshot
+    session_project: ForeignKey
+        If the snapshot is part of a project, a foreign key link to the relevant project (optional)
+    snapshot: ForeignKey
+        A foreign key link to the relevant snapshot (required)
+    last_update_date: DateTimeField
+        Timestamp for when the action list was generated or updated
+    actions : JSONField
+        A JSON field containing types of actions made leading to the snapshot.
+        The list elements are (at the time of writing) :
+        {
+        "action_type" : "1",
+        "action_datetime" : "2020-09-30T13:44:00.000Z",
+        "object_type" : "",
+        "object_name" : "",
+        "show" : "true",
+        "save" : "false",
+         }
+    """
+
+    id = models.AutoField(primary_key=True)
+    author = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    session_project = models.ForeignKey(SessionProject, null=True, on_delete=models.CASCADE)
+    snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
+    last_update_date = models.DateTimeField(default=timezone.now)
+    actions = models.JSONField(encoder=DjangoJSONEncoder)
+
+    class Meta:
+        db_table = 'viewer_snapshotactions'
 
 
 # End of Session Project

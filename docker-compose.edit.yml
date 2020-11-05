@@ -1,0 +1,48 @@
+---
+# This version of the docker compose file allows testing of database changes and migrations
+# It launches a postgres container and the fragalysis image, mounting your current directory into the container
+# It does not build the Neo4j graph.
+# To use:
+# 1. Build a backend image
+# $ export BE_NAMEPSACE=xchem
+# $ docker build . -t xchem/fragalysis-backend:latest
+#
+# 2. Run docker-compose to start a database and a backend
+# $ docker-compose -f docker-compose.edit.yml up
+#
+# 3. Enter the backend container and create new migrations
+# $ docker exec -it fragalysis-backend_edit_1 bash
+# # python manage.py makemigrations
+#
+# 4. Commit new migrations!
+#
+version: '3'
+
+services:
+  database:
+    image: postgres:12.2
+    volumes:
+    - ../django_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: fragalysis
+      POSTGRES_DB: frag
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+    - "5432:5432"
+  edit:
+    image: ${BE_NAMESPACE}/fragalysis-backend:latest
+    command: ["tail", "-f", "/dev/null"]
+    volumes:
+    - .:/code
+    - ../logs:/code/logs/
+    - ../media:/code/media/
+    environment:
+      POSTGRESQL_DATABASE: frag
+      POSTGRESQL_USER: postgres
+      POSTGRESQL_PASSWORD: fragalysis
+      POSTGRESQL_HOST: database
+      POSTGRESQL_PORT: 5432
+    ports:
+    - "80:80"
+    depends_on:
+    - database
