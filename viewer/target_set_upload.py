@@ -534,37 +534,27 @@ def save_confidence(mol, file_path, annotation_type="ligand_confidence"):
             print(val + " not found in " + str(input_dict) + " for mol " + str(mol.prot_id.code))
 
 
-def load_from_dir(target_name, aligned_path, proposal_ref):
+def load_from_dir(new_target, projects, aligned_path):
     """Load the data for a given target from the directory structure
 
-    param: target_name (str): the string title of the target. This will uniquely identify it.
+    param: target (str): the target that has just been created.
+    param: project(s) attached to the target
     param: aligned_path (str): the path to the aligned folder for the target.
-    param: proposal_ref (str): A reference to the proposal/visit that the target is attached to.
     return: None
 
     """
 
+    mols_loaded = 0
+
     # This seems to be a configuration of the structure of a protein folder
     input_dict = get_dict()
-
-    # Check if there is any data to process
-    if os.path.isdir(aligned_path):
-        pass
-    else:
-        print("No data to add: " + target_name)
-        return None
-
-    # Create the  target
-    new_target = get_create_target(target_name)
-
-    # Create a project attached to the target with proposal/visit information if it exists.
-    projects = get_create_projects(new_target, proposal_ref)
 
     directories = sorted(os.listdir(aligned_path))
     xtal_list = []
 
     # Process crystals in the aligned directory
     for xtal in directories:
+        mols_loaded += 1
         if not os.path.isdir(os.path.join(aligned_path, xtal)):
             continue
         print(xtal)
@@ -622,6 +612,8 @@ def load_from_dir(target_name, aligned_path, proposal_ref):
 
     # Remove proteins for crystals that are not part of the library
     remove_not_added(new_target, xtal_list)
+
+    return mols_loaded
 
 
 def create_vect_3d(mol, new_vect, vect_ind, vector):
@@ -882,6 +874,10 @@ def analyse_target(target_name, aligned_path):
     target.save()
 
     mols = list(Molecule.objects.filter(prot_id__target_id=target))
+
+    # This can probably be improved to count molecules as they are processed when the code is further refactored
+    mols_processed = len(mols)
+
     print("Analysing " + str(len(mols)) + " molecules for " + target_name)
 
     # Do site mapping
@@ -991,6 +987,9 @@ def analyse_target(target_name, aligned_path):
     target.zip_archive.name = relative_to_media_root(zipped)
     target.save()
 
+    return mols_processed
+
+
 
 def process_target(tmp_folder, target_name, proposal_ref):
     """Process the full target dataset.
@@ -998,8 +997,10 @@ def process_target(tmp_folder, target_name, proposal_ref):
     :param target tmp_folder: path where the extracted target folder is located
     :param target_name: Name of the target - should be the same as folder with the tmp_folder
     :param proposal_ref: A reference to the proposal/visit used for connecting the target to a project/users
-    :return:
+    :return: mols_loaded, mols_processed
     """
+    mols_loaded = 0
+    mols_processed = 0
 
     # e.g. code/media/tmp -> replaced by the target within the directory: code/media/tmp/Mpro .
     target_path = os.path.join(tmp_folder, target_name)
@@ -1025,14 +1026,24 @@ def process_target(tmp_folder, target_name, proposal_ref):
     aligned_path = os.path.join(upload_path, target_name, 'aligned')
 
     print('ALIGNED_PATH: ' + aligned_path)
+    # Check if there is any data to process
+    if os.path.isdir(aligned_path):
+        # Create the target if required
+        new_target = get_create_target(target_name)
 
-    # "Upsert" data from extracted folder to things like the pdb and bound directories
-    # Also updates/creates a new target/project data in database id requested
-    load_from_dir(target_name, aligned_path, proposal_ref)
+        # Create a project attached to the target with proposal/visit information if it exists.
+        projects = get_create_projects(new_target, proposal_ref)
 
-    # This updates files like metadata.csv, alternatename.csv, hits_ids.csv etc.
-    analyse_target(target_name, aligned_path)
+        # "Upsert" molecule data from the aligned folder for the target
+        mols_loaded = load_from_dir(new_target, projects, aligned_path)
 
+        # This updates files like metadata.csv, alternatename.csv, hits_ids.csv etc.
+        if mols_loaded:
+            mols_processed = analyse_target(target_name, aligned_path)
+    else:
+        print("No data to add: " + target_name)
+
+    return mols_loaded, mols_processed
 
 def validate_target(tmp_folder, target_name, proposal_ref):
     """Validate the target dataset. This will initially just be structurally
@@ -1043,19 +1054,19 @@ def validate_target(tmp_folder, target_name, proposal_ref):
     :return:
     """
     validated = True
-    validate_dict = {'warning_string': []}
+    validate_dict = {'Error': []}
 
     # Check if there is any data to process
     target_path = os.path.join(tmp_folder, target_name)
 
     if not os.path.isdir(target_path):
-        validate_dict['warning_string'].append('No folder matching target name in extracted zip file')
+        validate_dict['Error'].append('No folder matching target name in extracted zip file')
         validated = False
 
     aligned_path = os.path.join(target_path, 'aligned')
 
     if not os.path.isdir(aligned_path):
-        validate_dict['warning_string'].append('No aligned folder present in target name folder')
+        validate_dict['Error'].append('No aligned folder present in target name folder')
         validated = False
 
     return validated, validate_dict

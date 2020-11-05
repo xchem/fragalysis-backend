@@ -479,7 +479,9 @@ def process_target_set(validate_output):
 
     if validated:
         logger.info('+ processing target set: ' + target_name + ' target_folder:' + tmp_folder)
-        process_target(tmp_folder, target_name, proposal_ref)
-        return 'process', 'tset', target_name
+
+        mols_loaded, mols_processed = process_target(tmp_folder, target_name, proposal_ref)
+
+        return 'process', 'tset', target_name, mols_loaded, mols_processed
 
 # End Target Sets ###

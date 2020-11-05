@@ -64,29 +64,29 @@
     {% if validate_task_id %}
           <script>
           var content = document.getElementById('content');
-          validid.innerHTML = "";
+          content.innerHTML = "";
           var taskUrl = "{% url 'validate_task' validate_task_id=validate_task_id %}";
+          var validid = document.getElementById('validate-id');
+          validid.innerHTML = taskUrl;
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
-          updateProgressTitle();
-          var timer = setInterval(function() {
-            updateProgressTitle();
+          updateProgressTitleVal();
+          var timerVal = setInterval(function() {
+            updateProgressTitleVal();
             axios.get(taskUrl)
               .then(function(response){
-                var validid = document.getElementById('validate-id');
-                  content.innerHTML = taskUrl;
                 var taskStatus = response.data.validate_task_status
                 if (taskStatus === 'SUCCESS') {
 
                   var content = document.getElementById('links');
                   content.innerHTML = response.data.html;
 
-                  clearTimer('');
+                  clearTimerVal('');
                 }
 
                 else if (taskStatus === 'FAILURE') {
 
-                    clearTimer('An error occurred - see traceback below');
+                    clearTimerVal('An error occurred - see traceback below');
                     var content = document.getElementById('links');
                     content.innerHTML = response.data.validate_traceback;
 
@@ -94,7 +94,7 @@
               })
           }, 800);
 
-          function updateProgressTitle() {
+          function updateProgressTitleVal() {
             dots++;
             if (dots > 3) {
               dots = 1;
@@ -104,8 +104,8 @@
               progressTitle.innerHTML += '.';
             }
           }
-          function clearTimer(message) {
-            clearInterval(timer);
+          function clearTimerVal(message) {
+            clearInterval(timerVal);
             progressTitle.innerHTML = message;
           }
          </script>

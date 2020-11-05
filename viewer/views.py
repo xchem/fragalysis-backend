@@ -16,6 +16,7 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
 
 from rest_framework.parsers import JSONParser, BaseParser
 from rest_framework.exceptions import ParseError
@@ -848,6 +849,7 @@ class UploadTSet(View):
 
     """
 
+#  TODO  @login_required
     def get(self, request):
 
         form = TSetForm()
