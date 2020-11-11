@@ -855,6 +855,15 @@ class UploadTSet(View):
         #TODO replace with target sets based on the projects the user is entiled to see or "OPEN"
         # test = TargetView().get_queryset(request=request)
         # targets = request.get('/api/targets/')
+        # Only authenticated users can upload files.
+        user = self.request.user
+        if not user.is_authenticated:
+            context = {}
+            context['error_message'] \
+                = 'Only authenticated users can upload files - please navigate to landing page and Login'
+            logger.info('- UploadTSet.get - authentication error')
+            return render(request, 'viewer/upload-tset.html', context)
+
         return render(request, 'viewer/upload-tset.html', {'form': form})
 
     def post(self, request):
@@ -883,7 +892,7 @@ class UploadTSet(View):
             media_root = settings.MEDIA_ROOT
             tmp_folder = os.path.join(media_root, 'tmp')
             if not os.path.isdir(tmp_folder):
-                os.path.mkdir(tmp_folder)
+                os.mkdir(tmp_folder)
 
             path = default_storage.save('tmp/' + 'NEW_DATA.zip', ContentFile(target_file.read()))
             new_data_file = str(os.path.join(settings.MEDIA_ROOT, path))
@@ -925,7 +934,7 @@ class UploadTSet(View):
 # Task functions common between Compound Sets and Target Set pages.
 class ValidateTaskView(View):
     """ View to handle dynamic loading of validation results from `viewer.tasks.validate` - the validation of files
-    uploaded to viewer/upload_cset
+    uploaded to viewer/upload_cset or a target set by a user at viewer/upload_tset
 
     Methods
     -------
@@ -934,7 +943,7 @@ class ValidateTaskView(View):
     url:
         validate_task/<validate_task_id>
     template:
-        viewer/upload-cset.html
+        viewer/upload-cset.html or viewer/upload-tset.html
     """
     def get(self, request, validate_task_id):
         """ Get method for `ValidateTaskView`. Takes a validate task id, checks it's status and returns the status,

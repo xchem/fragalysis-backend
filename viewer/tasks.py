@@ -150,6 +150,11 @@ def process_compound_set(validate_output):
         check = ComputedMolecule.objects.filter(computed_set=compound_set)
         #print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
 
+        # check compound set folder exists.
+        cmp_set_folder = os.path.join(settings.MEDIA_ROOT, 'compound_sets')
+        if not os.path.isdir(cmp_set_folder):
+            os.mkdir(cmp_set_folder)
+
         # move and save the compound set
         new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
         os.rename(filename, new_filename)
