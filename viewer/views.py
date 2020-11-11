@@ -849,23 +849,29 @@ class UploadTSet(View):
 
     """
 
-#  TODO  @login_required
     def get(self, request):
 
         form = TSetForm()
         #TODO replace with target sets based on the projects the user is entiled to see or "OPEN"
         # test = TargetView().get_queryset(request=request)
         # targets = request.get('/api/targets/')
-        existing_sets = Target.objects.all()
-        return render(request, 'viewer/upload-tset.html', {'form': form, 'sets': existing_sets})
+        return render(request, 'viewer/upload-tset.html', {'form': form})
 
     def post(self, request):
         logger.info('+ UploadTSet.post')
+        context = {}
+
+        # Only authenticated users can upload files.
+        user = self.request.user
+        if not user.is_authenticated:
+            context['error_message'] \
+                = 'Only authenticated users can upload files - please navigate to landing page and Login'
+            logger.info('- UploadTSet.post - authentication error')
+            return render(request, 'viewer/upload-tset.html', context)
 
         # Check celery/rdis is up and running
         check_services()
         form = TSetForm(request.POST, request.FILES)
-        context = {}
         if form.is_valid():
             # get all of the variables needed from the form
             target_file = request.FILES['target_zip']
@@ -873,8 +879,11 @@ class UploadTSet(View):
             choice = request.POST['submit_choice']
             proposal_ref = request.POST['proposal_ref']
 
-            # get existing target set if this is an update.
-            update_set = request.POST['update_set']
+            # Create /code/media/tmp if does not exist
+            media_root = settings.MEDIA_ROOT
+            tmp_folder = os.path.join(media_root, 'tmp')
+            if not os.path.isdir(tmp_folder):
+                os.path.mkdir(tmp_folder)
 
             path = default_storage.save('tmp/' + 'NEW_DATA.zip', ContentFile(target_file.read()))
             new_data_file = str(os.path.join(settings.MEDIA_ROOT, path))
@@ -882,7 +891,7 @@ class UploadTSet(View):
             # Settings for if validate option selected
             if str(choice) == '0':
                 # Start celery task
-                task_validate = validate_target_set.delay(new_data_file, target=target_name, update=update_set, proposal=proposal_ref)
+                task_validate = validate_target_set.delay(new_data_file, target=target_name, proposal=proposal_ref)
 
                 context = {}
                 context['validate_task_id'] = task_validate.id
@@ -896,7 +905,7 @@ class UploadTSet(View):
             if str(choice) == '1':
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
-                task_upload = (validate_target_set.s(new_data_file, target=target_name, update=update_set, proposal=proposal_ref) | process_target_set.s()).apply_async()
+                task_upload = (validate_target_set.s(new_data_file, target=target_name, proposal=proposal_ref) | process_target_set.s()).apply_async()
 
                 context = {}
                 context['upload_task_id'] = task_upload.id

@@ -29,15 +29,6 @@
                   <form method="post" enctype="multipart/form-data">
                       {% csrf_token %}
                       {{ form.as_ul }}
-                      <label class="col-sm-2 control-label">Update existing set:</label>
-                      <div class="col-sm-10">
-                        <select name="update_set" class="form-control">
-                          <option value="None" selected>None</option>
-                          {% for set in sets %}
-                          <option value="{{ set.unique_name }}">{{ set.unique_name }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
                       <button type="submit">Submit</button>
                   </form>
                   {% autoescape off %}
@@ -56,6 +47,15 @@
         <p class="has-text-centered" id="validate-id"></p>
         <p class="has-text-centered" id="upload-id"></p>
     </body>
+
+    {% if error_message %}
+          <script>
+          var content = document.getElementById('content');
+          content.innerHTML = "";
+          var content = document.getElementById('links');
+          content.innerHTML = "{{ error_message }}";
+         </script>
+      {% endif %}
 
     {% if validate_task_id %}
           <script>

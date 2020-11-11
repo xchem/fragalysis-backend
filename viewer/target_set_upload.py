@@ -991,10 +991,10 @@ def analyse_target(target_name, aligned_path):
 
 
 
-def process_target(tmp_folder, target_name, proposal_ref):
+def process_target(new_data_folder, target_name, proposal_ref):
     """Process the full target dataset.
 
-    :param target tmp_folder: path where the extracted target folder is located
+    :param target new_data_folder: path where the extracted target folder is located
     :param target_name: Name of the target - should be the same as folder with the tmp_folder
     :param proposal_ref: A reference to the proposal/visit used for connecting the target to a project/users
     :return: mols_loaded, mols_processed
@@ -1002,8 +1002,8 @@ def process_target(tmp_folder, target_name, proposal_ref):
     mols_loaded = 0
     mols_processed = 0
 
-    # e.g. code/media/tmp -> replaced by the target within the directory: code/media/tmp/Mpro .
-    target_path = os.path.join(tmp_folder, target_name)
+    # e.g. code/media/tmp/new_data -> replaced by the target within the directory: code/media/tmp/new_data/Mpro .
+    target_path = os.path.join(new_data_folder, target_name)
 
     # path to save the media to
     # /code/media/
@@ -1045,10 +1045,10 @@ def process_target(tmp_folder, target_name, proposal_ref):
 
     return mols_loaded, mols_processed
 
-def validate_target(tmp_folder, target_name, proposal_ref):
+def validate_target(new_data_folder, target_name, proposal_ref):
     """Validate the target dataset. This will initially just be structurally
 
-    :param target tmp_folder: path where the extracted target folder is located
+    :param target new_data_folder: path where the extracted target folder is located
     :param target_name: Name of the target - should be the same as folder with the tmp_folder
     :param proposal_ref: A reference to the proposal/visit used for connecting the target to a project/users
     :return:
@@ -1057,7 +1057,7 @@ def validate_target(tmp_folder, target_name, proposal_ref):
     validate_dict = {'Error': []}
 
     # Check if there is any data to process
-    target_path = os.path.join(tmp_folder, target_name)
+    target_path = os.path.join(new_data_folder, target_name)
 
     if not os.path.isdir(target_path):
         validate_dict['Error'].append('No folder matching target name in extracted zip file')

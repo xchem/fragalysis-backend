@@ -405,7 +405,7 @@ def process_design_sets(df, set_type=None, set_description=None):
 
 # Target Sets ###
 @shared_task
-def validate_target_set(target_zip, target=None, update=None, proposal=None):
+def validate_target_set(target_zip, target=None, proposal=None):
     """ Celery task to process validate the uploaded files/format for a target set upload. Zip file is mandatory
 
     Parameters
@@ -414,9 +414,6 @@ def validate_target_set(target_zip, target=None, update=None, proposal=None):
         filepath of the uploaded target file, which is saved to temporary storage by `viewer.views.UploadTSet`
     target: str
         name of the target (`viewer.models.Target.title`) to add add the target set to
-    update: dict
-        dictionary where key is the name of the file minus extension and path, and value is the filename, which is
-        saved to temporary storage by `viewer.views.UploadTSet`
 
     Returns
     -------
@@ -435,15 +432,20 @@ def validate_target_set(target_zip, target=None, update=None, proposal=None):
     submitter_name = ''
 
     tmp_folder = os.path.dirname(target_zip)
+    new_data_folder = os.path.join(tmp_folder, 'new_data')
+
     # This will create the target folder in the tmp/ location.
     with zipfile.ZipFile(target_zip, 'r') as zip_ref:
-        zip_ref.extractall(tmp_folder)
+        zip_ref.extractall(new_data_folder)
 
-    validated, validate_dict = validate_target(tmp_folder, target, proposal)
+    validated, validate_dict = validate_target(new_data_folder, target, proposal)
 
     os.remove(target_zip)
+    # Tidy up data if not validated
+    if not validated:
+        os.remove(new_data_folder)
 
-    return ('validate', validate_dict, validated, tmp_folder, target, proposal,
+    return ('validate', validate_dict, validated, new_data_folder, target, proposal,
             submitter_name)
 
 
@@ -471,17 +473,16 @@ def process_target_set(validate_output):
     # Validate output is a tuple - this is one way to get
     # Celery chaining to work where second function uses list output
     # from first function (validate) called
-    process_type, validate_dict, validated, tmp_folder, target_name, proposal_ref, submitter_name = validate_output
+    process_type, validate_dict, validated, new_data_folder, target_name, proposal_ref, submitter_name = validate_output
 
     # If there is a validation error, stop here.
     if not validated:
         return process_type, validate_dict, validated
 
     if validated:
-        logger.info('+ processing target set: ' + target_name + ' target_folder:' + tmp_folder)
+        logger.info('+ processing target set: ' + target_name + ' target_folder:' + new_data_folder)
 
-        mols_loaded, mols_processed = process_target(tmp_folder, target_name, proposal_ref)
+        mols_loaded, mols_processed = process_target(new_data_folder, target_name, proposal_ref)
 
         return 'process', 'tset', target_name, mols_loaded, mols_processed
-
 # End Target Sets ###
