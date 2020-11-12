@@ -855,9 +855,10 @@ class UploadTSet(View):
         #TODO replace with target sets based on the projects the user is entiled to see or "OPEN"
         # test = TargetView().get_queryset(request=request)
         # targets = request.get('/api/targets/')
-        # Only authenticated users can upload files.
+
+        # Only authenticated users can upload files - this can be switched off in settings.py.
         user = self.request.user
-        if not user.is_authenticated:
+        if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
             context = {}
             context['error_message'] \
                 = 'Only authenticated users can upload files - please navigate to landing page and Login'
@@ -870,9 +871,9 @@ class UploadTSet(View):
         logger.info('+ UploadTSet.post')
         context = {}
 
-        # Only authenticated users can upload files.
+        # Only authenticated users can upload files - this can be switched off in settings.py.
         user = self.request.user
-        if not user.is_authenticated:
+        if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
             context['error_message'] \
                 = 'Only authenticated users can upload files - please navigate to landing page and Login'
             logger.info('- UploadTSet.post - authentication error')

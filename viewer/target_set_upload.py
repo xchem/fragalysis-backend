@@ -426,47 +426,6 @@ def delete_users(project):
     project.save()
 
 
-# def add_visits_or_proposal(target, file_path):
-#     """Add visits for a given target
-#
-#     :param target: the target to add visits to
-#     :param file_path: the path to the file describing the available visits in space delimited format.
-#     :return: the Django projects created in this process
-#     """
-#     visits = [x.strip() for x in open(file_path).readlines() if x.strip()]
-#     projects = []
-#     for visit_line in visits:
-#         visit = visit_line.split()[0]
-#         project = Project.objects.get_or_create(title=visit)[0]
-#         projects.append(project)
-#         delete_users(project)
-#         target.project_id.add(project)
-#         for fedid in visit_line.split()[1:]:
-#             user = User.objects.get_or_create(username=fedid, password="")[0]
-#             project.user_id.add(user)
-#     target.save()
-#     return projects
-#
-#
-# def get_create_projects(new_target, dir_path, proposal_ref):
-#     """Add proposals and visits as projects for a given target.
-#
-#     :param new_target: the target being added
-#     :param dir_path: the path for where the PROPOSALS and VISITS files are held.
-#     :return: a list of the projects added.
-#     """
-#     # Add the proposal information
-#     proposal_path = os.path.join(dir_path, "PROPOSALS")
-#     visit_path = os.path.join(dir_path, "VISITS")
-#     projects = []
-#     if os.path.isfile(proposal_path):
-#         projects.extend(add_visits_or_proposal(new_target, proposal_path))
-#     if os.path.isfile(visit_path):
-#         projects.extend(add_visits_or_proposal(new_target, visit_path))
-#     # remove_not_added(new_target, projects)
-#     return projects
-
-
 def get_create_projects(target, proposal_ref):
     """Add proposals and visits as projects for a given target.
 
@@ -476,8 +435,7 @@ def get_create_projects(target, proposal_ref):
     """
 
     # Note that in the loader this is based on information in the PROPOSALS and VISITS files
-    # TODO Multiple Visits can be defined in a file apparently - check this - maybe it's not used.
-    # TODO Could also create a visit/fed_id dictionary and pass this in.
+    # TODO Multiple Visits can be defined in a file apparently - future improvement.
     # TODO NB LIne above in delete_users - redundant if using ISPYB??.
     # For the online loader it comes from the proposal_ref
 
@@ -974,7 +932,7 @@ def analyse_target(target_name, aligned_path):
     for f in files:
         shutil.move(os.path.join(aligned_path, f), os.path.join(aligned_path, f).replace('aligned', ''))
 
-    # delete NEW_DATA VISITS PROPOSALS. These are no longer used by the loader but might be in old data sets.
+    # delete NEW_DATA VISITS PROPOSALS. These are not used by the new loader but might be in old data sets.
     to_delete = ['NEW_DATA', 'VISITS', 'PROPOSALS']
     for file in to_delete:
         filepath = os.path.join(aligned_path.replace('aligned', ''), file)
@@ -988,7 +946,6 @@ def analyse_target(target_name, aligned_path):
     target.save()
 
     return mols_processed
-
 
 
 def process_target(new_data_folder, target_name, proposal_ref):
@@ -1010,6 +967,8 @@ def process_target(new_data_folder, target_name, proposal_ref):
     media_root = settings.MEDIA_ROOT
     # /code/media/targets
     upload_path = os.path.join(media_root, 'targets')
+    os.makedirs(upload_path, exist_ok=True)
+
     # e.g. /code/media/targets/mArh
     target_upload_path = os.path.join(upload_path, target_name)
 
@@ -1041,9 +1000,10 @@ def process_target(new_data_folder, target_name, proposal_ref):
         if mols_loaded:
             mols_processed = analyse_target(target_name, aligned_path)
     else:
-        print("No data to add: " + target_name)
+        print("Aligned folder is missing - no data to add: " + aligned_path)
 
     return mols_loaded, mols_processed
+
 
 def validate_target(new_data_folder, target_name, proposal_ref):
     """Validate the target dataset. This will initially just be structurally

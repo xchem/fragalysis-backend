@@ -18,7 +18,7 @@ from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
@@ -27,6 +27,10 @@ DEBUG = True
 # N                  | N                 | Not Shown
 PROPOSAL_SUPPORTED = True
 PROPOSAL_REQUIRED = True
+
+# Authentication check when uploading files. This can be switched off for development testing if required.
+# Should always be True on production.
+AUTHENTICATE_UPLOAD = True
 
 if DEBUG == False:
 # By default only call sentry in staging/production
@@ -267,11 +271,6 @@ if DEBUG == True:
         'version': 1,
         'disable_existing_loggers': False,
         'handlers': {
-            # 'celery': {
-            #     'level': 'INFO',
-            #     'class': 'logging.FileHandler',
-            #     'filename': BASE_DIR + "/logs/celery.log",
-            # },
             'console': {
                 'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
