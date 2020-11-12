@@ -3,6 +3,11 @@ import os
 import zipfile
 from io import StringIO
 
+# import the logging library
+import logging
+# Get an instance of a logger
+logger = logging.getLogger(__name__)
+
 from django.db import connections
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -11,6 +16,7 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
 
 from rest_framework.parsers import JSONParser, BaseParser
 from rest_framework.exceptions import ParseError
@@ -41,7 +47,7 @@ from viewer.models import (
     File
 )
 from viewer import filters
-from .forms import CSetForm, UploadKeyForm, CSetUpdateForm
+from .forms import CSetForm, UploadKeyForm, CSetUpdateForm, TSetForm
 
 from .tasks import *
 
@@ -546,6 +552,8 @@ def react(request):
     """
     return render(request, "viewer/react_temp.html")
 
+# Upload Compound set functions
+
 
 # email cset upload key
 def cset_key(request):
@@ -625,13 +633,15 @@ def save_pdb_zip(pdb_file):
     return zfile
 
 
-def save_sdf(myfile):
+def save_tmp_file(myfile):
+    """ Save file in temporary location for validation/upload processing
+    """
+
     name = myfile.name
     path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
     tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
     return tmp_file
-
 
 
 class UpdateCSet(View):
@@ -668,8 +678,6 @@ class UpdateCSet(View):
     def post(self, request):
         check_services()
         zfile = None
-        zf = None
-        cset = None
         form = CSetUpdateForm(request.POST, request.FILES)
         context = {}
         if form.is_valid():
@@ -688,10 +696,10 @@ class UpdateCSet(View):
 
             # if there is a zip file of pdbs, check it for .pdb files, and ignore others
             if pdb_file:
-               zfile = save_pdb_zip(pdb_file)
+                zfile = save_pdb_zip(pdb_file)
 
             # save uploaded sdf to tmp storage
-            tmp_file = save_sdf(myfile)
+            tmp_file = save_tmp_file(myfile)
 
             task_update = add_cset_mols.s(cset=update_set, target=target, sdf_file=tmp_file, zfile=zfile).apply_async()
 
@@ -757,7 +765,8 @@ class UploadCSet(View):
             # all_keys = CSetKeys.objects.all()
             # if it's not valid, return a message
             # if key not in [str(key.uuid) for key in all_keys]:
-            #     html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
+            #     html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again
+            #     (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
             #     return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
 
             # get all of the variables needed from the form
@@ -779,12 +788,12 @@ class UploadCSet(View):
                 zfile = save_pdb_zip(pdb_file)
 
             # save uploaded sdf to tmp storage
-            tmp_file = save_sdf(myfile)
+            tmp_file = save_tmp_file(myfile)
 
             # Settings for if validate option selected
             if str(choice) == '0':
                 # Start celery task
-                task_validate = validate.delay(tmp_file, target=target, zfile=zfile, update=update_set)
+                task_validate = validate_compound_set.delay(tmp_file, target=target, zfile=zfile, update=update_set)
 
                 context = {}
                 context['validate_task_id'] = task_validate.id
@@ -798,7 +807,7 @@ class UploadCSet(View):
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
                 task_upload = (
-                            validate.s(tmp_file, target=target, zfile=zfile, update=update_set) | process_compound_set.s()).apply_async()
+                            validate_compound_set.s(tmp_file, target=target, zfile=zfile, update=update_set) | process_compound_set.s()).apply_async()
 
                 context = {}
                 context['upload_task_id'] = task_upload.id
@@ -809,11 +818,124 @@ class UploadCSet(View):
 
         context['form'] = form
         return render(request, 'viewer/upload-cset.html', context)
+# End Upload Compound set functions
 
 
+# Upload Target datasets functions
+class UploadTSet(View):
+    """ View to render and control viewer/upload-tset.html  - a page allowing upload of computed sets. Validation and
+    upload tasks are defined in `viewer.target_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
+    response handling is done by `viewer.views.ValidateTaskView` and `viewer.views.UploadTaskView`
+
+    Methods
+    -------
+    allowed requests:
+        - GET: renders form
+        - POST: validates and optionally uploads the computed set that the user provides via the template form
+    url:
+        viewer/upload_tset
+    template:
+        viewer/upload-tset.html
+    request params:
+        - target_name (`django.forms.CharField`): Name of the existing fragalysis target to add the computed set to
+        - target_zip (`django.forms.FileField`): zip file of the target dataset
+        - submit_choice (`django.forms.CharField`): 0 to validate, 1 to validate and upload
+    context:
+        - form (`django.Forms.form`): instance of `viewer.forms.TSetForm`
+        - validate_task_id (str): celery task id for validation step
+        - validate_task_status (str): celery task status for validation step
+        - upload_task_id (str): celery task id for upload step
+        - upload_task_status (str): celery task status for upload step
+
+    """
+
+    def get(self, request):
+
+        form = TSetForm()
+        #TODO replace with target sets based on the projects the user is entiled to see or "OPEN"
+        # test = TargetView().get_queryset(request=request)
+        # targets = request.get('/api/targets/')
+
+        # Only authenticated users can upload files - this can be switched off in settings.py.
+        user = self.request.user
+        if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+            context = {}
+            context['error_message'] \
+                = 'Only authenticated users can upload files - please navigate to landing page and Login'
+            logger.info('- UploadTSet.get - authentication error')
+            return render(request, 'viewer/upload-tset.html', context)
+
+        return render(request, 'viewer/upload-tset.html', {'form': form})
+
+    def post(self, request):
+        logger.info('+ UploadTSet.post')
+        context = {}
+
+        # Only authenticated users can upload files - this can be switched off in settings.py.
+        user = self.request.user
+        if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+            context['error_message'] \
+                = 'Only authenticated users can upload files - please navigate to landing page and Login'
+            logger.info('- UploadTSet.post - authentication error')
+            return render(request, 'viewer/upload-tset.html', context)
+
+        # Check celery/rdis is up and running
+        check_services()
+        form = TSetForm(request.POST, request.FILES)
+        if form.is_valid():
+            # get all of the variables needed from the form
+            target_file = request.FILES['target_zip']
+            target_name = request.POST['target_name']
+            choice = request.POST['submit_choice']
+            proposal_ref = request.POST['proposal_ref']
+
+            # Create /code/media/tmp if does not exist
+            media_root = settings.MEDIA_ROOT
+            tmp_folder = os.path.join(media_root, 'tmp')
+            if not os.path.isdir(tmp_folder):
+                os.mkdir(tmp_folder)
+
+            path = default_storage.save('tmp/' + 'NEW_DATA.zip', ContentFile(target_file.read()))
+            new_data_file = str(os.path.join(settings.MEDIA_ROOT, path))
+
+            # Settings for if validate option selected
+            if str(choice) == '0':
+                # Start celery task
+                task_validate = validate_target_set.delay(new_data_file, target=target_name, proposal=proposal_ref)
+
+                context = {}
+                context['validate_task_id'] = task_validate.id
+                context['validate_task_status'] = task_validate.status
+
+                # Update client side with task id and status
+                logger.info('- UploadTSet.post.choice == 0')
+                return render(request, 'viewer/upload-tset.html', context)
+
+            # if it's an upload, run the validate followed by the upload target set task
+            if str(choice) == '1':
+                # Start chained celery tasks. NB first function passes tuple
+                # to second function - see tasks.py
+                task_upload = (validate_target_set.s(new_data_file, target=target_name, proposal=proposal_ref) | process_target_set.s()).apply_async()
+
+                context = {}
+                context['upload_task_id'] = task_upload.id
+                context['upload_task_status'] = task_upload.status
+
+                # Update client side with task id and status
+                logger.info('- UploadTSet.post.choice == 1')
+                return render(request, 'viewer/upload-tset.html', context)
+
+        context['form'] = form
+
+        logger.info('- UploadTSet.post')
+        return render(request, 'viewer/upload-tset.html', context)
+
+# End Upload Target datasets functions
+
+# Task functions common between Compound Sets and Target Set pages.
 class ValidateTaskView(View):
     """ View to handle dynamic loading of validation results from `viewer.tasks.validate` - the validation of files
-    uploaded to viewer/upload_cset
+    uploaded to viewer/upload_cset or a target set by a user at viewer/upload_tset
 
     Methods
     -------
@@ -822,7 +944,7 @@ class ValidateTaskView(View):
     url:
         validate_task/<validate_task_id>
     template:
-        viewer/upload-cset.html
+        viewer/upload-cset.html or viewer/upload-tset.html
     """
     def get(self, request, validate_task_id):
         """ Get method for `ValidateTaskView`. Takes a validate task id, checks it's status and returns the status,
@@ -831,9 +953,9 @@ class ValidateTaskView(View):
         Parameters
         ----------
         request: request
-            Context sent by `UploadCSet`
+            Context sent by `UploadCSet` or `UploadTset`
         validate_task_id: str
-            task id provided by `UploadCSet`
+            task id provided by `UploadCSet` or `UploadTset`
 
         Returns
         -------
@@ -852,11 +974,13 @@ class ValidateTaskView(View):
                     - html (str): html of task outcome - success message or html table of errors & fail message
 
         """
+        logger.info('+ ValidateTaskView.get')
         task = AsyncResult(validate_task_id)
         response_data = {'validate_task_status': task.status,
                          'validate_task_id': task.id}
 
         if task.status == 'FAILURE':
+            logger.info('+ ValidateTaskView.get.FAILURE')
             result = task.traceback
             response_data['validate_traceback'] = str(result)
 
@@ -864,12 +988,14 @@ class ValidateTaskView(View):
 
         # Check if results ready
         if task.status == "SUCCESS":
+            logger.info('+ ValidateTaskView.get.SUCCESS')
             results = task.get()
             # NB get tuple from validate task
-            validate_dict = results[0]
-            validated = results[1]
+            validate_dict = results[1]
+            validated = results[2]
             if validated:
                 response_data['html'] = 'Your data was validated. \n It can now be uploaded using the upload option.'
+                response_data['validated'] = 'Validated'
 
                 return JsonResponse(response_data)
 
@@ -882,6 +1008,7 @@ class ValidateTaskView(View):
                 html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
 
                 response_data["html"] = html_table
+                response_data['validated'] = 'Not validated'
 
                 return JsonResponse(response_data)
 
@@ -911,7 +1038,7 @@ class UpdateTaskView(View):
 
 class UploadTaskView(View):
     """ View to handle dynamic loading of upload results from `viewer.tasks.process_compound_set` - the upload of files
-    for a computed set by a user at viewer/upload_cset
+    for a computed set by a user at viewer/upload_cset or a target set by a user at viewer/upload_tset
 
     Methods
     -------
@@ -920,7 +1047,7 @@ class UploadTaskView(View):
     url:
         upload_task/<uploads_task_id>
     template:
-        viewer/upload-cset.html
+        viewer/upload-cset.html or viewer/upload-tset.html
     """
     def get(self, request, upload_task_id):
         """ Get method for `UploadTaskView`. Takes an upload task id, checks it's status and returns the status,
@@ -929,9 +1056,9 @@ class UploadTaskView(View):
         Parameters
         ----------
         request: request
-            Context sent by `UploadCSet`
+            Context sent by `UploadCSet` or `UploadTSet`
         upload_task_id: str
-            task id provided by `UploadCSet`
+            task id provided by `UploadCSet` or `UploadTSet`
 
         Returns
         -------
@@ -947,19 +1074,24 @@ class UploadTaskView(View):
                 - if status = 'SUCCESS':
                     - upload_task_status (str): task.status
                     - upload_task_id (str): task.id
-                    - if results are a list (data was not validated):
+                    - if results are a list (data was processed - validated or uploaded):
+                        if this was a validation process
                         - validated (str): 'Not validated'
                         - html (str): html table of validation errors
-                    - if results are a string (data was validated and uploaded:
+                        if results are a validation/upload process:
                         - validated (str): 'Validated'
                         - results (dict): results
+                        For compound sets ('cset')
                         - results['cset_download_url'] (str): download url for computed set sdf file
                         - results['pset_download_url'] (str): download url for computed set pdb files (zip)
+                        For target sets ('tset')
+                        - results['tset_download_url'] (str): download url for processed zip file
                     - if results are not string or list:
                         - processed (str): 'None'
                         - html (str): message to tell the user their data was not processed
 
         """
+        logger.info('+ UploadTaskView.get')
         task = AsyncResult(upload_task_id)
         response_data = {'upload_task_status': task.status,
                          'upload_task_id': task.id}
@@ -971,49 +1103,55 @@ class UploadTaskView(View):
             return JsonResponse(response_data)
 
         if task.status == 'SUCCESS':
+            logger.info('+ UploadTaskView.get.success')
 
             results = task.get()
 
-            # Check for d,v vs csetname output
+            # Validation output for a cset or tset is a dictionary.
             if isinstance(results, list):
-                # Get dictionary results
-                validate_dict = results[0]
+                if results[0] == 'validate':
+                    # Get dictionary results
+                    validate_dict = results[1]
 
-                # set pandas options to display all column data
-                pd.set_option('display.max_colwidth', -1)
+                    # set pandas options to display all column data
+                    pd.set_option('display.max_colwidth', -1)
 
-                table = pd.DataFrame.from_dict(validate_dict)
-                html_table = table.to_html()
-                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
+                    table = pd.DataFrame.from_dict(validate_dict)
+                    html_table = table.to_html()
+                    html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
 
-                response_data['validated'] = 'Not validated'
-                response_data['html'] = html_table
+                    response_data['validated'] = 'Not validated'
+                    response_data['html'] = html_table
 
-                return JsonResponse(response_data)
+                    return JsonResponse(response_data)
+                else:
+                    # Upload/Update output tasks send back a tuple
+                    # First element defines the source of the upload task (cset, tset)
+                    response_data['validated'] = 'Validated'
+                    if results[1] == 'tset':
+                        target_name = results[2]
+                        response_data['results'] = {}
+                        response_data['results']['tset_download_url'] = '/viewer/target/%s' % target_name
+                    else:
+                        cset_name = results[2]
+                        cset = ComputedSet.objects.get(name=cset_name)
+                        submitter = cset.submitter
+                        name = cset.unique_name
+                        response_data['results'] = {}
+                        response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
+                        response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
 
-            # Check for d,v vs csetname output
-            # Check in with Rachael if we are expecting a string here?
-            if isinstance(results, str):
-                cset_name = results
-                cset = ComputedSet.objects.get(name=cset_name)
-
-                submitter = cset.submitter
-                name = cset.unique_name
-                response_data['validated'] = 'Validated'
-                response_data['results'] = {}
-                response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
-                response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
-
-                return JsonResponse(response_data)
+                    return JsonResponse(response_data)
 
             else:
-
+                # Error output
                 html_table = '''<p> Your data was <b>not</b> processed.</p>'''
                 response_data['processed'] = 'None'
                 response_data['html'] = html_table
                 return JsonResponse(response_data)
 
         return JsonResponse(response_data)
+# End Task functions which hopefully can be common between Compound Sets and Target Set pages.
 
 
 def img_from_smiles(request):
@@ -1128,6 +1266,7 @@ def get_open_targets(request):
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
 
 
+# This is used in the URL on the process results page after uploading a compound_set
 def cset_download(request, name):
     """ View to download an SDF file of a computed set by name
 
@@ -1198,6 +1337,36 @@ def pset_download(request, name):
 
     return response
 
+
+# This is used in the URL on the process results page after uploading a target_set
+def tset_download(request, title):
+    """ View to download an zip file of a target set by name
+
+    Methods
+    -------
+    allowed requests:
+        - GET: return the zip file as a download
+    url:
+        viewer/target/(<title>)
+    request params:
+        - title (str): the title of the target set to download
+
+    Returns
+    -------
+    Response (attachment; text/plain):
+        - <title>.zip: zip file for the target set
+
+    """
+    target_set = Target.objects.get(title=title)
+    media_root = settings.MEDIA_ROOT
+    filepath = os.path.join(media_root, target_set.zip_archive.name)
+    target_zip = open(filepath, 'rb')
+    filename = 'target-set_' + title + '.zip'
+    response = HttpResponse(target_zip, content_type='application/force-download')
+    response['Content-Disposition'] = 'attachment; filename="%s"' % filename  # force browser to download file
+    return response
+
+
 # Start of ActionType
 class ActionTypeView(viewsets.ModelViewSet):
     """ Djagno view to retrieve information about action types available to users (GET)
@@ -1238,7 +1407,8 @@ class ActionTypeView(viewsets.ModelViewSet):
     queryset = ActionType.objects.filter()
     serializer_class = ActionTypeSerializer
 
-    # POST method allowed for flexibility in the PoC. In the final design we may want to prevent the POST/PUT methods from being used
+    # POST method allowed for flexibility in the PoC. In the final design we may want to prevent the POST/PUT methods
+    # from being used
     # for action types so that these can only be updated via the admin panel.
     #    http_method_names = ['get', 'head']
 
@@ -1524,7 +1694,7 @@ class SnapshotActionsView(viewsets.ModelViewSet):
 # End of Session Project
 
 
-### Design sets upload
+# Design sets upload
 # Custom parser class for a csv file
 class DSetCSVParser(BaseParser):
     """

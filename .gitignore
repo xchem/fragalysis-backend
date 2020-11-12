@@ -110,3 +110,8 @@ ENV/
 /hypothesis/migrations/
 /hotspots/migrations/
 /tmp/
+/database_check.py
+/dump.rdb
+/loader.py
+/run_loader.sh
+/viewer/target_set_upload_debug.py

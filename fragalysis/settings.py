@@ -17,14 +17,31 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 
-sentry_sdk.init(
-    dsn="https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290",
-    integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = False
 
-    # If you wish to associate users to errors (assuming you are using
-    # django.contrib.auth) you may enable sending PII data.
-    send_default_pii=True
-)
+# These flags are used in the upload_tset form as follows.
+# Proposal Supported | Proposal Required | Proposal / View fields
+# Y                  | Y                 | Shown / Required
+# Y                  | N                 | Shown / Optional
+# N                  | N                 | Not Shown
+PROPOSAL_SUPPORTED = True
+PROPOSAL_REQUIRED = True
+
+# Authentication check when uploading files. This can be switched off for development testing if required.
+# Should always be True on production.
+AUTHENTICATE_UPLOAD = True
+
+if DEBUG == False:
+# By default only call sentry in staging/production
+    sentry_sdk.init(
+        dsn="https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290",
+        integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
+
+        # If you wish to associate users to errors (assuming you are using
+        # django.contrib.auth) you may enable sending PII data.
+        send_default_pii=True
+    )
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,8 +55,6 @@ SECRET_KEY = os.environ.get(
     "WEB_DJANGO_SECRET_KEY", "8flmz)c9i!o&f1-moi5-p&9ak4r9=ck$3!0y1@%34p^(6i*^_9"
 )
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
@@ -60,6 +75,8 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+# This is to stop Celery overwriting the Django logging defaults.
+# CELERYD_HIJACK_ROOT_LOGGER = False
 
 # This can be injected as an ENV var
 NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
@@ -245,3 +262,34 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 CAS_CHECK_NEXT = lambda _: True
 
 # DOCS_ROOT = "/code/docs/_build/html "
+
+# This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with errors.
+# Hence connection to DEBUG flag.
+# Note that in development you have to jump on to docker and then look for logs/logfile.
+if DEBUG == True:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'level': 'DEBUG',
+                'class': 'logging.StreamHandler',
+            },
+            'logfile': {
+                'level':'DEBUG',
+                'class':'logging.FileHandler',
+                'filename': BASE_DIR + "/logs/logfile.log",
+            },
+        },
+        # 'loggers': {
+        #     'celery': {
+        #         'handlers': ['celery'],
+        #         'level': 'INFO',
+        #         'propagate': False
+        #     },
+        # },
+        'root': {
+            'level': 'INFO',
+            'handlers': ['console', 'logfile']
+        },
+    }

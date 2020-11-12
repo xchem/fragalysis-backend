@@ -1,6 +1,5 @@
 from django import forms
-import zipfile
-from io import StringIO
+from django.conf import settings
 
 CHOICES = [
     (0, 'validate'),
@@ -52,3 +51,31 @@ class CSetUpdateForm(forms.Form):
 
 class UploadKeyForm(forms.Form):
     contact_email = forms.EmailField(widget=forms.TextInput(attrs={'class':'form-control', 'autocomplete':'off'}), required=True)
+
+
+class TSetForm(forms.Form):
+    """A Django form used for uploading Target sets at viewer/upload_tset
+
+    Parameters
+    ----------
+    target_name: CharField
+        The name of the target, as written in `viewer.models.Targets` that you want to upload Target set for
+    target_zip: FileField
+        A zip file containing a target dataset in a specific format (folders / data)
+    submit_choice: CharField
+        Whether to validate (0) or validate and upload (1) - displayed as a radio button
+    proposal_ref: CharField
+        Proposal the target should be attached to/validated with.
+    """
+    target_name = forms.CharField(label='Target', max_length=100)
+    target_zip = forms.FileField(required=True, label='Target data (.zip)')
+    submit_choice = forms.CharField(widget=forms.RadioSelect(choices=CHOICES))
+
+    # For Diamond, a proposal is always required. For other implementations, it may be optional or omitted.
+    if settings.PROPOSAL_SUPPORTED and settings.PROPOSAL_REQUIRED:
+        proposal_ref = forms.CharField(required=True, label='Proposal', max_length=200, initial='OPEN')
+    elif settings.PROPOSAL_SUPPORTED:
+        proposal_ref = forms.CharField(required=False, label='Proposal', max_length=200, initial='OPEN')
+    else:
+        proposal_ref = ''
+    #TODO Logon

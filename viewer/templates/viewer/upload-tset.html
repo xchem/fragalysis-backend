@@ -3,7 +3,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Compound set upload</title>
+  <title>Target set upload</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
   <script src="https://cdn.jsdelivr.net/npm/vue"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
@@ -14,8 +14,9 @@
       <section class="hero is-primary has-background-grey">
         <div class="hero-body">
 {#          <div class="container">#}
-            <h1 class="title is-size-1 has-text-centered">Compound Set Upload</h1>
+            <h1 class="title is-size-1 has-text-centered">Target Set Upload</h1>
             <p class="subtitle has-text-centered" id="progress-title"></p>
+            </div>
         </div>
         </section>
       <section class="hero is-light has-background-white">
@@ -23,27 +24,13 @@
             <div class="columns is-centered">
               <div class="column is-8" id="content">
                   <p>
-                      Here, you can upload compound sets for follow up compounds (computed 3D coordinates)
-                      The current instructions are here:
-                      <a href="https://discuss.postera.ai/t/providing-computed-poses-for-others-to-look-at/1155">postera forum</a>
+                      Here, you can upload target data sets
                   </p>
-                  <br>
-                  <p>The current specification version is <b>ver_1.2</b></p>
-                  <br>
                   <form method="post" enctype="multipart/form-data">
                       {% csrf_token %}
                       {{ form.as_ul }}
-                      <label for="{{ sets.id_for_label }}" class="col-sm-2 control-label">Update existing set:</label>
-                      <div class="col-sm-10">
-                        <select name="update_set" class="form-control">
-                          <option value="None" selected>None</option>
-                          {% for set in sets %}
-                          <option value="{{ set.unique_name }}">{{ set.unique_name }}</option>
-                          {% endfor %}
-                        </select>
-                      </div>
-                    <button type="submit">Submit</button>
-                </form>
+                      <button type="submit">Submit</button>
+                  </form>
                   {% autoescape off %}
                       {% if download_url %}
                         {{ download_url }}
@@ -61,6 +48,15 @@
         <p class="has-text-centered" id="upload-id"></p>
     </body>
 
+    {% if error_message %}
+          <script>
+          var content = document.getElementById('content');
+          content.innerHTML = "";
+          var content = document.getElementById('links');
+          content.innerHTML = "{{ error_message }}";
+         </script>
+      {% endif %}
+
     {% if validate_task_id %}
           <script>
           var content = document.getElementById('content');
@@ -68,6 +64,7 @@
           var taskUrl = "{% url 'validate_task' validate_task_id=validate_task_id %}";
           var validid = document.getElementById('validate-id');
           validid.innerHTML = taskUrl;
+
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
           updateProgressTitleVal();
@@ -77,15 +74,12 @@
               .then(function(response){
                 var taskStatus = response.data.validate_task_status
                 if (taskStatus === 'SUCCESS') {
-
+                  clearTimerVal('Validation Results');
                   var content = document.getElementById('links');
                   content.innerHTML = response.data.html;
-
-                  clearTimerVal('');
                 }
 
                 else if (taskStatus === 'FAILURE') {
-
                     clearTimerVal('An error occurred - see traceback below');
                     var content = document.getElementById('links');
                     content.innerHTML = response.data.validate_traceback;
@@ -139,25 +133,14 @@
                       if (validatedStatus === 'Validated') {
                           clearTimer('Your files were uploaded! The download links are:');
 
-                          var url_a = response.data.results.cset_download_url;
+                          var url_a = response.data.results.tset_download_url;
                           var content = document.getElementById('links');
                           var a = document.createElement("a");
-                          var link = document.createTextNode("    Compound Set    ");
+                          var link = document.createTextNode("    Target Set    ");
                           a.appendChild(link);
-                          a.title = 'compound set';
+                          a.title = 'target set';
                           a.href = url_a;
                           content.appendChild(a);
-
-                          var br = document.createElement('br');
-                          content.appendChild(br);
-
-                          var url_b = response.data.results.pset_download_url;
-                          var b = document.createElement("a");
-                          var link_b = document.createTextNode("    Protein Set    ");
-                          b.appendChild(link_b);
-                          b.title = 'protein set';
-                          b.href = url_b;
-                          content.appendChild(b);
 
                       }
                       var moleculesProcessed = response.data.processed

@@ -9,11 +9,20 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors
 from viewer.models import Target, Compound, DesignSet
 import os.path
+import zipfile
 
 from celery import shared_task
 from .sdf_check import *
 from .compound_set_upload import *
+from .target_set_upload import process_target, validate_target
 
+# import the logging library
+#import logging
+# Get an instance of a logger
+#logger = logging.getLogger(__name__)
+
+from celery.utils.log import get_task_logger
+logger = get_task_logger(__name__)
 
 def check_services():
     """ Method to ensure redis and celery services are running to allow handling of tasks - attempts to start either
@@ -39,8 +48,8 @@ def check_services():
         return False
     return True
 
-### Uploading ###
 
+# Uploading Compound Sets ###
 
 @shared_task
 def add_cset_mols(cset, sdf_file, target=None, zfile=None):
@@ -102,11 +111,11 @@ def process_compound_set(validate_output):
     # Validate output is a tuple - this is one way to get
     # Celery chaining to work where second function uses list output
     # from first function (validate) called
-    validate_dict, validated, filename, target, zfile, \
+    process_type, validate_dict, validated, filename, target, zfile, \
     submitter_name,  submitter_method = validate_output
 
     if not validated:
-        return (validate_dict,validated)
+        return (validate_dict, validated)
 
     if validated:
         #print('processing compound set: ' + filename)
@@ -141,6 +150,11 @@ def process_compound_set(validate_output):
         check = ComputedMolecule.objects.filter(computed_set=compound_set)
         #print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
 
+        # check compound set folder exists.
+        cmp_set_folder = os.path.join(settings.MEDIA_ROOT, 'compound_sets')
+        if not os.path.isdir(cmp_set_folder):
+            os.mkdir(cmp_set_folder)
+
         # move and save the compound set
         new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
         os.rename(filename, new_filename)
@@ -153,17 +167,18 @@ def process_compound_set(validate_output):
             #print('No molecules processed... deleting ' + set_name + ' compound set')
             return None
 
-        return compound_set.name
+        return 'process', 'cset', compound_set.name
 
-### End Uploading ###
+# End Uploading Compound Sets ###
 
-### Validating ###
+# Validating Compound Sets ###
 
 # Set .sdf format version here
 version = 'ver_1.2'
 
+
 @shared_task
-def validate(sdf_file, target=None, zfile=None, update=None):
+def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
     """ Celery task to process validate the uploaded files for a computed set upload. SDF file is mandatory, zip file is
     optional
 
@@ -174,7 +189,8 @@ def validate(sdf_file, target=None, zfile=None, update=None):
     target: str
         name of the target (`viewer.models.Target.title`) to add add the computed set to
     zfile: dict
-        dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by `viewer.views.UploadCSet`
+        dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved
+        to temporary storage by `viewer.views.UploadCSet`
 
     Returns
     -------
@@ -184,7 +200,8 @@ def validate(sdf_file, target=None, zfile=None, update=None):
             - validated (bool): True if the file(s) were validated, False if not
             - filename (str): name of the uploaded sdf file
             - target (str): name of the target that the computed set is associated with
-            - zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by `viewer.views.UploadCSet`
+            - zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the
+              filename, which is saved to temporary storage by `viewer.views.UploadCSet`
             - submitter_name (str): name of the author of the computed set
             - submitter_method (str): name of the method used to generate the computed set
 
@@ -195,7 +212,7 @@ def validate(sdf_file, target=None, zfile=None, update=None):
                      'warning_string': []}
 
     suppl = Chem.SDMolSupplier(sdf_file)
-    #print('%d mols detected (including blank mol)' % (len(suppl),))
+    # print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
 
     # Get submitter name/info for passing into upload to get unique name
@@ -211,9 +228,7 @@ def validate(sdf_file, target=None, zfile=None, update=None):
         return (validate_dict, validated, sdf_file, target, zfile,
                 submitter_name, submitter_method)
 
-
-
-    if not update or update=='None':
+    if not update or update == 'None':
         validate_dict = check_compound_set(blank_mol, validate_dict)
     else:
         validate_dict = check_compound_set(blank_mol, validate_dict, update=update)
@@ -281,12 +296,12 @@ def validate(sdf_file, target=None, zfile=None, update=None):
     csets = ComputedSet.objects.filter(unique_name=unique_name)
     [c.delete() for c in csets]
 
-    return (validate_dict, validated, sdf_file, target, zfile,
+    return ('validate', validate_dict, validated, sdf_file, target, zfile,
             submitter_name,  submitter_method)
 
-### End Validating ###
+# End Validating Compound Sets ###
 
-### Design sets ###
+# Design sets ###
 
 def create_mol(inchi, long_inchi=None, name=None):
     # check for an existing compound
@@ -300,7 +315,6 @@ def create_mol(inchi, long_inchi=None, name=None):
     if len(cpd) != 0:
         new_mol = cpd[0]
     else:
-
         # add molecule and return the object
         new_mol = Compound()
 
@@ -344,7 +358,6 @@ def process_design_compound(compound_row):
         # TODO: get_inchi in model
         inchi = str(inchi)[0:255]
         long_inchi = inchi
-
 
     new_mol = create_mol(inchi)
 
@@ -392,3 +405,89 @@ def process_design_sets(df, set_type=None, set_description=None):
         sets.append(compounds)
 
     return set_names, sets
+# End Design sets ###
+
+
+# Target Sets ###
+@shared_task
+def validate_target_set(target_zip, target=None, proposal=None):
+    """ Celery task to process validate the uploaded files/format for a target set upload. Zip file is mandatory
+
+    Parameters
+    ----------
+    target_zip: str
+        filepath of the uploaded target file, which is saved to temporary storage by `viewer.views.UploadTSet`
+    target: str
+        name of the target (`viewer.models.Target.title`) to add add the target set to
+
+    Returns
+    -------
+    validate_output: tuple
+        contains the following:
+            - validate dict (dict): dict containing any errors found during the validation step
+            - validated (bool): True if the file(s) were validated, False if not
+            - filename (str): name of the uploaded target file
+            - target (str): name of the target
+            - submitter_name (str): name of the user who submitted the upload
+
+    """
+    logger.info('+ validating target set: ' + target_zip)
+
+    # Get submitter name/info for passing into upload to get unique name
+    submitter_name = ''
+
+    tmp_folder = os.path.dirname(target_zip)
+    new_data_folder = os.path.join(tmp_folder, 'new_data')
+
+    # This will create the target folder in the tmp/ location.
+    with zipfile.ZipFile(target_zip, 'r') as zip_ref:
+        zip_ref.extractall(new_data_folder)
+
+    validated, validate_dict = validate_target(new_data_folder, target, proposal)
+
+    os.remove(target_zip)
+    # Tidy up data if not validated
+    if not validated:
+        os.remove(new_data_folder)
+
+    return ('validate', validate_dict, validated, new_data_folder, target, proposal,
+            submitter_name)
+
+
+@shared_task
+def process_target_set(validate_output):
+    """ Celery task to process a target set, that takes the output of the validation task, and uploads molecules to a
+    new target set if the uploaded files are valid
+
+    Parameters
+    ----------
+    validate_output: tuple
+        contains the following:
+            - validate dict (dict): dict containing any errors found during the validation step
+            - validated (bool): True if the file(s) were validated, False if not
+            - filename (str): name of the uploaded target file (zip file)
+            - target (str): name of the target
+            - submitter_name (str): name of the author of the computed set
+
+    Returns
+    -------
+    target str
+        name of the processed target set
+
+    """
+    # Validate output is a tuple - this is one way to get
+    # Celery chaining to work where second function uses list output
+    # from first function (validate) called
+    process_type, validate_dict, validated, new_data_folder, target_name, proposal_ref, submitter_name = validate_output
+
+    # If there is a validation error, stop here.
+    if not validated:
+        return process_type, validate_dict, validated
+
+    if validated:
+        logger.info('+ processing target set: ' + target_name + ' target_folder:' + new_data_folder)
+
+        mols_loaded, mols_processed = process_target(new_data_folder, target_name, proposal_ref)
+
+        return 'process', 'tset', target_name, mols_loaded, mols_processed
+# End Target Sets ###
