@@ -1,7 +1,8 @@
 import os
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
-from rest_framework import serializers
+#L+
+from urllib.parse import urljoin
 
 from api.utils import draw_mol
 
@@ -26,6 +27,8 @@ from viewer.models import (
 )
 
 from django.contrib.auth.models import User
+#L+
+from django.conf import settings
 
 from rest_framework import serializers
 
@@ -35,9 +38,10 @@ class FileSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
+    zip_archive = serializers.SerializerMethodField()
+    metadata = serializers.SerializerMethodField()
 
     def get_template_protein(self, obj):
         proteins = obj.protein_set.filter()
@@ -45,6 +49,22 @@ class TargetSerializer(serializers.ModelSerializer):
             if protein.pdb_info:
                 return protein.pdb_info.url
         return "NOT AVAILABLE"
+
+    def get_zip_archive(self, obj):
+        request = self.context["request"]
+        # This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
+        # Note that this link will not work on local
+        # SECURE_PROXY_SSL_HEADER is referenced because it is used in redirecting URLs - if it is changed
+        # it make affect this code.
+        https_host = settings.SECURE_PROXY_SSL_HEADER[1]+'://'+request.get_host()
+        return urljoin(https_host, obj.zip_archive.url)
+
+    def get_metadata(self, obj):
+        request = self.context["request"]
+        # This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
+        # Note that this link will not work on local - see above.
+        https_host = settings.SECURE_PROXY_SSL_HEADER[1]+'://'+request.get_host()
+        return urljoin(https_host, obj.metadata.url)
 
     class Meta:
         model = Target
