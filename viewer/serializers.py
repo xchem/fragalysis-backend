@@ -53,9 +53,11 @@ class TargetSerializer(serializers.ModelSerializer):
     def get_zip_archive(self, obj):
         request = self.context["request"]
         # This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
-        # Note that this link will not work on local
         # SECURE_PROXY_SSL_HEADER is referenced because it is used in redirecting URLs - if it is changed
         # it make affect this code.
+        # Using relative links will probably also work, but This workaround allows both the 'download structures'
+        # button and the DRF API call to work.
+        # Note that this link will not work on local
         https_host = settings.SECURE_PROXY_SSL_HEADER[1]+'://'+request.get_host()
         return urljoin(https_host, obj.zip_archive.url)
 
