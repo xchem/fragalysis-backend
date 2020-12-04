@@ -263,6 +263,13 @@ CAS_CHECK_NEXT = lambda _: True
 
 # DOCS_ROOT = "/code/docs/_build/html "
 
+
+# Discourse settings for API calls to Discourse Platform
+# TODO Should be environment parameters
+DISCOURSE_HOST = 'https://discourse.xchem-dev.diamond.ac.uk/'
+DISCOURSE_USER = 'user'
+DISCOURSE_API_KEY = 'd6036de5e412123b77048c0b92d42fb108484ea1eef2918d67b236802fa8cd4f'
+
 # This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with errors.
 # Hence connection to DEBUG flag.
 # Note that in development you have to jump on to docker and then look for logs/logfile.
