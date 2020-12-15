@@ -32,10 +32,12 @@ PROPOSAL_REQUIRED = True
 # Should always be True on production.
 AUTHENTICATE_UPLOAD = True
 
-if DEBUG == False:
+# This is set on AWX when the fragalysis-stack is rebuilt.
+SENTRY_DNS = os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS")
+if DEBUG is False and SENTRY_DNS:
     # By default only call sentry in staging/production
     sentry_sdk.init(
-        dsn="https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290",
+        dsn=SENTRY_DNS,
         integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
 
         # If you wish to associate users to errors (assuming you are using
