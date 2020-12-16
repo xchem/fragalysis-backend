@@ -18,7 +18,7 @@ from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
@@ -33,7 +33,7 @@ PROPOSAL_REQUIRED = True
 AUTHENTICATE_UPLOAD = True
 
 if DEBUG == False:
-# By default only call sentry in staging/production
+    # By default only call sentry in staging/production
     sentry_sdk.init(
         dsn="https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290",
         integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
