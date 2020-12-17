@@ -793,4 +793,3 @@ class DiscourseTopic(models.Model):
 
     class Meta:
         db_table = 'viewer_discoursetopic'
-

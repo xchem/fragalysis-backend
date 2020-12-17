@@ -18,7 +18,7 @@ from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
@@ -32,10 +32,12 @@ PROPOSAL_REQUIRED = True
 # Should always be True on production.
 AUTHENTICATE_UPLOAD = True
 
-if DEBUG == False:
+# This is set on AWX when the fragalysis-stack is rebuilt.
+SENTRY_DNS = os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS")
+if DEBUG is False and SENTRY_DNS:
     # By default only call sentry in staging/production
     sentry_sdk.init(
-        dsn="https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290",
+        dsn=SENTRY_DNS,
         integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
 
         # If you wish to associate users to errors (assuming you are using
@@ -263,17 +265,17 @@ CAS_CHECK_NEXT = lambda _: True
 
 # DOCS_ROOT = "/code/docs/_build/html "
 
-
 # Discourse settings for API calls to Discourse Platform
-# TODO Should be environment parameters
-DISCOURSE_HOST = 'https://discourse.xchem-dev.diamond.ac.uk/'
-DISCOURSE_USER = 'user'
-DISCOURSE_API_KEY = 'd6036de5e412123b77048c0b92d42fb108484ea1eef2918d67b236802fa8cd4f'
+DISCOURSE_PARENT_CATEGORY = 'Fragalysis targets'
+DISCOURSE_USER = 'fragalysis'
+DISCOURSE_HOST = os.environ.get('DISCOURSE_HOST', 'https://discourse.xchem-dev.diamond.ac.uk/')
+# Note that this can be obtained from discourse for the dev environment.
+DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 
-# This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with errors.
-# Hence connection to DEBUG flag.
+# This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with
+# errors. Hence connection to DEBUG flag.
 # Note that in development you have to jump on to docker and then look for logs/logfile.
-if DEBUG == True:
+if DEBUG is True:
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -283,8 +285,8 @@ if DEBUG == True:
                 'class': 'logging.StreamHandler',
             },
             'logfile': {
-                'level':'DEBUG',
-                'class':'logging.FileHandler',
+                'level': 'DEBUG',
+                'class': 'logging.FileHandler',
                 'filename': BASE_DIR + "/logs/logfile.log",
             },
         },

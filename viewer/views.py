@@ -2,6 +2,7 @@ import json
 import os
 import zipfile
 from io import StringIO
+import pandas as pd
 
 # import the logging library
 import logging
@@ -14,13 +15,14 @@ from django.shortcuts import render
 from rest_framework import viewsets
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.core.mail import send_mail
 from django.conf import settings
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
 
 from rest_framework.parsers import JSONParser, BaseParser
 from rest_framework.exceptions import ParseError
 from rest_framework.views import APIView
+from rest_framework.response import Response
 
 from django.views import View
 
@@ -50,8 +52,8 @@ from viewer import filters
 from .forms import CSetForm, UploadKeyForm, CSetUpdateForm, TSetForm
 
 from .tasks import *
+from .discourse import create_discourse_post, list_discourse_posts_for_topic
 
-import pandas as pd
 
 from viewer.serializers import (
     MoleculeSerializer,
@@ -79,6 +81,7 @@ from viewer.serializers import (
     ScoreDescriptionSerializer,
     TextScoreSerializer,
     ComputedMolAndScoreSerializer,
+    DiscoursePostWriteSerializer
 )
 
 
@@ -585,9 +588,6 @@ def cset_key(request):
         new_key.user = email
         new_key.save()
         key_value = new_key.uuid
-
-        from django.core.mail import send_mail
-        from django.conf import settings
 
         subject = 'Fragalysis: upload compound set key'
         message = 'Your upload key is: ' + str(
@@ -2006,7 +2006,8 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
         - compound: id for the associated 2D compound
         - computed_set: name for the associated computed set
         - computed_inspirations: list of ids for the inspirations used in the design/computation of the molecule
-        - numerical_scores: dict of numerical scores, where each key is a score name, and each value is the associated score
+        - numerical_scores: dict of numerical scores, where each key is a score name, and each value is the associated
+        score
         - text_scores: dict of text scores, where each key is a score name, and each value is the associated score
 
     example output:
@@ -2036,3 +2037,162 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
     serializer_class = ComputedMolAndScoreSerializer
     filter_permissions = "project_id"
     filter_fields = ('computed_set',)
+
+
+class DiscoursePostView(viewsets.ViewSet):
+    """Django view to post get and post to the Discourse platform
+
+    Methods
+    -------
+    allowed requests:
+        - POST: Takes a post and calls a function to post the details to the Discourse platform.
+        - GET: (No yet fully operational - returns posts for ?post_title=<topic title>
+    url:
+       api/discourse_post
+    params:
+        - category_name: sub category_name for Discourse post (optional if post title is given)
+        - parent_category: Discourse parent_category name - defaults to "fragalysis targets" (Setting)
+        - category_colour: Optional - defaults to '0088CC'
+        - category_text_colour: Optional defaults to 'FFFFFF'
+        - post_title: title of topic or post (optional if category name is given)
+        - post_content: content of the post
+        - post_tags: a JSON string of tags related to the Post
+
+    Returns
+    -------
+
+    example output (POST):
+        Response with a URL linking to the post that has just been created
+
+          {
+                "Post url": "https://discourse.xchem-dev.diamond.ac.uk/t/78/1"
+          }
+
+    example output (GET):
+        Response with a list of posts
+
+        {
+            "Posts": {
+                "post_stream": {
+                    "posts": [
+                        {
+                            "id": 131,
+                            "name": "user",
+                            "username": "user",
+                            "avatar_template": "/letter_avatar_proxy/v4/letter/u/c0e974/{size}.png",
+                            "created_at": "2020-12-10T14:50:56.006Z",
+                            "cooked": "<p>This is a post for session-project 0005 to test if it works without parent category</p>",
+                            "post_number": 1,
+                            "post_type": 1,
+                            "updated_at": "2020-12-10T14:50:56.006Z",
+                            "reply_count": 0,
+                            "reply_to_post_number": null,
+                            "quote_count": 0,
+                            "incoming_link_count": 1,
+                            "reads": 1,
+                            "readers_count": 0,
+                            "score": 5.2,
+                            "yours": true,
+                            "topic_id": 81,
+                            "topic_slug": "api-test-session-project-000005",
+                            "display_username": "user",
+                            "primary_group_name": null,
+                            "primary_group_flair_url": null,
+                            "primary_group_flair_bg_color": null,
+                            "primary_group_flair_color": null,
+                            "version": 1,
+                            "can_edit": true,
+                            "can_delete": false,
+                            "can_recover": false,
+                            "can_wiki": true,
+                            "read": true,
+                            "user_title": null,
+                            "actions_summary": [
+                                {
+                                    "id": 3,
+                                    "can_act": true
+                                },
+                                {
+                                    "id": 4,
+                                    "can_act": true
+                                },
+                                {
+                                    "id": 8,
+                                    "can_act": true
+                                },
+                                {
+                                    "id": 7,
+                                    "can_act": true
+                                }
+                            ],
+                            "moderator": false,
+                            "admin": true,
+                            "staff": true,
+                            "user_id": 1,
+                            "hidden": false,
+                            "trust_level": 1,
+                            "deleted_at": null,
+                            "user_deleted": false,
+                            "edit_reason": null,
+                            "can_view_edit_history": true,
+                            "wiki": false,
+                            "reviewable_id": 0,
+                            "reviewable_score_count": 0,
+                            "reviewable_score_pending_count": 0
+                        }
+                    ]
+                },
+                "id": 81
+            }
+        }
+    """
+
+    serializer_class = DiscoursePostWriteSerializer
+
+    def create(self, request):
+        """Method to handle POST request and call discourse to create the post
+        """
+        logger.info('+ DiscoursePostView.post')
+        data = request.data
+
+        logger.info('+ DiscoursePostView.post'+json.dumps(data))
+        if data['category_name'] == '':
+            category_details = None
+        else:
+            category_details = {'category_name': data['category_name'],
+                                'parent_name': data['parent_category_name'],
+                                'category_colour': data['category_colour'],
+                                'category_text_colour': data['category_text_colour']}
+
+        if data['post_title'] == '':
+            post_details = None
+        else:
+            post_details = {'title': data['post_title'],
+                            'content': data['post_content'],
+                            'tags': json.loads(data['post_tags'])}
+
+        error, post_url = create_discourse_post(request.user, category_details, post_details)
+
+        if error:
+            logger.info('- DiscoursePostView.post error')
+            return Response({"message": "Error Creating Post"})
+        else:
+            logger.info('- DiscoursePostView.post no error')
+            return Response({"Post url": post_url})
+
+    def list(self, request):
+        """Method to handle GET request and call discourse to list posts for a topic
+        """
+        logger.info('+ DiscoursePostView.get')
+        query_params = request.query_params
+        logger.info('+ DiscoursePostView.get'+json.dumps(query_params))
+
+        post_title = request.query_params.get('post_title', None)
+        error, posts = list_discourse_posts_for_topic(post_title)
+
+        if error:
+            logger.info('- DiscoursePostView.get error')
+            return Response({"message": "No Posts Found"})
+        else:
+            logger.info('- DiscoursePostView.get no error')
+            return Response({"Posts": posts})
