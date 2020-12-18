@@ -14,7 +14,6 @@ def get_user(client, username):
     logger.info('+ discourse.get_user')
 
     user = client.user(username)
-    print(user)
     logger.info('- discourse.get_user')
     return user['id']
 
@@ -25,7 +24,6 @@ def create_category(client, category_name, parent_name, category_colour='0088CC'
     logger.info('+ discourse.create_category')
     category = client.create_category(category_name, color=category_colour,
                                       text_color=category_text_colour, parent=parent_name)
-    print(category)
     topic_url = os.path.join(settings.DISCOURSE_HOST, 'c',  str(category['category']['id']))
     logger.info('- discourse.create_category')
 
@@ -40,7 +38,6 @@ def create_post(client, content, tags=None, title=None, category_id=None, topic_
         tags = []
 
     post = client.create_post(content, category_id, topic_id, title, tags)
-    print(post)
     # posts url = / t / {topic_id} / {post_number}
     post_url = os.path.join(settings.DISCOURSE_HOST, 't',  str(post['topic_id']),  str(post['post_number']))
     logger.info('- discourse.create_post')
