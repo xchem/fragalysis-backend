@@ -2187,8 +2187,14 @@ class DiscoursePostView(viewsets.ViewSet):
         query_params = request.query_params
         logger.info('+ DiscoursePostView.get'+json.dumps(query_params))
 
-        post_title = request.query_params.get('post_title', None)
-        error, posts = list_discourse_posts_for_topic(post_title)
+        discourse_api_key = settings.DISCOURSE_API_KEY
+
+        if discourse_api_key:
+            post_title = request.query_params.get('post_title', None)
+            error, posts = list_discourse_posts_for_topic(post_title)
+        else:
+            logger.info('- DiscoursePostView.no key')
+            return Response({"message": "Discourse Not Available - No API key supplied"})
 
         if error:
             logger.info('- DiscoursePostView.get error')
