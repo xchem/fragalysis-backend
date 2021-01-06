@@ -2173,11 +2173,10 @@ class DiscoursePostView(viewsets.ViewSet):
 
         error, post_url = create_discourse_post(request.user, category_details, post_details)
 
+        logger.info('- DiscoursePostView.post')
         if error:
-            logger.info('- DiscoursePostView.post error')
             return Response({"message": "Error Creating Post"})
         else:
-            logger.info('- DiscoursePostView.post no error')
             return Response({"Post url": post_url})
 
     def list(self, request):
@@ -2196,9 +2195,8 @@ class DiscoursePostView(viewsets.ViewSet):
             logger.info('- DiscoursePostView.no key')
             return Response({"message": "Discourse Not Available - No API key supplied"})
 
+        logger.info('- DiscoursePostView.get')
         if error:
-            logger.info('- DiscoursePostView.get error')
             return Response({"message": "No Posts Found"})
         else:
-            logger.info('- DiscoursePostView.get no error')
             return Response({"Posts": posts})
