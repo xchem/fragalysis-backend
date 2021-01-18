@@ -45,6 +45,7 @@
       </section>
         <p class="has-text-centered" id="links"></p>
         <p class="has-text-centered" id="validate-id"></p>
+        <p class="has-text-centered" id="progress-text"></p>
         <p class="has-text-centered" id="upload-id"></p>
     </body>
 
@@ -64,6 +65,9 @@
           var taskUrl = "{% url 'validate_task' validate_task_id=validate_task_id %}";
           var validid = document.getElementById('validate-id');
           validid.innerHTML = taskUrl;
+          var progressText = document.getElementById('progress-text');
+          progressText.innerHTML = "The validation will continue if you navigate away from the page. <BR> You can"+
+          "copy the task-id below and navigate to upload_task to check progress, or wait for notification by email";
 
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
@@ -112,6 +116,10 @@
           var taskUrl = "{% url 'upload_task' upload_task_id=upload_task_id %}";
           var validid = document.getElementById('upload-id');
           validid.innerHTML = taskUrl;
+          var progressText = document.getElementById('progress-text');
+          progressText.innerHTML = "The upload will continue if you navigate away from the page. <BR> You can"+
+          "copy the task-id below and navigate to upload_task to check progress, or wait for notification by email";
+
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
           updateProgressTitle();
