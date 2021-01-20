@@ -66,6 +66,8 @@ class TSetForm(forms.Form):
         Whether to validate (0) or validate and upload (1) - displayed as a radio button
     proposal_ref: CharField
         Proposal the target should be attached to/validated with.
+    contact_email: EmailField
+        An email address to receive upload notifications.
     """
     target_name = forms.CharField(label='Target', max_length=100)
     target_zip = forms.FileField(required=True, label='Target data (.zip)')
@@ -78,4 +80,4 @@ class TSetForm(forms.Form):
         proposal_ref = forms.CharField(required=False, label='Proposal', max_length=200, initial='OPEN')
     else:
         proposal_ref = ''
-    #TODO Logon
+    contact_email = forms.EmailField(widget=forms.TextInput(attrs={'class':'form-control', 'autocomplete':'off'}), required=False)

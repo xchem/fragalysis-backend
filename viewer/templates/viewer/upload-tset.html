@@ -45,8 +45,8 @@
       </section>
         <p class="has-text-centered" id="links"></p>
         <p class="has-text-centered" id="validate-id"></p>
-        <p class="has-text-centered" id="progress-text"></p>
         <p class="has-text-centered" id="upload-id"></p>
+        <p class="has-text-centered" id="progress-text"></p>
     </body>
 
     {% if error_message %}
@@ -67,7 +67,7 @@
           validid.innerHTML = taskUrl;
           var progressText = document.getElementById('progress-text');
           progressText.innerHTML = "The validation will continue if you navigate away from the page. <BR> You can"+
-          "copy the task-id below and navigate to upload_task to check progress, or wait for notification by email";
+          " copy the task-id above and navigate to upload_task to check progress, or wait for notification by email";
 
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
@@ -78,15 +78,19 @@
               .then(function(response){
                 var taskStatus = response.data.validate_task_status
                 if (taskStatus === 'SUCCESS') {
-                  clearTimerVal('Validation Results');
-                  var content = document.getElementById('links');
-                  content.innerHTML = response.data.html;
+                    clearTimerVal('Validation Results');
+                    var content = document.getElementById('links');
+                    content.innerHTML = response.data.html;
+                    var progressText = document.getElementById('progress-text');
+                    progressText.innerHTML = "";
                 }
 
                 else if (taskStatus === 'FAILURE') {
                     clearTimerVal('An error occurred - see traceback below');
                     var content = document.getElementById('links');
                     content.innerHTML = response.data.validate_traceback;
+                    var progressText = document.getElementById('progress-text');
+                    progressText.innerHTML = "";
 
                 }
               })
@@ -117,8 +121,8 @@
           var validid = document.getElementById('upload-id');
           validid.innerHTML = taskUrl;
           var progressText = document.getElementById('progress-text');
-          progressText.innerHTML = "The upload will continue if you navigate away from the page. <BR> You can"+
-          "copy the task-id below and navigate to upload_task to check progress, or wait for notification by email";
+          progressText.innerHTML = "The upload will continue if you navigate away from the page. <BR> You can "+
+          "copy the task-id above and navigate to upload_task to check progress, or wait for notification by email";
 
           var dots = 1;
           var progressTitle = document.getElementById('progress-title');
@@ -132,6 +136,8 @@
                       var validatedStatus = response.data.validated
                       if (validatedStatus === 'Not validated') {
 
+                          var progressText = document.getElementById('progress-text');
+                          progressText.innerHTML = "";
                           var content = document.getElementById('links');
                           content.innerHTML = response.data.html;
 
@@ -142,6 +148,8 @@
                           clearTimer('Your files were uploaded! The download links are:');
 
                           var url_a = response.data.results.tset_download_url;
+                          var progressText = document.getElementById('progress-text');
+                          progressText.innerHTML = "";
                           var content = document.getElementById('links');
                           var a = document.createElement("a");
                           var link = document.createTextNode("    Target Set    ");
@@ -167,6 +175,8 @@
                         clearTimer('An error occurred - see traceback below');
                         var content = document.getElementById('links');
                         content.innerHTML = response.data.upload_traceback;
+                        var progressText = document.getElementById('progress-text');
+                        progressText.innerHTML = "";
 
                 }
               })
