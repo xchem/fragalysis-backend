@@ -69,7 +69,7 @@ def check_refmol(mol, validate_dict, target=None):
     if target:
         refmols = mol.GetProp('ref_mols').split(',')
         for ref in refmols:
-            query = Protein.objects.filter(code__contains=target + '-' + ref.strip().split('_')[0])
+            query = Protein.objects.filter(code__contains=target + '-' + ref.strip().split(':')[0])
             if len(query)==0:
                 validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                             field='ref_mol',
@@ -106,7 +106,7 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
 
     # If anything else given example x1408
     if target and not pdb_fn.endswith(".pdb"):
-        query = Protein.objects.filter(code__contains=str(target + '-' + pdb_fn.split('_')[0]))
+        query = Protein.objects.filter(code__contains=str(target + '-' + pdb_fn.split(':')[0]))
         if len(query)==0:
             validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
                                         field='ref_pdb',

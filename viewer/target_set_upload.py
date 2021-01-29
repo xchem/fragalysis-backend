@@ -165,9 +165,19 @@ def add_prot(pdb_file_path, code, target, mtz_path=None, map_path=None, bound_pa
     :param bound_path: the path to the bound file
     :return: the created protein
     """
-    new_prot = Protein.objects.get_or_create(code=code, target_id=target)
-    print('Protein created = ' + str(new_prot[1]))
-    new_prot = new_prot[0]
+
+    # Split code by : before the get or create operation and use the first part of the name (split[0])
+    # code is normally the xtal directory in the aligned folder, but this may have been modified to have
+    # an alternate name added to it - in the form 'directory:alternate_name'.
+    code_first_part = code.split(":")[0]
+    proteins = Protein.objects.filter(code__contains=code_first_part)
+    if proteins.exists():
+        new_prot = proteins.first()
+    else:
+        new_prot = Protein.objects.get_or_create(code=code, target_id=target)
+        print('Protein created = ' + str(new_prot[1]))
+        new_prot = new_prot[0]
+
     new_prot.apo_holo = True
     if pdb_file_path:
         # new_prot.pdb_info.delete()
@@ -465,13 +475,15 @@ def remove_not_added(target, xtal_list):
     """Remove any crystals that have not been added this time around. Ensures the database updates, e.g. if someone
     nobody wants a given xtal.
 
-    :param target: the target being considered
-    :param xtal_list: a list of protein codes that have been added
+    :param target: the target being checked
+    :param xtal_list: a list of folder anmes in the aligned directory
     :return: None
     """
     all_prots = Protein.objects.filter(target_id=target)
     for prot in all_prots:
-        if prot.code not in xtal_list:
+        # Code consists of 'directory:alternate_name' if exists (code is renamed based on the metadata)
+        code_first_part = prot.code.split(":")[0]
+        if code_first_part not in xtal_list:
             prot.delete()
     return None
 
@@ -794,15 +806,17 @@ def analyse_mols(mols, target, specified_site=False, site_description=None):
     get_vectors(mols)
 
 
-def rename_mols(names_csv):
-    """rename molecules"""
+def rename_proteins(names_csv):
+    """rename proteins based on the contents of alternatenames.csv (which has been created from metdata.csv """
 
     names_frame = pd.read_csv(names_csv)
 
     for _, row in names_frame.iterrows():
         mol_target = row['name']
         alternate_name = row['alternate_name']
-        new_name = str(mol_target).replace('_0', '') + ':' + str(alternate_name).strip()
+        # Remove the replacement of '_0' - this was inconsistently applied as some folders are '_1'
+        # The Protein code will be modified to be of format 'xtal_directory:alternate_name'
+        new_name = str(mol_target).strip() + ':' + str(alternate_name).strip()
 
         prots = Protein.objects.filter(code=mol_target)
         for prot in prots:
@@ -869,7 +883,8 @@ def analyse_target(target_name, aligned_path):
                     # find the correct crystal
                     crystal = Protein.objects.filter(code__contains=crystal_name)
                     alternate_name = row['alternate_name']
-                    for crys in list(set([c.code for c in crystal])):
+                    # Only take first part of code
+                    for crys in list(set([c.code.split(":")[0] for c in crystal])):
                         f.write(str(crys) + ',' + str(alternate_name) + '\n')
 
         # hits and sites files
@@ -921,7 +936,7 @@ def analyse_target(target_name, aligned_path):
                 analyse_mols(mols=mols, target=target, specified_site=True, site_description=description)
 
     if os.path.isfile(os.path.join(aligned_path, 'alternate_names.csv')):
-        rename_mols(names_csv=os.path.join(aligned_path, 'alternate_names.csv'))
+        rename_proteins(names_csv=os.path.join(aligned_path, 'alternate_names.csv'))
     else:
         analyse_mols(mols=mols, target=target)
 

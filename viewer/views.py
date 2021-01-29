@@ -851,11 +851,6 @@ class UploadTSet(View):
 
     def get(self, request):
 
-        form = TSetForm()
-        #TODO replace with target sets based on the projects the user is entiled to see or "OPEN"
-        # test = TargetView().get_queryset(request=request)
-        # targets = request.get('/api/targets/')
-
         # Only authenticated users can upload files - this can be switched off in settings.py.
         user = self.request.user
         if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
@@ -864,6 +859,12 @@ class UploadTSet(View):
                 = 'Only authenticated users can upload files - please navigate to landing page and Login'
             logger.info('- UploadTSet.get - authentication error')
             return render(request, 'viewer/upload-tset.html', context)
+
+        contact_email = ''
+        if user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+            contact_email = user.email
+
+        form = TSetForm(initial={'contact_email': contact_email})
 
         return render(request, 'viewer/upload-tset.html', {'form': form})
 
@@ -888,6 +889,7 @@ class UploadTSet(View):
             target_name = request.POST['target_name']
             choice = request.POST['submit_choice']
             proposal_ref = request.POST['proposal_ref']
+            contact_email = request.POST['contact_email']
 
             # Create /code/media/tmp if does not exist
             media_root = settings.MEDIA_ROOT
@@ -901,7 +903,8 @@ class UploadTSet(View):
             # Settings for if validate option selected
             if str(choice) == '0':
                 # Start celery task
-                task_validate = validate_target_set.delay(new_data_file, target=target_name, proposal=proposal_ref)
+                task_validate = validate_target_set.delay(new_data_file, target=target_name, proposal=proposal_ref,
+                                                          email=contact_email)
 
                 context = {}
                 context['validate_task_id'] = task_validate.id
@@ -915,7 +918,8 @@ class UploadTSet(View):
             if str(choice) == '1':
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
-                task_upload = (validate_target_set.s(new_data_file, target=target_name, proposal=proposal_ref) | process_target_set.s()).apply_async()
+                task_upload = (validate_target_set.s(new_data_file, target=target_name, proposal=proposal_ref,
+                                                     email=contact_email) | process_target_set.s()).apply_async()
 
                 context = {}
                 context['upload_task_id'] = task_upload.id
@@ -930,7 +934,46 @@ class UploadTSet(View):
         logger.info('- UploadTSet.post')
         return render(request, 'viewer/upload-tset.html', context)
 
+
 # End Upload Target datasets functions
+def email_task_completion(contact_email, message_type, target_name, target_path=None, task_id=None):
+    """ Notifiy user of upload completion
+    """
+
+    logger.info('+ email_notify_task_completion: ' + message_type + ' ' + target_name)
+    error = False
+    if contact_email == '':
+        return error
+    if message_type == 'upload-success':
+        subject = 'Fragalysis: Target: '+target_name+' Uploaded'
+        message = 'The upload of your target data is complete. Your target is available at: ' \
+                  + str(target_path)
+    elif message_type == 'validate-success':
+        subject = 'Fragalysis: Target: '+target_name+' Validation'
+        message = 'Your data was validated. It can now be uploaded using the upload option.'
+    else:
+        # Validation failure
+        subject = 'Fragalysis: Target: ' + target_name + ' Validation/Upload Failed'
+        message = 'The validation/upload of your target data did not complete successfully. ' \
+                  'Please navigate the following link to check the errors: validate_task/' + str(task_id)
+
+    email_from = settings.EMAIL_HOST_USER
+    recipient_list = [contact_email, ]
+    if email_from:
+        logger.info('+ email_notify_task_completion email_from: ' + email_from )
+    logger.info('+ email_notify_task_completion subject: ' + subject )
+    logger.info('+ email_notify_task_completion message: ' + message )
+    logger.info('+ email_notify_task_completion contact_email: ' + contact_email )
+
+    # Send email - this should not prevent returning to the screen in the case of error.
+    try:
+        send_mail(subject, message, email_from, recipient_list)
+    except:
+        error = True
+
+    logger.info('- email_notify_task_completion')
+    return error
+
 
 # Task functions common between Compound Sets and Target Set pages.
 class ValidateTaskView(View):
@@ -991,11 +1034,17 @@ class ValidateTaskView(View):
             logger.info('+ ValidateTaskView.get.SUCCESS')
             results = task.get()
             # NB get tuple from validate task
-            validate_dict = results[1]
-            validated = results[2]
+            process_type = results[1]
+            validate_dict = results[2]
+            validated = results[3]
             if validated:
                 response_data['html'] = 'Your data was validated. \n It can now be uploaded using the upload option.'
                 response_data['validated'] = 'Validated'
+
+                if process_type== 'tset':
+                    target_name = results[5]
+                    contact_email = results[8]
+                    email_task_completion(contact_email, 'validate-success', target_name)
 
                 return JsonResponse(response_data)
 
@@ -1009,6 +1058,10 @@ class ValidateTaskView(View):
 
                 response_data["html"] = html_table
                 response_data['validated'] = 'Not validated'
+                if process_type== 'tset':
+                    target_name = results[5]
+                    contact_email = results[8]
+                    email_task_completion(contact_email, 'validate-failure', target_name, task_id=validate_task_id)
 
                 return JsonResponse(response_data)
 
@@ -1130,8 +1183,12 @@ class UploadTaskView(View):
                     response_data['validated'] = 'Validated'
                     if results[1] == 'tset':
                         target_name = results[2]
+                        contact_email = results[5]
+                        target_path = '/viewer/target/%s' % target_name
                         response_data['results'] = {}
-                        response_data['results']['tset_download_url'] = '/viewer/target/%s' % target_name
+                        response_data['results']['tset_download_url'] = target_path
+                        logger.info('+ UploadTaskView.get.success -email:'+contact_email)
+                        email_task_completion(contact_email, 'upload-success', target_name, target_path=target_path)
                     else:
                         cset_name = results[2]
                         cset = ComputedSet.objects.get(name=cset_name)
