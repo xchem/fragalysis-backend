@@ -466,3 +466,16 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
     #     for desc in descriptions:
     #         desc_dict[desc.name] = desc.description
     #     return desc_dict
+
+# Start of Discourse Serializers
+# Class for customer Discourse API
+class DiscoursePostWriteSerializer(serializers.Serializer):
+    category_name = serializers.CharField(max_length=200)
+    parent_category_name = serializers.CharField(max_length=200, initial=settings.DISCOURSE_PARENT_CATEGORY)
+    category_colour = serializers.CharField(max_length=10, initial="0088CC")
+    category_text_colour = serializers.CharField(max_length=10, initial="FFFFFF")
+    post_title = serializers.CharField(max_length=200)
+    post_content = serializers.CharField(max_length=2000)
+    post_tags = serializers.JSONField()
+
+# End of Discourse Serializers

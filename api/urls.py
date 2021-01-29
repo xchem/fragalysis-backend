@@ -67,7 +67,8 @@ router.register(r"molannotation", score_views.MolAnnotationView)
 # fragspect
 router.register(r"fragspect", xcdb_views.FragspectCrystalView)
 
-
+# discourse posts
+router.register(r"discourse_post", viewer_views.DiscoursePostView, basename='discourse_post')
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
 from rest_framework.decorators import api_view, renderer_classes

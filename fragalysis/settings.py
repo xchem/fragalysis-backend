@@ -265,10 +265,17 @@ CAS_CHECK_NEXT = lambda _: True
 
 # DOCS_ROOT = "/code/docs/_build/html "
 
-# This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with errors.
-# Hence connection to DEBUG flag.
+# Discourse settings for API calls to Discourse Platform
+DISCOURSE_PARENT_CATEGORY = 'Fragalysis targets'
+DISCOURSE_USER = 'fragalysis'
+DISCOURSE_HOST = os.environ.get('DISCOURSE_HOST', 'https://discourse.xchem-dev.diamond.ac.uk/')
+# Note that this can be obtained from discourse for the dev environment.
+DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
+
+# This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with
+# errors. Hence connection to DEBUG flag.
 # Note that in development you have to jump on to docker and then look for logs/logfile.
-if DEBUG == True:
+if DEBUG is True:
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -278,8 +285,8 @@ if DEBUG == True:
                 'class': 'logging.StreamHandler',
             },
             'logfile': {
-                'level':'DEBUG',
-                'class':'logging.FileHandler',
+                'level': 'DEBUG',
+                'class': 'logging.FileHandler',
                 'filename': BASE_DIR + "/logs/logfile.log",
             },
         },
