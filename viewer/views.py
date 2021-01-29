@@ -132,35 +132,57 @@ class GraphView(ISpyBSafeQuerySet):
         .. code-block:: javascript
 
             "results": [
-            {
-                "id": 13684,
-                "graph": {
-                    "COc1ccc(CC(=O)Nc2cc(Cl)cc([Xe])c2)cc1_1_ADDITION": {
-                        "vector": "COC1CCC(CC(O)NC2CC(Cl)CC([103Xe])C2)CC1",
-                        "addition": [
-                            {
-                                "change": "F[103Xe]",
-                                "end": "COc1ccc(CC(=O)Nc2cc(F)cc(Cl)c2)cc1"
-                            },
-                            {
-                                "change": "Cl[104Xe]",
-                                "end": "COc1ccc(CC(=O)Nc2cc(Cl)cc(Cl)c2)cc1"
-                            },
-                            {
-                                "change": "Cl[103Xe]",
-                                "end": "COc1ccc(CC(=O)Nc2cc(Cl)cc(Cl)c2)cc1"
-                            },
-                            {
-                                "change": "OC(O)[104Xe]",
-                                "end": "COc1ccc(CC(=O)Nc2cc(Cl)cc(C(=O)O)c2)cc1"
-                            },
-                            {
-                                "change": "Br[104Xe]",
-                                "end": "COc1ccc(CC(=O)Nc2cc(Cl)cc(Br)c2)cc1"
-                            }
-                        ]
-                    },]
-
+                {
+                    "id": 385,
+                    "graph": {
+                        "CC(=O)Nc1cnccc1[Xe]_1_DELETION": {
+                            "vector": "CC(O)NC1CCCCC1[101Xe]",
+                            "addition": [
+                                {
+                                    "change": "C[101Xe]",
+                                    "end": "CC(=O)Nc1cccnc1",
+                                    "compound_ids": [
+                                        "REAL:PV-001793547821",
+                                        "MOLPORT:000-165-661"
+                                    ]
+                                }
+                            ]
+                        },
+                        "C[Xe].NC(=O)C[Xe]_2_LINKER": {
+                            "vector": "C[101Xe].NC(O)C[100Xe]",
+                            "addition": [
+                                {
+                                    "change": "CNC1CC([100Xe])C(O)C1[101Xe]",
+                                    "end": "CN=C1SC(CC(N)=O)C(=O)N1C",
+                                    "compound_ids": [
+                                        "MOLPORT:000-680-640"
+                                    ]
+                                },
+                                {
+                                    "change": "[100Xe]C1CCCCC1[101Xe]",
+                                    "end": "CC1CCCCN1CC(N)=O",
+                                    "compound_ids": [
+                                        "REAL:Z54751033",
+                                        "MOLPORT:001-599-191"
+                                    ]
+                                }
+                            ]
+                        },
+                        "Cc1ccnc(Cl)c1[Xe]_2_REPLACE": {
+                            "vector": "CC1CCCC(Cl)C1[100Xe]",
+                            "addition": [
+                                {
+                                    "change": "CC(O)N[100Xe]",
+                                    "end": "Cc1ccnc(Cl)c1",
+                                    "compound_ids": [
+                                        "MOLPORT:000-140-635"
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+        ]
     """
     queryset = Molecule.objects.filter()
     serializer_class = GraphSerializer
