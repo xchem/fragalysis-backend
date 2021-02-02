@@ -367,7 +367,7 @@ def process_design_compound(compound_row):
         # TODO: find matching molecules - change to molecules and search history to find the correct version.
         #  -- search all history and find most recent with matching code? or code most closely matching design date?
         # (Can this be accessed, or does the view need changing to display the correct one? Not implemented yet anyway)
-        molecules = Molecule.objects.filter(prot_id__code__contains=insp.split(':')[0])
+        molecules = Molecule.objects.filter(prot_id__code__contains=insp.split(':')[0].split('_')[0])
         # compounds = [m.cmpd_id for m in molecules]
         for molecule in molecules:
             new_mol.inspirations.add(molecule)
