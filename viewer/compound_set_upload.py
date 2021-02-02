@@ -235,9 +235,9 @@ def get_additional_mols(filename, compound_set):
 def set_descriptions(filename, compound_set):
     # remove any old scores
     text_scores = TextScoreValues.objects.filter(score__computed_set=compound_set)
-    [t.delete() for t in text_scores]
+    #[t.delete() for t in text_scores]
     num_scores = NumericalScoreValues.objects.filter(score__computed_set=compound_set)
-    [n.delete() for n in num_scores]
+    #[n.delete() for n in num_scores]
 
     suppl = Chem.SDMolSupplier(str(filename))
     description_mol = suppl[0]
@@ -272,5 +272,5 @@ def set_descriptions(filename, compound_set):
                                                           description=description_dict[key],
                                                           )[0]
 
-    return mols
+    return mols, text_scores, num_scores
 

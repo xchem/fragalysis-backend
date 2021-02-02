@@ -140,7 +140,7 @@ def process_compound_set(validate_output):
         compound_set.save()
 
         # set descriptions and get all other mols back
-        mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
+        mols_to_process, old_s1, old_s2 = set_descriptions(filename=filename, compound_set=compound_set)
 
         # process every other mol
         for i in range(0, len(mols_to_process)):
@@ -160,6 +160,9 @@ def process_compound_set(validate_output):
         os.rename(filename, new_filename)
         compound_set.submitted_sdf = new_filename
         compound_set.save()
+
+        # [o.delete() for o in old_s1]
+        # [o.delete() for o in old_s2]
 
         # if no molecules were processed, delete the compound set
         if len(check) == 0:
