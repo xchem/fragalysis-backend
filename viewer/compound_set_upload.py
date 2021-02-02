@@ -97,7 +97,7 @@ def get_prot(mol, target, compound_set, zfile):
 
     else:
         name = compound_set.target.title + '-' + pdb_fn
-        prot_obj = Protein.objects.get(code__contains=name.split(':')[0])
+        prot_obj = Protein.objects.get(code__contains=name.split(':')[0].split('_')[0])
         field = prot_obj.pdb_info
 
     return field
@@ -144,7 +144,7 @@ def set_mol(mol, target, compound_set, filename, zfile=None):
     insp = [i.strip() for i in insp]
     insp_frags = []
     for i in insp:
-        mols = Molecule.objects.filter(prot_id__code__contains=str(compound_set.target.title + '-' + i.split(':')[0]),
+        mols = Molecule.objects.filter(prot_id__code__contains=str(compound_set.target.title + '-' + i.split(':')[0].split('_')[0]),
                                        prot_id__target_id=compound_set.target)
         if len(mols)>1:
             ids = [m.cmpd_id.id for m in mols]
@@ -235,9 +235,9 @@ def get_additional_mols(filename, compound_set):
 def set_descriptions(filename, compound_set):
     # remove any old scores
     text_scores = TextScoreValues.objects.filter(score__computed_set=compound_set)
-    [t.delete() for t in text_scores]
+    #[t.delete() for t in text_scores]
     num_scores = NumericalScoreValues.objects.filter(score__computed_set=compound_set)
-    [n.delete() for n in num_scores]
+    #[n.delete() for n in num_scores]
 
     suppl = Chem.SDMolSupplier(str(filename))
     description_mol = suppl[0]
@@ -272,5 +272,5 @@ def set_descriptions(filename, compound_set):
                                                           description=description_dict[key],
                                                           )[0]
 
-    return mols
+    return mols, text_scores, num_scores
 

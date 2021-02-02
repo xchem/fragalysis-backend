@@ -140,7 +140,7 @@ def process_compound_set(validate_output):
         compound_set.save()
 
         # set descriptions and get all other mols back
-        mols_to_process = set_descriptions(filename=filename, compound_set=compound_set)
+        mols_to_process, old_s1, old_s2 = set_descriptions(filename=filename, compound_set=compound_set)
 
         # process every other mol
         for i in range(0, len(mols_to_process)):
@@ -160,6 +160,9 @@ def process_compound_set(validate_output):
         os.rename(filename, new_filename)
         compound_set.submitted_sdf = new_filename
         compound_set.save()
+
+        # [o.delete() for o in old_s1]
+        # [o.delete() for o in old_s2]
 
         # if no molecules were processed, delete the compound set
         if len(check) == 0:
@@ -367,7 +370,7 @@ def process_design_compound(compound_row):
         # TODO: find matching molecules - change to molecules and search history to find the correct version.
         #  -- search all history and find most recent with matching code? or code most closely matching design date?
         # (Can this be accessed, or does the view need changing to display the correct one? Not implemented yet anyway)
-        molecules = Molecule.objects.filter(prot_id__code__contains=insp.split(':')[0])
+        molecules = Molecule.objects.filter(prot_id__code__contains=insp.split(':')[0].split('_')[0])
         # compounds = [m.cmpd_id for m in molecules]
         for molecule in molecules:
             new_mol.inspirations.add(molecule)
