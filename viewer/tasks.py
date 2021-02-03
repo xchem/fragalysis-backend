@@ -157,7 +157,7 @@ def process_compound_set(validate_output):
 
         # move and save the compound set
         new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
-        os.rename(filename, new_filename)
+        os.renames(filename, new_filename)
         compound_set.submitted_sdf = new_filename
         compound_set.save()
 
