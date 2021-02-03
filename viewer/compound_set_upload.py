@@ -63,9 +63,10 @@ def process_pdb(pdb_code, target, zfile):
     prot_objs = Protein.objects.filter(code=pdb_code)
 
     if len(prot_objs) == 0:
+        ## THIS BIT ISN'T MOVING THE FILES PROPERLY
         new_filename = settings.MEDIA_ROOT + 'pdbs/' + pdb_fn
         old_filename = settings.MEDIA_ROOT + pdb_fp
-        os.rename(old_filename, new_filename)
+        os.renames(old_filename, new_filename)
 
         # Create Protein object
         prot = Protein()
