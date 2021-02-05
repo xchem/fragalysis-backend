@@ -50,35 +50,38 @@ def dataType(str):
 
 class PdbOps:
     def save_pdb_zip(self, pdb_file):
-        zf = zipfile.ZipFile(pdb_file)
-        zip_lst = zf.namelist()
-        zfile = {}
-        zfile_hashvals = {}
-        print(zip_lst)
-        for filename in zip_lst:
-            # only handle pdb files
-            if filename.split('.')[-1] == 'pdb':
-                # Test if Protein object already exists
-                code = filename.split('/')[-1].replace('.pdb', '')
-                test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
-                test_prot_objs = Protein.objects.filter(code=test_pdb_code)
-                print([c.code for c in test_prot_objs])
+        zfile = None
+        zfile_hashvals = None
+        if pdb_file:
+            zf = zipfile.ZipFile(pdb_file)
+            zip_lst = zf.namelist()
+            zfile = {}
+            zfile_hashvals = {}
+            print(zip_lst)
+            for filename in zip_lst:
+                # only handle pdb files
+                if filename.split('.')[-1] == 'pdb':
+                    # Test if Protein object already exists
+                    code = filename.split('/')[-1].replace('.pdb', '')
+                    test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
+                    test_prot_objs = Protein.objects.filter(code=test_pdb_code)
+                    print([c.code for c in test_prot_objs])
 
-                if len(test_prot_objs) != 0:
-                    # make a unique pdb code as not to overwrite existing object
-                    rand_str = uuid.uuid4().hex
-                    test_pdb_code = f'{code}#{rand_str}'
-                    zfile_hashvals[code] = rand_str
+                    if len(test_prot_objs) != 0:
+                        # make a unique pdb code as not to overwrite existing object
+                        rand_str = uuid.uuid4().hex
+                        test_pdb_code = f'{code}#{rand_str}'
+                        zfile_hashvals[code] = rand_str
 
-                fn = test_pdb_code + '.pdb'
+                    fn = test_pdb_code + '.pdb'
 
-                pdb_path = default_storage.save('tmp/' + fn,
-                                                ContentFile(zf.read(filename)))
-                zfile[test_pdb_code] = pdb_path
+                    pdb_path = default_storage.save('tmp/' + fn,
+                                                    ContentFile(zf.read(filename)))
+                    zfile[test_pdb_code] = pdb_path
 
-        # Close the zip file
-        if zf:
-            zf.close()
+            # Close the zip file
+            if zf:
+                zf.close()
 
         return zfile, zfile_hashvals
 
@@ -155,7 +158,7 @@ class MolOps:
             prot_obj = Protein.objects.get(code__contains=name.split(':')[0].split('_')[0])
             field = prot_obj.pdb_info
 
-        return field
+        return prot_obj
 
     def create_mol(self, inchi, long_inchi=None, name=None):
         # check for an existing compound
@@ -254,7 +257,7 @@ class MolOps:
 
         orig = mol.GetProp('original SMILES')
 
-        prot_field = self.get_prot(mol, target, compound_set, zfile, zfile_hashvals=zfile_hashvals)
+        prot = self.get_prot(mol, target, compound_set, zfile, zfile_hashvals=zfile_hashvals)
 
         #  need to add Compound before saving
         # see if anything exists already
@@ -272,7 +275,7 @@ class MolOps:
         cpd.sdf_info = mol_block
         cpd.name = name
         cpd.smiles = smiles
-        cpd.pdb_info = prot_field
+        cpd.pdb = prot
         cpd.save()
 
         [cpd.computed_inspirations.add(mol) for mol in insp_frags]
