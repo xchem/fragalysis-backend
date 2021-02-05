@@ -676,10 +676,18 @@ class ComputedMolecule(models.Model):
     name = models.CharField(max_length=50)
     # calculated smiles
     smiles = models.CharField(max_length=255)
+    pdb = models.ForeignKey(Protein, on_delete=models.PROTECT, null=True)
     # the protein link
-    pdb_info = models.FileField(upload_to="pdbs/", null=False, max_length=255)
+    # pdb_info = models.FileField(upload_to="pdbs/", null=False, max_length=255)
     # if we use our own method of calculating them
     computed_inspirations = models.ManyToManyField(Molecule, null=True, blank=True)
+
+    # @property
+    # def pdb_info(self):
+    #     if self.pdb:
+    #         return self.pdb.pdb_info
+    #     else:
+    #         return None
 
 
 class ScoreDescription(models.Model):

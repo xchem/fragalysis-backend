@@ -428,6 +428,7 @@ class TextScoreSerializer(serializers.ModelSerializer):
 class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
     numerical_scores = serializers.SerializerMethodField()
     text_scores = serializers.SerializerMethodField()
+    pdb_info = serializers.SerializerMethodField()
     # score_descriptions = serializers.SerializerMethodField()
 
     class Meta:
@@ -459,6 +460,12 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
         for score in scores:
             score_dict[score.score.name] = score.value
         return score_dict
+
+    def get_pdb_info(self, obj):
+        if obj.pdb:
+            return obj.pdb.pdb_info.url
+        else:
+            return None
 
     # def get_score_descriptions(self, obj):
     #     descriptions = ScoreDescription.objects.filter(computed_set=obj.computed_set)

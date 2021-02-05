@@ -58,19 +58,19 @@ var token = "{{ token }}";
 var focus_var = 95;
     function getJsonView() {
         // Get component (path) -> representation (parameters)
-        var out_data = new Array()
+        var out_data = [];
         stage.eachComponent(function (component) {
                 // TODO Sort this out for objects
                 if(component.structure) {
                     var component_data = {
                         "file_path": component.structure.path,
-                        "repr": new Array(),
+                        "repr": [],
                     };
                     component.eachRepresentation(function (repr) {
                         var my_params = {"data": repr.getParameters()};
                         my_params["name"] = repr.name;
                         component_data["repr"].push(my_params);
-                    })
+                    });
                     out_data.push(component_data)
                 }
         });
@@ -98,8 +98,8 @@ var focus_var = 95;
             if (propt["file_path"].includes(":::"))
             {
                 var f_p = propt["file_path"];
-                file_path_1 = f_p.split(":::")[0]
-                file_path_2 = f_p.split(":::")[1]
+                file_path_1 = f_p.split(":::")[0];
+                file_path_2 = f_p.split(":::")[1];
                 var this_repr = propt["repr"];
                 Promise.all([
                     stage.loadFile(file_path_1,{ext: "pdb"}),
@@ -109,8 +109,8 @@ var focus_var = 95;
                             var cs = NGL.concatStructures("concat",
                                     ol[ 0 ].structure.getView(new NGL.Selection("not ligand")),
                                     ol[ 1 ].structure.getView(new NGL.Selection(""))
-                            )
-                            var comp = stage.addComponentFromObject(cs)
+                            );
+                            var comp = stage.addComponentFromObject(cs);
                             for (j = 0; j < this.length; ++j) {
                                 comp.addRepresentation(this[j]["name"], this[j]["data"]);
                             }
@@ -168,7 +168,7 @@ var focus_var = 95;
       }).fail(function() {
         alert("error");
       });
-    };
+    }
 
     function get_view(pk){
         $.ajax({
@@ -204,7 +204,7 @@ var focus_var = 95;
             {% for mol in mols %}
                 {{ mol.pk }},
             {% endfor %}
-        ]
+        ];
         for (j = 0; j < mol_pk_array.length; ++j) {
             fillDiv("/viewer/img_from_pk", {"pk": mol_pk_array[j]}, "molecule_"+mol_pk_array[j].toString(), false)
         }
@@ -236,7 +236,7 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
             var data_div = $(document.getElementById(data_div_id));
 
             for (var index in smiles_list){
-                var compoundDiv = document.createElement("div")
+                var compoundDiv = document.createElement("div");
                 var div_id = guidGenerator();
                 counter+=1;
                 compoundDiv.id = div_id;
@@ -292,11 +292,11 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
 
               glob_data = JSON.parse(response);
               // TODO number_objects -> Cumulative score. Not just once.
-              var new_data = {}
+              var new_data = {};
               for(var key in glob_data) {
-                  var number_objects_this = glob_data[key].length
-                  var smiles = key.split("_")[0]
-                  var comp_type = key.split("_")[2]
+                  var number_objects_this = glob_data[key].length;
+                  var smiles = key.split("_")[0];
+                  var comp_type = key.split("_")[2];
                   if (smiles in new_data) {
                       new_data[smiles]["num_objects"] += number_objects_this;
                   }
@@ -310,9 +310,9 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
               for (var smiles in new_data){
 
                   // Get the components
-                  var components = stage.getComponentsByName(smiles).list
-                  var number_objects = new_data[smiles]["num_objects"]
-                  var comp_type = new_data[smiles]["comp_type"]
+                  var components = stage.getComponentsByName(smiles).list;
+                  var number_objects = new_data[smiles]["num_objects"];
+                  var comp_type = new_data[smiles]["comp_type"];
                   for (var index in components) {
                       var comp = components[index];
                       if (comp_type=="LINKER"){
@@ -333,24 +333,24 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
               }
               NProgress.done();
           }
-         })
+         });
 
 
         $.ajax({
           type: "POST",
           url: "/viewer/get_vects_from_pk/"+pk.toString()+"/",
           success: function(response){
-              var colour = [1,0,0]
+              var colour = [1,0,0];
               var out_data = JSON.parse(response);
-              var deletions = out_data["deletions"]
+              var deletions = out_data["deletions"];
               for(var key in deletions) {
                   display_arrow(deletions[key][0],deletions[key][1],colour,key)
               }
-              var additions = out_data["additions"]
+              var additions = out_data["additions"];
               for(var key in additions) {
                   display_arrow(additions[key][0],additions[key][1],colour,key)
               }
-              var linker = out_data["linkers"]
+              var linker = out_data["linkers"];
               for(var key in linker) {
                   display_cylinder(linker[key][0],linker[key][3],colour,key)
               }
@@ -370,23 +370,23 @@ function fill_data_div(smiles_list,data_div_id,comp_type){
                     "concat",
                     ol[0].structure.getView(new NGL.Selection("not ligand")),
                     ol[1].structure.getView(new NGL.Selection(""))
-            )
-            cs.path = ol[0].structure.path+":::"+ol[1].structure.path
-            var comp = stage.addComponentFromObject(cs)
-            comp.addRepresentation("cartoon")
+            );
+            cs.path = ol[0].structure.path+":::"+ol[1].structure.path;
+            var comp = stage.addComponentFromObject(cs);
+            comp.addRepresentation("cartoon");
             comp.addRepresentation("contact", {
                 masterModelIndex: 0,
                 weakHydrogenBond: true,
                 maxHbondDonPlaneAngle: 35,
                 sele: "/0 or /1"
-            })
+            });
             comp.addRepresentation("licorice", {
                 sele: "ligand and /1",
                 multipleBond: "offset"
-            })
+            });
             comp.addRepresentation("line", {
                 sele: "/0"
-            })
+            });
             comp.autoView("ligand");
             NProgress.done();
             glob_comp = comp;
