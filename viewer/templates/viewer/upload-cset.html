@@ -75,7 +75,7 @@
             updateProgressTitleVal();
             axios.get(taskUrl)
               .then(function(response){
-                var taskStatus = response.data.validate_task_status
+                var taskStatus = response.data.validate_task_status;
                 if (taskStatus === 'SUCCESS') {
 
                   var content = document.getElementById('links');
@@ -125,9 +125,9 @@
             updateProgressTitle();
             axios.get(taskUrl)
               .then(function(response) {
-                  var taskStatus = response.data.upload_task_status
+                  var taskStatus = response.data.upload_task_status;
                   if (taskStatus === 'SUCCESS') {
-                      var validatedStatus = response.data.validated
+                      var validatedStatus = response.data.validated;
                       if (validatedStatus === 'Not validated') {
 
                           var content = document.getElementById('links');
@@ -160,7 +160,7 @@
                           content.appendChild(b);
 
                       }
-                      var moleculesProcessed = response.data.processed
+                      var moleculesProcessed = response.data.processed;
 
                       if (moleculesProcessed === 'None') {
 

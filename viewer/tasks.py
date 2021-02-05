@@ -15,6 +15,7 @@ from celery import shared_task
 from .sdf_check import *
 from .compound_set_upload import *
 from .target_set_upload import process_target, validate_target
+from .cset_upload import *
 
 # import the logging library
 #import logging
@@ -108,67 +109,18 @@ def process_compound_set(validate_output):
         name of the computed set
 
     """
-    # Validate output is a tuple - this is one way to get
-    # Celery chaining to work where second function uses list output
-    # from first function (validate) called
-    process_stage, process_type, validate_dict, validated, filename, target, zfile, \
-    submitter_name,  submitter_method = validate_output
+
+    process_stage, process_type, validate_dict, validated, params = validate_output
 
     if not validated:
         return (process_stage, 'cset', validate_dict, validated)
 
     if validated:
-        #print('processing compound set: ' + filename)
-        filename = str(filename)
-
-        # create a new compound set
-        set_name = ''.join(filename.split('/')[-1].replace('.sdf','').split('_')[1:])
-
-        existing = ComputedSet.objects.filter(unique_name="".join(submitter_name.split()) + '-' + "".join(submitter_method.split()))
-
-        if len(existing)==1:
-            compound_set=existing[0]
-        else:
-            compound_set = ComputedSet()
-
-        compound_set.name = set_name
-        matching_target = Target.objects.get(title=target)
-        compound_set.target = matching_target
-        ver = float(version.strip('ver_'))
-        compound_set.spec_version = ver
-        compound_set.unique_name = "".join(submitter_name.split()) + '-' + "".join(submitter_method.split())
-        compound_set.save()
-
-        # set descriptions and get all other mols back
-        mols_to_process, old_s1, old_s2 = set_descriptions(filename=filename, compound_set=compound_set)
-
-        # process every other mol
-        for i in range(0, len(mols_to_process)):
-            process_mol(mols_to_process[i], target, compound_set, filename, zfile)
-
-        # check that molecules have been added to the compound set
-        check = ComputedMolecule.objects.filter(computed_set=compound_set)
-        #print(str(len(check)) + '/' + str(len(mols_to_process)) + ' succesfully processed in ' + set_name + ' cpd set')
-
-        # check compound set folder exists.
-        cmp_set_folder = os.path.join(settings.MEDIA_ROOT, 'compound_sets')
-        if not os.path.isdir(cmp_set_folder):
-            os.mkdir(cmp_set_folder)
-
-        # move and save the compound set
-        new_filename = settings.MEDIA_ROOT + 'compound_sets/' + filename.split('/')[-1]
-        os.renames(filename, new_filename)
-        compound_set.submitted_sdf = new_filename
-        compound_set.save()
-
-        # [o.delete() for o in old_s1]
-        # [o.delete() for o in old_s2]
-
-        # if no molecules were processed, delete the compound set
-        if len(check) == 0:
-            compound_set.delete()
-            #print('No molecules processed... deleting ' + set_name + ' compound set')
-            return None
+        submitter_name, submitter_method, version = blank_mol_vals(params['sdf'])
+        zfile, zfile_hashvals = PdbOps().run(params)
+        save_mols = MolOps(sdf_filename=params['sdf'], submitter_name=submitter_name, submitter_method=submitter_method,
+                           target=params['target'], version=version, zfile=zfile, zfile_hashvals=zfile_hashvals)
+        compound_set = save_mols.task()
 
         return 'process', 'cset', compound_set.name
 
@@ -209,6 +161,7 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
             - submitter_method (str): name of the method used to generate the computed set
 
     """
+
     validated = True
     validate_dict = {'molecule_name': [],
                      'field': [],
@@ -287,7 +240,7 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
         if m:
             validate_dict = check_mol_props(m, validate_dict)
             validate_dict = check_name_characters(m.GetProp('_Name'), validate_dict)
-            validate_dict = check_pdb(m, validate_dict, target, zfile)
+            # validate_dict = check_pdb(m, validate_dict, target, zfile)
             validate_dict = check_refmol(m, validate_dict, target)
             validate_dict = check_field_populated(m, validate_dict)
             validate_dict = check_SMILES(m, validate_dict)
@@ -299,8 +252,21 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
     csets = ComputedSet.objects.filter(unique_name=unique_name)
     [c.delete() for c in csets]
 
-    return ('validate', 'cset', validate_dict, validated, sdf_file, target, zfile,
-            submitter_name,  submitter_method)
+    # params = {
+    #     'sdf': 'tests/test_data/test_chodera/test_0_2.sdf',
+    #     'target': 'Mpro',
+    #     'choice': 1,
+    #     'update_set': None,
+    #     'pdb_zip': '/code/tests/test_data/test_chodera/references.zip'
+    # }
+
+    params = {
+        'sdf': sdf_file,
+        'target': target,
+        'pdb_zip': zfile
+    }
+
+    return ('validate', 'cset', validate_dict, validated, params)
 
 # End Validating Compound Sets ###
 

@@ -68,7 +68,7 @@
             updateProgressTitle();
             axios.get(taskUrl)
               .then(function(response) {
-                  var taskStatus = response.data.update_task_status
+                  var taskStatus = response.data.update_task_status;
                   if (taskStatus === 'SUCCESS' || taskStatus === 'FAILURE') {
                          clearTimer('');
 

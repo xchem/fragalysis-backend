@@ -3,7 +3,7 @@ import os
 import zipfile
 from io import StringIO
 import pandas as pd
-
+import uuid
 # import the logging library
 import logging
 # Get an instance of a logger
@@ -628,31 +628,41 @@ def save_pdb_zip(pdb_file):
     zf = zipfile.ZipFile(pdb_file)
     zip_lst = zf.namelist()
     zfile = {}
-
+    zfile_hashvals = {}
+    print(zip_lst)
     for filename in zip_lst:
         # only handle pdb files
         if filename.split('.')[-1] == 'pdb':
+            f = filename.split('/')[0]
+            save_path = os.path.join(settings.MEDIA_ROOT, 'tmp', f)
+            if default_storage.exists(f):
+                rand_str = uuid.uuid4().hex
+                pdb_path = default_storage.save(save_path.replace('.pdb', f'-{rand_str}.pdb'), ContentFile(zf.read(filename)))
             # Test if Protein object already exists
-            test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
-            test_prot_objs = Protein.objects.filter(code=test_pdb_code)
-
-            # If no prot obj found then save to tmp/ file and link pdb_code with
-            # pdb_path in dict
-            if len(test_prot_objs) == 0:
-                # Save pdb file in /tmp folder
-                pdb_path = default_storage.save('tmp/' + filename.split('/')[-1],
-                                                ContentFile(zf.read(filename)))
-                zfile[test_pdb_code] = pdb_path
-
-            # If prot object/s exist then update dict with pdb path
-            if len(test_prot_objs) != 0:
-                zfile[test_pdb_code] = str(test_prot_objs[0].pdb_info)
+            # code = filename.split('/')[-1].replace('.pdb', '')
+            # test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
+            # test_prot_objs = Protein.objects.filter(code=test_pdb_code)
+            #
+            # if len(test_prot_objs) > 0:
+            #     # make a unique pdb code as not to overwrite existing object
+            #     rand_str = uuid.uuid4().hex
+            #     test_pdb_code = f'{code}#{rand_str}'
+            #     zfile_hashvals[code] = rand_str
+            #
+            # fn = test_pdb_code + '.pdb'
+            #
+            # pdb_path = default_storage.save('tmp/' + fn,
+            #                                 ContentFile(zf.read(filename)))
+            else:
+                pdb_path = default_storage.save(save_path, ContentFile(zf.read(filename)))
+            test_pdb_code = pdb_path.split('/')[-1].replace('.pdb', '')
+            zfile[test_pdb_code] = pdb_path
 
     # Close the zip file
     if zf:
         zf.close()
 
-    return zfile
+    return zfile, zfile_hashvals
 
 
 def save_tmp_file(myfile):
@@ -718,7 +728,7 @@ class UpdateCSet(View):
 
             # if there is a zip file of pdbs, check it for .pdb files, and ignore others
             if pdb_file:
-                zfile = save_pdb_zip(pdb_file)
+                zfile, zfile_hashvals = save_pdb_zip(pdb_file)
 
             # save uploaded sdf to tmp storage
             tmp_file = save_tmp_file(myfile)
@@ -775,8 +785,10 @@ class UploadCSet(View):
         return render(request, 'viewer/upload-cset.html', {'form': form, 'sets': existing_sets})
 
     def post(self, request):
+
         check_services()
         zfile = None
+        zfile_hashvals = None
         zf = None
         cset = None
         form = CSetForm(request.POST, request.FILES)
@@ -804,18 +816,17 @@ class UploadCSet(View):
             else:
                 pdb_file = None
 
-            # if there is a zip file of pdbs, check it for .pdb files, and ignore others
+            # save uploaded sdf and zip to tmp storage
+            tmp_sdf_file = save_tmp_file(myfile)
             if pdb_file:
-
-                zfile = save_pdb_zip(pdb_file)
-
-            # save uploaded sdf to tmp storage
-            tmp_file = save_tmp_file(myfile)
+                tmp_pdb_file = save_tmp_file(pdb_file)
+            else:
+                tmp_pdb_file = None
 
             # Settings for if validate option selected
             if str(choice) == '0':
                 # Start celery task
-                task_validate = validate_compound_set.delay(tmp_file, target=target, zfile=zfile, update=update_set)
+                task_validate = validate_compound_set.delay(tmp_sdf_file, target=target, zfile=tmp_pdb_file, update=update_set)
 
                 context = {}
                 context['validate_task_id'] = task_validate.id
@@ -829,7 +840,7 @@ class UploadCSet(View):
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
                 task_upload = (
-                            validate_compound_set.s(tmp_file, target=target, zfile=zfile, update=update_set) | process_compound_set.s()).apply_async()
+                            validate_compound_set.s(tmp_sdf_file, target=target, zfile=tmp_pdb_file, update=update_set) | process_compound_set.s()).apply_async()
 
                 context = {}
                 context['upload_task_id'] = task_upload.id
@@ -1190,8 +1201,7 @@ class UploadTaskView(View):
 
                     # set pandas options to display all column data
                     pd.set_option('display.max_colwidth', -1)
-
-                    table = pd.DataFrame.from_dict(validate_dict)
+                    table = pd.DataFrame.from_dict(results[2])
                     html_table = table.to_html()
                     html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
 
