@@ -183,7 +183,7 @@ class Compound(models.Model):
     """
 
     # Character attributes
-    inchi = models.CharField(max_length=255, unique=True, db_index=True)
+    inchi = models.CharField(max_length=255, unique=False, db_index=True)
     long_inchi = models.TextField(max_length=1000, blank=True, null=True)
     smiles = models.CharField(max_length=255, db_index=True)
     current_identifier = models.CharField(max_length=255, db_index=True, blank=True, null=True)
@@ -208,6 +208,9 @@ class Compound(models.Model):
     inspirations = models.ManyToManyField("Molecule", blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     comments = models.TextField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ('inchi', 'long_inchi')
 
 
 class Molecule(models.Model):
