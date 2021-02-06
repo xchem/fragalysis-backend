@@ -171,7 +171,7 @@ class MolOps:
 
         if len(cpd) != 0:
             new_mol = cpd[0]
-        else:
+        elif len(cpd) == 0:
             # add molecule and return the object
             new_mol = Compound()
 
@@ -230,7 +230,7 @@ class MolOps:
         long_inchi = None
         if len(inchi) > 255:
             long_inchi = inchi
-            inchi = inchi[0:254]
+            inchi = inchi[:254]
 
         ref_cpd = self.create_mol(inchi, name=name, long_inchi=long_inchi)
 
@@ -266,10 +266,11 @@ class MolOps:
         if len(existing) == 1:
             cpd = existing[0]
         if len(existing) > 1:
-            [c.delete for c in existing]
+            [c.delete() for c in existing]
             cpd = ComputedMolecule()
-        else:
+        elif len(existing) == 0:
             cpd = ComputedMolecule()
+
         cpd.compound = ref_cpd
         cpd.computed_set = compound_set
         cpd.sdf_info = mol_block
