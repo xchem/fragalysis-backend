@@ -349,29 +349,25 @@ class MolOps:
 
         if len(existing) == 1:
             compound_set = existing[0]
-
-            text_scores = TextScoreValues.objects.filter(score__computed_set=compound_set)
-            num_scores = NumericalScoreValues.objects.filter(score__computed_set=compound_set)
-
-            old_mols = [o.compound for o in text_scores]
-            old_mols.extend([o.compound for o in num_scores])
-
-
         if len(existing) > 1:
             raise Exception('Too many csets exist!')
-
         if len(existing) == 0:
             compound_set = ComputedSet()
-            compound_set.name = set_name
-            matching_target = Target.objects.get(title=self.target)
-            compound_set.target = matching_target
-            ver = float(self.version.strip('ver_'))
-            compound_set.spec_version = ver
-            compound_set.unique_name = "".join(self.submitter_name.split()) + '-' + "".join(
-                self.submitter_method.split())
-            compound_set.save()
-            old_mols = None
 
+        text_scores = TextScoreValues.objects.filter(score__computed_set=compound_set)
+        num_scores = NumericalScoreValues.objects.filter(score__computed_set=compound_set)
+
+        old_mols = [o.compound for o in text_scores]
+        old_mols.extend([o.compound for o in num_scores])
+        print(list(set(old_mols)))
+
+        compound_set.name = set_name
+        matching_target = Target.objects.get(title=self.target)
+        compound_set.target = matching_target
+        ver = float(self.version.strip('ver_'))
+        compound_set.spec_version = ver
+        compound_set.unique_name = "".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split())
+        compound_set.save()
 
         # set descriptions and get all other mols back
         mols_to_process = self.set_descriptions(filename=sdf_filename, compound_set=compound_set)
@@ -379,6 +375,9 @@ class MolOps:
         # process every other mol
         for i in range(0, len(mols_to_process)):
             self.process_mol(mols_to_process[i], self.target, compound_set, sdf_filename, self.zfile, self.zfile_hashvals)
+
+        # check that molecules have been added to the compound set
+        check = ComputedMolecule.objects.filter(computed_set=compound_set)
 
         # check compound set folder exists.
         cmp_set_folder = os.path.join(settings.MEDIA_ROOT, 'compound_sets')
@@ -392,9 +391,11 @@ class MolOps:
         compound_set.submitted_sdf = new_filename
         compound_set.save()
 
+        # old_mols = [o.compound for o in old_s2]
+        # old_mols.extend([o.compound for o in old_s1])
+        # print(list(set(old_mols)))
 
-        if old_mols:
-            [c.delete() for c in old_mols]
+        [c.delete() for c in old_mols]
 
         return compound_set
 
