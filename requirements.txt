@@ -20,7 +20,6 @@ cryptography==3.0
 decorator==4.4.2
 Django==3.1
 django-bootstrap3==14.1.0
-django-cas-ng==4.1.1
 django-cleanup==5.0.0
 django-extensions==3.0.3
 django-filter==2.3.0
@@ -59,6 +58,8 @@ keyrings.alt==3.4.0
 kombu==4.6.11
 lxml==4.5.2
 MarkupSafe==1.1.1
+# L+ Add mozilla_django_oidc for Keycloak
+mozilla_django_oidc==1.2.4
 multidict==4.7.6
 mysql-connector==2.1.7
 mysql-connector-python==8.0.21

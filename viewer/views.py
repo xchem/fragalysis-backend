@@ -2234,6 +2234,10 @@ class DiscoursePostView(viewsets.ViewSet):
         logger.info('+ DiscoursePostView.post')
         data = request.data
 
+        logger.info('+ DiscoursePostView.post user:'+ request.user.username)
+        if request.user.username == '':
+            return Response({"message": "Please logon to create posts in Discourse"})
+
         logger.info('+ DiscoursePostView.post'+json.dumps(data))
         if data['category_name'] == '':
             category_details = None
