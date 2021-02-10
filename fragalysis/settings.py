@@ -16,6 +16,7 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
+from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -38,7 +39,7 @@ if DEBUG is False and SENTRY_DNS:
     # By default only call sentry in staging/production
     sentry_sdk.init(
         dsn=SENTRY_DNS,
-        integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
+        integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration(), ExcepthookIntegration(always_run=True)],
 
         # If you wish to associate users to errors (assuming you are using
         # django.contrib.auth) you may enable sending PII data.
@@ -290,13 +291,13 @@ if DEBUG is True:
                 'filename': BASE_DIR + "/logs/logfile.log",
             },
         },
-        # 'loggers': {
-        #     'celery': {
-        #         'handlers': ['celery'],
-        #         'level': 'INFO',
-        #         'propagate': False
-        #     },
-        # },
+        'loggers': {
+            'celery': {
+                'handlers': ['celery'],
+                'level': 'INFO',
+                'propagate': False
+            },
+        },
         'root': {
             'level': 'INFO',
             'handlers': ['console', 'logfile']
