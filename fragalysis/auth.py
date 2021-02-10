@@ -1,9 +1,10 @@
+# Classes to override default OIDCAuthenticationBackend (Keycloak authentication)
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 
 
 class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
 
-    # Overrides Authentication Backend so that users are created with the keycloak prefered_username
+    # Overrides Authentication Backend so that Django users are created with the keycloak preferred_username
     def create_user(self, claims):
         user = super(KeycloakOIDCAuthenticationBackend, self).create_user(claims)
         user.first_name = claims.get('given_name', '')
