@@ -7,7 +7,7 @@ Background
 
 The stack consists of three services, running as containers: -
 
-- a MySQL database
+- a Postgres database
 - a neo4j graph database
 - the fraglaysis stack
 - a transient data loader container

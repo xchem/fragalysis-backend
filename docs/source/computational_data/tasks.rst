@@ -1,14 +1,14 @@
 .. _comp-tasks:
 
-Uploading computational data (Celery tasks and django template)
+Uploading Computational and Target data (Celery tasks and django template)
 ===============================================================
 
 Introducton
 -----------
-Uploading a Computed Set (see [link]) is a process that takes a long time. Typical requests handled in django
-applications usually only take milliseconds. Because this process takes a long time, we have implemented the required
-components as Celery tasks, and written views that can handle kicking off the relevant tasks, and retrieve the results
-from the tasks by pinging the message queue that brokers the tasks (Redis).
+Uploading a Computed Set (see [link]) or a Target Set is a process that takes a long time. Typical requests handled in
+django applications usually only take milliseconds. Because this process takes a long time, we have implemented the
+required components as Celery tasks, and written views that can handle kicking off the relevant tasks, and retrieve
+the results from the tasks by pinging the message queue that brokers the tasks (Redis).
 
 Celery is a task queuing software package, allowing execution of asynchronous workloads. A synchronous operation blocks
 a process till the operation completes. An asynchronous operation is non-blocking and only initiates the operation. In
@@ -29,14 +29,15 @@ https://stackabuse.com/asynchronous-tasks-in-django-with-redis-and-celery/
 Template - the upload page for computed sets
 --------------------------------------------
 A django template (https://docs.djangoproject.com/en/3.1/topics/templates/) is an HTML document that can dynamically
-load content from django objects, such as models and views. For example, we could query the Target model, and dynamically
-create a list of all Target names in a template.
+load content from django objects, such as models and views. For example, we could query the Target model, and
+dynamically create a list of all Target names in a template.
 
 The template for the upload page for computed sets is found at :code:`viewer/templates/viewer/upload-cset.html`. The
 main parts of the template are as follows:
 
-**1. The upload form** - this part of the template makes use of :code:`viewer.forms.CSetForm`: a version of a :code:`Model`
-that is used to describe what information can be posted as a request through a form contained in a template.
+**1. The upload form** - this part of the template makes use of :code:`viewer.forms.CSetForm`: a version of a
+:code:`Model` that is used to describe what information can be posted as a request through a form contained in
+a template.
 
 .. autoclass:: viewer.forms.CSetForm
     :members:
@@ -225,7 +226,7 @@ the :code:`viewer.views.UploadTaskView` into the relevant models specified in
 :ref:`Computational Data (Models) <comp-models>`.
 
 
-.. autoclass:: viewer.tasks.validate
+.. autoclass:: viewer.tasks.validate_compound_set
     :members:
 
 
@@ -233,10 +234,56 @@ Celery task - processing and saving uploaded data
 -------------------------------------------------
 
 The second task that has to be completed when uploading a computed set is the upload itself. This task checks takes the
-output of :code:`viewer.tasks.validate` - the uploaded files must be validated before their data can be saved to the
-database.
+output of :code:`viewer.tasks.validate_compound_set` - the uploaded files must be validated before their data can be
+saved to the database.
 
 
 .. autoclass:: viewer.tasks.process_compound_set
+    :members:
+
+
+Uploading Target data sets
+--------------------------
+
+From 2021, a similar process has been developed for Target data sets to replace the existing process
+that are created from the source data using the Fragalysis Loader repo.
+Target data sets are initially created in the same way as currently using the Fragalysis api repo (
+found here: https://github.com/xchem/fragalysis-api ).
+
+The template for the upload page for target sets is found at :code:`viewer/templates/viewer/upload-tset.html`. The
+main parts of the template are similar to the computed sets.
+
+The view controlling interaction is: :code:`viewer.views.UploadTSetView`.
+
+The upload form is:
+
+.. autoclass:: viewer.forms.TSetForm
+    :members:
+
+Note that the user must be **logged on to Fragalysis** to be able to use the form. When the user is logged on, the
+email field is filled with the contents of the user.email field. This is used to send a notification to the user
+on completion of an validation/upload task (see below).
+
+Dynamic loading of validate task status and results otherwise works in a similar way to the computational sets.
+
+Celery task - validating Target data
+--------------------------------------
+
+The first task that has to be completed when uploading a target set is validation of the data. This task checks the
+format of the folder structure provided to :code:`viewer.views.UploadTSetView` to make sure it is in the correct format.
+
+.. autoclass:: viewer.tasks.validate_target_set
+    :members:
+
+
+Celery task - processing Target data
+-------------------------------------------------
+
+The second task that has to be completed when uploading a computed set is the upload itself. This task checks takes the
+output of :code:`viewer.tasks.validate_target_set` - the uploaded files must be validated before their data can be
+saved to the database through the :code:`viewer.views.UploadTaskView` into the relevant models specified in
+:ref:`Crystallographic data (Models) <crys-models>`.
+
+.. autoclass:: viewer.tasks.process_target_set
     :members:
 
