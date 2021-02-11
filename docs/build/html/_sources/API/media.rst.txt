@@ -59,7 +59,7 @@ the target model we have two files that are served as files:
         # zip archive to download uploaded data from
         zip_archive = models.FileField(upload_to="archive/", null=True, max_length=255)
 
-The :code:`metadata` file and the `zip_archive` file. To make sure that these :code:`Files` are served as download links
+The :code:`metadata` file and the :code:`zip_archive` file. To make sure that these :code:`Files` are served as download links
 , we have to tell nginx to allow access to the media area where the files are uploaded/saved to.
 
 We define this in :code:`django_nginx.conf`, for example for the :code:`metadata` file:

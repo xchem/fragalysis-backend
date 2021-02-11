@@ -169,7 +169,7 @@ STATICFILES_FINDERS = (
 OIDC_RP_CLIENT_ID = os.environ.get("OIDC_RP_CLIENT_ID", "fragalysis-local")
 OIDC_RP_CLIENT_SECRET = os.environ.get('OIDC_RP_CLIENT_SECRET')
 OIDC_KEYCLOAK_REALM = os.environ.get("OIDC_KEYCLOAK_REALM",
-                                     "https://keycloak.xchem-dev.diamond.ac.uk/auth/realms/fragalysis")
+                                     "https://keycloak.xchem-dev.diamond.ac.uk/auth/realms/xchem")
 
 # OIDC_OP_AUTHORIZATION_ENDPOINT = "<URL of the OIDC OP authorization endpoint>"
 OIDC_OP_AUTHORIZATION_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/auth")

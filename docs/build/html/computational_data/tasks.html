@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Uploading computational data (Celery tasks and django template) &#8212; Fragalysis-Backend  documentation</title>
+    <title>Uploading Computational and Target data (Celery tasks and django template) &#8212; Fragalysis-Backend  documentation</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
@@ -34,14 +34,14 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="uploading-computational-data-celery-tasks-and-django-template">
-<span id="comp-tasks"></span><h1>Uploading computational data (Celery tasks and django template)<a class="headerlink" href="#uploading-computational-data-celery-tasks-and-django-template" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="uploading-computational-and-target-data-celery-tasks-and-django-template">
+<span id="comp-tasks"></span><h1>Uploading Computational and Target data (Celery tasks and django template)<a class="headerlink" href="#uploading-computational-and-target-data-celery-tasks-and-django-template" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="introducton">
 <h2>Introducton<a class="headerlink" href="#introducton" title="Permalink to this headline">¶</a></h2>
-<p>Uploading a Computed Set (see [link]) is a process that takes a long time. Typical requests handled in django
-applications usually only take milliseconds. Because this process takes a long time, we have implemented the required
-components as Celery tasks, and written views that can handle kicking off the relevant tasks, and retrieve the results
-from the tasks by pinging the message queue that brokers the tasks (Redis).</p>
+<p>Uploading a Computed Set (see [link]) or a Target Set is a process that takes a long time. Typical requests handled in
+django applications usually only take milliseconds. Because this process takes a long time, we have implemented the
+required components as Celery tasks, and written views that can handle kicking off the relevant tasks, and retrieve
+the results from the tasks by pinging the message queue that brokers the tasks (Redis).</p>
 <p>Celery is a task queuing software package, allowing execution of asynchronous workloads. A synchronous operation blocks
 a process till the operation completes. An asynchronous operation is non-blocking and only initiates the operation. In
 the context of a web-server, this means we can kick off an operation through an endpoint, and query another endpoint to
@@ -57,12 +57,13 @@ status of a job, and renders a result or message in the same page when it is com
 <div class="section" id="template-the-upload-page-for-computed-sets">
 <h2>Template - the upload page for computed sets<a class="headerlink" href="#template-the-upload-page-for-computed-sets" title="Permalink to this headline">¶</a></h2>
 <p>A django template (<a class="reference external" href="https://docs.djangoproject.com/en/3.1/topics/templates/">https://docs.djangoproject.com/en/3.1/topics/templates/</a>) is an HTML document that can dynamically
-load content from django objects, such as models and views. For example, we could query the Target model, and dynamically
-create a list of all Target names in a template.</p>
+load content from django objects, such as models and views. For example, we could query the Target model, and
+dynamically create a list of all Target names in a template.</p>
 <p>The template for the upload page for computed sets is found at <code class="code docutils literal notranslate"><span class="pre">viewer/templates/viewer/upload-cset.html</span></code>. The
 main parts of the template are as follows:</p>
-<p><strong>1. The upload form</strong> - this part of the template makes use of <code class="code docutils literal notranslate"><span class="pre">viewer.forms.CSetForm</span></code>: a version of a <code class="code docutils literal notranslate"><span class="pre">Model</span></code>
-that is used to describe what information can be posted as a request through a form contained in a template.</p>
+<p><strong>1. The upload form</strong> - this part of the template makes use of <code class="code docutils literal notranslate"><span class="pre">viewer.forms.CSetForm</span></code>: a version of a
+<code class="code docutils literal notranslate"><span class="pre">Model</span></code> that is used to describe what information can be posted as a request through a form contained in
+a template.</p>
 <dl class="py class">
 <dt id="viewer.forms.CSetForm">
 <em class="property">class </em><code class="sig-prename descclassname">viewer.forms.</code><code class="sig-name descname">CSetForm</code><span class="sig-paren">(</span><em class="sig-param">data=None</em>, <em class="sig-param">files=None</em>, <em class="sig-param">auto_id='id_%s'</em>, <em class="sig-param">prefix=None</em>, <em class="sig-param">initial=None</em>, <em class="sig-param">error_class=&lt;class 'django.forms.utils.ErrorList'&gt;</em>, <em class="sig-param">label_suffix=None</em>, <em class="sig-param">empty_permitted=False</em>, <em class="sig-param">field_order=None</em>, <em class="sig-param">use_required_attribute=None</em>, <em class="sig-param">renderer=None</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.forms.CSetForm" title="Permalink to this definition">¶</a></dt>
@@ -250,8 +251,8 @@ and contains all of the required information (specified here: [link]) to upload 
 the <code class="code docutils literal notranslate"><span class="pre">viewer.views.UploadTaskView</span></code> into the relevant models specified in
 <a class="reference internal" href="schema.html#comp-models"><span class="std std-ref">Computational Data (Models)</span></a>.</p>
 <dl class="py class">
-<dt id="viewer.tasks.validate">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.tasks.</code><code class="sig-name descname">validate</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">a</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kw</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.tasks.validate" title="Permalink to this definition">¶</a></dt>
+<dt id="viewer.tasks.validate_compound_set">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.tasks.</code><code class="sig-name descname">validate_compound_set</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">a</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kw</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.tasks.validate_compound_set" title="Permalink to this definition">¶</a></dt>
 <dd><p>Celery task to process validate the uploaded files for a computed set upload. SDF file is mandatory, zip file is
 optional</p>
 <dl class="field-list simple">
@@ -259,7 +260,8 @@ optional</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>sdf_file</strong> (<em>str</em>) – filepath of the uploaded sdf file, which is saved to temporary storage by <cite>viewer.views.UploadCSet</cite></p></li>
 <li><p><strong>target</strong> (<em>str</em>) – name of the target (<cite>viewer.models.Target.title</cite>) to add add the computed set to</p></li>
-<li><p><strong>zfile</strong> (<em>dict</em>) – dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by <cite>viewer.views.UploadCSet</cite></p></li>
+<li><p><strong>zfile</strong> (<em>dict</em>) – dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved
+to temporary storage by <cite>viewer.views.UploadCSet</cite></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -270,7 +272,8 @@ optional</p>
 <li><p>validated (bool): True if the file(s) were validated, False if not</p></li>
 <li><p>filename (str): name of the uploaded sdf file</p></li>
 <li><p>target (str): name of the target that the computed set is associated with</p></li>
-<li><p>zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by <cite>viewer.views.UploadCSet</cite></p></li>
+<li><p>zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the
+filename, which is saved to temporary storage by <cite>viewer.views.UploadCSet</cite></p></li>
 <li><p>submitter_name (str): name of the author of the computed set</p></li>
 <li><p>submitter_method (str): name of the method used to generate the computed set</p></li>
 </ul>
@@ -288,8 +291,8 @@ optional</p>
 <div class="section" id="celery-task-processing-and-saving-uploaded-data">
 <h2>Celery task - processing and saving uploaded data<a class="headerlink" href="#celery-task-processing-and-saving-uploaded-data" title="Permalink to this headline">¶</a></h2>
 <p>The second task that has to be completed when uploading a computed set is the upload itself. This task checks takes the
-output of <code class="code docutils literal notranslate"><span class="pre">viewer.tasks.validate</span></code> - the uploaded files must be validated before their data can be saved to the
-database.</p>
+output of <code class="code docutils literal notranslate"><span class="pre">viewer.tasks.validate_compound_set</span></code> - the uploaded files must be validated before their data can be
+saved to the database.</p>
 <dl class="py class">
 <dt id="viewer.tasks.process_compound_set">
 <em class="property">class </em><code class="sig-prename descclassname">viewer.tasks.</code><code class="sig-name descname">process_compound_set</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">a</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kw</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.tasks.process_compound_set" title="Permalink to this definition">¶</a></dt>
@@ -299,7 +302,7 @@ new computed set if the uploaded files are valid</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>validate_output</strong> (<em>tuple</em>) – <dl class="simple">
 <dt>contains the following:</dt><dd><ul class="simple">
-<li><p>validate dict (dict): dict containing any errors found during the calidation step</p></li>
+<li><p>validate dict (dict): dict containing any errors found during the validation step</p></li>
 <li><p>validated (bool): True if the file(s) were validated, False if not</p></li>
 <li><p>filename (str): name of the uploaded sdf file</p></li>
 <li><p>target (str): name of the target that the computed set is associated with</p></li>
@@ -316,6 +319,109 @@ new computed set if the uploaded files are valid</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="uploading-target-data-sets">
+<h2>Uploading Target data sets<a class="headerlink" href="#uploading-target-data-sets" title="Permalink to this headline">¶</a></h2>
+<p>From 2021, a similar process has been developed for Target data sets to replace the existing process
+that are created from the source data using the Fragalysis Loader repo.
+Target data sets are initially created in the same way as currently using the Fragalysis api repo (
+found here: <a class="reference external" href="https://github.com/xchem/fragalysis-api">https://github.com/xchem/fragalysis-api</a> ).</p>
+<p>The template for the upload page for target sets is found at <code class="code docutils literal notranslate"><span class="pre">viewer/templates/viewer/upload-tset.html</span></code>. The
+main parts of the template are similar to the computed sets.</p>
+<p>The view controlling interaction is: <code class="code docutils literal notranslate"><span class="pre">viewer.views.UploadTSetView</span></code>.</p>
+<p>The upload form is:</p>
+<dl class="py class">
+<dt id="viewer.forms.TSetForm">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.forms.</code><code class="sig-name descname">TSetForm</code><span class="sig-paren">(</span><em class="sig-param">data=None</em>, <em class="sig-param">files=None</em>, <em class="sig-param">auto_id='id_%s'</em>, <em class="sig-param">prefix=None</em>, <em class="sig-param">initial=None</em>, <em class="sig-param">error_class=&lt;class 'django.forms.utils.ErrorList'&gt;</em>, <em class="sig-param">label_suffix=None</em>, <em class="sig-param">empty_permitted=False</em>, <em class="sig-param">field_order=None</em>, <em class="sig-param">use_required_attribute=None</em>, <em class="sig-param">renderer=None</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.forms.TSetForm" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Django form used for uploading Target sets at viewer/upload_tset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_name</strong> (<em>CharField</em>) – The name of the target, as written in <cite>viewer.models.Targets</cite> that you want to upload Target set for</p></li>
+<li><p><strong>target_zip</strong> (<em>FileField</em>) – A zip file containing a target dataset in a specific format (folders / data)</p></li>
+<li><p><strong>submit_choice</strong> (<em>CharField</em>) – Whether to validate (0) or validate and upload (1) - displayed as a radio button</p></li>
+<li><p><strong>proposal_ref</strong> (<em>CharField</em>) – Proposal the target should be attached to/validated with.</p></li>
+<li><p><strong>contact_email</strong> (<em>EmailField</em>) – An email address to receive upload notifications.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p>Note that the user must be <strong>logged on to Fragalysis</strong> to be able to use the form. When the user is logged on, the
+email field is filled with the contents of the user.email field. This is used to send a notification to the user
+on completion of an validation/upload task (see below).</p>
+<p>Dynamic loading of validate task status and results otherwise works in a similar way to the computational sets.</p>
+</div>
+<div class="section" id="celery-task-validating-target-data">
+<h2>Celery task - validating Target data<a class="headerlink" href="#celery-task-validating-target-data" title="Permalink to this headline">¶</a></h2>
+<p>The first task that has to be completed when uploading a target set is validation of the data. This task checks the
+format of the folder structure provided to <code class="code docutils literal notranslate"><span class="pre">viewer.views.UploadTSetView</span></code> to make sure it is in the correct format.</p>
+<dl class="py class">
+<dt id="viewer.tasks.validate_target_set">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.tasks.</code><code class="sig-name descname">validate_target_set</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">a</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kw</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.tasks.validate_target_set" title="Permalink to this definition">¶</a></dt>
+<dd><p>Celery task to process validate the uploaded files/format for a target set upload. Zip file is mandatory</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target_zip</strong> (<em>str</em>) – filepath of the uploaded target file, which is saved to temporary storage by <cite>viewer.views.UploadTSet</cite></p></li>
+<li><p><strong>target</strong> (<em>str</em>) – name of the target (<cite>viewer.models.Target.title</cite>) to add add the target set to</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><p><strong>validate_output</strong> –</p>
+<dl class="simple">
+<dt>contains the following:</dt><dd><ul class="simple">
+<li><p>validate dict (dict): dict containing any errors found during the validation step</p></li>
+<li><p>validated (bool): True if the file(s) were validated, False if not</p></li>
+<li><p>filename (str): name of the uploaded target file</p></li>
+<li><p>target (str): name of the target</p></li>
+<li><p>submitter_name (str): name of the user who submitted the upload</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="celery-task-processing-target-data">
+<h2>Celery task - processing Target data<a class="headerlink" href="#celery-task-processing-target-data" title="Permalink to this headline">¶</a></h2>
+<p>The second task that has to be completed when uploading a computed set is the upload itself. This task checks takes the
+output of <code class="code docutils literal notranslate"><span class="pre">viewer.tasks.validate_target_set</span></code> - the uploaded files must be validated before their data can be
+saved to the database through the <code class="code docutils literal notranslate"><span class="pre">viewer.views.UploadTaskView</span></code> into the relevant models specified in
+<a class="reference internal" href="../crystallographic_data/schema.html#crys-models"><span class="std std-ref">Crystallographic data (Models)</span></a>.</p>
+<dl class="py class">
+<dt id="viewer.tasks.process_target_set">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.tasks.</code><code class="sig-name descname">process_target_set</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">a</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kw</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.tasks.process_target_set" title="Permalink to this definition">¶</a></dt>
+<dd><p>Celery task to process a target set, that takes the output of the validation task, and uploads molecules to a
+new target set if the uploaded files are valid</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>validate_output</strong> (<em>tuple</em>) – <dl class="simple">
+<dt>contains the following:</dt><dd><ul class="simple">
+<li><p>validate dict (dict): dict containing any errors found during the validation step</p></li>
+<li><p>validated (bool): True if the file(s) were validated, False if not</p></li>
+<li><p>filename (str): name of the uploaded target file (zip file)</p></li>
+<li><p>target (str): name of the target</p></li>
+<li><p>submitter_name (str): name of the author of the computed set</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>name of the processed target set</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>target str</p>
 </dd>
 </dl>
 </dd></dl>
@@ -352,11 +458,14 @@ new computed set if the uploaded files are valid</p>
 <li class="toctree-l1"><a class="reference internal" href="views.html">Computational data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data (Views)</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Uploading computational data (Celery tasks and django template)</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Uploading Computational and Target data (Celery tasks and django template)</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#introducton">Introducton</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#template-the-upload-page-for-computed-sets">Template - the upload page for computed sets</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#celery-task-validating-uploaded-data">Celery task - validating uploaded data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#celery-task-processing-and-saving-uploaded-data">Celery task - processing and saving uploaded data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#uploading-target-data-sets">Uploading Target data sets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#celery-task-validating-target-data">Celery task - validating Target data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#celery-task-processing-target-data">Celery task - processing Target data</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../API/media.html">Serving static files (media)</a></li>
