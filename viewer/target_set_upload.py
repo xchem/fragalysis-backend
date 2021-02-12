@@ -7,7 +7,7 @@ functions.py
 """
 import sys, json, os, glob, shutil
 from django.contrib.auth.models import User
-from viewer.models import Target, Protein, Molecule, Compound, Project
+from viewer.models import Target, Protein, Molecule, Compound, Project, ComputedMolecule
 from hypothesis.models import (
     Vector3D,
     Vector,
