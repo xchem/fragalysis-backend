@@ -25,7 +25,7 @@ services:
         hard: 40000
     volumes:
       - ../data/neo4j/data:/data
-    #  - ../data/neo4j/logs:/logs
+      - ../data/neo4j/logs:/logs
     environment:
       - NEO4J_AUTH=none
       - NEO4J_dbms_memory_pagecache_size=4G

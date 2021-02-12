@@ -2095,7 +2095,8 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
         - compound: id for the associated 2D compound
         - computed_set: name for the associated computed set
         - computed_inspirations: list of ids for the inspirations used in the design/computation of the molecule
-        - numerical_scores: dict of numerical scores - key is a score name, value is the associated score
+        - numerical_scores: dict of numerical scores, where each key is a score name, and each value is the associated
+        score
         - text_scores: dict of text scores, where each key is a score name, and each value is the associated score
 
     example output:
@@ -2119,8 +2120,8 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
                     "text_scores": {}
                 },]
 
-    """
 
+    """
     queryset = ComputedMolecule.objects.filter()
     serializer_class = ComputedMolAndScoreSerializer
     filter_permissions = "project_id"
@@ -2128,7 +2129,7 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
 
 
 class DiscoursePostView(viewsets.ViewSet):
-    """Django view to get and post to the Discourse platform
+    """Django view to post get and post to the Discourse platform
 
     Methods
     -------
@@ -2146,96 +2147,93 @@ class DiscoursePostView(viewsets.ViewSet):
         - post_content: content of the post
         - post_tags: a JSON string of tags related to the Post
 
-    Returns JSON
+    Returns
+    -------
 
     example output (POST):
-
-        .. code-block:: javascript
+        Response with a URL linking to the post that has just been created
 
           {
                 "Post url": "https://discourse.xchem-dev.diamond.ac.uk/t/78/1"
           }
 
     example output (GET):
+        Response with a list of posts
 
-        .. code-block:: javascript
-
-            {
-                "Posts": {
-                    "post_stream": {
-                        "posts": [
-                            {
-                                "id": 131,
-                                "name": "user",
-                                "username": "user",
-                                "avatar_template": "/letter_avatar_proxy/v4/letter/u/c0e974/{size}.png",
-                                "created_at": "2020-12-10T14:50:56.006Z",
-                                "cooked": "<p>This is a post for session-project 0005 to test if it works without parent category</p>",
-                                "post_number": 1,
-                                "post_type": 1,
-                                "updated_at": "2020-12-10T14:50:56.006Z",
-                                "reply_count": 0,
-                                "reply_to_post_number": null,
-                                "quote_count": 0,
-                                "incoming_link_count": 1,
-                                "reads": 1,
-                                "readers_count": 0,
-                                "score": 5.2,
-                                "yours": true,
-                                "topic_id": 81,
-                                "topic_slug": "api-test-session-project-000005",
-                                "display_username": "user",
-                                "primary_group_name": null,
-                                "primary_group_flair_url": null,
-                                "primary_group_flair_bg_color": null,
-                                "primary_group_flair_color": null,
-                                "version": 1,
-                                "can_edit": true,
-                                "can_delete": false,
-                                "can_recover": false,
-                                "can_wiki": true,
-                                "read": true,
-                                "user_title": null,
-                                "actions_summary":
-                                [
-                                    {
-                                        "id": 3,
-                                        "can_act": true
-                                    },
-                                    {
-                                        "id": 4,
-                                        "can_act": true
-                                    },
-                                    {
-                                        "id": 8,
-                                        "can_act": true
-                                    },
-                                    {
-                                        "id": 7,
-                                        "can_act": true
-                                    }
-                                ],
-                                "moderator": false,
-                                "admin": true,
-                                "staff": true,
-                                "user_id": 1,
-                                "hidden": false,
-                                "trust_level": 1,
-                                "deleted_at": null,
-                                "user_deleted": false,
-                                "edit_reason": null,
-                                "can_view_edit_history": true,
-                                "wiki": false,
-                                "reviewable_id": 0,
-                                "reviewable_score_count": 0,
-                                "reviewable_score_pending_count": 0
-                            }
-                        ]
-                    },
-                    "id": 81
-                }
+        {
+            "Posts": {
+                "post_stream": {
+                    "posts": [
+                        {
+                            "id": 131,
+                            "name": "user",
+                            "username": "user",
+                            "avatar_template": "/letter_avatar_proxy/v4/letter/u/c0e974/{size}.png",
+                            "created_at": "2020-12-10T14:50:56.006Z",
+                            "cooked": "<p>This is a post for session-project 0005 to test if it works without parent category</p>",
+                            "post_number": 1,
+                            "post_type": 1,
+                            "updated_at": "2020-12-10T14:50:56.006Z",
+                            "reply_count": 0,
+                            "reply_to_post_number": null,
+                            "quote_count": 0,
+                            "incoming_link_count": 1,
+                            "reads": 1,
+                            "readers_count": 0,
+                            "score": 5.2,
+                            "yours": true,
+                            "topic_id": 81,
+                            "topic_slug": "api-test-session-project-000005",
+                            "display_username": "user",
+                            "primary_group_name": null,
+                            "primary_group_flair_url": null,
+                            "primary_group_flair_bg_color": null,
+                            "primary_group_flair_color": null,
+                            "version": 1,
+                            "can_edit": true,
+                            "can_delete": false,
+                            "can_recover": false,
+                            "can_wiki": true,
+                            "read": true,
+                            "user_title": null,
+                            "actions_summary": [
+                                {
+                                    "id": 3,
+                                    "can_act": true
+                                },
+                                {
+                                    "id": 4,
+                                    "can_act": true
+                                },
+                                {
+                                    "id": 8,
+                                    "can_act": true
+                                },
+                                {
+                                    "id": 7,
+                                    "can_act": true
+                                }
+                            ],
+                            "moderator": false,
+                            "admin": true,
+                            "staff": true,
+                            "user_id": 1,
+                            "hidden": false,
+                            "trust_level": 1,
+                            "deleted_at": null,
+                            "user_deleted": false,
+                            "edit_reason": null,
+                            "can_view_edit_history": true,
+                            "wiki": false,
+                            "reviewable_id": 0,
+                            "reviewable_score_count": 0,
+                            "reviewable_score_pending_count": 0
+                        }
+                    ]
+                },
+                "id": 81
             }
-
+        }
     """
 
     serializer_class = DiscoursePostWriteSerializer
@@ -2245,10 +2243,6 @@ class DiscoursePostView(viewsets.ViewSet):
         """
         logger.info('+ DiscoursePostView.post')
         data = request.data
-
-        logger.info('+ DiscoursePostView.post user:'+ request.user.username)
-        if request.user.username == '':
-            return Response({"message": "Please logon to create posts in Discourse"})
 
         logger.info('+ DiscoursePostView.post'+json.dumps(data))
         if data['category_name'] == '':
