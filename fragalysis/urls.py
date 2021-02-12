@@ -13,9 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-
-import mozilla_django_oidc.views
-import fragalysis.views
+import django_cas_ng.views
 from django.conf.urls import include, url
 from django.contrib import admin
 from django.views.generic.base import RedirectView
@@ -31,11 +29,8 @@ urlpatterns = [
     url(r"^scoring/", include("scoring.urls")),
     url(r"^xcdb/", include("xcdb.urls")),
     url(r"^graphql/", GraphQLView.as_view(graphiql=True)),
-    # Keycloak - Mozilla_django_oidc - settings
-    url('oidc/', include('mozilla_django_oidc.urls')),
-    url("accounts/login/", mozilla_django_oidc.views.OIDCAuthenticationRequestView.as_view(), name="keylcoak_login"),
-    url("accounts/logout/", fragalysis.views.LogoutView.as_view(), name="keycloak_logout"),
-    url("oidc/callback/", mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(),
-        name="keycloak_callback"),
+    url("accounts/login/", django_cas_ng.views.LoginView.as_view(), name="cas_ng_login"),
+    url("accounts/logout/", django_cas_ng.views.LogoutView.as_view(), name="cas_ng_logout"),
+    url("accounts/callback/", django_cas_ng.views.CallbackView.as_view(), name="cas_ng_proxy_callback"),
     url(r"^$", RedirectView.as_view(url="/viewer/react/landing")),
 ]

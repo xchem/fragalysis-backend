@@ -30,16 +30,10 @@ def create_category(client, category_name, parent_name, category_colour='0088CC'
     return category['category']['id'], topic_url
 
 
-def process_category (category_details):
+def process_category (client, category_details):
     """Check category is present in Table - If not create it in Discourse and store the id returned..
     """
     post_url =''
-
-    # Create Discourse client for fragalysis user
-    client = DiscourseClient(
-        settings.DISCOURSE_HOST,
-        api_username=settings.DISCOURSE_USER,
-        api_key=settings.DISCOURSE_API_KEY)
 
     try:
         category = DiscourseCategory.objects.get(category_name=category_details['category_name'])
@@ -50,6 +44,7 @@ def process_category (category_details):
                                                 category_details['category_colour'],
                                                 category_details['category_text_colour'])
         DiscourseCategory.objects.create(category_name=category_details['category_name'],
+                                         # TODO author=user,
                                          discourse_category_id=category_id)
     return category_id, post_url
 
@@ -69,7 +64,7 @@ def create_post(client, content, tags=None, title=None, category_id=None, topic_
     return post['topic_id'], post_url
 
 
-def process_post(client, category_id, post_details, user):
+def process_post(client, category_id, post_details):
     """Check topic is present in Discourse. IF exists then post, otherwise create new topic for category
     """
 
@@ -83,7 +78,7 @@ def process_post(client, category_id, post_details, user):
         topic_id, post_url = create_post(client, post_details['content'], post_details['tags'],
                                          title=post_details['title'], category_id=category_id)
         DiscourseTopic.objects.create(topic_title=post_details['title'],
-                                      author=user,
+                                      # TODO author=user,
                                       discourse_topic_id=topic_id)
     return topic_id, post_url
 
@@ -119,29 +114,27 @@ def create_discourse_post(user, category_details=None, post_details=None):
         # Nothing to post
         return True
 
-    if user is None:
-        # User is not logger on
-        return True
+    # Create Discourse client
+    client = DiscourseClient(
+        settings.DISCOURSE_HOST,
+        api_username=settings.DISCOURSE_USER,
+        api_key=settings.DISCOURSE_API_KEY)
 
+    # Check user is present in Discourse
+    # TODO user_id = get_user(client, user.username)
+    user_id = get_user(client, settings.DISCOURSE_USER)
+    if user_id == 0:
+        # TODO User is not present in Discourse
+        return True
     category_id = 0
 
-    # If category details exist then create/return the category using the fragalysis user
+    # If category details exist then create/return the category
     if category_details:
-        category_id, post_url = process_category(category_details)
+        category_id, post_url = process_category(client, category_details)
 
     # If post details exist then create the post
     if post_details:
-        # Create Discourse client for user
-        client = DiscourseClient(
-            settings.DISCOURSE_HOST,
-            api_username=user.username,
-            api_key=settings.DISCOURSE_API_KEY)
-
-        # Check user is present in Discourse
-        user_id = get_user(client, user.username)
-        if user_id == 0:
-            return True
-        topic_id, post_url = process_post(client, category_id, post_details, user)
+        topic_id, post_url = process_post(client, category_id, post_details)
 
     logger.info('- discourse.create_discourse_post')
     return error, post_url
