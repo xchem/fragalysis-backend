@@ -2394,7 +2394,8 @@ class DictToCsv(viewsets.ViewSet):
         """Method to handle GET request
         """
         file_url = request.GET.get('file_url')
-        if file_url:
+
+        if file_url and os.path.isfile(file_url):
             with open(file_url) as csvfile:
                 # return file and tidy up.
                 response = HttpResponse(csvfile, content_type='text/csv')
