@@ -291,13 +291,13 @@ if DEBUG is True:
                 'filename': BASE_DIR + "/logs/logfile.log",
             },
         },
-        'loggers': {
-            'celery': {
-                'handlers': ['celery'],
-                'level': 'INFO',
-                'propagate': False
-            },
-        },
+        # 'loggers': {
+        #     'celery': {
+        #         'handlers': ['celery'],
+        #         'level': 'INFO',
+        #         'propagate': False
+        #     },
+        #},
         'root': {
             'level': 'INFO',
             'handlers': ['console', 'logfile']

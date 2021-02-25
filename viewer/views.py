@@ -3,6 +3,7 @@ import os
 import zipfile
 from io import StringIO
 import pandas as pd
+
 import uuid
 # import the logging library
 import logging
@@ -81,7 +82,8 @@ from viewer.serializers import (
     ScoreDescriptionSerializer,
     TextScoreSerializer,
     ComputedMolAndScoreSerializer,
-    DiscoursePostWriteSerializer
+    DiscoursePostWriteSerializer,
+    DictToCsvSerializer
 )
 
 
@@ -2289,3 +2291,130 @@ class DiscoursePostView(viewsets.ViewSet):
             return Response({"message": "No Posts Found"})
         else:
             return Response({"Posts": posts})
+
+
+def create_csv_from_dict(input_dict, title=None, filename=None):
+    """ Write a CSV file containing data from an input dictionary and return a URLto the file in the media
+        directory.
+    """
+
+    if not filename:
+        filename = 'download'
+
+    media_root = settings.MEDIA_ROOT
+    unique_dir = str(uuid.uuid4())
+    # /code/media/downloads/unique_dir
+    download_path = os.path.join(media_root, 'downloads', unique_dir)
+    os.makedirs(download_path, exist_ok=True)
+
+    download_file = os.path.join(download_path, filename)
+
+    # Remove file if it already exists
+    if os.path.isfile(download_file):
+        os.remove(download_file)
+
+    with open(download_file, "w", newline='') as csvfile:
+        if title:
+            csvfile.write(title)
+            csvfile.write("\n")
+
+    df = pd.DataFrame.from_dict(input_dict)
+    df.to_csv(download_file, mode='a', header=True, index=False)
+
+    return download_file
+
+
+class DictToCsv(viewsets.ViewSet):
+    """Django view that takes a dictionary and returns a download link to a CSV file with the data.
+
+    Methods
+    -------
+    allowed requests:
+        - GET: Return the CSV file given the link - note that this will remove the file on the media directory.
+        - POST: Return a link to a CSV file containing the input dictionary
+    url:
+       api/dicttocsv
+    get params:
+       file_url: url returned in the post request
+
+       Returns: CSV file when passed url.
+
+    post params:
+       title: string to place on the first line of the CSV file.
+       input_dict: dictionary containing CSV data to place in the CSV file
+
+       Returns: url to be passed to GET.
+
+    Example Input for Get
+       http://127.0.0.1:8080/api/dicttocsv/?file_url=/code/media/downloads/6bc70a04-9675-4079-924e-b0ab460cb206/download
+
+    Example Input for Post
+    ----------------------
+
+    {
+    "title": "https://fragalysis.xchem.diamond.ac.uk/viewer/react/landing",
+    "dict": [{
+                    " compound - id0 ": " CHEMSPACE - BB: CSC012451475 ",
+                    " compound - id1 ": " ",
+                    " smiles ": " Cc1ccncc1C(N)C(C)(C)C ",
+                    " mol ": " CC( = O)Nc1cnccc1C ",
+                    " vector ": " CC1CCCCC1[101Xe]",
+                    " class ": " blue ",
+                    " compoundClass ": " blue ",
+                    " ChemPlp ": " ",
+                    " MM - GBSA Nwat = 0 ": " ",
+                            " STDEV0 ": " ",
+                            " MM - GBSA Nwat = 30 ": " ",
+                            " STDEV30 ": " ",
+                            " MM - GBSA Nwat = 60 ": " "
+                        },
+                        {
+                            " compound - id0 ": " ",
+                            " compound - id1 ": " ",
+                            " smiles ": " CC( = O)NCCc1c[nH]c2c(C(c3ccc(Br)s3)[NH + ]3CCN(C( = O)CCl)CC3)cccc12 ",
+                            " mol ": " ",
+                            " vector ": " ",
+                            " class ": " ",
+                            " compoundClass ": " ",
+                            " ChemPlp ": -101.073,
+                            " MM - GBSA Nwat = 0 ": -38.8862,
+                            " STDEV0 ": 5.3589001,
+                            " MM - GBSA Nwat = 30 ": -77.167603,
+                            " STDEV30 ": 5.5984998,
+                            " MM - GBSA Nwat = 60 ": -84.075401
+        }]
+    }
+
+    """
+
+    serializer_class = DictToCsvSerializer
+
+    def list(self, request):
+        """Method to handle GET request
+        """
+        file_url = request.GET.get('file_url')
+
+        if file_url and os.path.isfile(file_url):
+            with open(file_url) as csvfile:
+                # return file and tidy up.
+                response = HttpResponse(csvfile, content_type='text/csv')
+                response['Content-Disposition'] = 'attachment; filename=download.csv'
+                shutil.rmtree(os.path.dirname(file_url), ignore_errors=True)
+                return response
+        else:
+            return Response("Please provide file_url parameter")
+
+    def create(self, request):
+        """Method to handle POST request
+        """
+
+        logger.info('+ DictToCsv.post')
+        input_dict = request.data['dict']
+        input_title = request.data['title']
+
+        if not input_dict:
+            return Response({"message": "Please enter Dictionary"})
+        else:
+            filename_url = create_csv_from_dict(input_dict, input_title)
+
+        return Response({"file_url": filename_url})

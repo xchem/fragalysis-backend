@@ -70,6 +70,9 @@ router.register(r"fragspect", xcdb_views.FragspectCrystalView)
 # discourse posts
 router.register(r"discourse_post", viewer_views.DiscoursePostView, basename='discourse_post')
 
+# Take a dictionary and return a csv
+router.register(r"dicttocsv", viewer_views.DictToCsv, basename='dicttocsv')
+
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
 from rest_framework.decorators import api_view, renderer_classes
 from rest_framework import response, schemas

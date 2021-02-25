@@ -26,6 +26,7 @@ class APIUtilsTestCase(APITestCase):
     def setUp(self):
         self.factory = RequestFactory()
         self.user = User.objects.create(username="DUMMY", password="DUMMY")
+        self.url_base = "/api"
 
     # def test_can_draw(self):
     #     output_mol = draw_mol("C1CCCCC1")
@@ -45,6 +46,26 @@ class APIUtilsTestCase(APITestCase):
         token_two = get_token(request)
         self.assertNotEqual(token_two, "")
         self.assertTrue(type(token_two) == str)
+
+
+    def test_generate_csv(self):
+        #Check api/dicttocsv/ is available.
+        response_data_get = "Please provide file_url parameter"
+
+        response = self.client.get(self.url_base + "/dicttocsv/")
+        response.user = self.user
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, response_data_get)
+
+        response = self.client.get(self.url_base + "/dicttocsv/?file_url=blah")
+        response.user = self.user
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, response_data_get)
+
+        # POST tests to be added
+        # response = self.client.post(self.url_base + "/" + url + "/", post_data[i])
+        # self.assertEqual(response.status_code, 405)
+        # self.assertEqual(response.data, post_resp[i])
 
 
 class APIUrlsTestCase(APITestCase):
