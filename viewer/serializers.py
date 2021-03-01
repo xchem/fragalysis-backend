@@ -475,6 +475,7 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
     #     return desc_dict
 
 # Start of Discourse Serializer
+
 # Class for customer Discourse API
 class DiscoursePostWriteSerializer(serializers.Serializer):
     category_name = serializers.CharField(max_length=200)

@@ -436,7 +436,7 @@ page.</p></li>
 <li><p>compound: id for the associated 2D compound</p></li>
 <li><p>computed_set: name for the associated computed set</p></li>
 <li><p>computed_inspirations: list of ids for the inspirations used in the design/computation of the molecule</p></li>
-<li><p>numerical_scores: dict of numerical scores, where each key is a score name, and each value is the associated score</p></li>
+<li><p>numerical_scores: dict of numerical scores, where each key is a name, and each value is the associated score</p></li>
 <li><p>text_scores: dict of text scores, where each key is a score name, and each value is the associated score</p></li>
 </ul>
 </dd></dl>
@@ -571,10 +571,61 @@ response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cit
 </dd></dl>
 
 <dl class="py class">
+<dt id="viewer.views.UploadTSet">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadTSet</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>View to render and control viewer/upload-tset.html  - a page allowing upload of computed sets. Validation and
+upload tasks are defined in <cite>viewer.target_set_upload</cite>, <cite>viewer.sdf_check</cite> and <cite>viewer.tasks</cite> and the task
+response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cite>viewer.views.UploadTaskView</cite></p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>GET: renders form</p></li>
+<li><p>POST: validates and optionally uploads the computed set that the user provides via the template form</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>viewer/upload_tset</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">template:</code></dt>
+<dd><p>viewer/upload-tset.html</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">request params:</code></dt>
+<dd><ul class="simple">
+<li><p>target_name (<cite>django.forms.CharField</cite>): Name of the existing fragalysis target to add the computed set to</p></li>
+<li><p>target_zip (<cite>django.forms.FileField</cite>): zip file of the target dataset</p></li>
+<li><p>submit_choice (<cite>django.forms.CharField</cite>): 0 to validate, 1 to validate and upload</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">context:</code></dt>
+<dd><ul class="simple">
+<li><p>form (<cite>django.Forms.form</cite>): instance of <cite>viewer.forms.TSetForm</cite></p></li>
+<li><p>validate_task_id (str): celery task id for validation step</p></li>
+<li><p>validate_task_status (str): celery task status for validation step</p></li>
+<li><p>upload_task_id (str): celery task id for upload step</p></li>
+<li><p>upload_task_status (str): celery task status for upload step</p></li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt id="viewer.views.ValidateTaskView">
 <em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ValidateTaskView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ValidateTaskView" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to handle dynamic loading of validation results from <cite>viewer.tasks.validate</cite> - the validation of files
-uploaded to viewer/upload_cset</p>
+uploaded to viewer/upload_cset or a target set by a user at viewer/upload_tset</p>
 <dl class="py method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
@@ -592,7 +643,7 @@ uploaded to viewer/upload_cset</p>
 <dl class="py method">
 <dt>
 <code class="sig-name descname">template:</code></dt>
-<dd><p>viewer/upload-cset.html</p>
+<dd><p>viewer/upload-cset.html or viewer/upload-tset.html</p>
 </dd></dl>
 
 <dl class="py method">
@@ -603,8 +654,8 @@ and result if the task is complete</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>request</strong> (<em>request</em>) – Context sent by <cite>UploadCSet</cite></p></li>
-<li><p><strong>validate_task_id</strong> (<em>str</em>) – task id provided by <cite>UploadCSet</cite></p></li>
+<li><p><strong>request</strong> (<em>request</em>) – Context sent by <cite>UploadCSet</cite> or <cite>UploadTset</cite></p></li>
+<li><p><strong>validate_task_id</strong> (<em>str</em>) – task id provided by <cite>UploadCSet</cite> or <cite>UploadTset</cite></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -654,7 +705,7 @@ and result if the task is complete</p>
 <dt id="viewer.views.UploadTaskView">
 <em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadTaskView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTaskView" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to handle dynamic loading of upload results from <cite>viewer.tasks.process_compound_set</cite> - the upload of files
-for a computed set by a user at viewer/upload_cset</p>
+for a computed set by a user at viewer/upload_cset or a target set by a user at viewer/upload_tset</p>
 <dl class="py method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
@@ -672,7 +723,7 @@ for a computed set by a user at viewer/upload_cset</p>
 <dl class="py method">
 <dt>
 <code class="sig-name descname">template:</code></dt>
-<dd><p>viewer/upload-cset.html</p>
+<dd><p>viewer/upload-cset.html or viewer/upload-tset.html</p>
 </dd></dl>
 
 <dl class="py method">
@@ -683,8 +734,8 @@ and result if the task is complete</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>request</strong> (<em>request</em>) – Context sent by <cite>UploadCSet</cite></p></li>
-<li><p><strong>upload_task_id</strong> (<em>str</em>) – task id provided by <cite>UploadCSet</cite></p></li>
+<li><p><strong>request</strong> (<em>request</em>) – Context sent by <cite>UploadCSet</cite> or <cite>UploadTSet</cite></p></li>
+<li><p><strong>upload_task_id</strong> (<em>str</em>) – task id provided by <cite>UploadCSet</cite> or <cite>UploadTSet</cite></p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -713,20 +764,17 @@ and result if the task is complete</p>
 <li><p>upload_task_status (str): task.status</p></li>
 <li><p>upload_task_id (str): task.id</p></li>
 <li><dl class="simple">
-<dt>if results are a list (data was not validated):</dt><dd><ul>
-<li><p>validated (str): ‘Not validated’</p></li>
-<li><p>html (str): html table of validation errors</p></li>
-</ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>if results are a string (data was validated and uploaded:</dt><dd><ul>
-<li><p>validated (str): ‘Validated’</p></li>
-<li><p>results (dict): results</p></li>
-<li><p>results[‘cset_download_url’] (str): download url for computed set sdf file</p></li>
-<li><p>results[‘pset_download_url’] (str): download url for computed set pdb files (zip)</p></li>
-</ul>
+<dt>if results are a list (data was processed - validated or uploaded):</dt><dd><p>if this was a validation process
+- validated (str): ‘Not validated’
+- html (str): html table of validation errors
+if results are a validation/upload process:
+- validated (str): ‘Validated’
+- results (dict): results
+For compound sets (‘cset’)
+- results[‘cset_download_url’] (str): download url for computed set sdf file
+- results[‘pset_download_url’] (str): download url for computed set pdb files (zip)
+For target sets (‘tset’)
+- results[‘tset_download_url’] (str): download url for processed zip file</p>
 </dd>
 </dl>
 </li>

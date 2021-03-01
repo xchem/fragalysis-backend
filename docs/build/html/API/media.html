@@ -88,7 +88,7 @@ the target model we have two files that are served as files:</p>
     <span class="n">zip_archive</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">FileField</span><span class="p">(</span><span class="n">upload_to</span><span class="o">=</span><span class="s2">&quot;archive/&quot;</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The <code class="code docutils literal notranslate"><span class="pre">metadata</span></code> file and the <cite>zip_archive</cite> file. To make sure that these <code class="code docutils literal notranslate"><span class="pre">Files</span></code> are served as download links
+<p>The <code class="code docutils literal notranslate"><span class="pre">metadata</span></code> file and the <code class="code docutils literal notranslate"><span class="pre">zip_archive</span></code> file. To make sure that these <code class="code docutils literal notranslate"><span class="pre">Files</span></code> are served as download links
 , we have to tell nginx to allow access to the media area where the files are uploaded/saved to.</p>
 <p>We define this in <code class="code docutils literal notranslate"><span class="pre">django_nginx.conf</span></code>, for example for the <code class="code docutils literal notranslate"><span class="pre">metadata</span></code> file:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>location /metadata/ <span class="o">{</span>

@@ -58,6 +58,9 @@ View details
 .. autoclass:: viewer.views.UploadCSet
     :members:
 
+.. autoclass:: viewer.views.UploadTSet
+    :members:
+
 .. autoclass:: viewer.views.ValidateTaskView
     :members:
 

@@ -3,6 +3,8 @@ import os
 import zipfile
 from io import StringIO
 import pandas as pd
+import uuid
+import shutil
 
 import uuid
 # import the logging library
@@ -577,7 +579,15 @@ def react(request):
     :param request:
     :return:
     """
-    return render(request, "viewer/react_temp.html")
+    discourse_api_key = settings.DISCOURSE_API_KEY
+
+    context = {}
+    if discourse_api_key:
+        context['discourse_available'] = 'true'
+    else:
+        context['discourse_available'] = 'false'
+
+    return render(request, "viewer/react_temp.html", context)
 
 # Upload Compound set functions
 
@@ -976,9 +986,12 @@ def email_task_completion(contact_email, message_type, target_name, target_path=
     """
 
     logger.info('+ email_notify_task_completion: ' + message_type + ' ' + target_name)
-    error = False
-    if contact_email == '':
-        return error
+    email_from = settings.EMAIL_HOST_USER
+
+    if contact_email == '' or not email_from:
+        # Only send email if configured.
+        return
+
     if message_type == 'upload-success':
         subject = 'Fragalysis: Target: '+target_name+' Uploaded'
         message = 'The upload of your target data is complete. Your target is available at: ' \
@@ -992,22 +1005,16 @@ def email_task_completion(contact_email, message_type, target_name, target_path=
         message = 'The validation/upload of your target data did not complete successfully. ' \
                   'Please navigate the following link to check the errors: validate_task/' + str(task_id)
 
-    email_from = settings.EMAIL_HOST_USER
     recipient_list = [contact_email, ]
-    if email_from:
-        logger.info('+ email_notify_task_completion email_from: ' + email_from )
+    logger.info('+ email_notify_task_completion email_from: ' + email_from )
     logger.info('+ email_notify_task_completion subject: ' + subject )
     logger.info('+ email_notify_task_completion message: ' + message )
     logger.info('+ email_notify_task_completion contact_email: ' + contact_email )
 
     # Send email - this should not prevent returning to the screen in the case of error.
-    try:
-        send_mail(subject, message, email_from, recipient_list)
-    except:
-        error = True
-
+    send_mail(subject, message, email_from, recipient_list, fail_silently=True)
     logger.info('- email_notify_task_completion')
-    return error
+    return
 
 
 # Task functions common between Compound Sets and Target Set pages.
@@ -2097,8 +2104,7 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
         - compound: id for the associated 2D compound
         - computed_set: name for the associated computed set
         - computed_inspirations: list of ids for the inspirations used in the design/computation of the molecule
-        - numerical_scores: dict of numerical scores, where each key is a score name, and each value is the associated
-        score
+        - numerical_scores: dict of numerical scores, where each key is a name, and each value is the associated score
         - text_scores: dict of text scores, where each key is a score name, and each value is the associated score
 
     example output:
@@ -2131,7 +2137,7 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
 
 
 class DiscoursePostView(viewsets.ViewSet):
-    """Django view to post get and post to the Discourse platform
+    """Django view to get and post to the Discourse platform
 
     Methods
     -------
@@ -2149,93 +2155,96 @@ class DiscoursePostView(viewsets.ViewSet):
         - post_content: content of the post
         - post_tags: a JSON string of tags related to the Post
 
-    Returns
-    -------
+    Returns JSON
 
     example output (POST):
-        Response with a URL linking to the post that has just been created
+
+        .. code-block:: javascript
 
           {
                 "Post url": "https://discourse.xchem-dev.diamond.ac.uk/t/78/1"
           }
 
     example output (GET):
-        Response with a list of posts
 
-        {
-            "Posts": {
-                "post_stream": {
-                    "posts": [
-                        {
-                            "id": 131,
-                            "name": "user",
-                            "username": "user",
-                            "avatar_template": "/letter_avatar_proxy/v4/letter/u/c0e974/{size}.png",
-                            "created_at": "2020-12-10T14:50:56.006Z",
-                            "cooked": "<p>This is a post for session-project 0005 to test if it works without parent category</p>",
-                            "post_number": 1,
-                            "post_type": 1,
-                            "updated_at": "2020-12-10T14:50:56.006Z",
-                            "reply_count": 0,
-                            "reply_to_post_number": null,
-                            "quote_count": 0,
-                            "incoming_link_count": 1,
-                            "reads": 1,
-                            "readers_count": 0,
-                            "score": 5.2,
-                            "yours": true,
-                            "topic_id": 81,
-                            "topic_slug": "api-test-session-project-000005",
-                            "display_username": "user",
-                            "primary_group_name": null,
-                            "primary_group_flair_url": null,
-                            "primary_group_flair_bg_color": null,
-                            "primary_group_flair_color": null,
-                            "version": 1,
-                            "can_edit": true,
-                            "can_delete": false,
-                            "can_recover": false,
-                            "can_wiki": true,
-                            "read": true,
-                            "user_title": null,
-                            "actions_summary": [
-                                {
-                                    "id": 3,
-                                    "can_act": true
-                                },
-                                {
-                                    "id": 4,
-                                    "can_act": true
-                                },
-                                {
-                                    "id": 8,
-                                    "can_act": true
-                                },
-                                {
-                                    "id": 7,
-                                    "can_act": true
-                                }
-                            ],
-                            "moderator": false,
-                            "admin": true,
-                            "staff": true,
-                            "user_id": 1,
-                            "hidden": false,
-                            "trust_level": 1,
-                            "deleted_at": null,
-                            "user_deleted": false,
-                            "edit_reason": null,
-                            "can_view_edit_history": true,
-                            "wiki": false,
-                            "reviewable_id": 0,
-                            "reviewable_score_count": 0,
-                            "reviewable_score_pending_count": 0
-                        }
-                    ]
-                },
-                "id": 81
+        .. code-block:: javascript
+
+            {
+                "Posts": {
+                    "post_stream": {
+                        "posts": [
+                            {
+                                "id": 131,
+                                "name": "user",
+                                "username": "user",
+                                "avatar_template": "/letter_avatar_proxy/v4/letter/u/c0e974/{size}.png",
+                                "created_at": "2020-12-10T14:50:56.006Z",
+                                "cooked": "<p>This is a post for session-project 0005 to test if it works without parent category</p>",
+                                "post_number": 1,
+                                "post_type": 1,
+                                "updated_at": "2020-12-10T14:50:56.006Z",
+                                "reply_count": 0,
+                                "reply_to_post_number": null,
+                                "quote_count": 0,
+                                "incoming_link_count": 1,
+                                "reads": 1,
+                                "readers_count": 0,
+                                "score": 5.2,
+                                "yours": true,
+                                "topic_id": 81,
+                                "topic_slug": "api-test-session-project-000005",
+                                "display_username": "user",
+                                "primary_group_name": null,
+                                "primary_group_flair_url": null,
+                                "primary_group_flair_bg_color": null,
+                                "primary_group_flair_color": null,
+                                "version": 1,
+                                "can_edit": true,
+                                "can_delete": false,
+                                "can_recover": false,
+                                "can_wiki": true,
+                                "read": true,
+                                "user_title": null,
+                                "actions_summary":
+                                [
+                                    {
+                                        "id": 3,
+                                        "can_act": true
+                                    },
+                                    {
+                                        "id": 4,
+                                        "can_act": true
+                                    },
+                                    {
+                                        "id": 8,
+                                        "can_act": true
+                                    },
+                                    {
+                                        "id": 7,
+                                        "can_act": true
+                                    }
+                                ],
+                                "moderator": false,
+                                "admin": true,
+                                "staff": true,
+                                "user_id": 1,
+                                "hidden": false,
+                                "trust_level": 1,
+                                "deleted_at": null,
+                                "user_deleted": false,
+                                "edit_reason": null,
+                                "can_view_edit_history": true,
+                                "wiki": false,
+                                "reviewable_id": 0,
+                                "reviewable_score_count": 0,
+                                "reviewable_score_pending_count": 0
+                            }
+                        ]
+                    },
+                    "id": 81
+                }
             }
-        }
+
     """
 
     serializer_class = DiscoursePostWriteSerializer
