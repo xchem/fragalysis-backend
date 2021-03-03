@@ -885,7 +885,7 @@ def analyse_target(target_name, aligned_path):
                 if isinstance(row['alternate_name'], str):
                     crystal_name = row['crystal_name']
                     # find the correct crystal
-                    crystal = Protein.objects.filter(code__contains=crystal_name)
+                    crystal = Protein.objects.filter(code__contains=crystal_name, target_id=target)
                     alternate_name = row['alternate_name']
                     # Only take first part of code
                     for crys in list(set([c.code.split(":")[0] for c in crystal])):
@@ -902,7 +902,7 @@ def analyse_target(target_name, aligned_path):
 
             for _, row in new_frame.iterrows():
                 crystal_name = row['crystal_name']
-                crystal = Protein.objects.filter(code__contains=crystal_name)
+                crystal = Protein.objects.filter(code__contains=crystal_name, target_id=target)
                 site = row['site_name']
                 s_id = site_mapping[site]
                 for crys in list(set([c.code for c in crystal])):
@@ -1024,6 +1024,51 @@ def process_target(new_data_folder, target_name, proposal_ref):
     return mols_loaded, mols_processed
 
 
+def add_warning(validate_dict, location, error, line_number):
+
+    validate_dict['Location'].append(location)
+    validate_dict['Error'].append(error)
+    validate_dict['Line number'].append(line_number)
+    return validate_dict
+
+
+def check_metadata(metadata_file, input_validate_dict):
+    """Validate the metadata.csv file to check basic formatting is correct
+
+    :return:
+        validated: boolean
+        validate_dict:
+    """
+    validated = True
+    # Metedata.csv has the following columns:
+    # crystal_name: must not be spaces, "_0A", "_1A" (less than 4 characters)
+    # RealCrystalName: must not be spaces
+    # smiles: must not be spaces
+    # new_smiles: no specific validation
+    # alternate_name: no specific validation
+    # site_name: no specific validation
+    # pdb_entry: no specific validation
+
+    meta_dataframe = pd.read_csv(metadata_file)
+    meta_dataframe['crystal_name'] = meta_dataframe['crystal_name'].astype(str)
+    meta_dataframe['RealCrystalName'] = meta_dataframe['RealCrystalName'].astype(str)
+    meta_dataframe['smiles'] = meta_dataframe['smiles'].astype(str)
+
+    # Loop through metadata doing basic checks on each item
+    for idx, (_, row) in enumerate(meta_dataframe.iterrows()):
+        if row['crystal_name'].isspace() or len(row['crystal_name']) < 4:
+            add_warning(input_validate_dict, 'Metadata.csv', 'Crystal name too short or spaces', idx + 2)
+            validated = False
+        if row['RealCrystalName'].isspace() or row['RealCrystalName']=='nan':
+            add_warning(input_validate_dict, 'Metadata.csv', 'RealCrystalName spaces', idx + 2)
+            validated = False
+        if row['smiles'].isspace() or row['smiles']=='nan':
+            add_warning(input_validate_dict, 'Metadata.csv', 'Smiles spaces', idx + 2)
+            validated = False
+
+    return validated, input_validate_dict
+
+
 def validate_target(new_data_folder, target_name, proposal_ref):
     """Validate the target dataset. This will initially just be structurally
 
@@ -1033,19 +1078,27 @@ def validate_target(new_data_folder, target_name, proposal_ref):
     :return:
     """
     validated = True
-    validate_dict = {'Error': []}
+    validate_dict = {'Location': [], 'Error': [], 'Line number': [] }
 
     # Check if there is any data to process
     target_path = os.path.join(new_data_folder, target_name)
 
     if not os.path.isdir(target_path):
-        validate_dict['Error'].append('No folder matching target name in extracted zip file')
+        validate_dict = add_warning(validate_dict, 'Folder', 'No folder matching target name in extracted zip file', 0)
         validated = False
 
     aligned_path = os.path.join(target_path, 'aligned')
 
     if not os.path.isdir(aligned_path):
-        validate_dict['Error'].append('No aligned folder present in target name folder')
+        validate_dict = add_warning(validate_dict, 'Folder', 'No aligned folder present in target name folder', 0)
+        validated = False
+
+    # Check if there is a metadata.csv file to process
+    metadata_file = os.path.join(aligned_path, 'metadata.csv')
+    if os.path.isfile(metadata_file):
+        validated, validate_dict = check_metadata (metadata_file, validate_dict)
+    else:
+        validate_dict = add_warning(validate_dict, 'File', 'No metedata.csv file present in the aligned folder', 0)
         validated = False
 
     return validated, validate_dict
