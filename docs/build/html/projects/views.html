@@ -53,6 +53,22 @@ title and description are also displayed here.</p></li>
 is logged in and clicks the ‘+’ button on the projects pane of the landing page. The GET method of this view is used
 to retrieve information about user-created projects, and display it in the projects pane of the landing page.</p></li>
 </ul>
+<p>There are also two subsidiary views for Snapshot and Session Project to capture and store actions by the user on the
+frontend. These allow the user to recreate the current state and allow the user to go backwards and forwards through
+previous actions. These views are:</p>
+<ul class="simple">
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.SnapshotActionsView</span></code></p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">viewer.views.SessionActionsView</span></code></p></li>
+</ul>
+</div>
+<div class="section" id="discourse">
+<h2>Discourse<a class="headerlink" href="#discourse" title="Permalink to this headline">¶</a></h2>
+<p>If a Discourse platform has been configured and a Discourse API key is supplied in the environmental parameters,
+then the <code class="code docutils literal notranslate"><span class="pre">DiscoursePostView</span></code> can be used to create sub-categories, topics and posts. The intention is that:
+- Subcategories will be created when a Target is uploaded (with the name of the Target)
+- Creating a Session Project for the Target will also allow a new topic within the sub-category (Target)
+- Creating a Snapshot within a Session Project will also allow a new post to be created within the topic</p>
+<p>In all cases a URL is returned allowing the user to immediately navigate to the post if desired.</p>
 </div>
 <div class="section" id="view-details">
 <h2>View details<a class="headerlink" href="#view-details" title="Permalink to this headline">¶</a></h2>
@@ -173,6 +189,77 @@ session information (PUT, POST, PATCH)</p>
 </dd></dl>
 
 <dl class="py class">
+<dt id="viewer.views.SnapshotActionsView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SnapshotActionsView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SnapshotActionsView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Djagno view to retrieve information about actions relating to snapshots (GET). Also used for saving
+snapshot action information (PUT, POST, PATCH)</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/snapshot-actions</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.SnapshotActions.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.SnapshotActions.snapshot</cite> - ?snapshot=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.SnapshotActions.last_update_date</cite> - ?date=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the snapshot action record</p></li>
+<li><p>author: id of the user that created the snapshot</p></li>
+<li><p>session_project: id of the related session_project (if present)</p></li>
+<li><p>snapshot: id of the related snapshot</p></li>
+<li><p>last_update_date: Timestamp for when the action list was generated or updated</p></li>
+<li><p>actions: JSON string containing actions related to the session_project</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;last_update_date&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-10-06T15:36:00Z&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;actions&quot;</span><span class="o">:</span> <span class="p">{</span>
+            <span class="s2">&quot;save&quot;</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+            <span class="s2">&quot;show&quot;</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+            <span class="s2">&quot;action_type&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">&quot;object_name&quot;</span><span class="o">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;object_type&quot;</span><span class="o">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;action_datetime&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-09-30T13:44:00.000Z&quot;</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;author&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;session_project&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;snapshot&quot;</span><span class="o">:</span> <span class="mi">1</span>
+    <span class="p">}</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.SnapshotActionsView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.SnapshotActionsView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.SnapshotActionsSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt id="viewer.views.SessionProjectsView">
 <em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionProjectsView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionProjectsView" title="Permalink to this definition">¶</a></dt>
 <dd><p>Djagno view to retrieve information about user projects (collection of sessions) (GET). Also used for saving
@@ -282,6 +369,226 @@ project information (PUT, POST, PATCH)</p>
 
 </dd></dl>
 
+<dl class="py class">
+<dt id="viewer.views.SessionActionsView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionActionsView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionActionsView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Djagno view to retrieve information about actions relating to sessions_project (GET). Also used for saving
+project action information (PUT, POST, PATCH)</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/session-actions</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.SessionActions.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.SessionProject.author</cite> - ?author=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.SessionProject.session_project</cite> - ?project=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.SessionProject.last_update_date</cite> - ?date=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd><ul class="simple">
+<li><p>id: id of the session action record</p></li>
+<li><p>author: id of the user that created the session_project</p></li>
+<li><p>session_project: id of the related session_project</p></li>
+<li><p>last_update_date: Timestamp for when the action list was generated or updated</p></li>
+<li><p>actions: JSON string containing actions related to the session_project</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;last_update_date&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-10-06T15:36:00Z&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;actions&quot;</span><span class="o">:</span> <span class="p">{</span>
+            <span class="s2">&quot;save&quot;</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+            <span class="s2">&quot;show&quot;</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+            <span class="s2">&quot;action_type&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">&quot;object_name&quot;</span><span class="o">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;object_type&quot;</span><span class="o">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;action_datetime&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-09-30T13:44:00.000Z&quot;</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;author&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;session_project&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">}</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.SessionActionsView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.SessionActionsView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.SessionActionsSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.DiscoursePostView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">DiscoursePostView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.DiscoursePostView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django view to get and post to the Discourse platform</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">allowed requests:</code></dt>
+<dd><ul class="simple">
+<li><p>POST: Takes a post and calls a function to post the details to the Discourse platform.</p></li>
+<li><p>GET: (No yet fully operational - returns posts for ?post_title=&lt;topic title&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/discourse_post</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">params:</code></dt>
+<dd><ul class="simple">
+<li><p>category_name: sub category_name for Discourse post (optional if post title is given)</p></li>
+<li><p>parent_category: Discourse parent_category name - defaults to “fragalysis targets” (Setting)</p></li>
+<li><p>category_colour: Optional - defaults to ‘0088CC’</p></li>
+<li><p>category_text_colour: Optional defaults to ‘FFFFFF’</p></li>
+<li><p>post_title: title of topic or post (optional if category name is given)</p></li>
+<li><p>post_content: content of the post</p></li>
+<li><p>post_tags: a JSON string of tags related to the Post</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">Returns JSON</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output (POST):</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+      <span class="s2">&quot;Post url&quot;</span><span class="o">:</span> <span class="s2">&quot;https://discourse.xchem-dev.diamond.ac.uk/t/78/1&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example output (GET):</code></dt>
+<dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;Posts&quot;</span><span class="o">:</span> <span class="p">{</span>
+        <span class="s2">&quot;post_stream&quot;</span><span class="o">:</span> <span class="p">{</span>
+            <span class="s2">&quot;posts&quot;</span><span class="o">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">131</span><span class="p">,</span>
+                    <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;username&quot;</span><span class="o">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;avatar_template&quot;</span><span class="o">:</span> <span class="s2">&quot;/letter_avatar_proxy/v4/letter/u/c0e974/{size}.png&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;created_at&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-12-10T14:50:56.006Z&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;cooked&quot;</span><span class="o">:</span> <span class="s2">&quot;&lt;p&gt;This is a post for session-project 0005 to test if it works without parent category&lt;/p&gt;&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;post_number&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="s2">&quot;post_type&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="s2">&quot;updated_at&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-12-10T14:50:56.006Z&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;reply_count&quot;</span><span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s2">&quot;reply_to_post_number&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+                    <span class="s2">&quot;quote_count&quot;</span><span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s2">&quot;incoming_link_count&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="s2">&quot;reads&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="s2">&quot;readers_count&quot;</span><span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s2">&quot;score&quot;</span><span class="o">:</span> <span class="mf">5.2</span><span class="p">,</span>
+                    <span class="s2">&quot;yours&quot;</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+                    <span class="s2">&quot;topic_id&quot;</span><span class="o">:</span> <span class="mi">81</span><span class="p">,</span>
+                    <span class="s2">&quot;topic_slug&quot;</span><span class="o">:</span> <span class="s2">&quot;api-test-session-project-000005&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;display_username&quot;</span><span class="o">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;primary_group_name&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+                    <span class="s2">&quot;primary_group_flair_url&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+                    <span class="s2">&quot;primary_group_flair_bg_color&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+                    <span class="s2">&quot;primary_group_flair_color&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+                    <span class="s2">&quot;version&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="s2">&quot;can_edit&quot;</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+                    <span class="s2">&quot;can_delete&quot;</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+                    <span class="s2">&quot;can_recover&quot;</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+                    <span class="s2">&quot;can_wiki&quot;</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+                    <span class="s2">&quot;read&quot;</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+                    <span class="s2">&quot;user_title&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+                    <span class="s2">&quot;actions_summary&quot;</span><span class="o">:</span>
+                    <span class="p">[</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">3</span><span class="p">,</span>
+                            <span class="s2">&quot;can_act&quot;</span><span class="o">:</span> <span class="kc">true</span>
+                        <span class="p">},</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">4</span><span class="p">,</span>
+                            <span class="s2">&quot;can_act&quot;</span><span class="o">:</span> <span class="kc">true</span>
+                        <span class="p">},</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">8</span><span class="p">,</span>
+                            <span class="s2">&quot;can_act&quot;</span><span class="o">:</span> <span class="kc">true</span>
+                        <span class="p">},</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">7</span><span class="p">,</span>
+                            <span class="s2">&quot;can_act&quot;</span><span class="o">:</span> <span class="kc">true</span>
+                        <span class="p">}</span>
+                    <span class="p">],</span>
+                    <span class="s2">&quot;moderator&quot;</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+                    <span class="s2">&quot;admin&quot;</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+                    <span class="s2">&quot;staff&quot;</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+                    <span class="s2">&quot;user_id&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="s2">&quot;hidden&quot;</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+                    <span class="s2">&quot;trust_level&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="s2">&quot;deleted_at&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+                    <span class="s2">&quot;user_deleted&quot;</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+                    <span class="s2">&quot;edit_reason&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+                    <span class="s2">&quot;can_view_edit_history&quot;</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+                    <span class="s2">&quot;wiki&quot;</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+                    <span class="s2">&quot;reviewable_id&quot;</span><span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s2">&quot;reviewable_score_count&quot;</span><span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s2">&quot;reviewable_score_pending_count&quot;</span><span class="o">:</span> <span class="mi">0</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">81</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="viewer.views.DiscoursePostView.create">
+<code class="sig-name descname">create</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.DiscoursePostView.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to handle POST request and call discourse to create the post</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="viewer.views.DiscoursePostView.list">
+<code class="sig-name descname">list</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.DiscoursePostView.list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to handle GET request and call discourse to list posts for a topic</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.DiscoursePostView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.DiscoursePostView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.DiscoursePostWriteSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 </div>
 
@@ -314,6 +621,7 @@ project information (PUT, POST, PATCH)</p>
 <li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Project data (Views)</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#where-the-views-are-used-frontend">Where the views are used (frontend)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#discourse">Discourse</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#view-details">View details</a></li>
 </ul>
 </li>

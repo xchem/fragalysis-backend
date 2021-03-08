@@ -885,7 +885,7 @@ def analyse_target(target_name, aligned_path):
                 if isinstance(row['alternate_name'], str):
                     crystal_name = row['crystal_name']
                     # find the correct crystal
-                    crystal = Protein.objects.filter(code__contains=crystal_name)
+                    crystal = Protein.objects.filter(code__contains=crystal_name, target_id=target)
                     alternate_name = row['alternate_name']
                     # Only take first part of code
                     for crys in list(set([c.code.split(":")[0] for c in crystal])):
@@ -902,7 +902,7 @@ def analyse_target(target_name, aligned_path):
 
             for _, row in new_frame.iterrows():
                 crystal_name = row['crystal_name']
-                crystal = Protein.objects.filter(code__contains=crystal_name)
+                crystal = Protein.objects.filter(code__contains=crystal_name, target_id=target)
                 site = row['site_name']
                 s_id = site_mapping[site]
                 for crys in list(set([c.code for c in crystal])):
@@ -1024,6 +1024,85 @@ def process_target(new_data_folder, target_name, proposal_ref):
     return mols_loaded, mols_processed
 
 
+def add_tset_warning(validate_dict, location, error, line_number):
+
+    validate_dict['Location'].append(location)
+    validate_dict['Error'].append(error)
+    validate_dict['Line number'].append(line_number)
+    return validate_dict
+
+def check_meatadata_row(validated, input_validate_dict, row, idx):
+    """Validate the metadata.csv file to check basic formatting is correct
+
+    Metedata.csv has the following columns:
+    crystal_name: must not be spaces or null and should contain the RealCrystalName
+    RealCrystalName: must not be spaces or null
+    smiles: must not be null
+    new_smiles: no specific validation
+    alternate_name: no specific validation
+    site_name: whole column should either be null or not null (no partial columns)
+    pdb_entry: no specific validation
+
+    :return:
+        validated: boolean (updated)
+        validate_dict: (updated)
+    """
+
+    if row['RealCrystalName'].isspace() or row['RealCrystalName'] == 'nan':
+        add_tset_warning(input_validate_dict, 'Metadata.csv', 'RealCrystalName spaces or null', idx + 2)
+        validated = False
+    if row['crystal_name'].isspace() or row['RealCrystalName'] == 'nan':
+        add_tset_warning(input_validate_dict, 'Metadata.csv', 'Crystal name spaces or null', idx + 2)
+        validated = False
+    if row['RealCrystalName'] not in row['crystal_name']:
+        add_tset_warning(input_validate_dict, 'Metadata.csv', 'Crystal name does not contain RealCrystalName', idx + 2)
+        validated = False
+    if row['smiles'] == 'nan':
+        add_tset_warning(input_validate_dict, 'Metadata.csv', 'Smiles null', idx + 2)
+        validated = False
+
+    return validated, input_validate_dict
+
+
+def check_metadata(metadata_file, input_validate_dict):
+    """Validate the metadata.csv file to check basic formatting is correct
+
+    :return:
+        validated: boolean
+        validate_dict:
+    """
+    validated = True
+    # Metedata.csv has the following columns:
+    # crystal_name: must not be spaces or null and should contain the RealCrystalName
+    # RealCrystalName: must not be spaces or null
+    # smiles: must not be null
+    # new_smiles: no specific validation
+    # alternate_name: no specific validation
+    # site_name: whole column should either be null or not null (no partial columns)
+    # pdb_entry: no specific validation
+
+    meta_dataframe = pd.read_csv(metadata_file)
+
+    # File level checks.
+    meta_sites = meta_dataframe['site_name']
+    if meta_sites.isnull().values.all() or meta_sites.notnull().values.all():
+        pass
+    else:
+        add_tset_warning(input_validate_dict, 'Metadata.csv',
+                    'site_name column should either be completely filled or completely null', 0)
+        validated = False
+
+    meta_dataframe['crystal_name'] = meta_dataframe['crystal_name'].astype(str)
+    meta_dataframe['RealCrystalName'] = meta_dataframe['RealCrystalName'].astype(str)
+    meta_dataframe['smiles'] = meta_dataframe['smiles'].astype(str)
+
+    # Loop through metadata doing basic checks on each row
+    for idx, (_, row) in enumerate(meta_dataframe.iterrows()):
+        validated, input_validate_dict = check_meatadata_row(validated, input_validate_dict, row, idx)
+
+    return validated, input_validate_dict
+
+
 def validate_target(new_data_folder, target_name, proposal_ref):
     """Validate the target dataset. This will initially just be structurally
 
@@ -1032,20 +1111,25 @@ def validate_target(new_data_folder, target_name, proposal_ref):
     :param proposal_ref: A reference to the proposal/visit used for connecting the target to a project/users
     :return:
     """
-    validated = True
-    validate_dict = {'Error': []}
+    validate_dict = {'Location': [], 'Error': [], 'Line number': []}
 
     # Check if there is any data to process
     target_path = os.path.join(new_data_folder, target_name)
 
     if not os.path.isdir(target_path):
-        validate_dict['Error'].append('No folder matching target name in extracted zip file')
-        validated = False
+        validate_dict = add_tset_warning(validate_dict, 'Folder', 'No folder matching target name in extracted zip file', 0)
 
     aligned_path = os.path.join(target_path, 'aligned')
 
     if not os.path.isdir(aligned_path):
-        validate_dict['Error'].append('No aligned folder present in target name folder')
+        validate_dict = add_tset_warning(validate_dict, 'Folder', 'No aligned folder present in target name folder', 0)
+
+    # Check if there is a metadata.csv file to process
+    metadata_file = os.path.join(aligned_path, 'metadata.csv')
+    if os.path.isfile(metadata_file):
+        validated, validate_dict = check_metadata(metadata_file, validate_dict)
+    else:
+        validate_dict = add_tset_warning(validate_dict, 'File', 'No metedata.csv file present in the aligned folder', 0)
         validated = False
 
     return validated, validate_dict

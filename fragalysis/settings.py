@@ -109,7 +109,8 @@ INSTALLED_APPS = [
     "guardian",
     "graphene_django",
     "django_filters",
-    "django_cas_ng",
+    # =L mozilla_django_oidc - Keycloak authentication
+    "mozilla_django_oidc",  # Load after auth
     "django_extensions",
     "rest_framework",
     "rest_framework.authtoken",
@@ -127,12 +128,14 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    'django_cas_ng.middleware.CASMiddleware',
+    # =L mozilla_django_oidc - Keycloak authentication
+    "mozilla_django_oidc.middleware.SessionRefresh",
 ]
 
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
-    "django_cas_ng.backends.CASBackend",
+    # =L mozilla_django_oidc - Keycloak authentication
+    "fragalysis.auth.KeycloakOIDCAuthenticationBackend",
     "guardian.backends.ObjectPermissionBackend",
 )
 
@@ -143,10 +146,58 @@ STATICFILES_FINDERS = (
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 )
 
-# CAS parameters
-CAS_SERVER_URL = "https://auth.diamond.ac.uk:443/cas/"
-CAS_REDIRECT_URL = "/viewer/react/landing"
-CAS_FORCE_CHANGE_USERNAME_CASE = "lower"
+# +B mozilla_django_oidc - from documentation: https://mozilla-django-oidc.readthedocs.io/en/stable/
+# Before you can configure your application, you need to set up a client with an OpenID Connect provider (OP).
+# You’ll need to set up a different client for every environment you have for your site. For example,
+# if your site has a -dev, -stage, and -prod environments, each of those has a different hostname and thus you
+# need to set up a separate client for each one.
+# you need to provide your OpenID Connect provider (OP) the callback url for your site.
+# The URL path for the callback url is /oidc/callback/.
+#
+# Here are examples of callback urls:
+#
+#   http://127.0.0.1:8000/oidc/callback/ – for local development
+#   https://myapp-dev.example.com/oidc/callback/ – -dev environment for myapp
+#   https://myapp.herokuapps.com/oidc/callback/ – my app running on Heroku
+#
+# The OpenID Connect provider (OP) will then give you the following:
+#
+#   a client id (OIDC_RP_CLIENT_ID)
+#   a client secret (OIDC_RP_CLIENT_SECRET)
+
+# Keycloak mozilla_django_oidc - Settings
+# from keyclaok (openid provider = OP) - NB these should be environment variables - not checked in
+OIDC_RP_CLIENT_ID = os.environ.get("OIDC_RP_CLIENT_ID", "fragalysis-local")
+OIDC_RP_CLIENT_SECRET = os.environ.get('OIDC_RP_CLIENT_SECRET')
+OIDC_KEYCLOAK_REALM = os.environ.get("OIDC_KEYCLOAK_REALM",
+                                     "https://keycloak.xchem-dev.diamond.ac.uk/auth/realms/xchem")
+
+# OIDC_OP_AUTHORIZATION_ENDPOINT = "<URL of the OIDC OP authorization endpoint>"
+OIDC_OP_AUTHORIZATION_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/auth")
+# OIDC_OP_TOKEN_ENDPOINT = "<URL of the OIDC OP token endpoint>"
+OIDC_OP_TOKEN_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/token")
+# OIDC_OP_USER_ENDPOINT = "<URL of the OIDC OP userinfo endpoint>"
+OIDC_OP_USER_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/userinfo")
+# OIDC_OP_JWKS_ENDPOINT = "<URL of the OIDC OP certs endpoint>" - This is required when using RS256.
+OIDC_OP_JWKS_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/certs")
+# OIDC_OP_LOGOUT_ENDPOINT = "<URL of the OIDC OP certs endpoint>" - This is required when using RS256.
+OIDC_OP_LOGOUT_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/logout")
+
+# Override method to also log user out from Keycloak as well as Django.
+# If desired, this should be set to "fragalysis.views.keycloak_logout"
+OIDC_OP_LOGOUT_URL_METHOD = os.environ.get("OIDC_OP_LOGOUT_URL_METHOD")
+
+# LOGIN_REDIRECT_URL = "<URL path to redirect to after login>"
+LOGIN_REDIRECT_URL = "/viewer/react/landing"
+# LOGOUT_REDIRECT_URL = "<URL path to redirect to after logout - must be in keycloak call back if used>"
+LOGOUT_REDIRECT_URL = "/viewer/react/landing"
+
+# After much trial and error
+# Using RS256 + JWKS Endpoint seems to work with no value for OIDC_RP_IDP_SIGN_KEY seems to work for authentication.
+# Trying HS256 produces a "JWS token verification failed" error for some reason.
+OIDC_RP_SIGN_ALGO = "RS256"
+# Keycloak mozilla_django_oidc - Settings - End
+
 
 ROOT_URLCONF = "fragalysis.urls"
 
@@ -256,13 +307,15 @@ GRAPH_MODELS = {"all_applications": True, "group_models": True}
 
 # email settings for upload key stuff
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_USE_TLS = True
-EMAIL_PORT = 587
 EMAIL_HOST_USER = os.environ.get("EMAIL_USER")
-EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+# If there is an email user is defined then check the rest of the configuration is present.
+# The defaults are set for the current (gamil) production configuration.
+if EMAIL_HOST_USER:
+    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', True)
+    EMAIL_PORT = os.environ.get('EMAIL_PORT', 587)
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
-CAS_CHECK_NEXT = lambda _: True
 
 # DOCS_ROOT = "/code/docs/_build/html "
 

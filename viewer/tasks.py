@@ -417,7 +417,7 @@ def validate_target_set(target_zip, target=None, proposal=None, email=None):
     os.remove(target_zip)
     # Tidy up data if not validated
     if not validated:
-        os.remove(new_data_folder)
+        shutil.rmtree(new_data_folder)
 
     return ('validate', 'tset', validate_dict, validated, new_data_folder, target, proposal,
             submitter_name, email)

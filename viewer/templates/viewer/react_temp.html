@@ -11,7 +11,6 @@
  <div id="app"></div>
 
 
-
  <script type="text/javascript">
 
  {% if user.is_authenticated %}
@@ -19,15 +18,17 @@
          username: '{{user.username}}',
          email: '{{ user.email|default:"noemail" }}',
          pk: {{user.pk|default:-1}},
-         authenticated: true
-     };
+         authenticated: true,
+         discourse_available: {{ discourse_available }}
+     }
  {% else %}
      var DJANGO_CONTEXT = {
          username: 'NOT_LOGGED_IN',
          email: "noemail",
          pk: undefined,
-         authenticated: false
-     };
+         authenticated: false,
+         discourse_available: {{ discourse_available }}
+     }
  {% endif %}
 
 </script>

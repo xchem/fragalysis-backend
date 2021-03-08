@@ -1,7 +1,7 @@
 .. _crys-views:
 
 Crystallographic data (Views)
-==========================
+=============================
 
 The models that these views work on can be found in :ref:`Crystallographic data (Models) <crys-models>`
 
