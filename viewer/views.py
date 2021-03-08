@@ -6,7 +6,6 @@ import pandas as pd
 import uuid
 import shutil
 
-import uuid
 # import the logging library
 import logging
 # Get an instance of a logger
