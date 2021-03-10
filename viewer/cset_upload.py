@@ -112,20 +112,11 @@ class MolOps:
         pdb_fp = zfile[pdb_code]
         pdb_fn = zfile[pdb_code].split('/')[-1]
 
-        # Move and save the protein pdb from tmp to pdbs folder
-        # pdb may have already been moved and Protein object created
-
-        # prot_objs = Protein.objects.filter(code=pdb_code)
-        # if len(prot_objs) > 0:
-        #     raise Exception('Something went wrong with pdb zip upload!')
-
-        ## THIS BIT ISN'T MOVING THE FILES PROPERLY
         print(zfile_hashvals)
 
         new_filename = settings.MEDIA_ROOT + 'pdbs/' + pdb_fn
         old_filename = settings.MEDIA_ROOT + pdb_fp
         shutil.copy(old_filename, new_filename)
-        # os.renames(old_filename, new_filename)
 
         # Create Protein object
         target_obj = Target.objects.get(title=target)
@@ -155,8 +146,18 @@ class MolOps:
 
         else:
             name = compound_set.target.title + '-' + pdb_fn
-            prot_obj = Protein.objects.get(code__contains=name.split(':')[0].split('_')[0])
-            field = prot_obj.pdb_info
+
+            # try to get single exact match
+            # name.split(':')[0].split('_')[0]
+            try:
+                prot_obj = Protein.objects.get(code__contains=name)
+
+            except:
+                prot_objs = Protein.objects.filter(code__contains=name)
+                if len(prot_objs)==0:
+                    prot_objs = Protein.objects.filter(code__contains=name.split(':')[0].split('_')[0])
+                prot_obj = prot_objs[0]
+                field = prot_obj.pdb_info
 
         return prot_obj
 
@@ -241,17 +242,26 @@ class MolOps:
         insp = [i.strip() for i in insp]
         insp_frags = []
         for i in insp:
-            mols = Molecule.objects.filter(
-                prot_id__code__contains=str(compound_set.target.title + '-' + i.split(':')[0].split('_')[0]),
-                prot_id__target_id=compound_set.target)
-            if len(mols) > 1:
-                ids = [m.cmpd_id.id for m in mols]
-                ind = ids.index(max(ids))
-                ref = mols[ind]
-            if len(mols) == 1:
-                ref = mols[0]
-            if len(mols) == 0:
-                raise Exception('No matching molecules found for inspiration frag ' + i)
+
+            # try exact match first
+            try:
+                mols = Molecule.objects.get(
+                    prot_id__code__contains=str(compound_set.target.title + '-' + i),
+                    prot_id__target_id=compound_set.target)
+                ref = mols
+            except:
+
+                mols = Molecule.objects.filter(
+                    prot_id__code__contains=str(compound_set.target.title + '-' + i.split(':')[0].split('_')[0]),
+                    prot_id__target_id=compound_set.target)
+                if len(mols) > 1:
+                    ids = [m.cmpd_id.id for m in mols]
+                    ind = ids.index(max(ids))
+                    ref = mols[ind]
+                if len(mols) == 1:
+                    ref = mols[0]
+                if len(mols) == 0:
+                    raise Exception('No matching molecules found for inspiration frag ' + i)
 
             insp_frags.append(ref)
 
