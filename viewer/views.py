@@ -274,7 +274,7 @@ class ProteinMapInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtMapInfoSerialzer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "prot_type")
+    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 class ProteinPDBInfoView(ISpyBSafeQuerySet):
@@ -310,7 +310,7 @@ class ProteinPDBInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtPDBInfoSerialzer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "prot_type")
+    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
@@ -346,7 +346,7 @@ class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtPDBBoundInfoSerialzer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "prot_type")
+    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 class TargetView(ISpyBSafeQuerySet):
@@ -476,9 +476,11 @@ class MoleculeView(ISpyBSafeQuerySet):
     filter_permissions = "prot_id__target_id__project_id"
     filter_fields = (
         "prot_id",
+        "prot_id__code",
         "cmpd_id",
         "smiles",
         "prot_id__target_id",
+        "prot_id__target_id__title",
         "mol_type",
         "mol_groups",
     )
@@ -522,7 +524,7 @@ class CompoundView(ISpyBSafeQuerySet):
     queryset = Compound.objects.filter()
     serializer_class = CompoundSerializer
     filter_permissions = "project_id"
-    filter_fields = ("smiles",)
+    filter_fields = ("smiles", "current_identifier", "inchi", "long_inchi")
 
 
 class ProteinView(ISpyBSafeQuerySet):
@@ -570,7 +572,7 @@ class ProteinView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProteinSerializer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "prot_type")
+    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 def react(request):
@@ -1898,7 +1900,7 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedSet.objects.filter()
     serializer_class = ComputedSetSerializer
     filter_permissions = "project_id"
-    filter_fields = ('target',)
+    filter_fields = ('target', 'target__title')
 
 
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
