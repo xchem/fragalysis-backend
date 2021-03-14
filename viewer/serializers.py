@@ -105,9 +105,9 @@ class CompoundSerializer(serializers.ModelSerializer):
             "num_rot_bonds",
             "num_val_electrons",
             "ring_count",
-            "inspirations",
-            "description",
-            "comments",
+            # "inspirations",
+            # "description",
+            # "comments",
         )
 
 
