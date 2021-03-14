@@ -87,11 +87,27 @@ class CompoundSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "inchi",
+            "long_inchi",
             "smiles",
+            "current_identifier",
+            "all_identifiers",
+            # "project_id",
             "mol_log_p",
             "mol_wt",
+            "tpsa",
+            "heavy_atom_count",
+            "heavy_atom_mol_wt",
+            "nhoh_count",
+            "no_count",
             "num_h_acceptors",
             "num_h_donors",
+            "num_het_atoms",
+            "num_rot_bonds",
+            "num_val_electrons",
+            "ring_count",
+            # "inspirations",
+            # "description",
+            # "comments",
         )
 
 
