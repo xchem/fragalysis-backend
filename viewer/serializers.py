@@ -91,7 +91,7 @@ class CompoundSerializer(serializers.ModelSerializer):
             "smiles",
             "current_identifier",
             "all_identifiers",
-            "project_id",
+            # "project_id",
             "mol_log_p",
             "mol_wt",
             "tpsa",
