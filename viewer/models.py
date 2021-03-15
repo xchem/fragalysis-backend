@@ -8,8 +8,13 @@ from django.core.validators import MinLengthValidator
 
 from simple_history.models import HistoricalRecords
 
-from loader.config import get_mol_choices, get_prot_choices
+#from loader.config import get_mol_choices, get_prot_choices
 
+def get_mol_choices():
+    return [],[]
+
+def get_prot_choices():
+    return [],[]
 
 class Project(models.Model):
     """Django model for holding information about a project. This is used on the Targets level, adding a new project for

@@ -1334,13 +1334,19 @@ def sequence_for_protein(request):
     if "pdb_block" in request.GET:
         pdb_block = request.GET['pdb_block']
     elif "prot_id" in request.GET:
-        protein_file = Protein.objects.get(id=int(request.GET['prot_id'])).pdb_info
-        protein_file.open(mode='rb')
+        try:
+            protein_file = Protein.objects.get(id=int(request.GET['prot_id'])).pdb_info
+        except:
+            return HttpResponse('Protein not found!')
+        protein_file.open(mode='r')
         pdb_block = protein_file.read()
         protein_file.close()
     elif 'prot_path' in request.GET:
-        protein_file = Protein.objects.get(pdb_info=request.GET["prot_path"]).pdb_info
-        protein_file.open(mode='rb')
+        try:
+            protein_file = Protein.objects.get(pdb_info=request.GET["prot_path"].split('/')[-1]).pdb_info
+        except:
+            return HttpResponse('Protein not found!')
+        protein_file.open(mode='r')
         pdb_block = protein_file.read()
         protein_file.close()
     else:
