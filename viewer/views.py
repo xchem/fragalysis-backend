@@ -1343,7 +1343,7 @@ def sequence_for_protein(request):
         protein_file.close()
     elif 'prot_path' in request.GET:
         try:
-            protein_file = Protein.objects.get(pdb_info=request.GET["prot_path"].split('/')[-1]).pdb_info
+            protein_file = Protein.objects.get(pdb_info__contains=request.GET["prot_path"].split('/')[-1]).pdb_info
         except:
             return HttpResponse('Protein not found!')
         protein_file.open(mode='r')
