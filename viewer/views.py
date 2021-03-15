@@ -1284,6 +1284,74 @@ def img_from_smiles(request):
         return HttpResponse("Please insert SMILES")
 
 
+def get_protein_sequences(pdb_block):
+    sequence_list = []
+    aa = {'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'LYS': 'K',
+          'ILE': 'I', 'PRO': 'P', 'THR': 'T', 'PHE': 'F', 'ASN': 'N',
+          'GLY': 'G', 'HIS': 'H', 'LEU': 'L', 'ARG': 'R', 'TRP': 'W',
+          'ALA': 'A', 'VAL': 'V', 'GLU': 'E', 'TYR': 'Y', 'MET': 'M'}
+
+    current_chain = 'A'
+    current_sequence = ''
+    current_number = 0
+
+    for line in pdb_block.split('\n'):
+
+        if line[0:4] == 'ATOM':
+            residue = line[17:20].strip()
+            chain = line[21].strip()
+            n = int(line[22:26].strip())
+
+            if chain != current_chain:
+                chain_dict = {'chain': current_chain, 'sequence': current_sequence}
+                sequence_list.append(chain_dict)
+                current_sequence = ''
+                current_chain = chain
+            if not n == current_number:
+                if n == current_number + 1:
+                    try:
+                        seqres = aa[residue]
+                    except:
+                        seqres = 'X'
+                    current_sequence += seqres
+                else:
+                    if not current_number == 0:
+                        gap = n - current_number
+                        gap_str = ''
+                        for i in range(0, gap):
+                            gap_str += 'X'
+                        current_sequence += gap_str
+            current_number = n
+
+    if not sequence_list:
+        chain_dict = {'chain': current_chain, 'sequence': current_sequence}
+        sequence_list.append(chain_dict)
+
+    return sequence_list
+
+
+def sequence_for_protein(request):
+    if "pdb_block" in request.GET:
+        pdb_block = request.GET['pdb_block']
+    elif "prot_id" in request.GET:
+        protein_file = Protein.objects.get(id=int(request.GET['prot_id'])).pdb_info
+        protein_file.open(mode='rb')
+        pdb_block = protein_file.read()
+        protein_file.close()
+    elif 'prot_path' in request.GET:
+        protein_file = Protein.objects.get(pdb_info=request.GET["prot_path"]).pdb_info
+        protein_file.open(mode='rb')
+        pdb_block = protein_file.read()
+        protein_file.close()
+    else:
+        return HttpResponse("Please insert pdb_block, prot_id or prot_path")
+
+    sequence_list = get_protein_sequences(pdb_block)
+    return HttpResponse(json.dumps(sequence_list))
+
+
+
+
 def highlight_mol_diff(request):
     """ View to generate a 2D molecule image highlighting the difference between a reference and new molecule
 
