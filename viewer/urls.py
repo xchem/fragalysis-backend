@@ -12,7 +12,6 @@ urlpatterns = [
     url(r"^upload_task/(?P<upload_task_id>.+)/$", views.UploadTaskView.as_view(), name='upload_task'),
     url(r"^update_task/(?P<update_task_id>.+)/$", views.UpdateTaskView.as_view(), name='update_task'),
     url(r"^img_from_smiles/$", views.img_from_smiles, name="img_from_smiles"),
-    url(r"^prot_sequence/$", views.sequence_for_protein, name="sequence_for_protein"),
     url(r"^highlight_mol_diff/$", views.highlight_mol_diff, name="highlight_mol_diff"),
     url(r"^sim_search/$", views.similarity_search, name="sim_search"),
     url(r"^open_targets/", views.get_open_targets, name="get_open_targets"),

@@ -37,11 +37,57 @@ class FileSerializer(serializers.ModelSerializer):
         model = File
         fields = "__all__"
 
+def get_protein_sequences(pdb_block):
+    sequence_list = []
+    aa = {'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'LYS': 'K',
+          'ILE': 'I', 'PRO': 'P', 'THR': 'T', 'PHE': 'F', 'ASN': 'N',
+          'GLY': 'G', 'HIS': 'H', 'LEU': 'L', 'ARG': 'R', 'TRP': 'W',
+          'ALA': 'A', 'VAL': 'V', 'GLU': 'E', 'TYR': 'Y', 'MET': 'M'}
+
+    current_chain = 'A'
+    current_sequence = ''
+    current_number = 0
+
+    for line in pdb_block.split('\n'):
+
+        if line[0:4] == 'ATOM':
+            residue = line[17:20].strip()
+            chain = line[21].strip()
+            n = int(line[22:26].strip())
+
+            if chain != current_chain:
+                chain_dict = {'chain': current_chain, 'sequence': current_sequence}
+                sequence_list.append(chain_dict)
+                current_sequence = ''
+                current_chain = chain
+            if not n == current_number:
+                if n == current_number + 1:
+                    try:
+                        seqres = aa[residue]
+                    except:
+                        seqres = 'X'
+                    current_sequence += seqres
+                else:
+                    if not current_number == 0:
+                        gap = n - current_number
+                        gap_str = ''
+                        for i in range(0, gap):
+                            gap_str += 'X'
+                        current_sequence += gap_str
+            current_number = n
+
+    if not sequence_list:
+        chain_dict = {'chain': current_chain, 'sequence': current_sequence}
+        sequence_list.append(chain_dict)
+
+    return sequence_list
+
 
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
     zip_archive = serializers.SerializerMethodField()
     metadata = serializers.SerializerMethodField()
+    sequences = serializers.SerializerMethodField()
 
     def get_template_protein(self, obj):
         proteins = obj.protein_set.filter()
@@ -75,9 +121,26 @@ class TargetSerializer(serializers.ModelSerializer):
         else:
             return
 
+    def get_sequences(self, obj):
+        proteins = obj.protein_set.filter()
+        protein_file = None
+        for protein in proteins:
+            if protein.pdb_info:
+                protein_file = protein.pdb_info
+                break
+        if not protein_file:
+            return [{'chain': '', 'sequence': ''}]
+
+        protein_file.open(mode='r')
+        pdb_block = protein_file.read()
+        protein_file.close()
+
+        sequences = get_protein_sequences(pdb_block)
+        return sequences
+
     class Meta:
         model = Target
-        fields = ("id", "title", "project_id", "protein_set", "template_protein", "metadata", "zip_archive")
+        fields = ("id", "title", "project_id", "protein_set", "template_protein", "metadata", "zip_archive", "sequences")
 
 
 class CompoundSerializer(serializers.ModelSerializer):
