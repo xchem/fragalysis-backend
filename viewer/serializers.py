@@ -126,6 +126,8 @@ class TargetSerializer(serializers.ModelSerializer):
         protein_file = None
         for protein in proteins:
             if protein.pdb_info:
+                if not os.path.isfile(protein.pdb_info.path):
+                    continue
                 protein_file = protein.pdb_info
                 break
         if not protein_file:
