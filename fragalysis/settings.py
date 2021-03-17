@@ -19,7 +19,7 @@ from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
