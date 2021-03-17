@@ -2346,11 +2346,11 @@ class DiscoursePostView(viewsets.ViewSet):
                             'content': data['post_content'],
                             'tags': json.loads(data['post_tags'])}
 
-        error, post_url = create_discourse_post(request.user, category_details, post_details)
+        error, post_url, error_message = create_discourse_post(request.user, category_details, post_details)
 
         logger.info('- DiscoursePostView.post')
         if error:
-            return Response({"message": "Error Creating Post"})
+            return Response({"message": error_message})
         else:
             return Response({"Post url": post_url})
 

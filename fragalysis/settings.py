@@ -19,7 +19,7 @@ from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
@@ -322,9 +322,17 @@ if EMAIL_HOST_USER:
 # Discourse settings for API calls to Discourse Platform
 DISCOURSE_PARENT_CATEGORY = 'Fragalysis targets'
 DISCOURSE_USER = 'fragalysis'
-DISCOURSE_HOST = os.environ.get('DISCOURSE_HOST', 'https://discourse.xchem-dev.diamond.ac.uk/')
-# Note that this can be obtained from discourse for the dev environment.
+DISCOURSE_HOST = os.environ.get('DISCOURSE_HOST', 'https://discourse.xchem-dev.diamond.ac.uk')
+# Note that this can be obtained from discourse for the desired environment.
 DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
+
+# This suffix can be set to that the different development environments posting to the same Discourse
+# server can "automatically" generate different category/post titles - hopefully reducing confusion.
+# It will be appended at category or post-title, e.g. "Mpro-duncan", "Mpro-staging" etc.
+# Note that it is for dev systems. It is not required on production because production will have a
+# dedicated Discourse server.
+DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
+
 
 # This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with
 # errors. Hence connection to DEBUG flag.
