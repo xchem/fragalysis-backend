@@ -51,7 +51,7 @@ ispyb==4.10.0
 itypes==1.2.0
 jedi==0.17.2
 jeepney==0.4.3
-Jinja2==2.11.2
+Jinja2==2.11.3
 jsonschema==3.2.0
 keyring==21.3.0
 keyrings.alt==3.4.0
