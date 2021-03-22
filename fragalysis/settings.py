@@ -19,7 +19,7 @@ from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get("DEBUG_FRAGALYSIS", "False")
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
@@ -35,7 +35,7 @@ AUTHENTICATE_UPLOAD = True
 
 # This is set on AWX when the fragalysis-stack is rebuilt.
 SENTRY_DNS = os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS")
-if DEBUG is False and SENTRY_DNS:
+if SENTRY_DNS:
     # By default only call sentry in staging/production
     sentry_sdk.init(
         dsn=SENTRY_DNS,
