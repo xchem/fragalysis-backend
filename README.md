@@ -120,12 +120,6 @@ find . -path "*/migrations/*.pyc"  -delete
 docker-compose -f docker-compose.dev.yml up
 ```
 
-
-## Develop mode in DJANGO
-change value of `DEBUG` variable to `True` in this file
-`fragalysis-backend/fragalysis/settings.py`
-Note: **please don't push this change into git**
-
 ### Populate database with CompoundSet
 The first you need to have upload key.
 #### Generate upload key
@@ -148,3 +142,36 @@ Visit `localhost:8080/viewer/upload_cset`
 The target name is for example `Mpro`, select `sdf` file and you don't need a `pdb` file. 
 Before upload generate upload key.
 
+## Settings
+
+### Development mode in DJANGO
+
+In `settings.py`, the value of `DEBUG` is set to `False` by default. This can be set locally by adding the 
+following line to the `web_dock` section of your docker_compose file:
+
+```
+    DEBUG_FRAGALYSIS: True
+```
+
+or adding the following line to the AWX template: 
+```
+    stack_debug_fragalysis: True
+```
+Note that this will also enable logging on the stack, so when coding you can use the logger and then jump on the 
+webdock and check the logfile on /logs/ (although this doesn't work from celery yet).
+
+### Sentry error logging
+
+In `settings.py`, this is controlled by setting the value of `SENTRY_DNS`. To enable it, you need to set it to a valid
+Sentry DNS entry. For Diamond, this can be set locally by adding the 
+following line to the `web_dock` section of your docker_compose file:
+
+```
+    SENTRY_DNS: https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290
+```
+
+or adding the following line to the AWX template: 
+
+```
+    stack_backend_sentry_dsn: https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290
+```
