@@ -2149,7 +2149,7 @@ class DiscoursePostView(viewsets.ViewSet):
        api/discourse_post
     params:
         - category_name: sub category_name for Discourse post (optional if post title is given)
-        - parent_category: Discourse parent_category name - defaults to "fragalysis targets" (Setting)
+        - parent_category_name: Discourse parent_category name - defaults to "Fragalysis targets" (Setting)
         - category_colour: Optional - defaults to '0088CC'
         - category_text_colour: Optional defaults to 'FFFFFF'
         - post_title: title of topic or post (optional if category name is given)
@@ -2157,6 +2157,24 @@ class DiscoursePostView(viewsets.ViewSet):
         - post_tags: a JSON string of tags related to the Post
 
     Returns JSON
+
+    example of input (GET) on local:
+
+        http://127.0.0.1:8080/api/discourse_post/?post_title=Mpro%20First%20Project
+
+    examples of input (POST raw data):
+
+        {"category_name": "NewCategory", "parent_category_name": "Fragalysis targets", "category_colour": "0088CC",
+        "category_text_colour": "FFFFFF", "post_title": "", "post_content": "", "post_tags":""}
+
+        {"category_name": "NewCategory", "parent_category_name": "Fragalysis targets", "category_colour": "0088CC",
+        "category_text_colour": "FFFFFF", "post_title": "New Topic Title 1",
+        "post_content": "This is the first post that creates the topic - must be greater than 20 chars",
+        "post_tags" :"[\\"tag1\\",\\"tag2\\"]"}
+
+        {"category_name": "NewCategory", "parent_category_name": "Fragalysis targets", "category_colour": "0088CC",
+        "category_text_colour": "FFFFFF", "post_title": "New Topic Title 1",
+        "post_content": "This is a second post to New Topic Title 1", "post_tags" :"[]"}
 
     example output (POST):
 

@@ -88,7 +88,7 @@ def create_post(user, post_details, category_id=None, topic_id=None):
     # Check user is present in Discourse
     error, error_message, user_id = get_user(client, user.username)
     if user_id == 0:
-        return error, error_message, user_id
+        return error, error_message, 0, ''
 
     title = post_details['title']
     content = post_details['content']
@@ -196,6 +196,11 @@ def list_discourse_posts_for_topic(topic_title):
     print('+ discourse.get_discourse_posts_for_topic')
     posts = ''
     error = False
+
+    # DISCOURSE_DEV_POST_SUFFIX is used to differentiate the same target name from different dev systems in Discourse
+    # It is not intended to be used for production when there is a dedicated Discourse.
+    if topic_title:
+        topic_title = topic_title + settings.DISCOURSE_DEV_POST_SUFFIX
 
     # Get topic_id for title
     try:
