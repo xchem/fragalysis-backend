@@ -85,7 +85,7 @@ pyasn1==0.4.8
 pycparser==2.20
 pycryptodome==3.9.8
 pydiscourse==1.1.2
-Pygments==2.6.1
+Pygments==2.7.4
 PyNaCl==1.4.0
 pyrsistent==0.16.0
 pyserial==3.4
