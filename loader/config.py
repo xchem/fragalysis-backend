@@ -61,9 +61,15 @@ def get_dict():
     for mol in _mol_choices()[0]:
         out_d[mol[3]] = mol[2]
     out_d["BOUND"] = "_bound.pdb"
-    out_d["EVENT"] = "_event.map"
+    out_d["EVENT"] = "_event.ccp4"
+    out_d["SIGMAA"] = "_2fofc.map"
+    out_d["DIFF"] = "_fofc.map"
+    # TODO: Look up how this works and allow either ccp4 or map
+    # out_d["EVENT"] = "_event.ccp4"
+    # out_d["SIGMAA"] = "_2fofc.ccp4"
+    # out_d["DIFF"] = "_fofc.ccp4"
     out_d["MTZ"] = ".mtz"
-    out_d["PMAP"] = "_event.ccp4"
+    # out_d["PMAP"] = "_event.ccp4"
     out_d["PPDB"] = "_pandda.pdb"
     out_d["PJSON"] = "_pandda.json"
     out_d["PMTZ"] = "_pandda.mtz"

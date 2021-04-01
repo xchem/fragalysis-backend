@@ -541,6 +541,10 @@ def load_from_dir(new_target, projects, aligned_path):
         # using the pandda map for the target map file - for now
         map_path = get_path_or_none(xtal_path, xtal, input_dict, "PMAP")
         mtz_path = get_path_or_none(xtal_path, xtal, input_dict, "MTZ")
+        # TODO: add maps to db, add maps to serializer for protein view
+        event_path = get_path_or_none(xtal_path, xtal, input_dict, "EVENT")
+        sigmaa_path = get_path_or_none(xtal_path, xtal, input_dict, "SIGMAA")
+        diff_path = get_path_or_none(xtal_path, xtal, input_dict, "DIFF")
         # optional ones - contacts and hotspots
         contact_path = get_path_or_none(xtal_path, xtal, input_dict, "CONTACTS")
         ligand_confidence = get_path_or_none(xtal_path, xtal, input_dict, "CONFIDENCE")
@@ -576,6 +580,7 @@ def load_from_dir(new_target, projects, aligned_path):
                         add_map(new_prot, new_target, don_path, "DO")
                     if lip_path:
                         add_map(new_prot, new_target, lip_path, "AP")
+
         elif bound_path and map_path:
             if os.path.isfile(bound_path) and os.path.isfile(map_path):
                 new_prot = add_prot(
