@@ -356,3 +356,5 @@ if DEBUG is True:
             'handlers': ['console', 'logfile']
         },
     }
+
+AUTHENTICATE_UPLOAD = False
