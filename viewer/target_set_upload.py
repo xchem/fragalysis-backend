@@ -196,7 +196,7 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
 
     for key in to_unpack.keys():
         save_path = os.path.join(settings.MEDIA_ROOT, to_unpack[key][0], to_unpack[key][1].split('/')[-1])
-        path = default_storage.save(save_path, to_unpack[key][1])
+        path = default_storage.save(save_path, open(to_unpack[key][1]))
         new_prot(**{key: path})
 
     # if pdb_file_path:
@@ -572,9 +572,14 @@ def load_from_dir(new_target, projects, aligned_path):
         # don_path = get_path_or_none(xtal_path, xtal, input_dict, "DON")
         # lip_path = get_path_or_none(xtal_path, xtal, input_dict, "LIP")
 
+        code = ''.join(pdb_file_path.split('/')[-1].split('_')[:-1])
+
         # pass input_dict to add_prot? - will just save path as None if it doesn't exist anyway?
         if pdb_file_path:
-            new_prot = add_prot(code=pdb_file_path, target=new_target, xtal_path=xtal_path, xtal=xtal, input_dict=input_dict)
+            try:
+                new_prot = add_prot(code=code, target=new_target, xtal_path=xtal_path, xtal=xtal, input_dict=input_dict)
+            except:
+                raise Exception(code)
         if mol_file_path:
             new_mol = add_mol(mol_file_path, new_prot, projects)
 
