@@ -274,17 +274,6 @@ class ProteinSerializer(serializers.ModelSerializer):
     class Meta:
         model = Protein
         fields = '__all__'
-        # fields = (
-        #     "id",
-        #     "code",
-        #     "target_id",
-        #     "prot_type",
-        #     "pdb_info",
-        #     "bound_info",
-        #     "mtz_info",
-        #     "map_info",
-        #     "cif_info",
-        # )
 
 
 class ProjectSerializer(serializers.ModelSerializer):
