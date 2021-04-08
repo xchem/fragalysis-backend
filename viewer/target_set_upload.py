@@ -154,16 +154,15 @@ def get_create_target(title):
     print('Target created = ' + str(Target.objects.get_or_create(title=title)[1]))
     return new_target[0]
 
-# def add_prot(pdb_file_path, code, target, mtz_path=None, map_path=None, bound_path=None):
+
 def add_prot(code, target, xtal_path, xtal, input_dict):
     """Add a protein with a PDB, code and
 
-    :param pdb_file_path: the PDB file path
     :param code: the unique code for this file
     :param target: the target to be linkede to
-    :param mtz_path: the path to the MTZ file
-    :param map_path: the path to the MAP file
-    :param bound_path: the path to the bound file
+    :param xtal_path: the path to the crystal directory
+    :param xtal: name of the xtal(?)
+    :param input_dict: dictionary of files in crystal directory from load_dir
     :return: the created protein
     """
 
@@ -192,25 +191,14 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
         'event_info': ('maps', get_path_or_none(xtal_path, xtal, input_dict, "EVENT")),
     }
 
-    to_unpack = {k: v for k, v in filepaths.items() if v is not None}
+    to_unpack = {k: v for k, v in filepaths.items() if v[1] is not None}
 
     for key in to_unpack.keys():
-        save_path = os.path.join(settings.MEDIA_ROOT, to_unpack[key][0], to_unpack[key][1].split('/')[-1])
-        path = default_storage.save(save_path, open(to_unpack[key][1]))
-        new_prot(**{key: path})
+        save_path = os.path.join(to_unpack[key][0], to_unpack[key][1].split('/')[-1])
+        path = default_storage.save(save_path, open(to_unpack[key][1], 'rb'))
 
-    # if pdb_file_path:
-    #     # new_prot.pdb_info.delete()
-    #     new_prot.pdb_info.save(os.path.basename(pdb_file_path), File(open(pdb_file_path)))
-    # if mtz_path:
-    #     # new_prot.mtz_info.delete()
-    #     new_prot.mtz_info.save(os.path.basename(mtz_path), File(open(mtz_path)))
-    # if map_path:
-    #     # new_prot.map_info.delete()
-    #     new_prot.map_info.save(os.path.basename(map_path), File(open(map_path)))
-    # if bound_path:
-    #     # new_prot.bound_info.delete()
-    #     new_prot.bound_info.save(os.path.basename(bound_path), File(open(bound_path)))
+        setattr(new_prot, key, path)
+
     new_prot.save()
     return new_prot
 
@@ -554,71 +542,18 @@ def load_from_dir(new_target, projects, aligned_path):
         print(xtal)
         xtal_list.append(xtal)
         xtal_path = os.path.join(aligned_path, xtal)
-        # # This seems to be an upsert process - add if don't exist
+
         pdb_file_path = get_path_or_none(xtal_path, xtal, input_dict, "APO")
-        # bound_path = get_path_or_none(xtal_path, xtal, input_dict, "BOUND")
         mol_file_path = get_path_or_none(xtal_path, xtal, input_dict, "MOL")
-        # # using the pandda map for the target map file - for now
-        # map_path = get_path_or_none(xtal_path, xtal, input_dict, "PMAP")
-        # mtz_path = get_path_or_none(xtal_path, xtal, input_dict, "MTZ")
-        # # TODO: add maps to db, add maps to serializer for protein view
-        # event_path = get_path_or_none(xtal_path, xtal, input_dict, "EVENT")
-        # sigmaa_path = get_path_or_none(xtal_path, xtal, input_dict, "SIGMAA")
-        # diff_path = get_path_or_none(xtal_path, xtal, input_dict, "DIFF")
-        # # optional ones - contacts and hotspots
-        # contact_path = get_path_or_none(xtal_path, xtal, input_dict, "CONTACTS")
-        # ligand_confidence = get_path_or_none(xtal_path, xtal, input_dict, "CONFIDENCE")
-        # acc_path = get_path_or_none(xtal_path, xtal, input_dict, "ACC")
-        # don_path = get_path_or_none(xtal_path, xtal, input_dict, "DON")
-        # lip_path = get_path_or_none(xtal_path, xtal, input_dict, "LIP")
+        code = pdb_file_path.split('/')[-1].rsplit("_", 1)[0]
 
-        code = ''.join(pdb_file_path.split('/')[-1].split('_')[:-1])
-
-        # pass input_dict to add_prot? - will just save path as None if it doesn't exist anyway?
         if pdb_file_path:
-            try:
-                new_prot = add_prot(code=code, target=new_target, xtal_path=xtal_path, xtal=xtal, input_dict=input_dict)
-            except:
-                raise Exception(code)
+            new_prot = add_prot(code=code, target=new_target, xtal_path=xtal_path, xtal=xtal, input_dict=input_dict)
+            new_prot.save()
         if mol_file_path:
             new_mol = add_mol(mol_file_path, new_prot, projects)
-
-        # if pdb_file_path and mol_file_path:
-        #     if os.path.isfile(pdb_file_path) and os.path.isfile(mol_file_path):
-        #         new_prot = add_prot(
-        #             pdb_file_path, xtal, new_target, mtz_path=mtz_path, map_path=map_path, bound_path=bound_path
-        #         )
-        #         new_mol = add_mol(mol_file_path, new_prot, projects)
-        #         if not new_mol:
-        #             print("NONE MOL: " + xtal)
-        #         else:
-        #             if contact_path:
-        #                 try:
-        #                     add_contacts(
-        #                         json.load(open(contact_path)), new_target, new_prot, new_mol
-        #                     )
-        #                 except ValueError:
-        #                     print("Error parsing: " + contact_path)
-        #             else:
-        #                 print("Skipping contacts - " + xtal)
-        #             if ligand_confidence:
-        #                 save_confidence(new_mol, ligand_confidence)
-        #             else:
-        #                 print("Skipping confidence - " + xtal)
-        #             if acc_path:
-        #                 add_map(new_prot, new_target, acc_path, "AC")
-        #             if don_path:
-        #                 add_map(new_prot, new_target, don_path, "DO")
-        #             if lip_path:
-        #                 add_map(new_prot, new_target, lip_path, "AP")
-        #
-        # elif bound_path and map_path:
-        #     if os.path.isfile(bound_path) and os.path.isfile(map_path):
-        #         new_prot = add_prot(
-        #             pdb_file_path, xtal, new_target, mtz_path=mtz_path, map_path=map_path, bound_path=bound_path
-        #         )
-        # else:
-        #     print("File not found: " + xtal)
+            if new_mol:
+                new_mol.save()
 
     # Remove proteins for crystals that are not part of the library
     remove_not_added(new_target, xtal_list)

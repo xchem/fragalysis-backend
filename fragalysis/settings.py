@@ -357,4 +357,5 @@ if DEBUG is True:
         },
     }
 
-AUTHENTICATE_UPLOAD = False
+# Uncomment in development if keycloak not implemented locally
+# AUTHENTICATE_UPLOAD = False
