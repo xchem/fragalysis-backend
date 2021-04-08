@@ -21,7 +21,7 @@
          authenticated: true,
          discourse_available: {{ discourse_available }},
          user_present_on_discourse: {{ user_present_on_discourse }},
-         discourse_host: {{ discourse_host }}
+         discourse_host: '{{ discourse_host }}'
      }
  {% else %}
      var DJANGO_CONTEXT = {
