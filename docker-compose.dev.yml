@@ -30,7 +30,7 @@ services:
       - NEO4J_AUTH=none
       - NEO4J_dbms_memory_pagecache_size=4G
   web:
-    container_name: web_dock
+    container_name: web
     build:
       context: .
       dockerfile: Dockerfile
@@ -40,15 +40,6 @@ services:
       - ../data/media:/code/media/
       - ../fragalysis-frontend:/code/frontend/
       - .:/code/
-      - ../dls-fragalysis-stack-openshift/images/loader/docker-entrypoint.sh:/code/docker-entrypoint.sh
-      - ../fragalysis-loader/run_loader.sh:/code/run_loader.sh
-      - ../fragalysis-loader/loader.py:/code/loader.py
-      - ../fragalysis-loader/test_entry.sh:/code/test_entry.sh
-      - ../fragalysis-loader/wait-for-it.sh:/code/wait-for-it.sh
-      - ../fragalysis-loader/database_check.py:/code/database_check.py
-      - ../fragalysis-loader/tests:/code/tests
-      - ../fragalysis-loader/loader:/code/loader
-      - ./loader/config.py:/code/loader/config.py
     environment:
       POSTGRESQL_DATABASE: frag
       POSTGRESQL_USER: fragalysis
@@ -60,33 +51,3 @@ services:
     depends_on:
       - database
       - graph
-  loader:
-    container_name: loader
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: /bin/bash /code/docker-entrypoint.sh
-    volumes:
-      - ../data/input:/fragalysis/
-      - ../data/media:/code/media/
-      - ../fragalysis-frontend:/code/frontend/
-      - .:/code/
-      - ../dls-fragalysis-stack-openshift/images/loader/docker-entrypoint.sh:/code/docker-entrypoint.sh
-      - ../fragalysis-loader/run_loader.sh:/code/run_loader.sh
-      - ../fragalysis-loader/loader.py:/code/loader.py
-      - ../fragalysis-loader/test_entry.sh:/code/test_entry.sh
-      - ../fragalysis-loader/wait-for-it.sh:/code/wait-for-it.sh
-      - ../fragalysis-loader/database_check.py:/code/database_check.py
-      - ../fragalysis-loader/tests:/code/tests
-      - ../fragalysis-loader/loader:/code/loader
-      - ./loader/config.py:/code/loader/config.py
-    environment:
-      POSTGRESQL_DATABASE: frag
-      POSTGRESQL_USER: fragalysis
-      POSTGRESQL_PASSWORD: fragalysis
-      POSTGRESQL_HOST: database
-      POSTGRESQL_PORT: 5432
-      DATA_ORIGIN: EXAMPLE
-    depends_on:
-      - database
-      - web

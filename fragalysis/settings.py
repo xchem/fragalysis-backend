@@ -364,3 +364,6 @@ if DEBUG is True:
             'handlers': ['console', 'logfile']
         },
     }
+
+# Uncomment in development if keycloak not implemented locally
+# AUTHENTICATE_UPLOAD = False
