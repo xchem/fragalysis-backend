@@ -322,7 +322,7 @@ if EMAIL_HOST_USER:
 # Discourse settings for API calls to Discourse Platform
 DISCOURSE_PARENT_CATEGORY = 'Fragalysis targets'
 DISCOURSE_USER = 'fragalysis'
-DISCOURSE_HOST = os.environ.get('DISCOURSE_HOST', 'https://discourse.xchem-dev.diamond.ac.uk')
+DISCOURSE_HOST = os.environ.get('DISCOURSE_HOST')
 # Note that this can be obtained from discourse for the desired environment.
 DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 

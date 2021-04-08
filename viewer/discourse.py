@@ -22,8 +22,12 @@ def get_user(client, username):
         # User is not known in Discourse or there is a failure accessing Discourse.
         logger.error('discourse.get_user', 'get_user', exc_info=e)
         error = True
-        error_message = 'Error validating user in Discourse. If this is your first post please log on to ' \
-                        'Discourse once to create a User. URL is: ' + settings.DISCOURSE_HOST
+        if settings.DISCOURSE_HOST:
+            error_message = 'Error validating user in Discourse. If this is your first post ' \
+                            + 'please log on to ' \
+                            + 'Discourse once to create a User. URL is: ' + settings.DISCOURSE_HOST
+        else:
+            error_message = 'Please check Discourse Host parameter for Fragalysis'
     else:
         user = user['id']
 
@@ -220,3 +224,21 @@ def list_discourse_posts_for_topic(topic_title):
 
     print('- discourse.get_discourse_posts_for_topic')
     return error, posts
+
+
+def check_discourse_user(user):
+    """Call discourse API to check discourse user exists
+    """
+
+    # Create Discourse client for user
+    client = DiscourseClient(
+        settings.DISCOURSE_HOST,
+        api_username=user.username,
+        api_key=settings.DISCOURSE_API_KEY)
+
+    # Check user is present in Discourse
+    error, error_message, user_id = get_user(client, user.username)
+    if user_id == 0:
+        return error, error_message, 0
+
+    return error, error_message, user_id
