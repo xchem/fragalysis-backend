@@ -54,7 +54,7 @@ from viewer import filters
 from .forms import CSetForm, UploadKeyForm, CSetUpdateForm, TSetForm
 
 from .tasks import *
-from .discourse import create_discourse_post, list_discourse_posts_for_topic
+from .discourse import create_discourse_post, list_discourse_posts_for_topic, check_discourse_user
 
 
 from viewer.serializers import (
@@ -578,15 +578,24 @@ class ProteinView(ISpyBSafeQuerySet):
 def react(request):
     """
     :param request:
-    :return:
+    :return: viewer/react page with context
     """
     discourse_api_key = settings.DISCOURSE_API_KEY
 
     context = {}
+    context['discourse_available'] = 'false'
     if discourse_api_key:
         context['discourse_available'] = 'true'
-    else:
-        context['discourse_available'] = 'false'
+
+    # If user is authenticated and a discourse api key is available, then check discourse to
+    # see if user is set up and set up flag in context.
+    user = request.user
+    if user.is_authenticated and discourse_api_key:
+        context['discourse_host'] = settings.DISCOURSE_HOST
+        context['user_present_on_discourse'] = 'false'
+        error, error_message, user_id = check_discourse_user(user)
+        if user_id:
+            context['user_present_on_discourse'] = 'true'
 
     return render(request, "viewer/react_temp.html", context)
 
