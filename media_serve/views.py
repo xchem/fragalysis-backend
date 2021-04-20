@@ -49,7 +49,22 @@ def map_download(request, file_path):
     ispy_b_static.model = Protein
     ispy_b_static.request = request
     ispy_b_static.permission_string = "target_id__project_id"
-    ispy_b_static.field_name = "map_info"
+
+    file_extension = file_path.split('_')[-1]
+
+    # TODO: remove/add map_info (was used for hotspots but not currently used)
+
+    exts = {'sigmaa_info': '2fofc.map',
+            'diff_info': 'fofc.map',
+            'event_info': 'event.ccp4'}
+
+    field_name = None
+
+    for key in exts.keys():
+        if exts[key] == file_extension:
+            field_name = key
+
+    ispy_b_static.field_name = field_name
     ispy_b_static.content_type = "application/x-pilot"
     ispy_b_static.prefix = "/maps/"
     ispy_b_static.input_string = file_path
