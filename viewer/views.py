@@ -48,7 +48,11 @@ from viewer.models import (
     CSetKeys,
     NumericalScoreValues,
     ScoreDescription,
-    File
+    File,
+    TagCategory,
+    MoleculeTag,
+    SessionProjectTag
+
 )
 from viewer import filters
 from .forms import CSetForm, UploadKeyForm, CSetUpdateForm, TSetForm
@@ -84,7 +88,11 @@ from viewer.serializers import (
     TextScoreSerializer,
     ComputedMolAndScoreSerializer,
     DiscoursePostWriteSerializer,
-    DictToCsvSerializer
+    DictToCsvSerializer,
+    TagCategorySerializer,
+    MoleculeTagSerializer,
+    SessionProjectTagSerializer,
+    TargetMoleculesSerializer
 )
 
 
@@ -1586,7 +1594,20 @@ class SessionProjectsView(viewsets.ModelViewSet):
                 "title": "READ_ONLY",
                 "init_date": "2020-07-09T19:52:10.506119Z",
                 "description": "READ_ONLY",
-                "tags": "[]"
+                "tags": "[]",
+                "session_project_tags": [
+                {
+                    "id": 3,
+                    "tag": "testtag3",
+                    "category_id": 1,
+                    "target_id": 1,
+                    "user_id": null,
+                    "create_date": "2021-04-13T16:01:55.396088Z",
+                    "colour": null,
+                    "discourse_url": null,
+                    "help_text": null,
+                    "additional_info": ""
+                },]
             },]
 
    """
@@ -2455,3 +2476,160 @@ class DictToCsv(viewsets.ViewSet):
             filename_url = create_csv_from_dict(input_dict, input_title)
 
         return Response({"file_url": filename_url})
+
+
+# Classes Relating to Tags
+class TagCategoryView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tag categories
+
+    Methods
+    -------
+    url:
+        api/tag_category
+    queryset:
+        `viewer.models.TagCategory.objects.filter()`
+    filter fields:
+        - `viewer.models.TagCategory.category` - ?category=<str>
+
+    returns: JSON
+
+    example output:
+
+    {
+        "count": 1,
+        "next": null,
+        "previous": null,
+        "results": [
+            {
+                "id": 1,
+                "category": "sites",
+                "colour": "FFFFFF",
+                "description": "site description"
+            }
+        ]
+    }
+
+   """
+    queryset = TagCategory.objects.filter()
+    serializer_class = TagCategorySerializer
+    filter_fields = ('id', 'category')
+
+
+class MoleculeTagView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tags relating to Molecules
+
+    Methods
+    -------
+    url:
+        api/molecule_tag
+    queryset:
+        `viewer.models.MoleculeTag.objects.filter()`
+    filter fields:
+        - `viewer.models.MoleculeTag.tag` - ?tag=<str>
+        - `viewer.models.MoleculeTag.category` - ?category=<str>
+        - `viewer.models.MoleculeTag.target` - ?target=<int>
+        - `viewer.models.MoleculeTag.molecules` - ?molecules=<int>
+        - `viewer.models.MoleculeTag.mol_group` - ?mol_group=<int>
+
+    returns: JSON
+
+    example output:
+
+    {
+        "id": 43,
+        "tag": "A9 - XChem screen - covalent hits",
+        "create_date": "2021-04-20T14:16:46.850313Z",
+        "colour": null,
+        "discourse_url": null,
+        "help_text": null,
+        "additional_info": "",
+        "category": 1,
+        "target": 3,
+        "user": null,
+        "mol_group": 5468,
+        "molecules": [
+            6577,
+            6578,
+            6770,
+            6771
+        ]
+    }
+
+   """
+
+    queryset = MoleculeTag.objects.filter()
+    serializer_class = MoleculeTagSerializer
+    filter_fields = ('id', 'tag', 'category', 'target', 'molecules', 'mol_group')
+
+
+class SessionProjectTagView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tags relating to Session
+    Projects
+
+    Methods
+    -------
+    url:
+        api/session_project_tag
+    queryset:
+        `viewer.models.SessionProjectTag.objects.filter()`
+    filter fields:
+        - `viewer.models.SessionProjectTag.tag` - ?tag=<str>
+        - `viewer.models.SessionProjectTag.category` - ?category=<str>
+        - `viewer.models.SessionProjectTag.target` - ?target=<int>
+        - `viewer.models.SessionProjectTag.session_projects` - ?session_project=<int>
+
+    returns: JSON
+
+    example output:
+    {
+        "count": 1,
+        "next": null,
+        "previous": null,
+        "results": [
+            {
+                "id": 3,
+                "tag": "testtag3",
+                "create_date": "2021-04-13T16:01:55.396088Z",
+                "colour": null,
+                "discourse_url": null,
+                "help_text": null,
+                "additional_info": "",
+                "category": 1,
+                "target": 1,
+                "user": null,
+                "session_projects": [
+                    2
+                ]
+            }
+        ]
+    }
+
+   """
+    queryset = SessionProjectTag.objects.filter()
+    serializer_class = SessionProjectTagSerializer
+    filter_fields = ('id', 'tag', 'category', 'target', 'session_projects')
+
+
+class TargetMoleculesView(ISpyBSafeQuerySet):
+    """ Django view to retrieve all Molecules and Tag information relating to a Target. The idea
+    is that a single call can return all target related information needed by the React front
+    end in a single call. Because this is likely to be a large reply, it is coded as a POST
+    request.
+
+    Methods
+    -------
+    url:
+        api/target_molecules/id
+
+    returns: JSON
+
+    example output:
+
+
+   """
+    queryset = Target.objects.filter()
+    serializer_class = TargetMoleculesSerializer
+    filter_permissions = "project_id"
+    filter_fields = ("title",)
+
+# Classes Relating to Tags - End
