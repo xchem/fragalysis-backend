@@ -308,6 +308,7 @@ def add_mol(mol_sd, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
     """
     # create mol object from mol_sd
     rd_mol = Chem.MolFromMolFile(mol_sd)
+    orig_mol_block = open(rd_mol, 'r').read()
 
     if rd_mol is None:
         return None
@@ -334,7 +335,7 @@ def add_mol(mol_sd, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
         new_mol = Molecule.objects.get_or_create(prot_id=prot, cmpd_id=comp_ref)[0]
         # Make a protein object by which it is related in the DB
         # TODO: SDF info needs to include the bad atoms (so change how molecule is handled earlier)
-        new_mol.sdf_info = Chem.MolToMolBlock(rd_mol)
+        new_mol.sdf_info = orig_mol_block
         new_mol.smiles = Chem.MolToSmiles(rd_mol, isomericSmiles=True)
         # Find out how to add this information from Proasis
         new_mol.lig_id = lig_id
