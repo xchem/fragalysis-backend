@@ -50,13 +50,18 @@ def map_download(request, file_path):
     ispy_b_static.request = request
     ispy_b_static.permission_string = "target_id__project_id"
 
-    file_extension = file_path.split('_')[-1]
+    substrings = file_path.split('_')
+    substring = [x for x in substrings if x in ['2fofc', 'fofc', 'event']]
+    if not substring:
+        file_extension = None
+    else:
+        file_extension = substring[0]
 
     # TODO: remove/add map_info (was used for hotspots but not currently used)
 
-    exts = {'sigmaa_info': '2fofc.map',
-            'diff_info': 'fofc.map',
-            'event_info': 'event.ccp4'}
+    exts = {'sigmaa_info': '2fofc',
+            'diff_info': 'fofc',
+            'event_info': 'event'}
 
     field_name = None
 
