@@ -308,7 +308,7 @@ def add_mol(mol_sd, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
     """
     # create mol object from mol_sd
     rd_mol = Chem.MolFromMolFile(mol_sd)
-    orig_mol_block = open(rd_mol, 'r').read()
+    orig_mol_block = open(mol_sd, 'r').read()
 
     if rd_mol is None:
         return None
