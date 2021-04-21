@@ -31,7 +31,8 @@ PROPOSAL_REQUIRED = True
 
 # Authentication check when uploading files. This can be switched off for development testing if required.
 # Should always be True on production.
-AUTHENTICATE_UPLOAD = True
+# TODO
+AUTHENTICATE_UPLOAD = False
 
 # This is set on AWX when the fragalysis-stack is rebuilt.
 SENTRY_DNS = os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS")

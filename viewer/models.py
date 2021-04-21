@@ -10,7 +10,6 @@ from simple_history.models import HistoricalRecords
 
 from loader.config import get_mol_choices, get_prot_choices
 
-
 class Project(models.Model):
     """Django model for holding information about a project. This is used on the Targets level, adding a new project for
     each target, and saving a list of users that can access a target during the authentication step
@@ -804,3 +803,96 @@ class DiscourseTopic(models.Model):
 
     class Meta:
         db_table = 'viewer_discoursetopic'
+# End of Discourse Tables
+
+
+# Start of Tag Tables
+class TagCategory(models.Model):
+    """Django model containing categories for Tags
+
+    Parameters
+    ----------
+    category: CharField
+        The unique name of the tag category.
+    colour: CharField
+        Expected to be an RGB string
+    description: CharField
+        Expected to be a helpful description of what will be contained in the tag category
+
+    """
+    category = models.CharField(max_length=50, unique=True)
+    colour = models.CharField(max_length=20, null=True)
+    description = models.CharField(max_length=200, null=True)
+
+    class Meta:
+        db_table = 'viewer_tagcategory'
+
+
+class Tag(models.Model):
+    """Django model containing Tags
+
+    Parameters
+    ----------
+    tag: CharField
+        The unique name of the tag.
+    category: FK (integer)
+        The id of the tag category to which the tag belongs
+    target: FK (integer)
+        The id of the target to which the tag belongs
+    user: FK (integer)
+        The (Django) id of the user that created the tag
+    create_date: DateTimeField
+        The datetime when the tag was created
+    colour: CharField
+        Expected to be an RGB string
+    discourse_url: TextField
+        Optional URL of a related Discourse Post
+    help_text: TextField
+        Optional help text to for the tag
+    additional_info: JSONField
+        Optional JSON field containing name/value pairs for future use
+
+    """
+    tag = models.CharField(max_length=200)
+    category = models.ForeignKey(TagCategory, on_delete=models.CASCADE)
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    create_date = models.DateTimeField(default=timezone.now)
+    colour = models.CharField(max_length=20, null=True)
+    discourse_url = models.TextField(max_length=1000, null=True)
+    help_text = models.TextField(null=True)
+    additional_info = models.JSONField(encoder=DjangoJSONEncoder, default='')
+
+    class Meta:
+        abstract = True
+        unique_together = ('tag', 'target',)
+
+
+class MoleculeTag(Tag):
+    """Django model containing data for MoleculeTag(s) inherited from Tag.
+
+    Parameters
+    ----------
+    molecules: ManyToManyField
+        Links to the Molecule(s) that are tagged
+    mol_groups: ManyToManyField
+        Links to the Molecule group(s) - required for Sites (NB Check this is correct)
+
+    """
+    molecules = models.ManyToManyField(Molecule, blank=True)
+    mol_group = models.ForeignKey("scoring.MolGroup", null=True, blank=True,
+                                  on_delete=models.CASCADE)
+
+
+class SessionProjectTag(Tag):
+    """Django model containing data for SessionProjectTag(s) inherited from Tag.
+
+    Parameters
+    ----------
+    sesssion_peojects: ManyToManyField
+        Links to the Session Projects) that are tagged
+
+    """
+    session_projects = models.ManyToManyField(SessionProject)
+
+# End of Tag Tables

@@ -7,7 +7,16 @@ functions.py
 """
 import sys, json, os, glob, shutil
 from django.contrib.auth.models import User
-from viewer.models import Target, Protein, Molecule, Compound, Project, ComputedMolecule
+from viewer.models import (
+    Target,
+    Protein,
+    Molecule,
+    Compound,
+    Project,
+    ComputedMolecule,
+    MoleculeTag,
+    TagCategory
+)
 from hypothesis.models import (
     Vector3D,
     Vector,
@@ -642,6 +651,32 @@ def get_vectors(mols):
                 create_vect_3d(mol, new_vect, vect_ind, vectors[vect_type][vector])
 
 
+def search_for_molgroup_by_coords(coords, target):
+    """search for a molgroup by list of coordinates"""
+
+    x = coords[0]
+    y = coords[1]
+    z = coords[2]
+
+    limit_list = []
+
+    for coord in x, y, z:
+        lower, upper = get_coord_limits(coord)
+        limit_list.append([lower, upper])
+
+    search = MolGroup.objects.filter(target_id__title=target, x_com__gte=limit_list[0][0], x_com__lte=limit_list[0][1],
+                                     y_com__gte=limit_list[1][0], y_com__lte=limit_list[1][1],
+                                     z_com__gte=limit_list[2][0],
+                                     z_com__lte=limit_list[2][1])
+
+    if len(search) == 1:
+        mol_group = search[0]
+    else:
+        return None
+
+    return mol_group
+
+
 def cluster_mols(rd_mols, mols, target):
     """Cluster a series of 3D molecules
 
@@ -700,8 +735,8 @@ def centre_of_mass(mol):
     return center_of_mass
 
 
-def process_site(rd_mols):
-    """process site"""
+def calc_site_centre(rd_mols):
+    """Calculate the centre of the site's molecules based on the centre of mass"""
 
     coms = [centre_of_mass(mol) for mol in rd_mols]
     centre = centre_of_points(coms)
@@ -722,32 +757,6 @@ def get_coord_limits(coord):
     return lower_limit, upper_limit
 
 
-def search_for_molgroup_by_coords(coords, target):
-    """search for a molgroup by list of coordinates"""
-
-    x = coords[0]
-    y = coords[1]
-    z = coords[2]
-
-    limit_list = []
-
-    for coord in x, y, z:
-        lower, upper = get_coord_limits(coord)
-        limit_list.append([lower, upper])
-
-    search = MolGroup.objects.filter(target_id__title=target, x_com__gte=limit_list[0][0], x_com__lte=limit_list[0][1],
-                                     y_com__gte=limit_list[1][0], y_com__lte=limit_list[1][1],
-                                     z_com__gte=limit_list[2][0],
-                                     z_com__lte=limit_list[2][1])
-
-    if len(search) == 1:
-        mol_group = search[0]
-    else:
-        return None
-
-    return mol_group
-
-
 def search_for_molgroup_by_description(description, target):
     """search for a molgroup by description"""
 
@@ -757,6 +766,7 @@ def search_for_molgroup_by_description(description, target):
         mol_group = search[0]
 
     elif len(search) > 1:
+        # Note that this will also delete MoleculeTag objects fot this molgroup.
         for molgroup in search:
             molgroup.delete()
         return None
@@ -766,8 +776,61 @@ def search_for_molgroup_by_description(description, target):
     return mol_group
 
 
+def specifc_site(rd_mols, mols, target, site_description=None):
+    """ Update/Create mol_groups and molecule_tags with site information
+    :param rd_mols: the molecules to add to the site (rd form)
+    :param mols: the molecules to add to the site
+    :param target: the Django target
+    :param site_description:
+    :return: None
+    """
+
+    mol_tag = None
+    # look for molgroup with same target and description
+    mol_group = search_for_molgroup_by_description(target=target.title,
+                                                   description=site_description)
+
+    if not mol_group:
+        mol_group = MolGroup()
+    else:
+        # A molecule tag record should exist, but won't the first time the target is loaded
+        mol_tag = MoleculeTag.objects.get(mol_group=mol_group)
+
+    if not mol_tag:
+        mol_tag = MoleculeTag()
+
+    mol_group.group_type = "MC"
+    mol_group.target_id = target
+    centre = calc_site_centre(rd_mols)
+    mol_group.x_com = centre[0]
+    mol_group.y_com = centre[1]
+    mol_group.z_com = centre[2]
+    mol_group.description = site_description
+    mol_group.save()
+
+    mol_tag.tag = site_description
+    mol_tag.category = TagCategory.objects.get(category='sites')
+    mol_tag.target = target
+    mol_tag.mol_group = mol_group
+    mol_tag.save()
+
+    ids = [m.id for m in mols]
+    print([a['id'] for a in mol_group.mol_id.values()])
+
+    for mol_id in ids:
+        if mol_id not in [a['id'] for a in mol_group.mol_id.values()]:
+            print(mol_id)
+            this_mol = Molecule.objects.get(id=mol_id)
+            mol_group.mol_id.add(this_mol)
+
+        if mol_id not in [a['id'] for a in mol_tag.molecules.values()]:
+            print(mol_id)
+            this_mol = Molecule.objects.get(id=mol_id)
+            mol_tag.molecules.add(this_mol)
+
+
 def analyse_mols(mols, target, specified_site=False, site_description=None):
-    """Analyse a list of molecules for a given target
+    """Check if molecules belong to a cluster or a specific site for a given target
 
     :param mols: the Django molecules to analyse
     :param target: the Django target
@@ -777,35 +840,9 @@ def analyse_mols(mols, target, specified_site=False, site_description=None):
     """
     rd_mols = [Chem.MolFromMolBlock(x.sdf_info) for x in mols]
     if not specified_site:
-
         cluster_mols(rd_mols, mols, target)
-
     else:
-
-        centre = process_site(rd_mols)
-
-        # look for molgroup with same target and description
-        mol_group = search_for_molgroup_by_description(target=target.title, description=site_description)
-
-        if not mol_group:
-            mol_group = MolGroup()
-        mol_group.group_type = "MC"
-        mol_group.target_id = target
-        mol_group.x_com = centre[0]
-        mol_group.y_com = centre[1]
-        mol_group.z_com = centre[2]
-        mol_group.description = site_description
-        mol_group.save()
-
-        ids = [m.id for m in mols]
-
-        print([a['id'] for a in mol_group.mol_id.values()])
-
-        for mol_id in ids:
-            if mol_id not in [a['id'] for a in mol_group.mol_id.values()]:
-                print(mol_id)
-                this_mol = Molecule.objects.get(id=mol_id)
-                mol_group.mol_id.add(this_mol)
+        specifc_site(rd_mols, mols, target, site_description)
 
     get_vectors(mols)
 
@@ -921,8 +958,9 @@ def analyse_target(target_name, aligned_path):
         sites.sort_values(by='site', inplace=True)
 
         # delete the old molgroups first
-        mgs = MolGroup.objects.filter(target_id=target)
-        for m in mgs:
+        # this will also delete any associated MoleculeTags if found
+        mol_groups = MolGroup.objects.filter(target_id=target)
+        for m in mol_groups:
             m.delete()
 
         for _, row in sites.iterrows():

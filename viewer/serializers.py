@@ -23,8 +23,12 @@ from viewer.models import (
     NumericalScoreValues,
     ScoreDescription,
     File,
-    TextScoreValues
+    TextScoreValues,
+    TagCategory,
+    MoleculeTag,
+    SessionProjectTag
 )
+from scoring.models import MolGroup
 
 from django.contrib.auth.models import User
 #L+
@@ -421,9 +425,18 @@ class ActionTypeSerializer(serializers.ModelSerializer):
 class SessionProjectReadSerializer(serializers.ModelSerializer):
     target = TargetSerializer(read_only=True)
     author = UserSerializer(read_only=True)
+    # This is for the new tags functionality. The old tags field is left here for backwards
+    # compatibility
+    session_project_tags = serializers.SerializerMethodField()
+
+    def get_session_project_tags(self, obj):
+        sp_tags = SessionProjectTag.objects.filter(session_projects=obj.id).values()
+        return sp_tags
+
     class Meta:
         model = SessionProject
-        fields = '__all__'
+        fields = ('id', 'title', 'init_date', 'description',
+                  'target', 'author', 'tags', 'session_project_tags')
 
 
 # (POST, PUT, PATCH)
@@ -455,7 +468,6 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Snapshot
         fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
-## End of Session Project
 
 
 # (GET, POST, PUT, PATCH)
@@ -464,13 +476,8 @@ class SnapshotActionsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SnapshotActions
         fields = '__all__'
-
-
 ## End of Session Project
-# class FileSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = ComputedMolecule
-#         fields = "__all__"
+
 
 class ComputedSetSerializer(serializers.ModelSerializer):
     class Meta:
@@ -566,10 +573,124 @@ class DiscoursePostWriteSerializer(serializers.Serializer):
     post_title = serializers.CharField(max_length=200)
     post_content = serializers.CharField(max_length=2000)
     post_tags = serializers.JSONField()
-
 # End of Discourse Serializer
+
 
 # Serializer Class for DictToCsv API
 class DictToCsvSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     dict = serializers.DictField()
+
+
+# Start of Serializers for Tags
+class TagCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TagCategory
+        fields = '__all__'
+
+
+class MoleculeTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MoleculeTag
+        fields = '__all__'
+
+
+class SessionProjectTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SessionProjectTag
+        fields = '__all__'
+
+
+class TargetMoleculesSerializer(serializers.ModelSerializer):
+    template_protein = serializers.SerializerMethodField()
+    zip_archive = serializers.SerializerMethodField()
+    metadata = serializers.SerializerMethodField()
+    sequences = serializers.SerializerMethodField()
+    molecules  = serializers.SerializerMethodField()
+    tags_info = serializers.SerializerMethodField()
+    tag_categories = serializers.SerializerMethodField()
+
+    def get_template_protein(self, obj):
+        proteins = obj.protein_set.filter()
+        for protein in proteins:
+            if protein.pdb_info:
+                return protein.pdb_info.url
+        return "NOT AVAILABLE"
+
+    def get_zip_archive(self, obj):
+        request = self.context["request"]
+        # This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
+        # See above for details.
+        https_host = settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
+        if hasattr(obj, 'zip_archive') and obj.zip_archive.name:
+            return urljoin(https_host, obj.zip_archive.url)
+        else:
+            return
+
+    def get_metadata(self, obj):
+        request = self.context["request"]
+        # This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
+        # See above for details.
+        https_host = settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
+        if hasattr(obj, 'metadata') and obj.metadata.name:
+            return urljoin(https_host, obj.metadata.url)
+        else:
+            return
+
+    def get_sequences(self, obj):
+        proteins = obj.protein_set.filter()
+        protein_file = None
+        for protein in proteins:
+            if protein.pdb_info:
+                if not os.path.isfile(protein.pdb_info.path):
+                    continue
+                protein_file = protein.pdb_info
+                break
+        if not protein_file:
+            return [{'chain': '', 'sequence': ''}]
+
+        protein_file.open(mode='r')
+        pdb_block = protein_file.read()
+        protein_file.close()
+
+        sequences = get_protein_sequences(pdb_block)
+        return sequences
+
+    def get_molecules(self, obj):
+        mols = Molecule.objects.filter(prot_id__target_id=obj.id)
+        molecules = []
+        for mol in mols:
+            mol_data = Molecule.objects.filter(id=mol.id).values()
+            mol_tags_set = \
+                [mt['id'] for mt in MoleculeTag.objects.filter(molecules=mol.id).values()]
+            mol_dict = {'data': mol_data, 'tags_set': mol_tags_set}
+            molecules.append(mol_dict)
+
+        return molecules
+
+    def get_tags_info(self, obj):
+        tags = MoleculeTag.objects.filter(target_id=obj.id)
+        tags_info = []
+        for tag in tags:
+            tag_data = MoleculeTag.objects.filter(id=tag.id).values()
+            tag_coords = \
+                MolGroup.objects.filter(id=tag.mol_group_id).values('x_com','y_com','z_com' )
+            tag_dict = {'data': tag_data, 'coords': tag_coords}
+            tags_info.append(tag_dict)
+
+        return tags_info
+
+    def get_tag_categories(self, obj):
+        tag_categories = TagCategory.objects.filter(moleculetag__target_id=obj.id).distinct().\
+            values()
+        return tag_categories
+
+    class Meta:
+        model = Target
+        fields = ("id", "title", "project_id", "template_protein", "metadata",
+                  "zip_archive", "sequences",
+                  "molecules","tags_info","tag_categories")
+
+
+
+# Serializers for Tags - End
