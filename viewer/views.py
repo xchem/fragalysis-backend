@@ -2623,8 +2623,94 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
 
     returns: JSON
 
-    example output:
+    example output (fragment):
 
+    {
+        "id": 4,
+        "title": "nsp13",
+        "project_id": [
+            1
+        ],
+        "template_protein": "/media/pdbs/nsp13-x0280_1B_apo_zOdoDll.pdb",
+        "metadata": "https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv",
+        "zip_archive": "https://127.0.0.1:8080/media/targets/nsp13.zip",
+        "sequences": [
+            {
+                "chain": "A",
+                "sequence": ""
+            }
+        ],
+        "molecules": [
+            {
+                "data": [
+                    {
+                        "id": 7031,
+                        "smiles": "CS(=O)(=O)NCCc1ccc(F)cc1",
+                        "lig_id": "LIG",
+                        "chain_id": "Z",
+                        "mol_type": "PR",
+                        "sdf_info": "\n     RDKit          3D\n\n 14 14  0  0  0  0  0  0  0  0999 V2000\n   -2.2720   40.8830  -57.1440 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.1830   40.3560  -58.8160 S   0  0  2  0  0  0  0  0  0  0  0  0\n   -1.0670   41.0130  -59.4250 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -3.4810   40.5240  -59.3980 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -1.8440   38.7740  -58.8440 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.4690   38.3470  -58.5620 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.1690   37.0550  -59.2710 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.2120   36.5520  -58.9440 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.2900   36.8750  -59.7460 C   0  0  0  0  0  0  0  0  0  0  0  0\n    3.5630   36.4200  -59.4490 C   0  0  0  0  0  0  0  0  0  0  0  0\n    3.7410   35.7030  -58.3040 C   0  0  0  0  0  0  0  0  0  0  0  0\n    4.9980   35.3010  -57.9750 F   0  0  0  0  0  0  0  0  0  0  0  0\n    2.7150   35.3620  -57.4760 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.4460   35.8120  -57.7970 C   0  0  0  0  0  0  0  0  0  0  0  0\n  2  1  1  1\n  3  2  2  0\n  4  2  2  0\n  5  2  1  0\n  6  5  1  0\n  7  6  1  0\n  8  7  1  0\n  9  8  2  0\n 10  9  1  0\n 11 10  2  0\n 12 11  1  0\n 13 11  1  0\n 14 13  2  0\n 14  8  1  0\nM  END\n",
+                        "rscc": null,
+                        "occupancy": 0.0,
+                        "x_com": null,
+                        "y_com": null,
+                        "z_com": null,
+                        "rmsd": null,
+                        "prot_id_id": 6999,
+                        "cmpd_id_id": 839
+                    }
+                ],
+                "tags_set": [
+                    78
+                ]
+            },
+            {
+                "data": [
+                    {
+            <molecule data>
+         }
+        ],
+        "tags_info": [
+            {
+                "data": [
+                    {
+                        "id": 72,
+                        "tag": "A - Nucleotide Site",
+                        "category_id": 16,
+                        "target_id": 4,
+                        "user_id": null,
+                        "create_date": "2021-04-22T12:11:27.315783Z",
+                        "colour": null,
+                        "discourse_url": null,
+                        "help_text": null,
+                        "additional_info": null,
+                        "mol_group_id": 5498
+                    }
+                ],
+                "coords": [
+                    {
+                        "x_com": -9.322852168872645,
+                        "y_com": 3.0154678875227723,
+                        "z_com": -72.34568956027785
+                    }
+                ]
+            },
+            {
+                "data": [
+                    {
+                        "id": 73,
+            <tag data>
+        }
+        ],
+        "tag_categories": [
+            {
+                "id": 16,
+                "category": "Sites",
+                "colour": "00CC00",
+                "description": null
+            }
+        ]
+    }
 
    """
     queryset = Target.objects.filter()

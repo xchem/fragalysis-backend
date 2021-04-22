@@ -31,7 +31,6 @@ from viewer.models import (
 from scoring.models import MolGroup
 
 from django.contrib.auth.models import User
-#L+
 from django.conf import settings
 
 from rest_framework import serializers
@@ -87,6 +86,51 @@ def get_protein_sequences(pdb_block):
     return sequence_list
 
 
+def protein_sequences(obj):
+    """Common enabler code for Target-related serializers
+    """
+    proteins = obj.protein_set.filter()
+    protein_file = None
+    for protein in proteins:
+        if protein.pdb_info:
+            if not os.path.isfile(protein.pdb_info.path):
+                continue
+            protein_file = protein.pdb_info
+            break
+    if not protein_file:
+        return [{'chain': '', 'sequence': ''}]
+
+    protein_file.open(mode='r')
+    pdb_block = protein_file.read()
+    protein_file.close()
+
+    sequences = get_protein_sequences(pdb_block)
+    return sequences
+
+
+def template_protein(obj):
+    """Common enabler code for Target-related serializers
+    """
+
+    proteins = obj.protein_set.filter()
+    for protein in proteins:
+        if protein.pdb_info:
+            return protein.pdb_info.url
+    return "NOT AVAILABLE"
+
+def get_https_host(request):
+    """Common enabler code for returning https urls
+
+    This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
+    SECURE_PROXY_SSL_HEADER is referenced because it is used in redirecting URLs - if
+    it is changed it may affect this code.
+    Using relative links will probably also work, but This workaround allows both the
+    'download structures' button and the DRF API call to work.
+    Note that this link will not work on local
+    """
+    return settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
+
+
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
     zip_archive = serializers.SerializerMethodField()
@@ -94,55 +138,22 @@ class TargetSerializer(serializers.ModelSerializer):
     sequences = serializers.SerializerMethodField()
 
     def get_template_protein(self, obj):
-        proteins = obj.protein_set.filter()
-        for protein in proteins:
-            if protein.pdb_info:
-                return protein.pdb_info.url
-        return "NOT AVAILABLE"
+        return template_protein(obj)
 
     def get_zip_archive(self, obj):
-        request = self.context["request"]
-        # This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
-        # SECURE_PROXY_SSL_HEADER is referenced because it is used in redirecting URLs - if
-        # it is changed it may affect this code.
-        # Using relative links will probably also work, but This workaround allows both the
-        # 'download structures' button and the DRF API call to work.
         # The if-check is because the filefield in target has null=True.
         # Note that this link will not work on local
-        https_host = settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
         if hasattr(obj, 'zip_archive') and obj.zip_archive.name:
-            return urljoin(https_host, obj.zip_archive.url)
-        else:
-            return
+            return urljoin(get_https_host(self.context["request"]), obj.zip_archive.url)
+        return
 
     def get_metadata(self, obj):
-        request = self.context["request"]
-        # This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
-        # See above for details.
-        https_host = settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
         if hasattr(obj, 'metadata') and obj.metadata.name:
-            return urljoin(https_host, obj.metadata.url)
-        else:
-            return
+            return urljoin(get_https_host(self.context["request"]), obj.metadata.url)
+        return
 
     def get_sequences(self, obj):
-        proteins = obj.protein_set.filter()
-        protein_file = None
-        for protein in proteins:
-            if protein.pdb_info:
-                if not os.path.isfile(protein.pdb_info.path):
-                    continue
-                protein_file = protein.pdb_info
-                break
-        if not protein_file:
-            return [{'chain': '', 'sequence': ''}]
-
-        protein_file.open(mode='r')
-        pdb_block = protein_file.read()
-        protein_file.close()
-
-        sequences = get_protein_sequences(pdb_block)
-        return sequences
+        return protein_sequences(obj)
 
     class Meta:
         model = Target
@@ -601,50 +612,22 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
     tag_categories = serializers.SerializerMethodField()
 
     def get_template_protein(self, obj):
-        proteins = obj.protein_set.filter()
-        for protein in proteins:
-            if protein.pdb_info:
-                return protein.pdb_info.url
-        return "NOT AVAILABLE"
+        return template_protein(obj)
 
     def get_zip_archive(self, obj):
-        request = self.context["request"]
-        # This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
-        # See above for details.
-        https_host = settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
+        # The if-check is because the filefield in target has null=True.
+        # Note that this link will not work on local
         if hasattr(obj, 'zip_archive') and obj.zip_archive.name:
-            return urljoin(https_host, obj.zip_archive.url)
-        else:
-            return
+            return urljoin(get_https_host(self.context["request"]), obj.zip_archive.url)
+        return
 
     def get_metadata(self, obj):
-        request = self.context["request"]
-        # This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
-        # See above for details.
-        https_host = settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
         if hasattr(obj, 'metadata') and obj.metadata.name:
-            return urljoin(https_host, obj.metadata.url)
-        else:
-            return
+            return urljoin(get_https_host(self.context["request"]), obj.metadata.url)
+        return
 
     def get_sequences(self, obj):
-        proteins = obj.protein_set.filter()
-        protein_file = None
-        for protein in proteins:
-            if protein.pdb_info:
-                if not os.path.isfile(protein.pdb_info.path):
-                    continue
-                protein_file = protein.pdb_info
-                break
-        if not protein_file:
-            return [{'chain': '', 'sequence': ''}]
-
-        protein_file.open(mode='r')
-        pdb_block = protein_file.read()
-        protein_file.close()
-
-        sequences = get_protein_sequences(pdb_block)
-        return sequences
+        return protein_sequences(obj)
 
     def get_molecules(self, obj):
         mols = Molecule.objects.filter(prot_id__target_id=obj.id)

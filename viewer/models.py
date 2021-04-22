@@ -864,7 +864,7 @@ class Tag(models.Model):
     colour = models.CharField(max_length=20, null=True)
     discourse_url = models.TextField(max_length=1000, null=True)
     help_text = models.TextField(null=True)
-    additional_info = models.JSONField(encoder=DjangoJSONEncoder, default='')
+    additional_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
     class Meta:
         abstract = True
