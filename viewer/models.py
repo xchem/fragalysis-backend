@@ -878,8 +878,8 @@ class MoleculeTag(Tag):
     ----------
     molecules: ManyToManyField
         Links to the Molecule(s) that are tagged
-    mol_groups: ManyToManyField
-        Links to the Molecule group(s) - required for Sites (NB Check this is correct)
+    mol_group: ForeignKey scoring.Molgroup
+        Links to the Molecule group - used for Sites when reloading Molecules
 
     """
     molecules = models.ManyToManyField(Molecule, blank=True)

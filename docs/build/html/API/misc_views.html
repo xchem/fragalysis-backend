@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Miscellaneous data (Views) &#8212; Fragalysis-Backend  documentation</title>
+    <title>Miscellaneous data &#8212; Fragalysis-Backend  documentation</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
@@ -34,10 +34,10 @@
 
           <div class="body" role="main">
             
-  <div class="section" id="miscellaneous-data-views">
-<h1>Miscellaneous data (Views)<a class="headerlink" href="#miscellaneous-data-views" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="view-details">
-<h2>View details<a class="headerlink" href="#view-details" title="Permalink to this headline">¶</a></h2>
+  <div class="section" id="miscellaneous-data">
+<h1>Miscellaneous data<a class="headerlink" href="#miscellaneous-data" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="miscellaneous-views">
+<h2>Miscellaneous Views<a class="headerlink" href="#miscellaneous-views" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="viewer.views.img_from_smiles">
 <em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">img_from_smiles</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.img_from_smiles" title="Permalink to this definition">¶</a></dt>
@@ -175,6 +175,527 @@
 
 </div>
 </div>
+<div class="section" id="tags">
+<h1>Tags<a class="headerlink" href="#tags" title="Permalink to this headline">¶</a></h1>
+<p>From April 2021, the Tag functionality is being upgraded. Before, tags were simple strings added to a
+Session Project. Following this introduction, the tag information will be much richer, providing (eventually) the
+following new functionality:</p>
+<ul class="simple">
+<li><p>Tags can be attached to Molecules and Session Projects. The functionality uses a base “Tag” model class with sub-classes containing the fields relevant to Molecules and Session Projects.</p></li>
+<li><p>Tag information has been expanded to include a Discourse URL and a JSON field containing any additional information.</p></li>
+<li><p>Tags are now attached to Categories so they can easily be distinguished on the Front End. Although this is expandable the category table will be initially loaded with “Sites”, “Series”, Forum” and “Other”.</p></li>
+<li><p>The tags relating to “Sites” will replace the current Site functionality. In the cross over phase, both the old sites (Molgroups) and new Site Tags will be active and loaded each time a new target is uploaded. The intention is to expand the Site Tag functionality in the future when the front end has been changed and the Molgroup functionality is no longer used.</p></li>
+<li><p>A new API has been introduced to load all Target and Molecule/Tag information for the initial load of a Target. This is intended to replace the current functionality that loads a dataset molecule by molecule.</p></li>
+<li><p>There are supporting APIs to allow access to the new SessionProjectTag, MoleculeTag models.</p></li>
+</ul>
+<div class="section" id="tag-model-details">
+<h2>Tag Model details<a class="headerlink" href="#tag-model-details" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="viewer.models.TagCategory">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">TagCategory</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.TagCategory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model containing categories for Tags</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>category</strong> (<em>CharField</em>) – The unique name of the tag category.</p></li>
+<li><p><strong>colour</strong> (<em>CharField</em>) – Expected to be an RGB string</p></li>
+<li><p><strong>description</strong> (<em>CharField</em>) – Expected to be a helpful description of what will be contained in the tag category</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.Tag">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Tag</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Tag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model containing Tags</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tag</strong> (<em>CharField</em>) – The unique name of the tag.</p></li>
+<li><p><strong>category</strong> (<em>FK</em><em> (</em><em>integer</em><em>)</em>) – The id of the tag category to which the tag belongs</p></li>
+<li><p><strong>target</strong> (<em>FK</em><em> (</em><em>integer</em><em>)</em>) – The id of the target to which the tag belongs</p></li>
+<li><p><strong>user</strong> (<em>FK</em><em> (</em><em>integer</em><em>)</em>) – The (Django) id of the user that created the tag</p></li>
+<li><p><strong>create_date</strong> (<em>DateTimeField</em>) – The datetime when the tag was created</p></li>
+<li><p><strong>colour</strong> (<em>CharField</em>) – Expected to be an RGB string</p></li>
+<li><p><strong>discourse_url</strong> (<em>TextField</em>) – Optional URL of a related Discourse Post</p></li>
+<li><p><strong>help_text</strong> (<em>TextField</em>) – Optional help text to for the tag</p></li>
+<li><p><strong>additional_info</strong> (<em>JSONField</em>) – Optional JSON field containing name/value pairs for future use</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.MoleculeTag">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">MoleculeTag</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.MoleculeTag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model containing data for MoleculeTag(s) inherited from Tag.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>molecules</strong> (<em>ManyToManyField</em>) – Links to the Molecule(s) that are tagged</p></li>
+<li><p><strong>mol_group</strong> (<em>ForeignKey scoring.Molgroup</em>) – Links to the Molecule group - used for Sites when reloading Molecules</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.models.SessionProjectTag">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">SessionProjectTag</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.SessionProjectTag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django model containing data for SessionProjectTag(s) inherited from Tag.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sesssion_peojects</strong> (<em>ManyToManyField</em>) – Links to the Session Projects) that are tagged</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="tag-views">
+<h2>Tag Views<a class="headerlink" href="#tag-views" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="viewer.views.TagCategoryView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TagCategoryView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TagCategoryView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Operational Django view to set up/retrieve information about tag categories</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/tag_category</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.TagCategory.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.TagCategory.category</cite> - ?category=&lt;str&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">Example output:</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">---------------</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">.. code-block:: java</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">{</code></dt>
+<dd><p>“count”: 1,
+“next”: null,
+“previous”: null,
+“results”: [</p>
+<blockquote>
+<div><dl class="simple">
+<dt>{</dt><dd><p>“id”: 1,
+“category”: “sites”,
+“colour”: “FFFFFF”,
+“description”: “site description”</p>
+</dd>
+</dl>
+<p>},</p>
+</div></blockquote>
+<p>]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">}</code></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.TagCategoryView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.TagCategoryView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.TagCategorySerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.MoleculeTagView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">MoleculeTagView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.MoleculeTagView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Operational Django view to set up/retrieve information about tags relating to Molecules</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/molecule_tag</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.MoleculeTag.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.MoleculeTag.tag</cite> - ?tag=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.MoleculeTag.category</cite> - ?category=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.MoleculeTag.target</cite> - ?target=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.MoleculeTag.molecules</cite> - ?molecules=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.MoleculeTag.mol_group</cite> - ?mol_group=&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">Example output:</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">---------------</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">.. code-block:: json</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">{</code></dt>
+<dd><p>“id”: 43,
+“tag”: “A9 - XChem screen - covalent hits”,
+“create_date”: “2021-04-20T14:16:46.850313Z”,
+“colour”: null,
+“discourse_url”: null,
+“help_text”: null,
+“additional_info”: “”,
+“category”: 1,
+“target”: 3,
+“user”: null,
+“mol_group”: 5468,
+“molecules”: [</p>
+<blockquote>
+<div><p>6577,
+6578,
+6770,
+6771</p>
+</div></blockquote>
+<p>]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">}</code></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.MoleculeTagView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.MoleculeTagView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.MoleculeTagSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.SessionProjectTagView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionProjectTagView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionProjectTagView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Operational Django view to set up/retrieve information about tags relating to Session
+Projects</p>
+<dl class="py method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/session_project_tag</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">queryset:</code></dt>
+<dd><p><cite>viewer.models.SessionProjectTag.objects.filter()</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">filter fields:</code></dt>
+<dd><ul class="simple">
+<li><p><cite>viewer.models.SessionProjectTag.tag</cite> - ?tag=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.SessionProjectTag.category</cite> - ?category=&lt;str&gt;</p></li>
+<li><p><cite>viewer.models.SessionProjectTag.target</cite> - ?target=&lt;int&gt;</p></li>
+<li><p><cite>viewer.models.SessionProjectTag.session_projects</cite> - ?session_project=&lt;int&gt;</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">Example output:</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">---------------</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">.. code-block:: json</code></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">{</code></dt>
+<dd><p>“count”: 1,
+“next”: null,
+“previous”: null,
+“results”: [</p>
+<blockquote>
+<div><dl>
+<dt>{</dt><dd><p>“id”: 3,
+“tag”: “testtag3”,
+“create_date”: “2021-04-13T16:01:55.396088Z”,
+“colour”: null,
+“discourse_url”: null,
+“help_text”: null,
+“additional_info”: “”,
+“category”: 1,
+“target”: 1,
+“user”: null,
+“session_projects”: [</p>
+<blockquote>
+<div><p>2</p>
+</div></blockquote>
+<p>]</p>
+</dd>
+</dl>
+<p>}</p>
+</div></blockquote>
+<p>]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">}</code></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="viewer.views.SessionProjectTagView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.SessionProjectTagView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.SessionProjectTagSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="viewer.views.TargetMoleculesView">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TargetMoleculesView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TargetMoleculesView" title="Permalink to this definition">¶</a></dt>
+<dd><dl>
+<dt>Django view to retrieve all Molecules and Tag information relating to a Target. The idea</dt><dd><blockquote>
+<div><p>is that a single call can return all target related information needed by the React front
+end in a single call.</p>
+<dl class="simple">
+<dt>url:</dt><dd><p>api/target_molecules/id</p>
+</dd>
+</dl>
+<p>returns: JSON</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+<dl>
+<dt>{</dt><dd><blockquote>
+<div><p>“id”: 4,
+“title”: “nsp13”,
+“project_id”: [ 1 ],
+“template_protein”: “/media/pdbs/nsp13-x0280_1B_apo_zOdoDll.pdb”,
+“metadata”: “<a class="reference external" href="https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv">https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv</a>”,
+“zip_archive”: “<a class="reference external" href="https://127.0.0.1:8080/media/targets/nsp13.zip">https://127.0.0.1:8080/media/targets/nsp13.zip</a>”,
+“sequences”: [
+{</p>
+<blockquote>
+<div><p>“chain”: “A”,
+“sequence”: “”</p>
+</div></blockquote>
+<p>}],
+“molecules”: [
+{</p>
+<blockquote>
+<div><p>“data”: [
+{
+“id”: 7031,
+“smiles”: “CS(=O)(=O)NCCc1ccc(F)cc1”,
+“lig_id”: “LIG”,
+“chain_id”: “Z”,
+“mol_type”: “PR”,
+“sdf_info”: “</p>
+</div></blockquote>
+</div></blockquote>
+<p>RDKit          3D</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl>
+<dt>14 14  0  0  0  0  0  0  0  0999 V2000</dt><dd><blockquote>
+<div><p>-2.2720   40.8830  -57.1440 C   0  0  0  0  0  0  0  0  0  0  0  0
+-2.1830   40.3560  -58.8160 S   0  0  2  0  0  0  0  0  0  0  0  0
+-1.0670   41.0130  -59.4250 O   0  0  0  0  0  0  0  0  0  0  0  0
+-3.4810   40.5240  -59.3980 O   0  0  0  0  0  0  0  0  0  0  0  0
+-1.8440   38.7740  -58.8440 N   0  0  0  0  0  0  0  0  0  0  0  0
+-0.4690   38.3470  -58.5620 C   0  0  0  0  0  0  0  0  0  0  0  0
+-0.1690   37.0550  -59.2710 C   0  0  0  0  0  0  0  0  0  0  0  0</p>
+<blockquote>
+<div><p>1.2120   36.5520  -58.9440 C   0  0  0  0  0  0  0  0  0  0  0  0
+2.2900   36.8750  -59.7460 C   0  0  0  0  0  0  0  0  0  0  0  0
+3.5630   36.4200  -59.4490 C   0  0  0  0  0  0  0  0  0  0  0  0
+3.7410   35.7030  -58.3040 C   0  0  0  0  0  0  0  0  0  0  0  0
+4.9980   35.3010  -57.9750 F   0  0  0  0  0  0  0  0  0  0  0  0
+2.7150   35.3620  -57.4760 C   0  0  0  0  0  0  0  0  0  0  0  0
+1.4460   35.8120  -57.7970 C   0  0  0  0  0  0  0  0  0  0  0  0</p>
+</div></blockquote>
+</div></blockquote>
+<p>2  1  1  1
+3  2  2  0
+4  2  2  0
+5  2  1  0
+6  5  1  0
+7  6  1  0
+8  7  1  0
+9  8  2  0</p>
+</dd>
+</dl>
+<p>10  9  1  0
+11 10  2  0
+12 11  1  0
+13 11  1  0
+14 13  2  0
+14  8  1  0</p>
+</dd>
+</dl>
+<p>M  END
+“,</p>
+<blockquote>
+<div><blockquote>
+<div><blockquote>
+<div><blockquote>
+<div><p>“rscc”: null,
+“occupancy”: 0.0,
+“x_com”: null,
+“y_com”: null,
+“z_com”: null,
+“rmsd”: null,
+“prot_id_id”: 6999,
+“cmpd_id_id”: 839
+}],
+“tags_set”: [ 78 ]
+},
+{</p>
+<blockquote>
+<div><dl class="simple">
+<dt>“data”: [</dt><dd><p>{</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>&lt;molecule data&gt;</p>
+</div></blockquote>
+<p>}</p>
+</div></blockquote>
+<p>],
+“tags_info”: [</p>
+<blockquote>
+<div><dl>
+<dt>{</dt><dd><dl>
+<dt>“data”: [</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“id”: 72,
+“tag”: “A - Nucleotide Site”,
+“category_id”: 16,
+“target_id”: 4,
+“user_id”: null,
+“create_date”: “2021-04-22T12:11:27.315783Z”,
+“colour”: null,
+“discourse_url”: null,
+“help_text”: null,
+“additional_info”: null,
+“mol_group_id”: 5498</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>],
+“coords”: [</p>
+<blockquote>
+<div><dl class="simple">
+<dt>{</dt><dd><p>“x_com”: -9.322852168872645,
+“y_com”: 3.0154678875227723,
+“z_com”: -72.34568956027785</p>
+</dd>
+</dl>
+<p>}</p>
+</div></blockquote>
+<p>]</p>
+</dd>
+</dl>
+<p>},
+{</p>
+<blockquote>
+<div><dl class="simple">
+<dt>“data”: [</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“id”: 73,</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<p>&lt;tag data&gt;</p>
+</div></blockquote>
+<p>}
+],
+“tag_categories”: [</p>
+<blockquote>
+<div><dl class="simple">
+<dt>{</dt><dd><p>“id”: 16,
+“category”: “Sites”,
+“colour”: “00CC00”,
+“description”: null</p>
+</dd>
+</dl>
+<p>}</p>
+</div></blockquote>
+<p>]</p>
+</div></blockquote>
+<p>}</p>
+</div></blockquote>
+<dl class="py attribute">
+<dt id="viewer.views.TargetMoleculesView.serializer_class">
+<code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.TargetMoleculesView.serializer_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.TargetMoleculesSerializer</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
 
 
           </div>
@@ -204,8 +725,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../crystallographic_data/views.html">Crystallographic data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../computational_data/views.html">Computational data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Miscellaneous data (Views)</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#view-details">View details</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Miscellaneous data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#miscellaneous-views">Miscellaneous Views</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#tags">Tags</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#tag-model-details">Tag Model details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tag-views">Tag Views</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
