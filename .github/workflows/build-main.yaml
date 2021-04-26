@@ -38,8 +38,8 @@ name: build main
 # STACK_USER              optional - set if triggering
 # STACK_USER_TOKEN        optional - set if triggering
 #
-# LOADER_USER             optional - set if triggering
-# LOADER_USER_TOKEN       optional - set if triggering
+# LOADER_USER             optional - set if triggering loader
+# LOADER_USER_TOKEN       optional - set if triggering loader
 #
 # -----------
 # Environment (GitHub Environments)
@@ -81,6 +81,7 @@ jobs:
       push: ${{ steps.vars.outputs.push }}
       tag: ${{ steps.vars.outputs.tag }}
       trigger: ${{ steps.vars.outputs.trigger }}
+      have_loader_user: ${{ steps.vars.outputs.have-loader-user }}
     steps:
     - name: Inject slug/short variables
       uses: rlespinasse/github-slug-action@v3.x
@@ -89,6 +90,7 @@ jobs:
       env:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         TRIGGER_DOWNSTREAM: ${{ secrets.TRIGGER_DOWNSTREAM }}
+        LOADER_USER: ${{ secrets.LODER_USER }}
       run: |
         # BE_NAMESPACE
         BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
@@ -153,6 +155,10 @@ jobs:
         echo set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
         echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
 
+        # Do we have a loader user, i.e. is LOADER_USER set?
+        echo set-output name=have_loader_user::${{ env.LOADER_USER != '' }}
+        echo ::set-output name=have_loader_user::${{ env.LOADER_USER != '' }}
+
     - name: Checkout
       uses: actions/checkout@v2
 
@@ -194,3 +200,19 @@ jobs:
           stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
         ci-user: ${{ secrets.STACK_USER }}
         ci-user-token: ${{ secrets.STACK_USER_TOKEN }}
+    - name: Trigger loader
+      if: |
+        steps.vars.outputs.trigger == 'true' &&
+        steps.vars.outputs.have_loader_user == 'true'
+      uses: informaticsmatters/trigger-ci-action@v1
+      with:
+        ci-owner: ${{ steps.vars.outputs.LOADER_NAMESPACE }}
+        ci-repository: fragalysis-loader
+        ci-name: build main
+        ci-ref: refs/heads/${{ steps.vars.outputs.LOADER_BRANCH }}
+        ci-inputs: >-
+          be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
+          be_image_tag=${{ steps.vars.outputs.BE_IMAGE_TAG }}
+          loader_namespace=${{ steps.vars.outputs.LOADER_NAMESPACE }}
+        ci-user: ${{ secrets.LOADER_USER }}
+        ci-user-token: ${{ secrets.LOADER_USER_TOKEN }}
