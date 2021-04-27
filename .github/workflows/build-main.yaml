@@ -90,7 +90,7 @@ jobs:
       env:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         TRIGGER_DOWNSTREAM: ${{ secrets.TRIGGER_DOWNSTREAM }}
-        LOADER_USER: ${{ secrets.LODER_USER }}
+        LOADER_USER: ${{ secrets.LOADER_USER }}
       run: |
         # BE_NAMESPACE
         BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
