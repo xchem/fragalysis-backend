@@ -13,7 +13,7 @@ services:
     ports:
     - "5432:5432"
   tests:
-    image: ${BE_NAMESPACE}/fragalysis-backend:latest
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_TAG:-latest}
     command: ["/code/wait-for-it.sh", "database:5432", "--", "/bin/bash", "/code/test_entry.sh"]
     volumes:
     - .:/code

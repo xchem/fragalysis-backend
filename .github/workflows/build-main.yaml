@@ -1,0 +1,218 @@
+---
+name: build main
+
+# Actions that take place after every commit the master/main branch.
+# Here every commit is built, tagged as 'latest' and tested.
+# If a DOCKERHUB_USERNAME secret is defined the image is pushed.
+#
+# Actions also run if the repository is tagged.
+# Every tag is deployed to staging and every production-grade tag
+# (of the form N.N.N) is deployed to production.defaults:
+#
+# Actions also run on a schedule - the the container is built, tested,
+# pushed and deployed (if the relevant secrets are set) based on
+# a defined schedule.
+
+# ---------------
+# Control secrets
+# ---------------
+#
+# At the GitHub 'organisation' or 'project' level you are expected to
+# have the following GitHub 'Repository Secrets' defined
+# (i.e. via 'Settings -> Secrets'): -
+#
+# BE_NAMESPACE            optional - default xchem
+# FE_BRANCH               optional - default master
+# FE_NAMESPACE            optional - default xchem
+# STACK_BRANCH            optional - default master
+# STACK_NAMESPACE         optional - default xchem
+# LOADER_BRANCH           optional - default master
+# LOADER_NAMESPACE        optional - default xchem
+#
+# DOCKERHUB_USERNAME      optional
+# DOCKERHUB_TOKEN         optional - required if DOCKERHUB_USERNAME
+#
+# TRIGGER_DOWNSTREAM      optional - set to 'yes'
+#                                    to trigger downstream projects
+#
+# STACK_USER              optional - set if triggering
+# STACK_USER_TOKEN        optional - set if triggering
+#
+# LOADER_USER             optional - set if triggering loader
+# LOADER_USER_TOKEN       optional - set if triggering loader
+#
+# -----------
+# Environment (GitHub Environments)
+# -----------
+#
+# (none)
+
+on:
+  push:
+    branches:
+    - 'master'
+    - 'main'
+    tags:
+    - '**'
+  schedule:
+  # Build every Sunday (0) at 4:30pm
+  - cron: '30 16 * * 0'
+
+env:
+  # The following 'defaults' are used in the 'Initialise workflow variables' step,
+  # which creates 'outputs' for use in steps and jobs that follow it.
+  # The values set here are used unless a matching secret is found.
+  # Secrets are the way users dynamically control the behaviour of this Action.
+  #
+  #   For Jobs conditional on the presence of a secret see this Gist...
+  #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
+  BE_NAMESPACE: xchem
+  FE_BRANCH: master
+  FE_NAMESPACE: xchem
+  STACK_BRANCH: master
+  STACK_NAMESPACE: xchem
+  LOADER_BRANCH: master
+  LOADER_NAMESPACE: xchem
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      push: ${{ steps.vars.outputs.push }}
+      tag: ${{ steps.vars.outputs.tag }}
+      trigger: ${{ steps.vars.outputs.trigger }}
+      have_loader_user: ${{ steps.vars.outputs.have-loader-user }}
+    steps:
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v3.x
+    - name: Initialise workflow variables
+      id: vars
+      env:
+        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        TRIGGER_DOWNSTREAM: ${{ secrets.TRIGGER_DOWNSTREAM }}
+        LOADER_USER: ${{ secrets.LODER_USER }}
+      run: |
+        # BE_NAMESPACE
+        BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
+        if [ -n "${{ github.event.inputs.be_namespace }}" ]; then BE_NAMESPACE="${{ github.event.inputs.be_namespace }}";
+        elif [ -n "${{ secrets.BE_NAMESPACE }}" ]; then BE_NAMESPACE="${{ secrets.BE_NAMESPACE }}"; fi
+        echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
+        echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
+
+        # FE_BRANCH
+        FE_BRANCH="${{ env.FE_BRANCH }}"
+        if [ -n "${{ github.event.inputs.fe_branch }}" ]; then FE_BRANCH="${{ github.event.inputs.fe_branch }}";
+        elif [ -n "${{ secrets.FE_BRANCH }}" ]; then FE_BRANCH="${{ secrets.FE_BRANCH }}"; fi
+        echo set-output name=FE_BRANCH::${FE_BRANCH}
+        echo ::set-output name=FE_BRANCH::${FE_BRANCH}
+
+        # FE_NAMESPACE
+        FE_NAMESPACE="${{ env.FE_NAMESPACE }}"
+        if [ -n "${{ github.event.inputs.fe_namespace }}" ]; then FE_NAMESPACE="${{ github.event.inputs.fe_namespace }}";
+        elif [ -n "${{ secrets.FE_NAMESPACE }}" ]; then FE_NAMESPACE="${{ secrets.FE_NAMESPACE }}"; fi
+        echo set-output name=FE_NAMESPACE::${FE_NAMESPACE}
+        echo ::set-output name=FE_NAMESPACE::${FE_NAMESPACE}
+
+        # STACK_BRANCH
+        STACK_BRANCH="${{ env.STACK_BRANCH }}"
+        if [ -n "${{ github.event.inputs.stack_branch }}" ]; then STACK_BRANCH="${{ github.event.inputs.stack_branch }}";
+        elif [ -n "${{ secrets.STACK_BRANCH }}" ]; then STACK_BRANCH="${{ secrets.STACK_BRANCH }}"; fi
+        echo set-output name=STACK_BRANCH::${STACK_BRANCH}
+        echo ::set-output name=STACK_BRANCH::${STACK_BRANCH}
+
+        # STACK_NAMESPACE
+        STACK_NAMESPACE="${{ env.STACK_NAMESPACE }}"
+        if [ -n "${{ github.event.inputs.stack_namespace }}" ]; then STACK_NAMESPACE="${{ github.event.inputs.stack_namespace }}";
+        elif [ -n "${{ secrets.STACK_NAMESPACE }}" ]; then STACK_NAMESPACE="${{ secrets.STACK_NAMESPACE }}"; fi
+        echo set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
+        echo ::set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
+
+        # LOADER_BRANCH
+        LOADER_BRANCH="${{ env.LOADER_BRANCH }}"
+        if [ -n "${{ github.event.inputs.loader_branch }}" ]; then LOADER_BRANCH="${{ github.event.inputs.loader_branch }}";
+        elif [ -n "${{ secrets.LOADER_BRANCH }}" ]; then LOADER_BRANCH="${{ secrets.LOADER_BRANCH }}"; fi
+        echo set-output name=LOADER_BRANCH::${LOADER_BRANCH}
+        echo ::set-output name=LOADER_BRANCH::${LOADER_BRANCH}
+
+        # LOADER_NAMESPACE
+        LOADER_NAMESPACE="${{ env.LOADER_NAMESPACE }}"
+        if [ -n "${{ github.event.inputs.loader_namespace }}" ]; then LOADER_NAMESPACE="${{ github.event.inputs.loader_namespace }}";
+        elif [ -n "${{ secrets.LOADER_NAMESPACE }}" ]; then LOADER_NAMESPACE="${{ secrets.LOADER_NAMESPACE }}"; fi
+        echo set-output name=LOADER_NAMESPACE::${LOADER_NAMESPACE}
+        echo ::set-output name=LOADER_NAMESPACE::${LOADER_NAMESPACE}
+
+        # What image tag are we using? 'latest' (if not tagged) or a GitHub tag?
+        TAG="latest"
+        if [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then TAG="${{ env.GITHUB_REF_SLUG }}"; fi
+        echo set-output name=tag::${TAG}
+        echo ::set-output name=tag::${TAG}
+
+        # Do we push, i.e. is DOCKERHUB_USERNAME defined?
+        echo set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
+        echo ::set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
+
+        # Do we trigger downstream, i.e. is TRIGGER_DOWNSTREAM 'yes'?
+        echo set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
+        echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
+
+        # Do we have a loader user, i.e. is LOADER_USER set?
+        echo set-output name=have_loader_user::${{ env.LOADER_USER != '' }}
+        echo ::set-output name=have_loader_user::${{ env.LOADER_USER != '' }}
+
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Build
+      uses: docker/build-push-action@v2
+      with:
+        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+    - name: Test
+      run: >
+        docker-compose -f docker-compose.test.yml up
+        --build
+        --exit-code-from tests
+        --abort-on-container-exit
+      env:
+        BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
+        BE_TAG: ${{ steps.vars.outputs.tag }}
+    - name: Login to DockerHub
+      if: steps.vars.outputs.push == 'true'
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Push
+      if: steps.vars.outputs.push == 'true'
+      run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+    - name: Trigger stack
+      if: steps.vars.outputs.trigger == 'true'
+      uses: informaticsmatters/trigger-ci-action@v1
+      with:
+        ci-owner: ${{ steps.vars.outputs.STACK_NAMESPACE }}
+        ci-repository: fragalysis-stack
+        ci-name: build main
+        ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
+        ci-inputs: >-
+          be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
+          be_image_tag=${{ steps.vars.outputs.BE_IMAGE_TAG }}
+          fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
+          fe_branch=${{ steps.vars.outputs.FE_BRANCH }}
+          stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
+        ci-user: ${{ secrets.STACK_USER }}
+        ci-user-token: ${{ secrets.STACK_USER_TOKEN }}
+    - name: Trigger loader
+      if: |
+        steps.vars.outputs.trigger == 'true' &&
+        steps.vars.outputs.have_loader_user == 'true'
+      uses: informaticsmatters/trigger-ci-action@v1
+      with:
+        ci-owner: ${{ steps.vars.outputs.LOADER_NAMESPACE }}
+        ci-repository: fragalysis-loader
+        ci-name: build main
+        ci-ref: refs/heads/${{ steps.vars.outputs.LOADER_BRANCH }}
+        ci-inputs: >-
+          be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
+          be_image_tag=${{ steps.vars.outputs.BE_IMAGE_TAG }}
+          loader_namespace=${{ steps.vars.outputs.LOADER_NAMESPACE }}
+        ci-user: ${{ secrets.LOADER_USER }}
+        ci-user-token: ${{ secrets.LOADER_USER_TOKEN }}
