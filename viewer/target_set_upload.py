@@ -782,7 +782,7 @@ def specifc_site(rd_mols, mols, target, site_description=None):
     mol_group.save()
 
     mol_tag.tag = site_description
-    mol_tag.category = TagCategory.objects.get(category='sites')
+    mol_tag.category = TagCategory.objects.get(category='Sites')
     mol_tag.target = target
     mol_tag.mol_group = mol_group
     mol_tag.save()
@@ -1041,6 +1041,7 @@ def add_tset_warning(validate_dict, location, error, line_number):
     validate_dict['Error'].append(error)
     validate_dict['Line number'].append(line_number)
     return validate_dict
+
 
 def check_meatadata_row(validated, input_validate_dict, row, idx):
     """Validate the metadata.csv file to check basic formatting is correct
