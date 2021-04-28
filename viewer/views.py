@@ -590,12 +590,14 @@ def react(request):
     # If user is authenticated and a discourse api key is available, then check discourse to
     # see if user is set up and set up flag in context.
     user = request.user
-    if user.is_authenticated and discourse_api_key:
-        context['discourse_host'] = settings.DISCOURSE_HOST
+    if user.is_authenticated:
+        context['discourse_host'] = ''
         context['user_present_on_discourse'] = 'false'
-        error, error_message, user_id = check_discourse_user(user)
-        if user_id:
-            context['user_present_on_discourse'] = 'true'
+        if discourse_api_key:
+            context['discourse_host'] = settings.DISCOURSE_HOST
+            error, error_message, user_id = check_discourse_user(user)
+            if user_id:
+                context['user_present_on_discourse'] = 'true'
 
     return render(request, "viewer/react_temp.html", context)
 
