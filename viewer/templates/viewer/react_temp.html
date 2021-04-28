@@ -20,7 +20,7 @@
          pk: {{user.pk|default:-1}},
          authenticated: true,
          discourse_available: {{ discourse_available }},
-         user_present_on_discourse: {{ user_present_on_discourse }},
+         user_present_on_discourse: {{ user_present_on_discourse|default:"false" }},
          discourse_host: '{{ discourse_host }}'
      }
  {% else %}
