@@ -204,7 +204,7 @@ jobs:
         ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
         ci-inputs: >-
           be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
-          be_image_tag=${{ steps.vars.outputs.BE_IMAGE_TAG }}
+          be_image_tag=${{ steps.vars.outputs.tag }}
           fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
           fe_branch=${{ steps.vars.outputs.FE_BRANCH }}
           stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
@@ -223,7 +223,7 @@ jobs:
         ci-ref: refs/heads/${{ steps.vars.outputs.LOADER_BRANCH }}
         ci-inputs: >-
           be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
-          be_image_tag=${{ steps.vars.outputs.BE_IMAGE_TAG }}
+          be_image_tag=${{ steps.vars.outputs.tag }}
           loader_namespace=${{ steps.vars.outputs.LOADER_NAMESPACE }}
         ci-user: ${{ secrets.LOADER_USER }}
         ci-user-token: ${{ secrets.LOADER_USER_TOKEN }}
