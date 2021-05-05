@@ -633,7 +633,30 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
         mols = Molecule.objects.filter(prot_id__target_id=obj.id)
         molecules = []
         for mol in mols:
-            mol_data = Molecule.objects.filter(id=mol.id).values()
+            mol_data = {
+                'id': mol.id,
+                'smiles': mol.smiles,
+                'cmpd_id': mol.cmpd_id_id,
+                'prot_id': mol.prot_id_id,
+                'protein_code': mol.prot_id.code,
+                "mol_type": mol.mol_type,
+                "molecule_protein": mol.prot_id.pdb_info.url,
+                "lig_id": mol.lig_id,
+                "chain_id": mol.chain_id,
+                'sdf_info': mol.sdf_info,
+                'x_com': mol.x_com,
+                'y_com': mol.y_com,
+                'z_com': mol.z_com,
+                'mw': round(mol.cmpd_id.mol_wt, 2),
+                'logp': round(mol.cmpd_id.mol_log_p, 2),
+                'tpsa': round(mol.cmpd_id.tpsa, 2),
+                'ha': mol.cmpd_id.heavy_atom_count,
+                'hacc': mol.cmpd_id.num_h_acceptors,
+                'hdon': mol.cmpd_id.num_h_donors,
+                'rots': mol.cmpd_id.num_rot_bonds,
+                'rings': mol.cmpd_id.ring_count,
+                'velec': mol.cmpd_id.num_val_electrons
+            }
             mol_tags_set = \
                 [mt['id'] for mt in MoleculeTag.objects.filter(molecules=mol.id).values()]
             mol_dict = {'data': mol_data, 'tags_set': mol_tags_set}
