@@ -25,8 +25,10 @@ name: build main
 # FE_BRANCH               optional - default master
 # FE_NAMESPACE            optional - default xchem
 # STACK_BRANCH            optional - default master
+# STACK_GITHUB_NAMESPACE  optional - default xchem
 # STACK_NAMESPACE         optional - default xchem
 # LOADER_BRANCH           optional - default master
+# LOADER_GITHUB_NAMESPACE optional - default xchem
 # LOADER_NAMESPACE        optional - default xchem
 #
 # DOCKERHUB_USERNAME      optional
@@ -70,8 +72,10 @@ env:
   FE_BRANCH: master
   FE_NAMESPACE: xchem
   STACK_BRANCH: master
+  STACK_GITHUB_NAMESPACE: xchem
   STACK_NAMESPACE: xchem
   LOADER_BRANCH: master
+  LOADER_GITHUB_NAMESPACE: xchem
   LOADER_NAMESPACE: xchem
 
 jobs:
@@ -94,50 +98,55 @@ jobs:
       run: |
         # BE_NAMESPACE
         BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
-        if [ -n "${{ github.event.inputs.be_namespace }}" ]; then BE_NAMESPACE="${{ github.event.inputs.be_namespace }}";
-        elif [ -n "${{ secrets.BE_NAMESPACE }}" ]; then BE_NAMESPACE="${{ secrets.BE_NAMESPACE }}"; fi
+        if [ -n "${{ secrets.BE_NAMESPACE }}" ]; then BE_NAMESPACE="${{ secrets.BE_NAMESPACE }}"; fi
         echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
         echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
 
         # FE_BRANCH
         FE_BRANCH="${{ env.FE_BRANCH }}"
-        if [ -n "${{ github.event.inputs.fe_branch }}" ]; then FE_BRANCH="${{ github.event.inputs.fe_branch }}";
-        elif [ -n "${{ secrets.FE_BRANCH }}" ]; then FE_BRANCH="${{ secrets.FE_BRANCH }}"; fi
+        if [ -n "${{ secrets.FE_BRANCH }}" ]; then FE_BRANCH="${{ secrets.FE_BRANCH }}"; fi
         echo set-output name=FE_BRANCH::${FE_BRANCH}
         echo ::set-output name=FE_BRANCH::${FE_BRANCH}
 
         # FE_NAMESPACE
         FE_NAMESPACE="${{ env.FE_NAMESPACE }}"
-        if [ -n "${{ github.event.inputs.fe_namespace }}" ]; then FE_NAMESPACE="${{ github.event.inputs.fe_namespace }}";
-        elif [ -n "${{ secrets.FE_NAMESPACE }}" ]; then FE_NAMESPACE="${{ secrets.FE_NAMESPACE }}"; fi
+        if [ -n "${{ secrets.FE_NAMESPACE }}" ]; then FE_NAMESPACE="${{ secrets.FE_NAMESPACE }}"; fi
         echo set-output name=FE_NAMESPACE::${FE_NAMESPACE}
         echo ::set-output name=FE_NAMESPACE::${FE_NAMESPACE}
 
         # STACK_BRANCH
         STACK_BRANCH="${{ env.STACK_BRANCH }}"
-        if [ -n "${{ github.event.inputs.stack_branch }}" ]; then STACK_BRANCH="${{ github.event.inputs.stack_branch }}";
-        elif [ -n "${{ secrets.STACK_BRANCH }}" ]; then STACK_BRANCH="${{ secrets.STACK_BRANCH }}"; fi
+        if [ -n "${{ secrets.STACK_BRANCH }}" ]; then STACK_BRANCH="${{ secrets.STACK_BRANCH }}"; fi
         echo set-output name=STACK_BRANCH::${STACK_BRANCH}
         echo ::set-output name=STACK_BRANCH::${STACK_BRANCH}
 
+        # STACK_GITHUB_NAMESPACE
+        STACK_GITHUB_NAMESPACE="${{ env.STACK_GITHUB_NAMESPACE }}"
+        if [ -n "${{ secrets.STACK_GITHUB_NAMESPACE }}" ]; then STACK_GITHUB_NAMESPACE="${{ secrets.STACK_GITHUB_NAMESPACE }}"; fi
+        echo set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
+        echo ::set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
+
         # STACK_NAMESPACE
         STACK_NAMESPACE="${{ env.STACK_NAMESPACE }}"
-        if [ -n "${{ github.event.inputs.stack_namespace }}" ]; then STACK_NAMESPACE="${{ github.event.inputs.stack_namespace }}";
-        elif [ -n "${{ secrets.STACK_NAMESPACE }}" ]; then STACK_NAMESPACE="${{ secrets.STACK_NAMESPACE }}"; fi
+        if [ -n "${{ secrets.STACK_NAMESPACE }}" ]; then STACK_NAMESPACE="${{ secrets.STACK_NAMESPACE }}"; fi
         echo set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
         echo ::set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
 
         # LOADER_BRANCH
         LOADER_BRANCH="${{ env.LOADER_BRANCH }}"
-        if [ -n "${{ github.event.inputs.loader_branch }}" ]; then LOADER_BRANCH="${{ github.event.inputs.loader_branch }}";
-        elif [ -n "${{ secrets.LOADER_BRANCH }}" ]; then LOADER_BRANCH="${{ secrets.LOADER_BRANCH }}"; fi
+        if [ -n "${{ secrets.LOADER_BRANCH }}" ]; then LOADER_BRANCH="${{ secrets.LOADER_BRANCH }}"; fi
         echo set-output name=LOADER_BRANCH::${LOADER_BRANCH}
         echo ::set-output name=LOADER_BRANCH::${LOADER_BRANCH}
 
+        # LOADER_GITHUB_NAMESPACE
+        LOADER_GITHUB_NAMESPACE="${{ env.LOADER_GITHUB_NAMESPACE }}"
+        if [ -n "${{ secrets.LOADER_GITHUB_NAMESPACE }}" ]; then LOADER_GITHUB_NAMESPACE="${{ secrets.LOADER_GITHUB_NAMESPACE }}"; fi
+        echo set-output name=LOADER_GITHUB_NAMESPACE::${LOADER_GITHUB_NAMESPACE}
+        echo ::set-output name=LOADER_GITHUB_NAMESPACE::${LOADER_GITHUB_NAMESPACE}
+
         # LOADER_NAMESPACE
         LOADER_NAMESPACE="${{ env.LOADER_NAMESPACE }}"
-        if [ -n "${{ github.event.inputs.loader_namespace }}" ]; then LOADER_NAMESPACE="${{ github.event.inputs.loader_namespace }}";
-        elif [ -n "${{ secrets.LOADER_NAMESPACE }}" ]; then LOADER_NAMESPACE="${{ secrets.LOADER_NAMESPACE }}"; fi
+        if [ -n "${{ secrets.LOADER_NAMESPACE }}" ]; then LOADER_NAMESPACE="${{ secrets.LOADER_NAMESPACE }}"; fi
         echo set-output name=LOADER_NAMESPACE::${LOADER_NAMESPACE}
         echo ::set-output name=LOADER_NAMESPACE::${LOADER_NAMESPACE}
 
@@ -184,11 +193,12 @@ jobs:
     - name: Push
       if: steps.vars.outputs.push == 'true'
       run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+
     - name: Trigger stack
       if: steps.vars.outputs.trigger == 'true'
       uses: informaticsmatters/trigger-ci-action@v1
       with:
-        ci-owner: ${{ steps.vars.outputs.STACK_NAMESPACE }}
+        ci-owner: ${{ steps.vars.outputs.STACK_GITHUB_NAMESPACE }}
         ci-repository: fragalysis-stack
         ci-name: build main
         ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
@@ -200,13 +210,14 @@ jobs:
           stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
         ci-user: ${{ secrets.STACK_USER }}
         ci-user-token: ${{ secrets.STACK_USER_TOKEN }}
+
     - name: Trigger loader
       if: |
         steps.vars.outputs.trigger == 'true' &&
         steps.vars.outputs.have_loader_user == 'true'
       uses: informaticsmatters/trigger-ci-action@v1
       with:
-        ci-owner: ${{ steps.vars.outputs.LOADER_NAMESPACE }}
+        ci-owner: ${{ steps.vars.outputs.LOADER_GITHUB_NAMESPACE }}
         ci-repository: fragalysis-loader
         ci-name: build main
         ci-ref: refs/heads/${{ steps.vars.outputs.LOADER_BRANCH }}
