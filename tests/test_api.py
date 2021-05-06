@@ -15,7 +15,17 @@ from hypothesis.models import (
     InteractionPoint,
     Interaction,
 )
-from viewer.models import Molecule, Protein, Target, Compound, Project
+from viewer.models import (
+    Molecule,
+    Protein,
+    Target,
+    Compound,
+    Project,
+    SessionProject,
+    TagCategory,
+    MoleculeTag,
+    SessionProjectTag
+)
 
 
 # Test all these functions
@@ -203,6 +213,50 @@ class APIUrlsTestCase(APITestCase):
             prot_id=self.protein,
             map_info="my_hotspot.map",
         )
+
+        # Tags tests
+
+        # TagCategory
+        self.tagcategory = TagCategory.objects.create(
+            id = 1,
+            category = "sites",
+            colour =  "FFFFFF",
+            description = "site description"
+        )
+        # MoleculeTag
+        self.moltag = MoleculeTag.objects.create(
+            id = 1,
+            tag = "A9 - XChem screen - covalent hits",
+            create_date = "2021-04-20T14:16:46.850313Z",
+            colour = "FFFFFF",
+            discourse_url = "www.discoursesite.com/t/1234",
+            help_text = "Some help text to display as a tooltip",
+            additional_info = "{'key', 'value'}",
+            category = self.tagcategory,
+            target = self.target,
+        )
+        self.moltag.molecules.add(self.mol)
+
+        # SessionProject created for SessionProjectTag
+        self.sp = SessionProject.objects.create(
+            id = 1,
+            title = 'test session project',
+            target = self.target
+        )
+
+        # SessionProjectTag
+        self.sptag = SessionProjectTag.objects.create(
+            id = 1,
+            tag = "Session Project Tag",
+            create_date = "2021-04-20T14:16:46.850313Z",
+            colour = "FFFFFF",
+            discourse_url = "www.discoursesite.com/t/1234",
+            help_text = "Some help text to display as a tooltip",
+            additional_info = "{'key', 'value'}",
+            category = self.tagcategory,
+            target = self.target,
+        )
+        self.sptag.session_projects.add(self.sp)
 
         self.url_base = "/api"
 
@@ -655,3 +709,59 @@ class APIUrlsTestCase(APITestCase):
 
     def test_not_logged_in(self):
         self.do_full_scan(None, self.not_secret_target_data)
+
+    def test_tags(self):
+        """
+        Check basic tag functionality works.
+        The data is created in the setUp(self) method
+        This could be expanded to include all the session project/snapshot stuff
+        when budget/opportunity allows.
+        :return:
+        """
+        urls = [
+            "tag_category",
+            "molecule_tag",
+            "session_project_tag"
+        ]
+        response_data = [
+            {
+                "id": 1,
+                "category": "sites",
+                "colour": "FFFFFF",
+                "description": "site description"
+            },
+            {
+                "id": 1,
+                "tag": "A9 - XChem screen - covalent hits",
+                "user": None,
+                "mol_group": None,
+                "create_date": "2021-04-20T14:16:46.850313Z",
+                "colour": "FFFFFF",
+                "discourse_url": "www.discoursesite.com/t/1234",
+                "help_text": "Some help text to display as a tooltip",
+                "additional_info": "{'key', 'value'}",
+                "category": 1,
+                "target": 1,
+                "molecules": [1]
+            },
+            {
+                "id": 1,
+                "tag": "Session Project Tag",
+                "user": None,
+                "create_date": "2021-04-20T14:16:46.850313Z",
+                "colour": "FFFFFF",
+                "discourse_url": "www.discoursesite.com/t/1234",
+                "help_text": "Some help text to display as a tooltip",
+                "additional_info": "{'key', 'value'}",
+                "category": 1,
+                "target": 1,
+                "session_projects": [1]
+            },
+        ]
+        self.client.login(username=self.user.username, password=self.user.password)
+        for i, url in enumerate(urls):
+            # GET same data
+            response = self.client.get(self.url_base + "/" + url + "/1/")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data, response_data[i])
+

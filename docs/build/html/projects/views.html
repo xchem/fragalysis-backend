@@ -16,7 +16,7 @@
     <script src="../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Miscellaneous data (Views)" href="../API/misc_views.html" />
+    <link rel="next" title="Miscellaneous data" href="../API/misc_views.html" />
     <link rel="prev" title="Computational data (Views)" href="../computational_data/views.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -343,7 +343,20 @@ project information (PUT, POST, PATCH)</p>
     <span class="s2">&quot;title&quot;</span><span class="o">:</span> <span class="s2">&quot;READ_ONLY&quot;</span><span class="p">,</span>
     <span class="s2">&quot;init_date&quot;</span><span class="o">:</span> <span class="s2">&quot;2020-07-09T19:52:10.506119Z&quot;</span><span class="p">,</span>
     <span class="s2">&quot;description&quot;</span><span class="o">:</span> <span class="s2">&quot;READ_ONLY&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;tags&quot;</span><span class="o">:</span> <span class="s2">&quot;[]&quot;</span>
+    <span class="s2">&quot;tags&quot;</span><span class="o">:</span> <span class="s2">&quot;[]&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;session_project_tags&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="s2">&quot;tag&quot;</span><span class="o">:</span> <span class="s2">&quot;testtag3&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;category_id&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;target_id&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;user_id&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+        <span class="s2">&quot;create_date&quot;</span><span class="o">:</span> <span class="s2">&quot;2021-04-13T16:01:55.396088Z&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;colour&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+        <span class="s2">&quot;discourse_url&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+        <span class="s2">&quot;help_text&quot;</span><span class="o">:</span> <span class="kc">null</span><span class="p">,</span>
+        <span class="s2">&quot;additional_info&quot;</span><span class="o">:</span> <span class="s2">&quot;&quot;</span>
+    <span class="p">},]</span>
 <span class="p">},]</span>
 </pre></div>
 </div>
@@ -463,7 +476,7 @@ project action information (PUT, POST, PATCH)</p>
 <code class="sig-name descname">params:</code></dt>
 <dd><ul class="simple">
 <li><p>category_name: sub category_name for Discourse post (optional if post title is given)</p></li>
-<li><p>parent_category: Discourse parent_category name - defaults to “fragalysis targets” (Setting)</p></li>
+<li><p>parent_category_name: Discourse parent_category name - defaults to “Fragalysis targets” (Setting)</p></li>
 <li><p>category_colour: Optional - defaults to ‘0088CC’</p></li>
 <li><p>category_text_colour: Optional defaults to ‘FFFFFF’</p></li>
 <li><p>post_title: title of topic or post (optional if category name is given)</p></li>
@@ -476,6 +489,26 @@ project action information (PUT, POST, PATCH)</p>
 <dt>
 <code class="sig-name descname">Returns JSON</code></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">example of input (GET) on local:</code></dt>
+<dd><p><a class="reference external" href="http://127.0.0.1:8080/api/discourse_post/?post_title=Mpro%20First%20Project">http://127.0.0.1:8080/api/discourse_post/?post_title=Mpro%20First%20Project</a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt>
+<code class="sig-name descname">examples of input (POST raw data):</code></dt>
+<dd><p>{“category_name”: “NewCategory”, “parent_category_name”: “Fragalysis targets”, “category_colour”: “0088CC”,
+“category_text_colour”: “FFFFFF”, “post_title”: “”, “post_content”: “”, “post_tags”:””}</p>
+<p>{“category_name”: “NewCategory”, “parent_category_name”: “Fragalysis targets”, “category_colour”: “0088CC”,
+“category_text_colour”: “FFFFFF”, “post_title”: “New Topic Title 1”,
+“post_content”: “This is the first post that creates the topic - must be greater than 20 chars”,
+“post_tags” :”[&quot;tag1&quot;,&quot;tag2&quot;]”}</p>
+<p>{“category_name”: “NewCategory”, “parent_category_name”: “Fragalysis targets”, “category_colour”: “0088CC”,
+“category_text_colour”: “FFFFFF”, “post_title”: “New Topic Title 1”,
+“post_content”: “This is a second post to New Topic Title 1”, “post_tags” :”[]”}</p>
+</dd></dl>
 
 <dl class="py method">
 <dt>
@@ -625,7 +658,8 @@ project action information (PUT, POST, PATCH)</p>
 <li class="toctree-l2"><a class="reference internal" href="#view-details">View details</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data (Views)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html#tags">Tags</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/media.html">Serving static files (media)</a></li>
 </ul>
@@ -635,7 +669,7 @@ project action information (PUT, POST, PATCH)</p>
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
       <li>Previous: <a href="../computational_data/views.html" title="previous chapter">Computational data (Views)</a></li>
-      <li>Next: <a href="../API/misc_views.html" title="next chapter">Miscellaneous data (Views)</a></li>
+      <li>Next: <a href="../API/misc_views.html" title="next chapter">Miscellaneous data</a></li>
   </ul></li>
 </ul>
 </div>

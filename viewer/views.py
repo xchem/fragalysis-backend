@@ -48,7 +48,11 @@ from viewer.models import (
     CSetKeys,
     NumericalScoreValues,
     ScoreDescription,
-    File
+    File,
+    TagCategory,
+    MoleculeTag,
+    SessionProjectTag
+
 )
 from viewer import filters
 from .forms import CSetForm, UploadKeyForm, CSetUpdateForm, TSetForm
@@ -84,7 +88,11 @@ from viewer.serializers import (
     TextScoreSerializer,
     ComputedMolAndScoreSerializer,
     DiscoursePostWriteSerializer,
-    DictToCsvSerializer
+    DictToCsvSerializer,
+    TagCategorySerializer,
+    MoleculeTagSerializer,
+    SessionProjectTagSerializer,
+    TargetMoleculesSerializer
 )
 
 
@@ -1588,7 +1596,20 @@ class SessionProjectsView(viewsets.ModelViewSet):
                 "title": "READ_ONLY",
                 "init_date": "2020-07-09T19:52:10.506119Z",
                 "description": "READ_ONLY",
-                "tags": "[]"
+                "tags": "[]",
+                "session_project_tags": [
+                {
+                    "id": 3,
+                    "tag": "testtag3",
+                    "category_id": 1,
+                    "target_id": 1,
+                    "user_id": null,
+                    "create_date": "2021-04-13T16:01:55.396088Z",
+                    "colour": null,
+                    "discourse_url": null,
+                    "help_text": null,
+                    "additional_info": ""
+                },]
             },]
 
    """
@@ -2457,3 +2478,265 @@ class DictToCsv(viewsets.ViewSet):
             filename_url = create_csv_from_dict(input_dict, input_title)
 
         return Response({"file_url": filename_url})
+
+
+# Classes Relating to Tags
+class TagCategoryView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tag categories
+
+    Methods
+    -------
+    url:
+        api/tag_category
+    queryset:
+        `viewer.models.TagCategory.objects.filter()`
+    filter fields:
+        - `viewer.models.TagCategory.category` - ?category=<str>
+    returns: JSON
+
+    Example output:
+    ---------------
+
+    .. code-block:: java
+
+    {
+        "count": 1,
+        "next": null,
+        "previous": null,
+        "results": [
+            {
+                "id": 1,
+                "category": "sites",
+                "colour": "FFFFFF",
+                "description": "site description"
+            },
+        ]
+    }
+
+    """
+
+    queryset = TagCategory.objects.filter()
+    serializer_class = TagCategorySerializer
+    filter_fields = ('id', 'category')
+
+
+class MoleculeTagView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tags relating to Molecules
+
+    Methods
+    -------
+    url:
+        api/molecule_tag
+    queryset:
+        `viewer.models.MoleculeTag.objects.filter()`
+    filter fields:
+        - `viewer.models.MoleculeTag.tag` - ?tag=<str>
+        - `viewer.models.MoleculeTag.category` - ?category=<str>
+        - `viewer.models.MoleculeTag.target` - ?target=<int>
+        - `viewer.models.MoleculeTag.molecules` - ?molecules=<int>
+        - `viewer.models.MoleculeTag.mol_group` - ?mol_group=<int>
+
+    returns: JSON
+
+    Example output:
+    ---------------
+
+    .. code-block:: json
+
+    {
+        "id": 43,
+        "tag": "A9 - XChem screen - covalent hits",
+        "create_date": "2021-04-20T14:16:46.850313Z",
+        "colour": null,
+        "discourse_url": null,
+        "help_text": null,
+        "additional_info": "",
+        "category": 1,
+        "target": 3,
+        "user": null,
+        "mol_group": 5468,
+        "molecules": [
+            6577,
+            6578,
+            6770,
+            6771
+        ]
+    }
+
+   """
+
+    queryset = MoleculeTag.objects.filter()
+    serializer_class = MoleculeTagSerializer
+    filter_fields = ('id', 'tag', 'category', 'target', 'molecules', 'mol_group')
+
+
+class SessionProjectTagView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tags relating to Session
+    Projects
+
+    Methods
+    -------
+    url:
+        api/session_project_tag
+    queryset:
+        `viewer.models.SessionProjectTag.objects.filter()`
+    filter fields:
+        - `viewer.models.SessionProjectTag.tag` - ?tag=<str>
+        - `viewer.models.SessionProjectTag.category` - ?category=<str>
+        - `viewer.models.SessionProjectTag.target` - ?target=<int>
+        - `viewer.models.SessionProjectTag.session_projects` - ?session_project=<int>
+
+    returns: JSON
+
+    Example output:
+    ---------------
+
+    .. code-block:: json
+
+    {
+        "count": 1,
+        "next": null,
+        "previous": null,
+        "results": [
+            {
+                "id": 3,
+                "tag": "testtag3",
+                "create_date": "2021-04-13T16:01:55.396088Z",
+                "colour": null,
+                "discourse_url": null,
+                "help_text": null,
+                "additional_info": "",
+                "category": 1,
+                "target": 1,
+                "user": null,
+                "session_projects": [
+                    2
+                ]
+            }
+        ]
+    }
+
+    """
+
+    queryset = SessionProjectTag.objects.filter()
+    serializer_class = SessionProjectTagSerializer
+    filter_fields = ('id', 'tag', 'category', 'target', 'session_projects')
+
+
+class TargetMoleculesView(ISpyBSafeQuerySet):
+    """ Django view to retrieve all Molecules and Tag information relating to a Target. The idea
+    is that a single call can return all target related information needed by the React front
+    end in a single call.
+
+    Methods
+    -------
+    url:
+        api/target_molecules/id
+
+    returns: JSON
+
+    Example output (fragment):
+    --------------------------
+
+    .. code-block:: json
+
+    {
+        "id": 4,
+        "title": "nsp13",
+        "project_id": [ 1 ],
+        "template_protein": "/media/pdbs/nsp13-x0280_1B_apo_zOdoDll.pdb",
+        "metadata": "https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv",
+        "zip_archive": "https://127.0.0.1:8080/media/targets/nsp13.zip",
+        "sequences": [
+        {
+             "chain": "A",
+             "sequence": ""
+        }],
+        "molecules": [
+        {
+            "data": {
+                "id": 7012,
+                "smiles": "CS(=O)(=O)NCCc1ccccc1",
+                "cmpd_id": 185,
+                "prot_id": 6980,
+                "protein_code": "nsp13-x0176_0A",
+                "mol_type": "PR",
+                "molecule_protein": "/media/pdbs/nsp13-x0176_0A_apo.pdb",
+                "lig_id": "LIG",
+                "chain_id": "Z",
+                "sdf_info": "\n     RDKit          3D\n\n 13 13  0  0  0  0  0  0  0  0999 V2000\n   -1.4540   41.6010  -58.9400 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.3630   40.1240  -58.7210 S   0  0  2  0  0  0  0  0  0  0  0  0\n   -3.0340   39.8360  -59.9470 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -3.1390   40.2780  -57.5260 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -1.2970   38.9270  -58.4930 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.1530   38.8750  -59.4030 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.0430   37.4830  -59.9420 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.0650   36.7090  -59.1500 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.2850   36.3810  -59.7050 C   0  0  0  0  0  0  0  0  0  0  0  0\n    3.2310   35.6710  -58.9830 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.9560   35.2650  -57.6990 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.7460   35.5850  -57.1330 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.8030   36.3020  -57.8550 C   0  0  0  0  0  0  0  0  0  0  0  0\n  2  1  1  6\n  3  2  2  0\n  4  2  2  0\n  5  2  1  0\n  6  5  1  0\n  7  6  1  0\n  8  7  1  0\n  9  8  2  0\n 10  9  1  0\n 11 10  2  0\n 12 11  1  0\n 13 12  2  0\n 13  8  1  0\nM  END\n",
+                "x_com": null,
+                "y_com": null,
+                "z_com": null,
+                "mw": 199.07,
+                "logp": 0.78,
+                "tpsa": 46.17,
+                "ha": 13,
+                "hacc": 2,
+                "hdon": 1,
+                "rots": 4,
+                "rings": 1,
+                "velec": 72
+            },
+            "tags_set": [
+                143
+            ]
+        },],
+            "tags_set": [ 78 ]
+            },
+            {
+                "data": [
+                    {
+            <molecule data>
+         }
+        ],
+        "tags_info": [
+            {
+                "data": [
+                    {
+                        "id": 72,
+                        "tag": "A - Nucleotide Site",
+                        "category_id": 16,
+                        "target_id": 4,
+                        "user_id": null,
+                        "create_date": "2021-04-22T12:11:27.315783Z",
+                        "colour": null,
+                        "discourse_url": null,
+                        "help_text": null,
+                        "additional_info": null,
+                        "mol_group_id": 5498
+                    }
+                ],
+                "coords": [
+                    {
+                        "x_com": -9.322852168872645,
+                        "y_com": 3.0154678875227723,
+                        "z_com": -72.34568956027785
+                    }
+                ]
+            },
+            {
+                "data": [
+                    {
+                        "id": 73,
+            <tag data>
+        }
+        ],
+        "tag_categories": [
+            {
+                "id": 16,
+                "category": "Sites",
+                "colour": "00CC00",
+                "description": null
+            }
+        ]
+    }
+
+    """
+
+    queryset = Target.objects.filter()
+    serializer_class = TargetMoleculesSerializer
+    filter_permissions = "project_id"
+    filter_fields = ("title",)
+
+# Classes Relating to Tags - End

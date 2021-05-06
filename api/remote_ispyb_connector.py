@@ -43,8 +43,8 @@ class SSHConnector(Connector):
 
     def remote_connect(self, ssh_host, ssh_user, ssh_pass, db_host, db_port, db_user, db_pass, db_name):
 
-        sshtunnel.SSH_TIMEOUT = 5.0
-        sshtunnel.TUNNEL_TIMEOUT = 5.0
+        sshtunnel.SSH_TIMEOUT = 10.0
+        sshtunnel.TUNNEL_TIMEOUT = 10.0
         self.conn_inactivity = int(self.conn_inactivity)
 
         self.server = sshtunnel.SSHTunnelForwarder(

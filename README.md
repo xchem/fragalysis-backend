@@ -176,3 +176,13 @@ or adding the following line to the AWX template:
 ```
     stack_backend_sentry_dsn: https://27fa0675f555431aa02ca552e93d8cfb@o194333.ingest.sentry.io/1298290
 ```
+
+### Design Documents
+
+As the application evolves several design documents have been written detailing improvements. These may be useful
+for background reading on why decisions have been made.
+
+The documents will be stored in the /design_docs folder in the repo. Current docs are listed below:
+- [Fragalysis Tags Design V1.0](design_docs/Fragalysis_Tags_Design_V1.0.pdf)
+
+
