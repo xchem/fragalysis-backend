@@ -216,13 +216,9 @@ class APIUrlsTestCase(APITestCase):
 
         # Tags tests
 
-        # TagCategory
-        self.tagcategory = TagCategory.objects.create(
-            id = 1,
-            category = "sites",
-            colour =  "FFFFFF",
-            description = "site description"
-        )
+        # TagCategory - Should have been created by the migrations.
+        self.tagcategory = TagCategory.objects.get(id=1)
+
         # MoleculeTag
         self.moltag = MoleculeTag.objects.create(
             id = 1,
@@ -726,9 +722,9 @@ class APIUrlsTestCase(APITestCase):
         response_data = [
             {
                 "id": 1,
-                "category": "sites",
-                "colour": "FFFFFF",
-                "description": "site description"
+                "category": "Sites",
+                "colour": "00CC00",
+                "description": None
             },
             {
                 "id": 1,
