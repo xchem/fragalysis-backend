@@ -50,7 +50,7 @@ def map_download(request, file_path):
     ispy_b_static.request = request
     ispy_b_static.permission_string = "target_id__project_id"
 
-    substrings = file_path.split('_')
+    substrings = file_path.split('.')[0].split('_')
     substring = [x for x in substrings if x in ['2fofc', 'fofc', 'event']]
     if not substring:
         file_extension = None
