@@ -1,3 +1,7 @@
+"""
+Target configuration functions for uploading a Target Dataset to Fragalysis.
+This was originally sourced from loader/config.py
+"""
 def _mol_choices():
     """
     Get the data for the molecule choices
@@ -79,6 +83,7 @@ def get_dict():
     out_d["ACC"] = "_acceptor.ccp4"
     out_d["DON"] = "_donor.ccp4"
     out_d["LIP"] = "_apolar.ccp4"
+    out_d["TRANS"] = ".csv"
     return out_d
 
 

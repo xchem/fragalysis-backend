@@ -35,7 +35,7 @@ from rdkit.Chem import Lipinski, AllChem
 from scoring.models import MolGroup,MolAnnotation
 from frag.alysis.run_clustering import run_lig_cluster
 from frag.network.decorate import get_3d_vects_for_mol
-from loader.config import get_dict
+from viewer.target_set_config import get_dict
 import numpy as np
 import pandas as pd
 
@@ -189,6 +189,7 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
 
     new_prot.apo_holo = True
 
+    # Check filepaths of all associated files.
     filepaths = {
         'pdb_info': ('pdbs', get_path_or_none(xtal_path, xtal, input_dict, "APO")),
         'bound_info': ('bound', get_path_or_none(xtal_path, xtal, input_dict, "BOUND")),
@@ -198,6 +199,7 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
         'sigmaa_info': ('maps', get_path_or_none(xtal_path, xtal, input_dict, "SIGMAA")),
         'diff_info': ('maps', get_path_or_none(xtal_path, xtal, input_dict, "DIFF")),
         'event_info': ('maps', get_path_or_none(xtal_path, xtal, input_dict, "EVENT")),
+        'trans_matrix_info': ('trans', get_path_or_none(xtal_path, xtal, input_dict, "TRANS")),
     }
 
     to_unpack = {k: v for k, v in filepaths.items() if v[1] is not None}
@@ -304,10 +306,10 @@ def add_comp(mol, projects):
     return comp
 
 
-def add_mol(mol_sd, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
+def add_mol(sdf_file, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
     """Function to add a new Molecule to the database
 
-    :param mol_sd: the SDMolBlock of the molecule
+    :param sdf_file: the file containing the SDMolBlock of the molecule
     :param prot: the protein it is associated to
     :param projects: the projects it is associated to
     :param lig_id: the 3 letter ligand id
@@ -316,8 +318,8 @@ def add_mol(mol_sd, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
     :return: the created molecule
     """
     # create mol object from mol_sd
-    rd_mol = Chem.MolFromMolFile(mol_sd)
-    orig_mol_block = open(mol_sd, 'r').read()
+    rd_mol = Chem.MolFromMolFile(sdf_file)
+    orig_mol_block = open(sdf_file, 'r').read()
 
     if rd_mol is None:
         return None
@@ -354,6 +356,13 @@ def add_mol(mol_sd, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
         # correct molecule. I.e. if it fails where does it go???
         # Now link that compound back
         new_mol.cmpd_id = comp_ref
+
+        # Save actual sdf file.
+        new_mol.sdf_file.save(
+            os.path.basename(sdf_file),
+            File(open(sdf_file))
+        )
+
         new_mol.save()
         return new_mol
     else:
