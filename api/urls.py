@@ -79,6 +79,9 @@ router.register(r"molecule_tag", viewer_views.MoleculeTagView, basename='molecul
 router.register(r"session_project_tag", viewer_views.SessionProjectTagView, basename='session_project_tag')
 router.register(r"target_molecules", viewer_views.TargetMoleculesView, basename='target_molecules')
 
+# Download a zip file of the requested contents
+router.register(r"download_structures", viewer_views.DownloadStructures, basename='download_structures')
+
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
 from rest_framework.decorators import api_view, renderer_classes
 from rest_framework import response, schemas

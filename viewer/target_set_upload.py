@@ -207,7 +207,6 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
     for key in to_unpack.keys():
         save_path = os.path.join(to_unpack[key][0], to_unpack[key][1].split('/')[-1])
         path = default_storage.save(save_path, open(to_unpack[key][1], 'rb'))
-
         setattr(new_prot, key, path)
 
     new_prot.save()
@@ -306,20 +305,22 @@ def add_comp(mol, projects):
     return comp
 
 
-def add_mol(sdf_file, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0):
+def add_mol(mol_file, prot, projects, lig_id="LIG", chaind_id="Z",
+            occupancy=0.0, sdf_file=None):
     """Function to add a new Molecule to the database
 
-    :param sdf_file: the file containing the SDMolBlock of the molecule
+    :param mol_file: the file containing the SDMolBlock of the molecule
     :param prot: the protein it is associated to
     :param projects: the projects it is associated to
     :param lig_id: the 3 letter ligand id
     :param chaind_id: the chain id
     :param occupancy: the occupancy
+    :param sdf_file: SDF file if provided
     :return: the created molecule
     """
     # create mol object from mol_sd
-    rd_mol = Chem.MolFromMolFile(sdf_file)
-    orig_mol_block = open(sdf_file, 'r').read()
+    rd_mol = Chem.MolFromMolFile(mol_file)
+    orig_mol_block = open(mol_file, 'r').read()
 
     if rd_mol is None:
         return None
@@ -358,11 +359,16 @@ def add_mol(sdf_file, prot, projects, lig_id="LIG", chaind_id="Z", occupancy=0.0
         new_mol.cmpd_id = comp_ref
 
         # Save actual sdf file.
-        new_mol.sdf_file.save(
-            os.path.basename(sdf_file),
-            File(open(sdf_file))
-        )
-
+        if sdf_file:
+            new_mol.sdf_file.save(
+                os.path.basename(sdf_file),
+                File(open(sdf_file))
+            )
+        #     save_path = os.path.join(settings.MEDIA_ROOT, 'sdfs')
+        #     os.makedirs(save_path, exist_ok=True)
+        #     path = default_storage.save(save_path, open(sdf_file, 'rb'))
+        #     new_mol.sdf_file = path
+        #     #setattr(new_mol, 'sdf_file', path)
         new_mol.save()
         return new_mol
     else:
@@ -509,9 +515,9 @@ def remove_not_added(target, xtal_list):
     """
     all_prots = Protein.objects.filter(target_id=target)
     # make sure not to delete any of the computed set proteins (which are protected)
-    computed_prots = [mol.pdb for mol in ComputedMolecule.objects.filter(pdb__target_id=target)] 
-    unprotected = [x for x in all_prots if x not in computed_prots] 
-    
+    computed_prots = [mol.pdb for mol in ComputedMolecule.objects.filter(pdb__target_id=target)]
+    unprotected = [x for x in all_prots if x not in computed_prots]
+
     for prot in unprotected:
         # Code consists of 'directory:alternate_name' if exists (code is renamed based on the metadata)
         code_first_part = prot.code.split(":")[0]
@@ -565,13 +571,15 @@ def load_from_dir(new_target, projects, aligned_path):
 
         pdb_file_path = get_path_or_none(xtal_path, xtal, input_dict, "APO")
         mol_file_path = get_path_or_none(xtal_path, xtal, input_dict, "MOL")
+        sdf_file_path = get_path_or_none(xtal_path, xtal, input_dict, "SDF")
         code = pdb_file_path.split('/')[-1].rsplit("_", 1)[0]
 
         if pdb_file_path:
             new_prot = add_prot(code=code, target=new_target, xtal_path=xtal_path, xtal=xtal, input_dict=input_dict)
             new_prot.save()
         if mol_file_path:
-            new_mol = add_mol(mol_file_path, new_prot, projects)
+            new_mol = add_mol(mol_file_path, new_prot, projects,
+                              sdf_file=sdf_file_path)
             if new_mol:
                 new_mol.save()
 

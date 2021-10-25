@@ -20,6 +20,7 @@ from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.conf import settings
 from django.http import JsonResponse
+from django.core.exceptions import ObjectDoesNotExist
 
 from rest_framework.parsers import JSONParser, BaseParser
 from rest_framework.exceptions import ParseError
@@ -92,8 +93,25 @@ from viewer.serializers import (
     TagCategorySerializer,
     MoleculeTagSerializer,
     SessionProjectTagSerializer,
-    TargetMoleculesSerializer
+    TargetMoleculesSerializer,
+    DownloadStructuresSerializer
 )
+
+# filepaths mapping for writing associated files to the zip archive.
+_zip_filepaths = {
+    'pdb_info': ('pdbs'),
+    'bound_info': ('bound'),
+    'cif_info': ('cifs'),
+    'mtz_info': ('mtzs'),
+    'map_info': ('maps'),
+    'sigmaa_info': ('maps'),
+    'diff_info': ('maps'),
+    'event_info': ('maps'),
+    'trans_matrix_info': ('trans'),
+    'sdf_info': ('sdfs'),
+    'metadata_info': (''),
+    'smiles_info': (''),
+}
 
 
 class VectorsView(ISpyBSafeQuerySet):
@@ -2738,5 +2756,262 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
     serializer_class = TargetMoleculesSerializer
     filter_permissions = "project_id"
     filter_fields = ("title",)
-
 # Classes Relating to Tags - End
+
+
+def _add_file_to_zip(ziparchive, code, param, filepath, error_file):
+    """Add the requested file to the zip archive.
+
+    Args:
+        ziparchive: Handle of zip archive
+        code: Fragalysis protein code
+        param: parameter of filelist
+        filepath: filepath from record
+        error_file: Error file handle
+
+    Returns:
+        [boolean]: [True of record added to error file]
+    """
+    media_root = settings.MEDIA_ROOT
+    fullpath = os.path.join(media_root, filepath)
+
+    if not filepath:
+        return False
+
+    if os.path.isfile(fullpath):
+        ziparchive.write(fullpath,
+                         os.path.join(_zip_filepaths[param],
+                                      os.path.basename(filepath)))
+        return False
+    else:
+        error_file.write('{},{},{}\n'.format(code, param, filepath))
+        return True
+
+
+def _create_zip_from_dict(target, proteins,
+                          protein_params, other_params):
+    """Write a ZIP file containing data from an input dictionary
+
+    Args:
+        target
+        proteins
+        protein_params
+        other_params
+
+    Returns:
+        [file]: [URL to the file in the media directory]
+    """
+
+    logger.info('+ _create_zip_from_dict')
+    filename = target.title +'.zip'
+
+    media_root = settings.MEDIA_ROOT
+    unique_dir = str(uuid.uuid4())
+    # /code/media/downloads/<unique_dir>
+    download_path = os.path.join(media_root, 'downloads', unique_dir)
+    os.makedirs(download_path, exist_ok=True)
+
+    download_file = os.path.join(download_path, filename)
+
+    # Remove file if it already exists
+    if os.path.isfile(download_file):
+        os.remove(download_file)
+
+    molecules = Molecule.objects.filter(prot_id__in=[protein['id'] for protein
+                                                     in proteins]).values()
+
+    media_root = settings.MEDIA_ROOT
+    error_filename = os.path.join(download_path, "errors.csv")
+    error_file = open(error_filename, "w")
+    error_file.write("Param, Code, Invalid file reference\n")
+    errors = 0
+
+    with zipfile.ZipFile(download_file, 'w') as ziparchive:
+        # Read through zip_params to compile the file
+        # Maybe I can think of a clever way of doing this...
+        # Don't forget the error files. Check link before write.
+        for protein in proteins:
+            for param in protein_params:
+                logger.info('+ param: ' + param)
+                if protein_params[param] is True:
+                    if _add_file_to_zip(ziparchive, protein['code'],
+                                        param, protein[param], error_file):
+                        errors+=1
+
+        # sdf information is held as a file on the Molecule record.
+        for molecule in molecules:
+            if other_params['sdf_info'] is True:
+                if _add_file_to_zip(ziparchive, molecule['smiles'],
+                                    'sdf_info', molecule['sdf_file'],
+                                    error_file):
+                    errors+=1
+
+
+        # If smiles info is required, then write one column for each molecule
+        # to a smiles.smi file and then add to the archive.
+        if other_params['smiles_info'] is True:
+            smiles_filename = os.path.join(download_path, 'smiles.smi')
+            with open(smiles_filename, 'w') as smilesfile:
+                for molecule in molecules:
+                    smilesfile.write(molecule['smiles']+',')
+            ziparchive.write(
+                smiles_filename,
+                os.path.join(_zip_filepaths['smiles_info'],
+                             os.path.basename(smiles_filename)))
+            os.remove(smiles_filename)
+
+        # Add the metadata file from the target
+        if other_params['metadata_info'] is True:
+            if _add_file_to_zip(ziparchive, target.title, 'metadata_info',
+                                target.metadata.name, error_file):
+                errors+=1
+
+        error_file.close()
+        if errors > 0:
+            ziparchive.write(error_filename, 'errors.csv')
+
+    return download_file
+
+
+#class DownloadStructures(viewsets.ViewSet):
+class DownloadStructures(ISpyBSafeQuerySet):
+    """Django view that uses a selected subset of the target data
+    (proteins and booleans with suggested files) and creates a Zip file
+    with the contents.
+
+    Methods
+    -------
+    allowed requests:
+        - GET: Return the Zip file given the link - note that this will remove
+        the file on the media directory.
+        - POST: Return a link to a ZIP file containing the requested data
+    url:
+       api/download_structures
+    get params:
+       file_url: url returned in the post request
+
+       Returns: CSV file when passed url.
+
+    post params:
+       title: string to place on the first line of the CSV file.
+       input_dict: dictionary containing CSV data to place in the CSV file
+
+       Returns: url to be passed to GET.
+
+    Example Input for Get
+       http://127.0.0.1:8080/api/download_structures/?file_url=/code/media/downloads/6bc70a04-9675-4079-924e-b0ab460cb206/download
+
+    Example Input for Post
+    ----------------------
+
+    {
+        "target_name": "Mpro"
+        "proteins": {"216", "234"}
+        "pdb_info": True
+        "bound_info": True
+        "cif_info": True
+        "mtz_info": False
+        "diff_info": False
+        "event_info": False
+        "sigmaa_info": False
+        "sdf_info": False
+        "trans_matrix_info": False
+        "metadata_info": False
+        "smiles_info": False
+    }
+
+    """
+    queryset = Target.objects.filter()
+    serializer_class = DownloadStructuresSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('title','id')
+
+    def list(self, request):
+        """Method to handle GET request
+        """
+        file_url = request.GET.get('file_url')
+
+        if file_url and os.path.isfile(file_url):
+            with open(file_url, 'rb') as zipfile:
+                # return file and tidy up.
+                response = HttpResponse(zipfile, content_type='application/zip')
+                response['Content-Disposition'] = 'attachment; filename=download.zip'
+                shutil.rmtree(os.path.dirname(file_url), ignore_errors=True)
+                return response
+        else:
+            return Response("Please provide file_url parameter")
+
+    def create(self, request):
+        """Method to handle POST request
+        """
+        logger.info('+ DownloadStructures.post')
+        protein_param_flags = ['pdb_info', 'bound_info',
+                               'cif_info', 'mtz_info',
+                               'diff_info', 'event_info',
+                               'sigmaa_info', 'trans_matrix_info']
+        other_param_flags = ['sdf_info', 'metadata_info', 'smiles_info']
+
+        target_name = request.data['target_name']
+        target = None
+        #Check valid targets
+        for t in self.queryset:
+            if t.title == target_name:
+                target = t
+                break
+
+        if not target:
+            return Response(
+                {"message": "Please enter a permitted target name."})
+
+        if request.data['proteins']:
+            proteins_list = [p.strip()
+                            for p in request.data['proteins'].split(',')]
+        else:
+            proteins_list = []
+
+        if len(proteins_list) > 0:
+            # Filter by protein codes
+            proteins = Protein.objects.filter(target_id=target.id)\
+                .filter(code__in=proteins_list).values()
+        else:
+            # If no protein codes supplied then return the complete list
+            proteins = Protein.objects.filter(target_id=target.id).values()
+
+        if len(proteins) == 0:
+            return Response(
+                {"message": "Please enter list of valid protein codes for" +
+                 "target: {}, proteins: {} ".format(target.id, proteins_list)})
+
+        protein_params = {}
+        for param in protein_param_flags:
+            protein_params[param] = False
+            if param in request.data:
+                if request.data[param] == True or request.data[param] == 'true':
+                    protein_params[param] = True
+
+        other_params = {}
+        for param in other_param_flags:
+            other_params[param] = False
+            if param in request.data:
+                if request.data[param] == True or request.data[param] == 'true':
+                    other_params[param] = True
+
+        # protein_params = {'pdb_info': request.data['pdb_info'],
+        #               'bound_info': request.data['bound_info'],
+        #               'cif_info': request.data['cif_info'],
+        #               'mtz_info': request.data['mtz_info'],
+        #               'diff_info': request.data['diff_info'],
+        #               'event_info': request.data['event_info'],
+        #               'sigmaa_info': request.data['sigmaa_info'],
+        #               'trans_matrix_info':
+        #                   request.data['trans_matrix_info']}
+        # other_params = {'sdf_info': request.data['sdf_info'],
+        #                  'metadata_info': request.data['metadata_info'],
+        #                  'smiles_info': request.data['smiles_info']}
+
+        filename_url = _create_zip_from_dict(target,
+                                             proteins,
+                                             protein_params,
+                                             other_params)
+
+        return Response({"file_url": filename_url})

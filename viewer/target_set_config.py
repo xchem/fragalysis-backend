@@ -83,7 +83,7 @@ def get_dict():
     out_d["ACC"] = "_acceptor.ccp4"
     out_d["DON"] = "_donor.ccp4"
     out_d["LIP"] = "_apolar.ccp4"
-    out_d["TRANS"] = ".csv"
+    out_d["TRANS"] = "_transform.json"
     return out_d
 
 
