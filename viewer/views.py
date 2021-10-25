@@ -2899,14 +2899,14 @@ class DownloadStructures(ISpyBSafeQuerySet):
        Returns: url to be passed to GET.
 
     Example Input for Get
-       http://127.0.0.1:8080/api/download_structures/?file_url=/code/media/downloads/6bc70a04-9675-4079-924e-b0ab460cb206/download
+       /api/download_structures/?file_url=/code/media/downloads/6bc70a04-9675-4079-924e-b0ab460cb206/download
 
     Example Input for Post
     ----------------------
 
     {
         "target_name": "Mpro"
-        "proteins": {"216", "234"}
+        "proteins": "Mpro-6lu7_2C,Mpro-6m0k_0A"
         "pdb_info": True
         "bound_info": True
         "cif_info": True
