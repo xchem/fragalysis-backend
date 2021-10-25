@@ -2893,8 +2893,21 @@ class DownloadStructures(ISpyBSafeQuerySet):
        Returns: CSV file when passed url.
 
     post params:
-       title: string to place on the first line of the CSV file.
-       input_dict: dictionary containing CSV data to place in the CSV file
+        target_name: Selected target
+        proteins: Comma separated list of protein codes within target e.g. "Mpro-6lu7_2C,Mpro-6m0k_0A".
+                  If left blank the whole target will be scanned.
+        pdb_info: True/False - download pdb file
+        bound_info: True/False - download bound file (if available)
+        cif_info: True/False - download cif file (if available)
+        mtz_info: False/False - download mtz file (if available)
+        diff_info: False/False - download diff file (if available)
+        event_info: False/False - download event file (if available)
+        sigmaa_info: False/False - download sigmaa file (if available)
+        sdf_info: False/False - download molecule sdf file (if available)
+        trans_matrix_info: False/False - download transformation file (if available)
+        metadata_info: False/False - download metadata csv file for whole target set
+        smiles_info: False/False - download csv file containing smiles for attached molecules
+
 
        Returns: url to be passed to GET.
 
