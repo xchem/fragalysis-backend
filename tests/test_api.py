@@ -625,6 +625,7 @@ class APIUrlsTestCase(APITestCase):
                 "sigmaa_info": None,
                 "diff_info": None,
                 "event_info": None,
+                "trans_matrix_info": None,
                 "aligned": None,
                 "has_eds": None,
                 "aligned_to": None
@@ -760,4 +761,3 @@ class APIUrlsTestCase(APITestCase):
             response = self.client.get(self.url_base + "/" + url + "/1/")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
-
