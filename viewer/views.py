@@ -2890,7 +2890,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
     get params:
        file_url: url returned in the post request
 
-       Returns: CSV file when passed url.
+       Returns: Zip file when passed url.
 
     post params:
         target_name: Selected target
@@ -2907,7 +2907,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
         trans_matrix_info: False/False - download transformation file (if available)
         metadata_info: False/False - download metadata csv file for whole target set
         smiles_info: False/False - download csv file containing smiles for attached molecules
-
 
        Returns: url to be passed to GET.
 
