@@ -114,3 +114,6 @@ ENV/
 /dump.rdb
 /loader.py
 /run_loader.sh
+
+# ignore test output
+/tests/output/
