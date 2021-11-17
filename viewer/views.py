@@ -109,6 +109,7 @@ _zip_filepaths = {
     'event_info': ('maps'),
     'trans_matrix_info': ('trans'),
     'sdf_info': ('sdfs'),
+    'single_sdf_file': ('sdfs'),
     'metadata_info': (''),
     'smiles_info': (''),
 }
@@ -2774,10 +2775,10 @@ def _add_file_to_zip(ziparchive, code, param, filepath, error_file):
         [boolean]: [True of record added to error file]
     """
     media_root = settings.MEDIA_ROOT
-    fullpath = os.path.join(media_root, filepath)
-
     if not filepath:
         return False
+
+    fullpath = os.path.join(media_root, filepath)
 
     if os.path.isfile(fullpath):
         ziparchive.write(fullpath,
@@ -2786,6 +2787,36 @@ def _add_file_to_zip(ziparchive, code, param, filepath, error_file):
         return False
     else:
         error_file.write('{},{},{}\n'.format(code, param, filepath))
+        return True
+
+
+def _add_file_to_sdf(combined_sdf_file, smiles, filepath, error_file):
+    """Append the requested sdf file to the single sdf file provided.
+
+    Args:
+        combined_sdf: Handle of combined_sdf_file
+        smiles: Smiles from molecule record
+        filepath: filepath from record
+        error_file: Error file handle
+
+    Returns:
+        [boolean]: [True of record added to error file]
+    """
+    media_root = settings.MEDIA_ROOT
+
+    if not filepath:
+        return False
+
+    fullpath = os.path.join(media_root, filepath)
+
+    if os.path.isfile(fullpath):
+        with open(combined_sdf_file, 'a') as f_out:
+            with open(fullpath, 'r') as f_in:
+                f_out.write(f_in.read())
+        return False
+    else:
+        error_file.write('{},{},{}\n'.format(smiles, 'single_sdf_file',
+                                             filepath))
         return True
 
 
@@ -2821,7 +2852,6 @@ def _create_zip_from_dict(target, proteins,
     molecules = Molecule.objects.filter(prot_id__in=[protein['id'] for protein
                                                      in proteins]).values()
 
-    media_root = settings.MEDIA_ROOT
     error_filename = os.path.join(download_path, "errors.csv")
     error_file = open(error_filename, "w")
     error_file.write("Param, Code, Invalid file reference\n")
@@ -2838,13 +2868,37 @@ def _create_zip_from_dict(target, proteins,
                                         param, protein[param], error_file):
                         errors+=1
 
+        # If a single sdf file is also wanted then create file to
+        # add sdf files to a file called {targer}_combined.sdf.
+        if other_params['single_sdf_file'] is True:
+            combined_sdf_file = \
+                os.path.join(download_path,
+                             '{}_combined.sdf'.format(target.title))
+
         # sdf information is held as a file on the Molecule record.
         for molecule in molecules:
             if other_params['sdf_info'] is True:
+                # Add sdf file on the Molecule record to the archive folder.
                 if _add_file_to_zip(ziparchive, molecule['smiles'],
                                     'sdf_info', molecule['sdf_file'],
                                     error_file):
                     errors+=1
+
+            # Append sdf file on the Molecule record to the combined_sdf_file.
+            if other_params['single_sdf_file'] is True:
+                if _add_file_to_sdf(combined_sdf_file, molecule['smiles'],
+                                    molecule['sdf_file'],
+                                    error_file):
+                    errors+=1
+
+        # Add combined_sdf_file to the archive.
+        if other_params['single_sdf_file'] is True and \
+                os.path.isfile(combined_sdf_file):
+            ziparchive.write(
+                combined_sdf_file,
+                os.path.join(_zip_filepaths['single_sdf_file'],
+                             os.path.basename(combined_sdf_file)))
+            os.remove(combined_sdf_file)
 
 
         # If smiles info is required, then write one column for each molecule
@@ -2903,6 +2957,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
         - event_info: True/False - include event file (if available)
         - sigmaa_info: True/False - include sigmaa file (if available)
         - sdf_info: True/False - include molecule sdf file (if available)
+        - single_sdf_file: True/False - Also combine molecule sdf files into single file (if available)
         - trans_matrix_info: True/False - include transformation file (if available)
         - metadata_info: True/False - include metadata csv file for whole target set
         - smiles_info: True/False - include csv file containing smiles for attached molecules
@@ -2931,6 +2986,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 "event_info": False
                 "sigmaa_info": False
                 "sdf_info": False
+                "single_sdf_file": False
                 "trans_matrix_info": False
                 "metadata_info": False
                 "smiles_info": False
@@ -2965,7 +3021,8 @@ class DownloadStructures(ISpyBSafeQuerySet):
                                'cif_info', 'mtz_info',
                                'diff_info', 'event_info',
                                'sigmaa_info', 'trans_matrix_info']
-        other_param_flags = ['sdf_info', 'metadata_info', 'smiles_info']
+        other_param_flags = ['sdf_info', 'single_sdf_file',
+                             'metadata_info', 'smiles_info']
 
         target_name = request.data['target_name']
         target = None
@@ -3025,8 +3082,9 @@ class DownloadStructures(ISpyBSafeQuerySet):
         #               'trans_matrix_info':
         #                   request.data['trans_matrix_info']}
         # other_params = {'sdf_info': request.data['sdf_info'],
-        #                  'metadata_info': request.data['metadata_info'],
-        #                  'smiles_info': request.data['smiles_info']}
+        #                 'single_sdf_file': request.data['single_sdf_file'],
+        #                 'metadata_info': request.data['metadata_info'],
+        #                 'smiles_info': request.data['smiles_info']}
 
         filename_url = _create_zip_from_dict(target,
                                              proteins,

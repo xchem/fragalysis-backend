@@ -701,6 +701,7 @@ class DownloadStructuresSerializer(serializers.Serializer):
     event_info = serializers.BooleanField(default=False)
     sigmaa_info = serializers.BooleanField(default=False)
     sdf_info = serializers.BooleanField(default=False)
+    single_sdf_file = serializers.BooleanField(default=False)
     trans_matrix_info = serializers.BooleanField(default=False)
     metadata_info = serializers.BooleanField(default=False)
     smiles_info = serializers.BooleanField(default=False)
