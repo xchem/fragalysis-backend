@@ -5,6 +5,7 @@ from io import StringIO
 import pandas as pd
 import uuid
 import shutil
+from wsgiref.util import FileWrapper
 
 # import the logging library
 import logging
@@ -3004,14 +3005,18 @@ class DownloadStructures(ISpyBSafeQuerySet):
         file_url = request.GET.get('file_url')
 
         if file_url and os.path.isfile(file_url):
+            # return file and tidy up.
+            file_name = os.path.basename(file_url)
             with open(file_url, 'rb') as zipfile:
-                # return file and tidy up.
-                response = HttpResponse(zipfile, content_type='application/zip')
-                response['Content-Disposition'] = 'attachment; filename=download.zip'
-                shutil.rmtree(os.path.dirname(file_url), ignore_errors=True)
+                response = HttpResponse(FileWrapper(zipfile),
+                                        content_type='application/zip')
+                response[
+                    'Content-Disposition'] = 'attachment; filename="%s"' % file_name
                 return response
+            shutil.rmtree(os.path.dirname(file_url), ignore_errors=True)
         else:
-            return Response("Please provide file_url parameter")
+            return Response("Please provide file_url parameter from post response")
+
 
     def create(self, request):
         """Method to handle POST request
