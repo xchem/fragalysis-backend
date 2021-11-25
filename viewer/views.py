@@ -7,6 +7,7 @@ import uuid
 import shutil
 from wsgiref.util import FileWrapper
 
+
 # import the logging library
 import logging
 # Get an instance of a logger
@@ -3007,12 +3008,13 @@ class DownloadStructures(ISpyBSafeQuerySet):
         if file_url and os.path.isfile(file_url):
             # return file and tidy up.
             file_name = os.path.basename(file_url)
-            with open(file_url, 'rb') as zipfile:
-                response = HttpResponse(FileWrapper(zipfile),
-                                        content_type='application/zip')
-                response[
-                    'Content-Disposition'] = 'attachment; filename="%s"' % file_name
-                return response
+            wrapper = FileWrapper(open(file_url, 'rb'))
+            response = HttpResponse(wrapper,
+                                    content_type='application/zip')
+            response[
+                'Content-Disposition'] = 'attachment; filename="%s"' % file_name
+            response['Content-Length'] = os.path.getsize(file_url)
+            return response
             shutil.rmtree(os.path.dirname(file_url), ignore_errors=True)
         else:
             return Response("Please provide file_url parameter from post response")
