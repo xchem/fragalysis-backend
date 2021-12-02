@@ -9,6 +9,7 @@ python manage.py <python script> <options>
 It should be possible to run them either manually or as part of a cron job to 
 do maintenance and data intergrity-style tasks.
 
+It would be good if all commands are lightly documented here.
 
 ## tags_from_sites
 
