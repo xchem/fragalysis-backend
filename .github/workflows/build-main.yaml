@@ -9,7 +9,7 @@ name: build main
 # Every tag is deployed to staging and every production-grade tag
 # (of the form N.N.N) is deployed to production.defaults:
 #
-# Actions also run on a schedule - the the container is built, tested,
+# Actions also run on a schedule - the container is built, tested,
 # pushed and deployed (if the relevant secrets are set) based on
 # a defined schedule.
 
@@ -27,9 +27,6 @@ name: build main
 # STACK_BRANCH            optional - default master
 # STACK_GITHUB_NAMESPACE  optional - default xchem
 # STACK_NAMESPACE         optional - default xchem
-# LOADER_BRANCH           optional - default master
-# LOADER_GITHUB_NAMESPACE optional - default xchem
-# LOADER_NAMESPACE        optional - default xchem
 #
 # DOCKERHUB_USERNAME      optional
 # DOCKERHUB_TOKEN         optional - required if DOCKERHUB_USERNAME
@@ -39,9 +36,6 @@ name: build main
 #
 # STACK_USER              optional - set if triggering
 # STACK_USER_TOKEN        optional - set if triggering
-#
-# LOADER_USER             optional - set if triggering loader
-# LOADER_USER_TOKEN       optional - set if triggering loader
 #
 # -----------
 # Environment (GitHub Environments)
@@ -74,9 +68,6 @@ env:
   STACK_BRANCH: master
   STACK_GITHUB_NAMESPACE: xchem
   STACK_NAMESPACE: xchem
-  LOADER_BRANCH: master
-  LOADER_GITHUB_NAMESPACE: xchem
-  LOADER_NAMESPACE: xchem
 
 jobs:
   build:
@@ -85,7 +76,6 @@ jobs:
       push: ${{ steps.vars.outputs.push }}
       tag: ${{ steps.vars.outputs.tag }}
       trigger: ${{ steps.vars.outputs.trigger }}
-      have_loader_user: ${{ steps.vars.outputs.have-loader-user }}
     steps:
     - name: Inject slug/short variables
       uses: rlespinasse/github-slug-action@v3.x
@@ -94,7 +84,6 @@ jobs:
       env:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         TRIGGER_DOWNSTREAM: ${{ secrets.TRIGGER_DOWNSTREAM }}
-        LOADER_USER: ${{ secrets.LOADER_USER }}
       run: |
         # BE_NAMESPACE
         BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
@@ -132,24 +121,6 @@ jobs:
         echo set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
         echo ::set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
 
-        # LOADER_BRANCH
-        LOADER_BRANCH="${{ env.LOADER_BRANCH }}"
-        if [ -n "${{ secrets.LOADER_BRANCH }}" ]; then LOADER_BRANCH="${{ secrets.LOADER_BRANCH }}"; fi
-        echo set-output name=LOADER_BRANCH::${LOADER_BRANCH}
-        echo ::set-output name=LOADER_BRANCH::${LOADER_BRANCH}
-
-        # LOADER_GITHUB_NAMESPACE
-        LOADER_GITHUB_NAMESPACE="${{ env.LOADER_GITHUB_NAMESPACE }}"
-        if [ -n "${{ secrets.LOADER_GITHUB_NAMESPACE }}" ]; then LOADER_GITHUB_NAMESPACE="${{ secrets.LOADER_GITHUB_NAMESPACE }}"; fi
-        echo set-output name=LOADER_GITHUB_NAMESPACE::${LOADER_GITHUB_NAMESPACE}
-        echo ::set-output name=LOADER_GITHUB_NAMESPACE::${LOADER_GITHUB_NAMESPACE}
-
-        # LOADER_NAMESPACE
-        LOADER_NAMESPACE="${{ env.LOADER_NAMESPACE }}"
-        if [ -n "${{ secrets.LOADER_NAMESPACE }}" ]; then LOADER_NAMESPACE="${{ secrets.LOADER_NAMESPACE }}"; fi
-        echo set-output name=LOADER_NAMESPACE::${LOADER_NAMESPACE}
-        echo ::set-output name=LOADER_NAMESPACE::${LOADER_NAMESPACE}
-
         # What image tag are we using? 'latest' (if not tagged) or a GitHub tag?
         TAG="latest"
         if [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then TAG="${{ env.GITHUB_REF_SLUG }}"; fi
@@ -163,10 +134,6 @@ jobs:
         # Do we trigger downstream, i.e. is TRIGGER_DOWNSTREAM 'yes'?
         echo set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
         echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
-
-        # Do we have a loader user, i.e. is LOADER_USER set?
-        echo set-output name=have_loader_user::${{ env.LOADER_USER != '' }}
-        echo ::set-output name=have_loader_user::${{ env.LOADER_USER != '' }}
 
     - name: Checkout
       uses: actions/checkout@v2
@@ -210,20 +177,3 @@ jobs:
           stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
         ci-user: ${{ secrets.STACK_USER }}
         ci-user-token: ${{ secrets.STACK_USER_TOKEN }}
-
-    - name: Trigger loader
-      if: |
-        steps.vars.outputs.trigger == 'true' &&
-        steps.vars.outputs.have_loader_user == 'true'
-      uses: informaticsmatters/trigger-ci-action@v1
-      with:
-        ci-owner: ${{ steps.vars.outputs.LOADER_GITHUB_NAMESPACE }}
-        ci-repository: fragalysis-loader
-        ci-name: build main
-        ci-ref: refs/heads/${{ steps.vars.outputs.LOADER_BRANCH }}
-        ci-inputs: >-
-          be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
-          be_image_tag=${{ steps.vars.outputs.BE_IMAGE_TAG }}
-          loader_namespace=${{ steps.vars.outputs.LOADER_NAMESPACE }}
-        ci-user: ${{ secrets.LOADER_USER }}
-        ci-user-token: ${{ secrets.LOADER_USER_TOKEN }}
