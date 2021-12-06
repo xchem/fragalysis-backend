@@ -33,11 +33,6 @@ class Command(BaseCommand):
             update = False
         self.stdout.write("update: %s" % update)
 
-        # e.g. /code/media/targets/mArh
-        sites_filepath = os.path.join(settings.MEDIA_ROOT, 'targets', target_name, 'sites.csv')
-        expected_sites = sum(1 for line in open(sites_filepath)) - 1
-        self.stdout.write("Expected number of sites: %s" % expected_sites)
-
         target = Target.objects.filter(title=target_name)
 
         if not target:
@@ -46,39 +41,57 @@ class Command(BaseCommand):
         else:
             self.stdout.write("Updating tags for Target %s" % target[0].title)
 
-        # These should correspond to the sites for the target held in sites.csv
-        mol_groups = MolGroup.objects.filter(target_id__title=target_name, group_type = "MC", )
+        # First, try sites file - e.g. /code/media/targets/mArh/sites.csv
+        # If this is there, then the new sites functionality was used.
+        sites_filepath = os.path.join(settings.MEDIA_ROOT, 'targets', target_name, 'sites.csv')
+        if os.path.isfile(sites_filepath):
+            expected_sites = sum(1 for line in open(sites_filepath)) - 1
+            self.stdout.write("Expected number of sites: %s" % expected_sites)
+            # These should correspond to the sites for the target held in sites.csv
+            mol_groups = MolGroup.objects.filter(target_id__title=target_name, group_type = "MC")
+            tag_type = 'site'
+        else:
+            # The sites should correspond to the centres of mass. The sites will be generated from them
+            mol_groups = MolGroup.objects.filter(target_id__title=target_name, group_type = "MC", description = "c_of_m")
+            expected_sites = len(mol_groups)
+            self.stdout.write("Expected number of sites: %s" % expected_sites)
+            tag_type = 'c_of_e'
+
 
         if not mol_groups:
             self.stdout.write("No sites found for target")
             exit(1)
 
-        for mol_group in mol_groups:
-            self.stdout.write("site name %s" % mol_group.description)
+        for idx, mol_group in enumerate(mol_groups):
+            self.stdout.write("mol_group description: {}, index: {}".format(mol_group.description, idx))
             # A molecule tag record should not exist, but if it does go no further
             try:
                 mol_tag = MoleculeTag.objects.get(mol_group=mol_group)
             except:
                 mol_tag = None
 
+            if tag_type == 'site':
+                tag_name = mol_group.description
+            else:
+                tag_name = 'c_of_m_{}'.format(idx)
+
             if mol_tag:
-                self.stdout.write("Tag already exists for %s" % mol_group.description)
+                self.stdout.write("Tag already exists for {}, index: {}".format(mol_group.description, idx))
                 tags_existing += 1
                 continue
             else:
-                self.stdout.write("Tag to be created for %s" % mol_group.description)
-                self.stdout.write("    mol_tag.tag = %s" % mol_group.description)
+                self.stdout.write("Tag to be created for %s" % tag_name)
+                self.stdout.write("    mol_tag.tag = %s" % tag_name)
                 self.stdout.write("    mol_tag.category = %s" % TagCategory.objects.get(category='Sites'))
                 self.stdout.write("    mol_tag.target = %s" % target[0])
                 self.stdout.write("    mol_tag.mol_group = %s" % mol_group)
                 self.stdout.write("    mol_tag.molecules = %s" % [mol['id'] for mol in mol_group.mol_id.values()])
                 tags_to_be_created += 1
 
-
             # If update flag is set then actually create molecule Tags.
             if update:
                 mol_tag = MoleculeTag()
-                mol_tag.tag = mol_group.description
+                mol_tag.tag = tag_name
                 mol_tag.category = TagCategory.objects.get(category='Sites')
                 mol_tag.target = target[0]
                 mol_tag.mol_group = mol_group
@@ -87,7 +100,6 @@ class Command(BaseCommand):
                     this_mol = Molecule.objects.get(id=mol['id'])
                     mol_tag.molecules.add(this_mol)
                 tags_created += 1
-
 
         self.stdout.write("Expected number of sites: %s" % expected_sites)
         self.stdout.write("tags_existing %s" % tags_existing)

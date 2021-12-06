@@ -31,7 +31,7 @@ updated if 'yes' was set. Checks the number of records against sites.csv
 
 **Notes**
 
-In case of problems, during testing I removed the tags using the following 
+1. In case of problems, during testing I removed the tags using the following 
 sql commands:
 ```
 begin work;
@@ -40,3 +40,8 @@ delete from viewer_moleculetag_molecules vmm
 delete from viewer_moleculetag vm where target_id = <target id>;
 commit;
 ```
+
+2. For older targets, before the sites functionality was implemented, the 
+centre of mass was used as an equivalent grouping. If there is no sites.csv file, the 
+function will look for molgroups with a description of 'c_of_m' and create
+site tags for those instead with a name 'c_of_m_<molgroup index>'.
