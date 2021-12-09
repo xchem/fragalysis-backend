@@ -1,19 +1,18 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Project data (Views) &#8212; Fragalysis-Backend  documentation</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Miscellaneous data" href="../API/misc_views.html" />
@@ -72,30 +71,30 @@ then the <code class="code docutils literal notranslate"><span class="pre">Disco
 </div>
 <div class="section" id="view-details">
 <h2>View details<a class="headerlink" href="#view-details" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.SnapshotsView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SnapshotsView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SnapshotsView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SnapshotsView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SnapshotsView" title="Permalink to this definition">¶</a></dt>
 <dd><p>Djagno view to retrieve information about user sessions (snapshots) (GET). Also used for saving
 session information (PUT, POST, PATCH)</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/snapshots</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Snapshot.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter class:</code></dt>
 <dd><p><cite>viewer.filters.SnapshotFilter</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -112,7 +111,7 @@ session information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -140,7 +139,7 @@ session information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -168,7 +167,7 @@ session information (PUT, POST, PATCH)</p>
 </div>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="viewer.views.SnapshotsView.get_serializer_class">
 <code class="sig-name descname">get_serializer_class</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SnapshotsView.get_serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request</p>
@@ -188,24 +187,24 @@ session information (PUT, POST, PATCH)</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.SnapshotActionsView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SnapshotActionsView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SnapshotActionsView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SnapshotActionsView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SnapshotActionsView" title="Permalink to this definition">¶</a></dt>
 <dd><p>Djagno view to retrieve information about actions relating to snapshots (GET). Also used for saving
 snapshot action information (PUT, POST, PATCH)</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/snapshot-actions</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.SnapshotActions.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -214,7 +213,7 @@ snapshot action information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -227,7 +226,7 @@ snapshot action information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -251,7 +250,7 @@ snapshot action information (PUT, POST, PATCH)</p>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.SnapshotActionsView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.SnapshotActionsView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.SnapshotActionsSerializer</span></code></p>
@@ -259,24 +258,24 @@ snapshot action information (PUT, POST, PATCH)</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.SessionProjectsView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionProjectsView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionProjectsView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionProjectsView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionProjectsView" title="Permalink to this definition">¶</a></dt>
 <dd><p>Djagno view to retrieve information about user projects (collection of sessions) (GET). Also used for saving
 project information (PUT, POST, PATCH)</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/session-projects</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.SessionProject.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -289,7 +288,7 @@ project information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -315,7 +314,7 @@ project information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -362,7 +361,7 @@ project information (PUT, POST, PATCH)</p>
 </div>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="viewer.views.SessionProjectsView.get_serializer_class">
 <code class="sig-name descname">get_serializer_class</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionProjectsView.get_serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request</p>
@@ -382,24 +381,24 @@ project information (PUT, POST, PATCH)</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.SessionActionsView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionActionsView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionActionsView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionActionsView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionActionsView" title="Permalink to this definition">¶</a></dt>
 <dd><p>Djagno view to retrieve information about actions relating to sessions_project (GET). Also used for saving
 project action information (PUT, POST, PATCH)</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/session-actions</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.SessionActions.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -409,7 +408,7 @@ project action information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -421,7 +420,7 @@ project action information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -444,7 +443,7 @@ project action information (PUT, POST, PATCH)</p>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.SessionActionsView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.SessionActionsView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.SessionActionsSerializer</span></code></p>
@@ -452,11 +451,11 @@ project action information (PUT, POST, PATCH)</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.DiscoursePostView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">DiscoursePostView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.DiscoursePostView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">DiscoursePostView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.DiscoursePostView" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django view to get and post to the Discourse platform</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -465,13 +464,13 @@ project action information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/discourse_post</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">params:</code></dt>
 <dd><ul class="simple">
@@ -485,32 +484,32 @@ project action information (PUT, POST, PATCH)</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">Returns JSON</code></dt>
 <dd></dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example of input (GET) on local:</code></dt>
 <dd><p><a class="reference external" href="http://127.0.0.1:8080/api/discourse_post/?post_title=Mpro%20First%20Project">http://127.0.0.1:8080/api/discourse_post/?post_title=Mpro%20First%20Project</a></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">examples of input (POST raw data):</code></dt>
 <dd><p>{“category_name”: “NewCategory”, “parent_category_name”: “Fragalysis targets”, “category_colour”: “0088CC”,
-“category_text_colour”: “FFFFFF”, “post_title”: “”, “post_content”: “”, “post_tags”:””}</p>
+“category_text_colour”: “FFFFFF”, “post_title”: “”, “post_content”: “”, “post_tags”:”“}</p>
 <p>{“category_name”: “NewCategory”, “parent_category_name”: “Fragalysis targets”, “category_colour”: “0088CC”,
 “category_text_colour”: “FFFFFF”, “post_title”: “New Topic Title 1”,
 “post_content”: “This is the first post that creates the topic - must be greater than 20 chars”,
-“post_tags” :”[&quot;tag1&quot;,&quot;tag2&quot;]”}</p>
+“post_tags” :”[“tag1”,”tag2”]”}</p>
 <p>{“category_name”: “NewCategory”, “parent_category_name”: “Fragalysis targets”, “category_colour”: “0088CC”,
 “category_text_colour”: “FFFFFF”, “post_title”: “New Topic Title 1”,
 “post_content”: “This is a second post to New Topic Title 1”, “post_tags” :”[]”}</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output (POST):</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
@@ -520,7 +519,7 @@ project action information (PUT, POST, PATCH)</p>
 </div>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output (GET):</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
@@ -602,19 +601,19 @@ project action information (PUT, POST, PATCH)</p>
 </div>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="viewer.views.DiscoursePostView.create">
-<code class="sig-name descname">create</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.DiscoursePostView.create" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">create</code><span class="sig-paren">(</span><em class="sig-param">request</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.DiscoursePostView.create" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to handle POST request and call discourse to create the post</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="viewer.views.DiscoursePostView.list">
-<code class="sig-name descname">list</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.DiscoursePostView.list" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">list</code><span class="sig-paren">(</span><em class="sig-param">request</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.DiscoursePostView.list" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method to handle GET request and call discourse to list posts for a topic</p>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.DiscoursePostView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.DiscoursePostView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.DiscoursePostWriteSerializer</span></code></p>
@@ -660,8 +659,9 @@ project action information (PUT, POST, PATCH)</p>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html#tags">Tags</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading data (Celery tasks and django template)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/media.html">Serving static files (media)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/download.html">Download data</a></li>
 </ul>
 
 <div class="relations">
@@ -682,7 +682,7 @@ project action information (PUT, POST, PATCH)</p>
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script type="text/javascript">$('#searchbox').show(0);</script>
 
 
 
@@ -699,7 +699,7 @@ project action information (PUT, POST, PATCH)</p>
       &copy;2020, Rachael Skyner.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

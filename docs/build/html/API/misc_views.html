@@ -1,22 +1,21 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Miscellaneous data &#8212; Fragalysis-Backend  documentation</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Uploading computational data (Celery tasks and django template)" href="../computational_data/tasks.html" />
+    <link rel="next" title="Uploading data (Celery tasks and django template)" href="../computational_data/tasks.html" />
     <link rel="prev" title="Project data (Views)" href="../projects/views.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -38,11 +37,11 @@
 <h1>Miscellaneous data<a class="headerlink" href="#miscellaneous-data" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="miscellaneous-views">
 <h2>Miscellaneous Views<a class="headerlink" href="#miscellaneous-views" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.img_from_smiles">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">img_from_smiles</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.img_from_smiles" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">img_from_smiles</code><a class="headerlink" href="#viewer.views.img_from_smiles" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to generate a 2D molecule image for a given smiles string</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -50,13 +49,13 @@
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>viewer/img_from_smiles</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">request params:</code></dt>
 <dd><ul class="simple">
@@ -86,11 +85,11 @@
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.highlight_mol_diff">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">highlight_mol_diff</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.highlight_mol_diff" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">highlight_mol_diff</code><a class="headerlink" href="#viewer.views.highlight_mol_diff" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to generate a 2D molecule image highlighting the difference between a reference and new molecule</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -98,13 +97,13 @@
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>viewer/highlight_mol_diff</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">request params:</code></dt>
 <dd><ul class="simple">
@@ -135,11 +134,11 @@
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.get_open_targets">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">get_open_targets</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.get_open_targets" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">get_open_targets</code><a class="headerlink" href="#viewer.views.get_open_targets" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to return a list of all open targets</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -147,13 +146,13 @@
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>viewer/open_targets</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">request params:</code></dt>
 <dd><p>None</p>
@@ -190,9 +189,9 @@ following new functionality:</p>
 </ul>
 <div class="section" id="tag-model-details">
 <h2>Tag Model details<a class="headerlink" href="#tag-model-details" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.TagCategory">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">TagCategory</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.TagCategory" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">TagCategory</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.TagCategory" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model containing categories for Tags</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -205,9 +204,9 @@ following new functionality:</p>
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.Tag">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Tag</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Tag" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">Tag</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.Tag" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model containing Tags</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -226,9 +225,9 @@ following new functionality:</p>
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.MoleculeTag">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">MoleculeTag</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.MoleculeTag" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">MoleculeTag</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.MoleculeTag" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model containing data for MoleculeTag(s) inherited from Tag.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -240,9 +239,9 @@ following new functionality:</p>
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.SessionProjectTag">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">SessionProjectTag</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.SessionProjectTag" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">SessionProjectTag</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.SessionProjectTag" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model containing data for SessionProjectTag(s) inherited from Tag.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -254,23 +253,23 @@ following new functionality:</p>
 </div>
 <div class="section" id="tag-views">
 <h2>Tag Views<a class="headerlink" href="#tag-views" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.TagCategoryView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TagCategoryView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TagCategoryView" title="Permalink to this definition">¶</a></dt>
-<dd><p>Operational Django view to set up/retrieve information about tag categories</p>
-<dl class="py method">
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TagCategoryView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TagCategoryView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Operational Django view to set up and retrieve information about tag categories.</p>
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/tag_category</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.TagCategory.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -278,52 +277,32 @@ following new functionality:</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd></dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
-<code class="sig-name descname">Example output:</code></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt>
-<code class="sig-name descname">---------------</code></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt>
-<code class="sig-name descname">.. code-block:: java</code></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt>
-<code class="sig-name descname">{</code></dt>
-<dd><p>“count”: 1,
-“next”: null,
-“previous”: null,
-“results”: [</p>
-<blockquote>
-<div><dl class="simple">
-<dt>{</dt><dd><p>“id”: 1,
-“category”: “sites”,
-“colour”: “FFFFFF”,
-“description”: “site description”</p>
-</dd>
-</dl>
-<p>},</p>
-</div></blockquote>
-<p>]</p>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="nt">&quot;count&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="nt">&quot;next&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="nt">&quot;previous&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="nt">&quot;category&quot;</span><span class="p">:</span> <span class="s2">&quot;sites&quot;</span><span class="p">,</span>
+            <span class="nt">&quot;colour&quot;</span><span class="p">:</span> <span class="s2">&quot;FFFFFF&quot;</span><span class="p">,</span>
+            <span class="nt">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;site description&quot;</span>
+        <span class="p">},</span>
+    <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
 </dd></dl>
 
-<dl class="py method">
-<dt>
-<code class="sig-name descname">}</code></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.TagCategoryView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.TagCategoryView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.TagCategorySerializer</span></code></p>
@@ -331,23 +310,23 @@ following new functionality:</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.MoleculeTagView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">MoleculeTagView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.MoleculeTagView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">MoleculeTagView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.MoleculeTagView" title="Permalink to this definition">¶</a></dt>
 <dd><p>Operational Django view to set up/retrieve information about tags relating to Molecules</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/molecule_tag</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.MoleculeTag.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -359,56 +338,38 @@ following new functionality:</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd></dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
-<code class="sig-name descname">Example output:</code></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt>
-<code class="sig-name descname">---------------</code></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt>
-<code class="sig-name descname">.. code-block:: json</code></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt>
-<code class="sig-name descname">{</code></dt>
-<dd><p>“id”: 43,
-“tag”: “A9 - XChem screen - covalent hits”,
-“create_date”: “2021-04-20T14:16:46.850313Z”,
-“colour”: null,
-“discourse_url”: null,
-“help_text”: null,
-“additional_info”: “”,
-“category”: 1,
-“target”: 3,
-“user”: null,
-“mol_group”: 5468,
-“molecules”: [</p>
-<blockquote>
-<div><p>6577,
-6578,
-6770,
-6771</p>
-</div></blockquote>
-<p>]</p>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">43</span><span class="p">,</span>
+    <span class="nt">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;A9 - XChem screen - covalent hits&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;create_date&quot;</span><span class="p">:</span> <span class="s2">&quot;2021-04-20T14:16:46.850313Z&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;colour&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="nt">&quot;discourse_url&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="nt">&quot;help_text&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="nt">&quot;additional_info&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;category&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="nt">&quot;target&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="nt">&quot;mol_group&quot;</span><span class="p">:</span> <span class="mi">5468</span><span class="p">,</span>
+    <span class="nt">&quot;molecules&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="mi">6577</span><span class="p">,</span>
+        <span class="mi">6578</span><span class="p">,</span>
+        <span class="mi">6770</span><span class="p">,</span>
+        <span class="mi">6771</span>
+    <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
 </dd></dl>
 
-<dl class="py method">
-<dt>
-<code class="sig-name descname">}</code></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.MoleculeTagView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.MoleculeTagView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.MoleculeTagSerializer</span></code></p>
@@ -416,24 +377,24 @@ following new functionality:</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.SessionProjectTagView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionProjectTagView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionProjectTagView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">SessionProjectTagView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.SessionProjectTagView" title="Permalink to this definition">¶</a></dt>
 <dd><p>Operational Django view to set up/retrieve information about tags relating to Session
 Projects</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/session_project_tag</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.SessionProjectTag.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -444,63 +405,41 @@ Projects</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd></dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
-<code class="sig-name descname">Example output:</code></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt>
-<code class="sig-name descname">---------------</code></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt>
-<code class="sig-name descname">.. code-block:: json</code></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt>
-<code class="sig-name descname">{</code></dt>
-<dd><p>“count”: 1,
-“next”: null,
-“previous”: null,
-“results”: [</p>
-<blockquote>
-<div><dl>
-<dt>{</dt><dd><p>“id”: 3,
-“tag”: “testtag3”,
-“create_date”: “2021-04-13T16:01:55.396088Z”,
-“colour”: null,
-“discourse_url”: null,
-“help_text”: null,
-“additional_info”: “”,
-“category”: 1,
-“target”: 1,
-“user”: null,
-“session_projects”: [</p>
-<blockquote>
-<div><p>2</p>
-</div></blockquote>
-<p>]</p>
-</dd>
-</dl>
-<p>}</p>
-</div></blockquote>
-<p>]</p>
+<code class="sig-name descname">example output:</code></dt>
+<dd><div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="nt">&quot;count&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="nt">&quot;next&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="nt">&quot;previous&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+    <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="nt">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;testtag3&quot;</span><span class="p">,</span>
+            <span class="nt">&quot;create_date&quot;</span><span class="p">:</span> <span class="s2">&quot;2021-04-13T16:01:55.396088Z&quot;</span><span class="p">,</span>
+            <span class="nt">&quot;colour&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+            <span class="nt">&quot;discourse_url&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+            <span class="nt">&quot;help_text&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+            <span class="nt">&quot;additional_info&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="nt">&quot;category&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="nt">&quot;target&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+            <span class="nt">&quot;session_projects&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="mi">2</span>
+            <span class="p">]</span>
+        <span class="p">}</span>
+    <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
 </dd></dl>
 
-<dl class="py method">
-<dt>
-<code class="sig-name descname">}</code></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.SessionProjectTagView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.SessionProjectTagView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.SessionProjectTagSerializer</span></code></p>
@@ -508,185 +447,122 @@ Projects</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.TargetMoleculesView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TargetMoleculesView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TargetMoleculesView" title="Permalink to this definition">¶</a></dt>
-<dd><dl>
-<dt>Django view to retrieve all Molecules and Tag information relating to a Target. The idea</dt><dd><blockquote>
-<div><p>is that a single call can return all target related information needed by the React front
-end in a single call.</p>
-<dl class="simple">
-<dt>url:</dt><dd><p>api/target_molecules/id</p>
-</dd>
-</dl>
-<p>returns: JSON</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TargetMoleculesView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TargetMoleculesView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Django view to retrieve all Molecules and Tag information relating
+to a Target. The idea is that a single call can return all target related
+information needed by the React front end in a single call.</p>
+<dl class="method">
+<dt>
+<code class="sig-name descname">url:</code></dt>
+<dd><p>api/target_molecules/id</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="sig-name descname">returns: JSON</code></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt>
+<code class="sig-name descname">example output (fragment):</code></dt>
+<dd><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;nsp13&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;project_id&quot;</span><span class="p">:</span> <span class="p">[</span> <span class="mi">1</span> <span class="p">],</span>
+    <span class="s2">&quot;template_protein&quot;</span><span class="p">:</span> <span class="s2">&quot;/media/pdbs/nsp13-x0280_1B_apo_zOdoDll.pdb&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="s2">&quot;https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;zip_archive&quot;</span><span class="p">:</span> <span class="s2">&quot;https://127.0.0.1:8080/media/targets/nsp13.zip&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sequences&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;chain&quot;</span><span class="p">:</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;sequence&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span>
+    <span class="p">}],</span>
+    <span class="s2">&quot;molecules&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">7012</span><span class="p">,</span>
+            <span class="s2">&quot;smiles&quot;</span><span class="p">:</span> <span class="s2">&quot;CS(=O)(=O)NCCc1ccccc1&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;cmpd_id&quot;</span><span class="p">:</span> <span class="mi">185</span><span class="p">,</span>
+            <span class="s2">&quot;prot_id&quot;</span><span class="p">:</span> <span class="mi">6980</span><span class="p">,</span>
+            <span class="s2">&quot;protein_code&quot;</span><span class="p">:</span> <span class="s2">&quot;nsp13-x0176_0A&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;mol_type&quot;</span><span class="p">:</span> <span class="s2">&quot;PR&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;molecule_protein&quot;</span><span class="p">:</span> <span class="s2">&quot;/media/pdbs/nsp13-x0176_0A_apo.pdb&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;lig_id&quot;</span><span class="p">:</span> <span class="s2">&quot;LIG&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;chain_id&quot;</span><span class="p">:</span> <span class="s2">&quot;Z&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;sdf_info&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;SDF Block&gt;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;x_com&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+            <span class="s2">&quot;y_com&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+            <span class="s2">&quot;z_com&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+            <span class="s2">&quot;mw&quot;</span><span class="p">:</span> <span class="mf">199.07</span><span class="p">,</span>
+            <span class="s2">&quot;logp&quot;</span><span class="p">:</span> <span class="mf">0.78</span><span class="p">,</span>
+            <span class="s2">&quot;tpsa&quot;</span><span class="p">:</span> <span class="mf">46.17</span><span class="p">,</span>
+            <span class="s2">&quot;ha&quot;</span><span class="p">:</span> <span class="mi">13</span><span class="p">,</span>
+            <span class="s2">&quot;hacc&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s2">&quot;hdon&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">&quot;rots&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+            <span class="s2">&quot;rings&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">&quot;velec&quot;</span><span class="p">:</span> <span class="mi">72</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;tags_set&quot;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="mi">143</span>
+        <span class="p">]</span>
+    <span class="p">},],</span>
+        <span class="s2">&quot;tags_set&quot;</span><span class="p">:</span> <span class="p">[</span> <span class="mi">78</span> <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+        <span class="o">&lt;</span><span class="n">molecule</span> <span class="n">data</span><span class="o">&gt;</span>
+    <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;tags_info&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">72</span><span class="p">,</span>
+                    <span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;A - Nucleotide Site&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;category_id&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+                    <span class="s2">&quot;target_id&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                    <span class="s2">&quot;user_id&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+                    <span class="s2">&quot;create_date&quot;</span><span class="p">:</span> <span class="s2">&quot;2021-04-22T12:11:27.315783Z&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;colour&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+                    <span class="s2">&quot;discourse_url&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+                    <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+                    <span class="s2">&quot;additional_info&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">,</span>
+                    <span class="s2">&quot;mol_group_id&quot;</span><span class="p">:</span> <span class="mi">5498</span>
+                <span class="p">}</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;x_com&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">9.322852168872645</span><span class="p">,</span>
+                    <span class="s2">&quot;y_com&quot;</span><span class="p">:</span> <span class="mf">3.0154678875227723</span><span class="p">,</span>
+                    <span class="s2">&quot;z_com&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">72.34568956027785</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">73</span><span class="p">,</span>
+        <span class="o">&lt;</span><span class="n">tag</span> <span class="n">data</span><span class="o">&gt;</span>
+    <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;tag_categories&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>
+            <span class="s2">&quot;category&quot;</span><span class="p">:</span> <span class="s2">&quot;Sites&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;colour&quot;</span><span class="p">:</span> <span class="s2">&quot;00CC00&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="n">null</span>
+        <span class="p">}</span>
+    <span class="p">]</span>
+<span class="p">}</span>
 </pre></div>
 </div>
-<dl>
-<dt>{</dt><dd><blockquote>
-<div><p>“id”: 4,
-“title”: “nsp13”,
-“project_id”: [ 1 ],
-“template_protein”: “/media/pdbs/nsp13-x0280_1B_apo_zOdoDll.pdb”,
-“metadata”: “<a class="reference external" href="https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv">https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv</a>”,
-“zip_archive”: “<a class="reference external" href="https://127.0.0.1:8080/media/targets/nsp13.zip">https://127.0.0.1:8080/media/targets/nsp13.zip</a>”,
-“sequences”: [
-{</p>
-<blockquote>
-<div><p>“chain”: “A”,
-“sequence”: “”</p>
-</div></blockquote>
-<p>}],
-“molecules”: [
-{</p>
-<blockquote>
-<div><p>“data”: [
-{
-“id”: 7031,
-“smiles”: “CS(=O)(=O)NCCc1ccc(F)cc1”,
-“lig_id”: “LIG”,
-“chain_id”: “Z”,
-“mol_type”: “PR”,
-“sdf_info”: “</p>
-</div></blockquote>
-</div></blockquote>
-<p>RDKit          3D</p>
-</dd>
-</dl>
-</div></blockquote>
-<dl>
-<dt>14 14  0  0  0  0  0  0  0  0999 V2000</dt><dd><blockquote>
-<div><p>-2.2720   40.8830  -57.1440 C   0  0  0  0  0  0  0  0  0  0  0  0
--2.1830   40.3560  -58.8160 S   0  0  2  0  0  0  0  0  0  0  0  0
--1.0670   41.0130  -59.4250 O   0  0  0  0  0  0  0  0  0  0  0  0
--3.4810   40.5240  -59.3980 O   0  0  0  0  0  0  0  0  0  0  0  0
--1.8440   38.7740  -58.8440 N   0  0  0  0  0  0  0  0  0  0  0  0
--0.4690   38.3470  -58.5620 C   0  0  0  0  0  0  0  0  0  0  0  0
--0.1690   37.0550  -59.2710 C   0  0  0  0  0  0  0  0  0  0  0  0</p>
-<blockquote>
-<div><p>1.2120   36.5520  -58.9440 C   0  0  0  0  0  0  0  0  0  0  0  0
-2.2900   36.8750  -59.7460 C   0  0  0  0  0  0  0  0  0  0  0  0
-3.5630   36.4200  -59.4490 C   0  0  0  0  0  0  0  0  0  0  0  0
-3.7410   35.7030  -58.3040 C   0  0  0  0  0  0  0  0  0  0  0  0
-4.9980   35.3010  -57.9750 F   0  0  0  0  0  0  0  0  0  0  0  0
-2.7150   35.3620  -57.4760 C   0  0  0  0  0  0  0  0  0  0  0  0
-1.4460   35.8120  -57.7970 C   0  0  0  0  0  0  0  0  0  0  0  0</p>
-</div></blockquote>
-</div></blockquote>
-<p>2  1  1  1
-3  2  2  0
-4  2  2  0
-5  2  1  0
-6  5  1  0
-7  6  1  0
-8  7  1  0
-9  8  2  0</p>
-</dd>
-</dl>
-<p>10  9  1  0
-11 10  2  0
-12 11  1  0
-13 11  1  0
-14 13  2  0
-14  8  1  0</p>
-</dd>
-</dl>
-<p>M  END
-“,</p>
-<blockquote>
-<div><blockquote>
-<div><blockquote>
-<div><blockquote>
-<div><p>“rscc”: null,
-“occupancy”: 0.0,
-“x_com”: null,
-“y_com”: null,
-“z_com”: null,
-“rmsd”: null,
-“prot_id_id”: 6999,
-“cmpd_id_id”: 839
-}],
-“tags_set”: [ 78 ]
-},
-{</p>
-<blockquote>
-<div><dl class="simple">
-<dt>“data”: [</dt><dd><p>{</p>
-</dd>
-</dl>
-</div></blockquote>
-<p>&lt;molecule data&gt;</p>
-</div></blockquote>
-<p>}</p>
-</div></blockquote>
-<p>],
-“tags_info”: [</p>
-<blockquote>
-<div><dl>
-<dt>{</dt><dd><dl>
-<dt>“data”: [</dt><dd><dl class="simple">
-<dt>{</dt><dd><p>“id”: 72,
-“tag”: “A - Nucleotide Site”,
-“category_id”: 16,
-“target_id”: 4,
-“user_id”: null,
-“create_date”: “2021-04-22T12:11:27.315783Z”,
-“colour”: null,
-“discourse_url”: null,
-“help_text”: null,
-“additional_info”: null,
-“mol_group_id”: 5498</p>
-</dd>
-</dl>
-<p>}</p>
-</dd>
-</dl>
-<p>],
-“coords”: [</p>
-<blockquote>
-<div><dl class="simple">
-<dt>{</dt><dd><p>“x_com”: -9.322852168872645,
-“y_com”: 3.0154678875227723,
-“z_com”: -72.34568956027785</p>
-</dd>
-</dl>
-<p>}</p>
-</div></blockquote>
-<p>]</p>
-</dd>
-</dl>
-<p>},
-{</p>
-<blockquote>
-<div><dl class="simple">
-<dt>“data”: [</dt><dd><dl class="simple">
-<dt>{</dt><dd><p>“id”: 73,</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</div></blockquote>
-<p>&lt;tag data&gt;</p>
-</div></blockquote>
-<p>}
-],
-“tag_categories”: [</p>
-<blockquote>
-<div><dl class="simple">
-<dt>{</dt><dd><p>“id”: 16,
-“category”: “Sites”,
-“colour”: “00CC00”,
-“description”: null</p>
-</dd>
-</dl>
-<p>}</p>
-</div></blockquote>
-<p>]</p>
-</div></blockquote>
-<p>}</p>
-</div></blockquote>
-<dl class="py attribute">
+</dd></dl>
+
+<dl class="attribute">
 <dt id="viewer.views.TargetMoleculesView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.TargetMoleculesView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.TargetMoleculesSerializer</span></code></p>
@@ -734,8 +610,9 @@ end in a single call.</p>
 <li class="toctree-l2"><a class="reference internal" href="#tag-views">Tag Views</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading data (Celery tasks and django template)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="media.html">Serving static files (media)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="download.html">Download data</a></li>
 </ul>
 
 <div class="relations">
@@ -743,7 +620,7 @@ end in a single call.</p>
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
       <li>Previous: <a href="../projects/views.html" title="previous chapter">Project data (Views)</a></li>
-      <li>Next: <a href="../computational_data/tasks.html" title="next chapter">Uploading computational data (Celery tasks and django template)</a></li>
+      <li>Next: <a href="../computational_data/tasks.html" title="next chapter">Uploading data (Celery tasks and django template)</a></li>
   </ul></li>
 </ul>
 </div>
@@ -756,7 +633,7 @@ end in a single call.</p>
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script type="text/javascript">$('#searchbox').show(0);</script>
 
 
 
@@ -773,7 +650,7 @@ end in a single call.</p>
       &copy;2020, Rachael Skyner.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

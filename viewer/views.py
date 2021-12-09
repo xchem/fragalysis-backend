@@ -5,6 +5,8 @@ from io import StringIO
 import pandas as pd
 import uuid
 import shutil
+from wsgiref.util import FileWrapper
+
 
 # import the logging library
 import logging
@@ -20,6 +22,7 @@ from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.conf import settings
 from django.http import JsonResponse
+from django.core.exceptions import ObjectDoesNotExist
 
 from rest_framework.parsers import JSONParser, BaseParser
 from rest_framework.exceptions import ParseError
@@ -92,8 +95,26 @@ from viewer.serializers import (
     TagCategorySerializer,
     MoleculeTagSerializer,
     SessionProjectTagSerializer,
-    TargetMoleculesSerializer
+    TargetMoleculesSerializer,
+    DownloadStructuresSerializer
 )
+
+# filepaths mapping for writing associated files to the zip archive.
+_zip_filepaths = {
+    'pdb_info': ('pdbs'),
+    'bound_info': ('bound'),
+    'cif_info': ('cifs'),
+    'mtz_info': ('mtzs'),
+    'map_info': ('maps'),
+    'sigmaa_info': ('maps'),
+    'diff_info': ('maps'),
+    'event_info': ('maps'),
+    'trans_matrix_info': ('trans'),
+    'sdf_info': ('sdfs'),
+    'single_sdf_file': ('sdfs'),
+    'metadata_info': (''),
+    'smiles_info': (''),
+}
 
 
 class VectorsView(ISpyBSafeQuerySet):
@@ -2395,55 +2416,60 @@ class DictToCsv(viewsets.ViewSet):
     url:
        api/dicttocsv
     get params:
-       file_url: url returned in the post request
+       - file_url: url returned in the post request
 
        Returns: CSV file when passed url.
 
     post params:
-       title: string to place on the first line of the CSV file.
-       input_dict: dictionary containing CSV data to place in the CSV file
+       - title: string to place on the first line of the CSV file.
+       - input_dict: dictionary containing CSV data to place in the CSV file
 
        Returns: url to be passed to GET.
 
-    Example Input for Get
-       http://127.0.0.1:8080/api/dicttocsv/?file_url=/code/media/downloads/6bc70a04-9675-4079-924e-b0ab460cb206/download
+    example input for get
 
-    Example Input for Post
+        .. code-block::
+
+            /api/dicttocsv/?file_url=/code/media/downloads/6bc70a04-9675-4079-924e-b0ab460cb206/download
+
+    example input for post
     ----------------------
 
-    {
-    "title": "https://fragalysis.xchem.diamond.ac.uk/viewer/react/landing",
-    "dict": [{
-                    " compound - id0 ": " CHEMSPACE - BB: CSC012451475 ",
-                    " compound - id1 ": " ",
-                    " smiles ": " Cc1ccncc1C(N)C(C)(C)C ",
-                    " mol ": " CC( = O)Nc1cnccc1C ",
-                    " vector ": " CC1CCCCC1[101Xe]",
-                    " class ": " blue ",
-                    " compoundClass ": " blue ",
-                    " ChemPlp ": " ",
-                    " MM - GBSA Nwat = 0 ": " ",
-                            " STDEV0 ": " ",
-                            " MM - GBSA Nwat = 30 ": " ",
-                            " STDEV30 ": " ",
-                            " MM - GBSA Nwat = 60 ": " "
-                        },
-                        {
-                            " compound - id0 ": " ",
+        .. code-block:: json
+
+            {
+            "title": "https://fragalysis.xchem.diamond.ac.uk/viewer/react/landing",
+            "dict": [{
+                            " compound - id0 ": " CHEMSPACE - BB: CSC012451475 ",
                             " compound - id1 ": " ",
-                            " smiles ": " CC( = O)NCCc1c[nH]c2c(C(c3ccc(Br)s3)[NH + ]3CCN(C( = O)CCl)CC3)cccc12 ",
-                            " mol ": " ",
-                            " vector ": " ",
-                            " class ": " ",
-                            " compoundClass ": " ",
-                            " ChemPlp ": -101.073,
-                            " MM - GBSA Nwat = 0 ": -38.8862,
-                            " STDEV0 ": 5.3589001,
-                            " MM - GBSA Nwat = 30 ": -77.167603,
-                            " STDEV30 ": 5.5984998,
-                            " MM - GBSA Nwat = 60 ": -84.075401
-        }]
-    }
+                            " smiles ": " Cc1ccncc1C(N)C(C)(C)C ",
+                            " mol ": " CC( = O)Nc1cnccc1C ",
+                            " vector ": " CC1CCCCC1[101Xe]",
+                            " class ": " blue ",
+                            " compoundClass ": " blue ",
+                            " ChemPlp ": " ",
+                            " MM - GBSA Nwat = 0 ": " ",
+                                    " STDEV0 ": " ",
+                                    " MM - GBSA Nwat = 30 ": " ",
+                                    " STDEV30 ": " ",
+                                    " MM - GBSA Nwat = 60 ": " "
+                                },
+                                {
+                                    " compound - id0 ": " ",
+                                    " compound - id1 ": " ",
+                                    " smiles ": " CC( = O)NCCc1c[nH]c2c(C(c3ccc(Br)s3)[NH + ]3CCN(C( = O)CCl)CC3)cccc12 ",
+                                    " mol ": " ",
+                                    " vector ": " ",
+                                    " class ": " ",
+                                    " compoundClass ": " ",
+                                    " ChemPlp ": -101.073,
+                                    " MM - GBSA Nwat = 0 ": -38.8862,
+                                    " STDEV0 ": 5.3589001,
+                                    " MM - GBSA Nwat = 30 ": -77.167603,
+                                    " STDEV30 ": 5.5984998,
+                                    " MM - GBSA Nwat = 60 ": -84.075401
+                }]
+            }
 
     """
 
@@ -2482,7 +2508,7 @@ class DictToCsv(viewsets.ViewSet):
 
 # Classes Relating to Tags
 class TagCategoryView(viewsets.ModelViewSet):
-    """ Operational Django view to set up/retrieve information about tag categories
+    """ Operational Django view to set up and retrieve information about tag categories.
 
     Methods
     -------
@@ -2494,24 +2520,23 @@ class TagCategoryView(viewsets.ModelViewSet):
         - `viewer.models.TagCategory.category` - ?category=<str>
     returns: JSON
 
-    Example output:
-    ---------------
+    example output:
 
-    .. code-block:: java
+        .. code-block:: json
 
-    {
-        "count": 1,
-        "next": null,
-        "previous": null,
-        "results": [
             {
-                "id": 1,
-                "category": "sites",
-                "colour": "FFFFFF",
-                "description": "site description"
-            },
-        ]
-    }
+                "count": 1,
+                "next": null,
+                "previous": null,
+                "results": [
+                    {
+                        "id": 1,
+                        "category": "sites",
+                        "colour": "FFFFFF",
+                        "description": "site description"
+                    },
+                ]
+            }
 
     """
 
@@ -2538,30 +2563,29 @@ class MoleculeTagView(viewsets.ModelViewSet):
 
     returns: JSON
 
-    Example output:
-    ---------------
+    example output:
 
-    .. code-block:: json
+        .. code-block:: json
 
-    {
-        "id": 43,
-        "tag": "A9 - XChem screen - covalent hits",
-        "create_date": "2021-04-20T14:16:46.850313Z",
-        "colour": null,
-        "discourse_url": null,
-        "help_text": null,
-        "additional_info": "",
-        "category": 1,
-        "target": 3,
-        "user": null,
-        "mol_group": 5468,
-        "molecules": [
-            6577,
-            6578,
-            6770,
-            6771
-        ]
-    }
+            {
+                "id": 43,
+                "tag": "A9 - XChem screen - covalent hits",
+                "create_date": "2021-04-20T14:16:46.850313Z",
+                "colour": null,
+                "discourse_url": null,
+                "help_text": null,
+                "additional_info": "",
+                "category": 1,
+                "target": 3,
+                "user": null,
+                "mol_group": 5468,
+                "molecules": [
+                    6577,
+                    6578,
+                    6770,
+                    6771
+                ]
+            }
 
    """
 
@@ -2588,33 +2612,32 @@ class SessionProjectTagView(viewsets.ModelViewSet):
 
     returns: JSON
 
-    Example output:
-    ---------------
+    example output:
 
-    .. code-block:: json
+        .. code-block:: json
 
-    {
-        "count": 1,
-        "next": null,
-        "previous": null,
-        "results": [
             {
-                "id": 3,
-                "tag": "testtag3",
-                "create_date": "2021-04-13T16:01:55.396088Z",
-                "colour": null,
-                "discourse_url": null,
-                "help_text": null,
-                "additional_info": "",
-                "category": 1,
-                "target": 1,
-                "user": null,
-                "session_projects": [
-                    2
+                "count": 1,
+                "next": null,
+                "previous": null,
+                "results": [
+                    {
+                        "id": 3,
+                        "tag": "testtag3",
+                        "create_date": "2021-04-13T16:01:55.396088Z",
+                        "colour": null,
+                        "discourse_url": null,
+                        "help_text": null,
+                        "additional_info": "",
+                        "category": 1,
+                        "target": 1,
+                        "user": null,
+                        "session_projects": [
+                            2
+                        ]
+                    }
                 ]
             }
-        ]
-    }
 
     """
 
@@ -2624,9 +2647,9 @@ class SessionProjectTagView(viewsets.ModelViewSet):
 
 
 class TargetMoleculesView(ISpyBSafeQuerySet):
-    """ Django view to retrieve all Molecules and Tag information relating to a Target. The idea
-    is that a single call can return all target related information needed by the React front
-    end in a single call.
+    """ Django view to retrieve all Molecules and Tag information relating
+    to a Target. The idea is that a single call can return all target related
+    information needed by the React front end in a single call.
 
     Methods
     -------
@@ -2635,102 +2658,101 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
 
     returns: JSON
 
-    Example output (fragment):
-    --------------------------
+    example output (fragment):
 
-    .. code-block:: json
+        .. code-block::
 
-    {
-        "id": 4,
-        "title": "nsp13",
-        "project_id": [ 1 ],
-        "template_protein": "/media/pdbs/nsp13-x0280_1B_apo_zOdoDll.pdb",
-        "metadata": "https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv",
-        "zip_archive": "https://127.0.0.1:8080/media/targets/nsp13.zip",
-        "sequences": [
-        {
-             "chain": "A",
-             "sequence": ""
-        }],
-        "molecules": [
-        {
-            "data": {
-                "id": 7012,
-                "smiles": "CS(=O)(=O)NCCc1ccccc1",
-                "cmpd_id": 185,
-                "prot_id": 6980,
-                "protein_code": "nsp13-x0176_0A",
-                "mol_type": "PR",
-                "molecule_protein": "/media/pdbs/nsp13-x0176_0A_apo.pdb",
-                "lig_id": "LIG",
-                "chain_id": "Z",
-                "sdf_info": "\n     RDKit          3D\n\n 13 13  0  0  0  0  0  0  0  0999 V2000\n   -1.4540   41.6010  -58.9400 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.3630   40.1240  -58.7210 S   0  0  2  0  0  0  0  0  0  0  0  0\n   -3.0340   39.8360  -59.9470 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -3.1390   40.2780  -57.5260 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -1.2970   38.9270  -58.4930 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.1530   38.8750  -59.4030 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.0430   37.4830  -59.9420 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.0650   36.7090  -59.1500 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.2850   36.3810  -59.7050 C   0  0  0  0  0  0  0  0  0  0  0  0\n    3.2310   35.6710  -58.9830 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.9560   35.2650  -57.6990 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.7460   35.5850  -57.1330 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.8030   36.3020  -57.8550 C   0  0  0  0  0  0  0  0  0  0  0  0\n  2  1  1  6\n  3  2  2  0\n  4  2  2  0\n  5  2  1  0\n  6  5  1  0\n  7  6  1  0\n  8  7  1  0\n  9  8  2  0\n 10  9  1  0\n 11 10  2  0\n 12 11  1  0\n 13 12  2  0\n 13  8  1  0\nM  END\n",
-                "x_com": null,
-                "y_com": null,
-                "z_com": null,
-                "mw": 199.07,
-                "logp": 0.78,
-                "tpsa": 46.17,
-                "ha": 13,
-                "hacc": 2,
-                "hdon": 1,
-                "rots": 4,
-                "rings": 1,
-                "velec": 72
-            },
-            "tags_set": [
-                143
-            ]
-        },],
-            "tags_set": [ 78 ]
-            },
             {
-                "data": [
+                "id": 4,
+                "title": "nsp13",
+                "project_id": [ 1 ],
+                "template_protein": "/media/pdbs/nsp13-x0280_1B_apo_zOdoDll.pdb",
+                "metadata": "https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv",
+                "zip_archive": "https://127.0.0.1:8080/media/targets/nsp13.zip",
+                "sequences": [
+                {
+                    "chain": "A",
+                    "sequence": ""
+                }],
+                "molecules": [
+                {
+                    "data": {
+                        "id": 7012,
+                        "smiles": "CS(=O)(=O)NCCc1ccccc1",
+                        "cmpd_id": 185,
+                        "prot_id": 6980,
+                        "protein_code": "nsp13-x0176_0A",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/pdbs/nsp13-x0176_0A_apo.pdb",
+                        "lig_id": "LIG",
+                        "chain_id": "Z",
+                        "sdf_info": "<SDF Block>",
+                        "x_com": null,
+                        "y_com": null,
+                        "z_com": null,
+                        "mw": 199.07,
+                        "logp": 0.78,
+                        "tpsa": 46.17,
+                        "ha": 13,
+                        "hacc": 2,
+                        "hdon": 1,
+                        "rots": 4,
+                        "rings": 1,
+                        "velec": 72
+                    },
+                    "tags_set": [
+                        143
+                    ]
+                },],
+                    "tags_set": [ 78 ]
+                    },
                     {
-            <molecule data>
-         }
-        ],
-        "tags_info": [
-            {
-                "data": [
-                    {
-                        "id": 72,
-                        "tag": "A - Nucleotide Site",
-                        "category_id": 16,
-                        "target_id": 4,
-                        "user_id": null,
-                        "create_date": "2021-04-22T12:11:27.315783Z",
-                        "colour": null,
-                        "discourse_url": null,
-                        "help_text": null,
-                        "additional_info": null,
-                        "mol_group_id": 5498
-                    }
+                        "data": [
+                            {
+                    <molecule data>
+                }
                 ],
-                "coords": [
+                "tags_info": [
                     {
-                        "x_com": -9.322852168872645,
-                        "y_com": 3.0154678875227723,
-                        "z_com": -72.34568956027785
+                        "data": [
+                            {
+                                "id": 72,
+                                "tag": "A - Nucleotide Site",
+                                "category_id": 16,
+                                "target_id": 4,
+                                "user_id": null,
+                                "create_date": "2021-04-22T12:11:27.315783Z",
+                                "colour": null,
+                                "discourse_url": null,
+                                "help_text": null,
+                                "additional_info": null,
+                                "mol_group_id": 5498
+                            }
+                        ],
+                        "coords": [
+                            {
+                                "x_com": -9.322852168872645,
+                                "y_com": 3.0154678875227723,
+                                "z_com": -72.34568956027785
+                            }
+                        ]
+                    },
+                    {
+                        "data": [
+                            {
+                                "id": 73,
+                    <tag data>
+                }
+                ],
+                "tag_categories": [
+                    {
+                        "id": 16,
+                        "category": "Sites",
+                        "colour": "00CC00",
+                        "description": null
                     }
                 ]
-            },
-            {
-                "data": [
-                    {
-                        "id": 73,
-            <tag data>
-        }
-        ],
-        "tag_categories": [
-            {
-                "id": 16,
-                "category": "Sites",
-                "colour": "00CC00",
-                "description": null
             }
-        ]
-    }
 
     """
 
@@ -2738,5 +2760,342 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
     serializer_class = TargetMoleculesSerializer
     filter_permissions = "project_id"
     filter_fields = ("title",)
-
 # Classes Relating to Tags - End
+
+
+def _add_file_to_zip(ziparchive, code, param, filepath, error_file):
+    """Add the requested file to the zip archive.
+
+    Args:
+        ziparchive: Handle of zip archive
+        code: Fragalysis protein code
+        param: parameter of filelist
+        filepath: filepath from record
+        error_file: Error file handle
+
+    Returns:
+        [boolean]: [True of record added to error file]
+    """
+    media_root = settings.MEDIA_ROOT
+    if not filepath:
+        return False
+
+    fullpath = os.path.join(media_root, filepath)
+
+    if os.path.isfile(fullpath):
+        ziparchive.write(fullpath,
+                         os.path.join(_zip_filepaths[param],
+                                      os.path.basename(filepath)))
+        return False
+    else:
+        error_file.write('{},{},{}\n'.format(code, param, filepath))
+        return True
+
+
+def _add_file_to_sdf(combined_sdf_file, smiles, filepath, error_file):
+    """Append the requested sdf file to the single sdf file provided.
+
+    Args:
+        combined_sdf: Handle of combined_sdf_file
+        smiles: Smiles from molecule record
+        filepath: filepath from record
+        error_file: Error file handle
+
+    Returns:
+        [boolean]: [True of record added to error file]
+    """
+    media_root = settings.MEDIA_ROOT
+
+    if not filepath:
+        return False
+
+    fullpath = os.path.join(media_root, filepath)
+
+    if os.path.isfile(fullpath):
+        with open(combined_sdf_file, 'a') as f_out:
+            with open(fullpath, 'r') as f_in:
+                f_out.write(f_in.read())
+        return False
+    else:
+        error_file.write('{},{},{}\n'.format(smiles, 'single_sdf_file',
+                                             filepath))
+        return True
+
+
+def _create_zip_from_dict(target, proteins,
+                          protein_params, other_params):
+    """Write a ZIP file containing data from an input dictionary
+
+    Args:
+        target
+        proteins
+        protein_params
+        other_params
+
+    Returns:
+        [file]: [URL to the file in the media directory]
+    """
+
+    logger.info('+ _create_zip_from_dict')
+    filename = target.title +'.zip'
+
+    media_root = settings.MEDIA_ROOT
+    unique_dir = str(uuid.uuid4())
+    # /code/media/downloads/<unique_dir>
+    download_path = os.path.join(media_root, 'downloads', unique_dir)
+    os.makedirs(download_path, exist_ok=True)
+
+    download_file = os.path.join(download_path, filename)
+
+    # Remove file if it already exists
+    if os.path.isfile(download_file):
+        os.remove(download_file)
+
+    molecules = Molecule.objects.filter(prot_id__in=[protein['id'] for protein
+                                                     in proteins]).values()
+
+    error_filename = os.path.join(download_path, "errors.csv")
+    error_file = open(error_filename, "w")
+    error_file.write("Param, Code, Invalid file reference\n")
+    errors = 0
+
+    with zipfile.ZipFile(download_file, 'w') as ziparchive:
+        # Read through zip_params to compile the file
+        # Maybe I can think of a clever way of doing this...
+        # Don't forget the error files. Check link before write.
+        for protein in proteins:
+            for param in protein_params:
+                if protein_params[param] is True:
+                    if _add_file_to_zip(ziparchive, protein['code'],
+                                        param, protein[param], error_file):
+                        errors+=1
+
+        # If a single sdf file is also wanted then create file to
+        # add sdf files to a file called {targer}_combined.sdf.
+        if other_params['single_sdf_file'] is True:
+            combined_sdf_file = \
+                os.path.join(download_path,
+                             '{}_combined.sdf'.format(target.title))
+
+        # sdf information is held as a file on the Molecule record.
+        for molecule in molecules:
+            if other_params['sdf_info'] is True:
+                # Add sdf file on the Molecule record to the archive folder.
+                if _add_file_to_zip(ziparchive, molecule['smiles'],
+                                    'sdf_info', molecule['sdf_file'],
+                                    error_file):
+                    errors+=1
+
+            # Append sdf file on the Molecule record to the combined_sdf_file.
+            if other_params['single_sdf_file'] is True:
+                if _add_file_to_sdf(combined_sdf_file, molecule['smiles'],
+                                    molecule['sdf_file'],
+                                    error_file):
+                    errors+=1
+
+        # Add combined_sdf_file to the archive.
+        if other_params['single_sdf_file'] is True and \
+                os.path.isfile(combined_sdf_file):
+            ziparchive.write(
+                combined_sdf_file,
+                os.path.join(_zip_filepaths['single_sdf_file'],
+                             os.path.basename(combined_sdf_file)))
+            os.remove(combined_sdf_file)
+
+
+        # If smiles info is required, then write one column for each molecule
+        # to a smiles.smi file and then add to the archive.
+        if other_params['smiles_info'] is True:
+            smiles_filename = os.path.join(download_path, 'smiles.smi')
+            with open(smiles_filename, 'w') as smilesfile:
+                for molecule in molecules:
+                    smilesfile.write(molecule['smiles']+',')
+            ziparchive.write(
+                smiles_filename,
+                os.path.join(_zip_filepaths['smiles_info'],
+                             os.path.basename(smiles_filename)))
+            os.remove(smiles_filename)
+
+        # Add the metadata file from the target
+        if other_params['metadata_info'] is True:
+            if _add_file_to_zip(ziparchive, target.title, 'metadata_info',
+                                target.metadata.name, error_file):
+                errors+=1
+
+        error_file.close()
+        if errors > 0:
+            ziparchive.write(error_filename, 'errors.csv')
+
+    return download_file
+
+
+class DownloadStructures(ISpyBSafeQuerySet):
+    """Django view that uses a selected subset of the target data
+    (proteins and booleans with suggested files) and creates a Zip file
+    with the contents.
+
+    Methods
+    -------
+    allowed requests:
+        - GET: Return the Zip file given the link - note that this will remove the file on the media directory.
+        - POST: Return a link to a ZIP file containing the requested data.
+
+    url:
+       api/download_structures
+    get params:
+       - file_url: url returned in the post request
+
+       Returns: Zip file when passed url.
+
+    post params:
+        - target_name: Selected target
+        - proteins: Comma separated list of protein codes within target e.g. "Mpro-6lu7_2C,Mpro-6m0k_0A".
+                    If left blank the whole target will be scanned.
+        - pdb_info: True/False - include pdb file
+        - bound_info: True/False - include bound file (if available)
+        - cif_info: True/False - include cif file (if available)
+        - mtz_info: True/False - include mtz file (if available)
+        - diff_info: True/False - include diff file (if available)
+        - event_info: True/False - include event file (if available)
+        - sigmaa_info: True/False - include sigmaa file (if available)
+        - sdf_info: True/False - include molecule sdf file (if available)
+        - single_sdf_file: True/False - Also combine molecule sdf files into single file (if available)
+        - trans_matrix_info: True/False - include transformation file (if available)
+        - metadata_info: True/False - include metadata csv file for whole target set
+        - smiles_info: True/False - include csv file containing smiles for attached molecules
+
+
+       Returns: url to be passed to GET.
+
+    example input for get
+
+        .. code-block::
+
+            /api/download_structures/?file_url=/code/media/downloads/6bc70a04-9675-4079-924e-b0ab460cb206/download
+
+    example input for post:
+
+        .. code-block::
+
+            {
+                "target_name": "Mpro"
+                "proteins": "Mpro-6lu7_2C,Mpro-6m0k_0A"
+                "pdb_info": True
+                "bound_info": True
+                "cif_info": True
+                "mtz_info": False
+                "diff_info": False
+                "event_info": False
+                "sigmaa_info": False
+                "sdf_info": False
+                "single_sdf_file": False
+                "trans_matrix_info": False
+                "metadata_info": False
+                "smiles_info": False
+            }
+
+    """
+    queryset = Target.objects.filter()
+    serializer_class = DownloadStructuresSerializer
+    filter_permissions = "project_id"
+    filter_fields = ('title','id')
+
+    def list(self, request):
+        """Method to handle GET request
+        """
+        file_url = request.GET.get('file_url')
+
+        if file_url and os.path.isfile(file_url):
+            # return file and tidy up.
+            file_name = os.path.basename(file_url)
+            wrapper = FileWrapper(open(file_url, 'rb'))
+            response = HttpResponse(wrapper,
+                                    content_type='application/zip')
+            response[
+                'Content-Disposition'] = 'attachment; filename="%s"' % file_name
+            response['Content-Length'] = os.path.getsize(file_url)
+            return response
+            shutil.rmtree(os.path.dirname(file_url), ignore_errors=True)
+        else:
+            return Response("Please provide file_url parameter from post response")
+
+
+    def create(self, request):
+        """Method to handle POST request
+        """
+        logger.info('+ DownloadStructures.post')
+        protein_param_flags = ['pdb_info', 'bound_info',
+                               'cif_info', 'mtz_info',
+                               'diff_info', 'event_info',
+                               'sigmaa_info', 'trans_matrix_info']
+        other_param_flags = ['sdf_info', 'single_sdf_file',
+                             'metadata_info', 'smiles_info']
+
+        target_name = request.data['target_name']
+        target = None
+        #Check valid targets
+        logger.info(self.queryset)
+
+        for t in self.queryset:
+            logger.info(t.title)
+            if t.title == target_name:
+                target = t
+                break
+
+        if not target:
+            return Response(
+                {"message": "Please enter a permitted target name."})
+
+        if request.data['proteins']:
+            proteins_list = [p.strip()
+                            for p in request.data['proteins'].split(',')]
+        else:
+            proteins_list = []
+
+        if len(proteins_list) > 0:
+            # Filter by protein codes
+            proteins = Protein.objects.filter(target_id=target.id)\
+                .filter(code__in=proteins_list).values()
+        else:
+            # If no protein codes supplied then return the complete list
+            proteins = Protein.objects.filter(target_id=target.id).values()
+
+        if len(proteins) == 0:
+            return Response(
+                {"message": "Please enter list of valid protein codes for" +
+                 "target: {}, proteins: {} ".format(target.id, proteins_list)})
+
+        protein_params = {}
+        for param in protein_param_flags:
+            protein_params[param] = False
+            if param in request.data:
+                if request.data[param] == True or request.data[param] == 'true':
+                    protein_params[param] = True
+
+        other_params = {}
+        for param in other_param_flags:
+            other_params[param] = False
+            if param in request.data:
+                if request.data[param] == True or request.data[param] == 'true':
+                    other_params[param] = True
+
+        # protein_params = {'pdb_info': request.data['pdb_info'],
+        #               'bound_info': request.data['bound_info'],
+        #               'cif_info': request.data['cif_info'],
+        #               'mtz_info': request.data['mtz_info'],
+        #               'diff_info': request.data['diff_info'],
+        #               'event_info': request.data['event_info'],
+        #               'sigmaa_info': request.data['sigmaa_info'],
+        #               'trans_matrix_info':
+        #                   request.data['trans_matrix_info']}
+        # other_params = {'sdf_info': request.data['sdf_info'],
+        #                 'single_sdf_file': request.data['single_sdf_file'],
+        #                 'metadata_info': request.data['metadata_info'],
+        #                 'smiles_info': request.data['smiles_info']}
+
+        filename_url = _create_zip_from_dict(target,
+                                             proteins,
+                                             protein_params,
+                                             other_params)
+
+        return Response({"file_url": filename_url})

@@ -364,4 +364,3 @@ if DEBUG is True:
             'handlers': ['console', 'logfile']
         },
     }
-

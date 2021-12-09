@@ -1,11 +1,11 @@
 .. _comp-tasks:
 
-Uploading computational data (Celery tasks and django template)
-===============================================================
+Uploading data (Celery tasks and django template)
+=================================================
 
 Introducton
 -----------
-Uploading a Computed Set (see [link]) is a process that takes a long time. Typical requests handled in django
+Uploading a Target or a Computed Set (see [link]) is a process that takes a long time. Typical requests handled in django
 applications usually only take milliseconds. Because this process takes a long time, we have implemented the required
 components as Celery tasks, and written views that can handle kicking off the relevant tasks, and retrieve the results
 from the tasks by pinging the message queue that brokers the tasks (Redis).
@@ -32,8 +32,8 @@ A django template (https://docs.djangoproject.com/en/3.1/topics/templates/) is a
 load content from django objects, such as models and views. For example, we could query the Target model, and dynamically
 create a list of all Target names in a template.
 
-The template for the upload page for computed sets is found at :code:`viewer/templates/viewer/upload-cset.html`. The
-main parts of the template are as follows:
+For example, the template for the upload page for computed sets is found at :code:`viewer/templates/viewer/upload-cset.html`.
+A similar page (upload-tset.html) exists for Targets. The main parts of the template are as follows:
 
 **1. The upload form** - this part of the template makes use of :code:`viewer.forms.CSetForm`: a version of a :code:`Model`
 that is used to describe what information can be posted as a request through a form contained in a template.
@@ -285,4 +285,3 @@ saved to the database through the :code:`viewer.views.UploadTaskView` into the r
 
 .. autoclass:: viewer.tasks.process_target_set
     :members:
-

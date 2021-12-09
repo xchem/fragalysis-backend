@@ -8,7 +8,7 @@ from django.core.validators import MinLengthValidator
 
 from simple_history.models import HistoricalRecords
 
-from loader.config import get_mol_choices, get_prot_choices
+from viewer.target_set_config import get_mol_choices, get_prot_choices
 
 class Project(models.Model):
     """Django model for holding information about a project. This is used on the Targets level, adding a new project for
@@ -97,6 +97,8 @@ class Protein(models.Model):
         File link to uploaded mtz file (optional)
     map_info: FileField
         File link to uploaded map file (optional)
+    trans_matrix_info: FileField
+        File link to uploaded transformation matrix file (optional)
     aligned: NullBooleanField
         Bool - 1 if aligned, 0 if not
     aligned_to: ForeignKey (self)
@@ -121,6 +123,7 @@ class Protein(models.Model):
     sigmaa_info = models.FileField(upload_to="maps/", null=True, max_length=255)
     diff_info = models.FileField(upload_to="maps/", null=True, max_length=255)
     event_info = models.FileField(upload_to="maps/", null=True, max_length=255)
+    trans_matrix_info = models.FileField(upload_to="trans/", null=True, max_length=255)
     aligned = models.NullBooleanField()
     aligned_to = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
     has_eds = models.NullBooleanField()
@@ -260,6 +263,8 @@ class Molecule(models.Model):
         Foreign key link to the associated protein (apo) that this ligand was pulled from
     cmpd_id: ForeignKey
         Foreign key link to the associated 2D compound
+    sdf_file: FileField
+        File link to uploaded sdf file (optional)
     history: HistoricalRecords
         Tracks the changes made to an instance of this model over time
 
@@ -284,6 +289,7 @@ class Molecule(models.Model):
     # Foreign key relations
     prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
     cmpd_id = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    sdf_file = models.FileField(upload_to="sdfs/", null=True, max_length=255)
     history = HistoricalRecords()
 
     # Unique constraints

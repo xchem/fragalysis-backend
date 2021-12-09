@@ -4,7 +4,7 @@
 # It does not build the Neo4j graph.
 # To use:
 # 1. Build a backend image
-# $ export BE_NAMEPSACE=xchem
+# $ export BE_NAMESPACE=xchem
 # $ docker build . -t xchem/fragalysis-backend:latest
 #
 # 2. Run docker-compose to start a database and a backend

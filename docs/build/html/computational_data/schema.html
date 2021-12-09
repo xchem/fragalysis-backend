@@ -1,19 +1,18 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Computational data (Models) &#8212; Fragalysis-Backend  documentation</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Projects data (Models)" href="../projects/schema.html" />
@@ -43,9 +42,9 @@
 </div>
 <div class="section" id="model-details">
 <h2>Model details<a class="headerlink" href="#model-details" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.ComputedSetSubmitter">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedSetSubmitter</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedSetSubmitter" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedSetSubmitter</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedSetSubmitter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model for holding information about the submitter of a computed set</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -60,9 +59,9 @@
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.ComputedSet">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedSet</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedSet" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedSet</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedSet" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model holding information about computed sets - sets of 3D poses of molecules calculated computationally
 and uploaded by a user</p>
 <dl class="field-list simple">
@@ -80,9 +79,9 @@ and uploaded by a user</p>
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.ComputedMolecule">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedMolecule</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedMolecule" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ComputedMolecule</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ComputedMolecule" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model to hold the 3D information for a computed set molecule</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -101,9 +100,9 @@ molecule</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.ScoreDescription">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ScoreDescription</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ScoreDescription" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">ScoreDescription</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.ScoreDescription" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model to store the names and descriptions of scores that the user uploads with each computed set molecule</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -116,9 +115,9 @@ molecule</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.TextScoreValues">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">TextScoreValues</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.TextScoreValues" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">TextScoreValues</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.TextScoreValues" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model to store the values of text scores that the user uploads with each computed set molecule</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -131,9 +130,9 @@ molecule</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.NumericalScoreValues">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">NumericalScoreValues</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.NumericalScoreValues" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">NumericalScoreValues</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.NumericalScoreValues" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model to store the values of numerical scores that the user uploads with each computed set molecule</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -146,9 +145,9 @@ molecule</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.models.CSetKeys">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">CSetKeys</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.CSetKeys" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.models.</code><code class="sig-name descname">CSetKeys</code><span class="sig-paren">(</span><em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.models.CSetKeys" title="Permalink to this definition">¶</a></dt>
 <dd><p>Django model for authentication when uploading computed sets - each user is given an upload key associated with
 their email address in the form of a uuid. This is entered on the computed set upload page to allow a user upload.</p>
 <dl class="field-list simple">
@@ -220,7 +219,7 @@ their email address in the form of a uuid. This is entered on the computed set u
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script type="text/javascript">$('#searchbox').show(0);</script>
 
 
 
@@ -237,7 +236,7 @@ their email address in the form of a uuid. This is entered on the computed set u
       &copy;2020, Rachael Skyner.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
