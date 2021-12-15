@@ -183,6 +183,7 @@ As the application evolves several design documents have been written detailing 
 for background reading on why decisions have been made.
 
 The documents will be stored in the /design_docs folder in the repo. Current docs are listed below:
+- [Fragalysis Discourse Design](design_docs/Fragalysis_Discourse_v0.2.pdf)
 - [Fragalysis Tags Design V1.0](design_docs/Fragalysis_Tags_Design_V1.0.pdf)
 - [Fragalysis Design #651 Fix Data Download V2.0](design_docs/Fragalysis_Design_651_Fix_Data_Download_V2.0.pdf)
 
