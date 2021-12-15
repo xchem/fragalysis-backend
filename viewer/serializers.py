@@ -689,7 +689,7 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
 # Serializers for Tags - End
 
 
-# Serializer Class for DictToCsv API
+# Serializer Class for DownloadStructures API
 class DownloadStructuresSerializer(serializers.Serializer):
     target_name = serializers.CharField(max_length=200)
     proteins = serializers.CharField(max_length=5000)
@@ -705,3 +705,5 @@ class DownloadStructuresSerializer(serializers.Serializer):
     trans_matrix_info = serializers.BooleanField(default=False)
     metadata_info = serializers.BooleanField(default=False)
     smiles_info = serializers.BooleanField(default=False)
+    static_link = serializers.BooleanField(default=False)
+    file_url = serializers.CharField(max_length=200)

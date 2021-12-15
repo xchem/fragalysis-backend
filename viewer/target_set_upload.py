@@ -364,11 +364,6 @@ def add_mol(mol_file, prot, projects, lig_id="LIG", chaind_id="Z",
                 os.path.basename(sdf_file),
                 File(open(sdf_file))
             )
-        #     save_path = os.path.join(settings.MEDIA_ROOT, 'sdfs')
-        #     os.makedirs(save_path, exist_ok=True)
-        #     path = default_storage.save(save_path, open(sdf_file, 'rb'))
-        #     new_mol.sdf_file = path
-        #     #setattr(new_mol, 'sdf_file', path)
         new_mol.save()
         return new_mol
     else:

@@ -105,7 +105,6 @@ ENV/
 .mypy_cache/
 
 # ignore migrations
-/viewer/migrations/
 /scoring/migrations/
 /hypothesis/migrations/
 /hotspots/migrations/

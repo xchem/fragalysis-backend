@@ -6,7 +6,7 @@ import pandas as pd
 import uuid
 import shutil
 from wsgiref.util import FileWrapper
-
+import datetime
 
 # import the logging library
 import logging
@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from django.db import connections
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from django.shortcuts import render
 from rest_framework import viewsets
 from django.core.files.storage import default_storage
@@ -54,8 +54,8 @@ from viewer.models import (
     File,
     TagCategory,
     MoleculeTag,
-    SessionProjectTag
-
+    SessionProjectTag,
+    DownloadLinks
 )
 from viewer import filters
 from .forms import CSetForm, UploadKeyForm, CSetUpdateForm, TSetForm
@@ -100,7 +100,7 @@ from viewer.serializers import (
 )
 
 # filepaths mapping for writing associated files to the zip archive.
-_zip_filepaths = {
+_ZIP_FILEPATHS = {
     'pdb_info': ('pdbs'),
     'bound_info': ('bound'),
     'cif_info': ('cifs'),
@@ -2762,7 +2762,7 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
     filter_fields = ("title",)
 # Classes Relating to Tags - End
 
-
+# Methods/Classses relating to creating downloaded structures zip files - Start.
 def _add_file_to_zip(ziparchive, code, param, filepath, error_file):
     """Add the requested file to the zip archive.
 
@@ -2784,7 +2784,7 @@ def _add_file_to_zip(ziparchive, code, param, filepath, error_file):
 
     if os.path.isfile(fullpath):
         ziparchive.write(fullpath,
-                         os.path.join(_zip_filepaths[param],
+                         os.path.join(_ZIP_FILEPATHS[param],
                                       os.path.basename(filepath)))
         return False
     else:
@@ -2822,8 +2822,94 @@ def _add_file_to_sdf(combined_sdf_file, smiles, filepath, error_file):
         return True
 
 
-def _create_zip_from_dict(target, proteins,
-                          protein_params, other_params):
+def _create_structures_zip(target,
+                           zip_contents,
+                           file_url):
+    """Write a ZIP file containing data from an input dictionary
+
+    Args:
+        target
+        zip_contents
+        file_url
+
+    """
+
+    logger.info('+ _create_structures_zip')
+    logger.info('zip_contents: {}'.format(zip_contents))
+    download_path = os.path.dirname(file_url)
+    os.makedirs(download_path, exist_ok=True)
+
+    error_filename = os.path.join(download_path, "errors.csv")
+    error_file = open(error_filename, "w")
+    error_file.write("Param, Code, Invalid file reference\n")
+    errors = 0
+
+    with zipfile.ZipFile(file_url, 'w') as ziparchive:
+        # Read through zip_contents to compile the file
+        for param, files in zip_contents['proteins'].items():
+            if files:
+                for prot, file in files.items():
+                    if _add_file_to_zip(ziparchive, prot,
+                                        param, file, error_file):
+                        errors += 1
+
+        # If a single sdf file is also wanted then create file to
+        # add sdf files to a file called {targer}_combined.sdf.
+        if zip_contents['molecules']['single_sdf_file'] is True:
+            combined_sdf_file = \
+                os.path.join(download_path,
+                             '{}_combined.sdf'.format(target.title))
+
+        if zip_contents['molecules']['sdf_files']:
+            for file, mol in zip_contents['molecules']['sdf_files'].items():
+
+                if zip_contents['molecules']['sdf_info'] is True:
+                    # Add sdf file on the Molecule record to the archive folder.
+                    if _add_file_to_zip(ziparchive, mol, 'sdf_info', file,
+                                        error_file):
+                        errors+=1
+
+                # Append sdf file on the Molecule record to the combined_sdf_file.
+                if zip_contents['molecules']['single_sdf_file'] is True:
+                    if _add_file_to_sdf(combined_sdf_file, mol, file,
+                                        error_file):
+                        errors+=1
+
+        # Add combined_sdf_file to the archive.
+        if zip_contents['molecules']['single_sdf_file'] is True and \
+                os.path.isfile(combined_sdf_file):
+            ziparchive.write(
+                combined_sdf_file,
+                os.path.join(_ZIP_FILEPATHS['single_sdf_file'],
+                             os.path.basename(combined_sdf_file)))
+            os.remove(combined_sdf_file)
+
+        # If smiles info is required, then write one column for each molecule
+        # to a smiles.smi file and then add to the archive.
+        if zip_contents['molecules']['smiles_info']:
+            smiles_filename = os.path.join(download_path, 'smiles.smi')
+            with open(smiles_filename, 'w') as smilesfile:
+                for smi in zip_contents['molecules']['smiles_info']:
+                    smilesfile.write(smi+',')
+            ziparchive.write(
+                smiles_filename,
+                os.path.join(_ZIP_FILEPATHS['smiles_info'],
+                             os.path.basename(smiles_filename)))
+            os.remove(smiles_filename)
+
+        # Add the metadata file from the target
+        if zip_contents['metadata_info']:
+            if _add_file_to_zip(ziparchive, target.title, 'metadata_info',
+                                zip_contents['metadata_info'], error_file):
+                errors+=1
+
+        error_file.close()
+        if errors > 0:
+            ziparchive.write(error_filename, 'errors.csv')
+        os.remove(error_filename)
+
+
+def _create_structures_dict(target, proteins, protein_params, other_params):
     """Write a ZIP file containing data from an input dictionary
 
     Args:
@@ -2833,100 +2919,235 @@ def _create_zip_from_dict(target, proteins,
         other_params
 
     Returns:
-        [file]: [URL to the file in the media directory]
+        [dict]: [dictionary containing the file contents]
     """
 
-    logger.info('+ _create_zip_from_dict')
-    filename = target.title +'.zip'
-
-    media_root = settings.MEDIA_ROOT
-    unique_dir = str(uuid.uuid4())
-    # /code/media/downloads/<unique_dir>
-    download_path = os.path.join(media_root, 'downloads', unique_dir)
-    os.makedirs(download_path, exist_ok=True)
-
-    download_file = os.path.join(download_path, filename)
-
-    # Remove file if it already exists
-    if os.path.isfile(download_file):
-        os.remove(download_file)
+    logger.info('+ _create_structures_dict')
 
     molecules = Molecule.objects.filter(prot_id__in=[protein['id'] for protein
                                                      in proteins]).values()
 
-    error_filename = os.path.join(download_path, "errors.csv")
-    error_file = open(error_filename, "w")
-    error_file.write("Param, Code, Invalid file reference\n")
-    errors = 0
+    # Dictionary containing all references needed to create the zip file
+    zip_contents = {'proteins': {'pdb_info': {},
+                                 'bound_info': {},
+                                 'cif_info': {},
+                                 'mtz_info': {},
+                                 'diff_info': {},
+                                 'event_info': {},
+                                 'sigmaa_info': {},
+                                 'trans_matrix_info': {}
+                                 },
+                    'molecules': {'sdf_files': {},
+                                  'sdf_info': False,
+                                  'single_sdf_file': False,
+                                  'smiles_info': {}
+                                  },
+                    'metadata_info': None,}
 
-    with zipfile.ZipFile(download_file, 'w') as ziparchive:
-        # Read through zip_params to compile the file
-        # Maybe I can think of a clever way of doing this...
-        # Don't forget the error files. Check link before write.
-        for protein in proteins:
-            for param in protein_params:
-                if protein_params[param] is True:
-                    if _add_file_to_zip(ziparchive, protein['code'],
-                                        param, protein[param], error_file):
-                        errors+=1
+    # Read through zip_params to compile the parameters
+    for protein in proteins:
+        for param in protein_params:
+            if protein_params[param] is True:
+                zip_contents['proteins'][param].update({protein['code']: protein[param]})
 
-        # If a single sdf file is also wanted then create file to
-        # add sdf files to a file called {targer}_combined.sdf.
-        if other_params['single_sdf_file'] is True:
-            combined_sdf_file = \
-                os.path.join(download_path,
-                             '{}_combined.sdf'.format(target.title))
+    if other_params['single_sdf_file'] is True:
+        zip_contents['molecules']['single_sdf_file'] = True
 
-        # sdf information is held as a file on the Molecule record.
+    if other_params['sdf_info'] is True:
+        zip_contents['molecules']['sdf_info'] = True
+
+    # sdf information is held as a file on the Molecule record.
+    if other_params['sdf_info'] is True or \
+            other_params['single_sdf_file'] is True:
         for molecule in molecules:
-            if other_params['sdf_info'] is True:
-                # Add sdf file on the Molecule record to the archive folder.
-                if _add_file_to_zip(ziparchive, molecule['smiles'],
-                                    'sdf_info', molecule['sdf_file'],
-                                    error_file):
-                    errors+=1
+            zip_contents['molecules']['sdf_files'].update({molecule['sdf_file']: molecule['smiles']})
 
-            # Append sdf file on the Molecule record to the combined_sdf_file.
-            if other_params['single_sdf_file'] is True:
-                if _add_file_to_sdf(combined_sdf_file, molecule['smiles'],
-                                    molecule['sdf_file'],
-                                    error_file):
-                    errors+=1
+    # The smiles at molecule level may not be unique.
+    if other_params['smiles_info'] is True:
+        for molecule in molecules:
+            zip_contents['molecules']['smiles_info'].update({molecule['smiles']: None})
 
-        # Add combined_sdf_file to the archive.
-        if other_params['single_sdf_file'] is True and \
-                os.path.isfile(combined_sdf_file):
-            ziparchive.write(
-                combined_sdf_file,
-                os.path.join(_zip_filepaths['single_sdf_file'],
-                             os.path.basename(combined_sdf_file)))
-            os.remove(combined_sdf_file)
+    # Add the metadata file from the target
+    if other_params['metadata_info'] is True:
+        zip_contents['metadata_info'] = target.metadata.name
+
+    return zip_contents
 
 
-        # If smiles info is required, then write one column for each molecule
-        # to a smiles.smi file and then add to the archive.
-        if other_params['smiles_info'] is True:
-            smiles_filename = os.path.join(download_path, 'smiles.smi')
-            with open(smiles_filename, 'w') as smilesfile:
-                for molecule in molecules:
-                    smilesfile.write(molecule['smiles']+',')
-            ziparchive.write(
-                smiles_filename,
-                os.path.join(_zip_filepaths['smiles_info'],
-                             os.path.basename(smiles_filename)))
-            os.remove(smiles_filename)
+def get_keep_until():
+    """Return the keep_until time"""
+    return datetime.datetime.now(datetime.timezone.utc) + \
+           datetime.timedelta(hours=1)
 
-        # Add the metadata file from the target
-        if other_params['metadata_info'] is True:
-            if _add_file_to_zip(ziparchive, target.title, 'metadata_info',
-                                target.metadata.name, error_file):
-                errors+=1
 
-        error_file.close()
-        if errors > 0:
-            ziparchive.write(error_filename, 'errors.csv')
+def get_download_params(request):
+    """Check whether structures have been previously downloaded
 
-    return download_file
+    Args:
+        request
+
+    Returns:
+        protein_params, other_params
+    """
+
+    protein_param_flags = ['pdb_info', 'bound_info',
+                           'cif_info', 'mtz_info',
+                           'diff_info', 'event_info',
+                           'sigmaa_info', 'trans_matrix_info']
+    other_param_flags = ['sdf_info', 'single_sdf_file',
+                         'metadata_info', 'smiles_info']
+
+    # protein_params = {'pdb_info': request.data['pdb_info'],
+    #               'bound_info': request.data['bound_info'],
+    #               'cif_info': request.data['cif_info'],
+    #               'mtz_info': request.data['mtz_info'],
+    #               'diff_info': request.data['diff_info'],
+    #               'event_info': request.data['event_info'],
+    #               'sigmaa_info': request.data['sigmaa_info'],
+    #               'trans_matrix_info':
+    #                   request.data['trans_matrix_info']}
+    protein_params = {}
+    for param in protein_param_flags:
+        protein_params[param] = False
+        if param in request.data:
+            if request.data[param] == True or request.data[param] == 'true':
+                protein_params[param] = True
+
+    # other_params = {'sdf_info': request.data['sdf_info'],
+    #                 'single_sdf_file': request.data['single_sdf_file'],
+    #                 'metadata_info': request.data['metadata_info'],
+    #                 'smiles_info': request.data['smiles_info']}
+    other_params = {}
+    for param in other_param_flags:
+        other_params[param] = False
+        if param in request.data:
+            if request.data[param] == True or request.data[param] == 'true':
+                other_params[param] = True
+
+    return protein_params, other_params
+
+
+def _check_download_links(request,
+                          target,
+                          proteins):
+    """Check/create the download zip file for dynamic links
+
+    Args:
+        user
+        target
+        proteins
+
+    Returns:
+        [file]: [URL to the file in the media directory]
+    """
+
+
+    logger.info('+ _check_download_links')
+
+    protein_params, other_params = get_download_params(request)
+    logger.info('protein_params: {}'.format(protein_params))
+    logger.info('other_params: {}'.format(other_params))
+
+    # Save the list of protein codes - this is the ispybsafe set for
+    # this user.
+    proteins_list = [p['code'] for p in proteins]
+    logger.info('proteins_list: {}'.format(proteins_list))
+
+    # For dynamic files, if the target, proteins, protein_params and other_params
+    # are in an existing record then this is a repeat search .
+    # If the zip is there, then we can just return the file_url.
+    # If the record is there but the zip file isn't, then regenerate the zip file.
+    # from the search, to contain the latest information.
+    # If no record is not there at all, then this is a new link.
+
+    if 'static_link' in request.data:
+        if request.data['static_link'] == True or request.data[
+            'static_link'] == 'true':
+            static_link = True
+        else:
+            static_link = False
+    else:
+        static_link = False
+
+    existing_link = DownloadLinks.objects.filter(target_id=target.id)\
+        .filter(proteins=proteins_list) \
+        .filter(protein_params=protein_params)\
+        .filter(other_params=other_params) \
+        .filter(static_link=False)
+
+    if existing_link:
+        if not existing_link[0].zip_file or static_link:
+            zip_contents = _create_structures_dict(target,
+                                                   proteins,
+                                                   protein_params,
+                                                   other_params)
+            _create_structures_zip(target,
+                                   zip_contents,
+                                   existing_link[0].file_url)
+            existing_link[0].keep_zip_until = get_keep_until()
+            existing_link[0].zip_file = True
+            if static_link:
+                # Changing from a dynamic to a static link
+                existing_link[0].static_link = static_link
+                existing_link[0].zip_contents = zip_contents
+            existing_link[0].save()
+        return existing_link[0].file_url
+
+    # Create a new link for this user
+    # /code/media/downloads/<download_uuid>
+    filename = target.title +'.zip'
+    media_root = settings.MEDIA_ROOT
+    file_url = os.path.join(media_root, 'downloads', str(uuid.uuid4()), filename)
+
+    zip_contents = _create_structures_dict(target,
+                                           proteins,
+                                           protein_params,
+                                           other_params)
+
+    _create_structures_zip(target,
+                           zip_contents,
+                           file_url)
+
+    download_link = DownloadLinks()
+    download_link.file_url = file_url
+    if request.user.is_authenticated:
+        download_link.user = request.user
+    else:
+        download_link.user = None
+    download_link.target = target
+    download_link.proteins = proteins_list
+    download_link.protein_params = protein_params
+    download_link.other_params = other_params
+    download_link.static_link = static_link
+    if static_link:
+        download_link.zip_contents = zip_contents
+    download_link.create_date = datetime.datetime.now(datetime.timezone.utc)
+    download_link.keep_zip_until = get_keep_until()
+    download_link.zip_file = True
+    download_link.save()
+
+    logger.info('protein_params in table: {}'.format(json.dumps(protein_params)))
+    logger.info('create in table: {}'.format(datetime.datetime.now(datetime.timezone.utc)))
+    logger.info('keep_until_date in table: {}'.format(get_keep_until()))
+    return file_url
+
+
+def _maintain_download_links():
+    """Maintain zip files
+
+       Physical zip files are removed after 1 hour (or when the next POST call
+       is made) for security reasons and to conserve memory space.
+
+    """
+
+    old_links = DownloadLinks.objects.\
+        filter(keep_zip_until__lt=datetime.datetime.now(datetime.timezone.utc)).\
+        filter(zip_file=True)
+    for old_link in old_links:
+        logger.info('old_link: {}'.format(old_link.file_url))
+        old_link.zip_file = False
+        old_link.save()
+        shutil.rmtree(os.path.dirname(old_link.file_url), ignore_errors=True)
 
 
 class DownloadStructures(ISpyBSafeQuerySet):
@@ -2934,10 +3155,12 @@ class DownloadStructures(ISpyBSafeQuerySet):
     (proteins and booleans with suggested files) and creates a Zip file
     with the contents.
 
+    Note that old zip files are removed after one hour.
+
     Methods
     -------
     allowed requests:
-        - GET: Return the Zip file given the link - note that this will remove the file on the media directory.
+        - GET: Return the Zip file given the link
         - POST: Return a link to a ZIP file containing the requested data.
 
     url:
@@ -2963,7 +3186,8 @@ class DownloadStructures(ISpyBSafeQuerySet):
         - trans_matrix_info: True/False - include transformation file (if available)
         - metadata_info: True/False - include metadata csv file for whole target set
         - smiles_info: True/False - include csv file containing smiles for attached molecules
-
+        - static_link: True/False - whether zip contents will be saved as a time dependent snapshot
+        - file_url: Get link to static file (this will reconstruct the zip file if it has been cleaned up.
 
        Returns: url to be passed to GET.
 
@@ -2978,20 +3202,22 @@ class DownloadStructures(ISpyBSafeQuerySet):
         .. code-block::
 
             {
-                "target_name": "Mpro"
-                "proteins": "Mpro-6lu7_2C,Mpro-6m0k_0A"
-                "pdb_info": True
-                "bound_info": True
-                "cif_info": True
-                "mtz_info": False
-                "diff_info": False
-                "event_info": False
-                "sigmaa_info": False
-                "sdf_info": False
-                "single_sdf_file": False
-                "trans_matrix_info": False
-                "metadata_info": False
-                "smiles_info": False
+                "target_name": "Mpro",
+                "proteins": "Mpro-6lu7_2C,Mpro-6m0k_0A",
+                "pdb_info": True,
+                "bound_info": True,
+                "cif_info": True,
+                "mtz_info": False,
+                "diff_info": False,
+                "event_info": False,
+                "sigmaa_info": False,
+                "sdf_info": False,
+                "single_sdf_file": False,
+                "trans_matrix_info": False,
+                "metadata_info": False,
+                "smiles_info": False,
+                "static_link": False,
+                "file_url":""
             }
 
     """
@@ -3005,17 +3231,22 @@ class DownloadStructures(ISpyBSafeQuerySet):
         """
         file_url = request.GET.get('file_url')
 
-        if file_url and os.path.isfile(file_url):
-            # return file and tidy up.
-            file_name = os.path.basename(file_url)
-            wrapper = FileWrapper(open(file_url, 'rb'))
-            response = HttpResponse(wrapper,
-                                    content_type='application/zip')
-            response[
-                'Content-Disposition'] = 'attachment; filename="%s"' % file_name
-            response['Content-Length'] = os.path.getsize(file_url)
-            return response
-            shutil.rmtree(os.path.dirname(file_url), ignore_errors=True)
+        if file_url:
+            link = DownloadLinks.objects.filter(file_url=file_url)
+            if link and link[0].zip_file:
+                logger.info('zip_file: {}'.format(link[0].zip_file))
+
+                # return file and tidy up.
+                file_name = os.path.basename(file_url)
+                wrapper = FileWrapper(open(file_url, 'rb'))
+                response = FileResponse(wrapper,
+                                        content_type='application/zip')
+                response[
+                    'Content-Disposition'] = 'attachment; filename="%s"' % file_name
+                response['Content-Length'] = os.path.getsize(file_url)
+                return response
+            else:
+                return Response("File_url is not found or no longer active")
         else:
             return Response("Please provide file_url parameter from post response")
 
@@ -3024,18 +3255,52 @@ class DownloadStructures(ISpyBSafeQuerySet):
         """Method to handle POST request
         """
         logger.info('+ DownloadStructures.post')
-        protein_param_flags = ['pdb_info', 'bound_info',
-                               'cif_info', 'mtz_info',
-                               'diff_info', 'event_info',
-                               'sigmaa_info', 'trans_matrix_info']
-        other_param_flags = ['sdf_info', 'single_sdf_file',
-                             'metadata_info', 'smiles_info']
 
+        # Static files
+        # For static files, the contents of the zip file at the time of the search
+        # are stored in the zip_contents field. These are used to reconstruct the
+        # zip file from the time of the request.
+        if request.data['file_url']:
+            # This is a static link - the contents are stored in the database
+            # if required.
+            file_url = request.data['file_url']
+            existing_link = DownloadLinks.objects.filter(file_url=file_url)
+
+            if existing_link and existing_link[0].static_link:
+                if not existing_link[0].zip_file:
+
+                    # Check target is valid
+                    target = None
+                    for t in self.queryset:
+                        logger.info(t.title)
+                        if t.id == existing_link[0].target_id:
+                            target = t
+                            break
+
+                    if not target:
+                        return Response(
+                            {
+                                "message": "Target is not permitted."})
+
+                    _create_structures_zip(target,
+                                           existing_link[0].zip_contents,
+                                           existing_link[0].file_url)
+                    existing_link[0].keep_zip_until = get_keep_until()
+                    existing_link[0].zip_file = True
+                    existing_link[0].save()
+
+                _maintain_download_links()
+                return Response({"file_url": existing_link[0].file_url})
+            else:
+                return Response(
+                    {"message": "This file_url is for static files: {}".
+                        format(file_url)})
+
+        # Dynamic files
         target_name = request.data['target_name']
         target = None
-        #Check valid targets
-        logger.info(self.queryset)
 
+        # Check target is valid
         for t in self.queryset:
             logger.info(t.title)
             if t.title == target_name:
@@ -3065,37 +3330,10 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 {"message": "Please enter list of valid protein codes for" +
                  "target: {}, proteins: {} ".format(target.id, proteins_list)})
 
-        protein_params = {}
-        for param in protein_param_flags:
-            protein_params[param] = False
-            if param in request.data:
-                if request.data[param] == True or request.data[param] == 'true':
-                    protein_params[param] = True
+        filename_url = _check_download_links(request,
+                                             target,
+                                             proteins)
 
-        other_params = {}
-        for param in other_param_flags:
-            other_params[param] = False
-            if param in request.data:
-                if request.data[param] == True or request.data[param] == 'true':
-                    other_params[param] = True
-
-        # protein_params = {'pdb_info': request.data['pdb_info'],
-        #               'bound_info': request.data['bound_info'],
-        #               'cif_info': request.data['cif_info'],
-        #               'mtz_info': request.data['mtz_info'],
-        #               'diff_info': request.data['diff_info'],
-        #               'event_info': request.data['event_info'],
-        #               'sigmaa_info': request.data['sigmaa_info'],
-        #               'trans_matrix_info':
-        #                   request.data['trans_matrix_info']}
-        # other_params = {'sdf_info': request.data['sdf_info'],
-        #                 'single_sdf_file': request.data['single_sdf_file'],
-        #                 'metadata_info': request.data['metadata_info'],
-        #                 'smiles_info': request.data['smiles_info']}
-
-        filename_url = _create_zip_from_dict(target,
-                                             proteins,
-                                             protein_params,
-                                             other_params)
-
+        _maintain_download_links()
         return Response({"file_url": filename_url})
+# Methods/Classses relating to creating downloaded structures zip files - Emd.
