@@ -22,9 +22,8 @@ from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.conf import settings
 from django.http import JsonResponse
-from django.core.exceptions import ObjectDoesNotExist
 
-from rest_framework.parsers import JSONParser, BaseParser
+from rest_framework.parsers import BaseParser
 from rest_framework.exceptions import ParseError
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -2763,7 +2762,7 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
 # Classes Relating to Tags - End
 
 # Methods/Classses relating to creating downloaded structures zip files - Start.
-def _add_file_to_zip(ziparchive, code, param, filepath, error_file):
+def _add_file_to_zip(ziparchive, param, filepath):
     """Add the requested file to the zip archive.
 
     Args:
@@ -2788,11 +2787,10 @@ def _add_file_to_zip(ziparchive, code, param, filepath, error_file):
                                       os.path.basename(filepath)))
         return False
     else:
-        error_file.write('{},{},{}\n'.format(code, param, filepath))
         return True
 
 
-def _add_file_to_sdf(combined_sdf_file, smiles, filepath, error_file):
+def _add_file_to_sdf(combined_sdf_file, filepath):
     """Append the requested sdf file to the single sdf file provided.
 
     Args:
@@ -2817,9 +2815,64 @@ def _add_file_to_sdf(combined_sdf_file, smiles, filepath, error_file):
                 f_out.write(f_in.read())
         return False
     else:
-        error_file.write('{},{},{}\n'.format(smiles, 'single_sdf_file',
-                                             filepath))
         return True
+
+
+def _protein_files_zip(zip_contents, ziparchive, error_file):
+    """Write all protein related data to the ZIP file
+       Returns protein errors
+    """
+    prot_errors = 0
+    for param, files in zip_contents['proteins'].items():
+        if not files:
+            continue
+
+        for prot, file in files.items():
+            if _add_file_to_zip(ziparchive, param, file):
+                error_file.write(
+                    '{},{},{}\n'.format(prot, param, file))
+                prot_errors += 1
+    return prot_errors
+
+
+def _molecule_files_zip(zip_contents, ziparchive, combined_sdf_file, error_file):
+    """Write molecule related data to the ZIP file
+       Returns molecule errors
+    """
+
+    mol_errors = 0
+    for file, mol in zip_contents['molecules']['sdf_files'].items():
+
+        if zip_contents['molecules']['sdf_info'] is True:
+            # Add sdf file on the Molecule record to the archive folder.
+            if _add_file_to_zip(ziparchive, 'sdf_info', file):
+                error_file.write(
+                    '{},{},{}\n'.format(mol, 'sdf_info', file))
+                mol_errors += 1
+
+        # Append sdf file on the Molecule record to the combined_sdf_file.
+        if zip_contents['molecules']['single_sdf_file'] is True:
+            if _add_file_to_sdf(combined_sdf_file, file):
+                error_file.write(
+                    '{},{},{}\n'.format(mol, 'single_sdf_file',
+                                        file))
+                mol_errors += 1
+
+    return mol_errors
+
+
+def _smiles_files_zip(zip_contents, ziparchive, download_path):
+    """Create and write the smiles file to the ZIP file
+    """
+    smiles_filename = os.path.join(download_path, 'smiles.smi')
+    with open(smiles_filename, 'w') as smilesfile:
+        for smi in zip_contents['molecules']['smiles_info']:
+            smilesfile.write(smi + ',')
+    ziparchive.write(
+        smiles_filename,
+        os.path.join(_ZIP_FILEPATHS['smiles_info'],
+                     os.path.basename(smiles_filename)))
+    os.remove(smiles_filename)
 
 
 def _create_structures_zip(target,
@@ -2844,40 +2897,23 @@ def _create_structures_zip(target,
     error_file.write("Param, Code, Invalid file reference\n")
     errors = 0
 
+    # If a single sdf file is also wanted then create file to
+    # add sdf files to a file called {targer}_combined.sdf.
+    if zip_contents['molecules']['single_sdf_file'] is True:
+        combined_sdf_file = \
+            os.path.join(download_path,
+                         '{}_combined.sdf'.format(target.title))
+
     with zipfile.ZipFile(file_url, 'w') as ziparchive:
         # Read through zip_contents to compile the file
-        for param, files in zip_contents['proteins'].items():
-            if files:
-                for prot, file in files.items():
-                    if _add_file_to_zip(ziparchive, prot,
-                                        param, file, error_file):
-                        errors += 1
-
-        # If a single sdf file is also wanted then create file to
-        # add sdf files to a file called {targer}_combined.sdf.
-        if zip_contents['molecules']['single_sdf_file'] is True:
-            combined_sdf_file = \
-                os.path.join(download_path,
-                             '{}_combined.sdf'.format(target.title))
+        errors += _protein_files_zip(zip_contents, ziparchive, error_file)
 
         if zip_contents['molecules']['sdf_files']:
-            for file, mol in zip_contents['molecules']['sdf_files'].items():
-
-                if zip_contents['molecules']['sdf_info'] is True:
-                    # Add sdf file on the Molecule record to the archive folder.
-                    if _add_file_to_zip(ziparchive, mol, 'sdf_info', file,
-                                        error_file):
-                        errors+=1
-
-                # Append sdf file on the Molecule record to the combined_sdf_file.
-                if zip_contents['molecules']['single_sdf_file'] is True:
-                    if _add_file_to_sdf(combined_sdf_file, mol, file,
-                                        error_file):
-                        errors+=1
+            errors += _molecule_files_zip(zip_contents, ziparchive,
+                                              combined_sdf_file, error_file)
 
         # Add combined_sdf_file to the archive.
-        if zip_contents['molecules']['single_sdf_file'] is True and \
-                os.path.isfile(combined_sdf_file):
+        if zip_contents['molecules']['single_sdf_file'] is True:
             ziparchive.write(
                 combined_sdf_file,
                 os.path.join(_ZIP_FILEPATHS['single_sdf_file'],
@@ -2887,20 +2923,15 @@ def _create_structures_zip(target,
         # If smiles info is required, then write one column for each molecule
         # to a smiles.smi file and then add to the archive.
         if zip_contents['molecules']['smiles_info']:
-            smiles_filename = os.path.join(download_path, 'smiles.smi')
-            with open(smiles_filename, 'w') as smilesfile:
-                for smi in zip_contents['molecules']['smiles_info']:
-                    smilesfile.write(smi+',')
-            ziparchive.write(
-                smiles_filename,
-                os.path.join(_ZIP_FILEPATHS['smiles_info'],
-                             os.path.basename(smiles_filename)))
-            os.remove(smiles_filename)
+            _smiles_files_zip(zip_contents, ziparchive, download_path)
 
         # Add the metadata file from the target
         if zip_contents['metadata_info']:
-            if _add_file_to_zip(ziparchive, target.title, 'metadata_info',
-                                zip_contents['metadata_info'], error_file):
+            if _add_file_to_zip(ziparchive, 'metadata_info',
+                                zip_contents['metadata_info']):
+                error_file.write(
+                    '{},{},{}\n'.format(target, 'metadata_info',
+                                        zip_contents['metadata_info']))
                 errors+=1
 
         error_file.close()
@@ -3045,13 +3076,10 @@ def _check_download_links(request,
     logger.info('+ _check_download_links')
 
     protein_params, other_params = get_download_params(request)
-    logger.info('protein_params: {}'.format(protein_params))
-    logger.info('other_params: {}'.format(other_params))
 
     # Save the list of protein codes - this is the ispybsafe set for
     # this user.
     proteins_list = [p['code'] for p in proteins]
-    logger.info('proteins_list: {}'.format(proteins_list))
 
     # For dynamic files, if the target, proteins, protein_params and other_params
     # are in an existing record then this is a repeat search .
@@ -3126,10 +3154,19 @@ def _check_download_links(request,
     download_link.zip_file = True
     download_link.save()
 
-    logger.info('protein_params in table: {}'.format(json.dumps(protein_params)))
-    logger.info('create in table: {}'.format(datetime.datetime.now(datetime.timezone.utc)))
-    logger.info('keep_until_date in table: {}'.format(get_keep_until()))
     return file_url
+
+def _recreate_static_file (existing_link):
+    """Recreate static file for existing link
+    """
+    target = existing_link.target
+
+    _create_structures_zip(target,
+                           existing_link.zip_contents,
+                           existing_link.file_url)
+    existing_link.keep_zip_until = get_keep_until()
+    existing_link.zip_file = True
+    existing_link.save()
 
 
 def _maintain_download_links():
@@ -3268,27 +3305,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
 
             if existing_link and existing_link[0].static_link:
                 if not existing_link[0].zip_file:
-
-                    # Check target is valid
-                    target = None
-                    for t in self.queryset:
-                        logger.info(t.title)
-                        if t.id == existing_link[0].target_id:
-                            target = t
-                            break
-
-                    if not target:
-                        return Response(
-                            {
-                                "message": "Target is not permitted."})
-
-                    _create_structures_zip(target,
-                                           existing_link[0].zip_contents,
-                                           existing_link[0].file_url)
-                    existing_link[0].keep_zip_until = get_keep_until()
-                    existing_link[0].zip_file = True
-                    existing_link[0].save()
-
+                    _recreate_static_file (existing_link[0])
                 _maintain_download_links()
                 return Response({"file_url": existing_link[0].file_url})
             else:
