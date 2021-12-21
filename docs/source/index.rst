@@ -24,6 +24,7 @@ Contents
    API/misc_views
    computational_data/tasks
    API/media
+   API/download
 
 
 Indices and tables

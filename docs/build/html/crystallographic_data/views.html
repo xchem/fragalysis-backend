@@ -1,19 +1,18 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Crystallographic data (Views) &#8212; Fragalysis-Backend  documentation</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Computational data (Views)" href="../computational_data/views.html" />
@@ -68,23 +67,23 @@ turned on.</p></li>
 </div>
 <div class="section" id="view-details">
 <h2>View details<a class="headerlink" href="#view-details" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.TargetView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TargetView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TargetView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TargetView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TargetView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve info about targets</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/targets</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Target.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -92,7 +91,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -106,7 +105,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span>   <span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -132,7 +131,7 @@ turned on.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.TargetView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.TargetView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.TargetSerializer</span></code></p>
@@ -140,23 +139,23 @@ turned on.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.ProteinView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve bound pdb info (file) for a given protein</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/proteins</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Protein.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -166,7 +165,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -182,7 +181,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -201,7 +200,7 @@ turned on.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.ProteinView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ProteinView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ProteinSerializer</span></code></p>
@@ -209,23 +208,23 @@ turned on.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.ProteinPDBInfoView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinPDBInfoView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinPDBInfoView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinPDBInfoView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinPDBInfoView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve apo pdb info (file) for a given protein</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/protpdb</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Protein.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -235,7 +234,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -245,7 +244,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -258,7 +257,7 @@ turned on.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.ProteinPDBInfoView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ProteinPDBInfoView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ProtPDBInfoSerialzer</span></code></p>
@@ -266,23 +265,23 @@ turned on.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.ProteinPDBBoundInfoView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinPDBBoundInfoView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinPDBBoundInfoView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinPDBBoundInfoView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinPDBBoundInfoView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve bound pdb info (file) for a given protein</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/protpdbbound</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Protein.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -292,7 +291,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -302,7 +301,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -315,7 +314,7 @@ turned on.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.ProteinPDBBoundInfoView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ProteinPDBBoundInfoView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ProtPDBBoundInfoSerialzer</span></code></p>
@@ -323,23 +322,23 @@ turned on.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.ProteinMapInfoView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinMapInfoView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinMapInfoView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ProteinMapInfoView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ProteinMapInfoView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve map info (file) for a given protein</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/protmap</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Protein.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -349,13 +348,13 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns:</code></dt>
 <dd><p>If a map file has been uploaded for the protein <cite>map_info.path.read()</cite> (JSON)</p>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.ProteinMapInfoView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ProteinMapInfoView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ProtMapInfoSerialzer</span></code></p>
@@ -363,23 +362,23 @@ turned on.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.MoleculeView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">MoleculeView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.MoleculeView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">MoleculeView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.MoleculeView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve info about molecules</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/molecules</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Molecule.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -392,7 +391,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -421,7 +420,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -453,7 +452,7 @@ turned on.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.MoleculeView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.MoleculeView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.MoleculeSerializer</span></code></p>
@@ -461,23 +460,23 @@ turned on.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.MolImageView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">MolImageView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.MolImageView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">MolImageView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.MolImageView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view for molecule images</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/molimg</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Molecule.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -489,13 +488,13 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns:</code></dt>
 <dd><p>SVG image text for query molecule generated by <cite>api.utils.draw_mol()</cite> (JSON)</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -505,7 +504,7 @@ turned on.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.MolImageView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.MolImageView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.MolImageSerialzier</span></code></p>
@@ -513,23 +512,23 @@ turned on.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.CompoundView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">CompoundView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.CompoundView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">CompoundView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.CompoundView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view for compound info</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/compounds</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Compound.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -537,7 +536,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns:</code></dt>
 <dd><ul class="simple">
@@ -550,7 +549,7 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -567,7 +566,7 @@ turned on.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.CompoundView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.CompoundView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.CompoundSerializer</span></code></p>
@@ -575,23 +574,23 @@ turned on.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.CompoundImageView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">CompoundImageView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.CompoundImageView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">CompoundImageView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.CompoundImageView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view for compound images</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/cmpdimg</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.Compound.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -599,13 +598,13 @@ turned on.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns:</code></dt>
 <dd><p>SVG image text for query compound generated by <cite>api.utils.draw_mol()</cite> (JSON)</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -615,7 +614,7 @@ turned on.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.CompoundImageView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.CompoundImageView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.CmpdImageSerialzier</span></code></p>
@@ -660,8 +659,9 @@ turned on.</p></li>
 <li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html#tags">Tags</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../computational_data/tasks.html">Uploading data (Celery tasks and django template)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/media.html">Serving static files (media)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/download.html">Download data</a></li>
 </ul>
 
 <div class="relations">
@@ -682,7 +682,7 @@ turned on.</p></li>
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script type="text/javascript">$('#searchbox').show(0);</script>
 
 
 
@@ -699,7 +699,7 @@ turned on.</p></li>
       &copy;2020, Rachael Skyner.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

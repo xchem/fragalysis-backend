@@ -1,7 +1,12 @@
 import json
+import zipfile
+import shutil
 
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import RequestFactory
+from django.core.management.color import no_style
+from django.db import connection
+
 from rest_framework.test import APIClient, APITestCase
 from rest_framework.test import APIRequestFactory
 
@@ -25,6 +30,12 @@ from viewer.models import (
     TagCategory,
     MoleculeTag,
     SessionProjectTag
+)
+
+# Target upload functions
+from viewer.target_set_upload import (
+    validate_target,
+    process_target
 )
 
 
@@ -625,6 +636,7 @@ class APIUrlsTestCase(APITestCase):
                 "sigmaa_info": None,
                 "diff_info": None,
                 "event_info": None,
+                "trans_matrix_info": None,
                 "aligned": None,
                 "has_eds": None,
                 "aligned_to": None
@@ -761,3 +773,53 @@ class APIUrlsTestCase(APITestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
 
+    def test_validate_target(self):
+
+        target_zip = '/code/tests/test_data/TESTTARGET.zip'
+        new_data_folder = '/code/tests/output/new_data'
+        target = 'TESTTARGET'
+        proposal = 'open'
+
+        # This will create the target folder in the tmp/ location.
+        with zipfile.ZipFile(target_zip, 'r') as zip_ref:
+            zip_ref.extractall(new_data_folder)
+
+        validated, validate_dict = validate_target(new_data_folder,
+                                                   target,
+                                                   proposal)
+        self.assertEqual(validated, True)
+        self.assertEqual(validate_dict, {'Location': [], 'Error': [], 'Line number': []})
+        # Tidy up data if not validated
+        if not validated:
+            shutil.rmtree(new_data_folder)
+
+
+    def test_process_target(self):
+
+        # Reset the autoincrement keys from the tests above so the target
+        # can be loaded.
+        models = [Target, Project, Molecule, Protein,
+                  Compound, MoleculeTag, Vector, Vector3D]
+        sequence_sql = connection.ops.sequence_reset_sql(no_style(), models)
+
+        with connection.cursor() as cursor:
+            for sql in sequence_sql:
+                cursor.execute(sql)
+
+        target_zip = '/code/tests/test_data/TESTTARGET.zip'
+        new_data_folder = '/code/tests/output/new_data'
+        target = 'TESTTARGET'
+        proposal = 'open'
+
+        # This will create the target folder in the tmp/ location.
+        with zipfile.ZipFile(target_zip, 'r') as zip_ref:
+            zip_ref.extractall(new_data_folder)
+
+        mols_loaded, mols_processed = process_target(new_data_folder,
+                                                     target,
+                                                     proposal)
+        self.assertEqual(mols_loaded, 8)
+        self.assertEqual(mols_processed, 7)
+
+        # Tidy up data
+        shutil.rmtree(new_data_folder)

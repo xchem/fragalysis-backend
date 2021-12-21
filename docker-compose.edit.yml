@@ -4,7 +4,7 @@
 # It does not build the Neo4j graph.
 # To use:
 # 1. Build a backend image
-# $ export BE_NAMEPSACE=xchem
+# $ export BE_NAMESPACE=xchem
 # $ docker build . -t xchem/fragalysis-backend:latest
 #
 # 2. Run docker-compose to start a database and a backend
@@ -13,8 +13,17 @@
 # 3. Enter the backend container and create new migrations
 # $ docker exec -it fragalysis-backend_edit_1 bash
 # # python manage.py makemigrations
+# # python manage.py makemigrations (optional)
 #
 # 4. Commit new migrations!
+#
+# Hints:
+# - To try out a migration here:
+# # python manage.py migrate
+#
+# - To rerun a migration you need to --fake beack to the last good one:
+# # python manage.py migrate --fake viewer 0016_auto_20211005_1420
+# # python manage.py migrate
 #
 version: '3'
 

@@ -1,19 +1,19 @@
 
+
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Index &#8212; Fragalysis-Backend  documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="_static/css/functions.css" type="text/css" />
-    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/language_data.js"></script>
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
     <link rel="index" title="Index" href="#" />
     <link rel="search" title="Search" href="search.html" />
    
@@ -68,16 +68,22 @@
 </li>
       <li><a href="computational_data/views.html#viewer.views.ComputedMoleculesView">ComputedMoleculesView (class in viewer.views)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="computational_data/schema.html#viewer.models.ComputedSet">ComputedSet (class in viewer.models)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="computational_data/schema.html#viewer.models.ComputedSetSubmitter">ComputedSetSubmitter (class in viewer.models)</a>
 </li>
       <li><a href="computational_data/views.html#viewer.views.ComputedSetView">ComputedSetView (class in viewer.views)</a>
 </li>
-      <li><a href="projects/views.html#viewer.views.DiscoursePostView.create">create() (viewer.views.DiscoursePostView method)</a>
+      <li><a href="API/download.html#viewer.views.DictToCsv.create">create() (viewer.views.DictToCsv method)</a>
+
+      <ul>
+        <li><a href="projects/views.html#viewer.views.DiscoursePostView.create">(viewer.views.DiscoursePostView method)</a>
 </li>
+        <li><a href="API/download.html#viewer.views.DownloadStructures.create">(viewer.views.DownloadStructures method)</a>
+</li>
+      </ul></li>
       <li><a href="computational_data/views.html#viewer.views.cset_download">cset_download (class in viewer.views)</a>
 </li>
       <li><a href="computational_data/views.html#viewer.views.cset_key">cset_key (class in viewer.views)</a>
@@ -92,7 +98,13 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="API/download.html#viewer.views.DictToCsv">DictToCsv (class in viewer.views)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="projects/views.html#viewer.views.DiscoursePostView">DiscoursePostView (class in viewer.views)</a>
+</li>
+      <li><a href="API/download.html#viewer.views.DownloadStructures">DownloadStructures (class in viewer.views)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -138,8 +150,14 @@
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="projects/views.html#viewer.views.DiscoursePostView.list">list() (viewer.views.DiscoursePostView method)</a>
+      <li><a href="API/download.html#viewer.views.DictToCsv.list">list() (viewer.views.DictToCsv method)</a>
+
+      <ul>
+        <li><a href="projects/views.html#viewer.views.DiscoursePostView.list">(viewer.views.DiscoursePostView method)</a>
 </li>
+        <li><a href="API/download.html#viewer.views.DownloadStructures.list">(viewer.views.DownloadStructures method)</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -217,13 +235,17 @@
 </li>
         <li><a href="computational_data/views.html#viewer.views.ComputedSetView.serializer_class">(viewer.views.ComputedSetView attribute)</a>
 </li>
+        <li><a href="API/download.html#viewer.views.DictToCsv.serializer_class">(viewer.views.DictToCsv attribute)</a>
+</li>
         <li><a href="projects/views.html#viewer.views.DiscoursePostView.serializer_class">(viewer.views.DiscoursePostView attribute)</a>
+</li>
+        <li><a href="API/download.html#viewer.views.DownloadStructures.serializer_class">(viewer.views.DownloadStructures attribute)</a>
+</li>
+        <li><a href="crystallographic_data/views.html#viewer.views.MolImageView.serializer_class">(viewer.views.MolImageView attribute)</a>
 </li>
         <li><a href="API/misc_views.html#viewer.views.MoleculeTagView.serializer_class">(viewer.views.MoleculeTagView attribute)</a>
 </li>
         <li><a href="crystallographic_data/views.html#viewer.views.MoleculeView.serializer_class">(viewer.views.MoleculeView attribute)</a>
-</li>
-        <li><a href="crystallographic_data/views.html#viewer.views.MolImageView.serializer_class">(viewer.views.MolImageView attribute)</a>
 </li>
         <li><a href="computational_data/views.html#viewer.views.NumericalScoresView.serializer_class">(viewer.views.NumericalScoresView attribute)</a>
 </li>
@@ -358,8 +380,9 @@
 <li class="toctree-l1"><a class="reference internal" href="projects/views.html">Project data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="API/misc_views.html">Miscellaneous data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="API/misc_views.html#tags">Tags</a></li>
-<li class="toctree-l1"><a class="reference internal" href="computational_data/tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="computational_data/tasks.html">Uploading data (Celery tasks and django template)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="API/media.html">Serving static files (media)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="API/download.html">Download data</a></li>
 </ul>
 
 <div class="relations">
@@ -378,7 +401,7 @@
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script type="text/javascript">$('#searchbox').show(0);</script>
 
 
 
@@ -395,7 +418,7 @@
       &copy;2020, Rachael Skyner.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>

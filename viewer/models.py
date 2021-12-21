@@ -8,7 +8,7 @@ from django.core.validators import MinLengthValidator
 
 from simple_history.models import HistoricalRecords
 
-from loader.config import get_mol_choices, get_prot_choices
+from viewer.target_set_config import get_mol_choices, get_prot_choices
 
 class Project(models.Model):
     """Django model for holding information about a project. This is used on the Targets level, adding a new project for
@@ -97,6 +97,8 @@ class Protein(models.Model):
         File link to uploaded mtz file (optional)
     map_info: FileField
         File link to uploaded map file (optional)
+    trans_matrix_info: FileField
+        File link to uploaded transformation matrix file (optional)
     aligned: NullBooleanField
         Bool - 1 if aligned, 0 if not
     aligned_to: ForeignKey (self)
@@ -121,6 +123,7 @@ class Protein(models.Model):
     sigmaa_info = models.FileField(upload_to="maps/", null=True, max_length=255)
     diff_info = models.FileField(upload_to="maps/", null=True, max_length=255)
     event_info = models.FileField(upload_to="maps/", null=True, max_length=255)
+    trans_matrix_info = models.FileField(upload_to="trans/", null=True, max_length=255)
     aligned = models.NullBooleanField()
     aligned_to = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
     has_eds = models.NullBooleanField()
@@ -260,6 +263,8 @@ class Molecule(models.Model):
         Foreign key link to the associated protein (apo) that this ligand was pulled from
     cmpd_id: ForeignKey
         Foreign key link to the associated 2D compound
+    sdf_file: FileField
+        File link to uploaded sdf file (optional)
     history: HistoricalRecords
         Tracks the changes made to an instance of this model over time
 
@@ -284,6 +289,7 @@ class Molecule(models.Model):
     # Foreign key relations
     prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
     cmpd_id = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    sdf_file = models.FileField(upload_to="sdfs/", null=True, max_length=255)
     history = HistoricalRecords()
 
     # Unique constraints
@@ -807,6 +813,58 @@ class DiscourseTopic(models.Model):
     class Meta:
         db_table = 'viewer_discoursetopic'
 # End of Discourse Tables
+
+
+class DownloadLinks(models.Model):
+    """Django model containing the searches made with the download_structures
+    api.
+
+    Parameters
+    ----------
+    file_url: charField
+        Contains the complete link to the zip file including the uuid.
+    user: FK (integer)
+        The (Django) id of the user that created the search
+    target: FK (integer)
+        The id of the target to which the tag belongs
+    proteins: JSONField
+        JSON field containing a sorted list of the protein codes in the search
+    protein_params: JSONField
+        JSON field containing sorted list of parameters used to create the
+        zip file
+    other_params: JSONField
+        JSON field containing sorted list of parameters used to create the
+        zip file
+    static_link: BooleanField
+        This preserves the proteins from the previous search.
+    zip_contents: JSONField
+        For static files, this field contains the contents of the zip so that
+        it can be reconstructed with the same file-links that it had previously.
+        For dynamic files, the zip is reconstructed from the search.
+    create_date: DateTimeField
+        The datetime when the search was created
+    keep_zip_until: DateTimeField
+        The datetime when the tag was created plus the retention time (1 hour
+        at the time of writing)
+    zip_file: BooleanField
+        Link to the zip file created as part of the search - can be false if
+        after the keep_zip_until.
+
+    """
+    file_url = models.CharField(max_length=200, unique=True, db_index=True)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE, db_index=True)
+    proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    protein_params = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    other_params = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    static_link = models.BooleanField(default=False)
+    zip_contents = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    create_date = models.DateTimeField()
+    keep_zip_until = models.DateTimeField(db_index=True)
+    zip_file = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'viewer_downloadlinks'
 
 
 # Start of Tag Tables

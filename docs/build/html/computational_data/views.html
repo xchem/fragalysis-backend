@@ -1,19 +1,18 @@
 
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Computational data (Views) &#8212; Fragalysis-Backend  documentation</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/css/functions.css" type="text/css" />
-    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/language_data.js"></script>
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Project data (Views)" href="../projects/views.html" />
@@ -61,23 +60,23 @@ page.</p></li>
 </div>
 <div class="section" id="view-details">
 <h2>View details<a class="headerlink" href="#view-details" title="Permalink to this headline">¶</a></h2>
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.ComputedSetView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ComputedSetView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ComputedSetView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ComputedSetView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ComputedSetView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve information about computed sets</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/compound-sets</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.ComputedSet.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -85,7 +84,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -99,7 +98,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -116,7 +115,7 @@ page.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.ComputedSetView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ComputedSetView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ComputedSetSerializer</span></code></p>
@@ -124,23 +123,23 @@ page.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.ComputedMoleculesView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ComputedMoleculesView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ComputedMoleculesView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ComputedMoleculesView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ComputedMoleculesView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve information about computed molecules - 3D info</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/compound-molecules</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.ComputedMolecule.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -148,7 +147,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -163,7 +162,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -181,7 +180,7 @@ page.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.ComputedMoleculesView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ComputedMoleculesView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ComputedMoleculeSerializer</span></code></p>
@@ -189,23 +188,23 @@ page.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.NumericalScoresView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">NumericalScoresView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.NumericalScoresView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">NumericalScoresView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.NumericalScoresView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve information about numerical computed molecule scores</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/numerical-scores</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.NumericalScoreValues.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -214,7 +213,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -234,7 +233,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -254,7 +253,7 @@ page.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.NumericalScoresView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.NumericalScoresView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.NumericalScoreSerializer</span></code></p>
@@ -262,23 +261,23 @@ page.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.TextScoresView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TextScoresView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TextScoresView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">TextScoresView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.TextScoresView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve information about text computed molecule scores</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/text-scores</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.TextScoreValues.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -287,7 +286,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -307,7 +306,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -327,7 +326,7 @@ page.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.TextScoresView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.TextScoresView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.TextScoreSerializer</span></code></p>
@@ -335,23 +334,23 @@ page.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.CompoundScoresView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">CompoundScoresView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.CompoundScoresView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">CompoundScoresView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.CompoundScoresView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve descriptions of scores for a given name or computed set</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/compound-scores</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.ScoreDescription.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -360,7 +359,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -378,7 +377,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -392,7 +391,7 @@ page.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.CompoundScoresView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.CompoundScoresView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ScoreDescriptionSerializer</span></code></p>
@@ -400,23 +399,23 @@ page.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.ComputedMolAndScoreView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ComputedMolAndScoreView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ComputedMolAndScoreView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ComputedMolAndScoreView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ComputedMolAndScoreView" title="Permalink to this definition">¶</a></dt>
 <dd><p>DjagnoRF view to retrieve all information about molecules from a computed set, along with all of their scores</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>api/compound-mols-scores</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">queryset:</code></dt>
 <dd><p><cite>viewer.models.ComputedMolecule.objects.filter()</cite></p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">filter fields:</code></dt>
 <dd><ul class="simple">
@@ -424,7 +423,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">returns: JSON</code></dt>
 <dd><ul class="simple">
@@ -441,7 +440,7 @@ page.</p></li>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">example output:</code></dt>
 <dd><div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;results&quot;</span><span class="o">:</span> <span class="p">[</span>
@@ -464,7 +463,7 @@ page.</p></li>
 </div>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="attribute">
 <dt id="viewer.views.ComputedMolAndScoreView.serializer_class">
 <code class="sig-name descname">serializer_class</code><a class="headerlink" href="#viewer.views.ComputedMolAndScoreView.serializer_class" title="Permalink to this definition">¶</a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">viewer.serializers.ComputedMolAndScoreSerializer</span></code></p>
@@ -472,12 +471,12 @@ page.</p></li>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.cset_key">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">cset_key</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.cset_key" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">cset_key</code><a class="headerlink" href="#viewer.views.cset_key" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to render and control viewer/generate-key.html - a page allowing an upload key to be generated for a user
 allowing upload of computed sets</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -486,19 +485,19 @@ allowing upload of computed sets</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>viewer/cset_key</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">template:</code></dt>
 <dd><p>viewer/generate-key.html</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">request params:</code></dt>
 <dd><ul class="simple">
@@ -506,7 +505,7 @@ allowing upload of computed sets</p>
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">context:</code></dt>
 <dd><ul class="simple">
@@ -517,13 +516,13 @@ allowing upload of computed sets</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.UploadCSet">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadCSet</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadCSet" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadCSet</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadCSet" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to render and control viewer/upload-cset.html  - a page allowing upload of computed sets. Validation and
 upload tasks are defined in <cite>viewer.compound_set_upload</cite>, <cite>viewer.sdf_check</cite> and <cite>viewer.tasks</cite> and the task
 response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cite>viewer.views.UploadTaskView</cite></p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -532,19 +531,19 @@ response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cit
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>viewer/upload_cset</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">template:</code></dt>
 <dd><p>viewer/upload-cset.html</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">request params:</code></dt>
 <dd><ul class="simple">
@@ -556,7 +555,7 @@ response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cit
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">context:</code></dt>
 <dd><ul class="simple">
@@ -570,13 +569,13 @@ response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cit
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.UploadTSet">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadTSet</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTSet" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadTSet</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTSet" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to render and control viewer/upload-tset.html  - a page allowing upload of computed sets. Validation and
 upload tasks are defined in <cite>viewer.target_set_upload</cite>, <cite>viewer.sdf_check</cite> and <cite>viewer.tasks</cite> and the task
 response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cite>viewer.views.UploadTaskView</cite></p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -585,19 +584,19 @@ response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cit
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>viewer/upload_tset</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">template:</code></dt>
 <dd><p>viewer/upload-tset.html</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">request params:</code></dt>
 <dd><ul class="simple">
@@ -607,7 +606,7 @@ response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cit
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">context:</code></dt>
 <dd><ul class="simple">
@@ -621,12 +620,12 @@ response handling is done by <cite>viewer.views.ValidateTaskView</cite> and <cit
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.ValidateTaskView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ValidateTaskView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ValidateTaskView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">ValidateTaskView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ValidateTaskView" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to handle dynamic loading of validation results from <cite>viewer.tasks.validate</cite> - the validation of files
 uploaded to viewer/upload_cset or a target set by a user at viewer/upload_tset</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -634,21 +633,21 @@ uploaded to viewer/upload_cset or a target set by a user at viewer/upload_tset</
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>validate_task/&lt;validate_task_id&gt;</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">template:</code></dt>
 <dd><p>viewer/upload-cset.html or viewer/upload-tset.html</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="viewer.views.ValidateTaskView.get">
-<code class="sig-name descname">get</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em>, <em class="sig-param"><span class="n">validate_task_id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ValidateTaskView.get" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">get</code><span class="sig-paren">(</span><em class="sig-param">request</em>, <em class="sig-param">validate_task_id</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.ValidateTaskView.get" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get method for <cite>ValidateTaskView</cite>. Takes a validate task id, checks it’s status and returns the status,
 and result if the task is complete</p>
 <dl class="field-list simple">
@@ -701,12 +700,12 @@ and result if the task is complete</p>
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.UploadTaskView">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadTaskView</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTaskView" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">UploadTaskView</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTaskView" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to handle dynamic loading of upload results from <cite>viewer.tasks.process_compound_set</cite> - the upload of files
 for a computed set by a user at viewer/upload_cset or a target set by a user at viewer/upload_tset</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -714,21 +713,21 @@ for a computed set by a user at viewer/upload_cset or a target set by a user at 
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>upload_task/&lt;uploads_task_id&gt;</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">template:</code></dt>
 <dd><p>viewer/upload-cset.html or viewer/upload-tset.html</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="viewer.views.UploadTaskView.get">
-<code class="sig-name descname">get</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em>, <em class="sig-param"><span class="n">upload_task_id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTaskView.get" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">get</code><span class="sig-paren">(</span><em class="sig-param">request</em>, <em class="sig-param">upload_task_id</em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.UploadTaskView.get" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get method for <cite>UploadTaskView</cite>. Takes an upload task id, checks it’s status and returns the status,
 and result if the task is complete</p>
 <dl class="field-list simple">
@@ -803,11 +802,11 @@ For target sets (‘tset’)
 
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.cset_download">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">cset_download</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em>, <em class="sig-param"><span class="n">name</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.cset_download" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">cset_download</code><a class="headerlink" href="#viewer.views.cset_download" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to download an SDF file of a computed set by name</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -815,13 +814,13 @@ For target sets (‘tset’)
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>viewer/compound_set/(&lt;name&gt;)</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">request params:</code></dt>
 <dd><ul class="simple">
@@ -842,11 +841,11 @@ For target sets (‘tset’)
 </dl>
 </dd></dl>
 
-<dl class="py class">
+<dl class="class">
 <dt id="viewer.views.pset_download">
-<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">pset_download</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em>, <em class="sig-param"><span class="n">name</span></em><span class="sig-paren">)</span><a class="headerlink" href="#viewer.views.pset_download" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">viewer.views.</code><code class="sig-name descname">pset_download</code><a class="headerlink" href="#viewer.views.pset_download" title="Permalink to this definition">¶</a></dt>
 <dd><p>View to download a zip file of all protein structures (apo) for a computed set</p>
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">allowed requests:</code></dt>
 <dd><ul class="simple">
@@ -854,13 +853,13 @@ For target sets (‘tset’)
 </ul>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">url:</code></dt>
 <dd><p>viewer/compound_set/(&lt;name&gt;)</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt>
 <code class="sig-name descname">request params:</code></dt>
 <dd><ul class="simple">
@@ -918,8 +917,9 @@ For target sets (‘tset’)
 <li class="toctree-l1"><a class="reference internal" href="../projects/views.html">Project data (Views)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html">Miscellaneous data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/misc_views.html#tags">Tags</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tasks.html">Uploading computational data (Celery tasks and django template)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tasks.html">Uploading data (Celery tasks and django template)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../API/media.html">Serving static files (media)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../API/download.html">Download data</a></li>
 </ul>
 
 <div class="relations">
@@ -940,7 +940,7 @@ For target sets (‘tset’)
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script type="text/javascript">$('#searchbox').show(0);</script>
 
 
 
@@ -957,7 +957,7 @@ For target sets (‘tset’)
       &copy;2020, Rachael Skyner.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
