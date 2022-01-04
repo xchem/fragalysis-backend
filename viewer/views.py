@@ -2899,6 +2899,7 @@ def _create_structures_zip(target,
 
     # If a single sdf file is also wanted then create file to
     # add sdf files to a file called {targer}_combined.sdf.
+    combined_sdf_file = None
     if zip_contents['molecules']['single_sdf_file'] is True:
         combined_sdf_file = \
             os.path.join(download_path,
@@ -3064,7 +3065,7 @@ def _check_download_links(request,
     """Check/create the download zip file for dynamic links
 
     Args:
-        user
+        request
         target
         proteins
 
