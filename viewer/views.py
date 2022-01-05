@@ -2914,7 +2914,8 @@ def _create_structures_zip(target,
                                               combined_sdf_file, error_file)
 
         # Add combined_sdf_file to the archive.
-        if zip_contents['molecules']['single_sdf_file'] is True:
+        if zip_contents['molecules']['single_sdf_file'] is True \
+                and os.path.isfile(combined_sdf_file) :
             ziparchive.write(
                 combined_sdf_file,
                 os.path.join(_ZIP_FILEPATHS['single_sdf_file'],
