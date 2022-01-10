@@ -45,7 +45,7 @@ _ZIP_FILEPATHS = {
 
 # Dictionary containing all references needed to create the zip file
 # NB you may need to add a version number to this at some point...
-zip_contents = {'proteins': {'pdb_info': {},
+zip_template = {'proteins': {'pdb_info': {},
                              'bound_info': {},
                              'cif_info': {},
                              'mtz_info': {},
@@ -323,6 +323,7 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
     Returns:
         [dict]: [dictionary containing the file contents]
     """
+    zip_contents = zip_template
 
     logger.info('+ _create_structures_dict')
 
@@ -344,7 +345,7 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
     # sdf information is held as a file on the Molecule record.
     if other_params['sdf_info'] is True or \
             other_params['single_sdf_file'] is True:
-        for molecule in molecules:
+        for molecule in molecule:
             protein = Protein.objects.get(id=molecule['prot_id_id'])
             zip_contents['molecules']['sdf_files'].update({molecule['sdf_file']: protein.code})
 
@@ -396,7 +397,7 @@ def get_download_params(request):
     for param in protein_param_flags:
         protein_params[param] = False
         if param in request.data:
-            if request.data[param] is True or request.data[param] == 'true':
+            if request.data[param] == True or request.data[param] == 'true':
                 protein_params[param] = True
 
     # other_params = {'sdf_info': request.data['sdf_info'],
@@ -407,7 +408,7 @@ def get_download_params(request):
     for param in other_param_flags:
         other_params[param] = False
         if param in request.data:
-            if request.data[param] is True or request.data[param] == 'true':
+            if request.data[param] == True or request.data[param] == 'true':
                 other_params[param] = True
 
     return protein_params, other_params
