@@ -345,7 +345,7 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
     # sdf information is held as a file on the Molecule record.
     if other_params['sdf_info'] is True or \
             other_params['single_sdf_file'] is True:
-        for molecule in molecule:
+        for molecule in molecules:
             protein = Protein.objects.get(id=molecule['prot_id_id'])
             zip_contents['molecules']['sdf_files'].update({molecule['sdf_file']: protein.code})
 
