@@ -2891,7 +2891,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 {"message": "Please enter a permitted target name."})
 
         if request.data['proteins']:
-            proteins_list = [p.strip()
+            proteins_list = [p.split(":")[0].strip()
                             for p in request.data['proteins'].split(',')]
         else:
             proteins_list = []

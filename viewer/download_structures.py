@@ -11,6 +11,7 @@ import uuid
 import shutil
 import fnmatch
 import logging
+import copy
 
 from django.conf import settings
 
@@ -323,7 +324,7 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
     Returns:
         [dict]: [dictionary containing the file contents]
     """
-    zip_contents = zip_template
+    zip_contents =  copy.deepcopy(zip_template)
 
     logger.info('+ _create_structures_dict')
 
