@@ -2873,22 +2873,17 @@ class DownloadStructures(ISpyBSafeQuerySet):
             # if required.
             file_url = request.data['file_url']
             existing_link = DownloadLinks.objects.filter(file_url=file_url)
-            logger.info('existing_link: {}'.format(existing_link))
-            logger.info('static_link: {}'.format(existing_link[0].static_link))
 
             if existing_link and existing_link[0].static_link:
                 if existing_link[0].zip_file:
-                    logger.info('Option zip file')
                     return Response({"file_url": existing_link[0].file_url},
                                     status=status.HTTP_200_OK)
                 elif os.path.isfile(existing_link[0].file_url):
-                    logger.info('Option zip file being produced')
                     content = {'message': 'Zip being rebuilt - '
                                           'please try later'}
                     return Response(content,
                                     status=status.HTTP_208_ALREADY_REPORTED)
                 else:
-                    logger.info('Option recreate file')
                     recreate_static_file (existing_link[0])
                     return Response({"file_url": existing_link[0].file_url},
                                     status=status.HTTP_200_OK)
