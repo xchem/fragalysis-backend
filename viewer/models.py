@@ -942,7 +942,7 @@ class MoleculeTag(Tag):
     """
     molecules = models.ManyToManyField(Molecule, blank=True)
     mol_group = models.ForeignKey("scoring.MolGroup", null=True, blank=True,
-                                  on_delete=models.CASCADE)
+                                  on_delete=models.SET_NULL)
 
 
 class SessionProjectTag(Tag):
