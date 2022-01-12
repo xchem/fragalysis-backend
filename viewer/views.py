@@ -26,6 +26,7 @@ from rest_framework.parsers import BaseParser
 from rest_framework.exceptions import ParseError
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import status
 
 from django.views import View
 
@@ -2840,13 +2841,22 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 response = FileResponse(wrapper,
                                         content_type='application/zip')
                 response[
-                    'Content-Disposition'] = 'attachment; filename="%s"' % file_name
+                    'Content-Disposition'] = \
+                    'attachment; filename="%s"' % file_name
                 response['Content-Length'] = os.path.getsize(file_url)
                 return response
+            elif link:
+                content = {'message': 'Zip file no longer present - '
+                                      'please recreate by calling '
+                                      'POST/Prepare download'}
+                return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-            return Response("File_url is not found or no longer active")
+            content = {'message': 'File_url is not found'}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        return Response("Please provide file_url parameter from post response")
+        content = {'message': 'Please provide file_url parameter from '
+                              'post response'}
+        return Response(content, status=status.HTTP_404_NOT_FOUND)
 
 
     def create(self, request):
@@ -2863,16 +2873,29 @@ class DownloadStructures(ISpyBSafeQuerySet):
             # if required.
             file_url = request.data['file_url']
             existing_link = DownloadLinks.objects.filter(file_url=file_url)
+            logger.info('existing_link: {}'.format(existing_link))
+            logger.info('static_link: {}'.format(existing_link[0].static_link))
 
             if existing_link and existing_link[0].static_link:
-                if not existing_link[0].zip_file:
+                if existing_link[0].zip_file:
+                    logger.info('Option zip file')
+                    return Response({"file_url": existing_link[0].file_url},
+                                    status=status.HTTP_200_OK)
+                elif os.path.isfile(existing_link[0].file_url):
+                    logger.info('Option zip file being produced')
+                    content = {'message': 'Zip being rebuilt - '
+                                          'please try later'}
+                    return Response(content,
+                                    status=status.HTTP_208_ALREADY_REPORTED)
+                else:
+                    logger.info('Option recreate file')
                     recreate_static_file (existing_link[0])
-                maintain_download_links()
-                return Response({"file_url": existing_link[0].file_url})
+                    return Response({"file_url": existing_link[0].file_url},
+                                    status=status.HTTP_200_OK)
 
-            return Response(
-                {"message": "This file_url is for static files: {}".
-                    format(file_url)})
+            content = {
+                'message': 'file_url should only be filled in for static files'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         # Dynamic files
         target_name = request.data['target_name']
@@ -2886,8 +2909,9 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 break
 
         if not target:
-            return Response(
-                {"message": "Please enter a permitted target name."})
+            content = {
+                'message': 'Please enter a permitted target name'}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         if request.data['proteins']:
             proteins_list = [p.strip()
@@ -2904,13 +2928,18 @@ class DownloadStructures(ISpyBSafeQuerySet):
             proteins = Protein.objects.filter(target_id=target.id).values()
 
         if len(proteins) == 0:
-            return Response(
-                {"message": "Please enter list of valid protein codes for" +
-                 "target: {}, proteins: {} ".format(target.id, proteins_list)})
-
-        filename_url = check_download_links(request,
-                                            target,
-                                            proteins)
+            content = {'message': 'Please enter list of valid protein codes '
+                                  'for' + " target: {}, proteins: {} "
+                .format(target.title, proteins_list) }
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         maintain_download_links()
-        return Response({"file_url": filename_url})
+        filename_url, file_exists = check_download_links(request,
+                                                         target,
+                                                         proteins)
+        if file_exists:
+            return Response({"file_url": filename_url})
+        else:
+            content = {'message': 'Zip being rebuilt - please try later'}
+            return Response(content,
+                            status=status.HTTP_208_ALREADY_REPORTED)
