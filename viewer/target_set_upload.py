@@ -751,7 +751,8 @@ def search_for_molgroup_by_description(description, target):
         mol_group = search[0]
 
     elif len(search) > 1:
-        # Note that this will also delete MoleculeTag objects fot this molgroup.
+        # Note that this will also set the mol_group in the  MoleculeTag
+        # objects fot this mol_group to null.
         for molgroup in search:
             molgroup.delete()
         return None
@@ -770,19 +771,12 @@ def specifc_site(rd_mols, mols, target, site_description=None):
     :return: None
     """
 
-    mol_tag = None
     # look for molgroup with same target and description
     mol_group = search_for_molgroup_by_description(target=target.title,
                                                    description=site_description)
 
     if not mol_group:
         mol_group = MolGroup()
-    else:
-        # A molecule tag record should exist, but won't the first time the target is loaded
-        mol_tag = MoleculeTag.objects.get(mol_group=mol_group)
-
-    if not mol_tag:
-        mol_tag = MoleculeTag()
 
     mol_group.group_type = "MC"
     mol_group.target_id = target
@@ -793,11 +787,29 @@ def specifc_site(rd_mols, mols, target, site_description=None):
     mol_group.description = site_description
     mol_group.save()
 
-    mol_tag.tag = site_description
-    mol_tag.category = TagCategory.objects.get(category='Sites')
-    mol_tag.target = target
-    mol_tag.mol_group = mol_group
-    mol_tag.save()
+    # A molecule tag record may exist already, but won't the first time the
+    # target is loaded.
+
+    try:
+        mol_tag = MoleculeTag.objects.get(tag=site_description,
+                                          target_id=target.id)
+    except MoleculeTag.DoesNotExist:
+        mol_tag = None
+
+    if not mol_tag:
+        # New site/tag or the tag has been deleted
+        mol_tag = MoleculeTag()
+        mol_tag.tag = site_description
+        mol_tag.category = TagCategory.objects.get(category='Sites')
+        mol_tag.target = target
+        mol_tag.mol_group = mol_group
+        mol_tag.save()
+    else:
+        # Tag already exists
+        # Apart from the new mol_group and molecules, we shouldn't be
+        # changing anything.
+        mol_tag.mol_group = mol_group
+        mol_tag.save()
 
     ids = [m.id for m in mols]
     print([a['id'] for a in mol_group.mol_id.values()])
@@ -942,8 +954,10 @@ def analyse_target(target_name, aligned_path):
         sites = pd.read_csv(os.path.join(aligned_path, 'sites.csv'))
         sites.sort_values(by='site', inplace=True)
 
-        # delete the old molgroups first
-        # this will also delete any associated MoleculeTags if found
+        # Delete the old mol_groups
+        # Note that this will not delete associated MoleculeTags - the tags
+        # will have their mol_group set to Null, but be left on the
+        # database so that any existing Tags will not be broken.
         mol_groups = MolGroup.objects.filter(target_id=target)
         for m in mol_groups:
             m.delete()
