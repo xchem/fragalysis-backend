@@ -464,12 +464,16 @@ def check_download_links(request,
         .filter(static_link=False)
 
     if existing_link:
-        if existing_link[0].zip_file and not static_link:
+        if (existing_link[0].zip_file
+                and os.path.isfile(existing_link[0].file_url)
+                and not static_link):
             return existing_link[0].file_url, True
-        elif os.path.isfile(existing_link[0].file_url) and not static_link:
-            # Repeat call, file is currently being created.
+        elif (os.path.isfile(existing_link[0].file_url) \
+                and not static_link):
+            # Repeat call, file is currently being created by another process.
             return existing_link[0].file_url, False
         else:
+            # Recreate file.
             zip_contents = _create_structures_dict(target,
                                                    proteins,
                                                    protein_params,

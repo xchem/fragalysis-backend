@@ -2832,7 +2832,8 @@ class DownloadStructures(ISpyBSafeQuerySet):
 
         if file_url:
             link = DownloadLinks.objects.filter(file_url=file_url)
-            if link and link[0].zip_file:
+            if (link and link[0].zip_file
+                    and os.path.isfile(link[0].file_url)):
                 logger.info('zip_file: {}'.format(link[0].zip_file))
 
                 # return file and tidy up.
@@ -2864,6 +2865,9 @@ class DownloadStructures(ISpyBSafeQuerySet):
         """
         logger.info('+ DownloadStructures.post')
 
+        # Clear up old existing files
+        maintain_download_links()
+
         # Static files
         # For static files, the contents of the zip file at the time of the search
         # are stored in the zip_contents field. These are used to reconstruct the
@@ -2875,15 +2879,22 @@ class DownloadStructures(ISpyBSafeQuerySet):
             existing_link = DownloadLinks.objects.filter(file_url=file_url)
 
             if existing_link and existing_link[0].static_link:
-                if existing_link[0].zip_file:
+                # If the zip file is present, return it
+                # Note that don't depend 100% on the zip_file flag as the
+                # file might have been deleted from the media server.
+                if (existing_link[0].zip_file and
+                    os.path.isfile(existing_link[0].file_url)):
                     return Response({"file_url": existing_link[0].file_url},
                                     status=status.HTTP_200_OK)
                 elif os.path.isfile(existing_link[0].file_url):
+                    # If the file is there but zip_file is false, then it is
+                    # probably being rebuilt by a parallel process.
                     content = {'message': 'Zip being rebuilt - '
                                           'please try later'}
                     return Response(content,
                                     status=status.HTTP_208_ALREADY_REPORTED)
                 else:
+                    # Otherwise re-create the file.
                     recreate_static_file (existing_link[0])
                     return Response({"file_url": existing_link[0].file_url},
                                     status=status.HTTP_200_OK)
@@ -2909,15 +2920,19 @@ class DownloadStructures(ISpyBSafeQuerySet):
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         if request.data['proteins']:
-            proteins_list = [p.strip()
+            # Get first part of protein code
+            proteins_list = [p.strip().split(":")[0]
                              for p in request.data['proteins'].split(',')]
         else:
             proteins_list = []
 
         if len(proteins_list) > 0:
+            proteins = []
             # Filter by protein codes
-            proteins = Protein.objects.filter(target_id=target.id)\
-                .filter(code__in=proteins_list).values()
+            for code_first_part in proteins_list:
+                prot = Protein.objects.filter(code__contains=code_first_part).values()
+                if prot.exists():
+                    proteins.append(prot.first())
         else:
             # If no protein codes supplied then return the complete list
             proteins = Protein.objects.filter(target_id=target.id).values()
@@ -2928,7 +2943,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 .format(target.title, proteins_list) }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        maintain_download_links()
         filename_url, file_exists = check_download_links(request,
                                                          target,
                                                          proteins)
