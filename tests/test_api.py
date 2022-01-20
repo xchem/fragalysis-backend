@@ -818,8 +818,16 @@ class APIUrlsTestCase(APITestCase):
         mols_loaded, mols_processed = process_target(new_data_folder,
                                                      target,
                                                      proposal)
+
+        # Improve checks as we understand more how it works.
         self.assertEqual(mols_loaded, 8)
         self.assertEqual(mols_processed, 7)
+        target =  Target.objects.filter(title='TESTTARGET').values()
+        self.assertEqual(len(target), 1)
+        proteins =  Protein.objects.filter(target_id__title='TESTTARGET').values()
+        self.assertEqual(len(proteins), 7)
+        tags = MoleculeTag.objects.filter(target__title='TESTTARGET').values()
+        self.assertEqual(len(tags), 3)
 
         # Tidy up data
         shutil.rmtree(new_data_folder)

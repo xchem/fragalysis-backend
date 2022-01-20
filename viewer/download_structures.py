@@ -464,7 +464,16 @@ def check_download_links(request,
         .filter(static_link=False)
 
     if existing_link:
-        if not existing_link[0].zip_file or static_link:
+        if (existing_link[0].zip_file
+                and os.path.isfile(existing_link[0].file_url)
+                and not static_link):
+            return existing_link[0].file_url, True
+        elif (os.path.isfile(existing_link[0].file_url) \
+                and not static_link):
+            # Repeat call, file is currently being created by another process.
+            return existing_link[0].file_url, False
+        else:
+            # Recreate file.
             zip_contents = _create_structures_dict(target,
                                                    proteins,
                                                    protein_params,
@@ -479,7 +488,7 @@ def check_download_links(request,
                 existing_link[0].static_link = static_link
                 existing_link[0].zip_contents = zip_contents
             existing_link[0].save()
-        return existing_link[0].file_url
+            return existing_link[0].file_url, True
 
     # Create a new link for this user
     # /code/media/downloads/<download_uuid>
@@ -514,7 +523,7 @@ def check_download_links(request,
     download_link.zip_file = True
     download_link.save()
 
-    return file_url
+    return file_url, True
 
 def recreate_static_file (existing_link):
     """Recreate static file for existing link
