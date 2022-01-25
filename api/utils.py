@@ -134,16 +134,16 @@ def draw_mol(
         return response
     else:
         rdMolDraw2D.PrepareMolForDrawing(mol, wedgeBonds=False)
-        drawer = rdMolDraw2D.MolDraw2DSVG(height, width)
+        drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
 
         drawopt = drawer.drawOptions()
         drawopt.clearBackground = False
         drawopt.fixedBondLength = 30
         drawopt.padding = 0.01
         drawopt.bondLineWidth = 1
-        drawopt.additionalAtomLabelPadding = 0.05
-
-        drawer.SetFontSize(1)
+        drawopt.additionalAtomLabelPadding = 0.15
+        drawer.minFontSize(8)
+        drawer.maxFontSize(8)
 
         drawer.DrawMolecule(
             mol,
@@ -154,7 +154,7 @@ def draw_mol(
         )
 
         drawer.FinishDrawing()
-        return drawer.GetDrawingText().replace("svg:", "").replace('stroke-width:2px', 'stroke-width:1.5px')
+        return drawer.GetDrawingText()
 
 
 def parse_vectors(vector_list):
