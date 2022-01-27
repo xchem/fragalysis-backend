@@ -12,6 +12,8 @@ import shutil
 import fnmatch
 import logging
 import copy
+import json
+import pandoc
 
 from django.conf import settings
 
@@ -42,6 +44,7 @@ _ZIP_FILEPATHS = {
     'metadata_info': (''),
     'smiles_info': (''),
     'extra_files': ('extra_files'),
+    'readme': (''),
 }
 
 # Dictionary containing all references needed to create the zip file
@@ -228,10 +231,62 @@ def _extra_files_zip(ziparchive, target):
                     filepath,
                     os.path.join(_ZIP_FILEPATHS['extra_files'], file))
 
+def _get_external_download_url(download_path, host):
+    """Returns the external download URL from the internal url for
+    the documentation.
+    This a bit messy but requirements change...
+    """
+
+    download_base = os.path.join(settings.MEDIA_ROOT, 'downloads')
+    download_uuid = download_path.replace(download_base, "")
+    external_path = os.path.join(host, 'viewer/react/download/tag')
+    external_path = external_path+download_uuid
+
+    return external_path
+
+def _document_file_zip(ziparchive, download_path, original_search, host):
+    """Create the document file
+    This consists of a template plus an added contents description.
+    """
+
+    template_file = os.path.join("/code/doc_templates",
+                                 "download_readme_template.md")
+
+    readme_filepath = os.path.join(download_path, 'Readme.md')
+    pdf_filepath = os.path.join(download_path, 'Readme.pdf')
+    shutil.copyfile(template_file, readme_filepath)
+
+    with open(readme_filepath, "a") as readme:
+        # Link
+        readme.write("### Download Link\n")
+        readme.write("```"+_get_external_download_url(download_path, host)+"```\n")
+
+        # Original Search
+        readme.write("\n### Original Search (JSON)\n")
+        readme.write("```"+json.dumps(original_search)+"```\n")
+
+        # Files Included
+        listOfiles = ziparchive.namelist()
+        readme.write("\n### Files Included\n")
+        listOfiles.sort()
+        for filename in listOfiles:
+            readme.write('- '+filename+'\n')
+
+    # Convert markdown to pdf file
+    doc = pandoc.read(open(readme_filepath, "r").read())
+    pandoc.write(doc, file=pdf_filepath, format='latex')
+
+    ziparchive.write(pdf_filepath, os.path.join(_ZIP_FILEPATHS['readme'],
+                                                'README.pdf'))
+    os.remove(readme_filepath)
+    os.remove(pdf_filepath)
+
 
 def _create_structures_zip(target,
                            zip_contents,
-                           file_url):
+                           file_url,
+                           original_search,
+                           host):
     """Write a ZIP file containing data from an input dictionary
 
     Args:
@@ -290,6 +345,8 @@ def _create_structures_zip(target,
                 errors += 1
 
         _extra_files_zip(ziparchive, target)
+
+        _document_file_zip(ziparchive, download_path, original_search, host)
 
         error_file.close()
         if errors > 0:
@@ -431,6 +488,7 @@ def check_download_links(request,
 
 
     logger.info('+ _check_download_links')
+    host = request.get_host()
 
     protein_params, other_params = get_download_params(request)
 
@@ -440,6 +498,11 @@ def check_download_links(request,
     # Save the list of protein codes - this is the ispybsafe set for
     # this user.
     proteins_list = [p['code'] for p in proteins]
+
+    # Remove the token so the original search can be stored
+    original_search = copy.deepcopy(request.data)
+    if 'csrfmiddlewaretoken' in original_search:
+        del(original_search['csrfmiddlewaretoken'])
 
     # For dynamic files, if the target, proteins, protein_params and other_params
     # are in an existing record then this is a repeat search .
@@ -480,7 +543,9 @@ def check_download_links(request,
                                                    other_params)
             _create_structures_zip(target,
                                    zip_contents,
-                                   existing_link[0].file_url)
+                                   existing_link[0].file_url,
+                                   existing_link[0].original_search,
+                                   host)
             existing_link[0].keep_zip_until = get_keep_until()
             existing_link[0].zip_file = True
             if static_link:
@@ -503,7 +568,9 @@ def check_download_links(request,
 
     _create_structures_zip(target,
                            zip_contents,
-                           file_url)
+                           file_url,
+                           original_search,
+                           host)
 
     download_link = DownloadLinks()
     download_link.file_url = file_url
@@ -521,18 +588,21 @@ def check_download_links(request,
     download_link.create_date = datetime.datetime.now(datetime.timezone.utc)
     download_link.keep_zip_until = get_keep_until()
     download_link.zip_file = True
+    download_link.original_search = original_search
     download_link.save()
 
     return file_url, True
 
-def recreate_static_file (existing_link):
+def recreate_static_file (existing_link, host):
     """Recreate static file for existing link
     """
     target = existing_link.target
 
     _create_structures_zip(target,
                            existing_link.zip_contents,
-                           existing_link.file_url)
+                           existing_link.file_url,
+                           existing_link.original_search,
+                           host)
     existing_link.keep_zip_until = get_keep_until()
     existing_link.zip_file = True
     existing_link.save()
