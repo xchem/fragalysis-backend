@@ -259,7 +259,9 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
     with open(readme_filepath, "a") as readme:
         # Link
         readme.write("### Download Link\n")
-        readme.write("```"+_get_external_download_url(download_path, host)+"```\n")
+        ext_url = _get_external_download_url(download_path, host)
+        readme.write(ext_url[0:77]+"\n")
+        readme.write(ext_url[77:]+"\n")
 
         # Original Search
         readme.write("\n### Original Search (JSON)\n")
@@ -274,7 +276,8 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
 
     # Convert markdown to pdf file
     doc = pandoc.read(open(readme_filepath, "r").read())
-    pandoc.write(doc, file=pdf_filepath, format='latex')
+    pandoc.write(doc, file=pdf_filepath, format='latex',
+                 options=["--columns=72"])
 
     ziparchive.write(pdf_filepath, os.path.join(_ZIP_FILEPATHS['readme'],
                                                 'README.pdf'))
