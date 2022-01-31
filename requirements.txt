@@ -22,7 +22,7 @@ Django==3.1
 django-bootstrap3==14.1.0
 django-cleanup==5.0.0
 django-extensions==3.0.3
-django-filter==2.3.0
+django-filter==2.4.0
 django-guardian==2.3.0
 django-npm==1.0.0
 django-rest-swagger==2.2.0
