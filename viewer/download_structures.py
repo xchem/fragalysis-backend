@@ -12,6 +12,8 @@ import shutil
 import fnmatch
 import logging
 import copy
+import json
+import pandoc
 
 from django.conf import settings
 
@@ -42,6 +44,7 @@ _ZIP_FILEPATHS = {
     'metadata_info': (''),
     'smiles_info': (''),
     'extra_files': ('extra_files'),
+    'readme': (''),
 }
 
 # Dictionary containing all references needed to create the zip file
@@ -221,17 +224,72 @@ def _extra_files_zip(ziparchive, target):
     extra_files = os.path.join(settings.MEDIA_ROOT, 'targets', target.title,
                               'extra_files')
     if os.path.isdir(extra_files):
-        for dirpath, dirs, files in os.walk(extra_files):
+        for dirpath, dummy, files in os.walk(extra_files):
             for file in files:
                 filepath = os.path.join(dirpath, file)
                 ziparchive.write(
                     filepath,
                     os.path.join(_ZIP_FILEPATHS['extra_files'], file))
 
+def _get_external_download_url(download_path, host):
+    """Returns the external download URL from the internal url for
+    the documentation.
+    This a bit messy but requirements change...
+    """
+
+    download_base = os.path.join(settings.MEDIA_ROOT, 'downloads')
+    download_uuid = download_path.replace(download_base, "")
+    external_path = os.path.join(host, 'viewer/react/download/tag')
+    external_path = external_path+download_uuid
+
+    return external_path
+
+def _document_file_zip(ziparchive, download_path, original_search, host):
+    """Create the document file
+    This consists of a template plus an added contents description.
+    """
+
+    template_file = os.path.join("/code/doc_templates",
+                                 "download_readme_template.md")
+
+    readme_filepath = os.path.join(download_path, 'Readme.md')
+    pdf_filepath = os.path.join(download_path, 'Readme.pdf')
+    shutil.copyfile(template_file, readme_filepath)
+
+    with open(readme_filepath, "a") as readme:
+        # Link
+        readme.write("### Download Link\n")
+        ext_url = _get_external_download_url(download_path, host)
+        readme.write(ext_url[0:77]+"\n")
+        readme.write(ext_url[77:]+"\n")
+
+        # Original Search
+        readme.write("\n### Original Search (JSON)\n")
+        readme.write("```"+json.dumps(original_search)+"```\n")
+
+        # Files Included
+        list_of_files = ziparchive.namelist()
+        readme.write("\n### Files Included\n")
+        list_of_files.sort()
+        for filename in list_of_files:
+            readme.write('- '+filename+'\n')
+
+    # Convert markdown to pdf file
+    doc = pandoc.read(open(readme_filepath, "r").read())
+    pandoc.write(doc, file=pdf_filepath, format='latex',
+                 options=["--columns=72"])
+
+    ziparchive.write(pdf_filepath, os.path.join(_ZIP_FILEPATHS['readme'],
+                                                'README.pdf'))
+    os.remove(readme_filepath)
+    os.remove(pdf_filepath)
+
 
 def _create_structures_zip(target,
                            zip_contents,
-                           file_url):
+                           file_url,
+                           original_search,
+                           host):
     """Write a ZIP file containing data from an input dictionary
 
     Args:
@@ -290,6 +348,8 @@ def _create_structures_zip(target,
                 errors += 1
 
         _extra_files_zip(ziparchive, target)
+
+        _document_file_zip(ziparchive, download_path, original_search, host)
 
         error_file.close()
         if errors > 0:
@@ -412,7 +472,13 @@ def get_download_params(request):
             if request.data[param] == True or request.data[param] == 'true':
                 other_params[param] = True
 
-    return protein_params, other_params
+    static_link = False
+    if 'static_link' in request.data:
+        if request.data['static_link'] is True or \
+                request.data['static_link'] == 'true':
+            static_link = True
+
+    return protein_params, other_params, static_link
 
 
 def check_download_links(request,
@@ -431,8 +497,9 @@ def check_download_links(request,
 
 
     logger.info('+ _check_download_links')
+    host = request.get_host()
 
-    protein_params, other_params = get_download_params(request)
+    protein_params, other_params, static_link  = get_download_params(request)
 
     # Remove 'references_' from protein list if present.
     proteins = _protein_garbage_filter(proteins)
@@ -441,21 +508,17 @@ def check_download_links(request,
     # this user.
     proteins_list = [p['code'] for p in proteins]
 
+    # Remove the token so the original search can be stored
+    original_search = copy.deepcopy(request.data)
+    if 'csrfmiddlewaretoken' in original_search:
+        del(original_search['csrfmiddlewaretoken'])
+
     # For dynamic files, if the target, proteins, protein_params and other_params
     # are in an existing record then this is a repeat search .
     # If the zip is there, then we can just return the file_url.
     # If the record is there but the zip file isn't, then regenerate the zip file.
     # from the search, to contain the latest information.
     # If no record is not there at all, then this is a new link.
-
-    if 'static_link' in request.data:
-        if request.data['static_link'] is True or \
-                request.data['static_link'] == 'true':
-            static_link = True
-        else:
-            static_link = False
-    else:
-        static_link = False
 
     existing_link = DownloadLinks.objects.filter(target_id=target.id)\
         .filter(proteins=proteins_list) \
@@ -468,27 +531,30 @@ def check_download_links(request,
                 and os.path.isfile(existing_link[0].file_url)
                 and not static_link):
             return existing_link[0].file_url, True
-        elif (os.path.isfile(existing_link[0].file_url) \
+
+        if (os.path.isfile(existing_link[0].file_url) \
                 and not static_link):
             # Repeat call, file is currently being created by another process.
             return existing_link[0].file_url, False
-        else:
-            # Recreate file.
-            zip_contents = _create_structures_dict(target,
-                                                   proteins,
-                                                   protein_params,
-                                                   other_params)
-            _create_structures_zip(target,
-                                   zip_contents,
-                                   existing_link[0].file_url)
-            existing_link[0].keep_zip_until = get_keep_until()
-            existing_link[0].zip_file = True
-            if static_link:
-                # Changing from a dynamic to a static link
-                existing_link[0].static_link = static_link
-                existing_link[0].zip_contents = zip_contents
-            existing_link[0].save()
-            return existing_link[0].file_url, True
+
+        # Recreate file.
+        zip_contents = _create_structures_dict(target,
+                                               proteins,
+                                               protein_params,
+                                               other_params)
+        _create_structures_zip(target,
+                               zip_contents,
+                               existing_link[0].file_url,
+                               existing_link[0].original_search,
+                               host)
+        existing_link[0].keep_zip_until = get_keep_until()
+        existing_link[0].zip_file = True
+        if static_link:
+            # Changing from a dynamic to a static link
+            existing_link[0].static_link = static_link
+            existing_link[0].zip_contents = zip_contents
+        existing_link[0].save()
+        return existing_link[0].file_url, True
 
     # Create a new link for this user
     # /code/media/downloads/<download_uuid>
@@ -503,7 +569,9 @@ def check_download_links(request,
 
     _create_structures_zip(target,
                            zip_contents,
-                           file_url)
+                           file_url,
+                           original_search,
+                           host)
 
     download_link = DownloadLinks()
     download_link.file_url = file_url
@@ -521,18 +589,21 @@ def check_download_links(request,
     download_link.create_date = datetime.datetime.now(datetime.timezone.utc)
     download_link.keep_zip_until = get_keep_until()
     download_link.zip_file = True
+    download_link.original_search = original_search
     download_link.save()
 
     return file_url, True
 
-def recreate_static_file (existing_link):
+def recreate_static_file (existing_link, host):
     """Recreate static file for existing link
     """
     target = existing_link.target
 
     _create_structures_zip(target,
                            existing_link.zip_contents,
-                           existing_link.file_url)
+                           existing_link.file_url,
+                           existing_link.original_search,
+                           host)
     existing_link.keep_zip_until = get_keep_until()
     existing_link.zip_file = True
     existing_link.save()

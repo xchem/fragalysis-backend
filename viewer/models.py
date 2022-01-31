@@ -862,6 +862,7 @@ class DownloadLinks(models.Model):
     create_date = models.DateTimeField()
     keep_zip_until = models.DateTimeField(db_index=True)
     zip_file = models.BooleanField(default=False)
+    original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
     class Meta:
         db_table = 'viewer_downloadlinks'

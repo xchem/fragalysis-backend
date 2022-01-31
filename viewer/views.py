@@ -2895,7 +2895,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
                                     status=status.HTTP_208_ALREADY_REPORTED)
                 else:
                     # Otherwise re-create the file.
-                    recreate_static_file (existing_link[0])
+                    recreate_static_file (existing_link[0], request.get_host())
                     return Response({"file_url": existing_link[0].file_url},
                                     status=status.HTTP_200_OK)
 

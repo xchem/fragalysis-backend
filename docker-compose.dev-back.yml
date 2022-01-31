@@ -1,0 +1,99 @@
+version: '3'
+
+services:
+  database:
+    image: postgres:12.2
+    volumes:
+    - ../data/postgre/data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: fragalysis
+      POSTGRES_USER: fragalysis
+      POSTGRES_DB: frag
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+    - "5432:5432"
+  graph:
+    container_name: neo4j
+    image: neo4j:3.5
+    ports:
+      # Comment these two out in production
+      - "7474:7474"
+      - "7687:7687"
+    ulimits:
+      nofile:
+        soft: 40000
+        hard: 40000
+    volumes:
+      - ../data/neo4j/data:/data
+      - ../data/neo4j/logs:/logs
+    environment:
+      - NEO4J_AUTH=none
+      - NEO4J_dbms_memory_pagecache_size=4G
+  web:
+    container_name: web_dock
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /bin/bash /code/launch-stack.sh
+    volumes:
+      - ../data/logs:/code/logs/
+      - ../data/media:/code/media/
+      - ../fragalysis-frontend:/code/frontend/
+      - .:/code/
+      - ../dls-fragalysis-stack-openshift/images/loader/docker-entrypoint.sh:/code/docker-entrypoint.sh
+      - ../fragalysis-loader/run_loader.sh:/code/run_loader.sh
+      - ../fragalysis-loader/loader.py:/code/loader.py
+      - ../fragalysis-loader/test_entry.sh:/code/test_entry.sh
+      - ../fragalysis-loader/wait-for-it.sh:/code/wait-for-it.sh
+      - ../fragalysis-loader/database_check.py:/code/database_check.py
+      - ../fragalysis-loader/tests:/code/tests
+      - ../fragalysis-loader/loader:/code/loader
+      - ./loader/config.py:/code/loader/config.py
+    environment:
+      POSTGRESQL_DATABASE: frag
+      POSTGRESQL_USER: fragalysis
+      POSTGRESQL_PASSWORD: fragalysis
+      POSTGRESQL_HOST: database
+      POSTGRESQL_PORT: 5432
+      # Default Debug to true on Dev.
+      # DEBUG_FRAGALYSIS: 'True'
+      #TODO
+      OIDC_RP_CLIENT_SECRET: 'c6245428-04c7-466f-9c4f-58c340e981c2'
+      DISCOURSE_API_KEY: 'd6036de5e412123b77048c0b92d42fb108484ea1eef2918d67b236802fa8cd4f'
+      DISCOURSE_HOST: 'https://discourse.xchem-dev.diamond.ac.uk'
+      DISCOURSE_DEV_POST_SUFFIX: '-duncan-local'
+    ports:
+      - "8080:80"
+    depends_on:
+      - database
+      - graph
+  loader:
+    container_name: loader
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /bin/bash /code/docker-entrypoint.sh
+    volumes:
+      - ../data/input:/fragalysis/
+      - ../data/media:/code/media/
+      - ../fragalysis-frontend:/code/frontend/
+      - .:/code/
+      - ../dls-fragalysis-stack-openshift/images/loader/docker-entrypoint.sh:/code/docker-entrypoint.sh
+      - ../fragalysis-loader/run_loader.sh:/code/run_loader.sh
+      - ../fragalysis-loader/loader.py:/code/loader.py
+      - ../fragalysis-loader/test_entry.sh:/code/test_entry.sh
+      - ../fragalysis-loader/wait-for-it.sh:/code/wait-for-it.sh
+      - ../fragalysis-loader/database_check.py:/code/database_check.py
+      - ../fragalysis-loader/tests:/code/tests
+      - ../fragalysis-loader/loader:/code/loader
+      - ./loader/config.py:/code/loader/config.py
+    environment:
+      POSTGRESQL_DATABASE: frag
+      POSTGRESQL_USER: fragalysis
+      POSTGRESQL_PASSWORD: fragalysis
+      POSTGRESQL_HOST: database
+      POSTGRESQL_PORT: 5432
+      DATA_ORIGIN: EXAMPLE
+    depends_on:
+      - database
+      - web
