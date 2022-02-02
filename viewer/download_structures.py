@@ -8,7 +8,6 @@ import os
 import zipfile
 import datetime
 import time
-import pytz
 import uuid
 import shutil
 import fnmatch
@@ -16,6 +15,7 @@ import logging
 import copy
 import json
 import pandoc
+import pytz
 
 from django.conf import settings
 
