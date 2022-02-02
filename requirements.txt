@@ -125,3 +125,9 @@ yarl==1.5.1
 zipp==3.1.0
 pymysql~=0.10.1
 sphinx
+# Car packages
+pubchempy==1.0.4
+pycule==0.1.9b0 
+ratelimit==2.2.1
+rxn4chemistry==0.4.0
+
