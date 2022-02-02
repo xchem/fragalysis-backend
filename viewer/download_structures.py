@@ -7,6 +7,8 @@ Methods for downloading a Target Zip file used by the download_structure API.
 import os
 import zipfile
 import datetime
+import time
+import pytz
 import uuid
 import shutil
 import fnmatch
@@ -481,6 +483,26 @@ def get_download_params(request):
     return protein_params, other_params, static_link
 
 
+def _target_updated (target, create_date):
+    """Check is target has been updated since the file was originally
+    created. There should be an update date for the target, but since
+    there isn't this just checks the created date for the zip archive
+    (which is the last thing donw by the loader) is older than the last
+    updated date of the file.
+    """
+
+    zip_ctime = os.path.getctime(target.zip_archive.path)
+    zip_create_date = datetime.datetime.strptime(time.ctime(zip_ctime),
+                                                 "%a %b %d %H:%M:%S %Y")
+    zip_create_date = zip_create_date.replace(tzinfo=pytz.UTC)
+
+    # Check if zip was created after the create datetime of the file.
+    if zip_create_date > create_date:
+        return True
+
+    return False
+
+
 def check_download_links(request,
                          target,
                          proteins):
@@ -494,7 +516,6 @@ def check_download_links(request,
     Returns:
         [file]: [URL to the file in the media directory]
     """
-
 
     logger.info('+ _check_download_links')
     host = request.get_host()
@@ -529,39 +550,45 @@ def check_download_links(request,
     if existing_link:
         if (existing_link[0].zip_file
                 and os.path.isfile(existing_link[0].file_url)
-                and not static_link):
+                and not static_link
+                and not _target_updated(target, existing_link[0].create_date)):
             return existing_link[0].file_url, True
 
-        if (os.path.isfile(existing_link[0].file_url) \
-                and not static_link):
+        if (os.path.isfile(existing_link[0].file_url)
+                and not static_link
+                and not _target_updated(target, existing_link[0].create_date)):
             # Repeat call, file is currently being created by another process.
             return existing_link[0].file_url, False
 
-        # Recreate file.
-        zip_contents = _create_structures_dict(target,
-                                               proteins,
-                                               protein_params,
-                                               other_params)
-        _create_structures_zip(target,
-                               zip_contents,
-                               existing_link[0].file_url,
-                               existing_link[0].original_search,
-                               host)
-        existing_link[0].keep_zip_until = get_keep_until()
-        existing_link[0].zip_file = True
+        # Recreate file from existing link
+        download_link = existing_link[0]
         if static_link:
-            # Changing from a dynamic to a static link
-            existing_link[0].static_link = static_link
-            existing_link[0].zip_contents = zip_contents
-        existing_link[0].save()
-        return existing_link[0].file_url, True
+            download_link.static_link = static_link
+    else:
+        # Create a new link for this user
+        # /code/media/downloads/<download_uuid>
+        filename = target.title +'.zip'
+        media_root = settings.MEDIA_ROOT
+        file_url = os.path.join(media_root, 'downloads', str(uuid.uuid4()), filename)
 
-    # Create a new link for this user
-    # /code/media/downloads/<download_uuid>
-    filename = target.title +'.zip'
-    media_root = settings.MEDIA_ROOT
-    file_url = os.path.join(media_root, 'downloads', str(uuid.uuid4()), filename)
+        # Save search so that the file build is in the system for future calls
+        download_link = DownloadLinks()
+        download_link.file_url = file_url
+        if request.user.is_authenticated:
+            download_link.user = request.user
+        else:
+            download_link.user = None
+        download_link.target = target
+        download_link.proteins = proteins_list
+        download_link.protein_params = protein_params
+        download_link.other_params = other_params
+        download_link.static_link = static_link
+        download_link.original_search = original_search
+        download_link.create_date = datetime.datetime.now(datetime.timezone.utc)
+        download_link.keep_zip_until = get_keep_until()
+        download_link.save()
 
+    # Recreate file
     zip_contents = _create_structures_dict(target,
                                            proteins,
                                            protein_params,
@@ -569,30 +596,20 @@ def check_download_links(request,
 
     _create_structures_zip(target,
                            zip_contents,
-                           file_url,
-                           original_search,
+                           download_link.file_url,
+                           download_link.original_search,
                            host)
 
-    download_link = DownloadLinks()
-    download_link.file_url = file_url
-    if request.user.is_authenticated:
-        download_link.user = request.user
-    else:
-        download_link.user = None
-    download_link.target = target
-    download_link.proteins = proteins_list
-    download_link.protein_params = protein_params
-    download_link.other_params = other_params
-    download_link.static_link = static_link
+    # Update significant details
     if static_link:
         download_link.zip_contents = zip_contents
     download_link.create_date = datetime.datetime.now(datetime.timezone.utc)
     download_link.keep_zip_until = get_keep_until()
     download_link.zip_file = True
-    download_link.original_search = original_search
     download_link.save()
 
-    return file_url, True
+    return download_link.file_url, True
+
 
 def recreate_static_file (existing_link, host):
     """Recreate static file for existing link
