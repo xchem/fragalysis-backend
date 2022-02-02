@@ -108,6 +108,7 @@ ENV/
 /scoring/migrations/
 /hypothesis/migrations/
 /hotspots/migrations/
+/car/migrations/
 /tmp/
 /database_check.py
 /dump.rdb
