@@ -27,7 +27,8 @@ from .models import (
 # Import OT Session models
 from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, CompoundOrder, OTScript
 
-from rest_framework import viewsets, permissions, filters
+from django_filters.rest_framework import filters
+from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from django.http import JsonResponse
 from django.core.files.base import ContentFile
