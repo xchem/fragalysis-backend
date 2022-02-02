@@ -27,7 +27,7 @@ from .models import (
 # Import OT Session models
 from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, CompoundOrder, OTScript
 
-from django_filters.rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from django.http import JsonResponse
@@ -112,7 +112,7 @@ class TargetViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = TargetSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=project_id__id"]
 
 
@@ -123,7 +123,7 @@ class MethodViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = MethodSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=target_id__id", "nosteps"]
 
 
@@ -150,7 +150,7 @@ class ReactionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = ReactionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=method_id__id"]
     filter_fields = {"successrate": ["gte", "lte"]}
 
@@ -162,7 +162,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = ProductSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -173,7 +173,7 @@ class AnalyseActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = AnalyseActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -185,7 +185,7 @@ class IBMAddActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMAddActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
     def get_patch_object(self, pk):
@@ -233,7 +233,7 @@ class IBMCollectLayerActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMCollectLayerActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -244,7 +244,7 @@ class IBMConcentrateActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMConcentrateActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -255,7 +255,7 @@ class IBMDegasActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMDegasActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -266,7 +266,7 @@ class IBMDrySolidActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMDrySolidActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -277,7 +277,7 @@ class IBMDrySolutionActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMDrySolutionActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -288,7 +288,7 @@ class IBMExtractActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMExtractActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -299,7 +299,7 @@ class IBMFilterActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMFilterActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -310,7 +310,7 @@ class IBMMakeSolutionActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMMakeSolutionActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -321,7 +321,7 @@ class IBMPartitionActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMPartitionActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -332,7 +332,7 @@ class IBMpHActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMpHActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -343,7 +343,7 @@ class IBMPhaseSeparationActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMPhaseSeparationActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -354,7 +354,7 @@ class IBMQuenchActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMQuenchActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -365,7 +365,7 @@ class IBMRefluxActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMRefluxActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -376,7 +376,7 @@ class IBMSetTemperatureActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMSetTemperatureActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -387,7 +387,7 @@ class IBMStirActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMStirActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -398,7 +398,7 @@ class IBMStoreActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMStoreActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -409,7 +409,7 @@ class IBMWaitActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMWaitActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -420,7 +420,7 @@ class IBMWashActionViewSet(viewsets.ModelViewSet):
         permissions.AllowAny
     ]
     serializer_class = IBMWashActionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=reaction_id__id"]
 
 
@@ -429,7 +429,7 @@ class OTSessionViewSet(viewsets.ModelViewSet):
     queryset = OTSession.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = OTSessionSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=project_id__id"]
 
 
@@ -437,7 +437,7 @@ class DeckViewSet(viewsets.ModelViewSet):
     queryset = Deck.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = DeckSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["= otsession_id__id"]
 
 
@@ -445,7 +445,7 @@ class PipetteViewSet(viewsets.ModelViewSet):
     queryset = Pipette.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = PipetteSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=otsession_id__id"]
 
 
@@ -453,7 +453,7 @@ class TipRackViewSet(viewsets.ModelViewSet):
     queryset = TipRack.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = TipRackSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=otsession_id__id"]
 
 
@@ -461,7 +461,7 @@ class PlateViewSet(viewsets.ModelViewSet):
     queryset = Plate.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = PlateSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=otsession_id__id"]
 
 
@@ -469,7 +469,7 @@ class WellViewSet(viewsets.ModelViewSet):
     queryset = Well.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = WellSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=otsession_id__id"]
 
 
@@ -477,7 +477,7 @@ class CompoundOrderViewSet(viewsets.ModelViewSet):
     queryset = CompoundOrder.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = CompoundOrderSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=project_id__id"]
 
 
@@ -485,5 +485,5 @@ class OTScriptViewSet(viewsets.ModelViewSet):
     queryset = OTScript.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = OTScriptSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     search_fields = ["=otsession_id__id"]
