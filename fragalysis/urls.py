@@ -37,4 +37,5 @@ urlpatterns = [
     url("oidc/callback/", mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(),
         name="keycloak_callback"),
     url(r"^$", RedirectView.as_view(url="/viewer/react/landing")),
+    url(r"^car/", include("car.urls")),
 ]

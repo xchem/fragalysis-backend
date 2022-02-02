@@ -118,6 +118,8 @@ INSTALLED_APPS = [
     "webpack_loader",
     "django_cleanup",
     "simple_history",
+    # Fragalysis evolution
+    "car",
 ]
 
 MIDDLEWARE = [
