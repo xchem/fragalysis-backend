@@ -1,4 +1,4 @@
-# Fragalysis Download Directory Sturcture
+## Directory structure
 
 A fragalysis download will contain 2-3 folders and some additional files at the top level directory.
 
@@ -6,11 +6,11 @@ At the top level there are 2 files. `metadata.csv` and `smiles.smi`. These are b
 
 `[TARGETNAME]_combined.sdf` may also be present which will contain all the ligand sdf files in a single sdf file.
 
-## aligned directory
+### Aligned directory
 
 The aligned directory contains a subdirectory for each ligand that was selected for downloading.
 
-### Contents of aligned ligand subdirectory
+#### Contents of aligned ligand subdirectory
 
 Depending on your selection of options when downloading the data the follow file suffixes may be present
 
@@ -22,11 +22,11 @@ Depending on your selection of options when downloading the data the follow file
 - [ligand_name].sdf - The Ligand molecule in sdf format
 - [ligand_name]\_transform.json - Tranformation matrix and vector in json format used to align all data together.
 
-## crystallographic directory
+### Crystallographic directory
 
 The crystallographic folder contains the unprocessed versions of all data found in the aligned folder. As one crystal can have mutliple ligands we provide the input crystallographic files once to avoid redundancy and keep download sizes to a minimum.
 
-### Contents of crystal subdirectory
+#### Contents of crystal subdirectory
 
 Depending on your selection of options when downloading the data the follow file suffixes may be present:
 
@@ -37,9 +37,7 @@ Depending on your selection of options when downloading the data the follow file
 - [crystal_name]\_2fofc.(map/ccp4) - estimate of the true electron density from diffraction data and atomic model.
 - [crystal_name]\_fofc.(map/ccp4) - difference electron density map, negative density typically represents where no electron density is found but exists in the atom model. Positive densities represent electron density without mapped atom model.
 
-## extra_files
+### extra_files
 
 If this is present the files in this folder will have been added by the uploader of the data and has no defined structure. As a result we cannot guess what the contents of the file may be but we hope that the uploader of the extra files will have provided a similar
 Files in this folder will be added by the uploader and are largely freeform. Hopefully there will be a readme inside to describe each of the added files.
-
-## Snapshot Details 
