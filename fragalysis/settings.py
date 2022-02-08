@@ -21,6 +21,12 @@ from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG_FRAGALYSIS", "False")
 
+# CAR dummy env variables - comment out when using encrypted secrets
+IBM_API_KEY=123
+MANIFOLD_API_KEY=123
+MCULE_API_KEY=123
+SENDGRID_API_KEY=123
+
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
 # Y                  | Y                 | Shown / Required
