@@ -4,7 +4,7 @@ cd /code
 # initial migrations for existing stack
 python manage.py migrate auth
 python manage.py migrate viewer
-python manage.py migrate scoring hypothesis
+python manage.py migrate scoring hypothesis car
 
 # make and apply new migrations not already in stack
 python /code/manage.py makemigrations auth
