@@ -21,11 +21,24 @@ from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG_FRAGALYSIS", "False")
 
+def setdummyvar(varname):
+    os.environ[varname] = "1"
+
 # CAR dummy env variables - comment out when using encrypted secrets
-IBM_API_KEY=123
-MANIFOLD_API_KEY=123
-MCULE_API_KEY=123
-SENDGRID_API_KEY=123
+# This is NASTY! How to get around when running tests and NOT wanting
+# to share keys in Docker image?
+IBM_API_KEY=os.environ.get("IBM_API_KEY")
+if not IBM_API_KEY:
+    setdummyvar("IBM_API_KEY")
+MANIFOLD_API_KEY=os.environ.get("MANIFOLD_API_KEY")
+if not MANIFOLD_API_KEY:
+    setdummyvar("MANIFOLD_API_KEY")    
+MCULE_API_KEY=os.environ.get("MCULE_API_KEY")
+if not MCULE_API_KEY:
+    setdummyvar("MCULE_API_KEY")
+SENDGRID_API_KEY=os.environ.get("SENDGRID_API_KEY")
+if not SENDGRID_API_KEY:
+    setdummyvar("SENDGRID_API_KEY")
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
