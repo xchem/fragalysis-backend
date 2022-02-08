@@ -46,13 +46,13 @@ name: build main
 on:
   push:
     branches:
-    - 'master'
-    - 'main'
+      - "master"
+      - "main"
     tags:
-    - '**'
-  schedule:
-  # Build every Sunday (0) at 4:30pm
-  - cron: '30 16 * * 0'
+      - "**"
+  # schedule:
+  #   # Build every Sunday (0) at 4:30pm
+  #   - cron: "30 16 * * 0"
 
 env:
   # The following 'defaults' are used in the 'Initialise workflow variables' step,
@@ -62,12 +62,11 @@ env:
   #
   #   For Jobs conditional on the presence of a secret see this Gist...
   #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
-  BE_NAMESPACE: xchem
+  BE_NAMESPACE: waztom
   FE_BRANCH: master
-  FE_NAMESPACE: xchem
+  FE_NAMESPACE: ag-m2ms
   STACK_BRANCH: master
-  STACK_GITHUB_NAMESPACE: xchem
-  STACK_NAMESPACE: xchem
+  STACK_GITHUB_NAMESPACE: waztom
 
 jobs:
   build:
@@ -77,103 +76,81 @@ jobs:
       tag: ${{ steps.vars.outputs.tag }}
       trigger: ${{ steps.vars.outputs.trigger }}
     steps:
-    - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@v3.x
-    - name: Initialise workflow variables
-      id: vars
-      env:
-        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        TRIGGER_DOWNSTREAM: ${{ secrets.TRIGGER_DOWNSTREAM }}
-      run: |
-        # BE_NAMESPACE
-        BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
-        if [ -n "${{ secrets.BE_NAMESPACE }}" ]; then BE_NAMESPACE="${{ secrets.BE_NAMESPACE }}"; fi
-        echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
-        echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v3.x
+      - name: Initialise workflow variables
+        id: vars
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          # BE_NAMESPACE
+          BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
+          if [ -n "${{ secrets.BE_NAMESPACE }}" ]; then BE_NAMESPACE="${{ secrets.BE_NAMESPACE }}"; fi
+          echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
+          echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
 
-        # FE_BRANCH
-        FE_BRANCH="${{ env.FE_BRANCH }}"
-        if [ -n "${{ secrets.FE_BRANCH }}" ]; then FE_BRANCH="${{ secrets.FE_BRANCH }}"; fi
-        echo set-output name=FE_BRANCH::${FE_BRANCH}
-        echo ::set-output name=FE_BRANCH::${FE_BRANCH}
+          # FE_BRANCH
+          FE_BRANCH="${{ env.FE_BRANCH }}"
+          if [ -n "${{ secrets.FE_BRANCH }}" ]; then FE_BRANCH="${{ secrets.FE_BRANCH }}"; fi
+          echo set-output name=FE_BRANCH::${FE_BRANCH}
+          echo ::set-output name=FE_BRANCH::${FE_BRANCH}
 
-        # FE_NAMESPACE
-        FE_NAMESPACE="${{ env.FE_NAMESPACE }}"
-        if [ -n "${{ secrets.FE_NAMESPACE }}" ]; then FE_NAMESPACE="${{ secrets.FE_NAMESPACE }}"; fi
-        echo set-output name=FE_NAMESPACE::${FE_NAMESPACE}
-        echo ::set-output name=FE_NAMESPACE::${FE_NAMESPACE}
+          # FE_NAMESPACE
+          FE_NAMESPACE="${{ env.FE_NAMESPACE }}"
+          if [ -n "${{ secrets.FE_NAMESPACE }}" ]; then FE_NAMESPACE="${{ secrets.FE_NAMESPACE }}"; fi
+          echo set-output name=FE_NAMESPACE::${FE_NAMESPACE}
+          echo ::set-output name=FE_NAMESPACE::${FE_NAMESPACE}
 
-        # STACK_BRANCH
-        STACK_BRANCH="${{ env.STACK_BRANCH }}"
-        if [ -n "${{ secrets.STACK_BRANCH }}" ]; then STACK_BRANCH="${{ secrets.STACK_BRANCH }}"; fi
-        echo set-output name=STACK_BRANCH::${STACK_BRANCH}
-        echo ::set-output name=STACK_BRANCH::${STACK_BRANCH}
+          # STACK_BRANCH
+          STACK_BRANCH="${{ env.STACK_BRANCH }}"
+          if [ -n "${{ secrets.STACK_BRANCH }}" ]; then STACK_BRANCH="${{ secrets.STACK_BRANCH }}"; fi
+          echo set-output name=STACK_BRANCH::${STACK_BRANCH}
+          echo ::set-output name=STACK_BRANCH::${STACK_BRANCH}
 
-        # STACK_GITHUB_NAMESPACE
-        STACK_GITHUB_NAMESPACE="${{ env.STACK_GITHUB_NAMESPACE }}"
-        if [ -n "${{ secrets.STACK_GITHUB_NAMESPACE }}" ]; then STACK_GITHUB_NAMESPACE="${{ secrets.STACK_GITHUB_NAMESPACE }}"; fi
-        echo set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
-        echo ::set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
+          # STACK_GITHUB_NAMESPACE
+          STACK_GITHUB_NAMESPACE="${{ env.STACK_GITHUB_NAMESPACE }}"
+          if [ -n "${{ secrets.STACK_GITHUB_NAMESPACE }}" ]; then STACK_GITHUB_NAMESPACE="${{ secrets.STACK_GITHUB_NAMESPACE }}"; fi
+          echo set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
+          echo ::set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
 
-        # STACK_NAMESPACE
-        STACK_NAMESPACE="${{ env.STACK_NAMESPACE }}"
-        if [ -n "${{ secrets.STACK_NAMESPACE }}" ]; then STACK_NAMESPACE="${{ secrets.STACK_NAMESPACE }}"; fi
-        echo set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
-        echo ::set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
+          # STACK_NAMESPACE
+          STACK_NAMESPACE="${{ env.STACK_NAMESPACE }}"
+          if [ -n "${{ secrets.STACK_NAMESPACE }}" ]; then STACK_NAMESPACE="${{ secrets.STACK_NAMESPACE }}"; fi
+          echo set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
+          echo ::set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
 
-        # What image tag are we using? 'latest' (if not tagged) or a GitHub tag?
-        TAG="latest"
-        if [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then TAG="${{ env.GITHUB_REF_SLUG }}"; fi
-        echo set-output name=tag::${TAG}
-        echo ::set-output name=tag::${TAG}
+          # What image tag are we using? 'latest' (if not tagged) or a GitHub tag?
+          TAG="latest"
+          if [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then TAG="${{ env.GITHUB_REF_SLUG }}"; fi
+          echo set-output name=tag::${TAG}
+          echo ::set-output name=tag::${TAG}
 
-        # Do we push, i.e. is DOCKERHUB_USERNAME defined?
-        echo set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
-        echo ::set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
+          # Do we push, i.e. is DOCKERHUB_USERNAME defined?
+          echo set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
+          echo ::set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
 
-        # Do we trigger downstream, i.e. is TRIGGER_DOWNSTREAM 'yes'?
-        echo set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
-        echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Checkout
-      uses: actions/checkout@v2
-
-    - name: Build
-      uses: docker/build-push-action@v2
-      with:
-        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
-    - name: Test
-      run: >
-        docker-compose -f docker-compose.test.yml up
-        --build
-        --exit-code-from tests
-        --abort-on-container-exit
-      env:
-        BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
-        BE_TAG: ${{ steps.vars.outputs.tag }}
-    - name: Login to DockerHub
-      if: steps.vars.outputs.push == 'true'
-      uses: docker/login-action@v1
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-    - name: Push
-      if: steps.vars.outputs.push == 'true'
-      run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
-
-    - name: Trigger stack
-      if: steps.vars.outputs.trigger == 'true'
-      uses: informaticsmatters/trigger-ci-action@v1
-      with:
-        ci-owner: ${{ steps.vars.outputs.STACK_GITHUB_NAMESPACE }}
-        ci-repository: fragalysis-stack
-        ci-name: build main
-        ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
-        ci-inputs: >-
-          be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
-          be_image_tag=${{ steps.vars.outputs.BE_IMAGE_TAG }}
-          fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
-          fe_branch=${{ steps.vars.outputs.FE_BRANCH }}
-          stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
-        ci-user: ${{ secrets.STACK_USER }}
-        ci-user-token: ${{ secrets.STACK_USER_TOKEN }}
+      - name: Build
+        uses: docker/build-push-action@v2
+        with:
+          tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+      - name: Test
+        run: >
+          docker-compose -f docker-compose.test.yml up
+          --build
+          --exit-code-from tests
+          --abort-on-container-exit
+        env:
+          BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
+          BE_TAG: ${{ steps.vars.outputs.tag }}
+      - name: Login to DockerHub
+        if: steps.vars.outputs.push == 'true'
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push
+        if: steps.vars.outputs.push == 'true'
+        run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
