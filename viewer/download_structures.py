@@ -231,21 +231,21 @@ def _extra_files_zip(ziparchive, target):
                     filepath,
                     os.path.join(_ZIP_FILEPATHS['extra_files'], file))
 
-def _get_external_download_url(download_path, host):
-    """Returns the external download URL from the internal url for
-    the documentation.
-    This a bit messy but requirements change and this should be replaced
-    by data from the frontend in a future issue.
-    """
-
-    download_base = os.path.join(settings.MEDIA_ROOT, 'downloads')
-    download_uuid = download_path.replace(download_base, "")
-    external_path = os.path.join(
-        settings.SECURE_PROXY_SSL_HEADER[1] + '://' + host,
-        'viewer/react/download/tag')
-    external_path = external_path+download_uuid
-
-    return external_path
+# def _get_external_download_url(download_path, host):
+#     """Returns the external download URL from the internal url for
+#     the documentation.
+#     This a bit messy but requirements change and this should be replaced
+#     by data from the frontend in a future issue.
+#     """
+#
+#     download_base = os.path.join(settings.MEDIA_ROOT, 'downloads')
+#     download_uuid = download_path.replace(download_base, "")
+#     external_path = os.path.join(
+#         settings.SECURE_PROXY_SSL_HEADER[1] + '://' + host,
+#         'viewer/react/download/tag')
+#     external_path = external_path+download_uuid
+#
+#     return external_path
 
 def _document_file_zip(ziparchive, download_path, original_search, host):
     """Create the document file
@@ -263,10 +263,11 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
         readme.write("# Documentation for the downloaded zipfile\n")
         # Download links
         readme.write("## Download details\n")
-        readme.write("### Download URLs\n")
-        readme.write("- Download URL: <")
-        ext_url = _get_external_download_url(download_path, host)
-        readme.write(ext_url+">\n")
+        # Removed as the URL wasn't being generated correctly.
+        #readme.write("### Download URLs\n")
+        #readme.write("- Download URL: <")
+        #ext_url = _get_external_download_url(download_path, host)
+        #readme.write(ext_url+">\n")
 
         # Original Search
         readme.write("\n### Download command (JSON)\n")
