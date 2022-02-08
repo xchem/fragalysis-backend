@@ -65,8 +65,6 @@ env:
   BE_NAMESPACE: waztom
   FE_BRANCH: master
   FE_NAMESPACE: ag-m2ms
-  STACK_BRANCH: master
-  STACK_GITHUB_NAMESPACE: waztom
 
 jobs:
   build:
