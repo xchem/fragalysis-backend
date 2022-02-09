@@ -145,7 +145,7 @@ def draw_mol(
         # ad hoc calculation to determine a reasonable font size
         # the 2022_03 RDKit release is expected to have a better solution for this
         min_dim = min(height, width)
-        sfont = round(font * (min_dim + 20) / 100)
+        sfont = round(font * (min_dim + 20) / 150)
 
         rdMolDraw2D.PrepareMolForDrawing(mol, wedgeBonds=False)
         drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
