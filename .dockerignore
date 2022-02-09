@@ -1,2 +1,9 @@
 trigger-travis.py
 trigger-travis-requirements.txt
+# For development container
+.devcontainer/
+static/
+frontend/
+media/
+logs/
+django_app.sock
