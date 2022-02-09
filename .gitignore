@@ -1,5 +1,10 @@
+# For development container
+.devcontainer
 static/
-frontend
+frontend/
+media/
+logs/
+django_app.sock
 
 .idea/
 
@@ -85,7 +90,7 @@ celerybeat-schedule
 *.sage.py
 
 # dotenv
-.env
+.*env
 
 # virtualenv
 .venv
