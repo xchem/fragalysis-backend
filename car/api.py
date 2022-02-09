@@ -27,9 +27,7 @@ from .models import (
 # Import OT Session models
 from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, CompoundOrder, OTScript
 
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, permissions
-from rest_framework.decorators import action
+from rest_framework import viewsets
 from django.http import JsonResponse
 from django.core.files.base import ContentFile
 from django.db.models import Q
@@ -89,42 +87,24 @@ from .utils import createSVGString
 
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = ProjectSerializer
 
 
 class MculeQuoteViewSet(viewsets.ModelViewSet):
     queryset = MculeQuote.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = MculeQuoteSerializer
 
 
 class TargetViewSet(viewsets.ModelViewSet):
     queryset = Target.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = TargetSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=project_id__id"]
+    filterset_fields  = ["project_id"]
 
 
 class MethodViewSet(viewsets.ModelViewSet):
     queryset = Method.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = MethodSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=target_id__id", "nosteps"]
+    filterset_fields = ["target_id", "nosteps"]
 
 
 class GroupByStepsViewSet(viewsets.ModelViewSet):
@@ -145,48 +125,28 @@ class GroupByStepsViewSet(viewsets.ModelViewSet):
 
 class ReactionViewSet(viewsets.ModelViewSet):
     queryset = Reaction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = ReactionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=method_id__id"]
+    filterset_fields = ["method_id"]
     filter_fields = {"successrate": ["gte", "lte"]}
 
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = ProductSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields  = ["reaction_id"]
 
 
 class AnalyseActionViewSet(viewsets.ModelViewSet):
     queryset = AnalyseAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = AnalyseActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 # IBM viewsets here
 class IBMAddActionViewSet(viewsets.ModelViewSet):
     queryset = IBMAddAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMAddActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields  = ["reaction_id"]
 
     def get_patch_object(self, pk):
         return IBMAddAction.objects.get(pk=pk)
@@ -228,262 +188,161 @@ class IBMAddActionViewSet(viewsets.ModelViewSet):
 
 class IBMCollectLayerActionViewSet(viewsets.ModelViewSet):
     queryset = IBMCollectLayerAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMCollectLayerActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 class IBMConcentrateActionViewSet(viewsets.ModelViewSet):
     queryset = IBMConcentrateAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMConcentrateActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 class IBMDegasActionViewSet(viewsets.ModelViewSet):
     queryset = IBMDegasAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMDegasActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 class IBMDrySolidActionViewSet(viewsets.ModelViewSet):
     queryset = IBMDrySolidAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMDrySolidActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 class IBMDrySolutionActionViewSet(viewsets.ModelViewSet):
     queryset = IBMDrySolutionAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMDrySolutionActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
+
 
 
 class IBMExtractActionViewSet(viewsets.ModelViewSet):
     queryset = IBMExtractAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMExtractActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
+
 
 
 class IBMFilterActionViewSet(viewsets.ModelViewSet):
     queryset = IBMFilterAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMFilterActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
+
 
 
 class IBMMakeSolutionActionViewSet(viewsets.ModelViewSet):
     queryset = IBMMakeSolutionAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMMakeSolutionActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
+
 
 
 class IBMPartitionActionViewSet(viewsets.ModelViewSet):
     queryset = IBMPartitionAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMPartitionActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
+
 
 
 class IBMpHActionViewSet(viewsets.ModelViewSet):
     queryset = IBMpHAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMpHActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
+
 
 
 class IBMPhaseSeparationActionViewSet(viewsets.ModelViewSet):
     queryset = IBMPhaseSeparationAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMPhaseSeparationActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 class IBMQuenchActionViewSet(viewsets.ModelViewSet):
     queryset = IBMQuenchAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMQuenchActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
-
+    filterset_fields = ["reaction_id"]
 
 class IBMRefluxActionViewSet(viewsets.ModelViewSet):
     queryset = IBMRefluxAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMRefluxActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 class IBMSetTemperatureActionViewSet(viewsets.ModelViewSet):
     queryset = IBMSetTemperatureAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMSetTemperatureActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_idd"]
 
 
 class IBMStirActionViewSet(viewsets.ModelViewSet):
     queryset = IBMStirAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMStirActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 class IBMStoreActionViewSet(viewsets.ModelViewSet):
     queryset = IBMStoreAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMStoreActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 class IBMWaitActionViewSet(viewsets.ModelViewSet):
     queryset = IBMWaitAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMWaitActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 class IBMWashActionViewSet(viewsets.ModelViewSet):
     queryset = IBMWashAction.objects.all()
-    permission_classes = [
-        # Allows all users to access this model - will change when users addded
-        permissions.AllowAny
-    ]
     serializer_class = IBMWashActionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=reaction_id__id"]
+    filterset_fields = ["reaction_id"]
 
 
 # OT Session viewsets
 class OTSessionViewSet(viewsets.ModelViewSet):
     queryset = OTSession.objects.all()
-    permission_classes = [permissions.AllowAny]
     serializer_class = OTSessionSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=project_id__id"]
+    filterset_fields = ["project_id"]
 
 
 class DeckViewSet(viewsets.ModelViewSet):
     queryset = Deck.objects.all()
-    permission_classes = [permissions.AllowAny]
     serializer_class = DeckSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["= otsession_id__id"]
+    filterset_fields = ["otsession_id"]
 
 
 class PipetteViewSet(viewsets.ModelViewSet):
     queryset = Pipette.objects.all()
-    permission_classes = [permissions.AllowAny]
     serializer_class = PipetteSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=otsession_id__id"]
+    filterset_fields = ["otsession_id"]
 
 
 class TipRackViewSet(viewsets.ModelViewSet):
     queryset = TipRack.objects.all()
-    permission_classes = [permissions.AllowAny]
     serializer_class = TipRackSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=otsession_id__id"]
+    filterset_fields = ["otsession_id"]
 
 
 class PlateViewSet(viewsets.ModelViewSet):
     queryset = Plate.objects.all()
-    permission_classes = [permissions.AllowAny]
     serializer_class = PlateSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=otsession_id__id"]
+    filterset_fields = ["otsession_id"]
 
 
 class WellViewSet(viewsets.ModelViewSet):
     queryset = Well.objects.all()
-    permission_classes = [permissions.AllowAny]
     serializer_class = WellSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=otsession_id__id"]
+    filterset_fields = ["otsession_id"]
 
 
 class CompoundOrderViewSet(viewsets.ModelViewSet):
     queryset = CompoundOrder.objects.all()
-    permission_classes = [permissions.AllowAny]
     serializer_class = CompoundOrderSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=project_id__id"]
+    filterset_fields = ["project_id"]
 
 
 class OTScriptViewSet(viewsets.ModelViewSet):
     queryset = OTScript.objects.all()
-    permission_classes = [permissions.AllowAny]
     serializer_class = OTScriptSerializer
-    filter_backends = [DjangoFilterBackend]
-    search_fields = ["=otsession_id__id"]
+    filterset_fields = ["otsession_id"]
