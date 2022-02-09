@@ -1,7 +1,7 @@
-[![build main](https://github.com/xchem/fragalysis-backend/actions/workflows/build-main.yaml/badge.svg)](https://github.com/xchem/fragalysis-backend/actions/workflows/build-main.yaml)
+[![build main](https://github.com/waztom/fragalysis-backend/actions/workflows/build-main.yaml/badge.svg)](https://github.com/waztom/fragalysis-backend/actions/workflows/build-main.yaml)
 
 [![stable](http://badges.github.io/stability-badges/dist/stable.svg)](http://github.com/badges/stability-badges)
-[![Version](http://img.shields.io/badge/version-0.0.1-blue.svg?style=flat)](https://github.com/xchem/fragalysis-backend)
+[![Version](http://img.shields.io/badge/version-0.0.1-blue.svg?style=flat)](https://github.com/waztom/fragalysis-backend)
 [![License](http://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat)](https://github.com/xchem/fragalysis-backend/blob/master/LICENSE.txt)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/xchem/fragalysis-backend.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/xchem/fragalysis-backend/context:python)
 
