@@ -1,5 +1,5 @@
 # For development container
-.devcontainer
+.devcontainer/
 static/
 frontend/
 media/
