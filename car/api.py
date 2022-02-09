@@ -126,8 +126,7 @@ class GroupByStepsViewSet(viewsets.ModelViewSet):
 class ReactionViewSet(viewsets.ModelViewSet):
     queryset = Reaction.objects.all()
     serializer_class = ReactionSerializer
-    filterset_fields = ["method_id"]
-    filter_fields = {"successrate": ["gte", "lte"]}
+    filterset_fields = {"method_id":["exact"] ,"successrate": ["gte", "lte"]}
 
 
 class ProductViewSet(viewsets.ModelViewSet):
