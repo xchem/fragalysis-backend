@@ -88,7 +88,7 @@ def highlight_diff(prb_mol, ref_mol, width, height):
 
 def draw_mol(
         smiles,
-        height=34,
+        height=49,
         width=150,
         img_type=None,
         highlightAtoms=[],
@@ -108,7 +108,6 @@ def draw_mol(
         mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return "None Mol"
-    # AllChem.Compute2DCoords(mol)
     Chem.Kekulize(mol)
     if not height:
         height = 200
@@ -133,18 +132,30 @@ def draw_mol(
         img.save(response, "PNG")
         return response
     else:
+
+        hac = mol.GetNumHeavyAtoms()
+        if hac < 20:
+            font = 20
+        elif hac < 30:
+            font = 18
+        elif hac < 40:
+            font = 12
+        else:
+            font = 10
+        # ad hoc calculation to determine a reasonable font size
+        # the 2022_03 RDKit release is expected to have a better solution for this
+        min_dim = min(height, width)
+        sfont = round(font * (min_dim + 20) / 150)
+
         rdMolDraw2D.PrepareMolForDrawing(mol, wedgeBonds=False)
         drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
         drawopt = drawer.drawOptions()
         drawopt.clearBackground = False
-        drawopt.fixedBondLength = 30
-        drawopt.padding = 0.01
+        drawopt.padding = 0.05
         drawopt.bondLineWidth = 1
         drawopt.additionalAtomLabelPadding = 0.15
-        # Fix font size to 8 for now - it will become configurable through
-        # a new parameter.
-        drawopt.minFontSize = 8
-        drawopt.maxFontSize = 8
+        drawopt.minFontSize = sfont
+        drawopt.maxFontSize = sfont
 
         drawer.DrawMolecule(
             mol,
@@ -156,8 +167,6 @@ def draw_mol(
 
         drawer.FinishDrawing()
         return drawer.GetDrawingText()
-        #return drawer.GetDrawingText().replace("svg:", "").replace(
-        #    'stroke-width:2px', 'stroke-width:1.5px')
 
 
 def parse_vectors(vector_list):
