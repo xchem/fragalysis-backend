@@ -7,6 +7,8 @@ from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.conf import settings
 from celery.result import AsyncResult
+
+from viewer.tasks import check_services
 from .forms import API_CHOICES, UploadForm
 from .tasks import (
     validateFileUpload,
@@ -30,6 +32,7 @@ class UploadProject(View):
         return render(request, "backend/upload.html", {"form": form})
 
     def post(self, request):
+        check_services()
         form = UploadForm(request.POST, request.FILES)
         if form.is_valid():
             project_info = {}
