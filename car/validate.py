@@ -33,8 +33,8 @@ class ValidateFile(object):
             self.validatecustomcombichem()
 
         if self.upload_type == "retro-API":
-            self.expected_no_columns = 2
-            self.expected_column_names = ["targets", "amount-required-mg"]
+            self.expected_no_columns = 3
+            self.expected_column_names = ["targets", "amount-required-mg", "batch-tag"]
             self.checkNumberColumns()
             if self.validated:
                 self.checkColumnNames()
@@ -44,6 +44,8 @@ class ValidateFile(object):
                 self.checkTargetSMILES()
                 if self.validated:
                     self.checkIsNumber()
+                if self.validated:
+                    self.checkIsString()
 
     def validatecustomchem(self):
         self.expected_no_columns = 4
@@ -186,6 +188,19 @@ class ValidateFile(object):
                     ),
                 )
                 self.validated = False
+    
+    def checkIsString(self):
+        self.batch_tags = [tag.strip() for tag in self.df["batch-tag"]]
+        for index, tag in zip(self.index_df_rows, self.batch_tags):
+            if not type(tag) == str:
+                self.add_warning(
+                    field="check_string",
+                    warning_string="Batch tag {} at index {} is not a valid string format".format(
+                        tag, index
+                    ),
+                )
+                self.validated = False
+
 
     def checkReaction(self):
         self.product_smiles = []

@@ -1,5 +1,5 @@
 # Import standard models
-from .models import Project, MculeQuote, Target, Method, Reaction, Product, AnalyseAction
+from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Product, AnalyseAction
 
 # Import IBM models
 from .models import (
@@ -36,6 +36,7 @@ from django.db.models import Q
 from .serializers import (
     ProjectSerializer,
     MculeQuoteSerializer,
+    BatchSerializer,
     TargetSerializer,
     MethodSerializer,
     ReactionSerializer,
@@ -94,11 +95,16 @@ class MculeQuoteViewSet(viewsets.ModelViewSet):
     queryset = MculeQuote.objects.all()
     serializer_class = MculeQuoteSerializer
 
+class BatchViewSet(viewsets.ModelViewSet):
+    queryset = Batch.objects.all()
+    serializer_class = BatchSerializer
+    filterset_fields  = ["project_id"]
+
 
 class TargetViewSet(viewsets.ModelViewSet):
     queryset = Target.objects.all()
     serializer_class = TargetSerializer
-    filterset_fields  = ["project_id"]
+    filterset_fields  = ["batch_id"]
 
 
 class MethodViewSet(viewsets.ModelViewSet):

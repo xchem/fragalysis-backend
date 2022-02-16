@@ -29,6 +29,9 @@ class Project(models.Model):
 
         super(Project, self).save(*args, **kwargs)
 
+class Batch(models.Model):
+    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    batch_tag = models.CharField(max_length=20)
 
 class MculeQuote(models.Model):
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
@@ -44,8 +47,8 @@ class Target(models.Model):
         g = "g"
         mg = "mg"
 
+    batch_id = models.ForeignKey(Batch, on_delete=models.CASCADE)
     status = models.BooleanField(default=True)
-    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
     smiles = models.CharField(max_length=255, db_index=True, null=True)
     image = models.FileField(upload_to="targetimages/", max_length=255)
     name = models.CharField(max_length=255, db_index=True, unique=True)
