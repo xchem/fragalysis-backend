@@ -1,36 +1,23 @@
+from rest_framework import viewsets
+from django.http import JsonResponse
+from django.core.files.base import ContentFile
+
 # Import standard models
 from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Product, AnalyseAction
 
-# Import IBM models
+# Import action models
 from .models import (
-    IBMAddAction,
-    IBMCollectLayerAction,
-    IBMConcentrateAction,
-    IBMDegasAction,
-    IBMDrySolidAction,
-    IBMDrySolutionAction,
-    IBMExtractAction,
-    IBMFilterAction,
-    IBMMakeSolutionAction,
-    IBMPartitionAction,
-    IBMpHAction,
-    IBMPhaseSeparationAction,
-    IBMQuenchAction,
-    IBMRefluxAction,
-    IBMSetTemperatureAction,
-    IBMStirAction,
-    IBMStoreAction,
-    IBMWaitAction,
-    IBMWashAction,
+    AddAction,
+    ExtractAction,
+    FilterAction,
+    QuenchAction,
+    SetTemperatureAction,
+    StirAction,
+
 )
 
 # Import OT Session models
 from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, CompoundOrder, OTScript
-
-from rest_framework import viewsets
-from django.http import JsonResponse
-from django.core.files.base import ContentFile
-from django.db.models import Q
 
 # Import standard serializers
 from .serializers import (
@@ -44,27 +31,15 @@ from .serializers import (
     AnalyseActionSerializer,
 )
 
-# Import IBM serializers
+# Import action serializers
 from .serializers import (
-    IBMAddActionSerializer,
-    IBMCollectLayerActionSerializer,
-    IBMConcentrateActionSerializer,
-    IBMDegasActionSerializer,
-    IBMDrySolidActionSerializer,
-    IBMDrySolutionActionSerializer,
-    IBMExtractActionSerializer,
-    IBMFilterActionSerializer,
-    IBMMakeSolutionActionSerializer,
-    IBMPartitionActionSerializer,
-    IBMpHActionSerializer,
-    IBMPhaseSeparationActionSerializer,
-    IBMQuenchActionSerializer,
-    IBMRefluxActionSerializer,
-    IBMSetTemperatureActionSerializer,
-    IBMStirActionSerializer,
-    IBMStoreActionSerializer,
-    IBMWaitActionSerializer,
-    IBMWashActionSerializer,
+    AddActionSerializer,
+    ExtractActionSerializer,
+    FilterActionSerializer,  
+    QuenchActionSerializer,
+    SetTemperatureActionSerializer,
+    StirActionSerializer,
+    
 )
 
 # Import OT Session serializers
@@ -113,22 +88,6 @@ class MethodViewSet(viewsets.ModelViewSet):
     filterset_fields = ["target_id", "nosteps"]
 
 
-class GroupByStepsViewSet(viewsets.ModelViewSet):
-    """ "
-    Viewset to filter methods that have a given no of steps in a particular project
-    """
-
-    serializer_class = MethodSerializer
-
-    def get_queryset(self):
-        projectid = self.request.GET.get("projectid")
-        nosteps = self.request.GET.get("nosteps")
-        targetqueryset = Target.objects.filter(project_id=projectid).order_by("id")
-        targetids = [target.id for target in targetqueryset]
-        methodsqueryset = Method.objects.filter(Q(target_id__in=targetids) & Q(nosteps=nosteps))
-        return methodsqueryset
-
-
 class ReactionViewSet(viewsets.ModelViewSet):
     queryset = Reaction.objects.all()
     serializer_class = ReactionSerializer
@@ -148,13 +107,13 @@ class AnalyseActionViewSet(viewsets.ModelViewSet):
 
 
 # IBM viewsets here
-class IBMAddActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMAddAction.objects.all()
-    serializer_class = IBMAddActionSerializer
+class AddActionViewSet(viewsets.ModelViewSet):
+    queryset = AddAction.objects.all()
+    serializer_class = AddActionSerializer
     filterset_fields  = ["reaction_id"]
 
     def get_patch_object(self, pk):
-        return IBMAddAction.objects.get(pk=pk)
+        return AddAction.objects.get(pk=pk)
 
     # @action(methods=["PATCH"], detail=True)
     def partial_update(self, request, pk):
@@ -177,13 +136,13 @@ class IBMAddActionViewSet(viewsets.ModelViewSet):
             addaction.molecularweight = molecular_weight
             addaction.materialimage = add_svg_fn
             addaction.save()
-            serialized_data = IBMAddActionSerializer(addaction).data
+            serialized_data = AddActionSerializer(addaction).data
             if serialized_data:
                 return JsonResponse(data=serialized_data)
             else:
                 return JsonResponse(data="wrong parameters")
         else:
-            serializer = IBMAddActionSerializer(addaction, data=request.data, partial=True)
+            serializer = AddActionSerializer(addaction, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return JsonResponse(data=serializer.data)
@@ -191,116 +150,35 @@ class IBMAddActionViewSet(viewsets.ModelViewSet):
                 return JsonResponse(data="wrong parameters")
 
 
-class IBMCollectLayerActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMCollectLayerAction.objects.all()
-    serializer_class = IBMCollectLayerActionSerializer
-    filterset_fields = ["reaction_id"]
 
-
-class IBMConcentrateActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMConcentrateAction.objects.all()
-    serializer_class = IBMConcentrateActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class IBMDegasActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMDegasAction.objects.all()
-    serializer_class = IBMDegasActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class IBMDrySolidActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMDrySolidAction.objects.all()
-    serializer_class = IBMDrySolidActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class IBMDrySolutionActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMDrySolutionAction.objects.all()
-    serializer_class = IBMDrySolutionActionSerializer
+class ExtractActionViewSet(viewsets.ModelViewSet):
+    queryset = ExtractAction.objects.all()
+    serializer_class = ExtractActionSerializer
     filterset_fields = ["reaction_id"]
 
 
 
-class IBMExtractActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMExtractAction.objects.all()
-    serializer_class = IBMExtractActionSerializer
+class FilterActionViewSet(viewsets.ModelViewSet):
+    queryset = FilterAction.objects.all()
+    serializer_class = FilterActionSerializer
     filterset_fields = ["reaction_id"]
 
 
-
-class IBMFilterActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMFilterAction.objects.all()
-    serializer_class = IBMFilterActionSerializer
+class QuenchActionViewSet(viewsets.ModelViewSet):
+    queryset = QuenchAction.objects.all()
+    serializer_class = QuenchActionSerializer
     filterset_fields = ["reaction_id"]
 
 
-
-class IBMMakeSolutionActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMMakeSolutionAction.objects.all()
-    serializer_class = IBMMakeSolutionActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-
-class IBMPartitionActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMPartitionAction.objects.all()
-    serializer_class = IBMPartitionActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-
-class IBMpHActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMpHAction.objects.all()
-    serializer_class = IBMpHActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-
-class IBMPhaseSeparationActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMPhaseSeparationAction.objects.all()
-    serializer_class = IBMPhaseSeparationActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class IBMQuenchActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMQuenchAction.objects.all()
-    serializer_class = IBMQuenchActionSerializer
-    filterset_fields = ["reaction_id"]
-
-class IBMRefluxActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMRefluxAction.objects.all()
-    serializer_class = IBMRefluxActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class IBMSetTemperatureActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMSetTemperatureAction.objects.all()
-    serializer_class = IBMSetTemperatureActionSerializer
+class SetTemperatureActionViewSet(viewsets.ModelViewSet):
+    queryset = SetTemperatureAction.objects.all()
+    serializer_class = SetTemperatureActionSerializer
     filterset_fields = ["reaction_idd"]
 
 
-class IBMStirActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMStirAction.objects.all()
-    serializer_class = IBMStirActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class IBMStoreActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMStoreAction.objects.all()
-    serializer_class = IBMStoreActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class IBMWaitActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMWaitAction.objects.all()
-    serializer_class = IBMWaitActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class IBMWashActionViewSet(viewsets.ModelViewSet):
-    queryset = IBMWashAction.objects.all()
-    serializer_class = IBMWashActionSerializer
+class StirActionViewSet(viewsets.ModelViewSet):
+    queryset = StirAction.objects.all()
+    serializer_class = StirActionSerializer
     filterset_fields = ["reaction_id"]
 
 

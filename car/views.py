@@ -12,7 +12,6 @@ from viewer.tasks import check_services
 from .forms import API_CHOICES, UploadForm
 from .tasks import (
     validateFileUpload,
-    uploadIBMReaction,
     uploadManifoldReaction,
     uploadCustomReaction,
 )
@@ -46,7 +45,7 @@ class UploadProject(View):
 
             if str(validate_choice) == "0":
 
-                if str(API_choice) == "2":
+                if str(API_choice) == "1":
                     task_validate = validateFileUpload.delay(
                         csv_fp=tmp_file, validate_type="custom-chem"
                     )
@@ -55,7 +54,7 @@ class UploadProject(View):
                     context["validate_task_status"] = task_validate.status
 
                     return render(request, "backend/upload.html", context)
-                if str(API_choice) == "3":
+                if str(API_choice) == "2":
                     task_validate = validateFileUpload.delay(
                         csv_fp=tmp_file, validate_type="combi-custom-chem"
                     )
@@ -92,26 +91,9 @@ class UploadProject(View):
                     context["upload_task_status"] = task_upload.status
 
                     return render(request, "backend/upload.html", context)
-                    pass
 
+            
                 if str(API_choice) == "1":
-                    task_upload = (
-                        validateFileUpload.s(
-                            csv_fp=tmp_file,
-                            validate_type="retro-API",
-                            project_info=project_info,
-                            validate_only=False,
-                        )
-                        | uploadIBMReaction.s()
-                    ).apply_async()
-
-                    context = {}
-                    context["upload_task_id"] = task_upload.id
-                    context["upload_task_status"] = task_upload.status
-
-                    return render(request, "backend/upload.html", context)
-
-                if str(API_choice) == "2":
                     task_upload = (
                         validateFileUpload.s(
                             csv_fp=tmp_file,
@@ -128,7 +110,7 @@ class UploadProject(View):
 
                     return render(request, "backend/upload.html", context)
 
-                if str(API_choice) == "3":
+                if str(API_choice) == "2":
                     task_upload = (
                         validateFileUpload.s(
                             csv_fp=tmp_file,
@@ -298,19 +280,19 @@ class UploadTaskView(View):
             submitter_email = project_info["submitteremail"]
             project_name = project_info["project_name"]
 
-            if validated:
-                send_mail(
-                    "Project - {} - data uploaded to CAR".format(project_name),
-                    "Hi {} - Good news, your data has been successfully processed and is available at https://car.xchem.diamond.ac.uk/".format(
-                        submitter_name
-                    ),
-                    "waztom@gmail.com",
-                    [submitter_email],
-                    fail_silently=False,
-                )
+            # if validated:
+            #     send_mail(
+            #         "Project - {} - data uploaded to CAR".format(project_name),
+            #         "Hi {} - Good news, your data has been successfully processed and is available at https://car.xchem.diamond.ac.uk/".format(
+            #             submitter_name
+            #         ),
+            #         "waztom@gmail.com",
+            #         [submitter_email],
+            #         fail_silently=False,
+            #     )
 
-                response_data["validated"] = "Validated"
-                return JsonResponse(response_data)
+            #     response_data["validated"] = "Validated"
+            #     return JsonResponse(response_data)
 
             if not validated:
                 pd.set_option("display.max_colwidth", -1)
@@ -326,19 +308,19 @@ class UploadTaskView(View):
 
                 return JsonResponse(response_data)
 
-            else:
-                send_mail(
-                    "Project - {} - data upload failed to CAR".format(project_name),
-                    "Hi {} - Hmmmm, not so good news, your data failed to be processed and uploaded to CAR. Please try again or contact Warren by responding to this email".format(
-                        submitter_name
-                    ),
-                    "waztom@gmail.com",
-                    [submitter_email],
-                    fail_silently=False,
-                )
-                html_table = """<p> Your data was <b>not</b> processed.</p>"""
-                response_data["processed"] = "None"
-                response_data["html"] = html_table
-                return JsonResponse(response_data)
+            # else:
+            #     send_mail(
+            #         "Project - {} - data upload failed to CAR".format(project_name),
+            #         "Hi {} - Hmmmm, not so good news, your data failed to be processed and uploaded to CAR. Please try again or contact Warren by responding to this email".format(
+            #             submitter_name
+            #         ),
+            #         "waztom@gmail.com",
+            #         [submitter_email],
+            #         fail_silently=False,
+            #     )
+            #     html_table = """<p> Your data was <b>not</b> processed.</p>"""
+            #     response_data["processed"] = "None"
+            #     response_data["html"] = html_table
+            #     return JsonResponse(response_data)
 
         return JsonResponse(response_data)

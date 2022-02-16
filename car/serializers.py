@@ -3,27 +3,14 @@ from rest_framework import serializers
 # Import standard models
 from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Product, AnalyseAction
 
-# Import IBM models
+# Import action models
 from .models import (
-    IBMAddAction,
-    IBMCollectLayerAction,
-    IBMConcentrateAction,
-    IBMDegasAction,
-    IBMDrySolidAction,
-    IBMDrySolutionAction,
-    IBMExtractAction,
-    IBMFilterAction,
-    IBMMakeSolutionAction,
-    IBMPartitionAction,
-    IBMpHAction,
-    IBMPhaseSeparationAction,
-    IBMQuenchAction,
-    IBMRefluxAction,
-    IBMSetTemperatureAction,
-    IBMStirAction,
-    IBMStoreAction,
-    IBMWaitAction,
-    IBMWashAction,
+    AddAction,
+    ExtractAction,
+    FilterAction,
+    QuenchAction,
+    SetTemperatureAction,
+    StirAction,
 )
 
 # Import OT session models
@@ -77,123 +64,43 @@ class AnalyseActionSerializer(serializers.ModelSerializer):
 
 
 # IBM models here
-class IBMAddActionSerializer(serializers.ModelSerializer):
+class AddActionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = IBMAddAction
+        model = AddAction
         fields = "__all__"
 
 
-class IBMCollectLayerActionSerializer(serializers.ModelSerializer):
+class ExtractActionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = IBMCollectLayerAction
+        model = ExtractAction
         fields = "__all__"
 
 
-class IBMConcentrateActionSerializer(serializers.ModelSerializer):
+class FilterActionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = IBMConcentrateAction
+        model = FilterAction
         fields = "__all__"
 
 
-class IBMDegasActionSerializer(serializers.ModelSerializer):
+class QuenchActionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = IBMDegasAction
+        model = QuenchAction
         fields = "__all__"
 
 
-class IBMDrySolidActionSerializer(serializers.ModelSerializer):
+class SetTemperatureActionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = IBMDrySolidAction
+        model = SetTemperatureAction
         fields = "__all__"
 
 
-class IBMDrySolutionActionSerializer(serializers.ModelSerializer):
+class StirActionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = IBMDrySolutionAction
-        fields = "__all__"
-
-
-class IBMExtractActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMExtractAction
-        fields = "__all__"
-
-
-class IBMFilterActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMFilterAction
-        fields = "__all__"
-
-
-class IBMMakeSolutionActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMMakeSolutionAction
-        fields = "__all__"
-
-
-class IBMPartitionActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMPartitionAction
-        fields = "__all__"
-
-
-class IBMpHActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMpHAction
-        fields = "__all__"
-
-
-class IBMPhaseSeparationActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMPhaseSeparationAction
-        fields = "__all__"
-
-
-class IBMQuenchActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMQuenchAction
-        fields = "__all__"
-
-
-class IBMRefluxActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMRefluxAction
-        fields = "__all__"
-
-
-class IBMSetTemperatureActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMSetTemperatureAction
-        fields = "__all__"
-
-
-class IBMStirActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMStirAction
-        fields = "__all__"
-
-
-class IBMStoreActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMStoreAction
-        fields = "__all__"
-
-
-class IBMWaitActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMWaitAction
-        fields = "__all__"
-
-
-class IBMWashActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = IBMWashAction
+        model = StirAction
         fields = "__all__"
 
 
 # OT Session serializers
-
-
 class OTSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = OTSession
