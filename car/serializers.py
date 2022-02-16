@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 # Import standard models
-from .models import Project, MculeQuote, Target, Method, Reaction, Product, AnalyseAction
+from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Product, AnalyseAction
 
 # Import IBM models
 from .models import (
@@ -41,6 +41,10 @@ class MculeQuoteSerializer(serializers.ModelSerializer):
         model = MculeQuote
         fields = "__all__"
 
+class BatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Batch
+        fields = "__all__"
 
 class TargetSerializer(serializers.ModelSerializer):
     class Meta:

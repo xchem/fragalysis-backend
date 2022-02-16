@@ -7,6 +7,7 @@ from django.conf.urls.static import static
 from .api import (
     ProjectViewSet,
     MculeQuoteViewSet,
+    BatchViewSet,
     TargetViewSet,
     MethodViewSet,
     GroupByStepsViewSet,
@@ -56,6 +57,7 @@ from .views import UploadProject, ValidateTaskView, UploadTaskView
 router = routers.DefaultRouter()
 router.register("api/projects", ProjectViewSet, "projects")
 router.register("api/mculequotes", MculeQuoteViewSet, "mculequotes")
+router.register("api/batches", BatchViewSet, "batches")
 router.register("api/targets", TargetViewSet, "targets")
 router.register("api/methods", MethodViewSet, "methods")
 router.register("api/groupnosteps", GroupByStepsViewSet, "groupnosteps")

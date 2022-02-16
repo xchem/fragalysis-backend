@@ -13,7 +13,7 @@ import sys
 sys.path.append("..")
 
 # Import standard models
-from ..models import Project, Target, Method, Reaction, Product, AnalyseAction
+from ..models import Batch, Project, Target, Method, Reaction, Product, AnalyseAction
 
 # Import IBM models
 from ..models import (
@@ -55,8 +55,16 @@ def createProjectModel(project_info):
     project.save()
     return project.id, project.name
 
+def createBatchModel(project_id, batch_tag):
+    batch = Batch()
+    project_obj = Project.objects.get(id=project_id)
+    batch.project_id = project_obj
+    batch.batch_tag = batch_tag
+    batch.save()
+    return batch.id 
 
-def createTargetModel(project_id, smiles, target_no, target_mass):
+
+def createTargetModel(batch_id, smiles, target_no, target_mass):
     """
     Function that creates a Target object
     if the csv file uploaded is validated and
@@ -66,12 +74,12 @@ def createTargetModel(project_id, smiles, target_no, target_mass):
     smiles: string a valid smiles
     """
     target = Target()
-    project_obj = Project.objects.get(id=project_id)
-    project_name = project_obj.name
-    target.project_id = project_obj
+    batch_obj = Batch.objects.get(id=batch_id)
+    batch_tag = batch_obj.batch_tag
+    target.batch_id = batch_obj
     target.smiles = smiles
     target.targetmols = calculateproductmols(target_mass, smiles)
-    target.name = "{}-{}".format(project_name, target_no)
+    target.name = "{}-{}".format(batch_tag, target_no)
     target_svg_string = createSVGString(smiles)
     target_svg_fn = default_storage.save(
         "targetimages/" + target.name + ".svg", ContentFile(target_svg_string)
