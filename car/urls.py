@@ -1,7 +1,5 @@
-from django.conf.urls import url, include
+from django.conf.urls import url
 from rest_framework import routers
-from django.conf import settings
-from django.conf.urls.static import static
 
 # Import standard views
 from .api import (
@@ -10,33 +8,20 @@ from .api import (
     BatchViewSet,
     TargetViewSet,
     MethodViewSet,
-    GroupByStepsViewSet,
     ReactionViewSet,
     ProductViewSet,
-    AnalyseActionViewSet,
 )
 
-# Import IBM views
+# Import action views
 from .api import (
-    IBMAddActionViewSet,
-    IBMCollectLayerActionViewSet,
-    IBMConcentrateActionViewSet,
-    IBMDegasActionViewSet,
-    IBMDrySolidActionViewSet,
-    IBMDrySolutionActionViewSet,
-    IBMExtractActionViewSet,
-    IBMFilterActionViewSet,
-    IBMMakeSolutionActionViewSet,
-    IBMPartitionActionViewSet,
-    IBMpHActionViewSet,
-    IBMPhaseSeparationActionViewSet,
-    IBMQuenchActionViewSet,
-    IBMRefluxActionViewSet,
-    IBMSetTemperatureActionViewSet,
-    IBMStirActionViewSet,
-    IBMStoreActionViewSet,
-    IBMWaitActionViewSet,
-    IBMWashActionViewSet,
+    AnalyseActionViewSet,
+    AddActionViewSet,
+    ExtractActionViewSet,
+    FilterActionViewSet,
+    QuenchActionViewSet,
+    SetTemperatureActionViewSet,
+    StirActionViewSet,
+   
 )
 
 # Import OT Session views
@@ -60,43 +45,22 @@ router.register("api/mculequotes", MculeQuoteViewSet, "mculequotes")
 router.register("api/batches", BatchViewSet, "batches")
 router.register("api/targets", TargetViewSet, "targets")
 router.register("api/methods", MethodViewSet, "methods")
-router.register("api/groupnosteps", GroupByStepsViewSet, "groupnosteps")
 router.register("api/reactions", ReactionViewSet, "reactions")
 router.register("api/products", ProductViewSet, "products")
-router.register("api/analyseactions", ProductViewSet, "analyseactions")
 
-# Register IBM action routes
-router.register("api/IBMaddactions", IBMAddActionViewSet, "IBMaddactions")
+# Register action routes
+router.register("api/analyseactions", AnalyseActionViewSet, "analyseactions")
+
+router.register("api/addactions", AddActionViewSet, "addactions")
+router.register("api/extractactions", ExtractActionViewSet, "extractactions")
+router.register("api/filteractions", FilterActionViewSet, "filteractions")
+router.register("api/quenchactions", QuenchActionViewSet, "quenchactions")
 router.register(
-    "api/IBMcollect-layeractions", IBMCollectLayerActionViewSet, "IBMcollect-layeractions"
+    "api/set-temperatureactions",
+    SetTemperatureActionViewSet,
+    "set-temperatureactions",
 )
-router.register("api/IBMconcentrateactions", IBMConcentrateActionViewSet, "IBMconcentrateactions")
-router.register("api/IBMdegasactions", IBMDegasActionViewSet, "IBMdegasactions")
-router.register("api/IBMdry-solidactions", IBMDrySolidActionViewSet, "IBMdry-solidactions")
-router.register("api/IBMdry-solutionactions", IBMDrySolutionActionViewSet, "IBMdry-solutionactions")
-router.register("api/IBMextractactions", IBMExtractActionViewSet, "IBMextractactions")
-router.register("api/IBMfilteractions", IBMFilterActionViewSet, "IBMfilteractions")
-router.register(
-    "api/IBMmake-solutionactions", IBMMakeSolutionActionViewSet, "IBMmake-solutionactions"
-)
-router.register("api/IBMpartitionactions", IBMPartitionActionViewSet, "IBMpartitionactions")
-router.register("api/IBMphactions", IBMpHActionViewSet, "IBMphactions")
-router.register(
-    "api/IBMphase-separationactions",
-    IBMPhaseSeparationActionViewSet,
-    "IBMphase-separationactions",
-)
-router.register("api/IBMquenchactions", IBMQuenchActionViewSet, "IBMquenchactions")
-router.register("api/IBMrefluxactions", IBMRefluxActionViewSet, "IBMrefluxactions")
-router.register(
-    "api/IBMset-temperatureactions",
-    IBMSetTemperatureActionViewSet,
-    "IBMset-temperatureactions",
-)
-router.register("api/IBMstiractions", IBMStirActionViewSet, "IBMstiractions")
-router.register("api/IBMstoreactions", IBMStoreActionViewSet, "IBMstoreactions")
-router.register("api/IBMwaitactions", IBMWaitActionViewSet, "IBMwaitactions")
-router.register("api/IBMwashactions", IBMWashActionViewSet, "IBMwashactions")
+router.register("api/stiractions", StirActionViewSet, "stiractions")
 
 # Register Ot Session routes
 router.register("api/otsessions", OTSessionViewSet, "otsessions")

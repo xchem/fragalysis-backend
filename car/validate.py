@@ -1,6 +1,5 @@
 """Checks validation of file for uploading to CAR"""
 from __future__ import annotations
-from itertools import product
 import pandas as pd
 from rdkit import Chem
 
@@ -48,12 +47,13 @@ class ValidateFile(object):
                     self.checkIsString()
 
     def validatecustomchem(self):
-        self.expected_no_columns = 4
+        self.expected_no_columns = 5
         self.expected_column_names = [
             "reactant-1",
             "reactant-2",
             "reaction-name",
             "amount-required-mg",
+            "batch-tag",
         ]
         self.checkNumberColumns()
         if self.validated:
@@ -74,14 +74,17 @@ class ValidateFile(object):
                     self.df["reactant-pair-smiles"] = self.reactant_pair_smiles_ordered
                     self.df["target-smiles"] = self.product_smiles
                     self.checkIsNumber()
+                if self.validated:
+                    self.checkIsString()
 
     def validatecustomcombichem(self):
-        self.expected_no_columns = 4
+        self.expected_no_columns = 5
         self.expected_column_names = [
             "reactant-1",
             "reactant-2",
             "reaction-name",
             "amount-required-mg",
+            "batch-tag"
         ]
         self.checkNumberColumns()
         if self.validated:
@@ -89,8 +92,10 @@ class ValidateFile(object):
         if self.validated:
             self.reactant_pair_smiles = []
             self.reaction_names = []
+            self.batch_tags = []
             grouped = self.df.groupby("reaction-name")
             for name, group in grouped:
+                group = group.reset_index()
                 reactant_1_SMILES = set(
                     [reactant for reactant in group["reactant-1"] if str(reactant) != "nan"]
                 )
@@ -101,8 +106,10 @@ class ValidateFile(object):
                     reactant_1_SMILES=reactant_1_SMILES, reactant_2_SMILES=reactant_2_SMILES
                 )
                 reaction_names = [name] * len(reactant_pair_smiles)
+                batch_tags = [group.at[0,"batch-tag"]] * len(reactant_pair_smiles)
                 self.reactant_pair_smiles = self.reactant_pair_smiles + reactant_pair_smiles
                 self.reaction_names = self.reaction_names + reaction_names
+                self.batch_tags = self.batch_tags + batch_tags
 
             self.checkReactantSMILES()
             if self.validated:
@@ -119,6 +126,7 @@ class ValidateFile(object):
                     self.df["amount-required-mg"] = [amount_required_mg] * len(
                         self.reactant_pair_smiles
                     )
+                    self.df["batch-tag"] = self.batch_tags
                     self.checkIsNumber()
 
     def add_warning(self, field, warning_string):
