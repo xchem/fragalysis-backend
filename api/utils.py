@@ -86,87 +86,103 @@ def highlight_diff(prb_mol, ref_mol, width, height):
     return svg
 
 
-def draw_mol(
-        smiles,
-        height=49,
-        width=150,
-        img_type=None,
-        highlightAtoms=[],
-        atomcolors=[],
-        highlightBonds=[],
-        bondcolors={},
-        mol=None,
-):
+def calc_bounds(conformer):
     """
-    Draw a molecule from a smiles
-    :param smiles: the SMILES to render
-    :param height: the height in px
+    Calculate the X,Y bounds of a molecule, the minimum and maximum X and Y coordinates of any atom in the molecule.
+    It is assumed that the molecule already has 2D coordinates.
+
+    :param mol:
+    :return: X and Y bounds as lists of length 2
+    """
+    x = [0, 0]
+    y = [0, 0]
+    num = conformer.GetOwningMol().GetNumAtoms()
+    for i in range(num):
+        pos = conformer.GetAtomPosition(i)
+        if pos.x < x[0]:
+            x[0] = pos.x
+        if pos.x > x[1]:
+            x[1] = pos.x
+        if pos.y < y[0]:
+            y[0] = pos.y
+        if pos.y > y[1]:
+            y[1] = pos.y
+    return x, y
+
+
+def calc_dims(x, y):
+    """
+    Given the X and Y bounds generated with calc_bounds() calculate the X and Y dimensions
+    :param x:
+    :param y:
+    :return: The X and Y dimensions
+    """
+    xd = x[1] - x[0]
+    yd = y[1] - y[0]
+    return xd, yd
+
+
+def draw_mol(smiles, height=49, width=150, bondWidth=1, scaling=1.0, img_type=None,
+             highlightAtoms=[], atomcolors=[], highlightBonds=[], bondcolors={}, mol=None):
+    """
+    Generate a SVG image of a molecule specified as SMILES
+    :param smiles: The molecuels as SMILES
+    :param the height in px
     :param width: the width in px
-    :return: an SVG as a string of the image
+    :param bondWidth:
+    :param scaling:
+    :param img_type: Ignored. Kept for now for backwards compatibility
+    :param highlightAtoms:
+    :param atomcolors:
+    :param highlightBonds:
+    :param bondcolors:
+    :param mol: an optional mol to use instead of the smiles. Kept for now for backwards compatibility
+    :return:
     """
-    if mol is None:
+
+    if not mol:
         mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return "None Mol"
+
     Chem.Kekulize(mol)
-    if not height:
-        height = 200
-    if not width:
-        width = 200
-    if img_type == "png":
-        img = Draw.MolToImage(
-            mol,
-            highlightBonds=highlightBonds,
-            highlightBondColors=bondcolors,
-        )
-        img = img.convert("RGBA")
-        datas = img.getdata()
-        newData = []
-        for item in datas:
-            if item[0] == 255 and item[1] == 255 and item[2] == 255:
-                newData.append((255, 255, 255, 0))
-            else:
-                newData.append(item)
-        img.putdata(newData)
-        response = HttpResponse(content_type="image/png")
-        img.save(response, "PNG")
-        return response
+    if mol.GetNumConformers() == 0:
+        idx = AllChem.Compute2DCoords(mol)
+        conformer = mol.GetConformer(idx)
     else:
+        conformer = mol.GetConformer(-1) # the default conformer
 
-        hac = mol.GetNumHeavyAtoms()
-        if hac < 20:
-            font = 20
-        elif hac < 30:
-            font = 18
-        elif hac < 40:
-            font = 12
-        else:
-            font = 10
-        # ad hoc calculation to determine a reasonable font size
-        # the 2022_03 RDKit release is expected to have a better solution for this
-        min_dim = min(height, width)
-        sfont = max(round(font * (min_dim + 20) / 175), 6)
+    # Do some maths to determine the optimal font.
+    # If you want to influence this use the scaling parameter.
+    x, y = calc_bounds(conformer)
+    dim_x, dim_y = calc_dims(x, y)
+    scale_x = width / dim_x
+    scale_y = height / dim_y
+    scale = min(scale_x, scale_y)
+    font = max(round(scale * scaling), 6)
 
-        rdMolDraw2D.PrepareMolForDrawing(mol, wedgeBonds=False)
-        drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
-        drawopt = drawer.drawOptions()
-        drawopt.clearBackground = False
-        drawopt.padding = 0.05
-        drawopt.bondLineWidth = 1
-        drawopt.additionalAtomLabelPadding = 0.15
-        drawopt.minFontSize = sfont
-        drawopt.maxFontSize = sfont
+    # Now we can generate the drawing
+    rdMolDraw2D.PrepareMolForDrawing(mol, wedgeBonds=False)
+    drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
 
-        drawer.DrawMolecule(
-            mol,
-            highlightAtoms=highlightAtoms,
-            highlightAtomColors=atomcolors,
-            highlightBonds=highlightBonds,
-            highlightBondColors=bondcolors,
-        )
+    drawopt = drawer.drawOptions()
+    drawopt.clearBackground = False
+    drawopt.padding = 0.05
+    drawopt.bondLineWidth = bondWidth
+    drawopt.minFontSize = font
+    drawopt.maxFontSize = font
+    drawopt.additionalAtomLabelPadding = 0.15
 
-        drawer.FinishDrawing()
-        return drawer.GetDrawingText()
+    drawer.DrawMolecule(
+        mol,
+        highlightAtoms=highlightAtoms,
+        highlightAtomColors=atomcolors,
+        highlightBonds=highlightBonds,
+        highlightBondColors=bondcolors,
+    )
+
+    drawer.FinishDrawing()
+    return drawer.GetDrawingText()
 
 
 def parse_vectors(vector_list):
