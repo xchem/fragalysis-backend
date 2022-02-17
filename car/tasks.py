@@ -1,25 +1,22 @@
 from celery import shared_task
 from django.core.files.storage import default_storage
-from itertools import groupby
 import pandas as pd
+from rdkit.Chem import AllChem
 
-from .models import Project
 from .validate import ValidateFile
-from .IBM.createmodels import (
+from .createmodels import (
     createProjectModel,
     createBatchModel,
     createTargetModel,
     createMethodModel,
     createReactionModel,
     createProductModel,
-    CreateIBMActionModels,
+    CreateEncodedActionModels,
+    CreateMculeQuoteModel,
 )
-from .IBM.apicalls import IBMAPI
-from .manifold.apicalls import getManifoldretrosynthesis
-from .recipebuilder.createmodels import CreateEncodedActionModels, CreateMculeQuoteModel
-from .recipebuilder.encodedrecipes import encoded_recipes
-from rdkit.Chem import AllChem
 
+from .manifold.apicalls import getManifoldretrosynthesis
+from .recipebuilder.encodedrecipes import encoded_recipes
 from .utils import getAddtionOrder
 
 
@@ -65,119 +62,6 @@ def validateFileUpload(csv_fp, validate_type=None, project_info=None, validate_o
 
     return (validate_dict, validated, csv_fp, project_info, uploaded_dict)
 
-
-@shared_task
-def uploadIBMReaction(validate_output):
-
-    validate_dict, validated, csv_fp, project_info, uploaded_dict = validate_output
-
-    if not validated:
-        default_storage.delete(csv_fp)
-        return (validate_dict, validated, project_info)
-
-    if validated:
-        project_id, project_name = createProjectModel(project_info)
-        project_info["project_name"] = project_name
-
-        IBM_API = IBMAPI(project_name=project_name)
-
-        target_no = 1
-        for smiles, target_mass in zip(
-            uploaded_dict["targets"], uploaded_dict["amount-required-mg"]
-        ):
-
-            target_id = createTargetModel(
-                project_id=project_id,
-                smiles=smiles,
-                target_no=target_no,
-                target_mass=target_mass,
-            )
-            max_steps = 3
-            results = IBM_API.getIBMRetroSyn(
-                smiles=smiles,
-                max_steps=max_steps,
-            )
-
-            if results:
-                max_attempts = 3
-                attempts_dict = {}
-
-                no_methods_found = len(results["retrosynthetic_paths"])
-
-                if no_methods_found <= 3:
-                    max_methods = no_methods_found
-                if no_methods_found > 3:
-                    max_methods = 3
-
-                method_no = 1
-                pathway_filter = []
-                for pathway in results["retrosynthetic_paths"]:
-                    try:
-                        attempts_dict[method_no] += 1
-                    except:
-                        attempts_dict[method_no] = 1
-
-                    no_attempts = attempts_dict[method_no]
-
-                    if no_attempts > max_attempts:
-                        break
-
-                    if method_no <= max_methods and pathway["confidence"] > 0.90:
-                        reaction_info = IBM_API.collectIBMReactionInfo(pathway=pathway)
-
-                        if reaction_info:
-                            method_integer = IBM_API.filtermethod(reaction_info=reaction_info)
-
-                            if method_integer not in pathway_filter:
-                                method_no += 1
-                                pathway_filter.append(method_integer)
-
-                                method_id = createMethodModel(
-                                    target_id=target_id,
-                                    nosteps=max_steps,
-                                )
-
-                                product_no = 1
-                                for product_smiles, reaction_class, actions, reaction_smarts in zip(
-                                    reaction_info["product_smiles"],
-                                    reaction_info["rclass"],
-                                    reaction_info["actions"],
-                                    reaction_info["reactions"],
-                                ):
-
-                                    reaction_id = createReactionModel(
-                                        method_id=method_id,
-                                        reaction_class=reaction_class,
-                                        reaction_smarts=reaction_smarts,
-                                    )
-
-                                    createProductModel(
-                                        reaction_id=reaction_id,
-                                        project_name=project_name,
-                                        target_no=target_no,
-                                        method_no=method_no,
-                                        product_no=product_no,
-                                        product_smiles=product_smiles,
-                                    )
-
-                                    CreateIBMActionModels(
-                                        reaction_id=reaction_id,
-                                        actions=actions,
-                                    )
-
-                                    product_no += 1
-
-                    if method_no > max_methods:
-                        break
-
-            target_no += 1
-
-    default_storage.delete(csv_fp)
-
-    return validate_dict, validated, project_info
-
-def keyfunc(x):
-    return x['batch-tag']
 
 @shared_task
 def uploadManifoldReaction(validate_output):
@@ -288,6 +172,7 @@ def uploadManifoldReaction(validate_output):
                                     createProductModel(
                                         reaction_id=reaction_id,
                                         project_name=project_name,
+                                        batch_tag=batch_tag,
                                         target_no=target_no,
                                         method_no=method_no,
                                         product_no=product_no,
@@ -320,6 +205,7 @@ def uploadManifoldReaction(validate_output):
 def uploadCustomReaction(validate_output):
 
     validate_dict, validated, csv_fp, project_info, uploaded_dict = validate_output
+    uploaded_df = pd.DataFrame(uploaded_dict)
 
     if not validated:
         default_storage.delete(csv_fp)
@@ -331,67 +217,76 @@ def uploadCustomReaction(validate_output):
         project_id, project_name = createProjectModel(project_info)
         project_info["project_name"] = project_name
 
-        target_no = 1
-        product_no = 1
-        for reactant_pair_smiles, reaction_name, target_smiles, target_mass in zip(
-            uploaded_dict["reactant-pair-smiles"],
-            uploaded_dict["reaction-name"],
-            uploaded_dict["target-smiles"],
-            uploaded_dict["amount-required-mg"],
-        ):
-            reaction_smarts = AllChem.ReactionFromSmarts(
-                "{}>>{}".format(".".join(reactant_pair_smiles), target_smiles),
-                useSmiles=True,
-            )
-
-            target_id = createTargetModel(
+        grouped_targets = uploaded_df.groupby("batch-tag")
+        
+        for batch_tag, group in grouped_targets:
+            batch_id = createBatchModel(
                 project_id=project_id,
-                smiles=target_smiles,
-                target_no=target_no,
-                target_mass=target_mass,
+                batch_tag=batch_tag, 
             )
 
-            target_no += 1
+            target_no = 1
+            product_no = 1
+            for reactant_pair_smiles, reaction_name, target_smiles, target_mass in zip(
+                group["reactant-pair-smiles"],
+                group["reaction-name"],
+                group["target-smiles"],
+                group["amount-required-mg"],
+            ):
+                reaction_smarts = AllChem.ReactionFromSmarts(
+                    "{}>>{}".format(".".join(reactant_pair_smiles), target_smiles),
+                    useSmiles=True,
+                )
 
-            recipes = encoded_recipes[reaction_name]["recipes"]
+                target_id = createTargetModel(
+                    batch_id=batch_id,
+                    smiles=target_smiles,
+                    target_no=target_no,
+                    target_mass=target_mass,
+                )
 
-            method_no = 1
-            actions = recipes["Standard"]["actions"]
-            stir_action = [action for action in actions if action["name"] == "stir"][0]
-            reaction_temperature = stir_action["content"]["temperature"]["value"]
+                target_no += 1
 
-            method_id = createMethodModel(
-                target_id=target_id,
-                nosteps=1,
-            )
+                recipes = encoded_recipes[reaction_name]["recipes"]
 
-            reaction_id = createReactionModel(
-                method_id=method_id,
-                reaction_class=reaction_name,
-                reaction_temperature=reaction_temperature,
-                reaction_smarts=reaction_smarts,
-            )
+                method_no = 1
+                actions = recipes["Standard"]["actions"]
+                stir_action = [action for action in actions if action["name"] == "stir"][0]
+                reaction_temperature = stir_action["content"]["temperature"]["value"]
 
-            createProductModel(
-                reaction_id=reaction_id,
-                project_name=project_name,
-                target_no=target_no,
-                method_no=method_no,
-                product_no=product_no,
-                product_smiles=target_smiles,
-            )
+                method_id = createMethodModel(
+                    target_id=target_id,
+                    nosteps=1,
+                )
 
-            create_models = CreateEncodedActionModels(
-                actions=actions,
-                target_id=target_id,
-                reaction_id=reaction_id,
-                reactant_pair_smiles=reactant_pair_smiles,
-                reaction_name=reaction_name,
-            )
+                reaction_id = createReactionModel(
+                    method_id=method_id,
+                    reaction_class=reaction_name,
+                    reaction_temperature=reaction_temperature,
+                    reaction_smarts=reaction_smarts,
+                )
 
-            mculeids.append(create_models.mculeidlist)
-            amounts.append(create_models.amountslist)
-            method_no += 1
+                createProductModel(
+                    reaction_id=reaction_id,
+                    project_name=project_name,
+                    batch_tag=batch_tag,
+                    target_no=target_no,
+                    method_no=method_no,
+                    product_no=product_no,
+                    product_smiles=target_smiles,
+                )
+
+                create_models = CreateEncodedActionModels(
+                    actions=actions,
+                    target_id=target_id,
+                    reaction_id=reaction_id,
+                    reactant_pair_smiles=reactant_pair_smiles,
+                    reaction_name=reaction_name,
+                )
+
+                mculeids.append(create_models.mculeidlist)
+                amounts.append(create_models.amountslist)
+                method_no += 1
 
     # CreateMculeQuoteModel(mculeids=mculeids, amounts=amounts, project_id=project_id)
 
