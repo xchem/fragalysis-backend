@@ -269,6 +269,7 @@ def uploadCustomReaction(validate_output):
                 createProductModel(
                     reaction_id=reaction_id,
                     project_name=project_name,
+                    batch_tag=batch_tag,
                     target_no=target_no,
                     method_no=method_no,
                     product_no=product_no,
