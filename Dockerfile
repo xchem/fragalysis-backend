@@ -1,10 +1,11 @@
-FROM informaticsmatters/rdkit-python3-debian:Release_2021_09_2
+FROM debian:bullseye-slim
 ENV PYTHONUNBUFFERED 1
 
 USER root
 
 WORKDIR /code
 COPY requirements.txt /code/
+RUN apt-get install -y python3-rdkit python3-pip python3-pandas python3-psycopg2 black libjpeg-dev
 RUN pip install -r requirements.txt
 
 ADD . /code/

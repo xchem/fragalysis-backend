@@ -64,11 +64,11 @@ mysql-connector==2.1.7
 mysql-connector-python==8.0.21
 neo4j-driver==1.7.6
 nose==1.3.7
-numpy==1.19.1
+# numpy==1.19.1
 openapi-codec==1.3.2
 opentrons==3.19.0
 opentrons-shared-data==3.19.0
-pandas==1.1.0
+# pandas==1.1.0
 pandoc==2.0.1
 paramiko==2.7.1
 parso==0.7.1
@@ -80,7 +80,7 @@ promise==2.3
 prompt-toolkit==3.0.5
 protobuf==3.12.4
 psutil==5.7.2
-psycopg2-binary==2.8.5
+# psycopg2-binary==2.8.5
 ptyprocess==0.6.0
 pyasn1==0.4.8
 pycparser==2.20
@@ -127,7 +127,5 @@ pymysql~=0.10.1
 sphinx
 # Car packages
 pubchempy==1.0.4
-pycule==0.1.9b0 
+pycule==0.2.0b0 
 ratelimit==2.2.1
-rxn4chemistry==0.4.0
-black==21.12b0
