@@ -2,4 +2,4 @@
 /bin/bash /code/makemigrations.sh
 export ISPYB_FLAG=""
 
-python /code/manage.py test --no-input
+python3 /code/manage.py test --no-input
