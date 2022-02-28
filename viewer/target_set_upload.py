@@ -233,14 +233,14 @@ def calc_cpd(cpd_object, mol, projects):
     # Store the isomeric smiles
     smiles = Chem.MolToSmiles(sanitized_mol, isomericSmiles=True)
     # The inchi string is used for unique identification
-    inchi = Chem.MolToInchi(sanitized_mol)
+    inchi = Chem.inchi.MolToInchi(sanitized_mol)
     # Now convert back to inchi to canonicalise
     tmp_mol = Chem.MolFromInchi(inchi)
     if tmp_mol is None:
         # If error in INNCHI READ -> NOT NECCESARILY A KILLER
         sys.stderr.write("INCHI ERROR: " + inchi)
     else:
-        inchi = Chem.MolToInchi(tmp_mol)
+        inchi = Chem.inchi.MolToInchi(tmp_mol)
 
     cpd_object.smiles = smiles
     if len(smiles) > Compound._meta.get_field("smiles").max_length:
