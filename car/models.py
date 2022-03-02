@@ -1,3 +1,4 @@
+from tkinter import CASCADE
 from django.db import models
 from django.utils.text import slugify
 import random
@@ -27,6 +28,7 @@ class Project(models.Model):
 
 class Batch(models.Model):
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    batch_id = models.ForeignKey("Batch", on_delete=models.CASCADE, null=True)
     batch_tag = models.CharField(max_length=50)
 
 
