@@ -1,3 +1,4 @@
+from pyrsistent import field
 from rest_framework import serializers
 
 # Import standard models
@@ -16,8 +17,42 @@ from .models import (
 # Import OT session models
 from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, CompoundOrder, OTScript
 
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+class ReactionSerializer(serializers.ModelSerializer):
+    products = ProductSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Reaction
+        fields = "__all__"
+
+class MethodSerializer(serializers.ModelSerializer):
+    reactions = ReactionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Method
+        fields = "__all__"
+
+class TargetSerializer(serializers.ModelSerializer):
+    methods = MethodSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Target
+        fields = "__all__"
+
+class BatchSerializer(serializers.ModelSerializer):
+    targets = TargetSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Batch
+        fields = "__all__"
 
 class ProjectSerializer(serializers.ModelSerializer):
+    batches = BatchSerializer(many=True, read_only=True)
+
     class Meta:
         model = Project
         fields = "__all__"
@@ -28,42 +63,13 @@ class MculeQuoteSerializer(serializers.ModelSerializer):
         model = MculeQuote
         fields = "__all__"
 
-class BatchSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Batch
-        fields = "__all__"
-
-class TargetSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Target
-        fields = "__all__"
-
-
-class MethodSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Method
-        fields = "__all__"
-
-
-class ReactionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Reaction
-        fields = "__all__"
-
-
-class ProductSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Product
-        fields = "__all__"
-
-
+# Action models here
 class AnalyseActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnalyseAction
         fields = "__all__"
 
 
-# IBM models here
 class AddActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AddAction
