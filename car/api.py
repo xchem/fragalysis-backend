@@ -1,6 +1,11 @@
+from pyexpat import model
+from unittest.mock import DEFAULT
+from django.db import DEFAULT_DB_ALIAS
 from rest_framework import viewsets
 from django.http import JsonResponse
 from django.core.files.base import ContentFile
+from django.contrib.admin.utils import NestedObjects
+from django.db.models.fields.related import ForeignKey      
 
 # Import standard models
 from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Product, AnalyseAction
@@ -60,7 +65,44 @@ from django.core.files.storage import default_storage
 
 from .utils import createSVGString
 
+from collections import OrderedDict
 
+def duplicatemethod(method: Method, new_target: Target):
+    
+    related_reaction_objs = method.reaction_set.all()
+
+    # Duplicate method 
+    method.pk = None
+    method.target_id = new_target
+    method.save()
+
+    for reaction_obj in related_reaction_objs:
+        reaction_obj.pk = None
+        reaction_obj.method_id = method
+        reaction_obj.save()
+
+        # Reaction can only have one product
+        product_obj = reaction_obj.product_set.all()[0]
+        product_obj.pk = None
+        product_obj.method_id = reaction_obj
+        product_obj.save()
+
+        # Reaction can have multiple add actions
+        related_addaction_objs = reaction_obj.addaction_set.all()
+        for addaction_obj in related_addaction_objs:
+            addaction_obj.pk = None
+            addaction_obj.method_id = reaction_obj
+            addaction_obj.save()
+
+        # Reaction can have multiple stir actions
+        related_stiraction_objs = reaction_obj.stiraction_set.all()
+        for stiraction_obj in related_stiraction_objs:
+            stiraction_obj.pk = None
+            stiraction_obj.method_id = reaction_obj
+            stiraction_obj.save()
+
+    return method.id
+        
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
