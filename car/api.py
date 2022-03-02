@@ -117,6 +117,31 @@ class BatchViewSet(viewsets.ModelViewSet):
     serializer_class = BatchSerializer
     filterset_fields  = ["project_id"]
 
+    @action(methods=["post"], detail=True)
+    def createbatch(self, request, **kwargs):
+        method_ids = request.methodids
+        batch_node_id = request.batchnodeid
+        project_id = request.projectid
+        batch_tag = request.batchtag
+        # Create batch
+        batch_node_obj = Batch.objects.get(id=batch_node_id)
+        project_obj = Project.objects.get(id=project_id)
+        batch_obj = self.createBatch(project_obj=project_obj, batch_node_obj=batch_node_obj, batch_tag=batch_tag)
+        # Get methods
+        method_query_set = Method.objects.get(pk__in=method_ids)
+        target_ids = [method_obj.target_id for method_obj in method_query_set]
+        # Get Targets
+        target_query_set = self.getTargetQuerySet(target_ids=target_ids)
+        # Clone Targets
+        return_method_ids = []
+        for target_obj in target_query_set:
+            target_obj_clone = self.cloneTarget(target_obj=target_obj, batch_obj=batch_obj)
+            # Clone methods
+            method_query_set = self.getMethodQuerySet(target_id=target_obj.id, method_ids=method_ids)
+            for method_obj in method_query_set:
+                method_id_clone = duplicatemethod(method=method_obj, new_target=target_obj)
+                
+
 
 class TargetViewSet(viewsets.ModelViewSet):
     queryset = Target.objects.all()
