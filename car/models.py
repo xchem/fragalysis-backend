@@ -1,4 +1,3 @@
-from tkinter import CASCADE
 from django.db import models
 from django.utils.text import slugify
 import random
@@ -27,7 +26,7 @@ class Project(models.Model):
         super(Project, self).save(*args, **kwargs)
 
 class Batch(models.Model):
-    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    project_id = models.ForeignKey(Project, related_name="batches", on_delete=models.CASCADE)
     batch_id = models.ForeignKey("Batch", on_delete=models.CASCADE, null=True)
     batch_tag = models.CharField(max_length=50)
 
@@ -38,7 +37,7 @@ class Target(models.Model):
         g = "g"
         mg = "mg"
 
-    batch_id = models.ForeignKey(Batch, on_delete=models.CASCADE)
+    batch_id = models.ForeignKey(Batch, related_name='targets', on_delete=models.CASCADE)
     status = models.BooleanField(default=True)
     smiles = models.CharField(max_length=255, db_index=True, null=True)
     image = models.FileField(upload_to="targetimages/", max_length=255)
@@ -49,7 +48,7 @@ class Target(models.Model):
 
 
 class Method(models.Model):
-    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
+    target_id = models.ForeignKey(Target, related_name='methods', on_delete=models.CASCADE)
     status = models.BooleanField(default=True)
     nosteps = models.IntegerField(null=True)
     estimatecost = models.FloatField(default=100)
@@ -57,7 +56,7 @@ class Method(models.Model):
 
 
 class Reaction(models.Model):
-    method_id = models.ForeignKey(Method, on_delete=models.CASCADE)
+    method_id = models.ForeignKey(Method, related_name='reactions', on_delete=models.CASCADE)
     reactionclass = models.CharField(max_length=255)
     reactiontemperature = models.IntegerField(default=25)
     reactionimage = models.FileField(
@@ -69,7 +68,7 @@ class Reaction(models.Model):
 
 
 class Product(models.Model):
-    reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(Reaction, related_name='products', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     smiles = models.CharField(max_length=255, db_index=True, null=True)
     image = models.FileField(upload_to="productimages/", max_length=255)

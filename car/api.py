@@ -1,3 +1,4 @@
+from html5lib import serialize
 from rest_framework import viewsets
 from django.http import JsonResponse
 from django.core.files.base import ContentFile  
@@ -105,6 +106,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 class MculeQuoteViewSet(viewsets.ModelViewSet):
     queryset = MculeQuote.objects.all()
     serializer_class = MculeQuoteSerializer
+    
 
 class BatchViewSet(viewsets.ModelViewSet):
     queryset = Batch.objects.all()
@@ -181,13 +183,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     filterset_fields  = ["reaction_id"]
 
 
+# Action viewsets
 class AnalyseActionViewSet(viewsets.ModelViewSet):
     queryset = AnalyseAction.objects.all()
     serializer_class = AnalyseActionSerializer
     filterset_fields = ["reaction_id"]
 
 
-# IBM viewsets here
 class AddActionViewSet(viewsets.ModelViewSet):
     queryset = AddAction.objects.all()
     serializer_class = AddActionSerializer
