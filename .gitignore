@@ -112,10 +112,10 @@ ENV/
 .mypy_cache/
 
 # ignore migrations
-/scoring/migrations/
-/hypothesis/migrations/
-/hotspots/migrations/
-/viewer/migrations/
+# /scoring/migrations/
+# /hypothesis/migrations/
+# /hotspots/migrations/
+# /viewer/migrations/
 /car/migrations/
 /tmp/
 /database_check.py
