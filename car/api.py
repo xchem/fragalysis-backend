@@ -22,13 +22,19 @@ from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, CompoundOrde
 # Import standard serializers
 from .serializers import (
     ProjectSerializer,
+    ProjectSerializerAll,
     MculeQuoteSerializer,
     BatchSerializer,
+    BatchSerializerAll,
     TargetSerializer,
+    TargetSerializerAll,
     MethodSerializer,
+    MethodSerializerAll,
     ReactionSerializer,
+    ReactionSerializerAll,
     ProductSerializer,
     ReactantSerializer,
+    ReactantSerializerAll,
     CatalogEntrySerializer,
 )
 
@@ -101,7 +107,10 @@ def duplicatemethod(method: Method, target_clone: Target):
         
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
-    serializer_class = ProjectSerializer
+    
+    def get_serializer_class(self):
+        fetchall = self.request.GET.get('fetchall', None)
+        return ProjectSerializerAll if fetchall == "yes" else ProjectSerializer
 
 
 class MculeQuoteViewSet(viewsets.ModelViewSet):
@@ -111,8 +120,13 @@ class MculeQuoteViewSet(viewsets.ModelViewSet):
 
 class BatchViewSet(viewsets.ModelViewSet):
     queryset = Batch.objects.all()
-    serializer_class = BatchSerializer
     filterset_fields  = ["project_id"]
+
+    def get_serializer_class(self):
+        fetchall = self.request.GET.get('fetchall', None)
+        return BatchSerializerAll if fetchall == "yes" else BatchSerializer
+
+    
 
     def createBatch(self, project_obj, batch_node_obj, batch_tag):
         batch_obj = Batch()
@@ -161,20 +175,30 @@ class BatchViewSet(viewsets.ModelViewSet):
 
 class TargetViewSet(viewsets.ModelViewSet):
     queryset = Target.objects.all()
-    serializer_class = TargetSerializer
     filterset_fields  = ["batch_id"]
+
+    def get_serializer_class(self):
+        fetchall = self.request.GET.get('fetchall', None)
+        return TargetSerializerAll if fetchall == "yes" else TargetSerializer
+    
 
 
 class MethodViewSet(viewsets.ModelViewSet):
     queryset = Method.objects.all()
-    serializer_class = MethodSerializer
     filterset_fields = ["target_id", "nosteps"]
+
+    def get_serializer_class(self):
+        fetchall = self.request.GET.get('fetchall', None)
+        return MethodSerializerAll if fetchall == "yes" else MethodSerializer
 
 
 class ReactionViewSet(viewsets.ModelViewSet):
     queryset = Reaction.objects.all()
-    serializer_class = ReactionSerializer
     filterset_fields = {"method_id":["exact"] ,"successrate": ["gte", "lte"]}
+
+    def get_serializer_class(self):
+        fetchall = self.request.GET.get('fetchall', None)
+        return ReactionSerializerAll if fetchall == "yes" else ReactionSerializer
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
@@ -183,8 +207,11 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 class ReactantViewSet(viewsets.ModelViewSet):
     queryset = Reactant.objects.all()
-    serializer_class = ReactantSerializer
     filterset_fields = ["reaction_id"]
+
+    def get_serializer_class(self):
+        fetchall = self.request.GET.get('fetchall', None)
+        return ReactantSerializerAll if fetchall == "yes" else ReactantSerializer
 
 class CatalogEntryViewSet(viewsets.ModelViewSet):
     queryset = CatalogEntry.objects.all()
