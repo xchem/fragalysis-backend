@@ -9,7 +9,7 @@ from statistics import mean
 from .mcule.apicalls import MCuleAPI
 
 # Import standard models
-from .models import Project, Batch, Target, Method, Reaction, Product, MculeQuote
+from .models import Project, Batch, Target, Method, Reaction, Product, Reactant, CatalogEntry, MculeQuote
 
 # Import action models
 from .models import (
@@ -110,6 +110,65 @@ def createProductModel(reaction_id, project_name, batch_tag, target_no, method_n
     product.image = product_svg_fn
     product.save()
 
+def createReactantModel(reaction_id, reactant_smiles):
+    reactant = Reactant()
+    reaction_obj = Reaction.objects.get(id=reaction_id)
+    reactant.reaction_id = reaction_obj
+    reactant.smiles = reactant_smiles
+    reactant.save()
+    return reactant.id
+
+def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
+    catalogentry = CatalogEntry()
+    if target_id:
+        target_obj = Target.objects.get(id=target_id)
+        catalogentry.target_id = target_obj
+    if reactant_id:
+        reactant_obj = Reactant.objects.get(id=reactant_id)
+        catalogentry.reactant_id = reactant_obj
+
+    catalogentry.vendor = catalog_entry["catalogName"]
+    catalogentry.catalogid = catalog_entry["catalogId"]
+
+    if catalog_entry["catalogName"] == "generic":
+        catalogentry.price = 0
+        catalogentry.leadtime = 0 
+    
+    if catalog_entry["purchaseInfo"]["isScreening"]:
+        if catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"] != "unknown":
+            catalogentry.leadtime = catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"]
+        else:
+            catalogentry.leadtime = None
+        if catalog_entry["purchaseInfo"]["scrPriceRange"] != "unknown":    
+            priceinfo = catalog_entry["purchaseInfo"]["scrPriceRange"]
+            catalogentry.priceinfo = priceinfo
+            priceinfo = priceinfo.replace(" ","")
+            # Check type of range is less than or given range
+            if priceinfo[0] == "<":
+                upperprice = int(''.join(filter(str.isdigit, priceinfo))) * 1000 
+            if priceinfo[0] == "$":
+                upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1]))) * 1000
+            catalogentry.upperprice = upperprice
+        else:
+            catalogentry.price = None
+    if not catalog_entry["purchaseInfo"]["isScreening"]:
+        if catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"] != "unknown":
+            catalogentry.leadtime = catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"]
+        else:
+            catalogentry.leadtime = None
+        if catalog_entry["purchaseInfo"]["bbPriceRange"] != "unknown":    
+            priceinfo = catalog_entry["purchaseInfo"]["bbPriceRange"]
+            catalogentry.priceinfo = priceinfo
+            priceinfo = priceinfo.replace(" ","")
+            # Check type of range is less than or given range
+            if priceinfo[0] == "<" or priceinfo[0] == ">" :
+                upperprice = int(''.join(filter(str.isdigit, priceinfo)))
+            if priceinfo[0] == "$":
+                upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1])))
+            catalogentry.upperprice = upperprice
+        else:
+            catalogentry.price = None   
+    catalogentry.save()
 
 class CreateEncodedActionModels(object):
     """

@@ -10,6 +10,8 @@ from .api import (
     MethodViewSet,
     ReactionViewSet,
     ProductViewSet,
+    ReactantViewSet,
+    CatalogEntryViewSet,
 )
 
 # Import action views
@@ -47,6 +49,8 @@ router.register("api/targets", TargetViewSet, "targets")
 router.register("api/methods", MethodViewSet, "methods")
 router.register("api/reactions", ReactionViewSet, "reactions")
 router.register("api/products", ProductViewSet, "products")
+router.register("api/reactants", ReactantViewSet, "reactants")
+router.register("api/catalogentries", CatalogEntryViewSet, "catalogentries")
 
 # Register action routes
 router.register("api/analyseactions", AnalyseActionViewSet, "analyseactions")

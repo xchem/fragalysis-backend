@@ -38,7 +38,6 @@ class Target(models.Model):
         mg = "mg"
 
     batch_id = models.ForeignKey(Batch, related_name='targets', on_delete=models.CASCADE)
-    status = models.BooleanField(default=True)
     smiles = models.CharField(max_length=255, db_index=True, null=True)
     image = models.FileField(upload_to="targetimages/", max_length=255)
     name = models.CharField(max_length=255, db_index=True)
@@ -65,6 +64,21 @@ class Reaction(models.Model):
         null=True,
     )
     successrate = models.FloatField(default=0.5)
+
+
+class Reactant(models.Model):
+    reaction_id = models.ForeignKey(Reaction, related_name='reactants', on_delete=models.CASCADE, null=True)
+    smiles = models.CharField(max_length=255)
+
+class CatalogEntry(models.Model):
+    reactant_id = models.ForeignKey(Reactant, related_name='catalogentries', on_delete=models.CASCADE, null=True)
+    target_id = models.ForeignKey(Target, related_name='catalogentries', on_delete=models.CASCADE, null=True)
+
+    vendor = models.CharField(max_length=100)
+    catalogid = models.CharField(max_length=50)
+    priceinfo = models.CharField(max_length=50)
+    upperprice = models.IntegerField(null=True)
+    leadtime = models.IntegerField(null=True)
 
 
 class Product(models.Model):
