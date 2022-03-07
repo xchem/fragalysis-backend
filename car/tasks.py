@@ -71,14 +71,11 @@ def uploadManifoldReaction(validate_output):
         validate_dict, validated, csv_fp, project_info, uploaded_dict = validate_output
         uploaded_df = pd.DataFrame(uploaded_dict)
    
-
         if not validated:
             default_storage.delete(csv_fp)
             return (validate_dict, validated, project_info)
 
         if validated:
-            mculeids = []
-            amounts = []
             project_id, project_name = createProjectModel(project_info)
             project_info["project_name"] = project_name
 
@@ -90,7 +87,7 @@ def uploadManifoldReaction(validate_output):
                     project_id=project_id,
                     batch_tag=batch_tag, 
                 )
-                target_no = 1
+  
                 for target_smiles, target_mass in zip(
                     group["targets"], group["amount-required-mg"]
                 ):
@@ -101,7 +98,6 @@ def uploadManifoldReaction(validate_output):
                     target_id = createTargetModel(
                         batch_id=batch_id,
                         smiles=target_smiles,
-                        target_no=target_no,
                         target_mass=target_mass,
                     )
                     
@@ -113,114 +109,137 @@ def uploadManifoldReaction(validate_output):
                         for catalog_entry in catalog_entries:
                             createCatalogEntryModel(catalog_entry=catalog_entry, target_id=target_id)        
 
-                    target_no += 1
-
-                    method_no = 1
-                    for route in routes:
+                    for route in routes[1:]:
                         no_steps = len(route["reactions"])
+                        reactions = route["reactions"]
+                        encoded_reactions_found = [
+                            reaction for reaction in reactions if reaction["name"] in encoded_recipes
+                        ]
 
-                        if no_steps > 0:
-                            reactions = route["reactions"]
+                        if len(encoded_reactions_found) != no_steps:
+                            method_id = createMethodModel(
+                                target_id=target_id,
+                                nosteps=no_steps,
+                                otchem=False
+                            )
 
-                            reactions_found = [
-                                reaction for reaction in reactions if reaction["name"] in encoded_recipes
-                            ]
-
-                            if len(reactions_found) == no_steps:
-
-                                method_id = createMethodModel(
-                                    target_id=target_id,
-                                    nosteps=no_steps,
+                            for reaction in reversed(reactions):
+                                reaction_name = reaction["name"]
+                                reactant_smiles = reaction["reactantSmiles"]
+                                product_smiles = reaction["productSmiles"]
+                                reaction_smarts = AllChem.ReactionFromSmarts(
+                                    "{}>>{}".format(
+                                        ".".join(reactant_smiles), product_smiles
+                                    ),
+                                    useSmiles=True,
                                 )
 
-                                product_no = 1
-                                for reaction in reversed(reactions):
-                                    reaction_name = reaction["name"]
-                                    if reaction_name in encoded_recipes:
-                                        recipes = encoded_recipes[reaction_name]["recipes"]
-                                        recipe_rxn_smarts = encoded_recipes[reaction_name]["reactionSMARTS"]
-                                        reactant_smiles = reaction["reactantSmiles"]
-                                        product_smiles = reaction["productSmiles"]
+                                reaction_id = createReactionModel(
+                                    method_id=method_id,
+                                    reaction_class=reaction_name,
+                                    reaction_smarts=reaction_smarts,
+                                )
 
-                                        if len(reactant_smiles) == 1:
-                                            actions = recipes["Intramolecular"]["actions"]
-                                            stir_action = [
-                                                action for action in actions if action["name"] == "stir"
-                                            ][0]
-                                            reaction_temperature = stir_action["content"]["temperature"][
-                                                "value"
-                                            ]
-                                            reactant_smiles_ordered = reactant_smiles
-                                        else:
-                                            actions = recipes["Standard"]["actions"]
-                                            stir_action = [
-                                                action for action in actions if action["name"] == "stir"
-                                            ][0]
-                                            reaction_temperature = stir_action["content"]["temperature"][
-                                                "value"
-                                            ]
-                                            reactant_smiles_ordered = getAddtionOrder(
-                                                product_smi=product_smiles,
-                                                reactant_SMILES=reactant_smiles,
-                                                reaction_SMARTS=recipe_rxn_smarts,
-                                            )
-                                            if not reactant_smiles_ordered:
-                                                continue
+                                createProductModel(
+                                    reaction_id=reaction_id,
+                                    project_name=project_name,
+                                    batch_tag=batch_tag,
+                                    product_smiles=product_smiles,
+                                )
 
-                                        reaction_smarts = AllChem.ReactionFromSmarts(
-                                            "{}>>{}".format(
-                                                ".".join(reactant_smiles_ordered), product_smiles
-                                            ),
-                                            useSmiles=True,
+                                for reactant_smi in reactant_smiles:
+                                    reactant_id = createReactantModel(
+                                                    reaction_id=reaction_id,
+                                                    reactant_smiles=reactant_smi,
+                                                    )
+                                    catalog_entries = [molecule["catalogEntries"] for molecule in route["molecules"] if molecule["smiles"] == reactant_smi][0]
+                                    for catalog_entry in catalog_entries:
+                                        createCatalogEntryModel(
+                                            catalog_entry=catalog_entry, 
+                                            reactant_id=reactant_id
                                         )
 
-                                        reaction_id = createReactionModel(
-                                            method_id=method_id,
-                                            reaction_class=reaction_name,
-                                            reaction_temperature=reaction_temperature,
-                                            reaction_smarts=reaction_smarts,
+                        if len(encoded_reactions_found) == no_steps:
+                            method_id = createMethodModel(
+                                target_id=target_id,
+                                nosteps=no_steps,
+                                otchem=True
+                            )
+
+                            for reaction in reversed(reactions):
+                                reaction_name = reaction["name"]
+                                recipes = encoded_recipes[reaction_name]["recipes"]
+                                recipe_rxn_smarts = encoded_recipes[reaction_name]["reactionSMARTS"]
+                                reactant_smiles = reaction["reactantSmiles"]
+                                product_smiles = reaction["productSmiles"]
+
+                                if len(reactant_smiles) == 1:
+                                    actions = recipes["Intramolecular"]["actions"]
+                                    stir_action = [
+                                        action for action in actions if action["name"] == "stir"
+                                    ][0]
+                                    reaction_temperature = stir_action["content"]["temperature"][
+                                        "value"
+                                    ]
+                                    reactant_smiles_ordered = reactant_smiles
+                                else:
+                                    actions = recipes["Standard"]["actions"]
+                                    stir_action = [
+                                        action for action in actions if action["name"] == "stir"
+                                    ][0]
+                                    reaction_temperature = stir_action["content"]["temperature"][
+                                        "value"
+                                    ]
+                                    reactant_smiles_ordered = getAddtionOrder(
+                                        product_smi=product_smiles,
+                                        reactant_SMILES=reactant_smiles,
+                                        reaction_SMARTS=recipe_rxn_smarts,
+                                    )
+                                    if not reactant_smiles_ordered:
+                                        continue
+
+                                reaction_smarts = AllChem.ReactionFromSmarts(
+                                    "{}>>{}".format(
+                                        ".".join(reactant_smiles_ordered), product_smiles
+                                    ),
+                                    useSmiles=True,
+                                )
+
+                                reaction_id = createReactionModel(
+                                    method_id=method_id,
+                                    reaction_class=reaction_name,
+                                    reaction_temperature=reaction_temperature,
+                                    reaction_smarts=reaction_smarts,
+                                )
+
+                                createProductModel(
+                                    reaction_id=reaction_id,
+                                    project_name=project_name,
+                                    batch_tag=batch_tag,
+                                    product_smiles=product_smiles,
+                                )
+
+                                for reactant_smi in reactant_smiles_ordered:
+                                    reactant_id = createReactantModel(
+                                                    reaction_id=reaction_id,
+                                                    reactant_smiles=reactant_smi,
+                                                    )
+                                    
+                                    catalog_entries = [molecule["catalogEntries"] for molecule in route["molecules"] if molecule["smiles"] == reactant_smi][0]
+                                    for catalog_entry in catalog_entries:
+                                        createCatalogEntryModel(
+                                            catalog_entry=catalog_entry, 
+                                            reactant_id=reactant_id
                                         )
 
-                                        createProductModel(
-                                            reaction_id=reaction_id,
-                                            project_name=project_name,
-                                            batch_tag=batch_tag,
-                                            target_no=target_no,
-                                            method_no=method_no,
-                                            product_no=product_no,
-                                            product_smiles=product_smiles,
-                                        )
 
-                                        for reactant_smiles in reactant_smiles_ordered:
-                                            reactant_id = createReactantModel(
-                                                            reaction_id=reaction_id,
-                                                            reactant_smiles=reactant_smiles,
-                                                            )
-                                            
-                                            catalog_entries = [molecule["catalogEntries"] for molecule in route["molecules"] if molecule["smiles"] == reactant_smiles][0]
-                                            for catalog_entry in catalog_entries:
-                                                createCatalogEntryModel(
-                                                    catalog_entry=catalog_entry, 
-                                                    reactant_id=reactant_id
-                                                )
-
-
-                                        create_action_models = CreateEncodedActionModels(
-                                            actions=actions,
-                                            target_id=target_id,
-                                            reaction_id=reaction_id,
-                                            reactant_pair_smiles=reactant_smiles_ordered,
-                                            reaction_name=reaction_name,
-                                        )
-
-                                        mculeids.append(create_action_models.mculeidlist)
-                                        amounts.append(create_action_models.amountslist)
-
-                                    product_no += 1
-
-                        method_no += 1
-
-                # CreateMculeQuoteModel(mculeids=mculeids, amounts=amounts, project_id=project_id)
+                                CreateEncodedActionModels(
+                                    actions=actions,
+                                    target_id=target_id,
+                                    reaction_id=reaction_id,
+                                    reactant_pair_smiles=reactant_smiles_ordered,
+                                    reaction_name=reaction_name,
+                                )
 
             default_storage.delete(csv_fp)
 
@@ -238,8 +257,6 @@ def uploadCustomReaction(validate_output):
         return (validate_dict, validated, project_info)
 
     if validated:
-        mculeids = []
-        amounts = []
         project_id, project_name = createProjectModel(project_info)
         project_info["project_name"] = project_name
 
@@ -251,8 +268,6 @@ def uploadCustomReaction(validate_output):
                 batch_tag=batch_tag, 
             )
 
-            target_no = 1
-            product_no = 1
             for reactant_pair_smiles, reaction_name, target_smiles, target_mass in zip(
                 group["reactant-pair-smiles"],
                 group["reaction-name"],
@@ -267,15 +282,11 @@ def uploadCustomReaction(validate_output):
                 target_id = createTargetModel(
                     batch_id=batch_id,
                     smiles=target_smiles,
-                    target_no=target_no,
                     target_mass=target_mass,
                 )
 
-                target_no += 1
-
                 recipes = encoded_recipes[reaction_name]["recipes"]
 
-                method_no = 1
                 actions = recipes["Standard"]["actions"]
                 stir_action = [action for action in actions if action["name"] == "stir"][0]
                 reaction_temperature = stir_action["content"]["temperature"]["value"]
@@ -296,25 +307,16 @@ def uploadCustomReaction(validate_output):
                     reaction_id=reaction_id,
                     project_name=project_name,
                     batch_tag=batch_tag,
-                    target_no=target_no,
-                    method_no=method_no,
-                    product_no=product_no,
                     product_smiles=target_smiles,
                 )
 
-                create_models = CreateEncodedActionModels(
+                CreateEncodedActionModels(
                     actions=actions,
                     target_id=target_id,
                     reaction_id=reaction_id,
                     reactant_pair_smiles=reactant_pair_smiles,
                     reaction_name=reaction_name,
                 )
-
-                mculeids.append(create_models.mculeidlist)
-                amounts.append(create_models.amountslist)
-                method_no += 1
-
-    # CreateMculeQuoteModel(mculeids=mculeids, amounts=amounts, project_id=project_id)
 
     default_storage.delete(csv_fp)
 

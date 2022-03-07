@@ -45,7 +45,7 @@ class ReactionSerializer(serializers.ModelSerializer):
 
 class ReactionSerializerAll(serializers.ModelSerializer):
     products = ProductSerializer(many=True, read_only=True)
-    reactants = ReactantSerializer(many=True, read_only=True)
+    reactants = ReactantSerializerAll(many=True, read_only=True)
 
     class Meta:
         model = Reaction
@@ -57,7 +57,7 @@ class MethodSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class MethodSerializerAll(serializers.ModelSerializer):
-    reactions = ReactionSerializer(many=True, read_only=True)
+    reactions = ReactionSerializerAll(many=True, read_only=True)
 
     class Meta:
         model = Method
@@ -69,7 +69,7 @@ class TargetSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class TargetSerializerAll(serializers.ModelSerializer):
-    methods = MethodSerializer(many=True, read_only=True)
+    methods = MethodSerializerAll(many=True, read_only=True)
     catalogentries = CatalogEntrySerializer(many=True, read_only=True)
 
     class Meta:
@@ -83,7 +83,7 @@ class BatchSerializer(serializers.ModelSerializer):
 
 
 class BatchSerializerAll(serializers.ModelSerializer):
-    targets = TargetSerializer(many=True, read_only=True)
+    targets = TargetSerializerAll(many=True, read_only=True)
 
     class Meta:
         model = Batch

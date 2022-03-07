@@ -33,16 +33,19 @@ def createProjectModel(project_info):
     project.save()
     return project.id, project.name
 
-def createBatchModel(project_id, batch_tag):
+def createBatchModel(project_id, batch_tag, batch_id=None):
     batch = Batch()
     project_obj = Project.objects.get(id=project_id)
     batch.project_id = project_obj
+    if batch_id:
+        fk_batch_obj = Batch.objects.get(pk=batch_id)
+        batch.batch_id = fk_batch_obj
     batch.batch_tag = batch_tag
     batch.save()
     return batch.id 
 
 
-def createTargetModel(batch_id, smiles, target_no, target_mass):
+def createTargetModel(batch_id, smiles, target_mass):
     """
     Function that creates a Target object
     if the csv file uploaded is validated and
@@ -57,7 +60,7 @@ def createTargetModel(batch_id, smiles, target_no, target_mass):
     target.batch_id = batch_obj
     target.smiles = smiles
     target.targetmols = calculateproductmols(target_mass, smiles)
-    target.name = "{}-{}".format(batch_tag, target_no)
+    target.name = batch_tag
     target_svg_string = createSVGString(smiles)
     target_svg_fn = default_storage.save(
         "targetimages/" + target.name + ".svg", ContentFile(target_svg_string)
@@ -70,17 +73,18 @@ def createTargetModel(batch_id, smiles, target_no, target_mass):
     return target.id
 
 
-def createMethodModel(target_id, nosteps):
+def createMethodModel(target_id, nosteps, otchem):
     method = Method()
     target_obj = Target.objects.get(id=target_id)
     method.target_id = target_obj
     method.nosteps = nosteps
+    method.otchem = otchem
     method.save()
 
     return method.id
 
 
-def createReactionModel(method_id, reaction_class, reaction_temperature, reaction_smarts):
+def createReactionModel(method_id, reaction_class, reaction_smarts, reaction_temperature=None):
     reaction = Reaction()
     method_obj = Method.objects.get(id=method_id)
     reaction.method_id = method_obj
@@ -97,9 +101,9 @@ def createReactionModel(method_id, reaction_class, reaction_temperature, reactio
     return reaction.id
 
 
-def createProductModel(reaction_id, project_name, batch_tag, target_no, method_no, product_no, product_smiles):
+def createProductModel(reaction_id, project_name, batch_tag, product_smiles):
     product = Product()
-    product.name = "{}-{}-{}-{}-{}".format(project_name, batch_tag, target_no, method_no, product_no)
+    product.name = "{}-{}".format(project_name, batch_tag)
     reaction_obj = Reaction.objects.get(id=reaction_id)
     product.reaction_id = reaction_obj
     product.smiles = product_smiles
