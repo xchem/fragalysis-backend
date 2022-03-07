@@ -52,6 +52,7 @@ class Method(models.Model):
     nosteps = models.IntegerField(null=True)
     estimatecost = models.FloatField(default=100)
     synthesise = models.BooleanField(default=True)
+    otchem = models.BooleanField(default=False)
 
 
 class Reaction(models.Model):
