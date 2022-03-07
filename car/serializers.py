@@ -22,6 +22,11 @@ class CatalogEntrySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class ReactantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reactant
+        fields = "__all__"
+
+class ReactantSerializerAll(serializers.ModelSerializer):
     catalogentries = CatalogEntrySerializer(many=True, read_only=True)
 
     class Meta:
@@ -34,6 +39,11 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class ReactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reaction
+        fields = "__all__"
+
+class ReactionSerializerAll(serializers.ModelSerializer):
     products = ProductSerializer(many=True, read_only=True)
     reactants = ReactantSerializer(many=True, read_only=True)
 
@@ -42,6 +52,11 @@ class ReactionSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class MethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Method
+        fields = "__all__"
+
+class MethodSerializerAll(serializers.ModelSerializer):
     reactions = ReactionSerializer(many=True, read_only=True)
 
     class Meta:
@@ -49,6 +64,11 @@ class MethodSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class TargetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Target
+        fields = "__all__"
+
+class TargetSerializerAll(serializers.ModelSerializer):
     methods = MethodSerializer(many=True, read_only=True)
     catalogentries = CatalogEntrySerializer(many=True, read_only=True)
 
@@ -57,18 +77,32 @@ class TargetSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class BatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Batch
+        fields = "__all__"
+
+
+class BatchSerializerAll(serializers.ModelSerializer):
     targets = TargetSerializer(many=True, read_only=True)
 
     class Meta:
         model = Batch
         fields = "__all__"
 
+
 class ProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = "__all__"
+
+
+class ProjectSerializerAll(serializers.ModelSerializer):
     batches = BatchSerializer(many=True, read_only=True)
 
     class Meta:
         model = Project
         fields = "__all__"
+
 
 
 class MculeQuoteSerializer(serializers.ModelSerializer):
