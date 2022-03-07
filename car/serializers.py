@@ -1,8 +1,9 @@
+from asyncore import read
 from pyrsistent import field
 from rest_framework import serializers
 
 # Import standard models
-from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Product, AnalyseAction
+from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Product, Reactant, CatalogEntry, AnalyseAction
 
 # Import action models
 from .models import (
@@ -17,6 +18,18 @@ from .models import (
 # Import OT session models
 from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, CompoundOrder, OTScript
 
+class CatalogEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CatalogEntry
+        fields = "__all__"
+
+class ReactantSerializer(serializers.ModelSerializer):
+    catalogentries = CatalogEntrySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Reactant
+        fields = "__all__"
+
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
@@ -24,6 +37,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ReactionSerializer(serializers.ModelSerializer):
     products = ProductSerializer(many=True, read_only=True)
+    reactants = ReactantSerializer(many=True, read_only=True)
 
     class Meta:
         model = Reaction
@@ -38,6 +52,7 @@ class MethodSerializer(serializers.ModelSerializer):
 
 class TargetSerializer(serializers.ModelSerializer):
     methods = MethodSerializer(many=True, read_only=True)
+    catalogentries = CatalogEntrySerializer(many=True, read_only=True)
 
     class Meta:
         model = Target

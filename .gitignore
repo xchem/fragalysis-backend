@@ -115,6 +115,7 @@ ENV/
 /scoring/migrations/
 /hypothesis/migrations/
 /hotspots/migrations/
+/viewer/migrations/
 /car/migrations/
 /tmp/
 /database_check.py

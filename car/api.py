@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.core.files.base import ContentFile  
 
 # Import standard models
-from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Product, AnalyseAction
+from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Reactant, CatalogEntry, Product, AnalyseAction
 
 # Import action models
 from .models import (
@@ -29,11 +29,13 @@ from .serializers import (
     MethodSerializer,
     ReactionSerializer,
     ProductSerializer,
-    AnalyseActionSerializer,
+    ReactantSerializer,
+    CatalogEntrySerializer,
 )
 
 # Import action serializers
 from .serializers import (
+    AnalyseActionSerializer,
     AddActionSerializer,
     ExtractActionSerializer,
     FilterActionSerializer,  
@@ -176,12 +178,19 @@ class ReactionViewSet(viewsets.ModelViewSet):
     serializer_class = ReactionSerializer
     filterset_fields = {"method_id":["exact"] ,"successrate": ["gte", "lte"]}
 
-
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     filterset_fields  = ["reaction_id"]
 
+class ReactantViewSet(viewsets.ModelViewSet):
+    queryset = Reactant.objects.all()
+    serializer_class = ReactantSerializer
+    filterset_fields = ["reaction_id"]
+
+class CatalogEntryViewSet(viewsets.ModelViewSet):
+    queryset = CatalogEntry.objects.all()
+    serializer_class = CatalogEntrySerializer
 
 # Action viewsets
 class AnalyseActionViewSet(viewsets.ModelViewSet):
