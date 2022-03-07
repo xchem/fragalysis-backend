@@ -1,5 +1,3 @@
-from asyncore import read
-from pyrsistent import field
 from rest_framework import serializers
 
 # Import standard models

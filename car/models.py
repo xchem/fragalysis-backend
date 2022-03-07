@@ -73,9 +73,6 @@ class Reactant(models.Model):
     smiles = models.CharField(max_length=255)
 
 class CatalogEntry(models.Model):
-    # content_type = models.ForeignKey(ContentType, related_name='catalogentries', on_delete=models.CASCADE)
-    # object_id = models.PositiveIntegerField()
-    # content_object = GenericForeignKey('content_type', 'object_id')
     reactant_id = models.ForeignKey(Reactant, related_name='catalogentries', on_delete=models.CASCADE, null=True)
     target_id = models.ForeignKey(Target, related_name='catalogentries', on_delete=models.CASCADE, null=True)
 
