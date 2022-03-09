@@ -165,10 +165,10 @@ class BatchViewSet(viewsets.ModelViewSet):
         method_ids = request.data["methodids"]
         batch_tag = request.data["batchtag"]
         # Get methods
-        method_query_set = Method.objects.get(pk__in=method_ids)
+        method_query_set = Method.objects.filter(pk__in=method_ids)
         target_ids = [method_obj.target_id for method_obj in method_query_set]
         # Get Targets
-        target_query_set = Target.objects.get(pk__in=target_ids)
+        target_query_set = Target.objects.filter(pk__in=target_ids)
         # Use target id of first target_obj to get batch_id and project_id
         batch_obj = Batch.objects.get(pk=target_query_set[0].batch_id)
         project_obj = Project.objects.get(pk=batch_obj.project_id)
@@ -177,9 +177,8 @@ class BatchViewSet(viewsets.ModelViewSet):
         # Clone Targets
         for target_obj in target_query_set:
             target_obj_clone = duplicatetarget(target_obj=target_obj, fk_obj=batch_obj_new)
-            # Clone methods
-            method_query_set =  Method.objects.filter(target_id=target_obj.id).filter(pk__in=method_ids)
-            for method_obj in method_query_set:
+            method_query_set_to_clone =  Method.objects.filter(target_id=target_obj.id).filter(pk__in=method_ids)
+            for method_obj in method_query_set_to_clone:
                 duplicatemethod(method=method_obj, fk_obj=target_obj_clone)
         
         serialized_data = BatchSerializer(batch_obj_new).data
