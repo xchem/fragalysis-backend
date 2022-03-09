@@ -70,7 +70,7 @@ from .utils import createSVGString
 
 def duplicatetarget(target_obj: Target, fk_obj: Batch):
     
-    related_catalogentry_objs = target_obj.catalogentry_set.all()
+    related_catalogentry_objs = target_obj.catalogentries.all()
 
     # Duplicate target
     target_obj.pk = None
@@ -86,7 +86,7 @@ def duplicatetarget(target_obj: Target, fk_obj: Batch):
 
 def duplicatemethod(method_obj: Method, fk_obj: Target):
     
-    related_reaction_objs = method_obj.reaction_set.all()
+    related_reaction_objs = method_obj.reactions.all()
 
     # Duplicate method 
     method_obj.pk = None
@@ -99,16 +99,16 @@ def duplicatemethod(method_obj: Method, fk_obj: Target):
         reaction_obj.save()
 
         # Reaction can only have one product
-        product_obj = reaction_obj.product_set.all()[0]
+        product_obj = reaction_obj.products.all()[0]
         product_obj.pk = None
         product_obj.reaction_id = reaction_obj
         product_obj.save()
 
         # Reaction has multiple reactant objects
-        related_reactant_objs = reaction_obj.reactant_set.all()
+        related_reactant_objs = reaction_obj.reactants.all()
         for reactant_obj in related_reactant_objs:
             # Reactant could have multiple catalog entries
-            related_catalogentry_objs = reactant_obj.catalogentry_set.all()
+            related_catalogentry_objs = reactant_obj.catalogentries.all()
             for catalog_obj in related_catalogentry_objs:
                 catalog_obj.pk = None
                 catalog_obj.reactant_id = reactant_obj
@@ -118,14 +118,14 @@ def duplicatemethod(method_obj: Method, fk_obj: Target):
             reactant_obj.save()        
 
         # Reaction can have multiple add actions
-        related_addaction_objs = reaction_obj.addaction_set.all()
+        related_addaction_objs = reaction_obj.addactions.all()
         for addaction_obj in related_addaction_objs:
             addaction_obj.pk = None
             addaction_obj.method_id = reaction_obj
             addaction_obj.save()
 
         # Reaction can have multiple stir actions
-        related_stiraction_objs = reaction_obj.stiraction_set.all()
+        related_stiraction_objs = reaction_obj.stiractions.all()
         for stiraction_obj in related_stiraction_objs:
             stiraction_obj.pk = None
             stiraction_obj.method_id = reaction_obj
@@ -162,20 +162,18 @@ class BatchViewSet(viewsets.ModelViewSet):
         return batch_obj
 
     def create(self, request, **kwargs):
-        method_ids = request.data["methodids"]
+        method_ids = request.POST.getlist("methodids")
         batch_tag = request.data["batchtag"]
         # Get methods
         method_query_set = Method.objects.filter(pk__in=method_ids)
-        target_ids = [method_obj.target_id for method_obj in method_query_set]
-        # Get Targets
-        target_query_set = Target.objects.filter(pk__in=target_ids)
+        target_objs = [method_obj.target_id for method_obj in method_query_set]
         # Use target id of first target_obj to get batch_id and project_id
-        batch_obj = Batch.objects.get(pk=target_query_set[0].batch_id)
-        project_obj = Project.objects.get(pk=batch_obj.project_id)
+        batch_obj = target_objs[0].batch_id
+        project_obj = batch_obj.project_id
         # Create new batch
         batch_obj_new = self.createBatch(project_obj=project_obj, batch_node_obj=batch_obj, batch_tag=batch_tag)
         # Clone Targets
-        for target_obj in target_query_set:
+        for target_obj in target_objs:
             target_obj_clone = duplicatetarget(target_obj=target_obj, fk_obj=batch_obj_new)
             method_query_set_to_clone =  Method.objects.filter(target_id=target_obj.id).filter(pk__in=method_ids)
             for method_obj in method_query_set_to_clone:

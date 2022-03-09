@@ -113,7 +113,7 @@ class AddAction(models.Model):
         nitrogen = "nitrogen"
         air = "air"
 
-    reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(Reaction, related_name='addactions', on_delete=models.CASCADE)
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     additionorder = models.IntegerField(null=True)
@@ -150,7 +150,7 @@ class ExtractAction(models.Model):
         mmol = "mmol"
         moleq = "moleq"
 
-    reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(Reaction, related_name='extractactions', on_delete=models.CASCADE)
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     solvent = models.CharField(max_length=100)
@@ -169,7 +169,7 @@ class FilterAction(models.Model):
         mmol = "mmol"
         moleq = "moleq"
 
-    reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(Reaction, related_name='filteractions', on_delete=models.CASCADE)
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     phasetokeep = models.CharField(
@@ -201,7 +201,7 @@ class QuenchAction(models.Model):
         mmol = "mmol"
         moleq = "moleq"
 
-    reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(Reaction, related_name='quenchactions', on_delete=models.CASCADE)
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
 
@@ -220,7 +220,7 @@ class SetTemperatureAction(models.Model):
         degcel = "degC"
         kelvin = "K"
 
-    reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(Reaction, related_name='settemperatureactions', on_delete=models.CASCADE)
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     temperature = models.IntegerField()
@@ -248,7 +248,7 @@ class StirAction(models.Model):
         nitrogen = "nitrogen"
         air = "air"
 
-    reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(Reaction, related_name='stiractions', on_delete=models.CASCADE)
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     duration = models.FloatField(null=True)
