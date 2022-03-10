@@ -74,7 +74,7 @@ def duplicatetarget(target_obj: Target, fk_obj: Batch):
 
     # Duplicate target
     target_obj.pk = None
-    target_obj.target_id = fk_obj
+    target_obj.batch_id = fk_obj
     target_obj.save()
 
     for catalogentry_obj in related_catalogentry_objs:
@@ -121,14 +121,14 @@ def duplicatemethod(method_obj: Method, fk_obj: Target):
         related_addaction_objs = reaction_obj.addactions.all()
         for addaction_obj in related_addaction_objs:
             addaction_obj.pk = None
-            addaction_obj.method_id = reaction_obj
+            addaction_obj.reaction_id = reaction_obj
             addaction_obj.save()
 
         # Reaction can have multiple stir actions
         related_stiraction_objs = reaction_obj.stiractions.all()
         for stiraction_obj in related_stiraction_objs:
             stiraction_obj.pk = None
-            stiraction_obj.method_id = reaction_obj
+            stiraction_obj.reaction_id = reaction_obj
             stiraction_obj.save()
 
         
@@ -164,24 +164,27 @@ class BatchViewSet(viewsets.ModelViewSet):
     def create(self, request, **kwargs):
         method_ids = request.data["methodids"]
         batch_tag = request.data["batchtag"]
-        # Get methods
-        method_query_set = Method.objects.filter(pk__in=method_ids)
-        target_objs = [method_obj.target_id for method_obj in method_query_set]
-        # Use target id of first target_obj to get batch_id and project_id
-        batch_obj = target_objs[0].batch_id
-        project_obj = batch_obj.project_id
-        # Create new batch
-        batch_obj_new = self.createBatch(project_obj=project_obj, batch_node_obj=batch_obj, batch_tag=batch_tag)
-        # Clone Targets
-        for target_obj in target_objs:
-            target_obj_clone = duplicatetarget(target_obj=target_obj, fk_obj=batch_obj_new)
-            method_query_set_to_clone =  Method.objects.filter(target_id=target_obj.id).filter(pk__in=method_ids)
-            for method_obj in method_query_set_to_clone:
-                duplicatemethod(method=method_obj, fk_obj=target_obj_clone)
-        serialized_data = BatchSerializer(batch_obj_new).data
-        if serialized_data:
-            return JsonResponse(data=serialized_data)
-        else:
+        try: 
+            # Get methods
+            method_query_set = Method.objects.filter(pk__in=method_ids)
+            target_objs = [method_obj.target_id for method_obj in method_query_set]
+            # Use target id of first target_obj to get batch_id and project_id
+            batch_obj = target_objs[0].batch_id
+            project_obj = batch_obj.project_id
+            # Create new batch
+            batch_obj_new = self.createBatch(project_obj=project_obj, batch_node_obj=batch_obj, batch_tag=batch_tag)
+            # Clone Targets
+            for target_obj in target_objs:
+                target_obj_clone = duplicatetarget(target_obj=target_obj, fk_obj=batch_obj_new)
+                method_query_set_to_clone =  Method.objects.filter(target_id=target_obj.id).filter(pk__in=method_ids)
+                for method_obj in method_query_set_to_clone:
+                    duplicatemethod(method=method_obj, fk_obj=target_obj_clone)
+            serialized_data = BatchSerializerAll(batch_obj_new).data
+            if serialized_data:
+                return JsonResponse(data=serialized_data)
+            else:
+                return JsonResponse(data="Something went wrong")
+        except:
             return JsonResponse(data="Something went wrong")
         
 
