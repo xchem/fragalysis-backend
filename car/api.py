@@ -162,7 +162,7 @@ class BatchViewSet(viewsets.ModelViewSet):
         return batch_obj
 
     def create(self, request, **kwargs):
-        method_ids = request.POST.getlist("methodids")
+        method_ids = request.data["methodids"]
         batch_tag = request.data["batchtag"]
         # Get methods
         method_query_set = Method.objects.filter(pk__in=method_ids)
@@ -178,7 +178,6 @@ class BatchViewSet(viewsets.ModelViewSet):
             method_query_set_to_clone =  Method.objects.filter(target_id=target_obj.id).filter(pk__in=method_ids)
             for method_obj in method_query_set_to_clone:
                 duplicatemethod(method=method_obj, fk_obj=target_obj_clone)
-        
         serialized_data = BatchSerializer(batch_obj_new).data
         if serialized_data:
             return JsonResponse(data=serialized_data)
