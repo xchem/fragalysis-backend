@@ -69,15 +69,12 @@ from django.core.files.storage import default_storage
 from .utils import createSVGString
 
 def duplicatetarget(target_obj: Target, fk_obj: Batch):
-    
-    related_catalogentry_objs = target_obj.catalogentries.all()
-
-    # Duplicate target
+    related_catalogentry_queryset = target_obj.catalogentries.all()
     target_obj.pk = None
     target_obj.batch_id = fk_obj
     target_obj.save()
 
-    for catalogentry_obj in related_catalogentry_objs:
+    for catalogentry_obj in related_catalogentry_queryset:
         catalogentry_obj.pk = None
         catalogentry_obj.target_id = target_obj
         catalogentry_obj.save()
@@ -85,52 +82,47 @@ def duplicatetarget(target_obj: Target, fk_obj: Batch):
     return target_obj
 
 def duplicatemethod(method_obj: Method, fk_obj: Target):
-    
-    related_reaction_objs = method_obj.reactions.all()
+    related_reaction_queryset = method_obj.reactions.all()
 
-    # Duplicate method 
+    # Duplicate method before cloning the related children reaction objs
     method_obj.pk = None
     method_obj.target_id = fk_obj
     method_obj.save()
 
-    for reaction_obj in related_reaction_objs:
+    for reaction_obj in related_reaction_queryset:
+        product_obj = reaction_obj.products.all()[0]
+        related_addaction_objs = reaction_obj.addactions.all()
+        related_stiraction_objs = reaction_obj.stiractions.all()
+        related_reactant_objs = reaction_obj.reactants.all()
+
         reaction_obj.pk = None
         reaction_obj.method_id = method_obj
         reaction_obj.save()
 
-        # Reaction can only have one product
-        product_obj = reaction_obj.products.all()[0]
         product_obj.pk = None
         product_obj.reaction_id = reaction_obj
         product_obj.save()
 
-        # Reaction has multiple reactant objects
-        related_reactant_objs = reaction_obj.reactants.all()
-        for reactant_obj in related_reactant_objs:
-            # Reactant could have multiple catalog entries
-            related_catalogentry_objs = reactant_obj.catalogentries.all()
-            for catalog_obj in related_catalogentry_objs:
-                catalog_obj.pk = None
-                catalog_obj.reactant_id = reactant_obj
-                catalog_obj.save()
-            reactant_obj.pk = None
-            reactant_obj.reaction_id = reaction_obj
-            reactant_obj.save()        
-
-        # Reaction can have multiple add actions
-        related_addaction_objs = reaction_obj.addactions.all()
         for addaction_obj in related_addaction_objs:
             addaction_obj.pk = None
             addaction_obj.reaction_id = reaction_obj
             addaction_obj.save()
 
-        # Reaction can have multiple stir actions
-        related_stiraction_objs = reaction_obj.stiractions.all()
         for stiraction_obj in related_stiraction_objs:
             stiraction_obj.pk = None
             stiraction_obj.reaction_id = reaction_obj
             stiraction_obj.save()
 
+        for reactant_obj in related_reactant_objs:
+            related_catalogentry_objs = reactant_obj.catalogentries.all()
+            reactant_obj.pk = None
+            reactant_obj.reaction_id = reaction_obj
+            reactant_obj.save()
+            for catalog_obj in related_catalogentry_objs:
+                catalog_obj.pk = None
+                catalog_obj.reactant_id = reactant_obj
+                catalog_obj.save()
+        
         
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
@@ -162,24 +154,24 @@ class BatchViewSet(viewsets.ModelViewSet):
         return batch_obj
 
     def create(self, request, **kwargs):
-        method_ids = request.data["methodids"]
+        # method_ids = request.data["methodids"]
+        method_ids = request.POST.getlist("methodids")
+        method_ids = [int(methodid) for methodid in method_ids]
         batch_tag = request.data["batchtag"]
         try: 
-            # Get methods
-            method_query_set = Method.objects.filter(pk__in=method_ids)
-            target_objs = [method_obj.target_id for method_obj in method_query_set]
+            target_query_set = Target.objects.filter(methods__id__in=method_ids).distinct()
             # Use target id of first target_obj to get batch_id and project_id
-            batch_obj = target_objs[0].batch_id
+            batch_obj = target_query_set[0].batch_id
             project_obj = batch_obj.project_id
             # Create new batch
             batch_obj_new = self.createBatch(project_obj=project_obj, batch_node_obj=batch_obj, batch_tag=batch_tag)
             # Clone Targets
-            for target_obj in target_objs:
+            for target_obj in target_query_set:
+                method_query_set_to_clone = Method.objects.filter(target_id=target_obj).filter(pk__in=method_ids)
                 target_obj_clone = duplicatetarget(target_obj=target_obj, fk_obj=batch_obj_new)
-                method_query_set_to_clone =  Method.objects.filter(target_id=target_obj.id).filter(pk__in=method_ids)
                 for method_obj in method_query_set_to_clone:
-                    duplicatemethod(method=method_obj, fk_obj=target_obj_clone)
-            serialized_data = BatchSerializerAll(batch_obj_new).data
+                    duplicatemethod(method_obj=method_obj, fk_obj=target_obj_clone)
+            serialized_data = BatchSerializer(batch_obj_new).data
             if serialized_data:
                 return JsonResponse(data=serialized_data)
             else:
