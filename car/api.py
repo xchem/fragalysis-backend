@@ -154,18 +154,13 @@ class BatchViewSet(viewsets.ModelViewSet):
         return batch_obj
 
     def create(self, request, **kwargs):
-        # method_ids = request.data["methodids"]
-        method_ids = request.POST.getlist("methodids")
-        method_ids = [int(methodid) for methodid in method_ids]
+        method_ids = request.data["methodids"]
         batch_tag = request.data["batchtag"]
         try: 
             target_query_set = Target.objects.filter(methods__id__in=method_ids).distinct()
-            # Use target id of first target_obj to get batch_id and project_id
             batch_obj = target_query_set[0].batch_id
             project_obj = batch_obj.project_id
-            # Create new batch
             batch_obj_new = self.createBatch(project_obj=project_obj, batch_node_obj=batch_obj, batch_tag=batch_tag)
-            # Clone Targets
             for target_obj in target_query_set:
                 method_query_set_to_clone = Method.objects.filter(target_id=target_obj).filter(pk__in=method_ids)
                 target_obj_clone = duplicatetarget(target_obj=target_obj, fk_obj=batch_obj_new)
