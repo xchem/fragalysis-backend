@@ -154,12 +154,6 @@ class StirActionSerializer(serializers.ModelSerializer):
 
 
 # OT Session serializers
-class OTSessionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OTSession
-        fields = "__all__"
-
-
 class DeckSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deck
@@ -200,3 +194,12 @@ class OTScriptSerializer(serializers.ModelSerializer):
     class Meta:
         model = OTScript
         fields = "__all__"
+
+class OTSessionSerializer(serializers.ModelSerializer):
+    otscripts = OTScriptSerializer(many=True, read_only=True)
+    compoundorders = CompoundOrderSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = OTSession
+        fields = "__all__"
+

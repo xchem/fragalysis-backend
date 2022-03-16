@@ -1,6 +1,11 @@
+from typing import Protocol
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from django.http import JsonResponse
-from django.core.files.base import ContentFile  
+from django.core.files.base import ContentFile
+from celery.result import AsyncResult
+
+from car.tasks import createOTScript  
 
 # Import standard models
 from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Reactant, CatalogEntry, Product, AnalyseAction
@@ -173,7 +178,6 @@ class BatchViewSet(viewsets.ModelViewSet):
                 return JsonResponse(data="Something went wrong")
         except:
             return JsonResponse(data="Something went wrong")
-        
 
 
 class TargetViewSet(viewsets.ModelViewSet):
@@ -305,8 +309,32 @@ class StirActionViewSet(viewsets.ModelViewSet):
 class OTSessionViewSet(viewsets.ModelViewSet):
     queryset = OTSession.objects.all()
     serializer_class = OTSessionSerializer
-    filterset_fields = ["project_id"]
+    filterset_fields = ["batch_id"]
 
+    @action(methods=['post'], detail=False)
+    def createotprotocol(self, request, pk=None):
+        batch_ids = request.data["batchids"]
+        task = createOTScript.delay(batchids=batch_ids)
+        data = {"task_id": task.id}
+        return JsonResponse(data=data)
+    
+    @action(detail=False, methods=['get'])
+    def gettaskstatus(self, request, pk=None):
+        task_id = self.request.GET.get('task_id', None)
+        if task_id:
+            task = AsyncResult(task_id)            
+            if task.status == "FAILURE":
+                data = {"task_status": task.status, "traceback": str(task.traceback)}
+                return JsonResponse(data)
+
+            if task.status == "SUCCESS":
+                result = task.get()
+                data = {"task_status": task.status, "protocol_summary": result}
+                return JsonResponse(data)
+                
+            if task.status == "PENDING":
+                data = {"task_status": task.status}
+                return JsonResponse(data)
 
 class DeckViewSet(viewsets.ModelViewSet):
     queryset = Deck.objects.all()
@@ -341,7 +369,7 @@ class WellViewSet(viewsets.ModelViewSet):
 class CompoundOrderViewSet(viewsets.ModelViewSet):
     queryset = CompoundOrder.objects.all()
     serializer_class = CompoundOrderSerializer
-    filterset_fields = ["project_id"]
+    filterset_fields = ["batch_id"]
 
 
 class OTScriptViewSet(viewsets.ModelViewSet):
