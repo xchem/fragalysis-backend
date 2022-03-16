@@ -10,9 +10,9 @@ from django.forms.models import model_to_dict
 
 import os
 
-from backend.models import Project
+from car.models import Batch
 
-from backend.models import (
+from car.models import (
     Product,
     Pipette,
     TipRack,
@@ -45,9 +45,8 @@ class otWrite(object):
         self.tiprackqueryset = self.getTipRacks()
         self.pipetteobj = self.getPipette()
         self.pipettename = self.pipetteobj.pipettename
-        self.projectobj = self.getProject()
-        self.protocolname = self.projectobj.name
-        self.author = self.projectobj.submittername
+        self.batchobj = self.getBatch()
+        self.protocolname = self.batchobj.batch_tag
         self.filepath, self.filename = self.createFilePath()
         self.apiLevel = apiLevel
         self.reactionplatequeryset = reactionplatequeryset
@@ -58,9 +57,9 @@ class otWrite(object):
         self.writeAddActions()
         self.createOTScriptModel()
 
-    def getProject(self):
-        projectobj = Project.objects.filter(pk=self.otsessionobj.project_id.pk)[0]
-        return projectobj
+    def getBatch(self):
+        batchobj = Batch.objects.filter(pk=self.otsessionobj.batch_id.pk)[0]
+        return batchobj
 
     def getPlates(self):
         platequeryset = Plate.objects.filter(otsession_id=self.otsessionid).order_by("id")
@@ -91,8 +90,8 @@ class otWrite(object):
             return False
 
     def createFilePath(self):
-        filename = "ot-script-project-{}-sessionid-{}.txt".format(
-            self.projectobj.name, self.otsessionid
+        filename = "ot-script-batch-{}-sessionid-{}.txt".format(
+            self.protocolname, self.otsessionid
         )
         path = "tmp/" + filename
         filepath = str(os.path.join(settings.MEDIA_ROOT, path))
@@ -196,16 +195,12 @@ class otWrite(object):
         script.write(
             "# "
             + str(self.protocolname)
-            + ' for "'
-            + str(self.author)
             + str('" produced by XChem Car (https://car.xchem.diamond.ac.uk)')
         )
         script.write("\n# metadata")
         script.write(
             "\nmetadata = {'protocolName': '"
             + str(self.protocolname)
-            + "', 'author': '"
-            + str(self.author)
             + "','apiLevel': '"
             + str(self.apiLevel)
             + "'}\n"

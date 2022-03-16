@@ -1,3 +1,4 @@
+from asyncio import protocols
 from celery import shared_task
 from django.core.files.storage import default_storage
 import pandas as pd
@@ -20,6 +21,9 @@ from .createmodels import (
 from .manifold.apicalls import getManifoldretrosynthesis
 from .recipebuilder.encodedrecipes import encoded_recipes
 from .utils import getAddtionOrder
+
+from .opentrons.cartoot import getBatchTag, getBatchReactions, findmaxlist, groupReactions, CreateOTSession
+from .opentrons.otwrite import otWrite
 
 
 def delete_tmp_file(filepath):
@@ -229,6 +233,7 @@ def uploadManifoldReaction(validate_output):
                                                         )
                                         
                                         catalog_entries = [molecule["catalogEntries"] for molecule in route["molecules"] if molecule["smiles"] == reactant_smi][0]
+                                        # Get lowest cost/leadtime/preferred vendor - TO DO!!!!
                                         for catalog_entry in catalog_entries:
                                             createCatalogEntryModel(
                                                 catalog_entry=catalog_entry, 
@@ -324,3 +329,55 @@ def uploadCustomReaction(validate_output):
     default_storage.delete(csv_fp)
 
     return validate_dict, validated, project_info
+
+
+@shared_task
+def createOTScript(batchids):
+    """"
+    Create otscripts and starting plates for a list of batch ids
+    """ 
+    protocol_summary = {}
+
+    for batchid in batchids:
+        batch_tag = getBatchTag(batchid=batchid)
+        allreactionquerysets = getBatchReactions(batchid=batchid)
+        if allreactionquerysets:
+            maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
+            groupedreactionquerysets = groupReactions(
+            allreactionquerysets=allreactionquerysets, maxsteps=maxsteps
+            )
+            for index, reactiongroup in enumerate(groupedreactionquerysets):
+                if index == 0:
+                    otsession = CreateOTSession(
+                        batchid=batchid,
+                        reactiongroupqueryset=reactiongroup,
+                    )
+
+                    otsessionobj = otsession.otsessionobj
+                    alladdactionsquerysetflat = otsession.alladdactionquerysetflat
+                    startingreactionplatequeryset = otsession.startingreactionplatequeryset
+
+                    otWrite(
+                        otsessionobj=otsessionobj,
+                        alladdactionsquerysetflat=alladdactionsquerysetflat,
+                    )
+                if index > 0:
+                    otsession = CreateOTSession(
+                        batchid=batchid,
+                        reactiongroupqueryset=reactiongroup,
+                        inputplatequeryset=startingreactionplatequeryset,
+                    )
+
+                    otsessionobj = otsession.otsessionobj
+                    alladdactionsquerysetflat = otsession.alladdactionquerysetflat
+
+                    otWrite(
+                        otsessionobj=otsessionobj,
+                        alladdactionsquerysetflat=alladdactionsquerysetflat,
+                    )    
+
+            protocol_summary[batchid] = True
+        else:
+            protocol_summary[batchid] = False
+
+    return protocol_summary

@@ -275,12 +275,12 @@ class MCuleOrder(models.Model):
 
 # Models for capturing OT session, Deck, Plates and Wells
 class OTSession(models.Model):
-    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    batch_id = models.ForeignKey(Batch, related_name="otsessions", on_delete=models.CASCADE)
     init_date = models.DateTimeField(auto_now_add=True)
 
 
 class Deck(models.Model):
-    otsession_id = models.ForeignKey(OTSession, on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey(OTSession, related_name="decks", on_delete=models.CASCADE)
     numberslots = models.IntegerField(default=11)
     slotavailable = models.BooleanField(default=True)
     indexslotavailable = models.IntegerField(default=1)
@@ -291,7 +291,7 @@ class Pipette(models.Model):
         right = "Right"
         left = "Left"
 
-    otsession_id = models.ForeignKey(OTSession, on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey(OTSession, related_name="pipettes", on_delete=models.CASCADE)
     pipettename = models.CharField(max_length=255)
     labware = models.CharField(max_length=100)
     type = models.CharField(max_length=255)
@@ -328,16 +328,16 @@ class Well(models.Model):
     smiles = models.CharField(max_length=255)
     concentration = models.FloatField(null=True, blank=True)
     solvent = models.CharField(max_length=255, null=True)
-    mculeid = models.CharField(max_length=255, null=True)
+    # catalogid = models.CharField(max_length=255, null=True)
     reactantfornextstep = models.BooleanField(default=True)
     available = models.BooleanField(default=True)
 
 
 class CompoundOrder(models.Model):
-    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
-    ordercsv = models.FileField(upload_to="mculeorders/", max_length=255)
+    otsession_id = models.ForeignKey(OTSession, related_name="compoundorders", on_delete=models.CASCADE)
+    ordercsv = models.FileField(upload_to="compoundorders/", max_length=255)
 
 
 class OTScript(models.Model):
-    otsession_id = models.ForeignKey(OTSession, on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey(OTSession, related_name="otscripts", on_delete=models.CASCADE)
     otscript = models.FileField(upload_to="otscripts/", max_length=255)

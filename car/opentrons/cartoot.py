@@ -4,33 +4,30 @@ from os import name
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
-from django.forms.models import model_to_dict
-
-from statistics import mean, median, mode
+from statistics import median
 
 import pandas as pd
 from pandas.core.frame import DataFrame
-from otwrite import otWrite
 
-from backend.models import (
-    CompoundOrder,
-    IBMAddAction,
-    Pipette,
-    TipRack,
-    Product,
-    Project,
+
+from car.models import (
+    Batch,
     Target,
     Method,
     Reaction,
+    Product,
+    AddAction,
     OTSession,
     Deck,
     Plate,
     Well,
+    Pipette,
+    TipRack,
+    CompoundOrder,   
 )
 
 import math
-from itertools import groupby
-from labwareavailable import labware_plates
+from .labwareavailable import labware_plates
 
 
 class CreateOTSession(object):
@@ -41,11 +38,11 @@ class CreateOTSession(object):
 
     def __init__(
         self,
-        projectid: int,
+        batchid: int,
         reactiongroupqueryset: list,
         inputplatequeryset: list = None,
     ):
-        self.projectid = projectid
+        self.batchobj = Batch.objects.get(id=batchid)
         self.reactiongroupqueryset = reactiongroupqueryset
         self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
         self.inputplatequeryset = inputplatequeryset
@@ -82,7 +79,7 @@ class CreateOTSession(object):
         return productobj
 
     def getAddActions(self, reactionobj):
-        addactionqueryset = IBMAddAction.objects.filter(reaction_id=reactionobj.id).order_by("id")
+        addactionqueryset = AddAction.objects.filter(reaction_id=reactionobj.id).order_by("id")
         return addactionqueryset
 
     def getStartingReactionPlateQuerySet(self):
@@ -288,8 +285,7 @@ class CreateOTSession(object):
 
     def createOTSessionModel(self):
         otsessionobj = OTSession()
-        project_obj = Project.objects.get(id=self.projectid)
-        otsessionobj.project_id = project_obj
+        otsessionobj.batch_id = self.batchobj
         otsessionobj.save()
         return otsessionobj
 
@@ -373,13 +369,12 @@ class CreateOTSession(object):
 
     def createCompoundOrderModel(self, orderdf):
         compoundorderobj = CompoundOrder()
-        project_obj = Project.objects.get(id=self.projectid)
-        compoundorderobj.project_id = project_obj
+        compoundorderobj.otsession_id = self.otsessionobj
         csvdata = orderdf.to_csv(encoding="utf-8", index=False)
         ordercsv = default_storage.save(
-            "mculeorders/"
-            + "starterplate-for-project-{}-sessionid-{}".format(
-                project_obj.name, str(self.otsessionobj.id)
+            "compoundorders/"
+            + "starterplate-for-batch-{}-sessionid-{}".format(
+                self.batchobj.batch_tag, str(self.otsessionobj.id)
             )
             + ".csv",
             ContentFile(csvdata),
@@ -428,7 +423,6 @@ class CreateOTSession(object):
                 "materialquantity": "sum",
                 "solvent": "first",
                 "concentration": "first",
-                "mculeid": "first",
             }
         )
 
@@ -491,7 +485,6 @@ class CreateOTSession(object):
                     orderdictslist.append(
                         {
                             "material": startingmaterialsdf.at[i, "material"],
-                            "mculeid": startingmaterialsdf.at[i, "mculeid"],
                             "platename": plateobj.platename,
                             "well": wellobj.wellindex,
                             "concentration": startingmaterialsdf.at[i, "concentration"],
@@ -520,13 +513,11 @@ class CreateOTSession(object):
                     smiles=startingmaterialsdf.at[i, "materialsmiles"],
                     concentration=startingmaterialsdf.at[i, "concentration"],
                     solvent=startingmaterialsdf.at[i, "solvent"],
-                    mculeid=startingmaterialsdf.at[i, "mculeid"],
                 )
 
                 orderdictslist.append(
                     {
                         "material": startingmaterialsdf.at[i, "material"],
-                        "mculeid": startingmaterialsdf.at[i, "mculeid"],
                         "platename": plateobj.platename,
                         "well": wellobj.wellindex,
                         "concentration": startingmaterialsdf.at[i, "concentration"],
@@ -608,13 +599,13 @@ class CreateOTSession(object):
             clonewellobj.save()
 
 
-def getTargets(projectid):
-    targetqueryset = Target.objects.filter(project_id=projectid).order_by("id")
+def getTargets(batchid):
+    targetqueryset = Target.objects.filter(batch_id=batchid).order_by("id")
     return targetqueryset
 
 
 def getMethods(targetid):
-    methodqueryset = Method.objects.filter(target_id=targetid).order_by("id")
+    methodqueryset = Method.objects.filter(target_id=targetid).filter(otchem=True).order_by("id")
     return methodqueryset
 
 
@@ -622,16 +613,22 @@ def getReactions(methodid):
     reactionqueryset = Reaction.objects.filter(method_id=methodid).order_by("id")
     return reactionqueryset
 
+def getBatchTag(batchid):
+    batch_obj = Batch.objects.get(id=batchid)
+    batch_tag = batch_obj.batch_tag
+    return batch_tag
 
-def getProjectReactions(projectid):
-    targetqueryset = getTargets(projectid=projectid)
-    allreactionquerysets = []
-    for target in targetqueryset:
-        methodqueryset = getMethods(targetid=target.id)
-        for method in methodqueryset:
-            reactionqueryset = getReactions(methodid=method.id)
-            allreactionquerysets.append(reactionqueryset)
-    return allreactionquerysets
+def getBatchReactions(batchid):
+    targetqueryset = getTargets(batchid=batchid)
+    if targetqueryset:
+        allreactionquerysets = []
+        for target in targetqueryset:
+            methodqueryset = getMethods(targetid=target)
+            if methodqueryset:
+                for method in methodqueryset:
+                    reactionqueryset = getReactions(methodid=method.id)
+                    allreactionquerysets.append(reactionqueryset)
+        return allreactionquerysets
 
 
 def findnoallreactionsteps(allreactionquerysets: list):
@@ -663,43 +660,4 @@ def groupReactions(allreactionquerysets: list, maxsteps: int):
     return groupedreactionquerysets
 
 
-projectid = 20
 
-allreactionquerysets = getProjectReactions(projectid=projectid)
-maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
-groupedreactionquerysets = groupReactions(
-    allreactionquerysets=allreactionquerysets, maxsteps=maxsteps
-)
-
-platequeryset = []
-
-for index, reactiongroup in enumerate(groupedreactionquerysets):
-    if index == 0:
-        otsession = CreateOTSession(
-            projectid=projectid,
-            reactiongroupqueryset=reactiongroup,
-        )
-
-        otsessionobj = otsession.otsessionobj
-        alladdactionsquerysetflat = otsession.alladdactionquerysetflat
-        startingreactionplatequeryset = otsession.startingreactionplatequeryset
-
-        otWrite(
-            otsessionobj=otsessionobj,
-            alladdactionsquerysetflat=alladdactionsquerysetflat,
-        )
-    if index > 0:
-        otsession = CreateOTSession(
-            projectid=projectid,
-            reactiongroupqueryset=reactiongroup,
-            inputplatequeryset=startingreactionplatequeryset,
-        )
-
-        otsessionobj = otsession.otsessionobj
-        alladdactionsquerysetflat = otsession.alladdactionquerysetflat
-        reactionplatequeryset = otsession.startingreactionplatequeryset
-
-        otWrite(
-            otsessionobj=otsessionobj,
-            alladdactionsquerysetflat=alladdactionsquerysetflat,
-        )
