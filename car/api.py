@@ -75,6 +75,8 @@ from .utils import createSVGString
 
 def duplicatetarget(target_obj: Target, fk_obj: Batch):
     related_catalogentry_queryset = target_obj.catalogentries.all()
+    
+    target_obj.image = ContentFile(target_obj.image.read(), name=target_obj.image.name)
     target_obj.pk = None
     target_obj.batch_id = fk_obj
     target_obj.save()
@@ -100,10 +102,15 @@ def duplicatemethod(method_obj: Method, fk_obj: Target):
         related_stiraction_objs = reaction_obj.stiractions.all()
         related_reactant_objs = reaction_obj.reactants.all()
 
+  
+        reaction_obj.reactionimage = ContentFile(reaction_obj.reactionimage.read(), 
+                                                name=reaction_obj.reactionimage.name)
         reaction_obj.pk = None
         reaction_obj.method_id = method_obj
         reaction_obj.save()
 
+        product_obj.image = ContentFile(product_obj.image.read(), 
+                                        name=product_obj.image.name)
         product_obj.pk = None
         product_obj.reaction_id = reaction_obj
         product_obj.save()

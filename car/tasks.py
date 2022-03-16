@@ -339,7 +339,6 @@ def createOTScript(batchids):
     protocol_summary = {}
 
     for batchid in batchids:
-        batch_tag = getBatchTag(batchid=batchid)
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
             maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
