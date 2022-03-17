@@ -54,7 +54,9 @@ from viewer.models import (
     TagCategory,
     MoleculeTag,
     SessionProjectTag,
-    DownloadLinks
+    DownloadLinks,
+    JobRequest,
+    JobFileTransfer
 )
 from viewer import filters
 from .forms import CSetForm, UploadKeyForm, CSetUpdateForm, TSetForm
@@ -67,6 +69,9 @@ from .download_structures import (
     maintain_download_links
 )
 
+from .squonk_job_request import (
+    check_squonk_active
+)
 
 from viewer.serializers import (
     MoleculeSerializer,
@@ -100,7 +105,9 @@ from viewer.serializers import (
     MoleculeTagSerializer,
     SessionProjectTagSerializer,
     TargetMoleculesSerializer,
-    DownloadStructuresSerializer
+    DownloadStructuresSerializer,
+    JobFileTransferSerializer,
+    JobRequestSerializer
 )
 
 class VectorsView(ISpyBSafeQuerySet):
@@ -590,29 +597,40 @@ class ProteinView(ISpyBSafeQuerySet):
     filter_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
+# START HERE! - THIS IS THE FIRST API THAT THE FRONT END CALLS.
 def react(request):
     """
     :param request:
     :return: viewer/react page with context
     """
     discourse_api_key = settings.DISCOURSE_API_KEY
+    squonk_host = settings.SQUONK_HOST
 
     context = {}
     context['discourse_available'] = 'false'
+    context['squonk_available'] = 'false'
     if discourse_api_key:
         context['discourse_available'] = 'true'
+    if squonk_host:
+        context['squonk_available'] = 'true'
 
-    # If user is authenticated and a discourse api key is available, then check discourse to
-    # see if user is set up and set up flag in context.
     user = request.user
     if user.is_authenticated:
         context['discourse_host'] = ''
         context['user_present_on_discourse'] = 'false'
+        # If user is authenticated and a discourse api key is available, then check discourse to
+        # see if user is set up and set up flag in context.
         if discourse_api_key:
             context['discourse_host'] = settings.DISCOURSE_HOST
             error, error_message, user_id = check_discourse_user(user)
             if user_id:
                 context['user_present_on_discourse'] = 'true'
+
+        # If user is authenticated Squonk can be called then return the Squonk host
+        # so the Frontend can navigate to it
+        context['squonk_host'] = ''
+        if squonk_host and check_squonk_active():
+            context['squonk_host'] = squonk_host
 
     return render(request, "viewer/react_temp.html", context)
 
@@ -2952,3 +2970,59 @@ class DownloadStructures(ISpyBSafeQuerySet):
             content = {'message': 'Zip being rebuilt - please try later'}
             return Response(content,
                             status=status.HTTP_208_ALREADY_REPORTED)
+
+# Classes Relating to Squonk Jobs
+class JobFileTransferView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tags relating to Molecules
+
+    Methods
+    -------
+    url:
+        api/job_file_transfer
+    queryset:
+        `viewer.models.JobFileTransfer.objects.filter()`
+    filter fields:
+        - `viewer.models.JobFileTransfer.snapshot` - ?snapshot=<int>
+        - `viewer.models.JobFileTransfer.target` - ?target=<int>
+        - `viewer.models.JobFileTransfer.user` - ?user=<int>
+        - `viewer.models.JobFileTransfer.squonk_project` - ?squonk_project=<str>
+        - `viewer.models.JobFileTransfer.transfer_status` - ?transfer_status=<str>
+
+    returns: JSON
+
+    example output:
+   """
+
+    queryset = JobFileTransfer.objects.filter()
+    serializer_class = JobFileTransferSerializer
+    filter_fields = ('id', 'snapshot', 'target', 'user',
+                     'squonk_project', 'transfer_status')
+
+
+class JobRequestView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tags relating to Session
+    Projects
+
+    Methods
+    -------
+    url:
+        api/job_request
+    queryset:
+        `viewer.models.JobRequest.objects.filter()`
+    filter fields:
+        - `viewer.models.JobRequest.snapshot` - ?snapshot=<int>
+        - `viewer.models.JobRequest.target` - ?target=<int>
+        - `viewer.models.JobRequest.user` - ?user=<int>
+        - `viewer.models.JobRequest.squonk_job_name` - ?squonk_job_name=<str>
+        - `viewer.models.JobRequest.squonk_project` - ?squonk_project=<str>
+        - `viewer.models.JobRequest.job_status` - ?job_status=<str>
+
+    returns: JSON
+
+    example output:
+    """
+
+    queryset = JobRequest.objects.filter()
+    serializer_class = JobRequestSerializer
+    filter_fields = ('id', 'snapshot', 'target', 'user', 'squonk_job_name',
+                     'squonk_project', 'job_status')

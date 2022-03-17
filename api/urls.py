@@ -82,6 +82,10 @@ router.register(r"target_molecules", viewer_views.TargetMoleculesView, basename=
 # Download a zip file of the requested contents
 router.register(r"download_structures", viewer_views.DownloadStructures, basename='download_structures')
 
+# Squonk Jobs
+router.register(r"job_file_transfer", viewer_views.DownloadStructures, basename='download_structures')
+router.register(r"job_request", viewer_views.DownloadStructures, basename='download_structures')
+
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
 from rest_framework.decorators import api_view, renderer_classes
 from rest_framework import response, schemas

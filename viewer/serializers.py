@@ -26,7 +26,9 @@ from viewer.models import (
     TextScoreValues,
     TagCategory,
     MoleculeTag,
-    SessionProjectTag
+    SessionProjectTag,
+    JobFileTransfer,
+    JobRequest
 )
 from scoring.models import MolGroup
 
@@ -461,14 +463,16 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
     session_project  = SessionProjectWriteSerializer()
     class Meta:
         model = Snapshot
-        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data',
+                  'session_project', 'parent', 'children', 'additional_info')
 
 
 # (POST, PUT, PATCH)
 class SnapshotWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Snapshot
-        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data',
+                  'session_project', 'parent', 'children', 'additional_info')
 
 
 # (GET, POST, PUT, PATCH)
@@ -707,3 +711,17 @@ class DownloadStructuresSerializer(serializers.Serializer):
     smiles_info = serializers.BooleanField(default=False)
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200)
+
+
+# Start of Serializers for Squonk Jobs
+class JobFileTransferSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobFileTransfer
+        fields = '__all__'
+
+
+class JobRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobRequest
+        fields = '__all__'
+# End of Serializers for Squonk Jobs

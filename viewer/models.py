@@ -48,7 +48,33 @@ class Target(models.Model):
         Optional file upload defining metadata about the target - can be used to add custom site labels
     zip_archive: FileField
         Link to zip file created from targets uploaded with the loader
+    default_squonk_project = CharField
+        Contains the default Squonk project name that jobs will be run in
+    upload_task_id: CharField
+        Task id of upload celery task Note that if a resynchronisation is
+        required this will be re-used.
+    upload_status: CharField
+        Identifies the status of the upload (note will only be updated at the end of the process.
+    upload_progress: DecimalField
+        Intended to be used as an indication of progress (0 to 100%)
+    upload_datetime: DateTimeField
+        The datetime the upload was completed.
     """
+    PENDING = "PENDING"
+    STARTED = "STARTED"
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
+    RETRY = "RETRY"
+    REVOKED = "REVOKED"
+    STATUS = (
+        (PENDING, 'PENDING'),  # Initial state when queued
+        (STARTED, 'STARTED'),  # File transfer started
+        (SUCCESS, 'SUCCESS'),  # File transfer finished successfully
+        (FAILURE, 'FAILURE'),  # File transfer failed
+        (RETRY, 'RETRY'),
+        (REVOKED, 'REVOKED')
+    )
+
     # The title of the project_id -> userdefined
     title = models.CharField(unique=True, max_length=200)
     # The date it was made
@@ -57,10 +83,15 @@ class Target(models.Model):
     project_id = models.ManyToManyField(Project)
     # Indicates the uniprot_id id for the target. Is a unique key
     uniprot_id = models.CharField(max_length=100, null=True)
-    # metadatafile containing sites info for download
     metadata = models.FileField(upload_to="metadata/", null=True, max_length=255)
-    # zip archive to download uploaded data from
     zip_archive = models.FileField(upload_to="archive/", null=True, max_length=255)
+    default_squonk_project = models.CharField(max_length=200, null=True)
+    # The following fields will be used to track the target upload
+    # time allowing
+    upload_task_id = models.CharField(null=True, max_length=50)
+    upload_status = models.CharField(choices=STATUS, null=True, max_length=7)
+    upload_progress = models.DecimalField(null=True, max_digits=5, decimal_places=2)
+    upload_datetime = models.DateTimeField(null=True)
 
 
 class Protein(models.Model):
@@ -124,6 +155,8 @@ class Protein(models.Model):
     diff_info = models.FileField(upload_to="maps/", null=True, max_length=255)
     event_info = models.FileField(upload_to="maps/", null=True, max_length=255)
     trans_matrix_info = models.FileField(upload_to="trans/", null=True, max_length=255)
+    pdb_header_info = models.FileField(upload_to="pdbs/", null=True, max_length=255)
+    apo_desolve_info = models.FileField(upload_to="pdbs/", null=True, max_length=255)
     aligned = models.NullBooleanField()
     aligned_to = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
     has_eds = models.NullBooleanField()
@@ -458,6 +491,8 @@ class Snapshot(models.Model):
         If the snapshot is part of a project, a foreign key link to the relevant project (optional)
     parent: ForeignKey(self)
         Foreign key link to another Snapshot instance describing the current Snapshot parent (optional)
+    additional_info: JSONField
+        Optional JSON field containing name/value pairs for future use
     """
     INIT = "INIT"
     AUTO = "AUTO"
@@ -476,6 +511,7 @@ class Snapshot(models.Model):
     data = models.TextField()
     session_project = models.ForeignKey(SessionProject, null=True, on_delete=models.CASCADE)
     parent = models.ForeignKey('self', models.DO_NOTHING, blank=True, null=True, related_name='children')
+    additional_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
     class Meta:
         managed = True
@@ -956,5 +992,151 @@ class SessionProjectTag(Tag):
 
     """
     session_projects = models.ManyToManyField(SessionProject)
-
 # End of Tag Tables
+
+
+# Start of Squonk Job Tables
+class JobFileTransfer(models.Model):
+    """Django model containing Squonk File transfer contents and status
+    information
+
+    Parameters
+    ----------
+    id: Autofield
+        Auto-created id for the file transfer.
+    user: ForeignKey
+        Foreign key link to the id of the user that created the file transfer request
+    snapshot: ForeignKey
+        A foreign key link to the relevant snapshot the file transfer is part of (required)
+    target: ForeignKey
+        A foreign key link to the relevant target the file transfer is part of (required)
+    squonk_project: CharField
+        The name of a project that has been created in Squonk that the files will be transferred to
+    projects: CharField
+        List of proteins to be transferred
+    compounds: CharField
+        List of coumpounds to be transferred (not used yet)
+    transfer_spec: JSONField
+        Identifies for each type (protein or compound), which file types were transferred over.
+    transfer_task_id: CharField
+        Task id of transfer celery task Note that if a resynchronisation is
+        required this will be re-used.
+    transfer_status: CharField
+        Identifies the status of the transfer.
+    transfer_progress: DecimalField
+        Intended to be used as an indication of progress (0 to 100%)
+    transfer_datetime: DateTimeField
+        The datetime the transfer was completed.
+    """
+    PENDING = "PENDING"
+    STARTED = "STARTED"
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
+    RETRY = "RETRY"
+    REVOKED = "REVOKED"
+    STATUS = (
+        (PENDING, 'PENDING'),  # Initial state when queued
+        (STARTED, 'STARTED'),  # File transfer started
+        (SUCCESS, 'SUCCESS'),  # File transfer finished successfully
+        (FAILURE, 'FAILURE'),  # File transfer failed
+        (RETRY, 'RETRY'),
+        (REVOKED, 'REVOKED')
+    )
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
+    target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE, db_index=True)
+    squonk_project = models.CharField(max_length=200, null=True)
+    proteins = models.CharField(null=True, max_length=5000)
+    # Not used in phase 1
+    compounds = models.CharField(null=True, max_length=5000)
+    transfer_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    transfer_task_id = models.CharField(null=True, max_length=50)
+    transfer_status = models.CharField(choices=STATUS, default=PENDING, max_length=7)
+    transfer_progress = models.DecimalField(null=True, max_digits=5, decimal_places=2)
+    transfer_datetime = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = 'viewer_jobfiletransfer'
+
+
+class JobRequest(models.Model):
+    """Django model containing Squonk Job Request information.
+    Note that this will be updated from both the Fragalysis frontend (when the user will be
+    logged on) and Squonk (using a call back URL)
+
+    Parameters
+    ----------
+    id: Autofield
+        Auto-created id for the file transfer.
+    squonk_job_name: CharField
+        The name of the squonk job that will be run
+    user: ForeignKey
+        Foreign key link to the id of the user that created the file transfer request
+    snapshot: ForeignKey
+        A foreign key link to the relevant snapshot the file transfer is part of (required)
+    target: ForeignKey
+        A foreign key link to the relevant target the file transfer is part of (required)
+    squonk_project: CharField
+        The name of a project that has been created in Squonk that the files will be transferred to
+    squonk_job_spec: JSONField
+        The specification of the job that will be provided to the Squonk POST instance API
+    job_status: CharField
+        The status of the Squonk job. Will be modified by Squonk through the callback URL
+    squonk_job_info: JSONField
+        Squonk job information returned from the initial Squonk POST instance API call
+    squonk_url_ext: CharField
+        Squonk URL information to be added to the Host URL to link to a Squonk Job
+    code: UUIDField
+        A UUID generated by Fragalysis and passed to Squonk as part of a callback URL.
+    upload_task_id: CharField
+        Celery task ID for results upload task (optional)
+    upload_status: CharField
+        Status for results upload task (optional)
+    computed_set: ForeignKey
+        ID of uploaded computed set (optional)
+    """
+    PENDING = "PENDING"
+    STARTED = "STARTED"
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
+    RETRY = "RETRY"
+    REVOKED = "REVOKED"
+    SQUONK_STATUS = (
+        (PENDING, 'PENDING'),  # Initial state when job queued
+        (STARTED, 'STARTED'),  # Job started in squonk (updated by squonk)
+        (SUCCESS, 'SUCCESS'),  # Job completed successfully in squonk (updated by squonk)
+        (FAILURE, 'FAILURE'),  # Job failed in squonk (updated by squonk)
+        (RETRY, 'RETRY'),  # Job status in squonk (updated by squonk)
+        (REVOKED, 'REVOKED')  # Job status in squonk (updated by squonk)
+    )
+    UPLOAD_STATUS = (
+        (PENDING, 'PENDING'),  # Initial state when upload queued
+        (STARTED, 'STARTED'),  # Upload job started
+        (SUCCESS, 'SUCCESS'),  # Upload job successful
+        (FAILURE, 'FAILURE'),  # Upload job failed
+        (RETRY, 'RETRY'),
+        (REVOKED, 'REVOKED')
+    )
+    id = models.AutoField(primary_key=True)
+    squonk_job_name = models.CharField(max_length=200, null=True)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
+    target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE,
+                               db_index=True)
+    squonk_project = models.CharField(max_length=200, null=True)
+    squonk_job_spec = models.JSONField(encoder=DjangoJSONEncoder,null=True)
+    job_status = models.CharField(choices=SQUONK_STATUS, default=PENDING, max_length=7)
+    squonk_job_info = models.JSONField(encoder=DjangoJSONEncoder,null=True)
+    squonk_url_ext = models.CharField(max_length=200, null=True)
+    code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    upload_task_id = models.CharField(null=True, max_length=50)
+    upload_status = models.CharField(choices=UPLOAD_STATUS, default=PENDING, max_length=7,
+                                     null=True)
+    computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE, null=True)
+
+    class Meta:
+        db_table = 'viewer_jobrequest'
+# End of Squonk Job Tables
+
+
