@@ -1,4 +1,3 @@
-from typing import Protocol
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from django.http import JsonResponse
@@ -101,7 +100,6 @@ def duplicatemethod(method_obj: Method, fk_obj: Target):
         related_addaction_objs = reaction_obj.addactions.all()
         related_stiraction_objs = reaction_obj.stiractions.all()
         related_reactant_objs = reaction_obj.reactants.all()
-
   
         reaction_obj.reactionimage = ContentFile(reaction_obj.reactionimage.read(), 
                                                 name=reaction_obj.reactionimage.name)
@@ -287,7 +285,6 @@ class ExtractActionViewSet(viewsets.ModelViewSet):
     filterset_fields = ["reaction_id"]
 
 
-
 class FilterActionViewSet(viewsets.ModelViewSet):
     queryset = FilterAction.objects.all()
     serializer_class = FilterActionSerializer
@@ -376,7 +373,7 @@ class WellViewSet(viewsets.ModelViewSet):
 class CompoundOrderViewSet(viewsets.ModelViewSet):
     queryset = CompoundOrder.objects.all()
     serializer_class = CompoundOrderSerializer
-    filterset_fields = ["batch_id"]
+    filterset_fields = ["otsession_id"]
 
 
 class OTScriptViewSet(viewsets.ModelViewSet):

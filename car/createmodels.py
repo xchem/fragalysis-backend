@@ -149,12 +149,19 @@ def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
             priceinfo = priceinfo.replace(" ","")
             # Check type of range is less than or given range
             if priceinfo[0] == "<":
-                upperprice = int(''.join(filter(str.isdigit, priceinfo))) * 1000 
+                if "k" in priceinfo:
+                    upperprice = int(''.join(filter(str.isdigit, priceinfo))) * 1000
+                else: 
+                    upperprice = int(''.join(filter(str.isdigit, priceinfo))) 
             if priceinfo[0] == "$":
-                upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1]))) * 1000
+                if "k" in priceinfo:
+                    upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1]))) * 1000
+                else: 
+                    upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1])))
             catalogentry.upperprice = upperprice
         else:
             catalogentry.price = None
+
     if not catalog_entry["purchaseInfo"]["isScreening"]:
         if catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"] != "unknown":
             catalogentry.leadtime = catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"]
@@ -166,9 +173,15 @@ def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
             priceinfo = priceinfo.replace(" ","")
             # Check type of range is less than or given range
             if priceinfo[0] == "<" or priceinfo[0] == ">" :
-                upperprice = int(''.join(filter(str.isdigit, priceinfo)))
+                if "k" in priceinfo:
+                    upperprice = int(''.join(filter(str.isdigit, priceinfo))) * 1000
+                else: 
+                    upperprice = int(''.join(filter(str.isdigit, priceinfo))) 
             if priceinfo[0] == "$":
-                upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1])))
+                if "k" in priceinfo:
+                    upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1]))) * 1000
+                else:
+                    upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1])))                    
             catalogentry.upperprice = upperprice
         else:
             catalogentry.price = None   
