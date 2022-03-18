@@ -106,8 +106,11 @@ from viewer.serializers import (
     SessionProjectTagSerializer,
     TargetMoleculesSerializer,
     DownloadStructuresSerializer,
-    JobFileTransferSerializer,
-    JobRequestSerializer
+    JobFileTransferReadSerializer,
+    JobFileTransferWriteSerializer,
+    JobRequestReadSerializer,
+    JobRequestWriteSerializer,
+    JobCallBackSerializer
 )
 
 class VectorsView(ISpyBSafeQuerySet):
@@ -131,7 +134,7 @@ class VectorsView(ISpyBSafeQuerySet):
     queryset = Molecule.objects.filter()
     serializer_class = VectorsSerializer
     filter_permissions = "prot_id__target_id__project_id"
-    filter_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
+    filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
 
 class GraphView(ISpyBSafeQuerySet):
@@ -212,7 +215,7 @@ class GraphView(ISpyBSafeQuerySet):
     queryset = Molecule.objects.filter()
     serializer_class = GraphSerializer
     filter_permissions = "prot_id__target_id__project_id"
-    filter_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
+    filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
 
 class MolImageView(ISpyBSafeQuerySet):
@@ -244,7 +247,7 @@ class MolImageView(ISpyBSafeQuerySet):
     queryset = Molecule.objects.filter()
     serializer_class = MolImageSerialzier
     filter_permissions = "prot_id__target_id__project_id"
-    filter_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
+    filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
 
 class CompoundImageView(ISpyBSafeQuerySet):
@@ -273,7 +276,7 @@ class CompoundImageView(ISpyBSafeQuerySet):
     queryset = Compound.objects.filter()
     serializer_class = CmpdImageSerialzier
     filter_permissions = "project_id"
-    filter_fields = ("smiles",)
+    filterset_fields = ("smiles",)
 
 
 class ProteinMapInfoView(ISpyBSafeQuerySet):
@@ -296,7 +299,7 @@ class ProteinMapInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtMapInfoSerialzer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 class ProteinPDBInfoView(ISpyBSafeQuerySet):
@@ -332,7 +335,7 @@ class ProteinPDBInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtPDBInfoSerialzer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
@@ -368,7 +371,7 @@ class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtPDBBoundInfoSerialzer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 class TargetView(ISpyBSafeQuerySet):
@@ -419,7 +422,7 @@ class TargetView(ISpyBSafeQuerySet):
     queryset = Target.objects.filter()
     serializer_class = TargetSerializer
     filter_permissions = "project_id"
-    filter_fields = ("title",)
+    filterset_fields = ("title",)
 
 
 class MoleculeView(ISpyBSafeQuerySet):
@@ -496,7 +499,7 @@ class MoleculeView(ISpyBSafeQuerySet):
     queryset = Molecule.objects.filter()
     serializer_class = MoleculeSerializer
     filter_permissions = "prot_id__target_id__project_id"
-    filter_fields = (
+    filterset_fields = (
         "prot_id",
         "prot_id__code",
         "cmpd_id",
@@ -546,7 +549,7 @@ class CompoundView(ISpyBSafeQuerySet):
     queryset = Compound.objects.filter()
     serializer_class = CompoundSerializer
     filter_permissions = "project_id"
-    filter_fields = ("smiles", "current_identifier", "inchi", "long_inchi")
+    filterset_fields = ("smiles", "current_identifier", "inchi", "long_inchi")
 
 
 class ProteinView(ISpyBSafeQuerySet):
@@ -594,7 +597,7 @@ class ProteinView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProteinSerializer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 # START HERE! - THIS IS THE FIRST API THAT THE FRONT END CALLS.
@@ -1555,7 +1558,7 @@ class ActionTypeView(viewsets.ModelViewSet):
     # for action types so that these can only be updated via the admin panel.
     #    http_method_names = ['get', 'head']
 
-    filter_fields = '__all__'
+    filterset_fields = '__all__'
 
 
 # Start of Session Project
@@ -1656,7 +1659,7 @@ class SessionProjectsView(viewsets.ModelViewSet):
         return SessionProjectWriteSerializer
 
     filter_permissions = "target_id__project_id"
-    filter_fields = '__all__'
+    filterset_fields = '__all__'
 
 
 class SessionActionsView(viewsets.ModelViewSet):
@@ -1707,7 +1710,7 @@ class SessionActionsView(viewsets.ModelViewSet):
     serializer_class = SessionActionsSerializer
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
-    filter_fields = ('id', 'author', 'session_project', 'last_update_date')
+    filterset_fields = ('id', 'author', 'session_project', 'last_update_date')
 
 
 class SnapshotsView(viewsets.ModelViewSet):
@@ -1845,7 +1848,7 @@ class SnapshotActionsView(viewsets.ModelViewSet):
     serializer_class = SnapshotActionsSerializer
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
-    filter_fields = ('id', 'author', 'session_project', 'snapshot', 'last_update_date')
+    filterset_fields = ('id', 'author', 'session_project', 'snapshot', 'last_update_date')
 
 # End of Session Project
 
@@ -1957,7 +1960,7 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedSet.objects.filter()
     serializer_class = ComputedSetSerializer
     filter_permissions = "project_id"
-    filter_fields = ('target', 'target__title')
+    filterset_fields = ('target', 'target__title')
 
 
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
@@ -2002,7 +2005,7 @@ class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedMolecule.objects.filter()
     serializer_class = ComputedMoleculeSerializer
     filter_permissions = "project_id"
-    filter_fields = ('computed_set',)
+    filterset_fields = ('computed_set',)
 
 
 class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
@@ -2051,7 +2054,7 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = NumericalScoreValues.objects.filter()
     serializer_class = NumericalScoreSerializer
     filter_permissions = "project_id"
-    filter_fields = ('compound', 'score')
+    filterset_fields = ('compound', 'score')
 
 
 class TextScoresView(viewsets.ReadOnlyModelViewSet):
@@ -2099,7 +2102,7 @@ class TextScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = TextScoreValues.objects.filter()
     serializer_class = TextScoreSerializer
     filter_permissions = "project_id"
-    filter_fields = ('compound', 'score')
+    filterset_fields = ('compound', 'score')
 
 
 class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
@@ -2139,7 +2142,7 @@ class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = ScoreDescription.objects.filter()
     serializer_class = ScoreDescriptionSerializer
     filter_permissions = "project_id"
-    filter_fields = ('computed_set', 'name')
+    filterset_fields = ('computed_set', 'name')
 
 
 class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
@@ -2191,7 +2194,7 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedMolecule.objects.filter()
     serializer_class = ComputedMolAndScoreSerializer
     filter_permissions = "project_id"
-    filter_fields = ('computed_set',)
+    filterset_fields = ('computed_set',)
 
 
 class DiscoursePostView(viewsets.ViewSet):
@@ -2546,7 +2549,7 @@ class TagCategoryView(viewsets.ModelViewSet):
 
     queryset = TagCategory.objects.filter()
     serializer_class = TagCategorySerializer
-    filter_fields = ('id', 'category')
+    filterset_fields = ('id', 'category')
 
 
 class MoleculeTagView(viewsets.ModelViewSet):
@@ -2595,7 +2598,7 @@ class MoleculeTagView(viewsets.ModelViewSet):
 
     queryset = MoleculeTag.objects.filter()
     serializer_class = MoleculeTagSerializer
-    filter_fields = ('id', 'tag', 'category', 'target', 'molecules', 'mol_group')
+    filterset_fields = ('id', 'tag', 'category', 'target', 'molecules', 'mol_group')
 
 
 class SessionProjectTagView(viewsets.ModelViewSet):
@@ -2647,7 +2650,7 @@ class SessionProjectTagView(viewsets.ModelViewSet):
 
     queryset = SessionProjectTag.objects.filter()
     serializer_class = SessionProjectTagSerializer
-    filter_fields = ('id', 'tag', 'category', 'target', 'session_projects')
+    filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
 class TargetMoleculesView(ISpyBSafeQuerySet):
@@ -2763,7 +2766,7 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
     queryset = Target.objects.filter()
     serializer_class = TargetMoleculesSerializer
     filter_permissions = "project_id"
-    filter_fields = ("title",)
+    filterset_fields = ("title",)
 # Classes Relating to Tags - End
 
 
@@ -2841,7 +2844,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
     queryset = Target.objects.filter()
     serializer_class = DownloadStructuresSerializer
     filter_permissions = "project_id"
-    filter_fields = ('title','id')
+    filterset_fields = ('title','id')
 
     def list(self, request):
         """Method to handle GET request
@@ -2971,6 +2974,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
             return Response(content,
                             status=status.HTTP_208_ALREADY_REPORTED)
 
+
 # Classes Relating to Squonk Jobs
 class JobFileTransferView(viewsets.ModelViewSet):
     """ Operational Django view to set up/retrieve information about tags relating to Molecules
@@ -2994,9 +2998,25 @@ class JobFileTransferView(viewsets.ModelViewSet):
    """
 
     queryset = JobFileTransfer.objects.filter()
-    serializer_class = JobFileTransferSerializer
-    filter_fields = ('id', 'snapshot', 'target', 'user',
+    filter_permissions = "target__project_id"
+    filterset_fields = ('id', 'snapshot', 'target', 'user',
                      'squonk_project', 'transfer_status')
+
+    def get_serializer_class(self):
+        """Determine which serializer to use based on whether the request is a GET or a POST, PUT
+        or PATCH request
+
+        Returns
+        -------
+        Serializer (rest_framework.serializers.ModelSerializer):
+            - if GET: `viewer.serializers.JobFileTransferReadSerializer`
+            - if other: `viewer.serializers.JobFileTransferWriteSerializer`
+        """
+        if self.request.method in ['GET']:
+            # GET
+            return JobFileTransferReadSerializer
+        # (POST, PUT, PATCH)
+        return JobFileTransferWriteSerializer
 
 
 class JobRequestView(viewsets.ModelViewSet):
@@ -3023,6 +3043,47 @@ class JobRequestView(viewsets.ModelViewSet):
     """
 
     queryset = JobRequest.objects.filter()
-    serializer_class = JobRequestSerializer
-    filter_fields = ('id', 'snapshot', 'target', 'user', 'squonk_job_name',
+    filter_permissions = "target__project_id"
+    filterset_fields = ('id', 'snapshot', 'target', 'user', 'squonk_job_name',
                      'squonk_project', 'job_status')
+
+    def get_serializer_class(self):
+        """Determine which serializer to use based on whether the request is a GET or a POST, PUT
+        or PATCH request
+
+        Returns
+        -------
+        Serializer (rest_framework.serializers.ModelSerializer):
+            - if GET: `viewer.serializers.JobRequestReadSerializer`
+            - if other: `viewer.serializers.JobRequestWriteSerializer
+        """
+        if self.request.method in ['GET']:
+            # GET
+            return JobRequestReadSerializer
+        # (POST, PUT, PATCH)
+        return JobRequestWriteSerializer
+
+
+class JobCallBackView(viewsets.ModelViewSet):
+    """ View to allow the Squonk system to update the status and job information for a
+    specific job identified by a UUID.
+
+    Methods
+    -------
+    allowed requests:
+        - GET
+        - PUT - update the status or job information fields
+    url:
+        api/job_callback
+    queryset:
+        `viewer.models.JobRequest.objects.filter()`
+
+    returns: JSON
+
+    example output:
+    """
+
+    serializer_class = JobCallBackSerializer
+    queryset = JobRequest.objects.all()
+    lookup_field = "code"
+    http_method_names = ['get', 'head', 'put']

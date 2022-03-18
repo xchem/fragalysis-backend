@@ -130,6 +130,10 @@ class Protein(models.Model):
         File link to uploaded map file (optional)
     trans_matrix_info: FileField
         File link to uploaded transformation matrix file (optional)
+    pdb_header_info: FileField
+        File link to uploaded _header.pdb file (optional)
+    apo_desolve_info: FileField
+        File link to uploaded _apo-desolv.pdb file (optional)
     aligned: NullBooleanField
         Bool - 1 if aligned, 0 if not
     aligned_to: ForeignKey (self)

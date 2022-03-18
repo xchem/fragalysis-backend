@@ -714,14 +714,38 @@ class DownloadStructuresSerializer(serializers.Serializer):
 
 
 # Start of Serializers for Squonk Jobs
-class JobFileTransferSerializer(serializers.ModelSerializer):
+# (GET)
+class JobFileTransferReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobFileTransfer
         fields = '__all__'
 
 
-class JobRequestSerializer(serializers.ModelSerializer):
+# (POST, PUT, PATCH)
+class JobFileTransferWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobFileTransfer
+        fields = ("snapshot", "target", "squonk_project",
+                  "proteins")
+
+
+# (GET)
+class JobRequestReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobRequest
         fields = '__all__'
+
+
+# (POST, PUT, PATCH)
+class JobRequestWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobRequest
+        fields = ("squonk_job_name", "snapshot", "target", "squonk_project",
+                  "squonk_job_spec")
+
+
+class JobCallBackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobRequest
+        fields = ("job_status", "squonk_job_info")
 # End of Serializers for Squonk Jobs

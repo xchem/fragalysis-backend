@@ -637,6 +637,8 @@ class APIUrlsTestCase(APITestCase):
                 "diff_info": None,
                 "event_info": None,
                 "trans_matrix_info": None,
+                "pdb_header_info": None,
+                "apo_desolve_info": None,
                 "aligned": None,
                 "has_eds": None,
                 "aligned_to": None
@@ -824,8 +826,23 @@ class APIUrlsTestCase(APITestCase):
         self.assertEqual(mols_processed, 7)
         target =  Target.objects.filter(title='TESTTARGET').values()
         self.assertEqual(len(target), 1)
+        # Check finished successfully.
+        self.assertEqual(target[0]['upload_status'], 'SUCCESS')
         proteins =  Protein.objects.filter(target_id__title='TESTTARGET').values()
         self.assertEqual(len(proteins), 7)
+        # Selection of files are currently saved.
+        for protein in proteins:
+            self.assertNotEqual(protein['pdb_info'], '')
+            self.assertNotEqual(protein['bound_info'], '')
+            self.assertNotEqual(protein['trans_matrix_info'], '')
+            self.assertNotEqual(protein['apo_desolve_info'], '')
+            self.assertEqual(protein['pdb_header_info'], '')
+
+        # Matches the number of proteins
+        molecules =  Molecule.objects.filter(prot_id__target_id__title='TESTTARGET').values()
+        self.assertEqual(len(molecules), 7)
+
+        # Matches the number of sites in Metadata.csv
         tags = MoleculeTag.objects.filter(target__title='TESTTARGET').values()
         self.assertEqual(len(tags), 3)
 

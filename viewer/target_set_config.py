@@ -84,6 +84,8 @@ def get_dict():
     out_d["DON"] = "_donor.ccp4"
     out_d["LIP"] = "_apolar.ccp4"
     out_d["TRANS"] = "_transform.json"
+    out_d["DESOLV"] = "_apo-desolv.pdb"
+    out_d["HEADER"] = "_header.pdb"
     return out_d
 
 

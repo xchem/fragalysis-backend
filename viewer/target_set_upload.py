@@ -6,6 +6,8 @@ loaders.py
 functions.py
 """
 import sys, json, os, glob, shutil
+import datetime
+
 from django.contrib.auth.models import User
 from viewer.models import (
     Target,
@@ -200,6 +202,8 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
         'diff_info': ('maps', get_path_or_none(xtal_path, xtal, input_dict, "DIFF")),
         'event_info': ('maps', get_path_or_none(xtal_path, xtal, input_dict, "EVENT")),
         'trans_matrix_info': ('trans', get_path_or_none(xtal_path, xtal, input_dict, "TRANS")),
+        'pdb_header_info': ('pdbs', get_path_or_none(xtal_path, xtal, input_dict, "HEADER")),
+        'apo_desolve_info': ('pdbs', get_path_or_none(xtal_path, xtal, input_dict, "DESOLV")),
     }
 
     to_unpack = {k: v for k, v in filepaths.items() if v[1] is not None}
@@ -495,6 +499,7 @@ def get_create_projects(target, proposal_ref):
     for fedid in proposal_ref.split()[1:]:
         user = User.objects.get_or_create(username=fedid, password="")[0]
         project.user_id.add(user)
+    target.upload_progess = 10.00
     target.save()
 
     return projects
@@ -580,6 +585,8 @@ def load_from_dir(new_target, projects, aligned_path):
 
     # Remove proteins for crystals that are not part of the library
     remove_not_added(new_target, xtal_list)
+    new_target.upload_progess = 50.00
+    new_target.save()
 
     return mols_loaded
 
@@ -869,7 +876,7 @@ def relative_to_media_root(filepath, media_root=settings.MEDIA_ROOT):
     return relative_path
 
 
-def analyse_target(target_name, aligned_path):
+def analyse_target(target, aligned_path):
     """Analyse all the molecules for a particular target.
 
     param: target_name (str): the string title of the target. This will uniquely identify it.
@@ -879,7 +886,6 @@ def analyse_target(target_name, aligned_path):
     """
 
     # Get Target from database
-    target = Target.objects.get(title=target_name)
     target.root_data_directory = relative_to_media_root(aligned_path)
     target.save()
 
@@ -888,7 +894,7 @@ def analyse_target(target_name, aligned_path):
     # This can probably be improved to count molecules as they are processed when the code is further refactored
     mols_processed = len(mols)
 
-    print("Analysing " + str(len(mols)) + " molecules for " + target_name)
+    print("Analysing " + str(len(mols)) + " molecules for " + target.title)
 
     # Do site mapping
     if os.path.isfile(os.path.join(aligned_path, 'metadata.csv')):
@@ -988,7 +994,8 @@ def analyse_target(target_name, aligned_path):
     for f in files:
         shutil.move(os.path.join(aligned_path, f), os.path.join(aligned_path, f).replace('aligned', ''))
 
-    # delete NEW_DATA VISITS PROPOSALS. These are not used by the new loader but might be in old data sets.
+    # delete NEW_DATA VISITS PROPOSALS. These are not used by the new loader but might be in
+    # old data sets.
     to_delete = ['NEW_DATA', 'VISITS', 'PROPOSALS']
     for file in to_delete:
         filepath = os.path.join(aligned_path.replace('aligned', ''), file)
@@ -997,8 +1004,8 @@ def analyse_target(target_name, aligned_path):
 
     # last step - zip up the input file and move it to the archive
     zipped = shutil.make_archive(aligned_path.replace('aligned', ''), 'zip', aligned_path.replace('aligned', ''))
-    # shutil.move(zipped, os.path.join(settings.MEDIA_ROOT, 'targets', os.path.basename(zipped)))
     target.zip_archive.name = relative_to_media_root(zipped)
+
     target.save()
 
     return mols_processed
@@ -1046,6 +1053,11 @@ def process_target(new_data_folder, target_name, proposal_ref):
         # Create the target if required
         new_target = get_create_target(target_name)
 
+        # Set status to Processing
+        new_target.upload_status="STARTED"
+        new_target.upload_progess=0.00
+        new_target.save()
+
         # Create a project attached to the target with proposal/visit information if it exists.
         projects = get_create_projects(new_target, proposal_ref)
 
@@ -1054,7 +1066,12 @@ def process_target(new_data_folder, target_name, proposal_ref):
 
         # This updates files like metadata.csv, alternatename.csv, hits_ids.csv etc.
         if mols_loaded:
-            mols_processed = analyse_target(target_name, aligned_path)
+            mols_processed = analyse_target(new_target, aligned_path)
+
+        new_target.upload_status="SUCCESS"
+        new_target.upload_progess=100.00
+        new_target.upload_datetime=datetime.datetime.now(datetime.timezone.utc)
+        new_target.save()
     else:
         print("Aligned folder is missing - no data to add: " + aligned_path)
 
