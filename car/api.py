@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from django.http import JsonResponse
 from django.core.files.base import ContentFile
 from celery.result import AsyncResult
+from viewer.tasks import check_services
 
 from car.tasks import createOTScript  
 
@@ -317,6 +318,7 @@ class OTSessionViewSet(viewsets.ModelViewSet):
 
     @action(methods=['post'], detail=False)
     def createotprotocol(self, request, pk=None):
+        check_services()
         batch_ids = request.data["batchids"]
         task = createOTScript.delay(batchids=batch_ids)
         data = {"task_id": task.id}
