@@ -1,8 +1,9 @@
-from asyncio import protocols
-from celery import shared_task
+from celery import shared_task, current_task
 from django.core.files.storage import default_storage
 import pandas as pd
 from rdkit.Chem import AllChem
+
+from car.models import OTBatchProtocol
 
 from .validate import ValidateFile
 from .createmodels import (
@@ -331,7 +332,7 @@ def uploadCustomReaction(validate_output):
     return validate_dict, validated, project_info
 
 
-@shared_task
+@shared_task(bind=True)
 def createOTScript(batchids):
     """"
     Create otscripts and starting plates for a list of batch ids
@@ -339,6 +340,11 @@ def createOTScript(batchids):
     protocol_summary = {}
 
     for batchid in batchids:
+        otbatchprotocol = OTBatchProtocol()
+        otbatchprotocol.batch_id    
+        otbatchprotocol.celery_task_id = current_task.request.id
+        otbatchprotocol.save()
+
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
             maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
@@ -348,7 +354,7 @@ def createOTScript(batchids):
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
                     otsession = CreateOTSession(
-                        batchid=batchid,
+                        otprotocolid=otbatchprotocol,
                         reactiongroupqueryset=reactiongroup,
                     )
 
