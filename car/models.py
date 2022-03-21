@@ -274,8 +274,12 @@ class MCuleOrder(models.Model):
 
 
 # Models for capturing OT session, Deck, Plates and Wells
-class OTSession(models.Model):
+class OTProtocol(models.Model):
     batch_id = models.ForeignKey(Batch, related_name="otsessions", on_delete=models.CASCADE)
+    celery_task_id = models.CharField(max_length=50)
+
+class OTSession(models.Model):
+    otprotocol_id = models.ForeignKey(OTProtocol, related_name="otsessions", on_delete=models.CASCADE)
     init_date = models.DateTimeField(auto_now_add=True)
 
 
