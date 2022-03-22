@@ -73,6 +73,10 @@ from .squonk_job_request import (
     check_squonk_active
 )
 
+from .squonk_job_file_transfer import (
+    check_file_transfer
+)
+
 from viewer.serializers import (
     MoleculeSerializer,
     ProteinSerializer,
@@ -3017,6 +3021,67 @@ class JobFileTransferView(viewsets.ModelViewSet):
             return JobFileTransferReadSerializer
         # (POST, PUT, PATCH)
         return JobFileTransferWriteSerializer
+
+    # def create(self, request):
+    #     """Method to handle POST request
+    #     """
+    #     logger.info('+ JobFileTransfer.post')
+    #     # Only authenticated users can upload files - this can be switched off in settings.py.
+    #     user = self.request.user
+    #     if not user.is_authenticated:
+    #         content = {'Only authenticated users can transfer files'}
+    #         return Response(content, status=status.HTTP_403_FORBIDDEN)
+    #
+    #     target = request.data['target']
+    #     snapshot = request.data['snapshot']
+    #
+    #     if 'squonk_project' in request.data:
+    #         squonk_project = request.data['squonk_project']
+    #     else:
+    #         content = {
+    #             'message': 'A squonk project must be entered'}
+    #         return Response(content, status=status.HTTP_400_BAD_REQUEST)
+    #
+    #     if request.data['proteins']:
+    #         # Get first part of protein code
+    #         proteins_list = [p.strip().split(":")[0]
+    #                          for p in request.data['proteins'].split(',')]
+    #     else:
+    #         proteins_list = []
+    #
+    #     if len(proteins_list) > 0:
+    #         proteins = []
+    #         # Filter by protein codes
+    #         for code_first_part in proteins_list:
+    #             prot = Protein.objects.filter(code__contains=code_first_part).values()
+    #             if prot.exists():
+    #                 proteins.append(prot.first())
+    #     else:
+    #         content = {
+    #             'message': 'A list of protein codes to transfer must be entered'}
+    #         return Response(content, status=status.HTTP_400_BAD_REQUEST)
+    #
+    #     if len(proteins) == 0:
+    #         content = {'message': 'Please enter list of valid protein codes '
+    #                               'for' + " proteins: {} "
+    #             .format(proteins_list) }
+    #         return Response(content, status=status.HTTP_404_NOT_FOUND)
+    #
+    #     # If record exists for target / snapshot AND target.last date > transfer.last date
+    #     # Then start process
+    #     # Else
+    #     # OK.
+    #
+    #     # Check celery/rdis is up and running
+    #     check_services()
+    #     job_transfer_task = process_job_file_transfer.delay()
+    #
+    #     if transfer_queued:
+    #         return Response({"file_url": filename_url})
+    #     else:
+    #         content = {'message': 'Zip being rebuilt - please try later'}
+    #         return Response(content,
+    #                         status=status.HTTP_208_ALREADY_REPORTED)
 
 
 class JobRequestView(viewsets.ModelViewSet):

@@ -326,9 +326,6 @@ DISCOURSE_HOST = os.environ.get('DISCOURSE_HOST')
 # Note that this can be obtained from discourse for the desired environment.
 DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 
-# Squonk settings for API calls to Squonk Platform
-SQUONK_HOST = os.environ.get('SQUONK_HOST')
-
 # This suffix can be set to that the different development environments posting to the same Discourse
 # server can "automatically" generate different category/post titles - hopefully reducing confusion.
 # It will be appended at category or post-title, e.g. "Mpro-duncan", "Mpro-staging" etc.
@@ -336,6 +333,9 @@ SQUONK_HOST = os.environ.get('SQUONK_HOST')
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
+# Squonk settings for API calls to Squonk Platform
+SQUONK_FRONTEND_HOST = os.environ.get('SQUONK_FRONTEND_HOST')
+SQUONK_BACKEND_HOST = os.environ.get('SQUONK_BACKEND_HOST')
 
 # This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with
 # errors. Hence connection to DEBUG flag.

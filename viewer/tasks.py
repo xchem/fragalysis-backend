@@ -461,3 +461,30 @@ def process_target_set(validate_output):
 
         return 'process', 'tset', target_name, mols_loaded, mols_processed, contact_email
 # End Target Sets ###
+
+
+@shared_task
+def process_job_file_transfer(validate_output):
+    """ Celery task to take a list of proteins and specification and transfer the files to Squonk2
+
+    Parameters
+    ----------
+            - validate dict (dict): dict containing any errors found during the validation step
+            - validated (bool): True if the file(s) were validated, False if not
+            - filename (str): name of the uploaded target file (zip file)
+            - target (str): name of the target
+            - submitter_name (str): name of the author of the computed set
+
+    Returns
+    -------
+    target str
+        name of the processed target set
+
+    """
+
+        #mols_loaded, mols_processed = process_target(new_data_folder, target_name, proposal_ref)
+
+        #return 'process', 'tset', target_name, mols_loaded, mols_processed, contact_email
+    return True
+# End Target Sets ###
+
