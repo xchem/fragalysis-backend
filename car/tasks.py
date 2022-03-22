@@ -1,9 +1,21 @@
+from __future__ import annotations
 from celery import shared_task, current_task
 from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from zipfile import ZipFile
 import pandas as pd
 from rdkit.Chem import AllChem
 
-from car.models import OTBatchProtocol
+from car.models import (
+    Batch,
+    Target,
+    Method,
+    Reaction,
+    CompoundOrder,
+    OTScript,
+    OTSession,
+    OTBatchProtocol,   
+)
 
 from .validate import ValidateFile
 from .createmodels import (
@@ -23,7 +35,7 @@ from .manifold.apicalls import getManifoldretrosynthesis
 from .recipebuilder.encodedrecipes import encoded_recipes
 from .utils import getAddtionOrder
 
-from .opentrons.cartoot import getBatchTag, getBatchReactions, findmaxlist, groupReactions, CreateOTSession
+from .opentrons.cartoot import CreateOTSession
 from .opentrons.otwrite import otWrite
 
 
@@ -333,20 +345,20 @@ def uploadCustomReaction(validate_output):
 
 
 @shared_task(bind=True)
-def createOTScript(batchids):
+def createOTScript(batchids: list):
     """"
     Create otscripts and starting plates for a list of batch ids
     """ 
     protocol_summary = {}
-
+    print(batchids)
     for batchid in batchids:
-        otbatchprotocol = OTBatchProtocol()
-        otbatchprotocol.batch_id    
-        otbatchprotocol.celery_task_id = current_task.request.id
-        otbatchprotocol.save()
-
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
+            otbatchprotocol = OTBatchProtocol()
+            otbatchprotocol.batch_id = Batch.objects.get(id=batchid)   
+            otbatchprotocol.celery_task_id = current_task.request.id
+            otbatchprotocol.save()
+
             maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
             groupedreactionquerysets = groupReactions(
             allreactionquerysets=allreactionquerysets, maxsteps=maxsteps
@@ -354,7 +366,7 @@ def createOTScript(batchids):
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
                     otsession = CreateOTSession(
-                        otprotocolid=otbatchprotocol,
+                        otbatchprotocol=otbatchprotocol,
                         reactiongroupqueryset=reactiongroup,
                     )
 
@@ -368,7 +380,7 @@ def createOTScript(batchids):
                     )
                 if index > 0:
                     otsession = CreateOTSession(
-                        batchid=batchid,
+                        otbatchprotocol=otbatchprotocol,
                         reactiongroupqueryset=reactiongroup,
                         inputplatequeryset=startingreactionplatequeryset,
                     )
@@ -382,7 +394,91 @@ def createOTScript(batchids):
                     )    
 
             protocol_summary[batchid] = True
+            
+            batch_tag = getBatchTag(batchid=batchid)
+            zipOTBatchProtocol(otbatchprotocol=otbatchprotocol, batch_tag=batch_tag)
+            
         else:
             protocol_summary[batchid] = False
 
     return protocol_summary
+
+def zipOTBatchProtocol(otbatchprotocol: Django_object, batch_tag: str):
+    otsession_queryset = OTSession.objects.filter(otbatchprotocol_id=otbatchprotocol)
+    for otsession_obj in otsession_queryset:
+        compoundorder_queryset = CompoundOrder.object.filter(otsession_id=otsession_obj)
+        otscript_queryset = OTScript.objects.filter(otsession_id=otsession_obj)
+
+        compound_order_csvs = [ContentFile(compound_order_obj.ordercsv.read(), name=compound_order_obj.ordercsv.name) for compound_order_obj in compoundorder_queryset]
+        otscripts = [ContentFile(otscript_obj.otscript.read(), name=otscript_obj.otscript.name) for otscript_obj in otscript_queryset]
+
+        zipfile = ZipFile("otsession-{}-for-batch-{}.zip".format(otsession_obj.id, batch_tag), "w")
+        [zipfile.write(compound_order_csv) for compound_order_csv in compound_order_csvs]
+        [zipfile.write(otscript) for otscript in otscripts]
+        zipfile_fn = default_storage.save(
+        "otbatchprotocols/",
+        ContentFile(zipfile),
+    )
+        otbatchprotocol.zipfile = zipfile_fn
+        otbatchprotocol.save()
+        zipfile.close()
+
+def getTargets(batchid):
+    targetqueryset = Target.objects.filter(batch_id=batchid).order_by("id")
+    return targetqueryset
+
+
+def getMethods(targetid):
+    methodqueryset = Method.objects.filter(target_id=targetid).filter(otchem=True).order_by("id")
+    return methodqueryset
+
+
+def getReactions(methodid):
+    reactionqueryset = Reaction.objects.filter(method_id=methodid).order_by("id")
+    return reactionqueryset
+
+def getBatchTag(batchid):
+    batch_obj = Batch.objects.get(id=batchid)
+    batch_tag = batch_obj.batch_tag
+    return batch_tag
+
+def getBatchReactions(batchid):
+    targetqueryset = getTargets(batchid=batchid)
+    if targetqueryset:
+        allreactionquerysets = []
+        for target in targetqueryset:
+            methodqueryset = getMethods(targetid=target)
+            if methodqueryset:
+                for method in methodqueryset:
+                    reactionqueryset = getReactions(methodid=method.id)
+                    allreactionquerysets.append(reactionqueryset)
+        return allreactionquerysets
+
+
+def findnoallreactionsteps(allreactionquerysets: list):
+    """ "
+    Function to get all possible number of reactions steps for
+    multiple methods
+    """
+    allnumberofsteps = set([len(x) for x in allreactionquerysets])
+    return allnumberofsteps
+
+
+def findmaxlist(allreactionquerysets: list):
+    maxlength = max([len(i) for i in allreactionquerysets])
+    return maxlength
+
+
+def groupReactions(allreactionquerysets: list, maxsteps: int):
+    """
+    Groups reactionqueries into first reactions, second reactions and so on
+    """
+    groupedreactionquerysets = []
+    for i in range(maxsteps):
+        reactiongroup = [
+            reactionqueryset[i]
+            for reactionqueryset in allreactionquerysets
+            if i <= len(reactionqueryset) - 1
+        ]
+        groupedreactionquerysets.append(reactiongroup)
+    return groupedreactionquerysets

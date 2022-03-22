@@ -6,7 +6,6 @@
 from __future__ import annotations
 from django.core.files.storage import default_storage
 from django.conf import settings
-from django.forms.models import model_to_dict
 
 import os
 

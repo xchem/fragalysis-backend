@@ -277,7 +277,7 @@ class MCuleOrder(models.Model):
 class OTBatchProtocol(models.Model):
     batch_id = models.ForeignKey(Batch, related_name="otbatchprotocols", on_delete=models.CASCADE)
     celery_task_id = models.CharField(max_length=50)
-    file = models.FileField(upload_to="otbatchprotocols/", max_length=255)
+    zipfile = models.FileField(upload_to="otbatchprotocols/", max_length=255, null=True)
 
 
 class OTSession(models.Model):

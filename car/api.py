@@ -319,7 +319,10 @@ class OTSessionViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=False)
     def createotprotocol(self, request, pk=None):
         check_services()
-        batch_ids = request.data["batchids"]
+        # batch_ids = request.data["batchids"]
+        batch_ids = request.POST.getlist("batchids")
+        batch_ids = [int(batchid) for batchid in batch_ids]
+        print(batch_ids)
         task = createOTScript.delay(batchids=batch_ids)
         data = {"task_id": task.id}
         return JsonResponse(data=data)
