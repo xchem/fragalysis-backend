@@ -114,7 +114,7 @@ encoded_recipes = {
                     {
                         "name": "stir",
                         "content": {
-                            "action_no": 5,
+                            "action_no": 4,
                             "temperature": {"value": 25, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
                         },
@@ -198,7 +198,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 3,
+                            "action_no": 2,
                             "material": {
                                 "SMARTS": None,
                                 "SMILES": "CCN(C(C)C)C(C)C",
@@ -212,8 +212,233 @@ encoded_recipes = {
                     {
                         "name": "stir",
                         "content": {
-                            "action_no": 4,
+                            "action_no": 3,
                             "temperature": {"value": 25, "unit": "degC"},
+                            "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                ],
+            },
+        },
+    },
+    "Buchwald-Hartwig amination": {
+        "reactionSMARTS": "[c:1]-[F,Cl,Br,I].[#6:2]-[#7;H2,H1:3]>>[c:1]-[#7:3]-[#6:2]",
+        "recipes": {
+            "Standard": {
+                "reference": "https://pubs.acs.org/doi/pdf/10.1021/acscatal.9b00981",
+                "actions": [
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 1,
+                            "material": {
+                                "SMARTS": None,
+                                "SMILES": "CC(C)C(C=C1C(C)C)=CC(C(C)C)=C1C2=CC=CC=C2P(C3CCCCC3)C4CCCCC4.NC5=C(C6=C([Pd]OS(C)(=O)=O)C=CC=C6)C=CC=C5",
+                                "quantity": {"value": 0.1, "unit": "moleq"},
+                                "solvent": "EtOH",
+                                "concentration": 0.1,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 2,
+                            "material": {
+                                "SMARTS": ["[c:2]-[F,Cl,Br,I]"],
+                                "SMILES": None,
+                                "quantity": {"value": 1, "unit": "moleq"},
+                                "solvent": "EtOH",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 3,
+                            "material": {
+                                "SMARTS": ["[#6:1]-[#7;H2,H1:3]"],
+                                "SMILES": None,
+                                "quantity": {"value": 2, "unit": "moleq"},
+                                "solvent": "EtOH",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 4,
+                            "material": {
+                                "SMARTS": None,
+                                "SMILES": "C1CCN2CCCN=C2CC1",
+                                "quantity": {"value": 2, "unit": "moleq"},
+                                "solvent": None,
+                                "density": 1.02,
+                                "concentration": None,
+                            },
+                        },
+                    },
+                    {
+                        "name": "stir",
+                        "content": {
+                            "action_no": 5,
+                            "temperature": {"value": 80, "unit": "degC"},
+                            "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                ],
+            },
+        },
+    },
+    "Ester amidation": {
+        "reactionSMARTS": "[#6:1](=[#8:2])-[#8].[#7;H3,H2,H1:3]>>[#6:1](=[#8:2])-[#7:3]",
+        "recipes": {
+            "Standard": {
+                "reference": "https://doi.org/10.3390/molecules25051040",
+                "actions": [
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 1,
+                            "material": {
+                                "SMARTS": "[#6](=[#8])-[#8]",
+                                "SMILES": None,
+                                "quantity": {"value": 1.1, "unit": "moleq"},
+                                "solvent": "DMA",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 2,
+                            "material": {
+                                "SMARTS": "[#7;H3,H2,H1]",
+                                "SMILES": None,
+                                "quantity": {"value": 1.0, "unit": "moleq"},
+                                "solvent": "DMA",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 3,
+                            "material": {
+                                "SMARTS": None,
+                                "SMILES": "Cl[Fe](Cl)Cl",
+                                "quantity": {"value": 0.14, "unit": "moleq"},
+                                "solvent": "DMA",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },                    
+                    {
+                        "name": "stir",
+                        "content": {
+                            "action_no": 4,
+                            "temperature": {"value": 80, "unit": "degC"},
+                            "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                ],
+            },
+            "Intramolecular": {
+                "reference": None,
+                "actions": [
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 1,
+                            "material": {
+                                "SMARTS": "[#6](=[#8])-[#8]",
+                                "SMILES": None,
+                                "quantity": {"value": 1.0, "unit": "moleq"},
+                                "solvent": "DMA",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 2,
+                            "material": {
+                                "SMARTS": None,
+                                "SMILES": "Cl[Fe](Cl)Cl",
+                                "quantity": {"value": 0.14, "unit": "moleq"},
+                                "solvent": "DMA",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },                    
+                    {
+                        "name": "stir",
+                        "content": {
+                            "action_no": 3,
+                            "temperature": {"value": 80, "unit": "degC"},
+                            "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                ],
+            },
+        },
+    },
+     "N-nucleophilic aromatic substitution": {
+        "reactionSMARTS": "[#6:3]-[#7;H3,H2,H1:2].[c:1]-[F,Cl,Br,I]>>[#6:3]-[#7:2]-[c:1]",
+        "recipes": {
+            "Standard": {
+                "reference": None,
+                "actions": [
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 1,
+                            "material": {
+                                "SMARTS": "[#6:3]-[#7;H2,H1:2]",
+                                "SMILES": None,
+                                "quantity": {"value": 1, "unit": "moleq"},
+                                "solvent": "NMP",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 2,
+                            "material": {
+                                "SMARTS": "[c:1]-[F,Cl,Br,I]",
+                                "SMILES": None,
+                                "quantity": {"value": 1.2, "unit": "moleq"},
+                                "solvent": "NMP",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 3,
+                            "material": {
+                                "SMARTS": None,
+                                "SMILES": "CCN(C(C)C)C(C)C",
+                                "quantity": {"value": 2.5, "unit": "moleq"},
+                                "solvent": None,
+                                "density": 0.74,
+                                "concentration": None,
+                            },
+                        },
+                    },
+                    {
+                        "name": "stir",
+                        "content": {
+                            "action_no": 4,
+                            "temperature": {"value": 50, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
@@ -308,7 +533,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 3,
+                            "action_no": 2,
                             "material": {
                                 "SMARTS": None,
                                 "SMILES": "[Na+].CC(=O)O[BH-](OC(C)=O)OC(C)=O",
@@ -321,7 +546,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 4,
+                            "action_no": 3,
                             "material": {
                                 "SMARTS": None,
                                 "SMILES": "CC(=O)O",
@@ -334,7 +559,7 @@ encoded_recipes = {
                     {
                         "name": "stir",
                         "content": {
-                            "action_no": 5,
+                            "action_no": 4,
                             "temperature": {"value": 25, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
                         },
@@ -343,22 +568,26 @@ encoded_recipes = {
             },
         },
     },
-    "N-nucleophilic aromatic substitution": {
-        "reactionSMARTS": "[#6:3]-[#7;H3,H2,H1:2].[c:1]-[F,Cl,Br,I]>>[#6:3]-[#7:2]-[c:1]",
+    "Sonogashira coupling": {
+        "reactionSMARTS": ["[CH:1].[c:2]-[Cl,Br,I]>>[C:1]-[c:2]"],
         "recipes": {
             "Standard": {
-                "reference": None,
+                "reference": [
+                    "https://pubs.rsc.org/en/content/articlelanding/2008/cc/b810928a#!",
+                    "https://pubs.acs.org/doi/pdf/10.1021/ol035632f"
+                    "https://www.sciencedirect.com/science/article/abs/pii/S1381116908003257",
+                ],
                 "actions": [
                     {
                         "name": "add",
                         "content": {
                             "action_no": 1,
                             "material": {
-                                "SMARTS": "[#6:3]-[#7;H2,H1:2]",
-                                "SMILES": None,
-                                "quantity": {"value": 1, "unit": "moleq"},
-                                "solvent": "NMP",
-                                "concentration": 0.5,
+                                "SMARTS": None,
+                                "SMILES": "CC(C)C(C=C1C(C)C)=CC(C(C)C)=C1C2=CC=CC=C2P(C3CCCCC3)C4CCCCC4.NC5=C(C6=C([Pd]OS(C)(=O)=O)C=CC=C6)C=CC=C5",
+                                "quantity": {"value": 0.1, "unit": "moleq"},
+                                "solvent": "EtOH",
+                                "concentration": 0.1,
                             },
                         },
                     },
@@ -367,10 +596,10 @@ encoded_recipes = {
                         "content": {
                             "action_no": 2,
                             "material": {
-                                "SMARTS": "[c:1]-[F,Cl,Br,I]",
+                                "SMARTS": ["[c:2]-[Cl,Br,I]"],
                                 "SMILES": None,
-                                "quantity": {"value": 1.2, "unit": "moleq"},
-                                "solvent": "NMP",
+                                "quantity": {"value": 1, "unit": "moleq"},
+                                "solvent": "EtOH",
                                 "concentration": 0.5,
                             },
                         },
@@ -380,9 +609,35 @@ encoded_recipes = {
                         "content": {
                             "action_no": 3,
                             "material": {
+                                "SMARTS": ["[CH:1]"],
+                                "SMILES": None,
+                                "quantity": {"value": 2, "unit": "moleq"},
+                                "solvent": "EtOH",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 4,
+                            "material": {
+                                "SMARTS": None,
+                                "SMILES": "[Cu]I",
+                                "quantity": {"value": 0.1, "unit": "moleq"},
+                                "solvent": "ACN",
+                                "concentration": 0.1,
+                            },
+                        },
+                    },
+                    {
+                        "name": "add",
+                        "content": {
+                            "action_no": 5,
+                            "material": {
                                 "SMARTS": None,
                                 "SMILES": "CCN(C(C)C)C(C)C",
-                                "quantity": {"value": 2.5, "unit": "moleq"},
+                                "quantity": {"value": 2, "unit": "moleq"},
                                 "solvent": None,
                                 "density": 0.74,
                                 "concentration": None,
@@ -392,8 +647,8 @@ encoded_recipes = {
                     {
                         "name": "stir",
                         "content": {
-                            "action_no": 4,
-                            "temperature": {"value": 50, "unit": "degC"},
+                            "action_no": 6,
+                            "temperature": {"value": 80, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
