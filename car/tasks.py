@@ -344,20 +344,21 @@ def uploadCustomReaction(validate_output):
     return validate_dict, validated, project_info
 
 
-@shared_task(bind=True)
-def createOTScript(batchids: list):
+@shared_task
+def createOTScript(batchids):
     """"
     Create otscripts and starting plates for a list of batch ids
     """ 
     protocol_summary = {}
-    print(batchids)
     for batchid in batchids:
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
-            otbatchprotocol = OTBatchProtocol()
-            otbatchprotocol.batch_id = Batch.objects.get(id=batchid)   
-            otbatchprotocol.celery_task_id = current_task.request.id
-            otbatchprotocol.save()
+            otbatchprotocolobj = OTBatchProtocol()
+            otbatchprotocolobj.batch_id = Batch.objects.get(id=batchid)   
+            otbatchprotocolobj.celery_task_id = current_task.request.id
+            otbatchprotocolobj.save()
+
+            batch_tag = getBatchTag(batchid=batchid)
 
             maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
             groupedreactionquerysets = groupReactions(
@@ -366,7 +367,7 @@ def createOTScript(batchids: list):
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
                     otsession = CreateOTSession(
-                        otbatchprotocol=otbatchprotocol,
+                        otbatchprotocolobj=otbatchprotocolobj,
                         reactiongroupqueryset=reactiongroup,
                     )
 
@@ -375,12 +376,13 @@ def createOTScript(batchids: list):
                     startingreactionplatequeryset = otsession.startingreactionplatequeryset
 
                     otWrite(
+                        protocolname = batch_tag,
                         otsessionobj=otsessionobj,
                         alladdactionsquerysetflat=alladdactionsquerysetflat,
                     )
                 if index > 0:
                     otsession = CreateOTSession(
-                        otbatchprotocol=otbatchprotocol,
+                        otbatchprotocolobj=otbatchprotocolobj,
                         reactiongroupqueryset=reactiongroup,
                         inputplatequeryset=startingreactionplatequeryset,
                     )
@@ -389,24 +391,24 @@ def createOTScript(batchids: list):
                     alladdactionsquerysetflat = otsession.alladdactionquerysetflat
 
                     otWrite(
+                        protocolname = batch_tag,
                         otsessionobj=otsessionobj,
                         alladdactionsquerysetflat=alladdactionsquerysetflat,
                     )    
 
             protocol_summary[batchid] = True
             
-            batch_tag = getBatchTag(batchid=batchid)
-            zipOTBatchProtocol(otbatchprotocol=otbatchprotocol, batch_tag=batch_tag)
+            zipOTBatchProtocol(otbatchprotocolobj=otbatchprotocolobj, batch_tag=batch_tag)
             
         else:
             protocol_summary[batchid] = False
 
     return protocol_summary
 
-def zipOTBatchProtocol(otbatchprotocol: Django_object, batch_tag: str):
-    otsession_queryset = OTSession.objects.filter(otbatchprotocol_id=otbatchprotocol)
+def zipOTBatchProtocol(otbatchprotocolobj: Django_object, batch_tag: str):
+    otsession_queryset = OTSession.objects.filter(otbatchprotocol_id=otbatchprotocolobj)
     for otsession_obj in otsession_queryset:
-        compoundorder_queryset = CompoundOrder.object.filter(otsession_id=otsession_obj)
+        compoundorder_queryset = CompoundOrder.objects.filter(otsession_id=otsession_obj)
         otscript_queryset = OTScript.objects.filter(otsession_id=otsession_obj)
 
         compound_order_csvs = [ContentFile(compound_order_obj.ordercsv.read(), name=compound_order_obj.ordercsv.name) for compound_order_obj in compoundorder_queryset]
@@ -419,8 +421,8 @@ def zipOTBatchProtocol(otbatchprotocol: Django_object, batch_tag: str):
         "otbatchprotocols/",
         ContentFile(zipfile),
     )
-        otbatchprotocol.zipfile = zipfile_fn
-        otbatchprotocol.save()
+        otbatchprotocolobj.zipfile = zipfile_fn
+        otbatchprotocolobj.save()
         zipfile.close()
 
 def getTargets(batchid):

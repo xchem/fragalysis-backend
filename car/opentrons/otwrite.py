@@ -32,6 +32,7 @@ class otWrite(object):
 
     def __init__(
         self,
+        protocolname: str,
         otsessionobj: Django_object,
         alladdactionsquerysetflat: list,
         apiLevel="2.9",
@@ -44,8 +45,7 @@ class otWrite(object):
         self.tiprackqueryset = self.getTipRacks()
         self.pipetteobj = self.getPipette()
         self.pipettename = self.pipetteobj.pipettename
-        self.batchobj = self.getBatch()
-        self.protocolname = self.batchobj.batch_tag
+        self.protocolname = protocolname
         self.filepath, self.filename = self.createFilePath()
         self.apiLevel = apiLevel
         self.reactionplatequeryset = reactionplatequeryset
@@ -55,10 +55,6 @@ class otWrite(object):
         self.setupPipettes()
         self.writeAddActions()
         self.createOTScriptModel()
-
-    def getBatch(self):
-        batchobj = Batch.objects.filter(pk=self.otsessionobj.batch_id.pk)[0]
-        return batchobj
 
     def getPlates(self):
         platequeryset = Plate.objects.filter(otsession_id=self.otsessionid).order_by("id")
@@ -334,5 +330,3 @@ class otWrite(object):
                     towellindex=towellindex,
                     transvolume=transvolume,
                 )
-
-            # self.disposeTip()

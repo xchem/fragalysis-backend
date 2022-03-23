@@ -35,11 +35,12 @@ class CreateOTSession(object):
 
     def __init__(
         self,
-        otbatchprotocol: Django_object,
+        otbatchprotocolobj: Django_object,
         reactiongroupqueryset: list,
         inputplatequeryset: list = None,
     ):
-        self.otbatchprotocol = otbatchprotocol 
+        self.otbatchprotocolobj = otbatchprotocolobj 
+        self.batchobj = Batch.objects.get(id=otbatchprotocolobj.batch_id_id)
         self.reactiongroupqueryset = reactiongroupqueryset
         self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
         self.inputplatequeryset = inputplatequeryset
@@ -282,7 +283,7 @@ class CreateOTSession(object):
 
     def createOTSessionModel(self):
         otsessionobj = OTSession()
-        otsessionobj.otbatchprotocol_id = self.otbatchprotocol
+        otsessionobj.otbatchprotocol_id = self.otbatchprotocolobj
         otsessionobj.save()
         return otsessionobj
 
