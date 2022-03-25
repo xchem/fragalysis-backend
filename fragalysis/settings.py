@@ -19,7 +19,8 @@ from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG_FRAGALYSIS", "False")
+# DEBUG = os.environ.get("DEBUG_FRAGALYSIS", "False")
+DEBUG = True
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
@@ -109,7 +110,6 @@ INSTALLED_APPS = [
     "guardian",
     "graphene_django",
     "django_filters",
-    # =L mozilla_django_oidc - Keycloak authentication
     "mozilla_django_oidc",  # Load after auth
     "django_extensions",
     "rest_framework",
@@ -128,13 +128,11 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # =L mozilla_django_oidc - Keycloak authentication
     "mozilla_django_oidc.middleware.SessionRefresh",
 ]
 
 AUTHENTICATION_BACKENDS = (
     "django.contrib.auth.backends.ModelBackend",
-    # =L mozilla_django_oidc - Keycloak authentication
     "fragalysis.auth.KeycloakOIDCAuthenticationBackend",
     "guardian.backends.ObjectPermissionBackend",
 )
@@ -146,7 +144,7 @@ STATICFILES_FINDERS = (
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 )
 
-# +B mozilla_django_oidc - from documentation: https://mozilla-django-oidc.readthedocs.io/en/stable/
+# mozilla_django_oidc - from documentation: https://mozilla-django-oidc.readthedocs.io/en/stable/
 # Before you can configure your application, you need to set up a client with an OpenID Connect provider (OP).
 # You’ll need to set up a different client for every environment you have for your site. For example,
 # if your site has a -dev, -stage, and -prod environments, each of those has a different hostname and thus you
@@ -196,6 +194,8 @@ LOGOUT_REDIRECT_URL = "/viewer/react/landing"
 # Using RS256 + JWKS Endpoint seems to work with no value for OIDC_RP_IDP_SIGN_KEY seems to work for authentication.
 # Trying HS256 produces a "JWS token verification failed" error for some reason.
 OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_STORE_ACCESS_TOKEN = True
+OIDC_STORE_ID_TOKEN = True
 # Keycloak mozilla_django_oidc - Settings - End
 
 
@@ -334,8 +334,9 @@ DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
 # Squonk settings for API calls to Squonk Platform
-SQUONK_FRONTEND_HOST = os.environ.get('SQUONK_FRONTEND_HOST')
-SQUONK_BACKEND_HOST = os.environ.get('SQUONK_BACKEND_HOST')
+SQUONK_API_URL = os.environ.get('SQUONK_API_URL')
+SQUONK_UI_URL = os.environ.get('SQUONK_UI_URL')
+SQUONK_MEDIA_DIRECTORY = "fragalysis-files"
 
 # This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with
 # errors. Hence connection to DEBUG flag.

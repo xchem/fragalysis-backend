@@ -9,7 +9,6 @@ from wsgiref.util import FileWrapper
 
 # import the logging library
 import logging
-# Get an instance of a logger
 logger = logging.getLogger(__name__)
 
 from django.db import connections
@@ -34,6 +33,8 @@ from celery.result import AsyncResult
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
+from mozilla_django_oidc.contrib.drf import OIDCAuthentication
+
 
 from viewer.models import (
     Molecule,
@@ -70,11 +71,8 @@ from .download_structures import (
 )
 
 from .squonk_job_request import (
-    check_squonk_active
-)
-
-from .squonk_job_file_transfer import (
-    check_file_transfer
+    check_squonk_active,
+    create_squonk_job
 )
 
 from viewer.serializers import (
@@ -610,18 +608,21 @@ def react(request):
     :param request:
     :return: viewer/react page with context
     """
+
     discourse_api_key = settings.DISCOURSE_API_KEY
-    squonk_host = settings.SQUONK_HOST
+    squonk_api_url = settings.SQUONK_API_URL
+    squonk_ui_url = settings.SQUONK_UI_URL
 
     context = {}
     context['discourse_available'] = 'false'
     context['squonk_available'] = 'false'
     if discourse_api_key:
         context['discourse_available'] = 'true'
-    if squonk_host:
+    if squonk_api_url and squonk_ui_url:
         context['squonk_available'] = 'true'
 
     user = request.user
+
     if user.is_authenticated:
         context['discourse_host'] = ''
         context['user_present_on_discourse'] = 'false'
@@ -635,9 +636,9 @@ def react(request):
 
         # If user is authenticated Squonk can be called then return the Squonk host
         # so the Frontend can navigate to it
-        context['squonk_host'] = ''
-        if squonk_host and check_squonk_active():
-            context['squonk_host'] = squonk_host
+        context['squonk_ui_url'] = ''
+        if squonk_api_url and check_squonk_active(request):
+            context['squonk_ui_url'] = squonk_ui_url
 
     return render(request, "viewer/react_temp.html", context)
 
@@ -3022,66 +3023,104 @@ class JobFileTransferView(viewsets.ModelViewSet):
         # (POST, PUT, PATCH)
         return JobFileTransferWriteSerializer
 
-    # def create(self, request):
-    #     """Method to handle POST request
-    #     """
-    #     logger.info('+ JobFileTransfer.post')
-    #     # Only authenticated users can upload files - this can be switched off in settings.py.
-    #     user = self.request.user
-    #     if not user.is_authenticated:
-    #         content = {'Only authenticated users can transfer files'}
-    #         return Response(content, status=status.HTTP_403_FORBIDDEN)
-    #
-    #     target = request.data['target']
-    #     snapshot = request.data['snapshot']
-    #
-    #     if 'squonk_project' in request.data:
-    #         squonk_project = request.data['squonk_project']
-    #     else:
-    #         content = {
-    #             'message': 'A squonk project must be entered'}
-    #         return Response(content, status=status.HTTP_400_BAD_REQUEST)
-    #
-    #     if request.data['proteins']:
-    #         # Get first part of protein code
-    #         proteins_list = [p.strip().split(":")[0]
-    #                          for p in request.data['proteins'].split(',')]
-    #     else:
-    #         proteins_list = []
-    #
-    #     if len(proteins_list) > 0:
-    #         proteins = []
-    #         # Filter by protein codes
-    #         for code_first_part in proteins_list:
-    #             prot = Protein.objects.filter(code__contains=code_first_part).values()
-    #             if prot.exists():
-    #                 proteins.append(prot.first())
-    #     else:
-    #         content = {
-    #             'message': 'A list of protein codes to transfer must be entered'}
-    #         return Response(content, status=status.HTTP_400_BAD_REQUEST)
-    #
-    #     if len(proteins) == 0:
-    #         content = {'message': 'Please enter list of valid protein codes '
-    #                               'for' + " proteins: {} "
-    #             .format(proteins_list) }
-    #         return Response(content, status=status.HTTP_404_NOT_FOUND)
-    #
-    #     # If record exists for target / snapshot AND target.last date > transfer.last date
-    #     # Then start process
-    #     # Else
-    #     # OK.
-    #
-    #     # Check celery/rdis is up and running
-    #     check_services()
-    #     job_transfer_task = process_job_file_transfer.delay()
-    #
-    #     if transfer_queued:
-    #         return Response({"file_url": filename_url})
-    #     else:
-    #         content = {'message': 'Zip being rebuilt - please try later'}
-    #         return Response(content,
-    #                         status=status.HTTP_208_ALREADY_REPORTED)
+    def create(self, request):
+        """Method to handle POST request
+        """
+        logger.info('+ JobFileTransfer.post')
+        # Only authenticated users can transfer files to sqonk
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can transfer files'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        target_id = request.data['target']
+        target = Target.objects.get(id=target_id)
+        snapshot_id = request.data['snapshot']
+
+        if 'squonk_project' in request.data:
+            squonk_project = request.data['squonk_project']
+        else:
+            content = {
+                'message': 'A squonk project must be entered'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.data['proteins']:
+            # Get first part of protein code
+            proteins_list = [p.strip().split(":")[0]
+                             for p in request.data['proteins'].split(',')]
+        else:
+            proteins_list = []
+
+        if len(proteins_list) > 0:
+            proteins = []
+            # Filter by protein codes
+            for code_first_part in proteins_list:
+                prot = Protein.objects.filter(code__contains=code_first_part).values()
+                if prot.exists():
+                    proteins.append(prot.first())
+        else:
+            content = {
+                'message': 'A list of protein codes to transfer must be entered'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(proteins) == 0:
+            content = {'message': 'Please enter list of valid protein codes '
+                                  'for' + " proteins: {} "
+                .format(proteins_list) }
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        # If transfer has already happened find the latest
+        job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
+        if job_transfers:
+            job_transfer = job_transfers.latest('id')
+        else:
+            job_transfer = None
+
+        if job_transfer:
+            if (job_transfer.transfer_status == 'PENDING' or
+                job_transfer.transfer_status == 'STARTED'):
+                content = {'message': 'Files currently being transferred'}
+                return Response(content,
+                                status=status.HTTP_208_ALREADY_REPORTED)
+            elif (target.upload_datetime and job_transfer.transfer_datetime) \
+                    and target.upload_datetime < job_transfer.transfer_datetime:
+                # The target data has already been transferred for the snapshot.
+                content = {'message': 'Files already transferred for this job'}
+                return Response(content,
+                                status=status.HTTP_200_OK)
+            else:
+                # Restart existing transfer - it must have failed or be outdated
+                job_transfer.user = request.user
+        else:
+            # Create new file transfer job
+            job_transfer = JobFileTransfer()
+            job_transfer.user = request.user
+            job_transfer.proteins = dict.fromkeys([p['code'] for p in proteins])
+            job_transfer.squonk_project = squonk_project
+            job_transfer.target = Target.objects.get(id=target_id)
+            job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
+
+        job_transfer.transfer_status = 'PENDING'
+        job_transfer.transfer_datetime = None
+        job_transfer.transfer_progress = None
+        job_transfer.save()
+
+        # Check celery/rdis is up and running
+        check_services()
+        logger.info('oidc_access_token')
+        logger.info(request.session['oidc_access_token'])
+
+        #job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
+        #                                                    job_transfer.id)
+        job_transfer_task = process_job_file_transfer(request.session['oidc_access_token'],
+                                                      job_transfer.id)
+
+        #job_transfer.transfer_task_id = job_transfer_task
+        #job_transfer.save()
+
+        content = {'transfer_task_id': 'TBA'}
+        return Response(content,
+                        status=status.HTTP_200_OK)
 
 
 class JobRequestView(viewsets.ModelViewSet):
@@ -3127,6 +3166,29 @@ class JobRequestView(viewsets.ModelViewSet):
             return JobRequestReadSerializer
         # (POST, PUT, PATCH)
         return JobRequestWriteSerializer
+
+    def create(self, request):
+        """Method to handle POST request
+        """
+        logger.info('+ JobRequest.post')
+        # Only authenticated users can create squonk job requests.
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can transfer files'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            squonk_url_ext = create_squonk_job(request)
+        except ValueError as e:
+            logger.info('Job Request failed: ')
+            logger.info(e)
+            content = {'error': str(e)}
+            return Response(content,
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        content = {'squonk_url_ext': squonk_url_ext}
+        return Response(content,
+                        status=status.HTTP_200_OK)
 
 
 class JobCallBackView(viewsets.ModelViewSet):

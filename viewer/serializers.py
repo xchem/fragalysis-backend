@@ -1,7 +1,6 @@
 import os
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
-#L+
 from urllib.parse import urljoin
 
 from api.utils import draw_mol
@@ -159,7 +158,8 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Target
-        fields = ("id", "title", "project_id", "protein_set", "template_protein", "metadata", "zip_archive", "sequences")
+        fields = ("id", "title", "project_id", "protein_set", "default_squonk_project",
+                  "template_protein", "metadata", "zip_archive", "sequences")
 
 
 class CompoundSerializer(serializers.ModelSerializer):
@@ -687,9 +687,9 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Target
-        fields = ("id", "title", "project_id", "template_protein", "metadata",
-                  "zip_archive", "sequences",
-                  "molecules","tags_info","tag_categories")
+        fields = ("id", "title", "project_id", "default_squonk_project", "template_protein",
+                  "metadata", "zip_archive", "sequences",
+                  "molecules", "tags_info", "tag_categories")
 # Serializers for Tags - End
 
 

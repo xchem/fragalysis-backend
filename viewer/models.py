@@ -1016,9 +1016,9 @@ class JobFileTransfer(models.Model):
         A foreign key link to the relevant target the file transfer is part of (required)
     squonk_project: CharField
         The name of a project that has been created in Squonk that the files will be transferred to
-    projects: CharField
+    projects: JSONField
         List of proteins to be transferred
-    compounds: CharField
+    compounds: JSONField
         List of coumpounds to be transferred (not used yet)
     transfer_spec: JSONField
         Identifies for each type (protein or compound), which file types were transferred over.
@@ -1051,9 +1051,9 @@ class JobFileTransfer(models.Model):
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE, db_index=True)
     squonk_project = models.CharField(max_length=200, null=True)
-    proteins = models.CharField(null=True, max_length=5000)
+    proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # Not used in phase 1
-    compounds = models.CharField(null=True, max_length=5000)
+    compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     transfer_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     transfer_task_id = models.CharField(null=True, max_length=50)
     transfer_status = models.CharField(choices=STATUS, default=PENDING, max_length=7)

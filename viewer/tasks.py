@@ -16,6 +16,7 @@ from .sdf_check import *
 from .compound_set_upload import *
 from .target_set_upload import process_target, validate_target
 from .cset_upload import *
+from .squonk_job_file_transfer import process_file_transfer
 
 # import the logging library
 #import logging
@@ -463,17 +464,15 @@ def process_target_set(validate_output):
 # End Target Sets ###
 
 
-@shared_task
-def process_job_file_transfer(validate_output):
+# File Transfer ###
+# @shared_task
+def process_job_file_transfer(auth_token, id):
     """ Celery task to take a list of proteins and specification and transfer the files to Squonk2
 
     Parameters
     ----------
-            - validate dict (dict): dict containing any errors found during the validation step
-            - validated (bool): True if the file(s) were validated, False if not
-            - filename (str): name of the uploaded target file (zip file)
-            - target (str): name of the target
-            - submitter_name (str): name of the author of the computed set
+    id
+        id of job_file_transfer record
 
     Returns
     -------
@@ -482,9 +481,27 @@ def process_job_file_transfer(validate_output):
 
     """
 
-        #mols_loaded, mols_processed = process_target(new_data_folder, target_name, proposal_ref)
+    logger.info('+ Starting File Transfer: ' + str(id))
+    job_transfer = JobFileTransfer.objects.get(id=id)
+    job_transfer.transfer_status = "STARTED"
+    job_transfer.save()
+    try:
+        process_file_transfer(auth_token, job_transfer.id)
+    except RuntimeError as e:
+        logger.info('- File Transfer failed: ' + str(id))
+        logger.info(e)
+        job_transfer.transfer_status = "FAILURE"
+        job_transfer.save()
+    else:
+        logger.info('+ File Transfer successful: ' + str(id))
+        # Update the transfer datetime for comparison with the target upload datetime.
+        # This should only be done on a successful upload.
+        job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
+        job_transfer.transfer_status = "SUCCESS"
+        job_transfer.save()
+        logger.info('- File Transfer Ended Successfully: ' + str(id))
 
-        #return 'process', 'tset', target_name, mols_loaded, mols_processed, contact_email
-    return True
-# End Target Sets ###
+    return job_transfer.transfer_status
+
+# End File Transfer ###
 
