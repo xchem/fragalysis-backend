@@ -1,6 +1,5 @@
 """Create OT session"""
 from __future__ import annotations
-from os import name
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
@@ -12,8 +11,6 @@ from pandas.core.frame import DataFrame
 
 from car.models import (
     Batch,
-    Target,
-    Method,
     Reaction,
     Product,
     AddAction,
@@ -38,11 +35,12 @@ class CreateOTSession(object):
 
     def __init__(
         self,
-        batchid: int,
+        otbatchprotocolobj: Django_object,
         reactiongroupqueryset: list,
         inputplatequeryset: list = None,
     ):
-        self.batchobj = Batch.objects.get(id=batchid)
+        self.otbatchprotocolobj = otbatchprotocolobj 
+        self.batchobj = Batch.objects.get(id=otbatchprotocolobj.batch_id_id)
         self.reactiongroupqueryset = reactiongroupqueryset
         self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
         self.inputplatequeryset = inputplatequeryset
@@ -285,7 +283,7 @@ class CreateOTSession(object):
 
     def createOTSessionModel(self):
         otsessionobj = OTSession()
-        otsessionobj.batch_id = self.batchobj
+        otsessionobj.otbatchprotocol_id = self.otbatchprotocolobj
         otsessionobj.save()
         return otsessionobj
 
@@ -597,67 +595,3 @@ class CreateOTSession(object):
             clonewellobj.plate_id = plateobj
             clonewellobj.otsession_id = self.otsessionobj
             clonewellobj.save()
-
-
-def getTargets(batchid):
-    targetqueryset = Target.objects.filter(batch_id=batchid).order_by("id")
-    return targetqueryset
-
-
-def getMethods(targetid):
-    methodqueryset = Method.objects.filter(target_id=targetid).filter(otchem=True).order_by("id")
-    return methodqueryset
-
-
-def getReactions(methodid):
-    reactionqueryset = Reaction.objects.filter(method_id=methodid).order_by("id")
-    return reactionqueryset
-
-def getBatchTag(batchid):
-    batch_obj = Batch.objects.get(id=batchid)
-    batch_tag = batch_obj.batch_tag
-    return batch_tag
-
-def getBatchReactions(batchid):
-    targetqueryset = getTargets(batchid=batchid)
-    if targetqueryset:
-        allreactionquerysets = []
-        for target in targetqueryset:
-            methodqueryset = getMethods(targetid=target)
-            if methodqueryset:
-                for method in methodqueryset:
-                    reactionqueryset = getReactions(methodid=method.id)
-                    allreactionquerysets.append(reactionqueryset)
-        return allreactionquerysets
-
-
-def findnoallreactionsteps(allreactionquerysets: list):
-    """ "
-    Function to get all possible number of reactions steps for
-    multiple methods
-    """
-    allnumberofsteps = set([len(x) for x in allreactionquerysets])
-    return allnumberofsteps
-
-
-def findmaxlist(allreactionquerysets: list):
-    maxlength = max([len(i) for i in allreactionquerysets])
-    return maxlength
-
-
-def groupReactions(allreactionquerysets: list, maxsteps: int):
-    """
-    Groups reactionqueries into first reactions, second reactions and so on
-    """
-    groupedreactionquerysets = []
-    for i in range(maxsteps):
-        reactiongroup = [
-            reactionqueryset[i]
-            for reactionqueryset in allreactionquerysets
-            if i <= len(reactionqueryset) - 1
-        ]
-        groupedreactionquerysets.append(reactiongroup)
-    return groupedreactionquerysets
-
-
-

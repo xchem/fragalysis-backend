@@ -6,6 +6,7 @@ fragalysis-frontend/
 media/
 logs/
 django_app.sock
+*zip
 
 .idea/
 

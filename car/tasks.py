@@ -1,8 +1,23 @@
-from asyncio import protocols
-from celery import shared_task
+from __future__ import annotations
+from celery import shared_task, current_task
+from django.conf import settings
 from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from zipfile import ZipFile
 import pandas as pd
 from rdkit.Chem import AllChem
+import os
+
+from car.models import (
+    Batch,
+    Target,
+    Method,
+    Reaction,
+    CompoundOrder,
+    OTScript,
+    OTSession,
+    OTBatchProtocol,   
+)
 
 from .validate import ValidateFile
 from .createmodels import (
@@ -22,7 +37,7 @@ from .manifold.apicalls import getManifoldretrosynthesis
 from .recipebuilder.encodedrecipes import encoded_recipes
 from .utils import getAddtionOrder
 
-from .opentrons.cartoot import getBatchTag, getBatchReactions, findmaxlist, groupReactions, CreateOTSession
+from .opentrons.cartoot import CreateOTSession
 from .opentrons.otwrite import otWrite
 
 
@@ -337,10 +352,16 @@ def createOTScript(batchids):
     Create otscripts and starting plates for a list of batch ids
     """ 
     protocol_summary = {}
-
     for batchid in batchids:
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
+            otbatchprotocolobj = OTBatchProtocol()
+            otbatchprotocolobj.batch_id = Batch.objects.get(id=batchid)   
+            otbatchprotocolobj.celery_task_id = current_task.request.id
+            otbatchprotocolobj.save()
+
+            batch_tag = getBatchTag(batchid=batchid)
+
             maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
             groupedreactionquerysets = groupReactions(
             allreactionquerysets=allreactionquerysets, maxsteps=maxsteps
@@ -348,7 +369,7 @@ def createOTScript(batchids):
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
                     otsession = CreateOTSession(
-                        batchid=batchid,
+                        otbatchprotocolobj=otbatchprotocolobj,
                         reactiongroupqueryset=reactiongroup,
                     )
 
@@ -357,12 +378,13 @@ def createOTScript(batchids):
                     startingreactionplatequeryset = otsession.startingreactionplatequeryset
 
                     otWrite(
+                        protocolname = batch_tag,
                         otsessionobj=otsessionobj,
                         alladdactionsquerysetflat=alladdactionsquerysetflat,
                     )
                 if index > 0:
                     otsession = CreateOTSession(
-                        batchid=batchid,
+                        otbatchprotocolobj=otbatchprotocolobj,
                         reactiongroupqueryset=reactiongroup,
                         inputplatequeryset=startingreactionplatequeryset,
                     )
@@ -371,12 +393,200 @@ def createOTScript(batchids):
                     alladdactionsquerysetflat = otsession.alladdactionquerysetflat
 
                     otWrite(
+                        protocolname = batch_tag,
                         otsessionobj=otsessionobj,
                         alladdactionsquerysetflat=alladdactionsquerysetflat,
                     )    
-
-            protocol_summary[batchid] = True
+            
+            createZipOTBatchProtocol = ZipOTBatchProtocol(otbatchprotocolobj=otbatchprotocolobj, batchtag=batch_tag)
+    
+            if createZipOTBatchProtocol.errors:
+                protocol_summary[batchid] = False
+            else:
+                protocol_summary[batchid] = True
+        
         else:
             protocol_summary[batchid] = False
 
     return protocol_summary
+
+def getTargets(batchid):
+    targetqueryset = Target.objects.filter(batch_id=batchid).order_by("id")
+    return targetqueryset
+
+
+def getMethods(targetid):
+    methodqueryset = Method.objects.filter(target_id=targetid).filter(otchem=True).order_by("id")
+    return methodqueryset
+
+
+def getReactions(methodid):
+    reactionqueryset = Reaction.objects.filter(method_id=methodid).order_by("id")
+    return reactionqueryset
+
+def getBatchTag(batchid):
+    batch_obj = Batch.objects.get(id=batchid)
+    batch_tag = batch_obj.batch_tag
+    return batch_tag
+
+def getBatchReactions(batchid):
+    targetqueryset = getTargets(batchid=batchid)
+    if targetqueryset:
+        allreactionquerysets = []
+        for target in targetqueryset:
+            methodqueryset = getMethods(targetid=target)
+            if methodqueryset:
+                for method in methodqueryset:
+                    reactionqueryset = getReactions(methodid=method.id)
+                    allreactionquerysets.append(reactionqueryset)
+        return allreactionquerysets
+
+
+def findnoallreactionsteps(allreactionquerysets: list):
+    """ "
+    Function to get all possible number of reactions steps for
+    multiple methods
+    """
+    allnumberofsteps = set([len(x) for x in allreactionquerysets])
+    return allnumberofsteps
+
+
+def findmaxlist(allreactionquerysets: list):
+    maxlength = max([len(i) for i in allreactionquerysets])
+    return maxlength
+
+
+def groupReactions(allreactionquerysets: list, maxsteps: int):
+    """
+    Groups reactionqueries into first reactions, second reactions and so on
+    """
+    groupedreactionquerysets = []
+    for i in range(maxsteps):
+        reactiongroup = [
+            reactionqueryset[i]
+            for reactionqueryset in allreactionquerysets
+            if i <= len(reactionqueryset) - 1
+        ]
+        groupedreactionquerysets.append(reactiongroup)
+    return groupedreactionquerysets
+
+
+class ZipOTBatchProtocol(object):
+    """
+    Creates a ZipBatchProtocol object for writing compound order csvs and otscripts
+    for a batch
+    """
+    def __init__(self, otbatchprotocolobj: Django_object, batchtag: str):
+        """
+        zipOTBatchProtocol constructor
+        Args:
+            otbatchprotocolobj (Django object): OT batch protocol object created for a batch
+            batchtag (str): Batch tag for naming zip file
+        """
+        self.otbatchprotocolobj = otbatchprotocolobj
+        self.mediaroot = settings.MEDIA_ROOT
+        self.otsessionqueryset = self.getOTSessionQuerySet()
+        self.zipfn = "batch-{}-protocol.zip".format(batchtag)
+        self.ziptmpfp = os.path.join(settings.MEDIA_ROOT, "tmp", "batchprotocoltmp.zip" )
+        self.ziparchive = ZipFile(self.ziptmpfp, 'w')
+        self.errors = {}
+
+        for otsession_obj in self.otsessionqueryset:
+            compoundorderqueryset = self.getCompoundOrderQuerySet(otsessionobj=otsession_obj)
+            otscriptqueryset = self.getOTScriptQuerySet(otsessionobj=otsession_obj)
+
+        for compoundorderobj in compoundorderqueryset:
+            filepath = self.getCompoundOrderFilePath(compoundorderobj=compoundorderobj)
+            destdir = "compoundorders"
+            self.writeZip(destdir=destdir,filepath=filepath)
+        
+        for otscriptobj in otscriptqueryset:
+            filepath = self.getOTScriptFilePath(otscriptobj=otscriptobj)
+            destdir = "otscripts"
+            self.writeZip(destdir=destdir,filepath=filepath)
+        
+        self.ziparchive.close()
+        self.writeZipToMedia()
+        self.deleteTmpZip()
+
+    def addWarning(self, function: str, errorwarning: str):
+        self.errors['function'].append(function)
+        self.errors['errorwarning'].append(errorwarning)
+
+    def getOTSessionQuerySet(self):
+        """Retrieve OTSession model queryset
+
+        """
+        otsessionqueryset = OTSession.objects.filter(otbatchprotocol_id=self.otbatchprotocolobj)
+
+        if not otsessionqueryset:
+            self.addWarning(function=self.getOTSessionQuerySet.__name__, 
+                            errorwarning="No queryset found")
+        else:
+            return otsessionqueryset 
+
+    def getCompoundOrderQuerySet(self, otsessionobj: Django_object):
+        """Retrieve CompoundOrder model queryset
+        Args:
+            otsessionobj (Django obj): OTSession Django object
+        """
+        compoundorderqueryset = CompoundOrder.objects.filter(otsession_id=otsessionobj)
+
+        if not compoundorderqueryset:
+            self.addWarning(function=self.getCompoundOrderQuerySet.__name__, 
+                            errorwarning="No queryset found")
+        else:
+            return compoundorderqueryset
+    
+    def getOTScriptQuerySet(self, otsessionobj: Django_object):
+        """Retrieve OTScript model queryset
+        Args:
+            otsessionobj (Django obj): OTSession Django object
+        """
+        otscriptqueryset = OTScript.objects.filter(otsession_id=otsessionobj)
+
+        if not otscriptqueryset:
+            self.addWarning(function=self.getOTScriptQuerySet.__name__, 
+                            errorwarning="No queryset found")
+        else:
+            return otscriptqueryset
+
+    def getCompoundOrderFilePath(self, compoundorderobj: Django_object):
+        """Retrieve CompoundOrder csv file path
+        Args:
+            compoundorderobj (Django obj): OTSession Django object
+        """
+        filepath = os.path.join(self.mediaroot, compoundorderobj.ordercsv.name)
+        return filepath
+
+    def getOTScriptFilePath(self, otscriptobj: Django_obj):
+        """Retrieve OTScript Python file path
+        Args:
+            otscriptobj (Django obj): OTScript Django object
+        """
+        filepath = os.path.join(self.mediaroot, otscriptobj.otscript.name)
+        return filepath
+
+    def writeZip(self, destdir: str, filepath: str):
+        """Add the requested file to the zip archive.
+
+        Args:
+            destdir (str): directory to write file to in ziparchive 
+            filepath (str): filepath from record
+        """
+        arcname = os.path.join(destdir, filepath.split("/")[-1])
+        self.ziparchive.write(filename=filepath, arcname=arcname)
+
+    def writeZipToMedia(self):
+        """Write the ziparchive to medida for the
+           OTBatchProtocol Django object
+        """
+        zf = open(self.ziptmpfp, "rb")
+        self.otbatchprotocolobj.zipfile.save(self.zipfn, zf)
+        self.otbatchprotocolobj.save()
+    
+    def deleteTmpZip(self):
+        """"Delete the temporary zip archive created by ZipFile
+        """
+        os.remove(self.ziptmpfp)
+

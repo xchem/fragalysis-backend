@@ -28,6 +28,7 @@ from .api import (
 
 # Import OT Session views
 from .api import (
+    OTBatchProtocolViewSet,
     OTSessionViewSet,
     DeckViewSet,
     PipetteViewSet,
@@ -67,6 +68,7 @@ router.register(
 router.register("api/stiractions", StirActionViewSet, "stiractions")
 
 # Register Ot Session routes
+router.register("api/otbatchprotocols", OTBatchProtocolViewSet, "otbatchprotocols")
 router.register("api/otsessions", OTSessionViewSet, "otsessions")
 router.register("api/decks", DeckViewSet, "decks")
 router.register("api/pipettes", PipetteViewSet, "pipettes")

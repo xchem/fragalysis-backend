@@ -14,7 +14,7 @@ from .models import (
 )
 
 # Import OT session models
-from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, CompoundOrder, OTScript
+from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, OTBatchProtocol, CompoundOrder, OTScript
 
 class CatalogEntrySerializer(serializers.ModelSerializer):
     class Meta:
@@ -201,5 +201,10 @@ class OTSessionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OTSession
+        fields = "__all__"
+
+class OTBatchProtocolSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OTBatchProtocol
         fields = "__all__"
 
