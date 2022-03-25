@@ -22,10 +22,11 @@ from .models import (
 )
 
 # Import OT Session models
-from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, CompoundOrder, OTScript
+from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, OTBatchProtocol, CompoundOrder, OTScript
 
 # Import standard serializers
 from .serializers import (
+    OTBatchProtocolSerializer,
     ProjectSerializer,
     ProjectSerializerAll,
     MculeQuoteSerializer,
@@ -57,6 +58,7 @@ from .serializers import (
 
 # Import OT Session serializers
 from .serializers import (
+    OTBatchProtocolSerializer,
     OTSessionSerializer,
     DeckSerializer,
     PipetteSerializer,
@@ -311,9 +313,9 @@ class StirActionViewSet(viewsets.ModelViewSet):
 
 
 # OT Session viewsets
-class OTSessionViewSet(viewsets.ModelViewSet):
-    queryset = OTSession.objects.all()
-    serializer_class = OTSessionSerializer
+class OTBatchProtocolViewSet(viewsets.ModelViewSet):
+    queryset = OTBatchProtocol.objects.all()
+    serializer_class = OTBatchProtocolSerializer
     filterset_fields = ["batch_id"]
 
     @action(methods=['post'], detail=False)
@@ -344,6 +346,12 @@ class OTSessionViewSet(viewsets.ModelViewSet):
             if task.status == "PENDING":
                 data = {"task_status": task.status}
                 return JsonResponse(data)
+
+
+class OTSessionViewSet(viewsets.ModelViewSet):
+    queryset = OTSession.objects.all()
+    serializer_class = OTSessionSerializer
+    filterset_fields = ["otbatchprotocol_id"]
 
 class DeckViewSet(viewsets.ModelViewSet):
     queryset = Deck.objects.all()

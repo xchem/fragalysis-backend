@@ -1,10 +1,12 @@
 from __future__ import annotations
 from celery import shared_task, current_task
+from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from zipfile import ZipFile
 import pandas as pd
 from rdkit.Chem import AllChem
+import os
 
 from car.models import (
     Batch,
@@ -395,35 +397,18 @@ def createOTScript(batchids):
                         otsessionobj=otsessionobj,
                         alladdactionsquerysetflat=alladdactionsquerysetflat,
                     )    
-
-            protocol_summary[batchid] = True
             
-            zipOTBatchProtocol(otbatchprotocolobj=otbatchprotocolobj, batch_tag=batch_tag)
-            
+            createZipOTBatchProtocol = ZipOTBatchProtocol(otbatchprotocolobj=otbatchprotocolobj, batchtag=batch_tag)
+    
+            if createZipOTBatchProtocol.errors:
+                protocol_summary[batchid] = False
+            else:
+                protocol_summary[batchid] = True
+        
         else:
             protocol_summary[batchid] = False
 
     return protocol_summary
-
-def zipOTBatchProtocol(otbatchprotocolobj: Django_object, batch_tag: str):
-    otsession_queryset = OTSession.objects.filter(otbatchprotocol_id=otbatchprotocolobj)
-    for otsession_obj in otsession_queryset:
-        compoundorder_queryset = CompoundOrder.objects.filter(otsession_id=otsession_obj)
-        otscript_queryset = OTScript.objects.filter(otsession_id=otsession_obj)
-
-        compound_order_csvs = [ContentFile(compound_order_obj.ordercsv.read(), name=compound_order_obj.ordercsv.name) for compound_order_obj in compoundorder_queryset]
-        otscripts = [ContentFile(otscript_obj.otscript.read(), name=otscript_obj.otscript.name) for otscript_obj in otscript_queryset]
-
-        zipfile = ZipFile("otsession-{}-for-batch-{}.zip".format(otsession_obj.id, batch_tag), "w")
-        [zipfile.write(compound_order_csv) for compound_order_csv in compound_order_csvs]
-        [zipfile.write(otscript) for otscript in otscripts]
-        zipfile_fn = default_storage.save(
-        "otbatchprotocols/",
-        ContentFile(zipfile),
-    )
-        otbatchprotocolobj.zipfile = zipfile_fn
-        otbatchprotocolobj.save()
-        zipfile.close()
 
 def getTargets(batchid):
     targetqueryset = Target.objects.filter(batch_id=batchid).order_by("id")
@@ -484,3 +469,124 @@ def groupReactions(allreactionquerysets: list, maxsteps: int):
         ]
         groupedreactionquerysets.append(reactiongroup)
     return groupedreactionquerysets
+
+
+class ZipOTBatchProtocol(object):
+    """
+    Creates a ZipBatchProtocol object for writing compound order csvs and otscripts
+    for a batch
+    """
+    def __init__(self, otbatchprotocolobj: Django_object, batchtag: str):
+        """
+        zipOTBatchProtocol constructor
+        Args:
+            otbatchprotocolobj (Django object): OT batch protocol object created for a batch
+            batchtag (str): Batch tag for naming zip file
+        """
+        self.otbatchprotocolobj = otbatchprotocolobj
+        self.mediaroot = settings.MEDIA_ROOT
+        self.otsessionqueryset = self.getOTSessionQuerySet()
+        self.zipfn = "batch-{}-protocol.zip".format(batchtag)
+        self.ziptmpfp = os.path.join(settings.MEDIA_ROOT, "tmp", "batchprotocoltmp.zip" )
+        self.ziparchive = ZipFile(self.ziptmpfp, 'w')
+        self.errors = {}
+
+        for otsession_obj in self.otsessionqueryset:
+            compoundorderqueryset = self.getCompoundOrderQuerySet(otsessionobj=otsession_obj)
+            otscriptqueryset = self.getOTScriptQuerySet(otsessionobj=otsession_obj)
+
+        for compoundorderobj in compoundorderqueryset:
+            filepath = self.getCompoundOrderFilePath(compoundorderobj=compoundorderobj)
+            destdir = "compoundorders"
+            self.writeZip(destdir=destdir,filepath=filepath)
+        
+        for otscriptobj in otscriptqueryset:
+            filepath = self.getOTScriptFilePath(otscriptobj=otscriptobj)
+            destdir = "otscripts"
+            self.writeZip(destdir=destdir,filepath=filepath)
+        
+        self.ziparchive.close()
+        self.writeZipToMedia()
+        self.deleteTmpZip()
+
+    def addWarning(self, function: str, errorwarning: str):
+        self.errors['function'].append(function)
+        self.errors['errorwarning'].append(errorwarning)
+
+    def getOTSessionQuerySet(self):
+        """Retrieve OTSession model queryset
+
+        """
+        otsessionqueryset = OTSession.objects.filter(otbatchprotocol_id=self.otbatchprotocolobj)
+
+        if not otsessionqueryset:
+            self.addWarning(function=self.getOTSessionQuerySet.__name__, 
+                            errorwarning="No queryset found")
+        else:
+            return otsessionqueryset 
+
+    def getCompoundOrderQuerySet(self, otsessionobj: Django_object):
+        """Retrieve CompoundOrder model queryset
+        Args:
+            otsessionobj (Django obj): OTSession Django object
+        """
+        compoundorderqueryset = CompoundOrder.objects.filter(otsession_id=otsessionobj)
+
+        if not compoundorderqueryset:
+            self.addWarning(function=self.getCompoundOrderQuerySet.__name__, 
+                            errorwarning="No queryset found")
+        else:
+            return compoundorderqueryset
+    
+    def getOTScriptQuerySet(self, otsessionobj: Django_object):
+        """Retrieve OTScript model queryset
+        Args:
+            otsessionobj (Django obj): OTSession Django object
+        """
+        otscriptqueryset = OTScript.objects.filter(otsession_id=otsessionobj)
+
+        if not otscriptqueryset:
+            self.addWarning(function=self.getOTScriptQuerySet.__name__, 
+                            errorwarning="No queryset found")
+        else:
+            return otscriptqueryset
+
+    def getCompoundOrderFilePath(self, compoundorderobj: Django_object):
+        """Retrieve CompoundOrder csv file path
+        Args:
+            compoundorderobj (Django obj): OTSession Django object
+        """
+        filepath = os.path.join(self.mediaroot, compoundorderobj.ordercsv.name)
+        return filepath
+
+    def getOTScriptFilePath(self, otscriptobj: Django_obj):
+        """Retrieve OTScript Python file path
+        Args:
+            otscriptobj (Django obj): OTScript Django object
+        """
+        filepath = os.path.join(self.mediaroot, otscriptobj.otscript.name)
+        return filepath
+
+    def writeZip(self, destdir: str, filepath: str):
+        """Add the requested file to the zip archive.
+
+        Args:
+            destdir (str): directory to write file to in ziparchive 
+            filepath (str): filepath from record
+        """
+        arcname = os.path.join(destdir, filepath.split("/")[-1])
+        self.ziparchive.write(filename=filepath, arcname=arcname)
+
+    def writeZipToMedia(self):
+        """Write the ziparchive to medida for the
+           OTBatchProtocol Django object
+        """
+        zf = open(self.ziptmpfp, "rb")
+        self.otbatchprotocolobj.zipfile.save(self.zipfn, zf)
+        self.otbatchprotocolobj.save()
+    
+    def deleteTmpZip(self):
+        """"Delete the temporary zip archive created by ZipFile
+        """
+        os.remove(self.ziptmpfp)
+
