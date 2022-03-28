@@ -39,8 +39,6 @@ from .api import (
     OTScriptViewSet,
 )
 
-from .views import UploadProject
-
 # Register standard routes
 router = routers.DefaultRouter()
 router.register("api/projects", ProjectViewSet, "projects")
@@ -78,8 +76,4 @@ router.register("api/wells", WellViewSet, "wells")
 router.register("api/compoundorders", CompoundOrderViewSet, "compoundorders")
 router.register("api/otscripts", OTScriptViewSet, "otscripts")
 
-urlpatterns = [
-    url("upload/", UploadProject.as_view(), name="createproject"),
-]
-
-urlpatterns += router.urls
+urlpatterns = router.urls
