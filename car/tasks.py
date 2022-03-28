@@ -10,6 +10,7 @@ import os
 
 from car.models import (
     Batch,
+    Project,
     Target,
     Method,
     Reaction,
@@ -347,16 +348,19 @@ def uploadCustomReaction(validate_output):
 
 
 @shared_task
-def createOTScript(batchids):
+def createOTScript(batchids: list):
     """"
     Create otscripts and starting plates for a list of batch ids
     """ 
-    protocol_summary = {}
+    task_summary = {}
+    # NB checkm if prot exists
     for batchid in batchids:
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
             otbatchprotocolobj = OTBatchProtocol()
-            otbatchprotocolobj.batch_id = Batch.objects.get(id=batchid)   
+            projectobj = Project.objects.filter(batches__batch_id=batchid).distinct()
+            otbatchprotocolobj.batch_id = Batch.objects.get(id=batchid)
+            otbatchprotocolobj.project_id = projectobj   
             otbatchprotocolobj.celery_task_id = current_task.request.id
             otbatchprotocolobj.save()
 
@@ -401,14 +405,14 @@ def createOTScript(batchids):
             createZipOTBatchProtocol = ZipOTBatchProtocol(otbatchprotocolobj=otbatchprotocolobj, batchtag=batch_tag)
     
             if createZipOTBatchProtocol.errors:
-                protocol_summary[batchid] = False
+                task_summary[batchid] = False
             else:
-                protocol_summary[batchid] = True
+                task_summary[batchid] = True
         
         else:
-            protocol_summary[batchid] = False
+            task_summary[batchid] = False
 
-    return protocol_summary
+    return task_summary
 
 def getTargets(batchid):
     targetqueryset = Target.objects.filter(batch_id=batchid).order_by("id")

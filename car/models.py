@@ -3,7 +3,6 @@ from django.utils.text import slugify
 import random
 import string
 
-
 def rand_slug():
     return "".join(random.choice(string.ascii_letters + string.digits) for _ in range(6))
 
@@ -275,6 +274,7 @@ class MCuleOrder(models.Model):
 
 # Models for capturing OT session, Deck, Plates and Wells
 class OTBatchProtocol(models.Model):
+    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
     batch_id = models.ForeignKey(Batch, related_name="otbatchprotocols", on_delete=models.CASCADE)
     celery_task_id = models.CharField(max_length=50)
     zipfile = models.FileField(upload_to="otbatchprotocols/", max_length=255, null=True)
