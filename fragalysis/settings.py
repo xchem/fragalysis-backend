@@ -336,7 +336,8 @@ DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 # Squonk settings for API calls to Squonk Platform
 SQUONK_API_URL = os.environ.get('SQUONK_API_URL')
 SQUONK_UI_URL = os.environ.get('SQUONK_UI_URL')
-SQUONK_MEDIA_DIRECTORY = "fragalysis-files"
+SQUONK_MEDIA_DIRECTORY = "/fragalysis-files/"
+SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
 
 # This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with
 # errors. Hence connection to DEBUG flag.

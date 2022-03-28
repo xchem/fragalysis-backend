@@ -7,17 +7,17 @@ import os
 import shutil
 
 from django.conf import settings
-from viewer.models import (
-    Target,
-    Molecule,
-    Protein,
-    JobFileTransfer
-)
-from viewer.utils import clean_filename
 
 from dm_api.dm_api import DmApi
 
 from celery.utils.log import get_task_logger
+from viewer.utils import clean_filename
+
+from viewer.models import (
+    Molecule,
+    Protein,
+    JobFileTransfer
+)
 logger = get_task_logger(__name__)
 
 # Squonk Specification File Paths
@@ -31,10 +31,10 @@ logger = get_task_logger(__name__)
 
 # Fragalysis Upload Mapping (as well as I can decipher it:
 #
-# Type          | From Aligned File      |  E.g.                           | Stored In
-# .apo_desolve  | <pcode>_apo-desolv.pdb | CD44MMA-x0017_0A_apo-desolv.pdb | Protein.apo_desolve_info
-# .mol          | <pcode>.mol            | CD44MMA-x0017_0A.mol            | Molecule.sdf_info
-# .sdf          | <pcode>.sdf            | CD44MMA-x0017_0A.sdf            | Molecule.sdf_file
+# Type         | From Aligned File     |  E.g.                          | Stored In
+# .apo_desolve | <pcode>_apo-desolv.pdb| CD44MMA-x0017_0A_apo-desolv.pdb| Protein.apo_desolve_info
+# .mol         | <pcode>.mol           | CD44MMA-x0017_0A.mol           | Molecule.sdf_info
+# .sdf         | <pcode>.sdf           | CD44MMA-x0017_0A.sdf           | Molecule.sdf_file
 #
 
 SQUONK_MAPPING = {
@@ -121,7 +121,8 @@ def process_file_transfer(auth_token,
 
     trans_dir = os.path.join(settings.MEDIA_ROOT, 'squonk_transfer', str(job_transfer.id))
     target = job_transfer.target
-    squonk_directory = os.path.join(settings.SQUONK_MEDIA_DIRECTORY, target.title)
+    # Format e.g.: /fragalysis-files/Mpro
+    squonk_directory = settings.SQUONK_MEDIA_DIRECTORY + target.title + '/'
     os.makedirs(trans_dir, exist_ok=True)
 
     len_proteins = len(job_transfer.proteins)
@@ -139,11 +140,11 @@ def process_file_transfer(auth_token,
         logger.info(squonk_directory)
         logger.info(file_list)
 
-        result = DmApi.put_project_files(access_token=auth_token,
-                                         project_id=job_transfer.squonk_project,
-                                         project_files=file_list)
-#                                         project_path=squonk_directory,
-#                                         force=True)
+        result = DmApi.upload_unmanaged_project_files(access_token=auth_token,
+                                                      project_id=job_transfer.squonk_project,
+                                                      project_files=file_list)
+#                                                     project_path=squonk_directory,
+#                                                     force=True)
         logger.info(result)
 
         if result.success:

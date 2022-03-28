@@ -465,7 +465,7 @@ def process_target_set(validate_output):
 
 
 # File Transfer ###
-# @shared_task
+@shared_task
 def process_job_file_transfer(auth_token, id):
     """ Celery task to take a list of proteins and specification and transfer the files to Squonk2
 
@@ -484,12 +484,13 @@ def process_job_file_transfer(auth_token, id):
     logger.info('+ Starting File Transfer: ' + str(id))
     job_transfer = JobFileTransfer.objects.get(id=id)
     job_transfer.transfer_status = "STARTED"
+    job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
     job_transfer.save()
     try:
         process_file_transfer(auth_token, job_transfer.id)
-    except RuntimeError as e:
+    except RuntimeError as error:
         logger.info('- File Transfer failed: ' + str(id))
-        logger.info(e)
+        logger.info(error)
         job_transfer.transfer_status = "FAILURE"
         job_transfer.save()
     else:
@@ -497,6 +498,7 @@ def process_job_file_transfer(auth_token, id):
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
         job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
+        job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
         job_transfer.save()
         logger.info('- File Transfer Ended Successfully: ' + str(id))

@@ -5,6 +5,10 @@ squonk_job_file_request Functions for creating squonk Jobs.
 from urllib.parse import urljoin
 import os
 import json
+import logging
+
+from django.conf import settings
+from dm_api.dm_api import DmApi
 
 from viewer.models import ( Target,
                             Snapshot,
@@ -12,9 +16,6 @@ from viewer.models import ( Target,
                             JobFileTransfer )
 from viewer.utils import get_https_host
 
-from dm_api.dm_api import DmApi
-
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -40,6 +41,10 @@ def create_squonk_job(request):
     """Check set up and create Squonk job instance.
     1. Check files have been successfully transferred for the snapshot.
     2. Queue job
+
+    Return:
+        the job id
+        a URL allowing the front end to link to the running job instance
     """
 
     logger.info('+ create_squonk_job')
@@ -55,10 +60,10 @@ def create_squonk_job(request):
     job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
     if not job_transfers:
         raise ValueError('Files must be transferred before a job can be queued')
-    else:
-        job_transfer = JobFileTransfer.objects.filter(snapshot=snapshot_id).latest('id')
-        if job_transfer.transfer_status != 'SUCCESS':
-            raise ValueError('Job Transfer not complete')
+
+    job_transfer = JobFileTransfer.objects.filter(snapshot=snapshot_id).latest('id')
+    if job_transfer.transfer_status != 'SUCCESS':
+        raise ValueError('Job Transfer not complete')
 
     job_request = JobRequest()
     job_request.squonk_job_name = squonk_job_name
@@ -79,22 +84,20 @@ def create_squonk_job(request):
     logger.info('callback url')
     logger.info(callback_url)
 
-    result = DmApi.post_job_instance(auth_token,
-                                     job_request.squonk_project,
-                                     'test',
-                                     #callback_url=callback_url,
-                                     #callback_spec='',
-                                     specification=json.loads(squonk_job_spec))
+    result = DmApi.start_job_instance(auth_token,
+                                      job_request.squonk_project,
+                                      'test',
+                                      #callback_url=callback_url,
+                                      #callback_spec='',
+                                      specification=json.loads(squonk_job_spec))
 
     logger.info(result)
 
     if result.success:
         job_request.squonk_job_info = result
-        job_request.squonk_url_ext = result.msg['instance_id']
+        job_request.squonk_url_ext = settings.SQUONK_INSTANCE_API + str(result.msg['instance_id'])
         job_request.save()
-        return job_request.squonk_url_ext
-    else:
-        job_request.delete()
-        raise ValueError(result.msg)
+        return job_request.id, job_request.squonk_url_ext
 
-
+    job_request.delete()
+    raise ValueError(result.msg)

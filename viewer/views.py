@@ -2,39 +2,36 @@ import json
 import os
 import zipfile
 from io import StringIO
-import pandas as pd
 import uuid
 import shutil
 from wsgiref.util import FileWrapper
 
 # import the logging library
 import logging
-logger = logging.getLogger(__name__)
+import pandas as pd
 
 from django.db import connections
 from django.http import HttpResponse, FileResponse
 from django.shortcuts import render
-from rest_framework import viewsets
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.conf import settings
 from django.http import JsonResponse
+from django.views import View
 
+from rest_framework import viewsets
 from rest_framework.parsers import BaseParser
 from rest_framework.exceptions import ParseError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from django.views import View
-
 from celery.result import AsyncResult
 
 from api.security import ISpyBSafeQuerySet
-from api.utils import get_params, get_highlighted_diffs
-from mozilla_django_oidc.contrib.drf import OIDCAuthentication
 
+from api.utils import get_params, get_highlighted_diffs
 
 from viewer.models import (
     Molecule,
@@ -114,6 +111,8 @@ from viewer.serializers import (
     JobRequestWriteSerializer,
     JobCallBackSerializer
 )
+
+logger = logging.getLogger(__name__)
 
 class VectorsView(ISpyBSafeQuerySet):
     """ DjagnoRF view for vectors
@@ -638,7 +637,7 @@ def react(request):
         # so the Frontend can navigate to it
         context['squonk_ui_url'] = ''
         if squonk_api_url and check_squonk_active(request):
-            context['squonk_ui_url'] = squonk_ui_url
+            context['squonk_ui_url'] = settings.SQUONK_UI_URL
 
     return render(request, "viewer/react_temp.html", context)
 
@@ -3082,7 +3081,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
                 content = {'message': 'Files currently being transferred'}
                 return Response(content,
                                 status=status.HTTP_208_ALREADY_REPORTED)
-            elif (target.upload_datetime and job_transfer.transfer_datetime) \
+
+            if (target.upload_datetime and job_transfer.transfer_datetime) \
                     and target.upload_datetime < job_transfer.transfer_datetime:
                 # The target data has already been transferred for the snapshot.
                 content = {'message': 'Files already transferred for this job'}
@@ -3110,15 +3110,14 @@ class JobFileTransferView(viewsets.ModelViewSet):
         logger.info('oidc_access_token')
         logger.info(request.session['oidc_access_token'])
 
-        #job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
-        #                                                    job_transfer.id)
-        job_transfer_task = process_job_file_transfer(request.session['oidc_access_token'],
-                                                      job_transfer.id)
+        job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
+                                                            job_transfer.id)
+        #job_transfer_task = process_job_file_transfer(request.session['oidc_access_token'],
+        #                                              job_transfer.id)
 
-        #job_transfer.transfer_task_id = job_transfer_task
-        #job_transfer.save()
-
-        content = {'transfer_task_id': 'TBA'}
+        content = {'id' : job_transfer.id,
+                   'transfer_status': job_transfer.transfer_status,
+                   'transfer_task_id': str(job_transfer_task)}
         return Response(content,
                         status=status.HTTP_200_OK)
 
@@ -3174,19 +3173,19 @@ class JobRequestView(viewsets.ModelViewSet):
         # Only authenticated users can create squonk job requests.
         user = self.request.user
         if not user.is_authenticated:
-            content = {'Only authenticated users can transfer files'}
+            content = {'Only authenticated users can run jobs'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         try:
-            squonk_url_ext = create_squonk_job(request)
-        except ValueError as e:
+            job_id, squonk_url_ext = create_squonk_job(request)
+        except ValueError as error:
             logger.info('Job Request failed: ')
-            logger.info(e)
-            content = {'error': str(e)}
+            logger.info(error)
+            content = {'error': str(error)}
             return Response(content,
                             status=status.HTTP_400_BAD_REQUEST)
 
-        content = {'squonk_url_ext': squonk_url_ext}
+        content = {'id': job_id, 'squonk_url_ext': squonk_url_ext}
         return Response(content,
                         status=status.HTTP_200_OK)
 
