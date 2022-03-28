@@ -357,7 +357,7 @@ def createOTScript(batchids: list):
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
             otbatchprotocolobj = OTBatchProtocol()
-            projectobj = Project.objects.filter(batches__batch_id=batchid).distinct()
+            projectobj = Project.objects.filter(batches__batch_id=batchid).distinct()[0]
             otbatchprotocolobj.batch_id = Batch.objects.get(id=batchid)
             otbatchprotocolobj.project_id = projectobj   
             otbatchprotocolobj.celery_task_id = current_task.request.id

@@ -234,22 +234,21 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 results = task.get()
                 validate_dict = results[0]
                 validated = results[1]
-            if validated:
-                data = {"task_status": task.status, "task_summary": "Success"}
+                if validated:
+                    data = {"task_status": task.status, "task_summary": "Success"}
+                    return JsonResponse(data)
 
-                return JsonResponse(data)
+                if not validated:
+                    pd.set_option("display.max_colwidth", None)
+                    table = pd.DataFrame.from_dict(validate_dict)
+                    html_table = table.to_html()
+                    html_table += (
+                        """<p> Your data was <b>not</b> validated. The table above shows errors</p>"""
+                    )
 
-            if not validated:
-                pd.set_option("display.max_colwidth", None)
-                table = pd.DataFrame.from_dict(validate_dict)
-                html_table = table.to_html()
-                html_table += (
-                    """<p> Your data was <b>not</b> validated. The table above shows errors</p>"""
-                )
+                    data = {"task_status": task.status, "task_summary": html_table}
 
-                data = {"task_status": task.status, "task_summary": html_table}
-
-                return JsonResponse(data)
+                    return JsonResponse(data)
                 
             if task.status == "PENDING":
                 data = {"task_status": task.status}
