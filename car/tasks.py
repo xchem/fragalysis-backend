@@ -353,7 +353,6 @@ def createOTScript(batchids: list):
     Create otscripts and starting plates for a list of batch ids
     """ 
     task_summary = {}
-    # NB checkm if prot exists
     for batchid in batchids:
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:

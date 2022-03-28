@@ -79,7 +79,7 @@ router.register("api/compoundorders", CompoundOrderViewSet, "compoundorders")
 router.register("api/otscripts", OTScriptViewSet, "otscripts")
 
 urlpatterns = [
-    url("upload/", UploadProject.as_view(), name="uploadproject"),
+    url("upload/", UploadProject.as_view(), name="createproject"),
 ]
 
 urlpatterns += router.urls

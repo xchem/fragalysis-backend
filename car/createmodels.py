@@ -30,6 +30,7 @@ def createProjectModel(project_info):
     project.submittername = project_info["submittername"]
     project.submitterorganisation = project_info["submitterorganisation"]
     project.submitteremail = project_info["submitteremail"]
+    project.proteintarget = project_info["proteintarget"]
     project.save()
     return project.id, project.name
 

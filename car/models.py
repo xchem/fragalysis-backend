@@ -12,6 +12,7 @@ class Project(models.Model):
     name = models.SlugField(max_length=100, db_index=True, unique=True)
     submitterorganisation = models.CharField(max_length=100)
     submittername = models.CharField(max_length=255)
+    proteintarget = models.CharField(max_length=100)
     submitteremail = models.CharField(max_length=255)
     quotedcost = models.FloatField(null=True)
     quoteurl = models.CharField(max_length=255, null=True)
