@@ -26,7 +26,7 @@ def save_tmp_file(myfile):
 
 class UploadProject(View):
     @action(methods=['post'], detail=False)
-    def uploadproject(self, request, pk=None):
+    def createproject(self, request, pk=None):
         check_services()
         print(request)
         project_info = {}
