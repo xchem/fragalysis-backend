@@ -2,10 +2,13 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from django.http import JsonResponse
 from django.core.files.base import ContentFile
+from django.conf import settings
+import os
 from celery.result import AsyncResult
 from viewer.tasks import check_services
+import pandas as pd
 
-from car.tasks import createOTScript  
+from car.tasks import validateFileUpload, uploadManifoldReaction, uploadCustomReaction, createOTScript  
 
 # Import standard models
 from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Reactant, CatalogEntry, Product, AnalyseAction
@@ -136,13 +139,121 @@ def duplicatemethod(method_obj: Method, fk_obj: Target):
                 catalog_obj.reactant_id = reactant_obj
                 catalog_obj.save()
         
-        
+
+
+def save_tmp_file(myfile):
+    name = myfile.name
+    path = default_storage.save("tmp/" + name, ContentFile(myfile.read()))
+    tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+    return tmp_file
+
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     
     def get_serializer_class(self):
         fetchall = self.request.GET.get('fetchall', None)
         return ProjectSerializerAll if fetchall == "yes" else ProjectSerializer
+
+    @action(methods=['post'], detail=False)
+    def createproject(self, request, pk=None):
+        check_services()
+        project_info = {}
+        project_info["submittername"] = request.data["submitter_name"]
+        project_info["submitterorganisation"] = request.data["submitter_organisation"]
+        project_info["proteintarget"] = request.data["protein_target"]
+        validate_choice = request.data["validate_choice"]
+        API_choice = request.data["API_choice"]
+
+        csvfile = request.FILES["csv_file"]
+        tmp_file = save_tmp_file(csvfile)
+
+        if str(validate_choice) == "0":
+
+                if str(API_choice) == "1":
+                    task = validateFileUpload.delay(
+                        csv_fp=tmp_file, validate_type="custom-chem"
+                    )
+                    
+                if str(API_choice) == "2":
+                    task = validateFileUpload.delay(
+                        csv_fp=tmp_file, validate_type="combi-custom-chem"
+                    )
+
+                else:
+                    task = validateFileUpload.delay(
+                        csv_fp=tmp_file, validate_type="retro-API"
+                    )
+
+        if str(validate_choice) == "1":
+                if str(API_choice) == "0":
+                    task = (
+                        validateFileUpload.s(
+                            csv_fp=tmp_file,
+                            validate_type="retro-API",
+                            project_info=project_info,
+                            validate_only=False,
+                        )
+                        | uploadManifoldReaction.s()
+                    ).apply_async()
+            
+                if str(API_choice) == "1":
+                    task = (
+                        validateFileUpload.s(
+                            csv_fp=tmp_file,
+                            validate_type="custom-chem",
+                            project_info=project_info,
+                            validate_only=False,
+                        )
+                        | uploadCustomReaction.s()
+                    ).apply_async()
+
+                if str(API_choice) == "2":
+                    task = (
+                        validateFileUpload.s(
+                            csv_fp=tmp_file,
+                            validate_type="combi-custom-chem",
+                            project_info=project_info,
+                            validate_only=False,
+                        )
+                        | uploadCustomReaction.s()
+                    ).apply_async()
+
+        data = {"task_id": task.id}
+        return JsonResponse(data=data)
+    
+    @action(detail=False, methods=['get'])
+    def gettaskstatus(self, request, pk=None):
+        task_id = self.request.GET.get('task_id', None)
+        if task_id:
+            task = AsyncResult(task_id)            
+            if task.status == "FAILURE":
+                data = {"task_status": task.status, "traceback": str(task.traceback)}
+                return JsonResponse(data)
+
+            if task.status == "SUCCESS":
+                results = task.get()
+                validate_dict = results[0]
+                validated = results[1]
+            if validated:
+                data = {"task_status": task.status, "task_summary": "Success"}
+
+                return JsonResponse(data)
+
+            if not validated:
+                pd.set_option("display.max_colwidth", None)
+                table = pd.DataFrame.from_dict(validate_dict)
+                html_table = table.to_html()
+                html_table += (
+                    """<p> Your data was <b>not</b> validated. The table above shows errors</p>"""
+                )
+
+                data = {"task_status": task.status, "task_summary": html_table}
+
+                return JsonResponse(data)
+                
+            if task.status == "PENDING":
+                data = {"task_status": task.status}
+                return JsonResponse(data)
 
 
 class MculeQuoteViewSet(viewsets.ModelViewSet):
@@ -322,10 +433,6 @@ class OTBatchProtocolViewSet(viewsets.ModelViewSet):
     def createotprotocol(self, request, pk=None):
         check_services()
         batch_ids = request.data["batchids"]
-        # batch_ids = request.POST.getlist("batchids")
-        # batch_ids = [int(batchid) for batchid in batch_ids]
-        print(batch_ids)
-        # Check if prot generated - if yes then XX
         task = createOTScript.delay(batchids=batch_ids)
         data = {"task_id": task.id}
         return JsonResponse(data=data)
