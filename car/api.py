@@ -316,7 +316,7 @@ class StirActionViewSet(viewsets.ModelViewSet):
 class OTBatchProtocolViewSet(viewsets.ModelViewSet):
     queryset = OTBatchProtocol.objects.all()
     serializer_class = OTBatchProtocolSerializer
-    filterset_fields = ["batch_id"]
+    filterset_fields = ["project_id", "batch_id", "celery_task_id"]
 
     @action(methods=['post'], detail=False)
     def createotprotocol(self, request, pk=None):
@@ -325,6 +325,7 @@ class OTBatchProtocolViewSet(viewsets.ModelViewSet):
         # batch_ids = request.POST.getlist("batchids")
         # batch_ids = [int(batchid) for batchid in batch_ids]
         print(batch_ids)
+        # Check if prot generated - if yes then XX
         task = createOTScript.delay(batchids=batch_ids)
         data = {"task_id": task.id}
         return JsonResponse(data=data)
@@ -340,7 +341,7 @@ class OTBatchProtocolViewSet(viewsets.ModelViewSet):
 
             if task.status == "SUCCESS":
                 result = task.get()
-                data = {"task_status": task.status, "protocol_summary": result}
+                data = {"task_status": task.status, "task_summary": result}
                 return JsonResponse(data)
                 
             if task.status == "PENDING":

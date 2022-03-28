@@ -39,7 +39,7 @@ from .api import (
     OTScriptViewSet,
 )
 
-from .views import UploadProject, ValidateTaskView, UploadTaskView
+from .views import UploadProject
 
 # Register standard routes
 router = routers.DefaultRouter()
@@ -80,16 +80,6 @@ router.register("api/otscripts", OTScriptViewSet, "otscripts")
 
 urlpatterns = [
     url("upload/", UploadProject.as_view(), name="uploadproject"),
-    url(
-        r"^validate_cartask/(?P<validate_task_id>.+)/$",
-        ValidateTaskView.as_view(),
-        name="validate_task",
-    ),
-    url(
-        r"^upload_cartask/(?P<upload_task_id>.+)/$",
-        UploadTaskView.as_view(),
-        name="upload_task",
-    ),
 ]
 
 urlpatterns += router.urls
