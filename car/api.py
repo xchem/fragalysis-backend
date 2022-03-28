@@ -234,8 +234,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 results = task.get()
                 validate_dict = results[0]
                 validated = results[1]
+                project_info = results[2]
+                project_id = project_info["project_id"]
+
                 if validated:
-                    data = {"task_status": task.status, "task_summary": "Success"}
+                    data = {"task_status": task.status, "project_id": project_id}
                     return JsonResponse(data)
 
                 if not validated:
@@ -246,7 +249,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         """<p> Your data was <b>not</b> validated. The table above shows errors</p>"""
                     )
 
-                    data = {"task_status": task.status, "task_summary": html_table}
+                    data = {"task_status": task.status, "error_summary": html_table}
 
                     return JsonResponse(data)
                 

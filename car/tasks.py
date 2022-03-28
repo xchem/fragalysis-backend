@@ -98,6 +98,7 @@ def uploadManifoldReaction(validate_output):
         if validated:
             project_id, project_name = createProjectModel(project_info)
             project_info["project_name"] = project_name
+            project_info["project_id"] = project_id
 
             grouped_targets = uploaded_df.groupby("batch-tag")
             
@@ -283,6 +284,7 @@ def uploadCustomReaction(validate_output):
     if validated:
         project_id, project_name = createProjectModel(project_info)
         project_info["project_name"] = project_name
+        project_info["project_id"] = project_id
 
         grouped_targets = uploaded_df.groupby("batch-tag")
         
@@ -357,8 +359,8 @@ def createOTScript(batchids: list):
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
             otbatchprotocolobj = OTBatchProtocol()
-            projectobj = Project.objects.filter(batches__batch_id=batchid).distinct()[0]
             otbatchprotocolobj.batch_id = Batch.objects.get(id=batchid)
+            projectobj = Batch.objects.get(id=batchid).project_id
             otbatchprotocolobj.project_id = projectobj   
             otbatchprotocolobj.celery_task_id = current_task.request.id
             otbatchprotocolobj.save()
