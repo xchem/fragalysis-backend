@@ -70,7 +70,7 @@ opentrons==3.19.0
 opentrons-shared-data==3.19.0
 pandas==1.1.0
 pandoc==2.0.1
-paramiko==2.7.1
+paramiko==2.10.1
 parso==0.7.1
 pathlib2==2.3.5
 pexpect==4.8.0
