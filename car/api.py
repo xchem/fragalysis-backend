@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.core.files.base import ContentFile
 from django.conf import settings
 import os
+import json
 from celery.result import AsyncResult
 from viewer.tasks import check_services
 import pandas as pd
@@ -244,14 +245,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     return JsonResponse(data)
 
                 if not validated:
-                    pd.set_option("display.max_colwidth", None)
-                    table = pd.DataFrame.from_dict(validate_dict)
-                    html_table = table.to_html()
-                    html_table += (
-                        """<p> Your data was <b>not</b> validated. The table above shows errors</p>"""
-                    )
-
-                    data = {"task_status": task.status, "error_summary": html_table}
+                    errorsummary = json.dumps(validate_dict)
+                    data = {"task_status": task.status, "error_summary": errorsummary}
 
                     return JsonResponse(data)
                 
