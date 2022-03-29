@@ -10,14 +10,14 @@ import os
 
 from car.models import (
     Batch,
-    Project,
     Target,
     Method,
     Reaction,
     CompoundOrder,
+    OTProtocol,
+    OTBatchProtocol,
     OTScript,
-    OTSession,
-    OTBatchProtocol,   
+    OTSession,   
 )
 
 from .validate import ValidateFile
@@ -355,18 +355,20 @@ def createOTScript(batchids: list):
     Create otscripts and starting plates for a list of batch ids
     """ 
     task_summary = {}
+    otprotocolobj = OTProtocol()
+    projectobj = Batch.objects.get(id=batchids[0]).project_id
+    otprotocolobj.project_id = projectobj
+    otprotocolobj.save()
+
     for batchid in batchids:
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
             otbatchprotocolobj = OTBatchProtocol()
             otbatchprotocolobj.batch_id = Batch.objects.get(id=batchid)
-            projectobj = Batch.objects.get(id=batchid).project_id
-            otbatchprotocolobj.project_id = projectobj   
+            otbatchprotocolobj.otprotocol_id = otprotocolobj   
             otbatchprotocolobj.celery_task_id = current_task.request.id
             otbatchprotocolobj.save()
-
             batch_tag = getBatchTag(batchid=batchid)
-
             maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
             groupedreactionquerysets = groupReactions(
             allreactionquerysets=allreactionquerysets, maxsteps=maxsteps

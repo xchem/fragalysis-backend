@@ -273,8 +273,14 @@ class MCuleOrder(models.Model):
 
 
 # Models for capturing OT session, Deck, Plates and Wells
-class OTBatchProtocol(models.Model):
+class OTProtocol(models.Model):
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    init_date = models.DateTimeField(auto_now_add=True)
+    name = models.CharField(max_length=150)
+
+
+class OTBatchProtocol(models.Model):
+    otprotocol_id = models.ForeignKey(OTProtocol, on_delete=models.CASCADE)
     batch_id = models.ForeignKey(Batch, related_name="otbatchprotocols", on_delete=models.CASCADE)
     celery_task_id = models.CharField(max_length=50)
     zipfile = models.FileField(upload_to="otbatchprotocols/", max_length=255, null=True)

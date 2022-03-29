@@ -25,10 +25,11 @@ from .models import (
 )
 
 # Import OT Session models
-from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, OTBatchProtocol, CompoundOrder, OTScript
+from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, OTProtocol, OTBatchProtocol, CompoundOrder, OTScript
 
 # Import standard serializers
 from .serializers import (
+    OTProtocolSerializer,
     OTBatchProtocolSerializer,
     ProjectSerializer,
     ProjectSerializerAll,
@@ -426,10 +427,16 @@ class StirActionViewSet(viewsets.ModelViewSet):
 
 
 # OT Session viewsets
+class OTProtocolViewSet(viewsets.ModelViewSet):
+    queryset = OTProtocol.objects.all()
+    serializer_class = OTProtocolSerializer
+    filterset_fields = ["project_id"]
+
+
 class OTBatchProtocolViewSet(viewsets.ModelViewSet):
     queryset = OTBatchProtocol.objects.all()
     serializer_class = OTBatchProtocolSerializer
-    filterset_fields = ["project_id", "batch_id", "celery_task_id"]
+    filterset_fields = ["otprotocol_id", "batch_id", "celery_task_id"]
 
     @action(methods=['post'], detail=False)
     def createotprotocol(self, request, pk=None):
