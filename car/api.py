@@ -159,6 +159,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def createproject(self, request, pk=None):
         check_services()
         project_info = {}
+        project_info["projectname"] = request.data["project_name"]
         project_info["submittername"] = request.data["submitter_name"]
         project_info["submitterorganisation"] = request.data["submitter_organisation"]
         project_info["proteintarget"] = request.data["protein_target"]
@@ -442,7 +443,8 @@ class OTBatchProtocolViewSet(viewsets.ModelViewSet):
     def createotprotocol(self, request, pk=None):
         check_services()
         batch_ids = request.data["batchids"]
-        task = createOTScript.delay(batchids=batch_ids)
+        protocol_name = request.data["protocol_name"]
+        task = createOTScript.delay(batchids=batch_ids, protocol_name=protocol_name)
         data = {"task_id": task.id}
         return JsonResponse(data=data)
     

@@ -1,28 +1,13 @@
 from django.db import models
-from django.utils.text import slugify
-import random
-import string
-
-def rand_slug():
-    return "".join(random.choice(string.ascii_letters + string.digits) for _ in range(6))
-
 
 class Project(models.Model):
     init_date = models.DateTimeField(auto_now_add=True)
-    name = models.SlugField(max_length=100, db_index=True, unique=True)
+    name = models.SlugField(max_length=100, db_index=True)
     submitterorganisation = models.CharField(max_length=100)
     submittername = models.CharField(max_length=255)
     proteintarget = models.CharField(max_length=100)
     quotedcost = models.FloatField(null=True)
     quoteurl = models.CharField(max_length=255, null=True)
-
-    def save(self, *args, **kwargs):
-        if self.pk is None:
-            self.name = slugify(
-                self.submittername[0:3] + " " + self.submitterorganisation[0:3] + " " + rand_slug()
-            )
-
-        super(Project, self).save(*args, **kwargs)
 
 class Batch(models.Model):
     project_id = models.ForeignKey(Project, related_name="batches", on_delete=models.CASCADE)

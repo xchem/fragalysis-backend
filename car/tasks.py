@@ -97,7 +97,6 @@ def uploadManifoldReaction(validate_output):
 
         if validated:
             project_id, project_name = createProjectModel(project_info)
-            project_info["project_name"] = project_name
             project_info["project_id"] = project_id
 
             grouped_targets = uploaded_df.groupby("batch-tag")
@@ -283,7 +282,6 @@ def uploadCustomReaction(validate_output):
 
     if validated:
         project_id, project_name = createProjectModel(project_info)
-        project_info["project_name"] = project_name
         project_info["project_id"] = project_id
 
         grouped_targets = uploaded_df.groupby("batch-tag")
@@ -350,7 +348,7 @@ def uploadCustomReaction(validate_output):
 
 
 @shared_task
-def createOTScript(batchids: list):
+def createOTScript(batchids: list, protocol_name: str):
     """"
     Create otscripts and starting plates for a list of batch ids
     """ 
@@ -358,6 +356,7 @@ def createOTScript(batchids: list):
     otprotocolobj = OTProtocol()
     projectobj = Batch.objects.get(id=batchids[0]).project_id
     otprotocolobj.project_id = projectobj
+    otprotocolobj.name = protocol_name
     otprotocolobj.save()
 
     for batchid in batchids:
