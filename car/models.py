@@ -273,7 +273,7 @@ class MCuleOrder(models.Model):
 
 
 # Models for capturing OT session, Deck, Plates and Wells
-class OTProtocol(models.Models):
+class OTProtocol(models.Model):
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
     init_date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=150)
