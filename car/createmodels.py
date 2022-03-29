@@ -27,6 +27,7 @@ from .utils import calculateproductmols, createSVGString, createReactionSVGStrin
 
 def createProjectModel(project_info):
     project = Project()
+    project.name = project_info["projectname"]
     project.submittername = project_info["submittername"]
     project.submitterorganisation = project_info["submitterorganisation"]
     project.proteintarget = project_info["proteintarget"]
