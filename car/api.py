@@ -428,12 +428,6 @@ class OTProtocolViewSet(viewsets.ModelViewSet):
     serializer_class = OTProtocolSerializer
     filterset_fields = ["project_id"]
 
-
-class OTBatchProtocolViewSet(viewsets.ModelViewSet):
-    queryset = OTBatchProtocol.objects.all()
-    serializer_class = OTBatchProtocolSerializer
-    filterset_fields = ["otprotocol_id", "batch_id", "celery_task_id"]
-
     @action(methods=['post'], detail=False)
     def createotprotocol(self, request, pk=None):
         check_services()
@@ -453,14 +447,20 @@ class OTBatchProtocolViewSet(viewsets.ModelViewSet):
                 return JsonResponse(data)
 
             if task.status == "SUCCESS":
-                result = task.get()
-                data = {"task_status": task.status, "task_summary": result}
+                task_summary, otprotocol_id = task.get()
+                data = {"task_status": task.status, "otprotocol_id": otprotocol_id, "task_summary": task_summary}
                 return JsonResponse(data)
                 
             if task.status == "PENDING":
                 data = {"task_status": task.status}
                 return JsonResponse(data)
 
+
+class OTBatchProtocolViewSet(viewsets.ModelViewSet):
+    queryset = OTBatchProtocol.objects.all()
+    serializer_class = OTBatchProtocolSerializer
+    filterset_fields = ["otprotocol_id", "batch_id", "celery_task_id"]
+    
 
 class OTSessionViewSet(viewsets.ModelViewSet):
     queryset = OTSession.objects.all()
