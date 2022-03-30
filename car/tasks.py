@@ -414,7 +414,7 @@ def createOTScript(batchids: list, protocol_name: str):
         else:
             task_summary[batchid] = False
 
-    return task_summary
+    return task_summary, otprotocolobj.id
 
 def getTargets(batchid):
     targetqueryset = Target.objects.filter(batch_id=batchid).order_by("id")
