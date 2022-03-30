@@ -159,7 +159,7 @@ class TargetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Target
         fields = ("id", "title", "project_id", "protein_set", "default_squonk_project",
-                  "template_protein", "metadata", "zip_archive", "sequences")
+                  "template_protein", "metadata", "zip_archive", "upload_status", "sequences")
 
 
 class CompoundSerializer(serializers.ModelSerializer):
@@ -688,7 +688,7 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Target
         fields = ("id", "title", "project_id", "default_squonk_project", "template_protein",
-                  "metadata", "zip_archive", "sequences",
+                  "metadata", "zip_archive", "upload_status", "sequences",
                   "molecules", "tags_info", "tag_categories")
 # Serializers for Tags - End
 

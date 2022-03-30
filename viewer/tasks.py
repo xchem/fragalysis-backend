@@ -16,7 +16,7 @@ from .sdf_check import *
 from .compound_set_upload import *
 from .target_set_upload import process_target, validate_target
 from .cset_upload import *
-from .squonk_job_file_transfer import process_file_transfer
+from .squonk_job_file_transfer import process_file_transfer, SQUONK_MAPPING
 
 # import the logging library
 #import logging
@@ -500,6 +500,8 @@ def process_job_file_transfer(auth_token, id):
         job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
         job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
+        files_spec = [key for key in SQUONK_MAPPING.keys()]
+        job_transfer.transfer_spec = files_spec
         job_transfer.save()
         logger.info('- File Transfer Ended Successfully: ' + str(id))
 

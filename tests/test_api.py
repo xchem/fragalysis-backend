@@ -280,8 +280,10 @@ class APIUrlsTestCase(APITestCase):
                         "title": "DUMMY_TARGET",
                         "project_id": [1],
                         "protein_set": [1],
+                        "default_squonk_project": None,
                         "template_protein": "/media/my_pdb.pdb",
                         "metadata": None,
+                        "upload_status": None,
                         "zip_archive": None,
                         "sequences": [{'chain': '', 'sequence': ''}]
                     },
@@ -290,8 +292,10 @@ class APIUrlsTestCase(APITestCase):
                         "title": "SECRET_TARGET",
                         "project_id": [2],
                         "protein_set": [2],
+                        "default_squonk_project": None,
                         "template_protein": "/media/secret_pdb.pdb",
                         "metadata": None,
+                        "upload_status": None,
                         "zip_archive": None,
                         "sequences": [{'chain': '', 'sequence': ''}]
                     },
@@ -455,8 +459,10 @@ class APIUrlsTestCase(APITestCase):
                         "title": "DUMMY_TARGET",
                         "project_id": [1],
                         "protein_set": [1],
+                        'default_squonk_project': None,
                         "template_protein": "/media/my_pdb.pdb",
                         "metadata": None,
+                        'upload_status': None,
                         "zip_archive": None,
                         "sequences": [{'chain': '', 'sequence': ''}]
                     }
@@ -617,8 +623,10 @@ class APIUrlsTestCase(APITestCase):
                 "title": "DUMMY_TARGET",
                 "project_id": [1],
                 "protein_set": [1],
+                "default_squonk_project": None,
                 "template_protein": "/media/my_pdb.pdb",
                 "metadata": None,
+                "upload_status": None,
                 "zip_archive": None,
                 "sequences": [{'chain': '', 'sequence': ''}]
             },

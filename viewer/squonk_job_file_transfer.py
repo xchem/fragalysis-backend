@@ -77,6 +77,9 @@ def mol_file(field, trans_dir, protein_code):
     protein = Protein.objects.get(code=protein_code)
     mol = Molecule.objects.get(prot_id=protein.id)
     file = getattr(mol, field)
+    if not file:
+        return None
+
     inpath = os.path.join(settings.MEDIA_ROOT, file.name)
     filepath = os.path.join(trans_dir, clean_filename(inpath))
     shutil.copyfile(inpath, filepath)
@@ -97,6 +100,9 @@ def prot_file(field, trans_dir, protein_code):
 
     protein = Protein.objects.get(code=protein_code)
     file = getattr(protein, field)
+    if not file:
+        return None
+
     inpath = os.path.join(settings.MEDIA_ROOT, file.name)
     filepath = os.path.join(trans_dir, clean_filename(inpath))
     shutil.copyfile(inpath, filepath)
@@ -116,13 +122,12 @@ def process_file_transfer(auth_token,
     logger.info('+ process_file_transfer')
     logger.info (auth_token)
     job_transfer = JobFileTransfer.objects.get(id=job_transfer_id)
-    #job_transfer.transfer_spec = list(SQUONK_MAPPING.keys())
-    #job_transfer.save()
 
     trans_dir = os.path.join(settings.MEDIA_ROOT, 'squonk_transfer', str(job_transfer.id))
+
+    # location in squonk project where files will reside e.g. "fragalysis-files"
     target = job_transfer.target
-    # Format e.g.: /fragalysis-files/Mpro
-    squonk_directory = settings.SQUONK_MEDIA_DIRECTORY + target.title + '/'
+    squonk_directory = settings.SQUONK_MEDIA_DIRECTORY + '/' + target.title
     os.makedirs(trans_dir, exist_ok=True)
 
     len_proteins = len(job_transfer.proteins)
@@ -134,17 +139,19 @@ def process_file_transfer(auth_token,
         logger.info('+ Processing files for: ' + protein_code)
         file_list = []
         for file_type in SQUONK_MAPPING.values():
-            file_list.append(globals()[file_type['func']](file_type['field'], trans_dir,
-                                                          protein_code))
+            filepath = globals()[file_type['func']](file_type['field'], trans_dir,
+                                                          protein_code)
+            if filepath:
+                file_list.append(filepath)
 
         logger.info(squonk_directory)
         logger.info(file_list)
 
         result = DmApi.upload_unmanaged_project_files(access_token=auth_token,
                                                       project_id=job_transfer.squonk_project,
-                                                      project_files=file_list)
-#                                                     project_path=squonk_directory,
-#                                                     force=True)
+                                                      project_files=file_list,
+                                                      project_path=squonk_directory,
+                                                      force=True)
         logger.info(result)
 
         if result.success:

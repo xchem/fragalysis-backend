@@ -394,6 +394,10 @@ class TargetView(ISpyBSafeQuerySet):
            - template_protein: the template protein displayed in fragalysis front-end for this target
            - metadata: link to the metadata file for the target if it was uploaded
            - zip_archive: link to the zip archive of the uploaded data
+           - default_squonk_project: project identifier of project on the Squonk application for
+           this target.
+           - upload_status: If set, this indicates the status of the most recent reload of the
+           target data. Should normally move from 'PENDING' to 'STARTED' to 'SUCCESS".
 
        example output:
 
@@ -1757,6 +1761,7 @@ class SnapshotsView(viewsets.ModelViewSet):
             - author: name of the author who created the project
         - parent: parent snapshot id of the current snapshot
         - children: list of children ids of the current snapshot
+        - additional_info: Free format json for use by the Fragalysis frontend.
 
     example output:
 
@@ -1782,6 +1787,7 @@ class SnapshotsView(viewsets.ModelViewSet):
                     },
                     "parent": null,
                     "children": []
+                    "additional_info": []
                 },]
 
    """
@@ -2677,9 +2683,11 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
                 "id": 4,
                 "title": "nsp13",
                 "project_id": [ 1 ],
+                "default_squonk_project": "project-48d33e2f-6af1-42ee-a2e9-a7acf6543a1e",
                 "template_protein": "/media/pdbs/nsp13-x0280_1B_apo_zOdoDll.pdb",
                 "metadata": "https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv",
                 "zip_archive": "https://127.0.0.1:8080/media/targets/nsp13.zip",
+                "upload_status": "SUCCESS",
                 "sequences": [
                 {
                     "chain": "A",
@@ -2998,7 +3006,27 @@ class JobFileTransferView(viewsets.ModelViewSet):
 
     returns: JSON
 
-    example output:
+    example input for post:
+
+        .. code-block::
+
+            {
+                "snapshot": 2,
+                "target": 5,
+                "squonk_project": "project-e1ce441e-c4d1-4ad1-9057-1a11dbdccebe",
+                "proteins": "CD44MMA-x0022_0A, CD44MMA-x0017_0A"
+            }
+
+
+    example output for post:
+
+        .. code-block::
+
+            {
+                "id": 2,
+                "transfer_status": "PENDING",
+                "transfer_task_id": "d8705b7d-c065-4038-8964-c19882333247"
+            }
    """
 
     queryset = JobFileTransfer.objects.filter()
@@ -3088,14 +3116,13 @@ class JobFileTransferView(viewsets.ModelViewSet):
                 content = {'message': 'Files already transferred for this job'}
                 return Response(content,
                                 status=status.HTTP_200_OK)
-            else:
-                # Restart existing transfer - it must have failed or be outdated
-                job_transfer.user = request.user
+            # Restart existing transfer - it must have failed or be outdated
+            job_transfer.user = request.user
         else:
             # Create new file transfer job
             job_transfer = JobFileTransfer()
             job_transfer.user = request.user
-            job_transfer.proteins = dict.fromkeys([p['code'] for p in proteins])
+            job_transfer.proteins = [p['code'] for p in proteins]
             job_transfer.squonk_project = squonk_project
             job_transfer.target = Target.objects.get(id=target_id)
             job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
@@ -3112,8 +3139,6 @@ class JobFileTransferView(viewsets.ModelViewSet):
 
         job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
                                                             job_transfer.id)
-        #job_transfer_task = process_job_file_transfer(request.session['oidc_access_token'],
-        #                                              job_transfer.id)
 
         content = {'id' : job_transfer.id,
                    'transfer_status': job_transfer.transfer_status,
@@ -3142,7 +3167,27 @@ class JobRequestView(viewsets.ModelViewSet):
 
     returns: JSON
 
-    example output:
+    example input for post:
+
+        .. code-block::
+
+            {
+                "squonk_job_name": "nop",
+                "snapshot": 1,
+                "target": 1,
+                "squonk_project": "project-e1ce441e-c4d1-4ad1-9057-1a11dbdccebe",
+                "squonk_job_spec": "{\"collection\":\"im-test\",\"job\":\"nop\",\"version\":\"1.0.0\"}"
+            }
+
+    example output for post:
+
+        .. code-block::
+
+            {
+                "id": 1,
+                "squonk_url_ext": "data-manager-ui/results/instance/instance-c26fd27a-e837-4be5-af39-582b6f329f6a"
+            }
+
     """
 
     queryset = JobRequest.objects.filter()
@@ -3200,13 +3245,22 @@ class JobCallBackView(viewsets.ModelViewSet):
         - GET
         - PUT - update the status or job information fields
     url:
-        api/job_callback
+        api/job_callback/<job_request.code>
     queryset:
         `viewer.models.JobRequest.objects.filter()`
+        'lookup_value = code'
 
     returns: JSON
 
-    example output:
+    example input:
+
+        .. code-block::
+
+            {
+                "job_status": "SUCCESS"
+            }
+
+
     """
 
     serializer_class = JobCallBackSerializer

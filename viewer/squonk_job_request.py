@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 import os
 import json
 import logging
+import datetime
 
 from django.conf import settings
 from dm_api.dm_api import DmApi
@@ -75,21 +76,27 @@ def create_squonk_job(request):
 
     # Saving creates the uuid for the callback
     job_request.save()
-
-    #callback_url = urljoin(request.get_host(),'api/job_callback',job_request.code)
     callback_url = urljoin(get_https_host(request), os.path.join('api/job_callback',
                                                                  str(job_request.code)))
+
+    # Ensure that the callback url ends with a slash so that the PUT works from Squonk
+    callback_url = callback_url + '/'
+    # Used for identifying the run, set to the username + date.
+    job_name = job_request.user.username + '-' + datetime.date.today().strftime('%Y-%m-%d')
+
     logger.info('squonk_job_spec')
     logger.info(json.loads(squonk_job_spec))
     logger.info('callback url')
     logger.info(callback_url)
+    logger.info('job_name')
+    logger.info(job_name)
 
     result = DmApi.start_job_instance(auth_token,
                                       job_request.squonk_project,
-                                      'test',
-                                      #callback_url=callback_url,
-                                      #callback_spec='',
-                                      specification=json.loads(squonk_job_spec))
+                                      job_name,
+                                      callback_url=callback_url,
+                                      specification=json.loads(squonk_job_spec),
+                                      timeout_s=8)
 
     logger.info(result)
 

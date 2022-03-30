@@ -19,8 +19,7 @@ from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = os.environ.get("DEBUG_FRAGALYSIS", "False")
-DEBUG = True
+DEBUG = os.environ.get("DEBUG_FRAGALYSIS", "False")
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
@@ -336,7 +335,8 @@ DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 # Squonk settings for API calls to Squonk Platform
 SQUONK_API_URL = os.environ.get('SQUONK_API_URL')
 SQUONK_UI_URL = os.environ.get('SQUONK_UI_URL')
-SQUONK_MEDIA_DIRECTORY = "/fragalysis-files/"
+
+SQUONK_MEDIA_DIRECTORY = "/fragalysis-files"
 SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
 
 # This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with
