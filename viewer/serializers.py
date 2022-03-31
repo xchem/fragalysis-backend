@@ -29,6 +29,8 @@ from viewer.models import (
     JobFileTransfer,
     JobRequest
 )
+from viewer.utils import get_https_host
+
 from scoring.models import MolGroup
 
 from django.contrib.auth.models import User
@@ -118,18 +120,6 @@ def template_protein(obj):
         if protein.pdb_info:
             return protein.pdb_info.url
     return "NOT AVAILABLE"
-
-def get_https_host(request):
-    """Common enabler code for returning https urls
-
-    This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
-    SECURE_PROXY_SSL_HEADER is referenced because it is used in redirecting URLs - if
-    it is changed it may affect this code.
-    Using relative links will probably also work, but This workaround allows both the
-    'download structures' button and the DRF API call to work.
-    Note that this link will not work on local
-    """
-    return settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
 
 
 class TargetSerializer(serializers.ModelSerializer):
