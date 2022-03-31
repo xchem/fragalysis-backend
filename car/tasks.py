@@ -5,7 +5,8 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from zipfile import ZipFile
 import pandas as pd
-from rdkit.Chem import AllChem, Chem
+from rdkit import Chem
+from rdkit.Chem import AllChem
 import os
 
 from car.models import (
