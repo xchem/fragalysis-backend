@@ -5,7 +5,8 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from zipfile import ZipFile
 import pandas as pd
-from rdkit.Chem import AllChem, Chem
+from rdkit import Chem
+from rdkit.Chem import AllChem
 import os
 
 from car.models import (
@@ -597,7 +598,7 @@ class ZipOTBatchProtocol(object):
         os.remove(self.ziptmpfp)
 
 @shared_task
-def canonicalizedSmiles(csvfile):
+def canonicalizeSmiles(csvfile):
     """"
     Canonicalizes smiles from csv file uploaded from frontend
     """ 

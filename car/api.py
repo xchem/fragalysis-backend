@@ -1,5 +1,3 @@
-import csv
-from xml.etree.ElementTree import canonicalize
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from django.http import JsonResponse
@@ -11,7 +9,7 @@ from celery.result import AsyncResult
 from viewer.tasks import check_services
 import pandas as pd
 
-from car.tasks import validateFileUpload, uploadManifoldReaction, uploadCustomReaction, createOTScript, canonicalizedSmiles 
+from car.tasks import validateFileUpload, uploadManifoldReaction, uploadCustomReaction, createOTScript, canonicalizeSmiles 
 
 # Import standard models
 from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Reactant, CatalogEntry, Product, AnalyseAction
@@ -304,7 +302,7 @@ class BatchViewSet(viewsets.ModelViewSet):
         check_services()
         csvfile = request.FILES["csv_file"]
         tmp_file = save_tmp_file(csvfile)
-        task = canonicalizedSmiles.delay(csvfile=tmp_file)
+        task = canonicalizeSmiles.delay(csvfile=tmp_file)
         data = {"task_id": task.id}
         return JsonResponse(data=data)
     
