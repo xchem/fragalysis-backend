@@ -5,7 +5,7 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from zipfile import ZipFile
 import pandas as pd
-from rdkit.Chem import AllChem
+from rdkit.Chem import AllChem, Chem
 import os
 
 from car.models import (
@@ -36,7 +36,7 @@ from .createmodels import (
 
 from .manifold.apicalls import getManifoldretrosynthesis
 from .recipebuilder.encodedrecipes import encoded_recipes
-from .utils import getAddtionOrder
+from .utils import getAddtionOrder, canonSmiles
 
 from .opentrons.cartoot import CreateOTSession
 from .opentrons.otwrite import otWrite
@@ -596,3 +596,24 @@ class ZipOTBatchProtocol(object):
         """
         os.remove(self.ziptmpfp)
 
+@shared_task
+def canonicalizedSmiles(csvfile):
+    """"
+    Canonicalizes smiles from csv file uploaded from frontend
+    """ 
+    validated = True
+
+    csvdf= pd.read_csv(csvfile, encoding="utf8")
+    smiles = [smi for smi in csvdf["SMILES"]]
+
+    molcheck = [Chem.MolFromSmiles(smi) for smi in smiles]
+    
+    if None not in molcheck:
+        canonicalizedsmiles = [canonSmiles(smi) for smi in smiles]
+        return validated, canonicalizedsmiles
+    else:
+        validated = False
+        indexerrors = [i for i,v in enumerate(molcheck) if v == None]
+        errorsummary= "There was an error with the smiles csv at index: {}".format(indexerrors)
+        return validated, errorsummary
+    

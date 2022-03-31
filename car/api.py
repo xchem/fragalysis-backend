@@ -1,3 +1,5 @@
+import csv
+from xml.etree.ElementTree import canonicalize
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from django.http import JsonResponse
@@ -9,7 +11,7 @@ from celery.result import AsyncResult
 from viewer.tasks import check_services
 import pandas as pd
 
-from car.tasks import validateFileUpload, uploadManifoldReaction, uploadCustomReaction, createOTScript  
+from car.tasks import validateFileUpload, uploadManifoldReaction, uploadCustomReaction, createOTScript, canonicalizedSmiles 
 
 # Import standard models
 from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Reactant, CatalogEntry, Product, AnalyseAction
@@ -296,6 +298,41 @@ class BatchViewSet(viewsets.ModelViewSet):
                 return JsonResponse(data="Something went wrong")
         except:
             return JsonResponse(data="Something went wrong")
+
+    @action(methods=['post'], detail=False)
+    def canonicalizesmiles(self, request, pk=None):
+        check_services()
+        csvfile = request.FILES["csv_file"]
+        tmp_file = save_tmp_file(csvfile)
+        task = canonicalizedSmiles.delay(csvfile=tmp_file)
+        data = {"task_id": task.id}
+        return JsonResponse(data=data)
+    
+    @action(detail=False, methods=['get'])
+    def gettaskstatus(self, request, pk=None):
+        task_id = self.request.GET.get('task_id', None)
+        if task_id:
+            task = AsyncResult(task_id)            
+            if task.status == "FAILURE":
+                data = {"task_status": task.status, "traceback": str(task.traceback)}
+                return JsonResponse(data)
+
+            if task.status == "SUCCESS":
+                result = task.get()
+                validated = result[0]
+
+                if validated:
+                    canonicalizedsmiles = result[1]
+                    data = {"task_status": task.status, "canonicalizedsmiles": canonicalizedsmiles}
+                    return JsonResponse(data)
+                if not validated:
+                    error_summary = result[1]
+                    data = {"task_status": task.status, "error_summary": error_summary}
+                    return JsonResponse(data)
+                    
+            if task.status == "PENDING":
+                data = {"task_status": task.status}
+                return JsonResponse(data)
 
 
 class TargetViewSet(viewsets.ModelViewSet):
