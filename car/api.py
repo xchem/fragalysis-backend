@@ -304,7 +304,7 @@ class BatchViewSet(viewsets.ModelViewSet):
         if request.data["smiles"]:
             smiles = request.data["smiles"]
             task = canonicalizeSmiles.delay(smiles=smiles)
-        else:
+        if request.FILES["csv_file"]:
             csvfile = request.FILES["csv_file"]
             tmp_file = save_tmp_file(csvfile)
             task = canonicalizeSmiles.delay(csvfile=tmp_file)
