@@ -598,7 +598,7 @@ class ZipOTBatchProtocol(object):
         os.remove(self.ziptmpfp)
 
 @shared_task
-def canonicalizedSmiles(csvfile):
+def canonicalizeSmiles(csvfile):
     """"
     Canonicalizes smiles from csv file uploaded from frontend
     """ 
