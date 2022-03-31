@@ -149,6 +149,7 @@ def save_tmp_file(myfile):
     tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
     return tmp_file
 
+
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     
@@ -300,9 +301,13 @@ class BatchViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=False)
     def canonicalizesmiles(self, request, pk=None):
         check_services()
-        csvfile = request.FILES["csv_file"]
-        tmp_file = save_tmp_file(csvfile)
-        task = canonicalizeSmiles.delay(csvfile=tmp_file)
+        if request.data["smiles"]:
+            smiles = request.data["smiles"]
+            task = canonicalizeSmiles.delay(smiles=smiles)
+        else:
+            csvfile = request.FILES["csv_file"]
+            tmp_file = save_tmp_file(csvfile)
+            task = canonicalizeSmiles.delay(csvfile=tmp_file)
         data = {"task_id": task.id}
         return JsonResponse(data=data)
     
