@@ -44,7 +44,7 @@ from .opentrons.otwrite import otWrite
 
 
 def delete_tmp_file(filepath):
-    default_storage.delete(filepath)
+    os.remove(filepath)
 
 
 # Celery validate task
@@ -76,24 +76,24 @@ def validateFileUpload(csv_fp, validate_type=None, project_info=None, validate_o
     validation = ValidateFile(csv_to_validate=csv_fp, validate_type=validate_type)
 
     if validate_only:
-        default_storage.delete(csv_fp)
+        delete_tmp_file(csv_fp)
         csv_fp = None
 
     uploaded_dict = validation.df.to_dict("list")
     validated = validation.validated
     validate_dict = validation.validate_dict
 
-    return (validate_dict, validated, csv_fp, project_info, uploaded_dict)
+    return (validate_dict, validated, project_info, csv_fp, uploaded_dict)
 
 
 @shared_task
 def uploadManifoldReaction(validate_output):
 
-        validate_dict, validated, csv_fp, project_info, uploaded_dict = validate_output
+        validate_dict, validated, project_info, csv_fp, uploaded_dict = validate_output
         uploaded_df = pd.DataFrame(uploaded_dict)
    
         if not validated:
-            default_storage.delete(csv_fp)
+            delete_tmp_file(csv_fp)
             return (validate_dict, validated, project_info)
 
         if validated:
@@ -266,7 +266,7 @@ def uploadManifoldReaction(validate_output):
                                         reaction_name=reaction_name,
                                     )
 
-            default_storage.delete(csv_fp)
+            delete_tmp_file(csv_fp)
 
             return validate_dict, validated, project_info
 
@@ -274,11 +274,11 @@ def uploadManifoldReaction(validate_output):
 @shared_task
 def uploadCustomReaction(validate_output):
 
-    validate_dict, validated, csv_fp, project_info, uploaded_dict = validate_output
+    validate_dict, validated, project_info, csv_fp, uploaded_dict = validate_output
     uploaded_df = pd.DataFrame(uploaded_dict)
 
     if not validated:
-        default_storage.delete(csv_fp)
+        delete_tmp_file(csv_fp)
         return (validate_dict, validated, project_info)
 
     if validated:
@@ -343,7 +343,7 @@ def uploadCustomReaction(validate_output):
                     reaction_name=reaction_name,
                 )
 
-    default_storage.delete(csv_fp)
+    delete_tmp_file(csv_fp)
 
     return validate_dict, validated, project_info
 
@@ -598,14 +598,18 @@ class ZipOTBatchProtocol(object):
         os.remove(self.ziptmpfp)
 
 @shared_task
-def canonicalizeSmiles(csvfile):
+def canonicalizeSmiles(csvfile: str = None, smiles:list = None):
     """"
     Canonicalizes smiles from csv file uploaded from frontend
     """ 
     validated = True
 
-    csvdf= pd.read_csv(csvfile, encoding="utf8")
-    smiles = [smi for smi in csvdf["SMILES"]]
+    if csvfile:
+        csvdf= pd.read_csv(csvfile, encoding="utf8")
+        smiles = [smi for smi in csvdf["SMILES"]]
+        delete_tmp_file(csvfile)
+    if smiles:
+        smiles = smiles
 
     molcheck = [Chem.MolFromSmiles(smi) for smi in smiles]
     
