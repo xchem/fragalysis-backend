@@ -390,9 +390,10 @@ def createOTScript(batchids: list, protocol_name: str):
                         alladdactionsquerysetflat=alladdactionsquerysetflat,
                     )
                 if index > 0:
+                    reactiongrouptodo = getReactionsToDo(reactiongroup=reactiongroup)
                     otsession = CreateOTSession(
                         otbatchprotocolobj=otbatchprotocolobj,
-                        reactiongroupqueryset=reactiongroup,
+                        reactiongroupqueryset=reactiongrouptodo,
                         inputplatequeryset=startingreactionplatequeryset,
                     )
 
@@ -416,6 +417,27 @@ def createOTScript(batchids: list, protocol_name: str):
             task_summary[batchid] = False
 
     return task_summary, otprotocolobj.id
+
+def checkPreviousReactionSuccess(reactionobj):
+    """Check if previous reaction was succesful
+    """
+    previousreactionid = reactionobj.id - 1
+    previousreactionobj = Reaction.objects.get(id=previousreactionid)
+    previousreactionsuccess = previousreactionobj.success
+    if previousreactionsuccess:
+        return True
+    else:
+        return False
+
+def getReactionsToDo(reactiongroup):
+    """get reactions that need to be done. Exclude those in methods that had 
+       failed previous reaction step
+    """
+    reactiongrouptodo = []
+    for reactionobj in reactiongroup:
+        if checkPreviousReactionSuccess(reactionobj=reactionobj):
+            reactiongrouptodo.append(reactionobj)
+    return reactiongrouptodo
 
 def getTargets(batchid):
     targetqueryset = Target.objects.filter(batch_id=batchid).order_by("id")

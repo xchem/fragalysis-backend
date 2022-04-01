@@ -325,7 +325,6 @@ class Well(models.Model):
     smiles = models.CharField(max_length=255)
     concentration = models.FloatField(null=True, blank=True)
     solvent = models.CharField(max_length=255, null=True)
-    # catalogid = models.CharField(max_length=255, null=True)
     reactantfornextstep = models.BooleanField(default=True)
     available = models.BooleanField(default=True)
 
