@@ -302,14 +302,17 @@ class BatchViewSet(viewsets.ModelViewSet):
     def canonicalizesmiles(self, request, pk=None):
         check_services()
         if request.POST.get("smiles"):
-            smiles = request.data["smiles"]
+            smiles = request.POST.getlist("smiles")
             task = canonicalizeSmiles.delay(smiles=smiles)
+            data = {"task_id": task.id}
+            return JsonResponse(data=data)
         if len(request.FILES) != 0:
             csvfile = request.FILES["csv_file"]
             tmp_file = save_tmp_file(csvfile)
             task = canonicalizeSmiles.delay(csvfile=tmp_file)
-        data = {"task_id": task.id}
-        return JsonResponse(data=data)
+            data = {"task_id": task.id}
+            return JsonResponse(data=data)
+        
     
     @action(detail=False, methods=['get'])
     def gettaskstatus(self, request, pk=None):
