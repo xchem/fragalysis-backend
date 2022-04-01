@@ -301,10 +301,12 @@ class BatchViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=False)
     def canonicalizesmiles(self, request, pk=None):
         check_services()
-        if request.data["smiles"]:
+        fetchtype = self.request.POST.get('fetchtype', None)
+
+        if fetchtype == "list":
             smiles = request.data["smiles"]
             task = canonicalizeSmiles.delay(smiles=smiles)
-        if request.FILES["csv_file"]:
+        if fetchtype == "csv":
             csvfile = request.FILES["csv_file"]
             tmp_file = save_tmp_file(csvfile)
             task = canonicalizeSmiles.delay(csvfile=tmp_file)
