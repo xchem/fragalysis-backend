@@ -9,7 +9,7 @@ from django.conf import settings
 
 import os
 
-from car.models import Batch
+from car.models import Batch, Reaction
 
 from car.models import (
     Product,
@@ -57,6 +57,20 @@ class otWrite(object):
         self.writeAddActions()
         self.createOTScriptModel()
 
+    def getProduct(self, reaction_id):
+        productobj = Product.objects.get(reaction_id=reaction_id)
+        return productobj
+    
+    def getReaction(self, reaction_id: int):
+        """Get reaction object
+            Args:
+                reaction_id (int): Reaction DB id to search for
+            Returns:
+                reactionobj (Django_obj): Reaction Django object
+        """
+        reactionobj = Reaction.objects.get(id=reaction_id)
+        return reactionobj
+
     def getPlates(self):
         platequeryset = Plate.objects.filter(otsession_id=self.otsessionid).order_by("id")
         return platequeryset
@@ -76,14 +90,36 @@ class otWrite(object):
     def getProductSmiles(self, reactionid):
         productobj = Product.objects.filter(reaction_id=reactionid)[0]
         return productobj.smiles
+    
+    def getPreviousObjEntry(self, queryset: list, obj: Django_obj):
+        """Finds previous object relative to obj of queryset
+        """ 
+        previousobj = queryset.filter(pk__lt=obj.pk).order_by('-pk').first()
+        return previousobj
+    
+    def getReactionQuerySet(self, method_id: int):
+        """Get product queryset for reaction_id
+            Args:
+                method_id (int): Method DB id to search for
+            Returns:
+                reactionqueryset (Django_queryset): Reaction queryset related to method_id
+        """
+        reactionqueryset = Reaction.objects.filter(method_id=method_id)
+        return reactionqueryset
 
-    def isPreviousReactionProduct(self, reactionid, smiles):
-        try:
-            previousreactionid = reactionid - 1
-            Product.objects.filter(reaction_id=previousreactionid, smiles=smiles)[0]
-            return True
-        except:
-            return False
+    def checkPreviousReactionProduct(self, reaction_id: int, smiles: str):
+        reactionobj = self.getReaction(reaction_id=reaction_id)
+        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id) 
+        prevreactionobj = self.getPreviousObjEntry(queryset=reactionqueryset, obj=reactionobj)
+        if prevreactionobj:
+            prevproductobj = self.getProduct(reaction_id=prevreactionobj.id) 
+            if prevproductobj.smiles == smiles:
+                return True, prevreactionobj
+            else:
+                return False, prevreactionobj
+        else:
+            return False, prevreactionobj
+
 
     def createFilePath(self):
         filename = "ot-script-batch-{}-reactionstep{}-sessionid-{}.txt".format(
@@ -104,13 +140,14 @@ class otWrite(object):
         otscriptobj.save()
 
     def findStartingPlateWellObj(self, reactionid, smiles, solvent, concentration, transfervolume):
-        isproduct = self.isPreviousReactionProduct(reactionid=reactionid, smiles=smiles)
+        isproduct, previousreactionobj = self.checkPreviousReactionProduct(reaction_id=reactionid, smiles=smiles)
         wellinfo = []
         if isproduct:
-            wellobj = Well.objects.filter(
+            wellobj = Well.objects.get(
                 otsession_id=self.otsessionid,
+                reaction_id = previousreactionobj,
                 smiles=smiles,
-            )[0]
+            )
             wellinfo.append([wellobj, transfervolume])
         else:
             try:

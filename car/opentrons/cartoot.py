@@ -47,7 +47,7 @@ class CreateOTSession(object):
         self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
         self.inputplatequeryset = inputplatequeryset
         self.alladdactionqueryset = [
-            self.getAddActions(reactionobj) for reactionobj in self.reactiongroupqueryset
+            self.getAddActions(reaction_id=reactionobj.id) for reactionobj in self.reactiongroupqueryset
         ]
         self.alladdactionquerysetflat = [
             item for sublist in self.alladdactionqueryset for item in sublist
@@ -70,16 +70,64 @@ class CreateOTSession(object):
         self.createTipRacks()
         self.startingreactionplatequeryset = self.getStartingReactionPlateQuerySet()
 
-    def getReaction(self, reactionid):
-        reactionobj = Reaction.objects.filter(id=reactionid)[0]
+    def getPreviousObjEntry(self, queryset: list, obj: Django_obj):
+        """Finds previous object relative to obj of queryset
+        """ 
+        previousobj = queryset.filter(pk__lt=obj.pk).order_by('-pk').first()
+        return previousobj
+
+    def checkPreviousReactionProduct(self, reaction_id: int, smiles: str):
+        reactionobj = self.getReaction(reaction_id=reaction_id)
+        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id) 
+        prevreactionobj = self.getPreviousObjEntry(queryset=reactionqueryset, obj=reactionobj)
+        if prevreactionobj:
+            prevproductobj = self.getProduct(reaction_id=prevreactionobj.id) 
+            if prevproductobj.smiles == smiles:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def getReaction(self, reaction_id: int):
+        """Get reaction object
+            Args:
+                reaction_id (int): Reaction DB id to search for
+            Returns:
+                reactionobj (Django_obj): Reaction Django object
+        """
+        reactionobj = Reaction.objects.get(id=reaction_id)
         return reactionobj
 
-    def getProduct(self, reactionobj):
-        productobj = Product.objects.filter(reaction_id=reactionobj.id).order_by("id")[0]
-        return productobj
+    def getReactionQuerySet(self, method_id: int):
+        """Get product queryset for reaction_id
+            Args:
+                method_id (int): Method DB id to search for
+            Returns:
+                reactionqueryset (Django_queryset): Reaction queryset related to method_id
+        """
+        reactionqueryset = Reaction.objects.filter(method_id=method_id)
+        return reactionqueryset
 
-    def getAddActions(self, reactionobj):
-        addactionqueryset = AddAction.objects.filter(reaction_id=reactionobj.id).order_by("id")
+    def getProduct(self, reaction_id: int):
+        """Get product object
+            Args:
+                reaction_id (int): Reaction DB id to search for
+            Returns:
+                productobj (Django_obj): Product Django object related to reaction_id
+        """
+        productobj = Product.objects.get(reaction_id=reaction_id)
+        return productobj
+    
+
+    def getAddActions(self, reaction_id: int):
+        """Get add actions queryset for reaction_id
+            Args:
+                reaction_id (int): Reaction DB id to search for
+            Returns:
+                addactionqueryset (Django_queryset): Reaction Django object
+        """
+        addactionqueryset = AddAction.objects.filter(reaction_id=reaction_id).order_by("id")
         return addactionqueryset
 
     def getStartingReactionPlateQuerySet(self):
@@ -198,7 +246,7 @@ class CreateOTSession(object):
         reactionvolumes = []
 
         for reactionobj in grouptemperaturereactionobjs:
-            addactionqueryset = self.getAddActions(reactionobj=reactionobj)
+            addactionqueryset = self.getAddActions(reaction_id=reactionobj.id)
             roundedvolumes = self.getRoundedVolumes(addactionqueryset=addactionqueryset)
             sumvolume = self.getSumValue(values=roundedvolumes)
             reactionvolumes.append(sumvolume)
@@ -243,7 +291,7 @@ class CreateOTSession(object):
             deadvolume = self.getDeadVolume(maxwellvolume=maxvolumevial)
             novialsneededratio = volumematerial / (maxvolumevial - deadvolume)
             frac, whole = math.modf(novialsneededratio)
-            volumestoadd = [maxvolumevial for i in range(int(whole))]
+            volumestoadd = [maxvolumevial for maxvolumevial in range(int(whole))]
             volumestoadd.append(frac * maxvolumevial + deadvolume)
             novialsneeded = sum(volumestoadd)
         return novialsneeded
@@ -428,8 +476,8 @@ class CreateOTSession(object):
         )
 
         startingmaterialsdf["productexists"] = startingmaterialsdf.apply(
-            lambda row: self.checkProductExists(
-                reaction_id=row["reaction_id_id"], smiles=row["materialsmiles"]
+            lambda row: self.checkPreviousReactionProduct(
+                reaction_id=row["reaction_id_id"], smiles = row["materialsmiles"]
             ),
             axis=1,
         )
@@ -507,7 +555,7 @@ class CreateOTSession(object):
                 wellobj = self.createWellModel(
                     plateobj=plateobj,
                     reactionobj=self.getReaction(
-                        reactionid=startingmaterialsdf.at[i, "reaction_id_id"]
+                        reaction_id=startingmaterialsdf.at[i, "reaction_id_id"]
                     ),
                     wellindex=indexwellavailable - 1,
                     volume=volumetoadd,
@@ -542,7 +590,7 @@ class CreateOTSession(object):
             )
 
             for reactionobj in grouptemperaturereactionobjs:
-                productobj = self.getProduct(reactionobj)
+                productobj = self.getProduct(reaction_id = reactionobj.id)
                 indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
                 if not indexwellavailable:
                     plateobj = self.createPlateModel(
@@ -562,14 +610,6 @@ class CreateOTSession(object):
                     mculeid=None,
                 )
 
-    def checkProductExists(self, reaction_id, smiles):
-        previousreactionid = reaction_id - 1
-        testproduct = Product.objects.filter(reaction_id=previousreactionid, smiles=smiles)
-        if testproduct:
-            return True
-        else:
-            return False
-
     def combinestrings(self, row):
         return (
             str(row["materialsmiles"]) + "-" + str(row["solvent"]) + "-" + str(row["concentration"])
@@ -581,12 +621,13 @@ class CreateOTSession(object):
             if indexslot:
                 clonewellqueryset = self.getCloneWells(plateobj=plateobj)
                 plateindex = indexslot
+                previousname = plateobj.platename
                 platename = "Startingplate"
                 plateobj.pk = None
                 plateobj.deck_id = self.deckobj
                 plateobj.otsession_id = self.otsessionobj
                 plateobj.plateindex = plateindex
-                plateobj.platename = "{}_{}".format(platename, indexslot)
+                plateobj.platename = "{}_{}_from_{}".format(platename, indexslot, previousname)
                 plateobj.save()
                 self.cloneInputWells(clonewellqueryset, plateobj)
             else:
