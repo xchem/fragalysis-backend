@@ -9,7 +9,7 @@ from celery.result import AsyncResult
 from viewer.tasks import check_services
 import pandas as pd
 
-from car.tasks import validateFileUpload, uploadManifoldReaction, uploadCustomReaction, createOTScript, canonicalizeSmiles 
+from car.tasks import validateFileUpload, uploadManifoldReaction, uploadCustomReaction, createOTScript, canonicalizeSmiles, updateReactionSuccess 
 
 # Import standard models
 from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Reactant, CatalogEntry, Product, AnalyseAction
@@ -340,6 +340,13 @@ class BatchViewSet(viewsets.ModelViewSet):
                 data = {"task_status": task.status}
                 return JsonResponse(data)
 
+    @action(methods=['post'], detail=False)
+    def updatereactionsuccess(self, request, pk=None):
+        check_services()
+        reactionids = request.POST.getlist("reaction_ids")
+        task = updateReactionSuccess.delay(reactionids=reactionids)
+        data = {"task_id": task.id}
+        return JsonResponse(data=data)
 
 class TargetViewSet(viewsets.ModelViewSet):
     queryset = Target.objects.all()

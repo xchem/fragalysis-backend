@@ -38,6 +38,7 @@ class otWrite(object):
         apiLevel="2.9",
         reactionplatequeryset: list = None,
     ):
+        self.reactionstep = otsessionobj.reactionstep
         self.otsessionobj = otsessionobj
         self.otsessionid = otsessionobj.id
         self.alladdactionsquerysetflat = alladdactionsquerysetflat
@@ -85,8 +86,8 @@ class otWrite(object):
             return False
 
     def createFilePath(self):
-        filename = "ot-script-batch-{}-sessionid-{}.txt".format(
-            self.protocolname, self.otsessionid
+        filename = "ot-script-batch-{}-reactionstep{}-sessionid-{}.txt".format(
+            self.protocolname, self.reactionstep, self.otsessionid
         )
         path = "tmp/" + filename
         filepath = str(os.path.join(settings.MEDIA_ROOT, path))

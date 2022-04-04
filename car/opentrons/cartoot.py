@@ -35,10 +35,12 @@ class CreateOTSession(object):
 
     def __init__(
         self,
+        reactionstep: int,
         otbatchprotocolobj: Django_object,
         reactiongroupqueryset: list,
         inputplatequeryset: list = None,
     ):
+        self.reactionstep = reactionstep
         self.otbatchprotocolobj = otbatchprotocolobj 
         self.batchobj = Batch.objects.get(id=otbatchprotocolobj.batch_id_id)
         self.reactiongroupqueryset = reactiongroupqueryset
@@ -284,6 +286,7 @@ class CreateOTSession(object):
     def createOTSessionModel(self):
         otsessionobj = OTSession()
         otsessionobj.otbatchprotocol_id = self.otbatchprotocolobj
+        otsessionobj.reactionstep = self.reactionstep
         otsessionobj.save()
         return otsessionobj
 

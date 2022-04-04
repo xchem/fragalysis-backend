@@ -376,6 +376,7 @@ def createOTScript(batchids: list, protocol_name: str):
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
                     otsession = CreateOTSession(
+                        reactionstep = 1,
                         otbatchprotocolobj=otbatchprotocolobj,
                         reactiongroupqueryset=reactiongroup,
                     )
@@ -391,21 +392,25 @@ def createOTScript(batchids: list, protocol_name: str):
                     )
                 if index > 0:
                     reactiongrouptodo = getReactionsToDo(reactiongroup=reactiongroup)
-                    otsession = CreateOTSession(
-                        otbatchprotocolobj=otbatchprotocolobj,
-                        reactiongroupqueryset=reactiongrouptodo,
-                        inputplatequeryset=startingreactionplatequeryset,
-                    )
+                    if len(reactiongrouptodo) == 0:
+                        break
+                    else:
+                        otsession = CreateOTSession(
+                            reactionstep = index + 1,
+                            otbatchprotocolobj=otbatchprotocolobj,
+                            reactiongroupqueryset=reactiongrouptodo,
+                            inputplatequeryset=startingreactionplatequeryset,
+                        )
 
-                    otsessionobj = otsession.otsessionobj
-                    alladdactionsquerysetflat = otsession.alladdactionquerysetflat
+                        otsessionobj = otsession.otsessionobj
+                        alladdactionsquerysetflat = otsession.alladdactionquerysetflat
 
-                    otWrite(
-                        protocolname = batch_tag,
-                        otsessionobj=otsessionobj,
-                        alladdactionsquerysetflat=alladdactionsquerysetflat,
-                    )    
-            
+                        otWrite(
+                            protocolname = batch_tag,
+                            otsessionobj=otsessionobj,
+                            alladdactionsquerysetflat=alladdactionsquerysetflat,
+                        )    
+                
             createZipOTBatchProtocol = ZipOTBatchProtocol(otbatchprotocolobj=otbatchprotocolobj, batchtag=batch_tag)
     
             if createZipOTBatchProtocol.errors:
@@ -418,13 +423,29 @@ def createOTScript(batchids: list, protocol_name: str):
 
     return task_summary, otprotocolobj.id
 
-def checkPreviousReactionSuccess(reactionobj):
+def getPreviousObjEntry(queryset: list, obj: Django_obj):
+    """Finds previous object relative to obj of queryset
+    """ 
+    previousobj = queryset.filter(pk__lt=obj.pk).order_by('-pk').first()
+    return previousobj
+
+def checkPreviousReactionSuccess(reactionobj: Django_obj):
     """Check if previous reaction was succesful
     """
-    previousreactionid = reactionobj.id - 1
-    previousreactionobj = Reaction.objects.get(id=previousreactionid)
+    reactionqueryset = getReactions(methodid=reactionobj.method_id.id)
+    previousreactionobj = getPreviousObjEntry(queryset=reactionqueryset, obj=reactionobj)
     previousreactionsuccess = previousreactionobj.success
     if previousreactionsuccess:
+        return True
+    else:
+        return False
+
+def checkNoMethodSteps(reactionobj):
+    """Check no reaction steps in method is > 1
+    """
+    methodobj = reactionobj.method_id
+    noreactionsteps = methodobj.nosteps
+    if noreactionsteps > 1:
         return True
     else:
         return False
@@ -435,8 +456,9 @@ def getReactionsToDo(reactiongroup):
     """
     reactiongrouptodo = []
     for reactionobj in reactiongroup:
-        if checkPreviousReactionSuccess(reactionobj=reactionobj):
-            reactiongrouptodo.append(reactionobj)
+        if checkNoMethodSteps(reactionobj=reactionobj):
+            if checkPreviousReactionSuccess(reactionobj=reactionobj):
+                reactiongrouptodo.append(reactionobj)
     return reactiongrouptodo
 
 def getTargets(batchid):
@@ -643,4 +665,16 @@ def canonicalizeSmiles(csvfile: str = None, smiles:list = None):
         indexerrors = [i for i,v in enumerate(molcheck) if v == None]
         errorsummary= "There was an error with the smiles csv at index: {}".format(indexerrors)
         return validated, errorsummary
-    
+
+@shared_task
+def updateReactionSuccess(reactionids: list):
+    """Updates reaction success fields using reactionids that
+       failed QC from frontend
+       Args:
+            reactionids (list): List of reactionids that failed QC as strings
+    """
+    reactionids = [int(reactionid) for reactionid in reactionids]
+    failingreactionqueryset = Reaction.objects.filter(id__in=reactionids)
+    for reactionobj in failingreactionqueryset:
+        reactionobj.success = False
+        reactionobj.save()

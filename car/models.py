@@ -49,6 +49,7 @@ class Reaction(models.Model):
         null=True,
     )
     successrate = models.FloatField(default=0.5)
+    success = models.BooleanField(default=True)
 
 
 class Reactant(models.Model):
@@ -274,6 +275,7 @@ class OTBatchProtocol(models.Model):
 class OTSession(models.Model):
     otbatchprotocol_id = models.ForeignKey(OTBatchProtocol, related_name="otsessions", on_delete=models.CASCADE)
     init_date = models.DateTimeField(auto_now_add=True)
+    reactionstep = models.IntegerField()
 
 
 class Deck(models.Model):
