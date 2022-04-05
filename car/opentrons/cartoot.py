@@ -71,10 +71,19 @@ class CreateOTSession(object):
         self.startingreactionplatequeryset = self.getStartingReactionPlateQuerySet()
 
     def getPreviousObjEntry(self, queryset: list, obj: Django_obj):
-        """Finds previous object relative to obj of queryset
+        """Finds previous object relative to obj of queryset. This is used to deal
+           with cases where ids are not sequential (prev_id = id - 1)
         """ 
         previousobj = queryset.filter(pk__lt=obj.pk).order_by('-pk').first()
         return previousobj
+
+    
+    def getNextObjEntry(self, queryset: list, obj: Django_obj):
+        """Finds next object relative to obj of queryset.This is used to deal
+           with cases where ids are not sequential (next_id = id + 1)
+        """ 
+        nextobj = queryset.filter(pk__gt=obj.pk).order_by('pk').first()
+        return nextobj
 
     def checkPreviousReactionProduct(self, reaction_id: int, smiles: str):
         reactionobj = self.getReaction(reaction_id=reaction_id)
@@ -88,6 +97,39 @@ class CreateOTSession(object):
                 return False
         else:
             return False
+    
+    def checkNextReactionAddAction(self, reaction_id: int, smiles: str):
+        """Checks if there is a next reaction obj. If there is, gets AddAction matching
+           smiles
+           Args:
+                reaction_id (int): Reaction DB id to use to search for next Reaction entry
+                smiles (str): Product smiles of previous reaction to match with AddAction of 
+                              next Reaction 
+        """
+        reactionobj = self.getReaction(reaction_id=reaction_id)
+        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id) 
+        nextreactionobj = self.getNextObjEntry(queryset=reactionqueryset, obj=reactionobj)
+        if nextreactionobj:
+            nextaddactionobj = self.getAddAction(reaction_id=nextreactionobj.id, smiles=smiles) 
+            if nextaddactionobj:
+                return nextaddactionobj
+            else:
+                nextaddactionobj = None
+                return nextaddactionobj
+        else:
+            nextaddactionobj = None
+            return nextaddactionobj
+
+    def getAddAction(self, reaction_id: int, smiles: str):
+        """Get Addaction object matching reaction_id and smiles
+            Args:
+                reaction_id (int): Reaction DB id to search for
+                smiles (str): Smiles to search for next AddAction 
+            Returns:
+                addactionobj (Django_obj): AddAction Django object
+        """
+        addactionobj = AddAction.objects.get(reaction_id=reaction_id, smiles=smiles)
+        return addactionobj
 
     def getReaction(self, reaction_id: int):
         """Get reaction object
@@ -635,7 +677,137 @@ class CreateOTSession(object):
 
     def cloneInputWells(self, clonewellqueryset, plateobj):
         for clonewellobj in clonewellqueryset:
+            nextaddactionobj = self.checkNextReactionAddAction(reaction_id=clonewellobj.reaction_id, smiles=clonewellobj.smiles)
+            if nextaddactionobj:
+                clonewellobj.volume = nextaddactionobj.materialquantity
+                clonewellobj.concentration = nextaddactionobj.concentration
+                clonewellobj.solvent = nextaddactionobj.solvent
+                clonewellobj.reactantfornextstep = True
             clonewellobj.pk = None
             clonewellobj.plate_id = plateobj
             clonewellobj.otsession_id = self.otsessionobj
             clonewellobj.save()
+
+    def createSolventPlate(self):
+        """Creates solvent plate/s for diluting concentrated reaction mixture 
+           product used for next reaction step
+        """
+        # Can we do this in Django queries and aggregation instead?
+        # Must complete this for starting solvent plate
+        addactionsdf = self.getOrderAddActions()
+
+        startingmaterialsdf = addactionsdf.groupby(["uniquesolution"]).agg(
+            {
+                "reaction_id_id": "first",
+                "material": "first",
+                "materialsmiles": "first",
+                "materialquantity": "sum",
+                "solvent": "first",
+                "concentration": "first",
+            }
+        )
+
+        startingmaterialsdf["productexists"] = startingmaterialsdf.apply(
+            lambda row: self.checkPreviousReactionProduct(
+                reaction_id=row["reaction_id_id"], smiles = row["materialsmiles"]
+            ),
+            axis=1,
+        )
+
+        startingmaterialsdf = startingmaterialsdf[~startingmaterialsdf["productexists"]]
+
+        startingmaterialsdf = startingmaterialsdf.sort_values(
+            ["solvent", "materialquantity"], ascending=False
+        )
+
+        startinglabwareplatetype = self.getStarterPlateType(startingmaterialsdf=startingmaterialsdf)
+
+        plateobj = self.createPlateModel(
+            platename="Startingplate", labwaretype=startinglabwareplatetype
+        )
+
+        maxwellvolume = self.getMaxWellVolume(plateobj=plateobj)
+        deadvolume = self.getDeadVolume(maxwellvolume=maxwellvolume)
+
+        orderdictslist = []
+
+        for i in startingmaterialsdf.index.values:
+            totalvolume = startingmaterialsdf.at[i, "materialquantity"]
+            if totalvolume > maxwellvolume:
+                nowellsneededratio = totalvolume / (maxwellvolume - deadvolume)
+
+                frac, whole = math.modf(nowellsneededratio)
+                volumestoadd = [maxwellvolume for i in range(int(whole))]
+                volumestoadd.append(frac * maxwellvolume + deadvolume)
+
+                for volumetoadd in volumestoadd:
+                    indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+                    if not indexwellavailable:
+
+                        plateobj = self.createPlateModel(
+                            platename="Startingplate", labwaretype=startinglabwareplatetype
+                        )
+
+                        indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+
+                    wellobj = self.createWellModel(
+                        plateobj=plateobj,
+                        reactionobj=self.getReaction(
+                            reactionid=startingmaterialsdf.at[i, "reaction_id_id"]
+                        ),
+                        wellindex=indexwellavailable - 1,
+                        volume=volumetoadd,
+                        smiles=startingmaterialsdf.at[i, "materialsmiles"],
+                        concentration=startingmaterialsdf.at[i, "concentration"],
+                        solvent=startingmaterialsdf.at[i, "solvent"],
+                        mculeid=startingmaterialsdf.at[i, "mculeid"],
+                    )
+
+                    orderdictslist.append(
+                        {
+                            "material": startingmaterialsdf.at[i, "material"],
+                            "platename": plateobj.platename,
+                            "well": wellobj.wellindex,
+                            "concentration": startingmaterialsdf.at[i, "concentration"],
+                            "solvent": startingmaterialsdf.at[i, "solvent"],
+                            "amount-ul": volumetoadd,
+                        }
+                    )
+
+            else:
+                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+                volumetoadd = totalvolume + deadvolume
+
+                if not indexwellavailable:
+                    plateobj = self.createPlateModel(
+                        platename="Startingplate", labwaretype=startinglabwareplatetype
+                    )
+                    indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+
+                wellobj = self.createWellModel(
+                    plateobj=plateobj,
+                    reactionobj=self.getReaction(
+                        reaction_id=startingmaterialsdf.at[i, "reaction_id_id"]
+                    ),
+                    wellindex=indexwellavailable - 1,
+                    volume=volumetoadd,
+                    smiles=startingmaterialsdf.at[i, "materialsmiles"],
+                    concentration=startingmaterialsdf.at[i, "concentration"],
+                    solvent=startingmaterialsdf.at[i, "solvent"],
+                )
+
+                orderdictslist.append(
+                    {
+                        "material": startingmaterialsdf.at[i, "material"],
+                        "platename": plateobj.platename,
+                        "well": wellobj.wellindex,
+                        "concentration": startingmaterialsdf.at[i, "concentration"],
+                        "solvent": startingmaterialsdf.at[i, "solvent"],
+                        "amount-ul": volumetoadd,
+                    }
+                )
+
+        orderdf = pd.DataFrame(orderdictslist)
+
+        self.createCompoundOrderModel(orderdf=orderdf)
+
