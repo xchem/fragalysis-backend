@@ -569,7 +569,7 @@ encoded_recipes = {
         },
     },
     "Sonogashira coupling": {
-        "reactionSMARTS": ["[CH:1].[c:2]-[Cl,Br,I]>>[C:1]-[c:2]"],
+        "reactionSMARTS": "[CH:1].[c:2]-[Cl,Br,I]>>[C:1]-[c:2]",
         "recipes": {
             "Standard": {
                 "reference": [
