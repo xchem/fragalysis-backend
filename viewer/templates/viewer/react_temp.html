@@ -21,7 +21,9 @@
          authenticated: true,
          discourse_available: {{ discourse_available }},
          user_present_on_discourse: {{ user_present_on_discourse|default:"false" }},
-         discourse_host: '{{ discourse_host }}'
+         discourse_host: '{{ discourse_host }}',
+         squonk_available: {{ squonk_available }},
+         squonk_ui_url: '{{ squonk_ui_url }}'
      }
  {% else %}
      var DJANGO_CONTEXT = {
@@ -29,7 +31,8 @@
          email: "noemail",
          pk: undefined,
          authenticated: false,
-         discourse_available: {{ discourse_available }}
+         discourse_available: {{ discourse_available }},
+         squonk_available: {{ squonk_available }}
      }
  {% endif %}
 

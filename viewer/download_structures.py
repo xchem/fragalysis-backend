@@ -22,6 +22,7 @@ from viewer.models import (
     Protein,
     DownloadLinks
 )
+from viewer.utils import clean_filename
 
 logger = logging.getLogger(__name__)
 
@@ -66,18 +67,6 @@ zip_template = {'proteins': {'pdb_info': {},
                 'metadata_info': None, }
 
 
-def _clean_filename(filepath):
-    file_split = os.path.splitext(os.path.basename(filepath))
-    if fnmatch.fnmatch(
-            file_split[0],
-            '*_[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9]'+
-            '[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9]'):
-        cleaned_filename = file_split[0][:-8] + file_split[1]
-    else:
-        cleaned_filename = os.path.basename(filepath)
-    return cleaned_filename
-
-
 def _add_file_to_zip(ziparchive, param, filepath):
     """Add the requested file to the zip archive.
 
@@ -96,7 +85,7 @@ def _add_file_to_zip(ziparchive, param, filepath):
     fullpath = os.path.join(media_root, filepath)
 
     if os.path.isfile(fullpath):
-        cleaned_filename = _clean_filename(filepath)
+        cleaned_filename = clean_filename(filepath)
         ziparchive.write(fullpath,
                          os.path.join(_ZIP_FILEPATHS[param],
                                       cleaned_filename))
@@ -123,7 +112,7 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
     fullpath = os.path.join(media_root, filepath)
 
     if os.path.isfile(fullpath):
-        cleaned_filename = _clean_filename(filepath)
+        cleaned_filename = clean_filename(filepath)
         ziparchive.write(fullpath,
                          os.path.join('aligned', code, cleaned_filename))
         return False

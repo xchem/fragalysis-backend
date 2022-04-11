@@ -1,0 +1,72 @@
+@startuml
+title Main Flow - Job Submission
+actor       Viewer      as user
+participant FragBackend     as fb
+database    Fragdatabase    as db
+participant CeleryWorker    as cw
+participant Squonk2Frontend as sf
+participant Squonk2Backend   as sb
+autonumber
+user -> user : Select Molecules (initially RHS, include LHS in future)
+user -> fb :POST /snapshot
+fb -> db :Create snapshot
+user -> fb :POST /job_file_transfer (with snapshot id and list of proteins)
+fb -> fb :Read job_file_transfer
+note right: If the files have already been transferred and the target has not changed, file transfer is not necessary (skip 7,8,11,12)
+fb -> fb :Create job_file_transfer (status OPEN)
+activate cw
+fb -> cw :Post snapshot files to Squonk2 Project (async)
+activate sb
+loop Add files
+    note right: This will be kept simple in phase 1 and use the existing squonk API.
+    cw -> sb : Add files (sync) - PUT <Squonk2 Host>/project/{project_id}/file/json
+end
+sb -> cw : Final files posted
+deactivate sb
+cw -> db : Update job_file_transfer (status COMPLETE)
+deactivate cw
+user -> user : Select job/Construct job launcher pane with squonk_job_config.yaml
+note right: This creates a React forms component in Fragalysis.
+user -> user : Select Files and Options and press "Submit"
+user -> fb :POST job_request (target, snapshot,\nsquonk application id/version, job specification)
+fb <- db :Read job_request ?inputs, ?options
+note right: This is a duplicate job check (likely not phase 1).
+fb <- db :Read job_file_transfer for snaphot (status COMPLETE)
+note right: Return error if not complete.
+fb -> fb :Generate security code and\ncallback URL of format <Fragalysis>/api/job_request/code=<security_code>.
+activate sb
+fb -[#0000FF]> sb :Run JOB - POST <Squonk2 Host>/instance/json
+note over fb: This will contain the squonk application id/version, job specification, project_id and callback URL
+sb -> fb :Returns squonk instance id and squonk task id
+fb -> db :Create job_request record (status PENDING) with security code and job details
+note left: Squonk2 uses callback URL for PUT requests to update the job status
+sb -[#0000FF]> fb :PUT <Fragalysis Host>/job_request/code=<security_code> status
+fb -> db :Update job_request (status STARTED)
+user -> fb :GET job_request
+note right: The frontend can get job_request information via id/snapshot/user/status/target. Note, security code will not be in serializer
+fb <- db :Read /job_request
+fb -> user :Job details (squonk instance_id/task_id)
+user -> sf :Navigate to view details in Squonk2 using <Squonk2> + squonk 2 task_id
+note over fb: This URL can be used to see the events while the job is running and the results once the job is complete
+sb -[#0000FF]> fb :PUT <Fragalysis Host>/job_request/code=<security_code> status
+fb -> db :Update job_request (status SUCCESS)
+deactivate sb
+newpage Automatic Upload
+group Automatic upload (future improvement)
+    fb -> db : Update job_request (status UPLOADING)
+    note right: The automatic upload functionality (steps 25 to 36) will be driven by a parameter in squonk_job_config.yaml
+    activate cw
+    fb -> cw : Upload SDF results Set
+    cw -> sb : GET project file
+    sb -> cw : SDF results file
+    cw -> cw : Process computed set
+    cw -> db : Update job_request (status UPLOADED)
+    deactivate cw
+    user -> fb :GET job_request
+    fb <- db :Read /job_request
+    fb -> user :Job details
+    user -> user : Success Dialog with Upload button
+    user -> fb : upload_results
+    fb -> user :Computed set details
+end
+@enduml

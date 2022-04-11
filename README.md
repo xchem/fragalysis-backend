@@ -186,6 +186,7 @@ The documents will be stored in the /design_docs folder in the repo. Current doc
 - [Fragalysis Discourse Design](design_docs/Fragalysis_Discourse_v0.2.pdf)
 - [Fragalysis Tags Design V1.0](design_docs/Fragalysis_Tags_Design_V1.0.pdf)
 - [Fragalysis Design #651 Fix Data Download V2.0](design_docs/Fragalysis_Design_651_Fix_Data_Download_V2.0.pdf)
+- [Fragalysis Job Launcher V1.0](design_docs/Fragalysis_Job_Launcher_V1.0.pdf)
 
 
 
