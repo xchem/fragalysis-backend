@@ -481,7 +481,7 @@ class OTProtocolViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=False)
     def createotprotocol(self, request, pk=None):
         check_services()
-        batch_ids = request.data["batchids"]
+        batch_ids = request.POST.getlist("batchids")
         protocol_name = request.data["protocol_name"]
         task = createOTScript.delay(batchids=batch_ids, protocol_name=protocol_name)
         data = {"task_id": task.id}

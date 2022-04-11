@@ -324,7 +324,7 @@ class Well(models.Model):
     otsession_id = models.ForeignKey(OTSession, on_delete=models.CASCADE)
     wellindex = models.IntegerField()
     volume = models.FloatField(null=True)
-    smiles = models.CharField(max_length=255)
+    smiles = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True, blank=True)
     solvent = models.CharField(max_length=255, null=True)
     reactantfornextstep = models.BooleanField(default=False)
