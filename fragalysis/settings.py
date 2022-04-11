@@ -24,7 +24,6 @@ DEBUG = False
 if os.environ.get("DEBUG_FRAGALYSIS") == 'True':
     DEBUG = True
 
-
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
 # Y                  | Y                 | Shown / Required
