@@ -97,6 +97,9 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+# For CAR to work - need to limit CPU/memory issues
+worker_concurrency = 10
+worker_max_memory_per_child = 300000 # 300 MB/job 
 # This is to stop Celery overwriting the Django logging defaults.
 # CELERYD_HIJACK_ROOT_LOGGER = False
 
