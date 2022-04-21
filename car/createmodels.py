@@ -70,7 +70,6 @@ def createTargetModel(batch_id, smiles, target_mass):
     target.targetmass = target_mass
     target.unit = "mg"
     target.save()
-
     return target.id
 
 
@@ -148,8 +147,8 @@ def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
             priceinfo = catalog_entry["purchaseInfo"]["scrPriceRange"]
             catalogentry.priceinfo = priceinfo
             priceinfo = priceinfo.replace(" ","")
-            # Check type of range is less than or given range
-            if priceinfo[0] == "<":
+            # Check type of range is less than or given range                
+            if priceinfo[0] == "<" or priceinfo[0] == ">":
                 if "k" in priceinfo:
                     upperprice = int(''.join(filter(str.isdigit, priceinfo))) * 1000
                 else: 
@@ -173,7 +172,7 @@ def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
             catalogentry.priceinfo = priceinfo
             priceinfo = priceinfo.replace(" ","")
             # Check type of range is less than or given range
-            if priceinfo[0] == "<" or priceinfo[0] == ">" :
+            if priceinfo[0] == "<" or priceinfo[0] == ">":
                 if "k" in priceinfo:
                     upperprice = int(''.join(filter(str.isdigit, priceinfo))) * 1000
                 else: 
