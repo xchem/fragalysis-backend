@@ -32,7 +32,9 @@ class PlateCSV:
         self.block = block
         self.indextype = indextype
         self.volumeMultiplyer = volumeMultiplyer
-        self.filepath = f"../output/OrderPlates/{self.plate.plateName}_{protocolname}_{block}.CSV"
+        self.filepath = (
+            f"../output/OrderPlates/{self.plate.plateName}_{protocolname}_{block}.CSV"
+        )
         self.setupScript()
 
     def dirsetup(self, path="../output/OrderPlates"):
@@ -53,7 +55,14 @@ class PlateCSV:
         self.dirsetup()
 
         outputdf = pd.DataFrame(
-            columns=["mculeid", "platename", "well", "concentration", "solvent", "amount-ul"]
+            columns=[
+                "mculeid",
+                "platename",
+                "well",
+                "concentration",
+                "solvent",
+                "amount-ul",
+            ]
         )
         for plate in self.platelist:
             for well in self.plate.WellList:

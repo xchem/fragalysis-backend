@@ -336,7 +336,7 @@ encoded_recipes = {
                                 "concentration": 0.5,
                             },
                         },
-                    },                    
+                    },
                     {
                         "name": "stir",
                         "content": {
@@ -375,7 +375,7 @@ encoded_recipes = {
                                 "concentration": 0.5,
                             },
                         },
-                    },                    
+                    },
                     {
                         "name": "stir",
                         "content": {
@@ -388,7 +388,7 @@ encoded_recipes = {
             },
         },
     },
-     "N-nucleophilic aromatic substitution": {
+    "N-nucleophilic aromatic substitution": {
         "reactionSMARTS": "[#6:3]-[#7;H3,H2,H1:2].[c:1]-[F,Cl,Br,I]>>[#6:3]-[#7:2]-[c:1]",
         "recipes": {
             "Standard": {
@@ -569,7 +569,7 @@ encoded_recipes = {
         },
     },
     "Sonogashira coupling": {
-        "reactionSMARTS": ["[CH:1].[c:2]-[Cl,Br,I]>>[C:1]-[c:2]"],
+        "reactionSMARTS": "[CH:1].[c:2]-[Cl,Br,I]>>[C:1]-[c:2]",
         "recipes": {
             "Standard": {
                 "reference": [
@@ -696,7 +696,10 @@ encoded_recipes = {
                                 "SMARTS": None,
                                 "SMILES": "CC(C)C1=CC(=C(C(=C1)C(C)C)C2=CC=CC=C2P(C3CCCCC3)C4CCCCC4)C(C)C.CS(=O)(=O)[O-].C1=CC=C(C=C1)C2=CC=CC=C2N.[Pd]",
                                 # Smiles for XPhosPdG3
-                                "quantity": {"value": 0.1, "unit": "moleq"},  # 10mol% catalyst
+                                "quantity": {
+                                    "value": 0.1,
+                                    "unit": "moleq",
+                                },  # 10mol% catalyst
                                 "solvent": "EtOH",
                                 "concentration": 0.5,
                             },
@@ -842,7 +845,10 @@ encoded_recipes = {
                             "material": {
                                 "SMARTS": ["[#7;H2:2]"],
                                 "SMILES": None,
-                                "quantity": {"value": 1, "unit": "moleq"},  # primary amine
+                                "quantity": {
+                                    "value": 1,
+                                    "unit": "moleq",
+                                },  # primary amine
                                 "solvent": "ACN",
                                 "concentration": 0.5,
                             },

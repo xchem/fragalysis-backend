@@ -60,19 +60,21 @@ class otWrite(object):
     def getProduct(self, reaction_id):
         productobj = Product.objects.get(reaction_id=reaction_id)
         return productobj
-    
+
     def getReaction(self, reaction_id: int):
         """Get reaction object
-            Args:
-                reaction_id (int): Reaction DB id to search for
-            Returns:
-                reactionobj (Django_obj): Reaction Django object
+        Args:
+            reaction_id (int): Reaction DB id to search for
+        Returns:
+            reactionobj (Django_obj): Reaction Django object
         """
         reactionobj = Reaction.objects.get(id=reaction_id)
         return reactionobj
 
     def getPlates(self):
-        platequeryset = Plate.objects.filter(otsession_id=self.otsessionid).order_by("id")
+        platequeryset = Plate.objects.filter(otsession_id=self.otsessionid).order_by(
+            "id"
+        )
         return platequeryset
 
     def getPlateObj(self, plateid):
@@ -80,7 +82,9 @@ class otWrite(object):
         return plateobj
 
     def getTipRacks(self):
-        tipracksqueryset = TipRack.objects.filter(otsession_id=self.otsessionid).order_by("id")
+        tipracksqueryset = TipRack.objects.filter(
+            otsession_id=self.otsessionid
+        ).order_by("id")
         return tipracksqueryset
 
     def getPipette(self):
@@ -90,36 +94,36 @@ class otWrite(object):
     def getProductSmiles(self, reactionid):
         productobj = Product.objects.filter(reaction_id=reactionid)[0]
         return productobj.smiles
-    
+
     def getPreviousObjEntry(self, queryset: list, obj: Django_obj):
-        """Finds previous object relative to obj of queryset
-        """ 
-        previousobj = queryset.filter(pk__lt=obj.pk).order_by('-pk').first()
+        """Finds previous object relative to obj of queryset"""
+        previousobj = queryset.filter(pk__lt=obj.pk).order_by("-pk").first()
         return previousobj
-    
+
     def getReactionQuerySet(self, method_id: int):
         """Get product queryset for reaction_id
-            Args:
-                method_id (int): Method DB id to search for
-            Returns:
-                reactionqueryset (Django_queryset): Reaction queryset related to method_id
+        Args:
+            method_id (int): Method DB id to search for
+        Returns:
+            reactionqueryset (Django_queryset): Reaction queryset related to method_id
         """
         reactionqueryset = Reaction.objects.filter(method_id=method_id)
         return reactionqueryset
 
     def checkPreviousReactionProduct(self, reaction_id: int, smiles: str):
         reactionobj = self.getReaction(reaction_id=reaction_id)
-        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id) 
-        prevreactionobj = self.getPreviousObjEntry(queryset=reactionqueryset, obj=reactionobj)
+        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id)
+        prevreactionobj = self.getPreviousObjEntry(
+            queryset=reactionqueryset, obj=reactionobj
+        )
         if prevreactionobj:
-            prevproductobj = self.getProduct(reaction_id=prevreactionobj.id) 
+            prevproductobj = self.getProduct(reaction_id=prevreactionobj.id)
             if prevproductobj.smiles == smiles:
                 return True, prevreactionobj
             else:
                 return False, prevreactionobj
         else:
             return False, prevreactionobj
-
 
     def createFilePath(self):
         filename = "ot-script-batch-{}-reactionstep{}-sessionid-{}.txt".format(
@@ -139,13 +143,17 @@ class otWrite(object):
         otscriptobj.otscript = otscriptfn
         otscriptobj.save()
 
-    def findStartingPlateWellObj(self, reactionid, smiles, solvent, concentration, transfervolume):
-        isproduct, previousreactionobj = self.checkPreviousReactionProduct(reaction_id=reactionid, smiles=smiles)
+    def findStartingPlateWellObj(
+        self, reactionid, smiles, solvent, concentration, transfervolume
+    ):
+        isproduct, previousreactionobj = self.checkPreviousReactionProduct(
+            reaction_id=reactionid, smiles=smiles
+        )
         wellinfo = []
         if isproduct:
             wellobj = Well.objects.get(
                 otsession_id=self.otsessionid,
-                reaction_id = previousreactionobj,
+                reaction_id=previousreactionobj,
                 smiles=smiles,
             )
             wellinfo.append([wellobj, transfervolume])
@@ -159,13 +167,17 @@ class otWrite(object):
                     available=True,
                 ).order_by("id")
                 for wellobj in wellobjects:
-                    areclose = self.checkVolumeClose(volume1=transfervolume, volume2=0.00)
+                    areclose = self.checkVolumeClose(
+                        volume1=transfervolume, volume2=0.00
+                    )
                     if areclose:
                         break
                     wellvolumeavailable = self.getWellVolumeAvailable(wellobj=wellobj)
                     if wellvolumeavailable > 0:
                         if wellvolumeavailable > transfervolume:
-                            self.updateWellVolume(wellobj=wellobj, transfervolume=transfervolume)
+                            self.updateWellVolume(
+                                wellobj=wellobj, transfervolume=transfervolume
+                            )
                             wellinfo.append([wellobj, transfervolume])
                             transfervolume = 0.00
                         if wellvolumeavailable < transfervolume:
@@ -200,7 +212,9 @@ class otWrite(object):
         deadvolume = self.getDeadVolume(maxwellvolume=maxwellvolume)
         wellvolume = wellobj.volume
         wellvolumeavailable = wellvolume - deadvolume
-        self.updateWellAvailable(wellvolumeavailable=wellvolumeavailable, wellobj=wellobj)
+        self.updateWellAvailable(
+            wellvolumeavailable=wellvolumeavailable, wellobj=wellobj
+        )
         return wellvolumeavailable
 
     def updateWellAvailable(self, wellvolumeavailable, wellobj):
@@ -249,7 +263,9 @@ class otWrite(object):
             platename = plateobj.platename
             labware = plateobj.labware
             plateindex = plateobj.plateindex
-            script.write(f"\n\t{platename} = protocol.load_labware('{labware}', '{plateindex}')")
+            script.write(
+                f"\n\t{platename} = protocol.load_labware('{labware}', '{plateindex}')"
+            )
 
         script.close()
 
@@ -302,7 +318,9 @@ class otWrite(object):
         takeheight=2,
         dispenseheight=-5,
     ):
-        humanread = f"transfer - {transvolume:.1f}ul from {fromwellindex} to {towellindex}"
+        humanread = (
+            f"transfer - {transvolume:.1f}ul from {fromwellindex} to {towellindex}"
+        )
 
         instruction = [
             "\n\t# " + str(humanread),
@@ -352,7 +370,9 @@ class otWrite(object):
                 fromwellobj = wellinfo[0]
                 transvolume = wellinfo[1]
 
-                towellobj = self.findReactionPlateWellObj(reactionid=addaction.reaction_id.id)
+                towellobj = self.findReactionPlateWellObj(
+                    reactionid=addaction.reaction_id.id
+                )
                 fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
                 toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
 

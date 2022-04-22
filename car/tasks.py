@@ -18,7 +18,7 @@ from car.models import (
     OTProtocol,
     OTBatchProtocol,
     OTScript,
-    OTSession,   
+    OTSession,
 )
 
 from .validate import ValidateFile
@@ -49,7 +49,9 @@ def delete_tmp_file(filepath):
 
 # Celery validate task
 @shared_task
-def validateFileUpload(csv_fp, validate_type=None, project_info=None, validate_only=True):
+def validateFileUpload(
+    csv_fp, validate_type=None, project_info=None, validate_only=True
+):
     """Celery task to process validate the uploaded files for retrosynthesis planning.
 
     Parameters
@@ -89,186 +91,199 @@ def validateFileUpload(csv_fp, validate_type=None, project_info=None, validate_o
 @shared_task
 def uploadManifoldReaction(validate_output):
 
-        validate_dict, validated, project_info, csv_fp, uploaded_dict = validate_output
-        uploaded_df = pd.DataFrame(uploaded_dict)
-   
-        if not validated:
-            delete_tmp_file(csv_fp)
-            return (validate_dict, validated, project_info)
+    validate_dict, validated, project_info, csv_fp, uploaded_dict = validate_output
+    uploaded_df = pd.DataFrame(uploaded_dict)
 
-        if validated:
-            project_id, project_name = createProjectModel(project_info)
-            project_info["project_id"] = project_id
+    if not validated:
+        delete_tmp_file(csv_fp)
+        return (validate_dict, validated, project_info)
 
-            grouped_targets = uploaded_df.groupby("batch-tag")
-            
+    if validated:
+        project_id, project_name = createProjectModel(project_info)
+        project_info["project_id"] = project_id
 
-            for batch_tag, group in grouped_targets:
-                batch_id = createBatchModel(
-                    project_id=project_id,
-                    batch_tag=batch_tag, 
+        grouped_targets = uploaded_df.groupby("batch-tag")
+
+        for batch_tag, group in grouped_targets:
+            batch_id = createBatchModel(
+                project_id=project_id,
+                batch_tag=batch_tag,
+            )
+
+            for target_smiles, target_mass in zip(
+                group["targets"], group["amount-required-mg"]
+            ):
+
+                target_id = createTargetModel(
+                    batch_id=batch_id,
+                    smiles=target_smiles,
+                    target_mass=target_mass,
                 )
-  
-                for target_smiles, target_mass in zip(
-                    group["targets"], group["amount-required-mg"]
-                ):
 
-                    target_id = createTargetModel(
-                        batch_id=batch_id,
-                        smiles=target_smiles,
-                        target_mass=target_mass,
-                    )
+                retrosynthesis_result = getManifoldretrosynthesis(target_smiles)
+                routes = retrosynthesis_result["routes"]
 
-                    retrosynthesis_result = getManifoldretrosynthesis(target_smiles)
-                    routes = retrosynthesis_result["routes"]    
-                    
-                    if not routes:
-                        continue
-                    else:
-                        first_route = routes[0]
+                if not routes:
+                    continue
+                else:
+                    first_route = routes[0]
 
-                        # Check if target is in a catalogue and create catalog entries if it is
-                        if first_route["molecules"][0]["isBuildingBlock"] == True:
-                            catalog_entries = first_route["molecules"][0]["catalogEntries"]
-                            for catalog_entry in catalog_entries:
-                                createCatalogEntryModel(catalog_entry=catalog_entry, target_id=target_id)        
+                    # Check if target is in a catalogue and create catalog entries if it is
+                    if first_route["molecules"][0]["isBuildingBlock"] == True:
+                        catalog_entries = first_route["molecules"][0]["catalogEntries"]
+                        for catalog_entry in catalog_entries:
+                            createCatalogEntryModel(
+                                catalog_entry=catalog_entry, target_id=target_id
+                            )
 
-                        for route in routes[1:]:
-                            no_steps = len(route["reactions"])
-                            reactions = route["reactions"]
-                            encoded_reactions_found = [
-                                reaction for reaction in reactions if reaction["name"] in encoded_recipes
-                            ]
+                    for route in routes[1:]:
+                        no_steps = len(route["reactions"])
+                        reactions = route["reactions"]
+                        encoded_reactions_found = [
+                            reaction
+                            for reaction in reactions
+                            if reaction["name"] in encoded_recipes
+                        ]
 
-                            if len(encoded_reactions_found) != no_steps:
-                                method_id = createMethodModel(
-                                    target_id=target_id,
-                                    nosteps=no_steps,
-                                    otchem=False
+                        if len(encoded_reactions_found) != no_steps:
+                            method_id = createMethodModel(
+                                target_id=target_id, nosteps=no_steps, otchem=False
+                            )
+
+                            for reaction in reversed(reactions):
+                                reaction_name = reaction["name"]
+                                reactant_smiles = reaction["reactantSmiles"]
+                                product_smiles = reaction["productSmiles"]
+                                reaction_smarts = AllChem.ReactionFromSmarts(
+                                    "{}>>{}".format(
+                                        ".".join(reactant_smiles), product_smiles
+                                    ),
+                                    useSmiles=True,
                                 )
 
-                                for reaction in reversed(reactions):
-                                    reaction_name = reaction["name"]
-                                    reactant_smiles = reaction["reactantSmiles"]
-                                    product_smiles = reaction["productSmiles"]
-                                    reaction_smarts = AllChem.ReactionFromSmarts(
-                                        "{}>>{}".format(
-                                            ".".join(reactant_smiles), product_smiles
-                                        ),
-                                        useSmiles=True,
-                                    )
+                                reaction_id = createReactionModel(
+                                    method_id=method_id,
+                                    reaction_class=reaction_name,
+                                    reaction_smarts=reaction_smarts,
+                                )
 
-                                    reaction_id = createReactionModel(
-                                        method_id=method_id,
-                                        reaction_class=reaction_name,
-                                        reaction_smarts=reaction_smarts,
-                                    )
+                                createProductModel(
+                                    reaction_id=reaction_id,
+                                    project_name=project_name,
+                                    batch_tag=batch_tag,
+                                    product_smiles=product_smiles,
+                                )
 
-                                    createProductModel(
+                                for reactant_smi in reactant_smiles:
+                                    reactant_id = createReactantModel(
                                         reaction_id=reaction_id,
-                                        project_name=project_name,
-                                        batch_tag=batch_tag,
-                                        product_smiles=product_smiles,
+                                        reactant_smiles=reactant_smi,
                                     )
-
-                                    for reactant_smi in reactant_smiles:
-                                        reactant_id = createReactantModel(
-                                                        reaction_id=reaction_id,
-                                                        reactant_smiles=reactant_smi,
-                                                        )
-                                        catalog_entries = [molecule["catalogEntries"] for molecule in route["molecules"] if molecule["smiles"] == reactant_smi][0]
-                                        for catalog_entry in catalog_entries:
-                                            createCatalogEntryModel(
-                                                catalog_entry=catalog_entry, 
-                                                reactant_id=reactant_id
-                                            )
-
-                            if len(encoded_reactions_found) == no_steps:
-                                method_id = createMethodModel(
-                                    target_id=target_id,
-                                    nosteps=no_steps,
-                                    otchem=True
-                                )
-
-                                for reaction in reversed(reactions):
-                                    reaction_name = reaction["name"]
-                                    recipes = encoded_recipes[reaction_name]["recipes"]
-                                    recipe_rxn_smarts = encoded_recipes[reaction_name]["reactionSMARTS"]
-                                    reactant_smiles = reaction["reactantSmiles"]
-                                    product_smiles = reaction["productSmiles"]
-
-                                    if len(reactant_smiles) == 1:
-                                        actions = recipes["Intramolecular"]["actions"]
-                                        stir_action = [
-                                            action for action in actions if action["name"] == "stir"
-                                        ][0]
-                                        reaction_temperature = stir_action["content"]["temperature"][
-                                            "value"
-                                        ]
-                                        reactant_smiles_ordered = reactant_smiles
-                                    else:
-                                        actions = recipes["Standard"]["actions"]
-                                        stir_action = [
-                                            action for action in actions if action["name"] == "stir"
-                                        ][0]
-                                        reaction_temperature = stir_action["content"]["temperature"][
-                                            "value"
-                                        ]
-                                        reactant_smiles_ordered = getAddtionOrder(
-                                            product_smi=product_smiles,
-                                            reactant_SMILES=reactant_smiles,
-                                            reaction_SMARTS=recipe_rxn_smarts,
+                                    catalog_entries = [
+                                        molecule["catalogEntries"]
+                                        for molecule in route["molecules"]
+                                        if molecule["smiles"] == reactant_smi
+                                    ][0]
+                                    for catalog_entry in catalog_entries:
+                                        createCatalogEntryModel(
+                                            catalog_entry=catalog_entry,
+                                            reactant_id=reactant_id,
                                         )
-                                        if not reactant_smiles_ordered:
-                                            continue
 
-                                    reaction_smarts = AllChem.ReactionFromSmarts(
-                                        "{}>>{}".format(
-                                            ".".join(reactant_smiles_ordered), product_smiles
-                                        ),
-                                        useSmiles=True,
+                        if len(encoded_reactions_found) == no_steps:
+                            method_id = createMethodModel(
+                                target_id=target_id, nosteps=no_steps, otchem=True
+                            )
+
+                            for reaction in reversed(reactions):
+                                reaction_name = reaction["name"]
+                                recipes = encoded_recipes[reaction_name]["recipes"]
+                                recipe_rxn_smarts = encoded_recipes[reaction_name][
+                                    "reactionSMARTS"
+                                ]
+                                reactant_smiles = reaction["reactantSmiles"]
+                                product_smiles = reaction["productSmiles"]
+
+                                if len(reactant_smiles) == 1:
+                                    actions = recipes["Intramolecular"]["actions"]
+                                    stir_action = [
+                                        action
+                                        for action in actions
+                                        if action["name"] == "stir"
+                                    ][0]
+                                    reaction_temperature = stir_action["content"][
+                                        "temperature"
+                                    ]["value"]
+                                    reactant_smiles_ordered = reactant_smiles
+                                else:
+                                    actions = recipes["Standard"]["actions"]
+                                    stir_action = [
+                                        action
+                                        for action in actions
+                                        if action["name"] == "stir"
+                                    ][0]
+                                    reaction_temperature = stir_action["content"][
+                                        "temperature"
+                                    ]["value"]
+                                    reactant_smiles_ordered = getAddtionOrder(
+                                        product_smi=product_smiles,
+                                        reactant_SMILES=reactant_smiles,
+                                        reaction_SMARTS=recipe_rxn_smarts,
                                     )
+                                    if not reactant_smiles_ordered:
+                                        continue
 
-                                    reaction_id = createReactionModel(
-                                        method_id=method_id,
-                                        reaction_class=reaction_name,
-                                        reaction_temperature=reaction_temperature,
-                                        reaction_smarts=reaction_smarts,
-                                    )
+                                reaction_smarts = AllChem.ReactionFromSmarts(
+                                    "{}>>{}".format(
+                                        ".".join(reactant_smiles_ordered),
+                                        product_smiles,
+                                    ),
+                                    useSmiles=True,
+                                )
 
-                                    createProductModel(
+                                reaction_id = createReactionModel(
+                                    method_id=method_id,
+                                    reaction_class=reaction_name,
+                                    reaction_temperature=reaction_temperature,
+                                    reaction_smarts=reaction_smarts,
+                                )
+
+                                createProductModel(
+                                    reaction_id=reaction_id,
+                                    project_name=project_name,
+                                    batch_tag=batch_tag,
+                                    product_smiles=product_smiles,
+                                )
+
+                                for reactant_smi in reactant_smiles_ordered:
+                                    reactant_id = createReactantModel(
                                         reaction_id=reaction_id,
-                                        project_name=project_name,
-                                        batch_tag=batch_tag,
-                                        product_smiles=product_smiles,
+                                        reactant_smiles=reactant_smi,
                                     )
 
-                                    for reactant_smi in reactant_smiles_ordered:
-                                        reactant_id = createReactantModel(
-                                                        reaction_id=reaction_id,
-                                                        reactant_smiles=reactant_smi,
-                                                        )
-                                        
-                                        catalog_entries = [molecule["catalogEntries"] for molecule in route["molecules"] if molecule["smiles"] == reactant_smi][0]
-                                        # Get lowest cost/leadtime/preferred vendor - TO DO!!!!
-                                        for catalog_entry in catalog_entries:
-                                            createCatalogEntryModel(
-                                                catalog_entry=catalog_entry, 
-                                                reactant_id=reactant_id
-                                            )
+                                    catalog_entries = [
+                                        molecule["catalogEntries"]
+                                        for molecule in route["molecules"]
+                                        if molecule["smiles"] == reactant_smi
+                                    ][0]
+                                    # Get lowest cost/leadtime/preferred vendor - TO DO!!!!
+                                    for catalog_entry in catalog_entries:
+                                        createCatalogEntryModel(
+                                            catalog_entry=catalog_entry,
+                                            reactant_id=reactant_id,
+                                        )
 
+                                CreateEncodedActionModels(
+                                    actions=actions,
+                                    target_id=target_id,
+                                    reaction_id=reaction_id,
+                                    reactant_pair_smiles=reactant_smiles_ordered,
+                                    reaction_name=reaction_name,
+                                )
 
-                                    CreateEncodedActionModels(
-                                        actions=actions,
-                                        target_id=target_id,
-                                        reaction_id=reaction_id,
-                                        reactant_pair_smiles=reactant_smiles_ordered,
-                                        reaction_name=reaction_name,
-                                    )
+        delete_tmp_file(csv_fp)
 
-            delete_tmp_file(csv_fp)
-
-            return validate_dict, validated, project_info
+        return validate_dict, validated, project_info
 
 
 @shared_task
@@ -286,11 +301,11 @@ def uploadCustomReaction(validate_output):
         project_info["project_id"] = project_id
 
         grouped_targets = uploaded_df.groupby("batch-tag")
-        
+
         for batch_tag, group in grouped_targets:
             batch_id = createBatchModel(
                 project_id=project_id,
-                batch_tag=batch_tag, 
+                batch_tag=batch_tag,
             )
 
             for reactant_pair_smiles, reaction_name, target_smiles, target_mass in zip(
@@ -313,7 +328,9 @@ def uploadCustomReaction(validate_output):
                 recipes = encoded_recipes[reaction_name]["recipes"]
 
                 actions = recipes["Standard"]["actions"]
-                stir_action = [action for action in actions if action["name"] == "stir"][0]
+                stir_action = [
+                    action for action in actions if action["name"] == "stir"
+                ][0]
                 reaction_temperature = stir_action["content"]["temperature"]["value"]
 
                 method_id = createMethodModel(
@@ -350,9 +367,9 @@ def uploadCustomReaction(validate_output):
 
 @shared_task
 def createOTScript(batchids: list, protocol_name: str):
-    """"
+    """ "
     Create otscripts and starting plates for a list of batch ids
-    """ 
+    """
     task_summary = {}
     otprotocolobj = OTProtocol()
     projectobj = Batch.objects.get(id=batchids[0]).project_id
@@ -365,28 +382,30 @@ def createOTScript(batchids: list, protocol_name: str):
         if allreactionquerysets:
             otbatchprotocolobj = OTBatchProtocol()
             otbatchprotocolobj.batch_id = Batch.objects.get(id=batchid)
-            otbatchprotocolobj.otprotocol_id = otprotocolobj   
+            otbatchprotocolobj.otprotocol_id = otprotocolobj
             otbatchprotocolobj.celery_task_id = current_task.request.id
             otbatchprotocolobj.save()
             batch_tag = getBatchTag(batchid=batchid)
             maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
             groupedreactionquerysets = groupReactions(
-            allreactionquerysets=allreactionquerysets, maxsteps=maxsteps
+                allreactionquerysets=allreactionquerysets, maxsteps=maxsteps
             )
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
                     otsession = CreateOTSession(
-                        reactionstep = 1,
+                        reactionstep=1,
                         otbatchprotocolobj=otbatchprotocolobj,
                         reactiongroupqueryset=reactiongroup,
                     )
 
                     otsessionobj = otsession.otsessionobj
                     alladdactionsquerysetflat = otsession.alladdactionquerysetflat
-                    startingreactionplatequeryset = otsession.startingreactionplatequeryset
+                    startingreactionplatequeryset = (
+                        otsession.startingreactionplatequeryset
+                    )
 
                     otWrite(
-                        protocolname = batch_tag,
+                        protocolname=batch_tag,
                         otsessionobj=otsessionobj,
                         alladdactionsquerysetflat=alladdactionsquerysetflat,
                     )
@@ -396,7 +415,7 @@ def createOTScript(batchids: list, protocol_name: str):
                         break
                     else:
                         otsession = CreateOTSession(
-                            reactionstep = index + 1,
+                            reactionstep=index + 1,
                             otbatchprotocolobj=otbatchprotocolobj,
                             reactiongroupqueryset=reactiongrouptodo,
                             inputplatequeryset=startingreactionplatequeryset,
@@ -406,43 +425,47 @@ def createOTScript(batchids: list, protocol_name: str):
                         alladdactionsquerysetflat = otsession.alladdactionquerysetflat
 
                         otWrite(
-                            protocolname = batch_tag,
+                            protocolname=batch_tag,
                             otsessionobj=otsessionobj,
                             alladdactionsquerysetflat=alladdactionsquerysetflat,
-                        )    
-                
-            createZipOTBatchProtocol = ZipOTBatchProtocol(otbatchprotocolobj=otbatchprotocolobj, batchtag=batch_tag)
-    
+                        )
+
+            createZipOTBatchProtocol = ZipOTBatchProtocol(
+                otbatchprotocolobj=otbatchprotocolobj, batchtag=batch_tag
+            )
+
             if createZipOTBatchProtocol.errors:
                 task_summary[batchid] = False
             else:
                 task_summary[batchid] = True
-        
+
         else:
             task_summary[batchid] = False
 
     return task_summary, otprotocolobj.id
 
+
 def getPreviousObjEntry(queryset: list, obj: Django_obj):
-    """Finds previous object relative to obj of queryset
-    """ 
-    previousobj = queryset.filter(pk__lt=obj.pk).order_by('-pk').first()
+    """Finds previous object relative to obj of queryset"""
+    previousobj = queryset.filter(pk__lt=obj.pk).order_by("-pk").first()
     return previousobj
 
+
 def checkPreviousReactionSuccess(reactionobj: Django_obj):
-    """Check if previous reaction was succesful
-    """
+    """Check if previous reaction was succesful"""
     reactionqueryset = getReactions(methodid=reactionobj.method_id.id)
-    previousreactionobj = getPreviousObjEntry(queryset=reactionqueryset, obj=reactionobj)
+    previousreactionobj = getPreviousObjEntry(
+        queryset=reactionqueryset, obj=reactionobj
+    )
     previousreactionsuccess = previousreactionobj.success
     if previousreactionsuccess:
         return True
     else:
         return False
 
+
 def checkNoMethodSteps(reactionobj):
-    """Check no reaction steps in method is > 1
-    """
+    """Check no reaction steps in method is > 1"""
     methodobj = reactionobj.method_id
     noreactionsteps = methodobj.nosteps
     if noreactionsteps > 1:
@@ -450,9 +473,10 @@ def checkNoMethodSteps(reactionobj):
     else:
         return False
 
+
 def getReactionsToDo(reactiongroup):
-    """get reactions that need to be done. Exclude those in methods that had 
-       failed previous reaction step
+    """get reactions that need to be done. Exclude those in methods that had
+    failed previous reaction step
     """
     reactiongrouptodo = []
     for reactionobj in reactiongroup:
@@ -461,13 +485,16 @@ def getReactionsToDo(reactiongroup):
                 reactiongrouptodo.append(reactionobj)
     return reactiongrouptodo
 
+
 def getTargets(batchid):
     targetqueryset = Target.objects.filter(batch_id=batchid).order_by("id")
     return targetqueryset
 
 
 def getMethods(targetid):
-    methodqueryset = Method.objects.filter(target_id=targetid).filter(otchem=True).order_by("id")
+    methodqueryset = (
+        Method.objects.filter(target_id=targetid).filter(otchem=True).order_by("id")
+    )
     return methodqueryset
 
 
@@ -475,10 +502,12 @@ def getReactions(methodid):
     reactionqueryset = Reaction.objects.filter(method_id=methodid).order_by("id")
     return reactionqueryset
 
+
 def getBatchTag(batchid):
     batch_obj = Batch.objects.get(id=batchid)
     batch_tag = batch_obj.batch_tag
     return batch_tag
+
 
 def getBatchReactions(batchid):
     targetqueryset = getTargets(batchid=batchid)
@@ -527,6 +556,7 @@ class ZipOTBatchProtocol(object):
     Creates a ZipBatchProtocol object for writing compound order csvs and otscripts
     for a batch
     """
+
     def __init__(self, otbatchprotocolobj: Django_object, batchtag: str):
         """
         zipOTBatchProtocol constructor
@@ -538,43 +568,47 @@ class ZipOTBatchProtocol(object):
         self.mediaroot = settings.MEDIA_ROOT
         self.otsessionqueryset = self.getOTSessionQuerySet()
         self.zipfn = "batch-{}-protocol.zip".format(batchtag)
-        self.ziptmpfp = os.path.join(settings.MEDIA_ROOT, "tmp", "batchprotocoltmp.zip" )
-        self.ziparchive = ZipFile(self.ziptmpfp, 'w')
+        self.ziptmpfp = os.path.join(settings.MEDIA_ROOT, "tmp", "batchprotocoltmp.zip")
+        self.ziparchive = ZipFile(self.ziptmpfp, "w")
         self.errors = {}
 
         for otsession_obj in self.otsessionqueryset:
-            compoundorderqueryset = self.getCompoundOrderQuerySet(otsessionobj=otsession_obj)
+            compoundorderqueryset = self.getCompoundOrderQuerySet(
+                otsessionobj=otsession_obj
+            )
             otscriptqueryset = self.getOTScriptQuerySet(otsessionobj=otsession_obj)
 
         for compoundorderobj in compoundorderqueryset:
             filepath = self.getCompoundOrderFilePath(compoundorderobj=compoundorderobj)
             destdir = "compoundorders"
-            self.writeZip(destdir=destdir,filepath=filepath)
-        
+            self.writeZip(destdir=destdir, filepath=filepath)
+
         for otscriptobj in otscriptqueryset:
             filepath = self.getOTScriptFilePath(otscriptobj=otscriptobj)
             destdir = "otscripts"
-            self.writeZip(destdir=destdir,filepath=filepath)
-        
+            self.writeZip(destdir=destdir, filepath=filepath)
+
         self.ziparchive.close()
         self.writeZipToMedia()
         self.deleteTmpZip()
 
     def addWarning(self, function: str, errorwarning: str):
-        self.errors['function'].append(function)
-        self.errors['errorwarning'].append(errorwarning)
+        self.errors["function"].append(function)
+        self.errors["errorwarning"].append(errorwarning)
 
     def getOTSessionQuerySet(self):
-        """Retrieve OTSession model queryset
-
-        """
-        otsessionqueryset = OTSession.objects.filter(otbatchprotocol_id=self.otbatchprotocolobj)
+        """Retrieve OTSession model queryset"""
+        otsessionqueryset = OTSession.objects.filter(
+            otbatchprotocol_id=self.otbatchprotocolobj
+        )
 
         if not otsessionqueryset:
-            self.addWarning(function=self.getOTSessionQuerySet.__name__, 
-                            errorwarning="No queryset found")
+            self.addWarning(
+                function=self.getOTSessionQuerySet.__name__,
+                errorwarning="No queryset found",
+            )
         else:
-            return otsessionqueryset 
+            return otsessionqueryset
 
     def getCompoundOrderQuerySet(self, otsessionobj: Django_object):
         """Retrieve CompoundOrder model queryset
@@ -584,11 +618,13 @@ class ZipOTBatchProtocol(object):
         compoundorderqueryset = CompoundOrder.objects.filter(otsession_id=otsessionobj)
 
         if not compoundorderqueryset:
-            self.addWarning(function=self.getCompoundOrderQuerySet.__name__, 
-                            errorwarning="No queryset found")
+            self.addWarning(
+                function=self.getCompoundOrderQuerySet.__name__,
+                errorwarning="No queryset found",
+            )
         else:
             return compoundorderqueryset
-    
+
     def getOTScriptQuerySet(self, otsessionobj: Django_object):
         """Retrieve OTScript model queryset
         Args:
@@ -597,8 +633,10 @@ class ZipOTBatchProtocol(object):
         otscriptqueryset = OTScript.objects.filter(otsession_id=otsessionobj)
 
         if not otscriptqueryset:
-            self.addWarning(function=self.getOTScriptQuerySet.__name__, 
-                            errorwarning="No queryset found")
+            self.addWarning(
+                function=self.getOTScriptQuerySet.__name__,
+                errorwarning="No queryset found",
+            )
         else:
             return otscriptqueryset
 
@@ -622,7 +660,7 @@ class ZipOTBatchProtocol(object):
         """Add the requested file to the zip archive.
 
         Args:
-            destdir (str): directory to write file to in ziparchive 
+            destdir (str): directory to write file to in ziparchive
             filepath (str): filepath from record
         """
         arcname = os.path.join(destdir, filepath.split("/")[-1])
@@ -630,48 +668,51 @@ class ZipOTBatchProtocol(object):
 
     def writeZipToMedia(self):
         """Write the ziparchive to medida for the
-           OTBatchProtocol Django object
+        OTBatchProtocol Django object
         """
         zf = open(self.ziptmpfp, "rb")
         self.otbatchprotocolobj.zipfile.save(self.zipfn, zf)
         self.otbatchprotocolobj.save()
-    
+
     def deleteTmpZip(self):
-        """"Delete the temporary zip archive created by ZipFile
-        """
+        """ "Delete the temporary zip archive created by ZipFile"""
         os.remove(self.ziptmpfp)
 
+
 @shared_task
-def canonicalizeSmiles(csvfile: str = None, smiles:list = None):
-    """"
+def canonicalizeSmiles(csvfile: str = None, smiles: list = None):
+    """ "
     Canonicalizes smiles from csv file uploaded from frontend
-    """ 
+    """
     validated = True
 
     if csvfile:
-        csvdf= pd.read_csv(csvfile, encoding="utf8")
+        csvdf = pd.read_csv(csvfile, encoding="utf8")
         smiles = [smi for smi in csvdf["SMILES"]]
         delete_tmp_file(csvfile)
     if smiles:
         smiles = smiles
 
     molcheck = [Chem.MolFromSmiles(smi) for smi in smiles]
-    
+
     if None not in molcheck:
         canonicalizedsmiles = [canonSmiles(smi) for smi in smiles]
         return validated, canonicalizedsmiles
     else:
         validated = False
-        indexerrors = [i for i,v in enumerate(molcheck) if v == None]
-        errorsummary= "There was an error with the smiles csv at index: {}".format(indexerrors)
+        indexerrors = [i for i, v in enumerate(molcheck) if v == None]
+        errorsummary = "There was an error with the smiles csv at index: {}".format(
+            indexerrors
+        )
         return validated, errorsummary
+
 
 @shared_task
 def updateReactionSuccess(reactionids: list):
     """Updates reaction success fields using reactionids that
-       failed QC from frontend
-       Args:
-            reactionids (list): List of reactionids that failed QC as strings
+    failed QC from frontend
+    Args:
+         reactionids (list): List of reactionids that failed QC as strings
     """
     reactionids = [int(reactionid) for reactionid in reactionids]
     failingreactionqueryset = Reaction.objects.filter(id__in=reactionids)

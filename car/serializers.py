@@ -1,7 +1,18 @@
 from rest_framework import serializers
 
 # Import standard models
-from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Product, Reactant, CatalogEntry, AnalyseAction
+from .models import (
+    Project,
+    MculeQuote,
+    Batch,
+    Target,
+    Method,
+    Reaction,
+    Product,
+    Reactant,
+    CatalogEntry,
+    AnalyseAction,
+)
 
 # Import action models
 from .models import (
@@ -14,17 +25,31 @@ from .models import (
 )
 
 # Import OT session models
-from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, OTProtocol, OTBatchProtocol, CompoundOrder, OTScript
+from .models import (
+    OTSession,
+    Deck,
+    Pipette,
+    TipRack,
+    Plate,
+    Well,
+    OTProtocol,
+    OTBatchProtocol,
+    CompoundOrder,
+    OTScript,
+)
+
 
 class CatalogEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = CatalogEntry
         fields = "__all__"
 
+
 class ReactantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reactant
         fields = "__all__"
+
 
 class ReactantSerializerAll(serializers.ModelSerializer):
     catalogentries = CatalogEntrySerializer(many=True, read_only=True)
@@ -33,15 +58,18 @@ class ReactantSerializerAll(serializers.ModelSerializer):
         model = Reactant
         fields = "__all__"
 
+
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
 
+
 class ReactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reaction
         fields = "__all__"
+
 
 class ReactionSerializerAll(serializers.ModelSerializer):
     products = ProductSerializer(many=True, read_only=True)
@@ -51,10 +79,12 @@ class ReactionSerializerAll(serializers.ModelSerializer):
         model = Reaction
         fields = "__all__"
 
+
 class MethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = Method
         fields = "__all__"
+
 
 class MethodSerializerAll(serializers.ModelSerializer):
     reactions = ReactionSerializerAll(many=True, read_only=True)
@@ -63,10 +93,12 @@ class MethodSerializerAll(serializers.ModelSerializer):
         model = Method
         fields = "__all__"
 
+
 class TargetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Target
         fields = "__all__"
+
 
 class TargetSerializerAll(serializers.ModelSerializer):
     methods = MethodSerializerAll(many=True, read_only=True)
@@ -75,6 +107,7 @@ class TargetSerializerAll(serializers.ModelSerializer):
     class Meta:
         model = Target
         fields = "__all__"
+
 
 class BatchSerializer(serializers.ModelSerializer):
     class Meta:
@@ -104,11 +137,11 @@ class ProjectSerializerAll(serializers.ModelSerializer):
         fields = "__all__"
 
 
-
 class MculeQuoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = MculeQuote
         fields = "__all__"
+
 
 # Action models here
 class AnalyseActionSerializer(serializers.ModelSerializer):
@@ -195,6 +228,7 @@ class OTScriptSerializer(serializers.ModelSerializer):
         model = OTScript
         fields = "__all__"
 
+
 class OTSessionSerializer(serializers.ModelSerializer):
     otscripts = OTScriptSerializer(many=True, read_only=True)
     compoundorders = CompoundOrderSerializer(many=True, read_only=True)
@@ -203,10 +237,12 @@ class OTSessionSerializer(serializers.ModelSerializer):
         model = OTSession
         fields = "__all__"
 
+
 class OTBatchProtocolSerializer(serializers.ModelSerializer):
     class Meta:
         model = OTBatchProtocol
         fields = "__all__"
+
 
 class OTProtocolSerializer(serializers.ModelSerializer):
     class Meta:

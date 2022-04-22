@@ -23,7 +23,6 @@ from .api import (
     QuenchActionViewSet,
     SetTemperatureActionViewSet,
     StirActionViewSet,
-   
 )
 
 # Import OT Session views

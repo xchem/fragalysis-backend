@@ -38,7 +38,9 @@ class ValidateFile(object):
             if self.validated:
                 self.checkColumnNames()
             if self.validated:
-                self.target_smiles = [canonSmiles(smi.strip()) for smi in self.df["targets"]]
+                self.target_smiles = [
+                    canonSmiles(smi.strip()) for smi in self.df["targets"]
+                ]
                 self.df["targets"] = self.target_smiles
                 self.checkTargetSMILES()
                 if self.validated:
@@ -60,13 +62,15 @@ class ValidateFile(object):
             self.checkColumnNames()
         if self.validated:
             self.reactant_pair_smiles = [
-                reactants for reactants in zip(self.df["reactant-1"], self.df["reactant-2"])
+                reactants
+                for reactants in zip(self.df["reactant-1"], self.df["reactant-2"])
             ]
             self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
             self.checkReactantSMILES()
             if self.validated:
                 self.reactant_pair_smiles = [
-                    (canonSmiles(smi[0]), canonSmiles(smi[1])) for smi in self.reactant_pair_smiles
+                    (canonSmiles(smi[0]), canonSmiles(smi[1]))
+                    for smi in self.reactant_pair_smiles
                 ]
                 self.reaction_names = self.df["reaction-name"]
                 self.checkReaction()
@@ -84,7 +88,7 @@ class ValidateFile(object):
             "reactant-2",
             "reaction-name",
             "amount-required-mg",
-            "batch-tag"
+            "batch-tag",
         ]
         self.checkNumberColumns()
         if self.validated:
@@ -97,24 +101,36 @@ class ValidateFile(object):
             for name, group in grouped:
                 group = group.reset_index()
                 reactant_1_SMILES = set(
-                    [reactant for reactant in group["reactant-1"] if str(reactant) != "nan"]
+                    [
+                        reactant
+                        for reactant in group["reactant-1"]
+                        if str(reactant) != "nan"
+                    ]
                 )
                 reactant_2_SMILES = set(
-                    [reactant for reactant in group["reactant-2"] if str(reactant) != "nan"]
+                    [
+                        reactant
+                        for reactant in group["reactant-2"]
+                        if str(reactant) != "nan"
+                    ]
                 )
                 reactant_pair_smiles = combichem(
-                    reactant_1_SMILES=reactant_1_SMILES, reactant_2_SMILES=reactant_2_SMILES
+                    reactant_1_SMILES=reactant_1_SMILES,
+                    reactant_2_SMILES=reactant_2_SMILES,
                 )
                 reaction_names = [name] * len(reactant_pair_smiles)
-                batch_tags = [group.at[0,"batch-tag"]] * len(reactant_pair_smiles)
-                self.reactant_pair_smiles = self.reactant_pair_smiles + reactant_pair_smiles
+                batch_tags = [group.at[0, "batch-tag"]] * len(reactant_pair_smiles)
+                self.reactant_pair_smiles = (
+                    self.reactant_pair_smiles + reactant_pair_smiles
+                )
                 self.reaction_names = self.reaction_names + reaction_names
                 self.batch_tags = self.batch_tags + batch_tags
 
             self.checkReactantSMILES()
             if self.validated:
                 self.reactant_pair_smiles = [
-                    (canonSmiles(smi[0]), canonSmiles(smi[1])) for smi in self.reactant_pair_smiles
+                    (canonSmiles(smi[0]), canonSmiles(smi[1]))
+                    for smi in self.reactant_pair_smiles
                 ]
                 self.checkReaction()
                 if self.validated:
@@ -172,7 +188,9 @@ class ValidateFile(object):
         for index, smi_pair in zip(self.index_df_rows, self.reactant_pair_smiles):
             mols = [Chem.MolFromSmiles(smi) for smi in smi_pair]
             if None in mols:
-                none_test_indices = [index for index, mol in enumerate(mols) if mol == None]
+                none_test_indices = [
+                    index for index, mol in enumerate(mols) if mol == None
+                ]
                 invalid_smiles = [smi_pair[index] for index in none_test_indices]
                 self.add_warning(
                     field="check_smiles",
@@ -196,7 +214,7 @@ class ValidateFile(object):
                     ),
                 )
                 self.validated = False
-    
+
     def checkIsString(self):
         self.batch_tags = [tag.strip() for tag in self.df["batch-tag"]]
         for index, tag in zip(self.index_df_rows, self.batch_tags):
@@ -208,7 +226,6 @@ class ValidateFile(object):
                     ),
                 )
                 self.validated = False
-
 
     def checkReaction(self):
         self.product_smiles = []
