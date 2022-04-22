@@ -370,6 +370,7 @@ def createOTScript(batchids: list, protocol_name: str):
     """ "
     Create otscripts and starting plates for a list of batch ids
     """
+    print(batchids)
     task_summary = {}
     otprotocolobj = OTProtocol()
     projectobj = Batch.objects.get(id=batchids[0]).project_id

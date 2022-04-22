@@ -136,7 +136,8 @@ class CreateOTSession(object):
         Returns:
             addactionobj (Django_obj): AddAction Django object
         """
-        addactionobj = AddAction.objects.get(reaction_id=reaction_id, smiles=smiles)
+        print(reaction_id, smiles)
+        addactionobj = AddAction.objects.get(reaction_id=reaction_id, materialsmiles=smiles)
         return addactionobj
 
     def getReaction(self, reaction_id: int):
@@ -383,7 +384,6 @@ class CreateOTSession(object):
                 ),
                 axis=1,
             )
-
             totalvialsneeded = sum(vialsneeded)
             platesneeded = int(math.ceil(totalvialsneeded / noplatevials))
 
@@ -732,9 +732,10 @@ class CreateOTSession(object):
                 print("No more deck slots available")
 
     def cloneInputWells(self, clonewellqueryset, plateobj):
+        # Need to fix finding next add action --- check logic here!!!!
         for clonewellobj in clonewellqueryset:
             nextaddactionobj = self.checkNextReactionAddAction(
-                reaction_id=clonewellobj.reaction_id, smiles=clonewellobj.smiles
+                reaction_id=clonewellobj.reaction_id.id, smiles=clonewellobj.smiles
             )
             if nextaddactionobj:
                 clonewellobj.volume = nextaddactionobj.materialquantity
@@ -748,71 +749,70 @@ class CreateOTSession(object):
 
     def createSolventPlate(self):
         """Creates solvent plate/s for diluting concentrated reaction mixture
-        product used for next reaction step
+        product used for next reaction step. 
         """
-        # Can we do this in Django queries and aggregation instead?
-        # Must complete this for starting solvent plate
-
         materialsdf = self.getMaterialsDataFrame(productexists=True)
-        materialsdf = materialsdf.groupby("solvent").sum()
+        if not materialsdf.empty:
+            materialsdf = materialsdf.groupby("solvent").sum()
 
-        startinglabwareplatetype = self.getStarterPlateType(
-            startingmaterialsdf=materialsdf
-        )
 
-        plateobj = self.createPlateModel(
-            platename="Solventplate", labwaretype=startinglabwareplatetype
-        )
+            startinglabwareplatetype = self.getStarterPlateType(
+                startingmaterialsdf=materialsdf
+            )
 
-        maxwellvolume = self.getMaxWellVolume(plateobj=plateobj)
-        deadvolume = self.getDeadVolume(maxwellvolume=maxwellvolume)
+            plateobj = self.createPlateModel(
+                platename="Solventplate", labwaretype=startinglabwareplatetype
+            )
 
-        for i in materialsdf.index.values:
-            totalvolume = materialsdf.at[i, "materialquantity"]
-            if totalvolume > maxwellvolume:
-                nowellsneededratio = totalvolume / (maxwellvolume - deadvolume)
+            maxwellvolume = self.getMaxWellVolume(plateobj=plateobj)
+            deadvolume = self.getDeadVolume(maxwellvolume=maxwellvolume)
 
-                frac, whole = math.modf(nowellsneededratio)
-                volumestoadd = [maxwellvolume for i in range(int(whole))]
-                volumestoadd.append(frac * maxwellvolume + deadvolume)
+            for i in materialsdf.index.values:
+                totalvolume = materialsdf.at[i, "materialquantity"]
+                if totalvolume > maxwellvolume:
+                    nowellsneededratio = totalvolume / (maxwellvolume - deadvolume)
 
-                for volumetoadd in volumestoadd:
-                    indexwellavailable = self.checkPlateWellsAvailable(
-                        plateobj=plateobj
-                    )
-                    if not indexwellavailable:
+                    frac, whole = math.modf(nowellsneededratio)
+                    volumestoadd = [maxwellvolume for i in range(int(whole))]
+                    volumestoadd.append(frac * maxwellvolume + deadvolume)
 
-                        plateobj = self.createPlateModel(
-                            platename="Solventplate",
-                            labwaretype=startinglabwareplatetype,
+                    for volumetoadd in volumestoadd:
+                        indexwellavailable = self.checkPlateWellsAvailable(
+                            plateobj=plateobj
+                        )
+                        if not indexwellavailable:
+
+                            plateobj = self.createPlateModel(
+                                platename="Solventplate",
+                                labwaretype=startinglabwareplatetype,
+                            )
+
+                            indexwellavailable = self.checkPlateWellsAvailable(
+                                plateobj=plateobj
+                            )
+
+                        self.createWellModel(
+                            plateobj=plateobj,
+                            wellindex=indexwellavailable - 1,
+                            volume=volumetoadd,
+                            solvent=materialsdf.at[i, "solvent"],
                         )
 
+                else:
+                    indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+                    volumetoadd = totalvolume + deadvolume
+
+                    if not indexwellavailable:
+                        plateobj = self.createPlateModel(
+                            platename="Solventplate", labwaretype=startinglabwareplatetype
+                        )
                         indexwellavailable = self.checkPlateWellsAvailable(
                             plateobj=plateobj
                         )
 
-                    self.createWellModel(
-                        plateobj=plateobj,
-                        wellindex=indexwellavailable - 1,
-                        volume=volumetoadd,
-                        solvent=materialsdf.at[i, "solvent"],
-                    )
-
-            else:
-                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-                volumetoadd = totalvolume + deadvolume
-
-                if not indexwellavailable:
-                    plateobj = self.createPlateModel(
-                        platename="Solventplate", labwaretype=startinglabwareplatetype
-                    )
-                    indexwellavailable = self.checkPlateWellsAvailable(
-                        plateobj=plateobj
-                    )
-
-                    self.createWellModel(
-                        plateobj=plateobj,
-                        wellindex=indexwellavailable - 1,
-                        volume=volumetoadd,
-                        solvent=materialsdf.at[i, "solvent"],
-                    )
+                        self.createWellModel(
+                            plateobj=plateobj,
+                            wellindex=indexwellavailable - 1,
+                            volume=volumetoadd,
+                            solvent=materialsdf.at[i, "solvent"],
+                        )
