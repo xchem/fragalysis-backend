@@ -340,6 +340,26 @@ class BatchViewSet(viewsets.ModelViewSet):
                 data = {"task_status": task.status}
                 return JsonResponse(data)
 
+    @action(methods=['post'], detail=False)
+    def updatereactionsuccess(self, request, pk=None):
+        if request.POST.get("reaction_ids"):
+            reaction_ids = request.POST.getlist("reaction_ids")
+        if len(request.FILES) != 0:
+            csvfile = request.FILES["csv_file"]
+            reaction_ids = pd.read_csv(csvfile)["reaction_id"]
+        if Reaction.objects.filter(id__in=reaction_ids).exists():
+            Reaction.objects.filter(id__in=reaction_ids).update(success=False)
+            data = {"reaction_ids": reaction_ids}
+        else:
+            data = {"reaction_ids": None}
+        return JsonResponse(data=data)
+
+
+def updatereactionsuccess(reaction_ids: list):
+    """Update reaction success using list of reaction ids
+    """
+    
+    reaction_objs = Reaction.objects.filter()
 
 class TargetViewSet(viewsets.ModelViewSet):
     queryset = Target.objects.all()

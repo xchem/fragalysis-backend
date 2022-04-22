@@ -49,7 +49,7 @@ class Reaction(models.Model):
         null=True,
     )
     successrate = models.FloatField(default=0.5)
-
+    success = models.BooleanField(default=True)
 
 class Reactant(models.Model):
     reaction_id = models.ForeignKey(Reaction, related_name='reactants', on_delete=models.CASCADE, null=True)
