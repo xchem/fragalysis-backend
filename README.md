@@ -55,14 +55,12 @@ You can clone original `xchem` repositories or your forked e.g. `m2ms` and check
 ```
 git clone https://github.com/xchem/fragalysis-backend.git
 git clone https://github.com/xchem/fragalysis-frontend.git
-git clone https://github.com/xchem/fragalysis-loader.git
 git clone https://github.com/InformaticsMatters/dls-fragalysis-stack-openshift.git
 ```
 Note: 
 To successful build, it should exist following directories from repository cloning.
 Frontend is also important, because DJANGO server will serve this directory!
 ```$xslt
-fragalysis/fragalysis-loader/
 fragalysis/fragalysis-frontend/
 fragalysis/fragalysis-backend/
 fragalysis/dls-fragalysis-stack-openshift/
@@ -82,7 +80,6 @@ mkdir -p data/media/compound_sets
 mkdir -p data/postgre/data
 ```
 **4.Populating database** 
-
 
 Copy to `fragalysis/data/input/django_data/EXAMPLE` your PDB data, before you can launch the application.
 
