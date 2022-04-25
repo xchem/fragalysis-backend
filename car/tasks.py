@@ -4,7 +4,9 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from zipfile import ZipFile
+from graphene_django import DjangoObjectType
 import pandas as pd
+from pytest import fail
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import os
@@ -391,6 +393,7 @@ def createOTScript(batchids: list, protocol_name: str):
             groupedreactionquerysets = groupReactions(
                 allreactionquerysets=allreactionquerysets, maxsteps=maxsteps
             )
+            allinputreactionplates = []
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
                     otsession = CreateOTSession(
@@ -401,9 +404,12 @@ def createOTScript(batchids: list, protocol_name: str):
 
                     otsessionobj = otsession.otsessionobj
                     alladdactionsquerysetflat = otsession.alladdactionquerysetflat
-                    startingreactionplatequeryset = (
+                    allinputreactionplates.append(
                         otsession.startingreactionplatequeryset
                     )
+                    # startingreactionplatequeryset = (
+                    #     otsession.startingreactionplatequeryset
+                    # )
 
                     otWrite(
                         protocolname=batch_tag,
@@ -415,16 +421,23 @@ def createOTScript(batchids: list, protocol_name: str):
                     if len(reactiongrouptodo) == 0:
                         break
                     else:
+                        inputplatesneeded = getInputReactionPlates(
+                            allinputereactionplates=allinputreactionplates,
+                            reactiongrouptodo=reactiongrouptodo,
+                        )
+
                         otsession = CreateOTSession(
                             reactionstep=index + 1,
                             otbatchprotocolobj=otbatchprotocolobj,
                             reactiongroupqueryset=reactiongrouptodo,
-                            inputplatequeryset=startingreactionplatequeryset,
+                            inputplatequeryset=inputplatesneeded,
                         )
 
                         otsessionobj = otsession.otsessionobj
                         alladdactionsquerysetflat = otsession.alladdactionquerysetflat
-
+                        allinputreactionplates.append(
+                            otsession.startingreactionplatequeryset
+                        )
                         otWrite(
                             protocolname=batch_tag,
                             otsessionobj=otsessionobj,
@@ -446,13 +459,48 @@ def createOTScript(batchids: list, protocol_name: str):
     return task_summary, otprotocolobj.id
 
 
-def getPreviousObjEntry(queryset: list, obj: Django_obj):
+def getInputReactionPlates(allinputereactionplates: list, reactiongrouptodo: list):
+    """Check if any reaction plates created for previous sessions are needed to execute
+    reactions to do in group
+    """
+    inputplatesneeded = []
+    inputereactionplatesflat = [
+        item for sublist in allinputereactionplates for item in sublist
+    ]
+    methodids = [reactionobj.method_id for reactionobj in reactiongrouptodo]
+    for inputreactionplate in inputereactionplatesflat:
+        wellobjmatch = inputreactionplate.well_set.filter(method_id__in=methodids)
+        if wellobjmatch:
+            inputplatesneeded.append(inputreactionplate)
+    return inputplatesneeded
+
+
+def getPreviousObjEntry(queryset: list, obj: DjangoObjectType):
     """Finds previous object relative to obj of queryset"""
     previousobj = queryset.filter(pk__lt=obj.pk).order_by("-pk").first()
     return previousobj
 
 
-def checkPreviousReactionSuccess(reactionobj: Django_obj):
+def getPreviousObjEntries(queryset: list, obj: DjangoObjectType):
+    """Finds all previous objecta relative to obj of queryset"""
+    previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
+    return previousqueryset
+
+
+def checkPreviousReactionFailures(reactionobj: DjangoObjectType):
+    """Check if any previous reaction failures for a method"""
+    reactionqueryset = getReactions(methodid=reactionobj.method_id.id)
+    previousreactionqueryset = getPreviousObjEntries(
+        queryset=reactionqueryset, obj=reactionobj
+    )
+    failedreactions = previousreactionqueryset.filter(success=False)
+    if failedreactions:
+        return True
+    else:
+        return False
+
+
+def checkPreviousReactionSuccess(reactionobj: DjangoObjectType):
     """Check if previous reaction was succesful"""
     reactionqueryset = getReactions(methodid=reactionobj.method_id.id)
     previousreactionobj = getPreviousObjEntry(
@@ -482,7 +530,7 @@ def getReactionsToDo(reactiongroup):
     reactiongrouptodo = []
     for reactionobj in reactiongroup:
         if checkNoMethodSteps(reactionobj=reactionobj):
-            if checkPreviousReactionSuccess(reactionobj=reactionobj):
+            if not checkPreviousReactionFailures(reactionobj=reactionobj):
                 reactiongrouptodo.append(reactionobj)
     return reactiongrouptodo
 

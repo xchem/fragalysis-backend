@@ -376,6 +376,7 @@ class Plate(models.Model):
 
 class Well(models.Model):
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
+    method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)
     otsession_id = models.ForeignKey(OTSession, on_delete=models.CASCADE)
     wellindex = models.IntegerField()

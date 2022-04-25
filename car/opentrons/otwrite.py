@@ -61,6 +61,16 @@ class otWrite(object):
         productobj = Product.objects.get(reaction_id=reaction_id)
         return productobj
 
+    def getProductQuerySet(self, reaction_id: int):
+        """Get product queryset for reaction_id
+        Args:
+            reaction_id (int): Method DB id to search for
+        Returns:
+            productqueryset (Django_queryset): Reaction queryset related to method_id
+        """
+        productqueryset = Product.objects.filter(reaction_id=reaction_id)
+        return productqueryset
+
     def getReaction(self, reaction_id: int):
         """Get reaction object
         Args:
@@ -100,6 +110,11 @@ class otWrite(object):
         previousobj = queryset.filter(pk__lt=obj.pk).order_by("-pk").first()
         return previousobj
 
+    def getPreviousObjEntries(self, queryset: list, obj: DjangoObjectType):
+        """Finds all previous objects relative to obj of queryset"""
+        previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
+        return previousqueryset
+
     def getReactionQuerySet(self, method_id: int):
         """Get product queryset for reaction_id
         Args:
@@ -110,20 +125,40 @@ class otWrite(object):
         reactionqueryset = Reaction.objects.filter(method_id=method_id)
         return reactionqueryset
 
-    def checkPreviousReactionProduct(self, reaction_id: int, smiles: str):
+    def checkPreviousReactionProducts(self, reaction_id: int, smiles: str):
+        """Checks if any previous reactions had the product mathcing the smiles"""
+
         reactionobj = self.getReaction(reaction_id=reaction_id)
-        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id)
-        prevreactionobj = self.getPreviousObjEntry(
+        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
+        prevreactionqueryset = self.getPreviousObjEntries(
             queryset=reactionqueryset, obj=reactionobj
         )
-        if prevreactionobj:
-            prevproductobj = self.getProduct(reaction_id=prevreactionobj.id)
-            if prevproductobj.smiles == smiles:
-                return True, prevreactionobj
-            else:
-                return False, prevreactionobj
+        if prevreactionqueryset:
+            for reactionobj in prevreactionqueryset:
+                productobj = self.getProduct(reaction_id=reactionobj)
+                if productobj.smiles == smiles:
+                    return True, reactionobj
+                else:
+                    return False, None
         else:
-            return False, prevreactionobj
+            return False, None
+
+    # def checkPreviousReactionProduct(self, reaction_id: int, smiles: str):
+    #     """Checks if the
+    #     """
+    #     reactionobj = self.getReaction(reaction_id=reaction_id)
+    #     reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id)
+    #     prevreactionobj = self.getPreviousObjEntry(
+    #         queryset=reactionqueryset, obj=reactionobj
+    #     )
+    #     if prevreactionobj:
+    #         prevproductobj = self.getProduct(reaction_id=prevreactionobj.id)
+    #         if prevproductobj.smiles == smiles:
+    #             return True, prevreactionobj
+    #         else:
+    #             return False, prevreactionobj
+    #     else:
+    #         return False, prevreactionobj
 
     def createFilePath(self):
         filename = "ot-script-batch-{}-reactionstep{}-sessionid-{}.txt".format(
@@ -178,7 +213,7 @@ class otWrite(object):
     def findStartingPlateWellObj(
         self, reactionid, smiles, solvent, concentration, transfervolume
     ):
-        isproduct, previousreactionobj = self.checkPreviousReactionProduct(
+        isproduct, previousreactionobj = self.checkPreviousReactionProducts(
             reaction_id=reactionid, smiles=smiles
         )
         wellinfo = []
@@ -340,6 +375,18 @@ class otWrite(object):
 
         script.close()
 
+    def mixWell(self, wellindex: int, nomixes: int, plate: str, volumetomix: float):
+        """Mixes conents of well"""
+        humanread = f"Mixing contents of well at index: {wellindex}"
+
+        instruction = [
+            "\n\t# " + str(humanread),
+            self.pipettename
+            + f".mix({nomixes}, {volumetomix}, {plate}.wells([{wellindex}])",
+        ]
+
+        self.writeCommand(instruction)
+
     def transferFluid(
         self,
         fromplatename,
@@ -425,6 +472,13 @@ class otWrite(object):
                             towellindex=towellindex,
                             transvolume=transfervolume,
                         )
+
+                    self.mixWell(
+                        wellindex=towellindex,
+                        nomixes=3,
+                        plate=toplatename,
+                        volumetomix=transfervolume,
+                    )
 
                 towellobj = self.findReactionPlateWellObj(
                     reactionid=addaction.reaction_id.id
