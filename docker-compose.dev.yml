@@ -46,6 +46,8 @@ services:
       POSTGRESQL_PASSWORD: fragalysis
       POSTGRESQL_HOST: database
       POSTGRESQL_PORT: 5432
+      # Default Debug to true on Dev.
+      DEBUG_FRAGALYSIS: 'True'
       OIDC_RP_CLIENT_SECRET: 'c6245428-04c7-466f-9c4f-58c340e981c2'
       SQUONK_UI_URL: https://data-manager-ui.xchem-dev.diamond.ac.uk/data-manager-ui
       SQUONK_API_URL: https://data-manager.xchem-dev.diamond.ac.uk/data-manager-api
