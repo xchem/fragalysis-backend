@@ -340,7 +340,7 @@ class BatchViewSet(viewsets.ModelViewSet):
     def canonicalizesmiles(self, request, pk=None):
         check_services()
         if request.POST.get("smiles"):
-            smiles = request.POST.getlist("smiles")
+            smiles = request.data["smiles"]
             task = canonicalizeSmiles.delay(smiles=smiles)
             data = {"task_id": task.id}
             return JsonResponse(data=data)
@@ -383,7 +383,7 @@ class BatchViewSet(viewsets.ModelViewSet):
     @action(methods=["post"], detail=False)
     def updatereactionsuccess(self, request, pk=None):
         if request.POST.get("reaction_ids"):
-            reaction_ids = request.POST.getlist("reaction_ids")
+            reaction_ids = request.data["reaction_ids"]
         if len(request.FILES) != 0:
             csvfile = request.FILES["csv_file"]
             reaction_ids = pd.read_csv(csvfile)["reaction_id"]
