@@ -372,7 +372,6 @@ def createOTScript(batchids: list, protocol_name: str):
     """ "
     Create otscripts and starting plates for a list of batch ids
     """
-    print(batchids)
     task_summary = {}
     otprotocolobj = OTProtocol()
     projectobj = Batch.objects.get(id=batchids[0]).project_id
@@ -393,7 +392,6 @@ def createOTScript(batchids: list, protocol_name: str):
             groupedreactionquerysets = groupReactions(
                 allreactionquerysets=allreactionquerysets, maxsteps=maxsteps
             )
-            allinputreactionplates = []
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
                     otsession = CreateOTSession(
@@ -404,12 +402,6 @@ def createOTScript(batchids: list, protocol_name: str):
 
                     otsessionobj = otsession.otsessionobj
                     alladdactionsquerysetflat = otsession.alladdactionquerysetflat
-                    allinputreactionplates.append(
-                        otsession.startingreactionplatequeryset
-                    )
-                    # startingreactionplatequeryset = (
-                    #     otsession.startingreactionplatequeryset
-                    # )
 
                     otWrite(
                         protocolname=batch_tag,
@@ -421,23 +413,17 @@ def createOTScript(batchids: list, protocol_name: str):
                     if len(reactiongrouptodo) == 0:
                         break
                     else:
-                        inputplatesneeded = getInputReactionPlates(
-                            allinputereactionplates=allinputreactionplates,
-                            reactiongrouptodo=reactiongrouptodo,
-                        )
+            
 
                         otsession = CreateOTSession(
                             reactionstep=index + 1,
                             otbatchprotocolobj=otbatchprotocolobj,
                             reactiongroupqueryset=reactiongrouptodo,
-                            inputplatequeryset=inputplatesneeded,
                         )
 
                         otsessionobj = otsession.otsessionobj
                         alladdactionsquerysetflat = otsession.alladdactionquerysetflat
-                        allinputreactionplates.append(
-                            otsession.startingreactionplatequeryset
-                        )
+             
                         otWrite(
                             protocolname=batch_tag,
                             otsessionobj=otsessionobj,
@@ -457,28 +443,6 @@ def createOTScript(batchids: list, protocol_name: str):
             task_summary[batchid] = False
 
     return task_summary, otprotocolobj.id
-
-
-def getInputReactionPlates(allinputereactionplates: list, reactiongrouptodo: list):
-    # Can this be in the cartoot?????
-    """Check if any reaction plates created for previous sessions are needed to execute
-    reactions to do in group
-    """
-    inputplatesneeded = []
-    inputereactionplatesflat = [
-        item for sublist in allinputereactionplates for item in sublist
-    ]
-    methodids = [reactionobj.method_id for reactionobj in reactiongrouptodo]
-    for reactionobj in reactiongrouptodo:
-        reactionobj.addactions.filter()
-    for inputreactionplate in inputereactionplatesflat:
-        # Returning evertyhign with method id match - need better resolution re finding if
-        # needed in reaction
-        wellmatchqueryset = inputreactionplate.well_set.filter(method_id__in=methodids)
-        if wellmatchqueryset:
-            wellmatchqueryset.filter()
-            inputplatesneeded.append(inputreactionplate)
-    return inputplatesneeded
 
 
 def getPreviousObjEntry(queryset: list, obj: DjangoObjectType):

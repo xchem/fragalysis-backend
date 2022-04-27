@@ -133,32 +133,14 @@ class otWrite(object):
         prevreactionqueryset = self.getPreviousObjEntries(
             queryset=reactionqueryset, obj=reactionobj
         )
+        previousproductmatches = []
         if prevreactionqueryset:
             for reactionobj in prevreactionqueryset:
                 productobj = self.getProduct(reaction_id=reactionobj)
                 if productobj.smiles == smiles:
-                    return True, reactionobj
-                else:
-                    return False, None
-        else:
-            return False, None
+                    previousproductmatches.append(reactionobj)
+        return previousproductmatches
 
-    # def checkPreviousReactionProduct(self, reaction_id: int, smiles: str):
-    #     """Checks if the
-    #     """
-    #     reactionobj = self.getReaction(reaction_id=reaction_id)
-    #     reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id)
-    #     prevreactionobj = self.getPreviousObjEntry(
-    #         queryset=reactionqueryset, obj=reactionobj
-    #     )
-    #     if prevreactionobj:
-    #         prevproductobj = self.getProduct(reaction_id=prevreactionobj.id)
-    #         if prevproductobj.smiles == smiles:
-    #             return True, prevreactionobj
-    #         else:
-    #             return False, prevreactionobj
-    #     else:
-    #         return False, prevreactionobj
 
     def createFilePath(self):
         filename = "ot-script-batch-{}-reactionstep{}-sessionid-{}.txt".format(
@@ -179,15 +161,22 @@ class otWrite(object):
         otscriptobj.save()
 
     def findSolventPlateWellObj(self, solvent, transfervolume):
-        """Finds solvent well for diluting a previous reaction stesp product"""
+        # Need to fix
+        """Finds solvent well for diluting a previous reaction steps product"""
         wellinfo = []
         try:
-            wellobjects = Well.objects.filter(
-                otsession_id=self.otsessionid,
+            wellobjs = Plate.objects.filter(platename__contains="Solvent").prefetch_related('well_set').filter(
+                    otsession_id=self.otsessionid,
                 solvent=solvent,
                 available=True,
             ).order_by("id")
-            for wellobj in wellobjects:
+            print(wellobjs)
+            # wellobjects = Well.objects.filter(
+            #     otsession_id=self.otsessionid,
+            #     solvent=solvent,
+            #     available=True,
+            # ).order_by("id")
+            for wellobj in wellobjs:
                 areclose = self.checkVolumeClose(volume1=transfervolume, volume2=0.00)
                 if areclose:
                     break
@@ -213,17 +202,17 @@ class otWrite(object):
     def findStartingPlateWellObj(
         self, reactionid, smiles, solvent, concentration, transfervolume
     ):
-        isproduct, previousreactionobj = self.checkPreviousReactionProducts(
+        previousreactionobjs = self.checkPreviousReactionProducts(
             reaction_id=reactionid, smiles=smiles
         )
         wellinfo = []
-        if isproduct:
+        if previousreactionobjs:
             wellobj = Well.objects.get(
                 otsession_id=self.otsessionid,
-                reaction_id=previousreactionobj,
+                reaction_id=previousreactionobjs[0],
                 smiles=smiles,
             )
-            wellinfo.append([isproduct, wellobj, transfervolume])
+            wellinfo.append([previousreactionobjs, wellobj, transfervolume])
         else:
             try:
                 wellobjects = Well.objects.filter(
@@ -245,13 +234,13 @@ class otWrite(object):
                             self.updateWellVolume(
                                 wellobj=wellobj, transfervolume=transfervolume
                             )
-                            wellinfo.append([isproduct, wellobj, transfervolume])
+                            wellinfo.append([previousreactionobjs, wellobj, transfervolume])
                             transfervolume = 0.00
                         if wellvolumeavailable < transfervolume:
                             self.updateWellVolume(
                                 wellobj=wellobj, transfervolume=wellvolumeavailable
                             )
-                            wellinfo.append([isproduct, wellobj, wellvolumeavailable])
+                            wellinfo.append([previousreactionobjs, wellobj, wellvolumeavailable])
                             transfervolume = transfervolume - wellvolumeavailable
             except Exception as e:
                 print(e)
@@ -382,7 +371,7 @@ class otWrite(object):
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".mix({nomixes}, {volumetomix}, {plate}.wells([{wellindex}])",
+            + f".mix({nomixes}, {volumetomix}, {plate}.wells([{wellindex}]))",
         ]
 
         self.writeCommand(instruction)
@@ -443,26 +432,27 @@ class otWrite(object):
             )
 
             for wellinfo in fromwellinfo:
-                isproduct = wellinfo[0]
+                previousreactionobjs = wellinfo[0]
                 fromwellobj = wellinfo[1]
                 transfervolume = wellinfo[2]
 
-                if isproduct:
+                if previousreactionobjs:
                     # Add dilution
                     fromsolventwellinfo = self.findSolventPlateWellObj(
                         solvent=solvent,
                         transfervolume=transfervolume,
                     )
                     for solventwellinfo in fromsolventwellinfo:
-                        fromwellobj = solventwellinfo[0]
+                        fromsolventwellobj = solventwellinfo[0]
                         transfervolume = solventwellinfo[1]
                         towellobj = fromwellobj
-                        fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
+                        fromplateobj = self.getPlateObj(plateid=fromsolventwellobj.plate_id.id)
                         toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
 
                         fromplatename = fromplateobj.platename
+                        print(fromplatename)
                         toplatename = toplateobj.platename
-                        fromwellindex = fromwellobj.wellindex
+                        fromwellindex = fromsolventwellobj.wellindex
                         towellindex = towellobj.wellindex
 
                         self.transferFluid(
