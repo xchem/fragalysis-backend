@@ -38,7 +38,7 @@ class ValidateFile(object):
             if self.validated:
                 self.checkColumnNames()
             if self.validated:
-                self.target_smiles = [canonSmiles(smi.strip()) for smi in self.df["targets"]]
+                self.target_smiles = [smi.strip() for smi in self.df["targets"]]
                 self.df["targets"] = self.target_smiles
                 self.checkTargetSMILES()
                 if self.validated:
@@ -157,8 +157,8 @@ class ValidateFile(object):
 
     def checkTargetSMILES(self):
         for index, smi in zip(self.index_df_rows, self.target_smiles):
-            mol = Chem.MolFromSmiles(smi)
-            if mol is None:
+            canonsmiles = canonSmiles(smi)
+            if not canonsmiles:
                 self.add_warning(
                     field="check_smiles",
                     warning_string="Input target smiles: '{}' at index {} is not a valid smiles".format(
