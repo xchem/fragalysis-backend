@@ -756,7 +756,6 @@ class CreateOTSession(object):
                 print("No more deck slots available")
 
     def cloneInputWells(self, clonewellqueryset, plateobj):
-        # Need to fix finding next add action --- check logic here!!!!
         for clonewellobj in clonewellqueryset:
             nextaddactionobj = self.checkNextReactionAddAction(
                 reactionobj=clonewellobj.reaction_id, smiles=clonewellobj.smiles
