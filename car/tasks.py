@@ -460,6 +460,7 @@ def createOTScript(batchids: list, protocol_name: str):
 
 
 def getInputReactionPlates(allinputereactionplates: list, reactiongrouptodo: list):
+    # Can this be in the cartoot?????
     """Check if any reaction plates created for previous sessions are needed to execute
     reactions to do in group
     """
@@ -468,9 +469,14 @@ def getInputReactionPlates(allinputereactionplates: list, reactiongrouptodo: lis
         item for sublist in allinputereactionplates for item in sublist
     ]
     methodids = [reactionobj.method_id for reactionobj in reactiongrouptodo]
+    for reactionobj in reactiongrouptodo:
+        reactionobj.addactions.filter()
     for inputreactionplate in inputereactionplatesflat:
-        wellobjmatch = inputreactionplate.well_set.filter(method_id__in=methodids)
-        if wellobjmatch:
+        # Returning evertyhign with method id match - need better resolution re finding if
+        # needed in reaction
+        wellmatchqueryset = inputreactionplate.well_set.filter(method_id__in=methodids)
+        if wellmatchqueryset:
+            wellmatchqueryset.filter()
             inputplatesneeded.append(inputreactionplate)
     return inputplatesneeded
 

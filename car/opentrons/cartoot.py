@@ -739,7 +739,6 @@ class CreateOTSession(object):
         for plateobj in self.inputplatequeryset:
             indexslot = self.checkDeckSlotAvailable()
             if indexslot:
-                print(plateobj)
                 clonewellqueryset = self.getCloneWells(plateobj=plateobj)
                 plateindex = indexslot
                 previousname = plateobj.platename
