@@ -17,8 +17,11 @@ def calculateproductmols(target_mass, target_SMILES):
 
 def canonSmiles(smiles):
     mol = Chem.MolFromSmiles(smiles)
-    canon_smiles = Chem.MolToSmiles(mol)
-    return canon_smiles
+    if mol:
+        canon_smiles = Chem.MolToSmiles(mol)
+        return canon_smiles
+    else:
+        return False
 
 
 def combichem(reactant_1_SMILES: list, reactant_2_SMILES: list):
