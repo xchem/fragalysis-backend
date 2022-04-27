@@ -302,6 +302,7 @@ class BatchViewSet(viewsets.ModelViewSet):
     def canonicalizesmiles(self, request, pk=None):
         check_services()
         if request.POST.get("smiles"):
+            
             smiles = request.POST.getlist("smiles")
             task = canonicalizeSmiles.delay(smiles=smiles)
             data = {"task_id": task.id}
