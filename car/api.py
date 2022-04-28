@@ -288,13 +288,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     project_id = project_info["project_id"]
 
                     if validated:
-                        data = {"task_status": task.status, "project_id": project_id}
+                        data = {
+                            "task_status": task.status,
+                            "validated": True,
+                            "project_id": project_id,
+                        }
                         return JsonResponse(data)
 
                     if not validated:
                         errorsummary = json.dumps(validate_dict)
                         data = {
                             "task_status": task.status,
+                            "validated": False,
                             "validation_errors": errorsummary,
                         }
 
