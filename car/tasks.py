@@ -413,7 +413,6 @@ def createOTScript(batchids: list, protocol_name: str):
                     if len(reactiongrouptodo) == 0:
                         break
                     else:
-            
 
                         otsession = CreateOTSession(
                             reactionstep=index + 1,
@@ -423,7 +422,7 @@ def createOTScript(batchids: list, protocol_name: str):
 
                         otsessionobj = otsession.otsessionobj
                         alladdactionsquerysetflat = otsession.alladdactionquerysetflat
-             
+
                         otWrite(
                             protocolname=batch_tag,
                             otsessionobj=otsessionobj,

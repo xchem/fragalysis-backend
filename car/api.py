@@ -269,17 +269,36 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 validate_dict = results[0]
                 validated = results[1]
                 project_info = results[2]
-                project_id = project_info["project_id"]
 
-                if validated:
-                    data = {"task_status": task.status, "project_id": project_id}
-                    return JsonResponse(data)
+                if not project_info:
+                    if validated:
+                        data = {"task_status": task.status, "validated": True}
+                        return JsonResponse(data)
 
-                if not validated:
-                    errorsummary = json.dumps(validate_dict)
-                    data = {"task_status": task.status, "error_summary": errorsummary}
+                    if not validated:
+                        errorsummary = json.dumps(validate_dict)
+                        data = {
+                            "task_status": task.status,
+                            "validated": False,
+                            "validation_errors": errorsummary,
+                        }
+                        return JsonResponse(data)
 
-                    return JsonResponse(data)
+                if project_info:
+                    project_id = project_info["project_id"]
+
+                    if validated:
+                        data = {"task_status": task.status, "project_id": project_id}
+                        return JsonResponse(data)
+
+                    if not validated:
+                        errorsummary = json.dumps(validate_dict)
+                        data = {
+                            "task_status": task.status,
+                            "validation_errors": errorsummary,
+                        }
+
+                        return JsonResponse(data)
 
             if task.status == "PENDING":
                 data = {"task_status": task.status}

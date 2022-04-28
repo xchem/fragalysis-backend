@@ -75,11 +75,12 @@ class CreateOTSession(object):
         self.startingreactionplatequeryset = self.getStartingReactionPlateQuerySet()
 
     def getAllImputPlates(self):
-        """Get all input plates for all previous otsessions in a otbatchprotocol
-        """
+        """Get all input plates for all previous otsessions in a otbatchprotocol"""
         if self.otsessionqueryset:
             otsessionsids = [otsession.id for otsession in self.otsessionqueryset]
-            allinputplatesqueryset = Plate.objects.filter(otsession_id__in=otsessionsids) 
+            allinputplatesqueryset = Plate.objects.filter(
+                otsession_id__in=otsessionsids
+            )
             return allinputplatesqueryset
         else:
             return False
@@ -87,14 +88,26 @@ class CreateOTSession(object):
     def getInputPlatesNeeded(self):
         """Checks if a plate previosuly created is needed for the current otsession
         reactions
-        """ 
+        """
         inputplatesneeded = []
         allinputplatequerset = self.getAllImputPlates()
-        methodids = [reactionobj.method_id for reactionobj in self.reactiongroupqueryset]
-        allreactantsmiles = [addaction.materialsmiles for addaction in self.alladdactionquerysetflat]
+        methodids = [
+            reactionobj.method_id for reactionobj in self.reactiongroupqueryset
+        ]
+        allreactantsmiles = [
+            addaction.materialsmiles for addaction in self.alladdactionquerysetflat
+        ]
         if allinputplatequerset:
             for inputplateobj in allinputplatequerset:
-                wellmatchqueryset = inputplateobj.well_set.all().filter(method_id__in=methodids, reactantfornextstep=True, smiles__in=allreactantsmiles).distinct()
+                wellmatchqueryset = (
+                    inputplateobj.well_set.all()
+                    .filter(
+                        method_id__in=methodids,
+                        reactantfornextstep=True,
+                        smiles__in=allreactantsmiles,
+                    )
+                    .distinct()
+                )
                 if wellmatchqueryset:
                     inputplatesneeded.append(inputplateobj)
                     # for reactionobj in self.reactiongroupqueryset:
@@ -106,7 +119,7 @@ class CreateOTSession(object):
                     #             inputplatesneeded.append(inputplateobj)
                     #             break
                     #         else:
-                    #             pass                       
+                    #             pass
         return inputplatesneeded
 
     def getOTsessions(self):
@@ -159,7 +172,7 @@ class CreateOTSession(object):
 
     def checkNextReactionsAddActions(self, reactionobj: DjangoObjectType, smiles: str):
         """Checks if there are any reaction obj following the reaction.
-        This could be the very next next or multiple steps later. Could possibly be used for 
+        This could be the very next next or multiple steps later. Could possibly be used for
         several steps as well!
         If there is, gets AddAction matching smiles
         Args:
@@ -180,7 +193,6 @@ class CreateOTSession(object):
                 addactionsmatches.append(addactionmatch[0])
         return addactionsmatches
 
- 
     def getAddAction(self, reaction_id: int, smiles: str):
         """Get Addaction object matching reaction_id and smiles
         Args:
@@ -549,7 +561,9 @@ class CreateOTSession(object):
             plateobj = Plate()
             plateobj.otsession_id = self.otsessionobj
             plateobj.deck_id = self.deckobj
-            plateobj.platename = "Reaction_step_{}_{}_index_{}".format(self.reactionstep, platename, indexslot)
+            plateobj.platename = "Reaction_step_{}_{}_index_{}".format(
+                self.reactionstep, platename, indexslot
+            )
             plateobj.plateindex = plateindex
             plateobj.labware = labwaretype
             plateobj.maxwellvolume = maxwellvolume
@@ -760,23 +774,23 @@ class CreateOTSession(object):
                     )
 
                 nextaddactionobjs = self.checkNextReactionsAddActions(
-                reactionobj=reactionobj, smiles=productobj.smiles
-            )
+                    reactionobj=reactionobj, smiles=productobj.smiles
+                )
                 if nextaddactionobjs:
                     nextaddactionobj = nextaddactionobjs[0]
                     self.createWellModel(
-                    plateobj=plateobj,
-                    reactionobj=reactionobj,
-                    wellindex=indexwellavailable - 1,
-                    volume=nextaddactionobj.materialquantity,
-                    smiles=productobj.smiles,
-                    concentration=nextaddactionobj.concentration,
-                    solvent=nextaddactionobj.solvent,
-                    reactantfornextstep=True,
-                    mculeid=None,
-                )
+                        plateobj=plateobj,
+                        reactionobj=reactionobj,
+                        wellindex=indexwellavailable - 1,
+                        volume=nextaddactionobj.materialquantity,
+                        smiles=productobj.smiles,
+                        concentration=nextaddactionobj.concentration,
+                        solvent=nextaddactionobj.solvent,
+                        reactantfornextstep=True,
+                        mculeid=None,
+                    )
 
-                else:    
+                else:
                     self.createWellModel(
                         plateobj=plateobj,
                         reactionobj=reactionobj,
