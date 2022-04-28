@@ -1,12 +1,9 @@
 from __future__ import annotations
 from celery import shared_task, current_task
 from django.conf import settings
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
 from zipfile import ZipFile
 from graphene_django import DjangoObjectType
 import pandas as pd
-from pytest import fail
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import os
