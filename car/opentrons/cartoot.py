@@ -1,6 +1,5 @@
 """Create OT session"""
 from __future__ import annotations
-from operator import add
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
@@ -38,7 +37,7 @@ class CreateOTSession(object):
     def __init__(
         self,
         reactionstep: int,
-        otbatchprotocolobj: Django_object,
+        otbatchprotocolobj: DjangoObjectType,
         reactiongroupqueryset: list,
     ):
         self.reactionstep = reactionstep

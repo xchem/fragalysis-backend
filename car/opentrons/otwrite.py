@@ -9,7 +9,9 @@ from django.conf import settings
 
 import os
 
-from car.models import Batch, Reaction
+from graphene_django import DjangoObjectType
+
+from car.models import Reaction
 
 from car.models import (
     Product,
@@ -33,7 +35,7 @@ class otWrite(object):
     def __init__(
         self,
         protocolname: str,
-        otsessionobj: Django_object,
+        otsessionobj: DjangoObjectType,
         alladdactionsquerysetflat: list,
         apiLevel="2.9",
         reactionplatequeryset: list = None,

@@ -441,12 +441,6 @@ def createOTScript(batchids: list, protocol_name: str):
     return task_summary, otprotocolobj.id
 
 
-def getPreviousObjEntry(queryset: list, obj: DjangoObjectType):
-    """Finds previous object relative to obj of queryset"""
-    previousobj = queryset.filter(pk__lt=obj.pk).order_by("-pk").first()
-    return previousobj
-
-
 def getPreviousObjEntries(queryset: list, obj: DjangoObjectType):
     """Finds all previous objecta relative to obj of queryset"""
     previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
@@ -461,19 +455,6 @@ def checkPreviousReactionFailures(reactionobj: DjangoObjectType):
     )
     failedreactions = previousreactionqueryset.filter(success=False)
     if failedreactions:
-        return True
-    else:
-        return False
-
-
-def checkPreviousReactionSuccess(reactionobj: DjangoObjectType):
-    """Check if previous reaction was succesful"""
-    reactionqueryset = getReactions(methodid=reactionobj.method_id.id)
-    previousreactionobj = getPreviousObjEntry(
-        queryset=reactionqueryset, obj=reactionobj
-    )
-    previousreactionsuccess = previousreactionobj.success
-    if previousreactionsuccess:
         return True
     else:
         return False
@@ -537,14 +518,6 @@ def getBatchReactions(batchid):
         return allreactionquerysets
 
 
-def findnoallreactionsteps(allreactionquerysets: list):
-    """ "
-    Function to get all possible number of reactions steps for
-    multiple methods
-    """
-    allnumberofsteps = set([len(x) for x in allreactionquerysets])
-    return allnumberofsteps
-
 
 def findmaxlist(allreactionquerysets: list):
     maxlength = max([len(i) for i in allreactionquerysets])
@@ -572,7 +545,7 @@ class ZipOTBatchProtocol(object):
     for a batch
     """
 
-    def __init__(self, otbatchprotocolobj: Django_object, batchtag: str):
+    def __init__(self, otbatchprotocolobj: DjangoObjectType, batchtag: str):
         """
         zipOTBatchProtocol constructor
         Args:
@@ -625,7 +598,7 @@ class ZipOTBatchProtocol(object):
         else:
             return otsessionqueryset
 
-    def getCompoundOrderQuerySet(self, otsessionobj: Django_object):
+    def getCompoundOrderQuerySet(self, otsessionobj: DjangoObjectType):
         """Retrieve CompoundOrder model queryset
         Args:
             otsessionobj (Django obj): OTSession Django object
@@ -640,7 +613,7 @@ class ZipOTBatchProtocol(object):
         else:
             return compoundorderqueryset
 
-    def getOTScriptQuerySet(self, otsessionobj: Django_object):
+    def getOTScriptQuerySet(self, otsessionobj: DjangoObjectType):
         """Retrieve OTScript model queryset
         Args:
             otsessionobj (Django obj): OTSession Django object
@@ -655,7 +628,7 @@ class ZipOTBatchProtocol(object):
         else:
             return otscriptqueryset
 
-    def getCompoundOrderFilePath(self, compoundorderobj: Django_object):
+    def getCompoundOrderFilePath(self, compoundorderobj: DjangoObjectType):
         """Retrieve CompoundOrder csv file path
         Args:
             compoundorderobj (Django obj): OTSession Django object
@@ -663,7 +636,7 @@ class ZipOTBatchProtocol(object):
         filepath = os.path.join(self.mediaroot, compoundorderobj.ordercsv.name)
         return filepath
 
-    def getOTScriptFilePath(self, otscriptobj: Django_obj):
+    def getOTScriptFilePath(self, otscriptobj: DjangoObjectType):
         """Retrieve OTScript Python file path
         Args:
             otscriptobj (Django obj): OTScript Django object
