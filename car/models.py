@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class Project(models.Model):
     init_date = models.DateTimeField(auto_now_add=True)
     name = models.SlugField(max_length=100, db_index=True)
@@ -9,8 +10,11 @@ class Project(models.Model):
     quotedcost = models.FloatField(null=True)
     quoteurl = models.CharField(max_length=255, null=True)
 
+
 class Batch(models.Model):
-    project_id = models.ForeignKey(Project, related_name="batches", on_delete=models.CASCADE)
+    project_id = models.ForeignKey(
+        Project, related_name="batches", on_delete=models.CASCADE
+    )
     batch_id = models.ForeignKey("Batch", on_delete=models.CASCADE, null=True)
     batch_tag = models.CharField(max_length=50)
 
@@ -21,7 +25,9 @@ class Target(models.Model):
         g = "g"
         mg = "mg"
 
-    batch_id = models.ForeignKey(Batch, related_name='targets', on_delete=models.CASCADE)
+    batch_id = models.ForeignKey(
+        Batch, related_name="targets", on_delete=models.CASCADE
+    )
     smiles = models.CharField(max_length=255, db_index=True, null=True)
     image = models.FileField(upload_to="targetimages/", max_length=255)
     name = models.CharField(max_length=255, db_index=True)
@@ -31,7 +37,9 @@ class Target(models.Model):
 
 
 class Method(models.Model):
-    target_id = models.ForeignKey(Target, related_name='methods', on_delete=models.CASCADE)
+    target_id = models.ForeignKey(
+        Target, related_name="methods", on_delete=models.CASCADE
+    )
     status = models.BooleanField(default=True)
     nosteps = models.IntegerField(null=True)
     estimatecost = models.FloatField(default=100)
@@ -40,7 +48,9 @@ class Method(models.Model):
 
 
 class Reaction(models.Model):
-    method_id = models.ForeignKey(Method, related_name='reactions', on_delete=models.CASCADE)
+    method_id = models.ForeignKey(
+        Method, related_name="reactions", on_delete=models.CASCADE
+    )
     reactionclass = models.CharField(max_length=255)
     reactiontemperature = models.IntegerField(default=25)
     reactionimage = models.FileField(
@@ -51,13 +61,21 @@ class Reaction(models.Model):
     successrate = models.FloatField(default=0.5)
     success = models.BooleanField(default=True)
 
+
 class Reactant(models.Model):
-    reaction_id = models.ForeignKey(Reaction, related_name='reactants', on_delete=models.CASCADE, null=True)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="reactants", on_delete=models.CASCADE, null=True
+    )
     smiles = models.CharField(max_length=255)
 
+
 class CatalogEntry(models.Model):
-    reactant_id = models.ForeignKey(Reactant, related_name='catalogentries', on_delete=models.CASCADE, null=True)
-    target_id = models.ForeignKey(Target, related_name='catalogentries', on_delete=models.CASCADE, null=True)
+    reactant_id = models.ForeignKey(
+        Reactant, related_name="catalogentries", on_delete=models.CASCADE, null=True
+    )
+    target_id = models.ForeignKey(
+        Target, related_name="catalogentries", on_delete=models.CASCADE, null=True
+    )
 
     vendor = models.CharField(max_length=100)
     catalogid = models.CharField(max_length=50)
@@ -67,7 +85,9 @@ class CatalogEntry(models.Model):
 
 
 class Product(models.Model):
-    reaction_id = models.ForeignKey(Reaction, related_name='products', on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="products", on_delete=models.CASCADE
+    )
     name = models.CharField(max_length=255)
     smiles = models.CharField(max_length=255, db_index=True, null=True)
     image = models.FileField(upload_to="productimages/", max_length=255)
@@ -83,7 +103,9 @@ class AnalyseAction(models.Model):
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE)
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
-    method = models.CharField(choices=QCMethod.choices, default=QCMethod.LCMS, max_length=10)
+    method = models.CharField(
+        choices=QCMethod.choices, default=QCMethod.LCMS, max_length=10
+    )
 
 
 class AddAction(models.Model):
@@ -97,7 +119,9 @@ class AddAction(models.Model):
         nitrogen = "nitrogen"
         air = "air"
 
-    reaction_id = models.ForeignKey(Reaction, related_name='addactions', on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="addactions", on_delete=models.CASCADE
+    )
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     additionorder = models.IntegerField(null=True)
@@ -111,7 +135,9 @@ class AddAction(models.Model):
     )
 
     dropwise = models.BooleanField(default=False)
-    atmosphere = models.CharField(choices=Atmosphere.choices, default=Atmosphere.air, max_length=10)
+    atmosphere = models.CharField(
+        choices=Atmosphere.choices, default=Atmosphere.air, max_length=10
+    )
 
     # These are extras for helping robotic execution/calcs
     molecularweight = models.FloatField(null=True)
@@ -134,12 +160,16 @@ class ExtractAction(models.Model):
         mmol = "mmol"
         moleq = "moleq"
 
-    reaction_id = models.ForeignKey(Reaction, related_name='extractactions', on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="extractactions", on_delete=models.CASCADE
+    )
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     solvent = models.CharField(max_length=100)
     solventquantity = models.FloatField(null=True)
-    solventquantityunit = models.CharField(choices=Unit.choices, default=Unit.ml, max_length=10)
+    solventquantityunit = models.CharField(
+        choices=Unit.choices, default=Unit.ml, max_length=10
+    )
     numberofrepetitions = models.IntegerField(null=True)
 
 
@@ -153,7 +183,9 @@ class FilterAction(models.Model):
         mmol = "mmol"
         moleq = "moleq"
 
-    reaction_id = models.ForeignKey(Reaction, related_name='filteractions', on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="filteractions", on_delete=models.CASCADE
+    )
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     phasetokeep = models.CharField(
@@ -175,6 +207,7 @@ class FilterAction(models.Model):
         max_length=10,
     )
 
+
 class QuenchAction(models.Model):
     class TemperatureUnit(models.TextChoices):
         degcel = "degC"
@@ -185,13 +218,17 @@ class QuenchAction(models.Model):
         mmol = "mmol"
         moleq = "moleq"
 
-    reaction_id = models.ForeignKey(Reaction, related_name='quenchactions', on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="quenchactions", on_delete=models.CASCADE
+    )
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
 
     material = models.CharField(max_length=255)
     materialquantity = models.FloatField(null=True)
-    materialquantityunit = models.CharField(choices=Unit.choices, default=Unit.ml, max_length=10)
+    materialquantityunit = models.CharField(
+        choices=Unit.choices, default=Unit.ml, max_length=10
+    )
     dropwise = models.BooleanField(default=False)
     temperature = models.IntegerField(null=True)
     temperatureunit = models.CharField(
@@ -204,7 +241,9 @@ class SetTemperatureAction(models.Model):
         degcel = "degC"
         kelvin = "K"
 
-    reaction_id = models.ForeignKey(Reaction, related_name='settemperatureactions', on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="settemperatureactions", on_delete=models.CASCADE
+    )
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     temperature = models.IntegerField()
@@ -232,17 +271,26 @@ class StirAction(models.Model):
         nitrogen = "nitrogen"
         air = "air"
 
-    reaction_id = models.ForeignKey(Reaction, related_name='stiractions', on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="stiractions", on_delete=models.CASCADE
+    )
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     duration = models.FloatField(null=True)
-    durationunit = models.CharField(choices=Unit.choices, default=Unit.hours, max_length=10)
+    durationunit = models.CharField(
+        choices=Unit.choices, default=Unit.hours, max_length=10
+    )
     temperature = models.IntegerField(null=True)
     temperatureunit = models.CharField(
         choices=TemperatureUnit.choices, default=TemperatureUnit.degcel, max_length=10
     )
-    stirringspeed = models.CharField(choices=Speed.choices, default=Speed.normal, max_length=10)
-    atmosphere = models.CharField(choices=Atmosphere.choices, default=Atmosphere.air, max_length=10)
+    stirringspeed = models.CharField(
+        choices=Speed.choices, default=Speed.normal, max_length=10
+    )
+    atmosphere = models.CharField(
+        choices=Atmosphere.choices, default=Atmosphere.air, max_length=10
+    )
+
 
 # Mcule models
 class MculeQuote(models.Model):
@@ -251,6 +299,7 @@ class MculeQuote(models.Model):
     quoteurl = models.CharField(max_length=255)
     quotecost = models.FloatField()
     quotevaliduntil = models.CharField(max_length=255)
+
 
 class MCuleOrder(models.Model):
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
@@ -266,18 +315,25 @@ class OTProtocol(models.Model):
 
 class OTBatchProtocol(models.Model):
     otprotocol_id = models.ForeignKey(OTProtocol, on_delete=models.CASCADE)
-    batch_id = models.ForeignKey(Batch, related_name="otbatchprotocols", on_delete=models.CASCADE)
+    batch_id = models.ForeignKey(
+        Batch, related_name="otbatchprotocols", on_delete=models.CASCADE
+    )
     celery_task_id = models.CharField(max_length=50)
     zipfile = models.FileField(upload_to="otbatchprotocols/", max_length=255, null=True)
 
 
 class OTSession(models.Model):
-    otbatchprotocol_id = models.ForeignKey(OTBatchProtocol, related_name="otsessions", on_delete=models.CASCADE)
+    otbatchprotocol_id = models.ForeignKey(
+        OTBatchProtocol, related_name="otsessions", on_delete=models.CASCADE
+    )
     init_date = models.DateTimeField(auto_now_add=True)
+    reactionstep = models.IntegerField()
 
 
 class Deck(models.Model):
-    otsession_id = models.ForeignKey(OTSession, related_name="decks", on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="decks", on_delete=models.CASCADE
+    )
     numberslots = models.IntegerField(default=11)
     slotavailable = models.BooleanField(default=True)
     indexslotavailable = models.IntegerField(default=1)
@@ -288,7 +344,9 @@ class Pipette(models.Model):
         right = "Right"
         left = "Left"
 
-    otsession_id = models.ForeignKey(OTSession, related_name="pipettes", on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="pipettes", on_delete=models.CASCADE
+    )
     pipettename = models.CharField(max_length=255)
     labware = models.CharField(max_length=100)
     type = models.CharField(max_length=255)
@@ -318,23 +376,27 @@ class Plate(models.Model):
 
 class Well(models.Model):
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
+    method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)
     otsession_id = models.ForeignKey(OTSession, on_delete=models.CASCADE)
     wellindex = models.IntegerField()
     volume = models.FloatField(null=True)
-    smiles = models.CharField(max_length=255)
+    smiles = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True, blank=True)
     solvent = models.CharField(max_length=255, null=True)
-    # catalogid = models.CharField(max_length=255, null=True)
-    reactantfornextstep = models.BooleanField(default=True)
+    reactantfornextstep = models.BooleanField(default=False)
     available = models.BooleanField(default=True)
 
 
 class CompoundOrder(models.Model):
-    otsession_id = models.ForeignKey(OTSession, related_name="compoundorders", on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="compoundorders", on_delete=models.CASCADE
+    )
     ordercsv = models.FileField(upload_to="compoundorders/", max_length=255)
 
 
 class OTScript(models.Model):
-    otsession_id = models.ForeignKey(OTSession, related_name="otscripts", on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="otscripts", on_delete=models.CASCADE
+    )
     otscript = models.FileField(upload_to="otscripts/", max_length=255)

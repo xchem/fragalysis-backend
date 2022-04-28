@@ -8,6 +8,9 @@ logs/
 django_app.sock
 *zip
 
+# VScode
+.vscode/
+
 .idea/
 
 # Byte-compiled / optimized / DLL files

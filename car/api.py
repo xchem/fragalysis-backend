@@ -9,10 +9,28 @@ from celery.result import AsyncResult
 from viewer.tasks import check_services
 import pandas as pd
 
-from car.tasks import validateFileUpload, uploadManifoldReaction, uploadCustomReaction, createOTScript, canonicalizeSmiles 
+from car.tasks import (
+    validateFileUpload,
+    uploadManifoldReaction,
+    uploadCustomReaction,
+    createOTScript,
+    canonicalizeSmiles,
+    updateReactionSuccess,
+)
 
 # Import standard models
-from .models import Project, MculeQuote, Batch, Target, Method, Reaction, Reactant, CatalogEntry, Product, AnalyseAction
+from .models import (
+    Project,
+    MculeQuote,
+    Batch,
+    Target,
+    Method,
+    Reaction,
+    Reactant,
+    CatalogEntry,
+    Product,
+    AnalyseAction,
+)
 
 # Import action models
 from .models import (
@@ -22,11 +40,21 @@ from .models import (
     QuenchAction,
     SetTemperatureAction,
     StirAction,
-
 )
 
 # Import OT Session models
-from .models import OTSession, Deck, Pipette, TipRack, Plate, Well, OTProtocol, OTBatchProtocol, CompoundOrder, OTScript
+from .models import (
+    OTSession,
+    Deck,
+    Pipette,
+    TipRack,
+    Plate,
+    Well,
+    OTProtocol,
+    OTBatchProtocol,
+    CompoundOrder,
+    OTScript,
+)
 
 # Import standard serializers
 from .serializers import (
@@ -54,11 +82,10 @@ from .serializers import (
     AnalyseActionSerializer,
     AddActionSerializer,
     ExtractActionSerializer,
-    FilterActionSerializer,  
+    FilterActionSerializer,
     QuenchActionSerializer,
     SetTemperatureActionSerializer,
     StirActionSerializer,
-    
 )
 
 # Import OT Session serializers
@@ -80,9 +107,10 @@ from django.core.files.storage import default_storage
 
 from .utils import createSVGString
 
+
 def duplicatetarget(target_obj: Target, fk_obj: Batch):
     related_catalogentry_queryset = target_obj.catalogentries.all()
-    
+
     target_obj.image = ContentFile(target_obj.image.read(), name=target_obj.image.name)
     target_obj.pk = None
     target_obj.batch_id = fk_obj
@@ -94,6 +122,7 @@ def duplicatetarget(target_obj: Target, fk_obj: Batch):
         catalogentry_obj.save()
 
     return target_obj
+
 
 def duplicatemethod(method_obj: Method, fk_obj: Target):
     related_reaction_queryset = method_obj.reactions.all()
@@ -108,15 +137,17 @@ def duplicatemethod(method_obj: Method, fk_obj: Target):
         related_addaction_objs = reaction_obj.addactions.all()
         related_stiraction_objs = reaction_obj.stiractions.all()
         related_reactant_objs = reaction_obj.reactants.all()
-  
-        reaction_obj.reactionimage = ContentFile(reaction_obj.reactionimage.read(), 
-                                                name=reaction_obj.reactionimage.name)
+
+        reaction_obj.reactionimage = ContentFile(
+            reaction_obj.reactionimage.read(), name=reaction_obj.reactionimage.name
+        )
         reaction_obj.pk = None
         reaction_obj.method_id = method_obj
         reaction_obj.save()
 
-        product_obj.image = ContentFile(product_obj.image.read(), 
-                                        name=product_obj.image.name)
+        product_obj.image = ContentFile(
+            product_obj.image.read(), name=product_obj.image.name
+        )
         product_obj.pk = None
         product_obj.reaction_id = reaction_obj
         product_obj.save()
@@ -140,7 +171,6 @@ def duplicatemethod(method_obj: Method, fk_obj: Target):
                 catalog_obj.pk = None
                 catalog_obj.reactant_id = reactant_obj
                 catalog_obj.save()
-        
 
 
 def save_tmp_file(myfile):
@@ -152,12 +182,12 @@ def save_tmp_file(myfile):
 
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
-    
+
     def get_serializer_class(self):
-        fetchall = self.request.GET.get('fetchall', None)
+        fetchall = self.request.GET.get("fetchall", None)
         return ProjectSerializerAll if fetchall == "yes" else ProjectSerializer
 
-    @action(methods=['post'], detail=False)
+    @action(methods=["post"], detail=False)
     def createproject(self, request, pk=None):
         check_services()
         project_info = {}
@@ -173,63 +203,63 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         if str(validate_choice) == "0":
 
-                if str(API_choice) == "1":
-                    task = validateFileUpload.delay(
-                        csv_fp=tmp_file, validate_type="custom-chem"
-                    )
-                    
-                if str(API_choice) == "2":
-                    task = validateFileUpload.delay(
-                        csv_fp=tmp_file, validate_type="combi-custom-chem"
-                    )
+            if str(API_choice) == "1":
+                task = validateFileUpload.delay(
+                    csv_fp=tmp_file, validate_type="custom-chem"
+                )
 
-                else:
-                    task = validateFileUpload.delay(
-                        csv_fp=tmp_file, validate_type="retro-API"
-                    )
+            if str(API_choice) == "2":
+                task = validateFileUpload.delay(
+                    csv_fp=tmp_file, validate_type="combi-custom-chem"
+                )
+
+            else:
+                task = validateFileUpload.delay(
+                    csv_fp=tmp_file, validate_type="retro-API"
+                )
 
         if str(validate_choice) == "1":
-                if str(API_choice) == "0":
-                    task = (
-                        validateFileUpload.s(
-                            csv_fp=tmp_file,
-                            validate_type="retro-API",
-                            project_info=project_info,
-                            validate_only=False,
-                        )
-                        | uploadManifoldReaction.s()
-                    ).apply_async()
-            
-                if str(API_choice) == "1":
-                    task = (
-                        validateFileUpload.s(
-                            csv_fp=tmp_file,
-                            validate_type="custom-chem",
-                            project_info=project_info,
-                            validate_only=False,
-                        )
-                        | uploadCustomReaction.s()
-                    ).apply_async()
+            if str(API_choice) == "0":
+                task = (
+                    validateFileUpload.s(
+                        csv_fp=tmp_file,
+                        validate_type="retro-API",
+                        project_info=project_info,
+                        validate_only=False,
+                    )
+                    | uploadManifoldReaction.s()
+                ).apply_async()
 
-                if str(API_choice) == "2":
-                    task = (
-                        validateFileUpload.s(
-                            csv_fp=tmp_file,
-                            validate_type="combi-custom-chem",
-                            project_info=project_info,
-                            validate_only=False,
-                        )
-                        | uploadCustomReaction.s()
-                    ).apply_async()
+            if str(API_choice) == "1":
+                task = (
+                    validateFileUpload.s(
+                        csv_fp=tmp_file,
+                        validate_type="custom-chem",
+                        project_info=project_info,
+                        validate_only=False,
+                    )
+                    | uploadCustomReaction.s()
+                ).apply_async()
+
+            if str(API_choice) == "2":
+                task = (
+                    validateFileUpload.s(
+                        csv_fp=tmp_file,
+                        validate_type="combi-custom-chem",
+                        project_info=project_info,
+                        validate_only=False,
+                    )
+                    | uploadCustomReaction.s()
+                ).apply_async()
 
         data = {"task_id": task.id}
         return JsonResponse(data=data)
-    
-    @action(detail=False, methods=['get'])
+
+    @action(detail=False, methods=["get"])
     def gettaskstatus(self, request, pk=None):
-        task_id = self.request.GET.get('task_id', None)
+        task_id = self.request.GET.get("task_id", None)
         if task_id:
-            task = AsyncResult(task_id)            
+            task = AsyncResult(task_id)
             if task.status == "FAILURE":
                 data = {"task_status": task.status, "traceback": str(task.traceback)}
                 return JsonResponse(data)
@@ -239,18 +269,37 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 validate_dict = results[0]
                 validated = results[1]
                 project_info = results[2]
-                project_id = project_info["project_id"]
 
-                if validated:
-                    data = {"task_status": task.status, "project_id": project_id}
-                    return JsonResponse(data)
+                if not project_info:
+                    if validated:
+                        data = {"task_status": task.status, "validated": True}
+                        return JsonResponse(data)
 
-                if not validated:
-                    errorsummary = json.dumps(validate_dict)
-                    data = {"task_status": task.status, "error_summary": errorsummary}
+                    if not validated:
+                        errorsummary = json.dumps(validate_dict)
+                        data = {
+                            "task_status": task.status,
+                            "validated": False,
+                            "validation_errors": errorsummary,
+                        }
+                        return JsonResponse(data)
 
-                    return JsonResponse(data)
-                
+                if project_info:
+                    project_id = project_info["project_id"]
+
+                    if validated:
+                        data = {"task_status": task.status, "project_id": project_id}
+                        return JsonResponse(data)
+
+                    if not validated:
+                        errorsummary = json.dumps(validate_dict)
+                        data = {
+                            "task_status": task.status,
+                            "validation_errors": errorsummary,
+                        }
+
+                        return JsonResponse(data)
+
             if task.status == "PENDING":
                 data = {"task_status": task.status}
                 return JsonResponse(data)
@@ -259,14 +308,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
 class MculeQuoteViewSet(viewsets.ModelViewSet):
     queryset = MculeQuote.objects.all()
     serializer_class = MculeQuoteSerializer
-    
+
 
 class BatchViewSet(viewsets.ModelViewSet):
     queryset = Batch.objects.all()
-    filterset_fields  = ["project_id"]
+    filterset_fields = ["project_id"]
 
     def get_serializer_class(self):
-        fetchall = self.request.GET.get('fetchall', None)
+        fetchall = self.request.GET.get("fetchall", None)
         return BatchSerializerAll if fetchall == "yes" else BatchSerializer
 
     def createBatch(self, project_obj, batch_node_obj, batch_tag):
@@ -280,14 +329,22 @@ class BatchViewSet(viewsets.ModelViewSet):
     def create(self, request, **kwargs):
         method_ids = request.data["methodids"]
         batch_tag = request.data["batchtag"]
-        try: 
-            target_query_set = Target.objects.filter(methods__id__in=method_ids).distinct()
+        try:
+            target_query_set = Target.objects.filter(
+                methods__id__in=method_ids
+            ).distinct()
             batch_obj = target_query_set[0].batch_id
             project_obj = batch_obj.project_id
-            batch_obj_new = self.createBatch(project_obj=project_obj, batch_node_obj=batch_obj, batch_tag=batch_tag)
+            batch_obj_new = self.createBatch(
+                project_obj=project_obj, batch_node_obj=batch_obj, batch_tag=batch_tag
+            )
             for target_obj in target_query_set:
-                method_query_set_to_clone = Method.objects.filter(target_id=target_obj).filter(pk__in=method_ids)
-                target_obj_clone = duplicatetarget(target_obj=target_obj, fk_obj=batch_obj_new)
+                method_query_set_to_clone = Method.objects.filter(
+                    target_id=target_obj
+                ).filter(pk__in=method_ids)
+                target_obj_clone = duplicatetarget(
+                    target_obj=target_obj, fk_obj=batch_obj_new
+                )
                 for method_obj in method_query_set_to_clone:
                     duplicatemethod(method_obj=method_obj, fk_obj=target_obj_clone)
             serialized_data = BatchSerializer(batch_obj_new).data
@@ -298,7 +355,7 @@ class BatchViewSet(viewsets.ModelViewSet):
         except:
             return JsonResponse(data="Something went wrong")
 
-    @action(methods=['post'], detail=False)
+    @action(methods=["post"], detail=False)
     def canonicalizesmiles(self, request, pk=None):
         check_services()
         if request.POST.get("smiles"):
@@ -312,13 +369,12 @@ class BatchViewSet(viewsets.ModelViewSet):
             task = canonicalizeSmiles.delay(csvfile=tmp_file)
             data = {"task_id": task.id}
             return JsonResponse(data=data)
-        
-    
-    @action(detail=False, methods=['get'])
+
+    @action(detail=False, methods=["get"])
     def gettaskstatus(self, request, pk=None):
-        task_id = self.request.GET.get('task_id', None)
+        task_id = self.request.GET.get("task_id", None)
         if task_id:
-            task = AsyncResult(task_id)            
+            task = AsyncResult(task_id)
             if task.status == "FAILURE":
                 data = {"task_status": task.status, "traceback": str(task.traceback)}
                 return JsonResponse(data)
@@ -329,18 +385,21 @@ class BatchViewSet(viewsets.ModelViewSet):
 
                 if validated:
                     canonicalizedsmiles = result[1]
-                    data = {"task_status": task.status, "canonicalizedsmiles": canonicalizedsmiles}
+                    data = {
+                        "task_status": task.status,
+                        "canonicalizedsmiles": canonicalizedsmiles,
+                    }
                     return JsonResponse(data)
                 if not validated:
                     error_summary = result[1]
                     data = {"task_status": task.status, "error_summary": error_summary}
                     return JsonResponse(data)
-                    
+
             if task.status == "PENDING":
                 data = {"task_status": task.status}
                 return JsonResponse(data)
 
-    @action(methods=['post'], detail=False)
+    @action(methods=["post"], detail=False)
     def updatereactionsuccess(self, request, pk=None):
         if request.POST.get("reaction_ids"):
             reaction_ids = request.POST.getlist("reaction_ids")
@@ -355,20 +414,13 @@ class BatchViewSet(viewsets.ModelViewSet):
         return JsonResponse(data=data)
 
 
-def updatereactionsuccess(reaction_ids: list):
-    """Update reaction success using list of reaction ids
-    """
-    
-    reaction_objs = Reaction.objects.filter()
-
 class TargetViewSet(viewsets.ModelViewSet):
     queryset = Target.objects.all()
-    filterset_fields  = ["batch_id"]
+    filterset_fields = ["batch_id"]
 
     def get_serializer_class(self):
-        fetchall = self.request.GET.get('fetchall', None)
+        fetchall = self.request.GET.get("fetchall", None)
         return TargetSerializerAll if fetchall == "yes" else TargetSerializer
-    
 
 
 class MethodViewSet(viewsets.ModelViewSet):
@@ -376,34 +428,38 @@ class MethodViewSet(viewsets.ModelViewSet):
     filterset_fields = ["target_id", "nosteps"]
 
     def get_serializer_class(self):
-        fetchall = self.request.GET.get('fetchall', None)
+        fetchall = self.request.GET.get("fetchall", None)
         return MethodSerializerAll if fetchall == "yes" else MethodSerializer
 
 
 class ReactionViewSet(viewsets.ModelViewSet):
     queryset = Reaction.objects.all()
-    filterset_fields = {"method_id":["exact"] ,"successrate": ["gte", "lte"]}
+    filterset_fields = {"method_id": ["exact"], "successrate": ["gte", "lte"]}
 
     def get_serializer_class(self):
-        fetchall = self.request.GET.get('fetchall', None)
+        fetchall = self.request.GET.get("fetchall", None)
         return ReactionSerializerAll if fetchall == "yes" else ReactionSerializer
+
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    filterset_fields  = ["reaction_id"]
+    filterset_fields = ["reaction_id"]
+
 
 class ReactantViewSet(viewsets.ModelViewSet):
     queryset = Reactant.objects.all()
     filterset_fields = ["reaction_id"]
 
     def get_serializer_class(self):
-        fetchall = self.request.GET.get('fetchall', None)
+        fetchall = self.request.GET.get("fetchall", None)
         return ReactantSerializerAll if fetchall == "yes" else ReactantSerializer
+
 
 class CatalogEntryViewSet(viewsets.ModelViewSet):
     queryset = CatalogEntry.objects.all()
     serializer_class = CatalogEntrySerializer
+
 
 # Action viewsets
 class AnalyseActionViewSet(viewsets.ModelViewSet):
@@ -415,7 +471,7 @@ class AnalyseActionViewSet(viewsets.ModelViewSet):
 class AddActionViewSet(viewsets.ModelViewSet):
     queryset = AddAction.objects.all()
     serializer_class = AddActionSerializer
-    filterset_fields  = ["reaction_id"]
+    filterset_fields = ["reaction_id"]
 
     def get_patch_object(self, pk):
         return AddAction.objects.get(pk=pk)
@@ -454,7 +510,6 @@ class AddActionViewSet(viewsets.ModelViewSet):
                 return JsonResponse(data="wrong parameters")
 
 
-
 class ExtractActionViewSet(viewsets.ModelViewSet):
     queryset = ExtractAction.objects.all()
     serializer_class = ExtractActionSerializer
@@ -491,29 +546,34 @@ class OTProtocolViewSet(viewsets.ModelViewSet):
     serializer_class = OTProtocolSerializer
     filterset_fields = ["project_id"]
 
-    @action(methods=['post'], detail=False)
+    @action(methods=["post"], detail=False)
     def createotprotocol(self, request, pk=None):
         check_services()
         batch_ids = request.data["batchids"]
         protocol_name = request.data["protocol_name"]
+        print(batch_ids)
         task = createOTScript.delay(batchids=batch_ids, protocol_name=protocol_name)
         data = {"task_id": task.id}
         return JsonResponse(data=data)
-    
-    @action(detail=False, methods=['get'])
+
+    @action(detail=False, methods=["get"])
     def gettaskstatus(self, request, pk=None):
-        task_id = self.request.GET.get('task_id', None)
+        task_id = self.request.GET.get("task_id", None)
         if task_id:
-            task = AsyncResult(task_id)            
+            task = AsyncResult(task_id)
             if task.status == "FAILURE":
                 data = {"task_status": task.status, "traceback": str(task.traceback)}
                 return JsonResponse(data)
 
             if task.status == "SUCCESS":
                 task_summary, otprotocol_id = task.get()
-                data = {"task_status": task.status, "otprotocol_id": otprotocol_id, "task_summary": task_summary}
+                data = {
+                    "task_status": task.status,
+                    "otprotocol_id": otprotocol_id,
+                    "task_summary": task_summary,
+                }
                 return JsonResponse(data)
-                
+
             if task.status == "PENDING":
                 data = {"task_status": task.status}
                 return JsonResponse(data)
@@ -523,12 +583,13 @@ class OTBatchProtocolViewSet(viewsets.ModelViewSet):
     queryset = OTBatchProtocol.objects.all()
     serializer_class = OTBatchProtocolSerializer
     filterset_fields = ["otprotocol_id", "batch_id", "celery_task_id"]
-    
+
 
 class OTSessionViewSet(viewsets.ModelViewSet):
     queryset = OTSession.objects.all()
     serializer_class = OTSessionSerializer
     filterset_fields = ["otbatchprotocol_id"]
+
 
 class DeckViewSet(viewsets.ModelViewSet):
     queryset = Deck.objects.all()

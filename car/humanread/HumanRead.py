@@ -11,7 +11,12 @@ now = datetime.now()
 
 class HumanReadable:
     def __init__(
-        self, filepath, protocolName=None, author=None, description=None, fileFormat=["md"]
+        self,
+        filepath,
+        protocolName=None,
+        author=None,
+        description=None,
+        fileFormat=["md"],
     ):
         self.dirsetup(path="../output/protocols")
         self.filepath = "../output/protocols/example.md"
@@ -86,9 +91,9 @@ class HumanReadable:
                 uniquename = (str("plate_" + str(plate.plateIndex))).replace(" ", "")
             else:
                 if plate.platetype == "Plate":
-                    uniquename = str(str(plate.plateName) + "_" + str(plate.plateIndex)).replace(
-                        " ", ""
-                    )
+                    uniquename = str(
+                        str(plate.plateName) + "_" + str(plate.plateIndex)
+                    ).replace(" ", "")
 
                     uniquename = plate.plateName  # debug line
                 else:
@@ -131,12 +136,23 @@ class HumanReadable:
             os.makedirs(path)
 
     def movefluids(
-        self, pipetteName, fromAdress, toAdress, volume, dispenseVolume=None, writetoscript=True
+        self,
+        pipetteName,
+        fromAdress,
+        toAdress,
+        volume,
+        dispenseVolume=None,
+        writetoscript=True,
     ):
         if dispenseVolume == None:
             dispenseVolume = volume
             humanread = (
-                "move - " + str(volume) + "ul from " + str(fromAdress) + " to " + str(toAdress)
+                "move - "
+                + str(volume)
+                + "ul from "
+                + str(fromAdress)
+                + " to "
+                + str(toAdress)
             )
         else:
             humanread = (
@@ -155,8 +171,18 @@ class HumanReadable:
         moveCommands = [
             "\n\t# " + str(humanread),
             str(pipetteName) + ".pick_up_tip()",
-            str(pipetteName) + ".aspirate(" + str(volume) + ", " + str(fromAdress) + ")",
-            str(pipetteName) + ".dispense(" + str(dispenseVolume) + ", " + str(toAdress) + ")",
+            str(pipetteName)
+            + ".aspirate("
+            + str(volume)
+            + ", "
+            + str(fromAdress)
+            + ")",
+            str(pipetteName)
+            + ".dispense("
+            + str(dispenseVolume)
+            + ", "
+            + str(toAdress)
+            + ")",
             str(pipetteName) + ".drop_tip()",
         ]
         if writetoscript is True:

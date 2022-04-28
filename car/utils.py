@@ -36,7 +36,9 @@ def combichem(reactant_1_SMILES: list, reactant_2_SMILES: list):
                            between reactat 1 and reactant two lists
                            as a list of tuples
     """
-    all_possible_combinations = list(itertools.product(reactant_1_SMILES, reactant_2_SMILES))
+    all_possible_combinations = list(
+        itertools.product(reactant_1_SMILES, reactant_2_SMILES)
+    )
 
     return all_possible_combinations
 
@@ -49,7 +51,9 @@ def convertIBMNameToSmiles(chemical_name):
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        url = "https://rxn.res.ibm.com/rxn/api/api/v1/actions/convert-material-to-smiles"
+        url = (
+            "https://rxn.res.ibm.com/rxn/api/api/v1/actions/convert-material-to-smiles"
+        )
         r = requests.post(url=url, data=json.dumps(data), headers=headers, cookies={})
         response_dict = r.json()
         smiles = response_dict["payload"][chemical_name]

@@ -9,7 +9,17 @@ from statistics import mean
 from .mcule.apicalls import MCuleAPI
 
 # Import standard models
-from .models import Project, Batch, Target, Method, Reaction, Product, Reactant, CatalogEntry, MculeQuote
+from .models import (
+    Project,
+    Batch,
+    Target,
+    Method,
+    Reaction,
+    Product,
+    Reactant,
+    CatalogEntry,
+    MculeQuote,
+)
 
 # Import action models
 from .models import (
@@ -34,6 +44,7 @@ def createProjectModel(project_info):
     project.save()
     return project.id, project.name
 
+
 def createBatchModel(project_id, batch_tag, batch_id=None):
     batch = Batch()
     project_obj = Project.objects.get(id=project_id)
@@ -43,7 +54,7 @@ def createBatchModel(project_id, batch_tag, batch_id=None):
         batch.batch_id = fk_batch_obj
     batch.batch_tag = batch_tag
     batch.save()
-    return batch.id 
+    return batch.id
 
 
 def createTargetModel(batch_id, smiles, target_mass):
@@ -84,7 +95,9 @@ def createMethodModel(target_id, nosteps, otchem):
     return method.id
 
 
-def createReactionModel(method_id, reaction_class, reaction_smarts, reaction_temperature=None):
+def createReactionModel(
+    method_id, reaction_class, reaction_smarts, reaction_temperature=None
+):
     reaction = Reaction()
     method_obj = Method.objects.get(id=method_id)
     reaction.method_id = method_obj
@@ -114,6 +127,7 @@ def createProductModel(reaction_id, project_name, batch_tag, product_smiles):
     product.image = product_svg_fn
     product.save()
 
+
 def createReactantModel(reaction_id, reactant_smiles):
     reactant = Reactant()
     reaction_obj = Reaction.objects.get(id=reaction_id)
@@ -121,6 +135,7 @@ def createReactantModel(reaction_id, reactant_smiles):
     reactant.smiles = reactant_smiles
     reactant.save()
     return reactant.id
+
 
 def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
     catalogentry = CatalogEntry()
@@ -136,28 +151,33 @@ def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
 
     if catalog_entry["catalogName"] == "generic":
         catalogentry.price = 0
-        catalogentry.leadtime = 0 
-    
+        catalogentry.leadtime = 0
+
     if catalog_entry["purchaseInfo"]["isScreening"]:
         if catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"] != "unknown":
             catalogentry.leadtime = catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"]
         else:
             catalogentry.leadtime = None
-        if catalog_entry["purchaseInfo"]["scrPriceRange"] != "unknown":    
+        if catalog_entry["purchaseInfo"]["scrPriceRange"] != "unknown":
             priceinfo = catalog_entry["purchaseInfo"]["scrPriceRange"]
             catalogentry.priceinfo = priceinfo
-            priceinfo = priceinfo.replace(" ","")
-            # Check type of range is less than or given range                
+            priceinfo = priceinfo.replace(" ", "")
+            # Check type of range is less than or given range
             if priceinfo[0] == "<" or priceinfo[0] == ">":
                 if "k" in priceinfo:
-                    upperprice = int(''.join(filter(str.isdigit, priceinfo))) * 1000
-                else: 
-                    upperprice = int(''.join(filter(str.isdigit, priceinfo))) 
+                    upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
+                else:
+                    upperprice = int("".join(filter(str.isdigit, priceinfo)))
             if priceinfo[0] == "$":
                 if "k" in priceinfo:
-                    upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1]))) * 1000
-                else: 
-                    upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1])))
+                    upperprice = (
+                        int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
+                        * 1000
+                    )
+                else:
+                    upperprice = int(
+                        "".join(filter(str.isdigit, priceinfo.split("-")[1]))
+                    )
             catalogentry.upperprice = upperprice
         else:
             catalogentry.price = None
@@ -167,25 +187,31 @@ def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
             catalogentry.leadtime = catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"]
         else:
             catalogentry.leadtime = None
-        if catalog_entry["purchaseInfo"]["bbPriceRange"] != "unknown":    
+        if catalog_entry["purchaseInfo"]["bbPriceRange"] != "unknown":
             priceinfo = catalog_entry["purchaseInfo"]["bbPriceRange"]
             catalogentry.priceinfo = priceinfo
-            priceinfo = priceinfo.replace(" ","")
+            priceinfo = priceinfo.replace(" ", "")
             # Check type of range is less than or given range
             if priceinfo[0] == "<" or priceinfo[0] == ">":
                 if "k" in priceinfo:
-                    upperprice = int(''.join(filter(str.isdigit, priceinfo))) * 1000
-                else: 
-                    upperprice = int(''.join(filter(str.isdigit, priceinfo))) 
+                    upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
+                else:
+                    upperprice = int("".join(filter(str.isdigit, priceinfo)))
             if priceinfo[0] == "$":
                 if "k" in priceinfo:
-                    upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1]))) * 1000
+                    upperprice = (
+                        int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
+                        * 1000
+                    )
                 else:
-                    upperprice = int(''.join(filter(str.isdigit, priceinfo.split("-")[1])))                    
+                    upperprice = int(
+                        "".join(filter(str.isdigit, priceinfo.split("-")[1]))
+                    )
             catalogentry.upperprice = upperprice
         else:
-            catalogentry.price = None   
+            catalogentry.price = None
     catalogentry.save()
+
 
 class CreateEncodedActionModels(object):
     """
@@ -229,7 +255,7 @@ class CreateEncodedActionModels(object):
             "add": self.createAddActionModel,
             "analyse": self.createAnalyseActionModel,
             "extract": self.createExtractActionModel,
-            "filter": self.createFilterActionModel, 
+            "filter": self.createFilterActionModel,
             "quench": self.createQuenchActionModel,
             "set-temperature": self.createSetTemperatureActionModel,
             "stir": self.createStirActionModel,
@@ -269,14 +295,13 @@ class CreateEncodedActionModels(object):
         mol_material = molar_eqv * self.target_mols
         mass_material = (mol_material / reactant_MW) * 1e6
         return mass_material
-    
+
     def createAnalyseActionModel(self):
         analyse = AnalyseAction()
         analyse.reaction_id = self.reaction_obj
         analyse.actiontype = "analyse"
         analyse.actionno = self.action_no
         analyse.save()
-
 
     def createAddActionModel(self, action_type, action):
         try:
@@ -324,7 +349,9 @@ class CreateEncodedActionModels(object):
             add.molecularweight = molecular_weight
             add_svg_string = createSVGString(reactant_SMILES)
             add_svg_fn = default_storage.save(
-                "addactionimages/{}-{}-{}.svg".format(self.reaction_id, action_no, material),
+                "addactionimages/{}-{}-{}.svg".format(
+                    self.reaction_id, action_no, material
+                ),
                 ContentFile(add_svg_string),
             )
             add.materialimage = add_svg_fn  # need material (common name)
@@ -333,7 +360,9 @@ class CreateEncodedActionModels(object):
             if not solvent:
                 reactant_density = action["content"]["material"]["density"]
                 add.materialquantity = self.calculateVolume(
-                    molar_eqv=molar_eqv, reactant_density=reactant_density, reactant_MW=reactant_MW
+                    molar_eqv=molar_eqv,
+                    reactant_density=reactant_density,
+                    reactant_MW=reactant_MW,
                 )
 
             if solvent:
@@ -348,7 +377,6 @@ class CreateEncodedActionModels(object):
         except Exception as error:
             print(error)
             print(action)
-
 
     def createExtractActionModel(self, action_type, action):
         try:
@@ -376,15 +404,21 @@ class CreateEncodedActionModels(object):
         try:
             phasetokeep = action["content"]["phase_to_keep"]["value"]
             rinsingsolvent = action["content"]["rinsing_solvent"]["value"]
-            rinsingsolventquantity = action["content"]["rinsing_solvent"]["quantity"]["value"]
-            rinsingsolventquantityunit = action["content"]["rinsing_solvent"]["quantity"]["unit"]
-            extractionforprecipitatesolvent = action["content"]["extraction_solvent"]["value"]
-            extractionforprecipitatesolventquantity = action["content"]["extraction_solvent"][
-                "quantity"
-            ]["value"]
-            extractionforprecipitatesolventquantityunit = action["content"]["extraction_solvent"][
+            rinsingsolventquantity = action["content"]["rinsing_solvent"]["quantity"][
+                "value"
+            ]
+            rinsingsolventquantityunit = action["content"]["rinsing_solvent"][
                 "quantity"
             ]["unit"]
+            extractionforprecipitatesolvent = action["content"]["extraction_solvent"][
+                "value"
+            ]
+            extractionforprecipitatesolventquantity = action["content"][
+                "extraction_solvent"
+            ]["quantity"]["value"]
+            extractionforprecipitatesolventquantityunit = action["content"][
+                "extraction_solvent"
+            ]["quantity"]["unit"]
 
             filteraction = FilterAction()
             filteraction.reaction_id = self.reaction_obj
@@ -394,7 +428,9 @@ class CreateEncodedActionModels(object):
             filteraction.rinsingsolvent = rinsingsolvent
             filteraction.rinsingsolventquantity = rinsingsolventquantity
             filteraction.rinsingsolventquantityunit = rinsingsolventquantityunit
-            filteraction.extractionforprecipitatesolvent = extractionforprecipitatesolvent
+            filteraction.extractionforprecipitatesolvent = (
+                extractionforprecipitatesolvent
+            )
             filteraction.extractionforprecipitatesolventquantity = (
                 extractionforprecipitatesolventquantity
             )
@@ -407,7 +443,6 @@ class CreateEncodedActionModels(object):
             print(action_type)
             print(error)
             print(action)
-
 
     def createQuenchActionModel(self, action_type, action):
         try:
@@ -434,7 +469,6 @@ class CreateEncodedActionModels(object):
             print(error)
             print(action)
 
-  
     def createSetTemperatureActionModel(self, action_type, action):
         try:
             temperature = action["content"]["temperature"]["value"]
@@ -450,7 +484,6 @@ class CreateEncodedActionModels(object):
             print(action_type)
             print(error)
             print(action)
-
 
     def createStirActionModel(self, action_type, action):
         try:

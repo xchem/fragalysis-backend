@@ -13,5 +13,7 @@ class UploadForm(forms.Form):
     submitter_organisation = forms.CharField(label="Your organisation", max_length=100)
     submitter_email = forms.EmailField(label="Your email")
     csv_file = forms.FileField(label="CSV file")
-    validate_choice = forms.CharField(widget=forms.RadioSelect(choices=validate_CHOICES))
+    validate_choice = forms.CharField(
+        widget=forms.RadioSelect(choices=validate_CHOICES)
+    )
     API_choice = forms.CharField(widget=forms.RadioSelect(choices=API_CHOICES))
