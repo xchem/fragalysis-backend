@@ -382,10 +382,11 @@ class Well(models.Model):
     wellindex = models.IntegerField()
     volume = models.FloatField(null=True)
     smiles = models.CharField(max_length=255, null=True)
-    concentration = models.FloatField(null=True, blank=True)
+    concentration = models.FloatField(null=True)
     solvent = models.CharField(max_length=255, null=True)
     reactantfornextstep = models.BooleanField(default=False)
     available = models.BooleanField(default=True)
+    fordilution = models.BooleanField(default=False)
 
 
 class CompoundOrder(models.Model):
@@ -400,3 +401,10 @@ class OTScript(models.Model):
         OTSession, related_name="otscripts", on_delete=models.CASCADE
     )
     otscript = models.FileField(upload_to="otscripts/", max_length=255)
+
+
+class SolventPrep(models.Model):
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="solventpreps", on_delete=models.CASCADE
+    )
+    solventprepcsv = models.FileField(upload_to="solventprep/", max_length=255)
