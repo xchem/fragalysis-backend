@@ -519,7 +519,6 @@ def getBatchReactions(batchid):
         return allreactionquerysets
 
 
-
 def findmaxlist(allreactionquerysets: list):
     maxlength = max([len(i) for i in allreactionquerysets])
     return maxlength
@@ -570,21 +569,25 @@ class ZipOTBatchProtocol(object):
             )
             otscriptqueryset = self.getOTScriptQuerySet(otsessionobj=otsession_obj)
 
-        if solventprepqueryset:
-            for solventprepobj in solventprepqueryset:
-                filepath = self.getSolventPrepFilePath(solventprepobj=solventprepobj)
-                destdir = "solventprep"
+            if solventprepqueryset:
+                for solventprepobj in solventprepqueryset:
+                    filepath = self.getSolventPrepFilePath(
+                        solventprepobj=solventprepobj
+                    )
+                    destdir = "solventprep"
+                    self.writeZip(destdir=destdir, filepath=filepath)
+
+            for compoundorderobj in compoundorderqueryset:
+                filepath = self.getCompoundOrderFilePath(
+                    compoundorderobj=compoundorderobj
+                )
+                destdir = "compoundorders"
                 self.writeZip(destdir=destdir, filepath=filepath)
 
-        for compoundorderobj in compoundorderqueryset:
-            filepath = self.getCompoundOrderFilePath(compoundorderobj=compoundorderobj)
-            destdir = "compoundorders"
-            self.writeZip(destdir=destdir, filepath=filepath)
-
-        for otscriptobj in otscriptqueryset:
-            filepath = self.getOTScriptFilePath(otscriptobj=otscriptobj)
-            destdir = "otscripts"
-            self.writeZip(destdir=destdir, filepath=filepath)
+            for otscriptobj in otscriptqueryset:
+                filepath = self.getOTScriptFilePath(otscriptobj=otscriptobj)
+                destdir = "otscripts"
+                self.writeZip(destdir=destdir, filepath=filepath)
 
         self.ziparchive.close()
         self.writeZipToMedia()

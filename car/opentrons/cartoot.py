@@ -6,6 +6,8 @@ from django.core.files.base import ContentFile
 from statistics import median
 from graphene_django import DjangoObjectType
 
+from rdkit import Chem
+from rdkit.Chem import Descriptors
 import pandas as pd
 from pandas.core.frame import DataFrame
 
@@ -32,7 +34,7 @@ from .labwareavailable import labware_plates
 class CreateOTSession(object):
     """
     Creates a StartOTSession object for generating a protocol
-    from actions for reactionqueryset
+    from actions for reactionqueryset for executing reactions
     """
 
     def __init__(
@@ -593,14 +595,21 @@ class CreateOTSession(object):
         wellobj.save()
         return wellobj
 
+    def calcMass(self, row):
+        mols = row["concentration"] * row["amount-ul"] * 1e-6
+        smiles = row["SMILES"]
+        mw = Descriptors.ExactMolWt(Chem.MolFromSmiles(smiles))
+        massmg = mols * mw * 1e3
+        return round(massmg, 2)
+
     def createCompoundOrderModel(self, orderdf):
         compoundorderobj = CompoundOrder()
         compoundorderobj.otsession_id = self.otsessionobj
         csvdata = orderdf.to_csv(encoding="utf-8", index=False)
         ordercsv = default_storage.save(
             "compoundorders/"
-            + "starterplate-for-batch-{}-sessionid-{}".format(
-                self.batchobj.batch_tag, str(self.otsessionobj.id)
+            + "starterplate-for-batch-{}-reactionstep-{}-sessionid-{}".format(
+                self.batchobj.batch_tag, self.reactionstep, str(self.otsessionobj.id)
             )
             + ".csv",
             ContentFile(csvdata),
@@ -614,8 +623,8 @@ class CreateOTSession(object):
         csvdata = solventdf.to_csv(encoding="utf-8", index=False)
         ordercsv = default_storage.save(
             "solventprep/"
-            + "solventplate-for-batch-{}-sessionid-{}".format(
-                self.batchobj.batch_tag, str(self.otsessionobj.id)
+            + "solventplate-for-batch-{}-reactionstep-{}-sessionid-{}".format(
+                self.batchobj.batch_tag, self.reactionstep, str(self.otsessionobj.id)
             )
             + ".csv",
             ContentFile(csvdata),
@@ -653,7 +662,6 @@ class CreateOTSession(object):
             return False
 
     def createStartingPlate(self):
-        # Can we do this in Django queries and aggregation instead?
         startingmaterialsdf = self.getMaterialsDataFrame(productexists=False)
 
         startinglabwareplatetype = self.getStarterPlateType(
@@ -707,12 +715,12 @@ class CreateOTSession(object):
 
                     orderdictslist.append(
                         {
-                            "material": startingmaterialsdf.at[i, "material"],
+                            "SMILES": startingmaterialsdf.at[i, "materialsmiles"],
                             "platename": plateobj.platename,
                             "well": wellobj.wellindex,
                             "concentration": startingmaterialsdf.at[i, "concentration"],
                             "solvent": startingmaterialsdf.at[i, "solvent"],
-                            "amount-ul": volumetoadd,
+                            "amount-ul": round(volumetoadd, 2),
                         }
                     )
 
@@ -742,16 +750,17 @@ class CreateOTSession(object):
 
                 orderdictslist.append(
                     {
-                        "material": startingmaterialsdf.at[i, "material"],
+                        "SMILES": startingmaterialsdf.at[i, "materialsmiles"],
                         "platename": plateobj.platename,
                         "well": wellobj.wellindex,
                         "concentration": startingmaterialsdf.at[i, "concentration"],
                         "solvent": startingmaterialsdf.at[i, "solvent"],
-                        "amount-ul": volumetoadd,
+                        "amount-ul": round(volumetoadd, 2),
                     }
                 )
 
         orderdf = pd.DataFrame(orderdictslist)
+        orderdf["mass-mg"] = orderdf.apply(lambda row: self.calcMass(row), axis=1)
 
         self.createCompoundOrderModel(orderdf=orderdf)
 
