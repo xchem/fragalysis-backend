@@ -18,6 +18,7 @@ from car.models import (
     OTSession,
     Deck,
     Plate,
+    SolventPrep,
     Well,
     Pipette,
     TipRack,
@@ -109,16 +110,6 @@ class CreateOTSession(object):
                 )
                 if wellmatchqueryset:
                     inputplatesneeded.append(inputplateobj)
-                    # for reactionobj in self.reactiongroupqueryset:
-                    #     addactionsqueryset = self.getAddActions(reaction_id=reactionobj.id)
-                    #     for addaction in addactionsqueryset:
-                    #         wellmatchreaction = wellmatchqueryset.filter(smiles=addaction.materialsmiles)
-                    #         print(wellmatchreaction)
-                    #         if wellmatchreaction:
-                    #             inputplatesneeded.append(inputplateobj)
-                    #             break
-                    #         else:
-                    #             pass
         return inputplatesneeded
 
     def getOTsessions(self):
@@ -159,13 +150,16 @@ class CreateOTSession(object):
         prevreactionqueryset = self.getPreviousObjEntries(
             queryset=reactionqueryset, obj=reactionobj
         )
+        productmatches = []
         if prevreactionqueryset:
             for reactionobj in prevreactionqueryset:
                 productobj = self.getProduct(reaction_id=reactionobj)
                 if productobj.smiles == smiles:
-                    return True
-                else:
-                    return False
+                    productmatches.append(productobj)
+            if productmatches:
+                return True
+            else:
+                return False
         else:
             return False
 
@@ -491,7 +485,6 @@ class CreateOTSession(object):
                 "concentration": "first",
             }
         )
-
         materialsdf["productexists"] = materialsdf.apply(
             lambda row: self.checkPreviousReactionProducts(
                 reaction_id=row["reaction_id_id"], smiles=row["materialsmiles"]
@@ -575,30 +568,28 @@ class CreateOTSession(object):
     def createWellModel(
         self,
         plateobj,
-        reactionobj,
         wellindex,
-        volume,
-        smiles,
-        concentration,
+        volume=None,
+        reactionobj=None,
+        smiles=None,
+        concentration=None,
         solvent=None,
-        reactantfornextstep=None,
-        mculeid=None,
+        reactantfornextstep=False,
+        fordilution=False,
     ):
         wellobj = Well()
         wellobj.otsession_id = self.otsessionobj
         wellobj.plate_id = plateobj
-        wellobj.reaction_id = reactionobj
-        wellobj.method_id = reactionobj.method_id
+        if reactionobj:
+            wellobj.reaction_id = reactionobj
+            wellobj.method_id = reactionobj.method_id
         wellobj.wellindex = wellindex
         wellobj.volume = volume
         wellobj.smiles = smiles
         wellobj.concentration = concentration
-        if solvent:
-            wellobj.solvent = solvent
-        if mculeid:
-            wellobj.mculeid = mculeid
-        if reactantfornextstep:
-            wellobj.reactantfornextstep = reactantfornextstep
+        wellobj.solvent = solvent
+        wellobj.reactantfornextstep = reactantfornextstep
+        wellobj.fordilution = fordilution
         wellobj.save()
         return wellobj
 
@@ -616,6 +607,21 @@ class CreateOTSession(object):
         )
         compoundorderobj.ordercsv = ordercsv
         compoundorderobj.save()
+
+    def createSolventPrepModel(self, solventdf):
+        solventprepobj = SolventPrep()
+        solventprepobj.otsession_id = self.otsessionobj
+        csvdata = solventdf.to_csv(encoding="utf-8", index=False)
+        ordercsv = default_storage.save(
+            "solventprep/"
+            + "solventplate-for-batch-{}-sessionid-{}".format(
+                self.batchobj.batch_tag, str(self.otsessionobj.id)
+            )
+            + ".csv",
+            ContentFile(csvdata),
+        )
+        solventprepobj.solventprepcsv = ordercsv
+        solventprepobj.save()
 
     def createTipRacks(self):
         numberacks = int(-(-self.numbertips // 96))
@@ -697,7 +703,6 @@ class CreateOTSession(object):
                         smiles=startingmaterialsdf.at[i, "materialsmiles"],
                         concentration=startingmaterialsdf.at[i, "concentration"],
                         solvent=startingmaterialsdf.at[i, "solvent"],
-                        mculeid=startingmaterialsdf.at[i, "mculeid"],
                     )
 
                     orderdictslist.append(
@@ -786,7 +791,6 @@ class CreateOTSession(object):
                         concentration=nextaddactionobj.concentration,
                         solvent=nextaddactionobj.solvent,
                         reactantfornextstep=True,
-                        mculeid=None,
                     )
 
                 else:
@@ -794,11 +798,7 @@ class CreateOTSession(object):
                         plateobj=plateobj,
                         reactionobj=reactionobj,
                         wellindex=indexwellavailable - 1,
-                        volume=None,
                         smiles=productobj.smiles,
-                        concentration=None,
-                        solvent=None,
-                        mculeid=None,
                     )
 
     def combinestrings(self, row):
@@ -832,14 +832,6 @@ class CreateOTSession(object):
 
     def cloneInputWells(self, clonewellqueryset, plateobj):
         for clonewellobj in clonewellqueryset:
-            # nextaddactionobj = self.checkNextReactionsAddActions(
-            #     reactionobj=clonewellobj.reaction_id, smiles=clonewellobj.smiles
-            # )
-            # if nextaddactionobj:
-            #     clonewellobj.volume = nextaddactionobj.materialquantity
-            #     clonewellobj.concentration = nextaddactionobj.concentration
-            #     clonewellobj.solvent = nextaddactionobj.solvent
-            #     clonewellobj.reactantfornextstep = True
             clonewellobj.pk = None
             clonewellobj.plate_id = plateobj
             clonewellobj.otsession_id = self.otsessionobj
@@ -851,7 +843,10 @@ class CreateOTSession(object):
         """
         materialsdf = self.getMaterialsDataFrame(productexists=True)
         if not materialsdf.empty:
-            materialsdf = materialsdf.groupby("solvent").sum()
+            solventdictslist = []
+            materialsdf = (
+                materialsdf.groupby(["solvent"])["materialquantity"].sum().to_frame()
+            )
 
             startinglabwareplatetype = self.getStarterPlateType(
                 startingmaterialsdf=materialsdf
@@ -864,8 +859,9 @@ class CreateOTSession(object):
             maxwellvolume = self.getMaxWellVolume(plateobj=plateobj)
             deadvolume = self.getDeadVolume(maxwellvolume=maxwellvolume)
 
-            for i in materialsdf.index.values:
-                totalvolume = materialsdf.at[i, "materialquantity"]
+            for solventgroup in materialsdf.index.values:
+
+                totalvolume = materialsdf.at[solventgroup, "materialquantity"]
                 if totalvolume > maxwellvolume:
                     nowellsneededratio = totalvolume / (maxwellvolume - deadvolume)
 
@@ -888,11 +884,21 @@ class CreateOTSession(object):
                                 plateobj=plateobj
                             )
 
-                        self.createWellModel(
+                        wellobj = self.createWellModel(
                             plateobj=plateobj,
                             wellindex=indexwellavailable - 1,
                             volume=volumetoadd,
-                            solvent=materialsdf.at[i, "solvent"],
+                            solvent=solventgroup,
+                            fordilution=True,
+                        )
+
+                        solventdictslist.append(
+                            {
+                                "platename": plateobj.platename,
+                                "well": wellobj.wellindex,
+                                "solvent": solventgroup,
+                                "amount-ul": volumetoadd,
+                            }
                         )
 
                 else:
@@ -910,9 +916,23 @@ class CreateOTSession(object):
                             plateobj=plateobj
                         )
 
-                        self.createWellModel(
-                            plateobj=plateobj,
-                            wellindex=indexwellavailable - 1,
-                            volume=volumetoadd,
-                            solvent=materialsdf.at[i, "solvent"],
-                        )
+                    wellobj = self.createWellModel(
+                        plateobj=plateobj,
+                        wellindex=indexwellavailable - 1,
+                        volume=volumetoadd,
+                        solvent=solventgroup,
+                        fordilution=True,
+                    )
+
+                    solventdictslist.append(
+                        {
+                            "platename": plateobj.platename,
+                            "well": wellobj.wellindex,
+                            "solvent": solventgroup,
+                            "amount-ul": volumetoadd,
+                        }
+                    )
+
+            solventdf = pd.DataFrame(solventdictslist)
+
+            self.createSolventPrepModel(solventdf=solventdf)

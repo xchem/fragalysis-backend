@@ -10,6 +10,7 @@ import os
 
 from car.models import (
     Batch,
+    SolventPrep,
     Target,
     Method,
     Reaction,
@@ -558,13 +559,22 @@ class ZipOTBatchProtocol(object):
         self.zipfn = "batch-{}-protocol.zip".format(batchtag)
         self.ziptmpfp = os.path.join(settings.MEDIA_ROOT, "tmp", "batchprotocoltmp.zip")
         self.ziparchive = ZipFile(self.ziptmpfp, "w")
-        self.errors = {}
+        self.errors = {"function": [], "errorwarning": []}
 
         for otsession_obj in self.otsessionqueryset:
+            solventprepqueryset = self.getSolventPrepQuerySet(
+                otsessionobj=otsession_obj
+            )
             compoundorderqueryset = self.getCompoundOrderQuerySet(
                 otsessionobj=otsession_obj
             )
             otscriptqueryset = self.getOTScriptQuerySet(otsessionobj=otsession_obj)
+
+        if solventprepqueryset:
+            for solventprepobj in solventprepqueryset:
+                filepath = self.getSolventPrepFilePath(solventprepobj=solventprepobj)
+                destdir = "solventprep"
+                self.writeZip(destdir=destdir, filepath=filepath)
 
         for compoundorderobj in compoundorderqueryset:
             filepath = self.getCompoundOrderFilePath(compoundorderobj=compoundorderobj)
@@ -598,6 +608,22 @@ class ZipOTBatchProtocol(object):
         else:
             return otsessionqueryset
 
+    def getSolventPrepQuerySet(self, otsessionobj: DjangoObjectType):
+        """Retrieve SolventPrep model queryset
+        Args:
+            otsessionobj (Django obj): OTSession Django object
+        """
+        solventprepqueryset = SolventPrep.objects.filter(otsession_id=otsessionobj)
+
+        if not solventprepqueryset:
+            self.addWarning(
+                function=self.getSolventPrepQuerySet.__name__,
+                errorwarning="No queryset found",
+            )
+            return None
+        else:
+            return solventprepqueryset
+
     def getCompoundOrderQuerySet(self, otsessionobj: DjangoObjectType):
         """Retrieve CompoundOrder model queryset
         Args:
@@ -627,6 +653,14 @@ class ZipOTBatchProtocol(object):
             )
         else:
             return otscriptqueryset
+
+    def getSolventPrepFilePath(self, solventprepobj: DjangoObjectType):
+        """Retrieve SolventPrep csv file path
+        Args:
+            solventprepobj (Django obj): SolventPrep Django object
+        """
+        filepath = os.path.join(self.mediaroot, solventprepobj.solventprepcsv.name)
+        return filepath
 
     def getCompoundOrderFilePath(self, compoundorderobj: DjangoObjectType):
         """Retrieve CompoundOrder csv file path
