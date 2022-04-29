@@ -107,7 +107,7 @@ class otWrite(object):
         productobj = Product.objects.filter(reaction_id=reactionid)[0]
         return productobj.smiles
 
-    def getPreviousObjEntry(self, queryset: list, obj: Django_obj):
+    def getPreviousObjEntry(self, queryset: list, obj: DjangoObjectType):
         """Finds previous object relative to obj of queryset"""
         previousobj = queryset.filter(pk__lt=obj.pk).order_by("-pk").first()
         return previousobj
