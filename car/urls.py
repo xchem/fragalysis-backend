@@ -9,6 +9,7 @@ from .api import (
     TargetViewSet,
     MethodViewSet,
     ReactionViewSet,
+    PubChemInfoViewSet,
     ProductViewSet,
     ReactantViewSet,
     CatalogEntryViewSet,
@@ -46,6 +47,7 @@ router.register("api/mculequotes", MculeQuoteViewSet, "mculequotes")
 router.register("api/batches", BatchViewSet, "batches")
 router.register("api/targets", TargetViewSet, "targets")
 router.register("api/methods", MethodViewSet, "methods")
+router.register("api/pubcheminfo", PubChemInfoViewSet, "pubcheminfo")
 router.register("api/reactions", ReactionViewSet, "reactions")
 router.register("api/products", ProductViewSet, "products")
 router.register("api/reactants", ReactantViewSet, "reactants")

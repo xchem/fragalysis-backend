@@ -12,6 +12,7 @@ from .mcule.apicalls import MCuleAPI
 from .models import (
     Project,
     Batch,
+    PubChemInfo,
     Target,
     Method,
     Reaction,
@@ -32,7 +33,13 @@ from .models import (
     StirAction,
 )
 
-from .utils import calculateproductmols, createSVGString, createReactionSVGString
+from .utils import (
+    calculateproductmols,
+    createSVGString,
+    createReactionSVGString,
+    getPubChemCAS,
+    getPubChemCompound,
+)
 
 
 def createProjectModel(project_info):
@@ -114,12 +121,58 @@ def createReactionModel(
     return reaction.id
 
 
+def createPubChemInfoModel(compoundid: int, smiles: str, cas=None):
+    """Create PubChemInfo model"""
+    pubcheminfo = PubChemInfo()
+    pubcheminfo.smiles = smiles
+    if cas:
+        pubcheminfo.cas = cas
+    pubcheminfo.compoundid = compoundid
+    pubcheminfo.compoundsummarylink = (
+        "https://pubchem.ncbi.nlm.nih.gov/compound/{}".format(compoundid)
+    )
+    pubcheminfo.lcsslink = (
+        "https://pubchem.ncbi.nlm.nih.gov/compound/{}#datasheet=LCSS".format(compoundid)
+    )
+    pubcheminfo.save()
+    return pubcheminfo
+
+
+def getPubChemInfo(smiles: str):
+    """Searches if PubChemInfo object exists for smiles. If not checks if
+    an entry exists on PuBChem and creates a PubChemInfo DjangoObjectInstance
+    """
+    pubcheminfoqueryset = PubChemInfo.objects.filter(smiles=smiles)
+    if pubcheminfoqueryset:
+        pubcheminfo = pubcheminfoqueryset[0]
+        return pubcheminfo
+    else:
+        compound = getPubChemCompound(smiles=smiles)
+        if compound:
+            compoundid = compound.cid
+            cas = getPubChemCAS(compound=compound)
+            if cas:
+                pubcheminfo = createPubChemInfoModel(
+                    compoundid=compoundid, smiles=smiles, cas=cas
+                )
+            if not cas:
+                pubcheminfo = createPubChemInfoModel(
+                    compoundid=compoundid, smiles=smiles
+                )
+            return pubcheminfo
+        if not compound:
+            return False
+
+
 def createProductModel(reaction_id, project_name, batch_tag, product_smiles):
+    pubcheminfoobj = getPubChemInfo(smiles=product_smiles)
     product = Product()
     product.name = "{}-{}".format(project_name, batch_tag)
     reaction_obj = Reaction.objects.get(id=reaction_id)
     product.reaction_id = reaction_obj
     product.smiles = product_smiles
+    if pubcheminfoobj:
+        product.pubcheminfo_id = pubcheminfoobj
     product_svg_string = createSVGString(product_smiles)
     product_svg_fn = default_storage.save(
         "productimages/" + product.name + ".svg", ContentFile(product_svg_string)
@@ -129,10 +182,13 @@ def createProductModel(reaction_id, project_name, batch_tag, product_smiles):
 
 
 def createReactantModel(reaction_id, reactant_smiles):
+    pubcheminfoobj = getPubChemInfo(smiles=reactant_smiles)
     reactant = Reactant()
     reaction_obj = Reaction.objects.get(id=reaction_id)
     reactant.reaction_id = reaction_obj
     reactant.smiles = reactant_smiles
+    if pubcheminfoobj:
+        reactant.pubcheminfo_id = pubcheminfoobj
     reactant.save()
     return reactant.id
 
@@ -308,7 +364,6 @@ class CreateEncodedActionModels(object):
             if action["content"]["material"]["SMARTS"]:
                 reactant_SMILES = self.reactant_pair_smiles[0]
                 del self.reactant_pair_smiles[0]
-                print(self.reactant_pair_smiles)
             if action["content"]["material"]["SMILES"]:
                 reactant_SMILES = action["content"]["material"]["SMILES"]
             action_no = action["content"]["action_no"]

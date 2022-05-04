@@ -1,11 +1,10 @@
-import json
-import requests
 from rdkit.Chem import Descriptors
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem import Draw
 import pubchempy as pcp
 import itertools
+import re
 
 
 def calculateproductmols(target_mass, target_SMILES):
@@ -43,25 +42,6 @@ def combichem(reactant_1_SMILES: list, reactant_2_SMILES: list):
     return all_possible_combinations
 
 
-def convertIBMNameToSmiles(chemical_name):
-    try:
-        data = [chemical_name]
-        headers = {
-            "Authorization": self.api_key,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-        url = (
-            "https://rxn.res.ibm.com/rxn/api/api/v1/actions/convert-material-to-smiles"
-        )
-        r = requests.post(url=url, data=json.dumps(data), headers=headers, cookies={})
-        response_dict = r.json()
-        smiles = response_dict["payload"][chemical_name]
-        return smiles
-    except:
-        return False
-
-
 def createSVGString(smiles):
     """
     Function that creates a SVG image string from smiles string
@@ -96,32 +76,6 @@ def createReactionSVGString(smarts):
     drawer.FinishDrawing()
     svg_string = drawer.GetDrawingText()
     return svg_string
-
-
-def convertNameToSmiles(chemical_name):
-    try:
-        smiles = pcp.get_compounds(chemical_name, "name")[0].isomeric_smiles
-        return smiles
-    except:
-        try:
-            smiles = pcp.get_compounds(chemical_name, "formula")[0].isomeric_smiles
-            return smiles
-        except:
-            try:
-                smiles = convertIBMNameToSmiles(chemical_name)
-                return smiles
-            except:
-                print("PubChemPy/IBM could not convert {}".format(chemical_name))
-                return False
-
-
-def checkSMILES(smiles):
-    mol = Chem.MolFromSmiles(smiles)
-    if mol:
-        return smiles
-    if not mol:
-        converted_smiles = convertNameToSmiles(smiles)
-        return converted_smiles
 
 
 def checkSMARTSPattern(SMILES, SMARTS_pattern):
@@ -204,6 +158,34 @@ def checkReactantSMARTS(reactant_SMILES: tuple, reaction_SMARTS: str):
     else:
         print(reaction_SMARTS)
         print(reactant_SMILES)
+        return None
+
+
+def getPubChemCAS(compound):
+    """Get CAS identifier for PubChem compound"""
+    synonyms = compound.synonyms
+    if synonyms:
+        for syn in synonyms:
+            match = re.match("(\d{1,7}-\d{1,2}-\d)", syn)
+            if match:
+                cas = match.group(1)
+                return cas
+
+
+def getPubChemCompound(smiles: str):
+    """Searches PubChem for compound using SMILES"""
+    try:
+        compound = pcp.get_compounds(smiles, "smiles")[0]
+        if not compound.cid:
+            return None
+        else:
+            return compound
+    except:
+        print(
+            "Pubchempy could not retrieve compound entry for input SMILES: {}".format(
+                smiles
+            )
+        )
         return None
 
 

@@ -35,7 +35,7 @@ from .createmodels import (
     CreateMculeQuoteModel,
 )
 
-from .manifold.apicalls import getManifoldretrosynthesis
+from .manifold.apicalls import getManifoldRetrosynthesis
 from .recipebuilder.encodedrecipes import encoded_recipes
 from .utils import getAddtionOrder, canonSmiles
 
@@ -120,7 +120,7 @@ def uploadManifoldReaction(validate_output):
                     target_mass=target_mass,
                 )
 
-                retrosynthesis_result = getManifoldretrosynthesis(target_smiles)
+                retrosynthesis_result = getManifoldRetrosynthesis(target_smiles)
                 routes = retrosynthesis_result["routes"]
 
                 if not routes:

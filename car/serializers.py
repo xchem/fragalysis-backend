@@ -8,6 +8,7 @@ from .models import (
     Target,
     Method,
     Reaction,
+    PubChemInfo,
     Product,
     Reactant,
     CatalogEntry,
@@ -45,6 +46,12 @@ class CatalogEntrySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class PubChemInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PubChemInfo
+        fields = "__all__"
+
+
 class ReactantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reactant
@@ -53,16 +60,35 @@ class ReactantSerializer(serializers.ModelSerializer):
 
 class ReactantSerializerAll(serializers.ModelSerializer):
     catalogentries = CatalogEntrySerializer(many=True, read_only=True)
+    reactantpubcheminfo = serializers.SerializerMethodField()
 
     class Meta:
         model = Reactant
         fields = "__all__"
+
+    def get_reactantpubcheminfo(self, obj):
+        if obj.pubcheminfo_id:
+            reactantpubcheminfo = PubChemInfo.objects.get(id=obj.pubcheminfo_id.id)
+            return PubChemInfoSerializer(reactantpubcheminfo).data
 
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
+
+
+class ProductSerializerAll(serializers.ModelSerializer):
+    productpubcheminfo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+    def get_productpubcheminfo(self, obj):
+        if obj.pubcheminfo_id:
+            productpubcheminfo = PubChemInfo.objects.get(id=obj.pubcheminfo_id.id)
+            return PubChemInfoSerializer(productpubcheminfo).data
 
 
 class ReactionSerializer(serializers.ModelSerializer):
@@ -72,7 +98,7 @@ class ReactionSerializer(serializers.ModelSerializer):
 
 
 class ReactionSerializerAll(serializers.ModelSerializer):
-    products = ProductSerializer(many=True, read_only=True)
+    products = ProductSerializerAll(many=True, read_only=True)
     reactants = ReactantSerializerAll(many=True, read_only=True)
 
     class Meta:
