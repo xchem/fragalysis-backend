@@ -7,7 +7,7 @@ api_key = os.environ["MANIFOLD_API_KEY"]
 
 @sleep_and_retry
 @limits(calls=100, period=60)
-def getManifoldretrosynthesis(target_smiles):
+def getManifoldRetrosynthesis(target_smiles):
     """
     Function to call the Manifold API to search for a retrosynthesis for a given smiles
     """

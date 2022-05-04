@@ -61,16 +61,25 @@ class Reaction(models.Model):
     successrate = models.FloatField(default=0.5)
     success = models.BooleanField(default=True)
 
+
 class PubChemInfo(models.Model):
+    smiles = models.CharField(max_length=255)
+    cas = models.CharField(max_length=50, null=True)
     compoundid = models.IntegerField()
     compoundsummarylink = models.CharField(max_length=255)
     lcsslink = models.CharField(max_length=255)
-    
+
+
 class Reactant(models.Model):
     reaction_id = models.ForeignKey(
         Reaction, related_name="reactants", on_delete=models.CASCADE, null=True
     )
-    pubcheminfo_id = models.ForeignKey(PubChemInfo, on_delete=models.PROTECT, null=True) 
+    pubcheminfo_id = models.ForeignKey(
+        PubChemInfo,
+        related_name="reactantpubcheminfo",
+        on_delete=models.PROTECT,
+        null=True,
+    )
     smiles = models.CharField(max_length=255)
 
 
@@ -78,11 +87,17 @@ class Product(models.Model):
     reaction_id = models.ForeignKey(
         Reaction, related_name="products", on_delete=models.CASCADE
     )
-    pubcheminfo_id = models.ForeignKey(PubChemInfo, on_delete=models.PROTECT, null=True) 
+    pubcheminfo_id = models.ForeignKey(
+        PubChemInfo,
+        related_name="productpubcheminfo",
+        on_delete=models.PROTECT,
+        null=True,
+    )
     name = models.CharField(max_length=255)
     smiles = models.CharField(max_length=255, db_index=True, null=True)
     image = models.FileField(upload_to="productimages/", max_length=255)
     mculeid = models.CharField(max_length=255, null=True)
+
 
 class CatalogEntry(models.Model):
     reactant_id = models.ForeignKey(

@@ -23,6 +23,7 @@ from .models import (
     Project,
     MculeQuote,
     Batch,
+    PubChemInfo,
     Target,
     Method,
     Reaction,
@@ -71,7 +72,9 @@ from .serializers import (
     MethodSerializerAll,
     ReactionSerializer,
     ReactionSerializerAll,
+    PubChemInfoSerializer,
     ProductSerializer,
+    ProductSerializerAll,
     ReactantSerializer,
     ReactantSerializerAll,
     CatalogEntrySerializer,
@@ -446,10 +449,19 @@ class ReactionViewSet(viewsets.ModelViewSet):
         return ReactionSerializerAll if fetchall == "yes" else ReactionSerializer
 
 
+class PubChemInfoViewSet(viewsets.ModelViewSet):
+    queryset = PubChemInfo.objects.all()
+    serializer_class = PubChemInfoSerializer
+
+
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     filterset_fields = ["reaction_id"]
+
+    def get_serializer_class(self):
+        fetchall = self.request.GET.get("fetchall", None)
+        return ProductSerializerAll if fetchall == "yes" else ProductSerializer
 
 
 class ReactantViewSet(viewsets.ModelViewSet):
