@@ -4,7 +4,7 @@ from django.db import models
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
-
+from django.conf import settings
 
 from simple_history.models import HistoricalRecords
 
@@ -87,7 +87,6 @@ class Target(models.Model):
     zip_archive = models.FileField(upload_to="archive/", null=True, max_length=255)
     default_squonk_project = models.CharField(max_length=200, null=True)
     # The following fields will be used to track the target upload
-    # time allowing
     upload_task_id = models.CharField(null=True, max_length=50)
     upload_status = models.CharField(choices=STATUS, null=True, max_length=7)
     upload_progress = models.DecimalField(null=True, max_digits=5, decimal_places=2)
@@ -667,7 +666,33 @@ class ComputedSet(models.Model):
         Foreign key link to the submitter information
     unique_name: CharField
         Auto-generated unique name for a computed set
+    owner_user: ForeignKey
+        A link to the user that created the Computed Set
+    upload_task_id: CharField
+        Task id of upload celery task Note that if a resynchronisation is
+        required this will be re-used.
+    upload_status: CharField
+        Identifies the status of the upload (note will only be updated at the end of the process.
+    upload_progress: DecimalField
+        Intended to be used as an indication of progress (0 to 100%)
+    upload_datetime: DateTimeField
+        The datetime the upload was completed.
     """
+    PENDING = "PENDING"
+    STARTED = "STARTED"
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
+    RETRY = "RETRY"
+    REVOKED = "REVOKED"
+    STATUS = (
+        (PENDING, 'PENDING'),  # Initial state when queued
+        (STARTED, 'STARTED'),  # File transfer started
+        (SUCCESS, 'SUCCESS'),  # File transfer finished successfully
+        (FAILURE, 'FAILURE'),  # File transfer failed
+        (RETRY, 'RETRY'),
+        (REVOKED, 'REVOKED')
+    )
+
     # a (unique) name for this compound set
     name = models.CharField(max_length=50, unique=True, primary_key=True)
     # target that this compound set belongs to
@@ -679,6 +704,15 @@ class ComputedSet(models.Model):
     method_url = models.TextField(max_length=1000, null=True)
     submitter = models.ForeignKey(ComputedSetSubmitter, null=True, on_delete=models.CASCADE)
     unique_name = models.CharField(max_length=101, null=False)
+
+    owner_user = models.ForeignKey(User, null=False, on_delete=models.CASCADE,
+                                      default=settings.ANONYMOUS_USER)
+
+    # The following fields will be used to track the computed set upload
+    upload_task_id = models.CharField(null=True, max_length=50)
+    upload_status = models.CharField(choices=STATUS, null=True, max_length=7)
+    upload_progress = models.DecimalField(null=True, max_digits=5, decimal_places=2)
+    upload_datetime = models.DateTimeField(null=True)
 
     # Check if needed? Rachael still having a look.
     # design_set = models.ForeignKey(DesignSet, null=False, blank=False)
@@ -1087,6 +1121,8 @@ class JobRequest(models.Model):
         The specification of the job that will be provided to the Squonk POST instance API
     job_status: CharField
         The status of the Squonk job. Will be modified by Squonk through the callback URL
+    job_status_datetime: DateField
+        The datetime of the most recent job_status change.
     squonk_job_info: JSONField
         Squonk job information returned from the initial Squonk POST instance API call
     squonk_url_ext: CharField
@@ -1131,6 +1167,7 @@ class JobRequest(models.Model):
     squonk_project = models.CharField(max_length=200, null=True)
     squonk_job_spec = models.JSONField(encoder=DjangoJSONEncoder,null=True)
     job_status = models.CharField(choices=SQUONK_STATUS, default=PENDING, max_length=7)
+    job_status_datetime = models.DateTimeField(null=True)
     squonk_job_info = models.JSONField(encoder=DjangoJSONEncoder,null=True)
     squonk_url_ext = models.CharField(max_length=200, null=True)
     code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)

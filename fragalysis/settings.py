@@ -36,6 +36,9 @@ PROPOSAL_REQUIRED = True
 # Should always be True on production.
 AUTHENTICATE_UPLOAD = True
 
+# AnonymousUser should be the first record inserted into the auth_user table.
+ANONYMOUS_USER = 1
+
 # This is set on AWX when the fragalysis-stack is rebuilt.
 SENTRY_DNS = os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS")
 if SENTRY_DNS:
