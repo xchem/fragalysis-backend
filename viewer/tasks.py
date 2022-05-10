@@ -1,30 +1,42 @@
-import os
 import datetime
+import os
+import psutil
+import shutil
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
+
 import django
 django.setup()
 from django.conf import settings
+from celery import shared_task
+import numpy as np
 
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from viewer.models import Target, Compound, DesignSet
-import os.path
 import zipfile
 
-from celery import shared_task
-from .sdf_check import *
-from .compound_set_upload import *
+from .sdf_check import (
+    add_warning,
+    check_SMILES,
+    check_ver_name,
+    check_blank_mol_props,
+    check_blank_prop,
+    check_mol_props,
+    check_name_characters,
+    check_refmol,
+    check_field_populated,
+    check_compound_set
+)
+from .compound_set_upload import get_additional_mols
 from .target_set_upload import process_target, validate_target
-from .cset_upload import *
+from .cset_upload import blank_mol_vals, MolOps, PdbOps
 from .squonk_job_file_transfer import process_file_transfer, SQUONK_MAPPING
-
-# import the logging library
-#import logging
-# Get an instance of a logger
-#logger = logging.getLogger(__name__)
+from .models import ComputedSet, JobFileTransfer, Molecule
 
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
+
 
 def check_services():
     """ Method to ensure redis and celery services are running to allow handling of tasks - attempts to start either
@@ -52,40 +64,6 @@ def check_services():
 
 
 # Uploading Compound Sets ###
-
-@shared_task
-def add_cset_mols(cset, sdf_file, target=None, zfile=None):
-    # check the computed set exists
-    # for each molecule:
-    # - check there's a ScoreDescription for each score
-    # - add the molecule
-    target_obj = Target.objects.get(title=target)
-
-    existing = ComputedSet.objects.filter(unique_name=cset, target=target_obj)
-
-    if len(existing) == 1:
-        compound_set = existing[0]
-    else:
-        return 'Computed set does not exist, check its name or upload it at viewer/upload_cset'
-
-    mols = get_additional_mols(filename=sdf_file, compound_set=compound_set)
-
-    # if mols is a string (error) return it
-    if isinstance(mols, str):
-        return mols
-
-    # process every other mol
-    for i in range(0, len(mols)):
-        process_mol(mol=mols[i], target=target, compound_set=compound_set, filename=sdf_file, zfile=zfile)
-
-    # need to add new mols to old sdf!
-    old_sdf = str(compound_set.submitted_sdf.path)
-    with open(old_sdf, 'ab') as w:
-        w.write(b'\n')
-        w.write(open(sdf_file, 'rb').read())
-
-    return f"{compound_set.unique_name} was successfully updated"
-
 
 @shared_task
 def process_compound_set(validate_output):
@@ -117,10 +95,10 @@ def process_compound_set(validate_output):
         return (process_stage, 'cset', validate_dict, validated)
 
     if validated:
-        submitter_name, submitter_method, version = blank_mol_vals(params['sdf'])
+        submitter_name, submitter_method, blank_version = blank_mol_vals(params['sdf'])
         zfile, zfile_hashvals = PdbOps().run(params)
         save_mols = MolOps(sdf_filename=params['sdf'], submitter_name=submitter_name, submitter_method=submitter_method,
-                           target=params['target'], version=version, zfile=zfile, zfile_hashvals=zfile_hashvals)
+                           target=params['target'], version=blank_version, zfile=zfile, zfile_hashvals=zfile_hashvals)
         compound_set = save_mols.task()
 
         return 'process', 'cset', compound_set.name
@@ -204,7 +182,7 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
         if not mol:
             add_warning(molecule_name='Unknown',
                         field='N/A',
-                        warning_string='SDF entry number: %s can not be converted into an rdkit mol object' % (index,),
+                        warning_string=f'SDF entry number: {index} can not be converted into an rdkit mol object',
                         validate_dict=validate_dict)
         if mol:
             all_props.extend([key for key in list(mol.GetPropsAsDict().keys())])
@@ -218,7 +196,7 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
             for diff in diff_list:
                 add_warning(molecule_name=mol.GetProp('_Name'),
                             field='property (missing)',
-                            warning_string='%s property is missing from this molecule' % (diff,),
+                            warning_string=f'{diff} property is missing from this molecule',
                             validate_dict=validate_dict)
 
     # Check version in blank mol
@@ -251,7 +229,8 @@ def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
 
     unique_name = "".join(submitter_name.split()) + '-' + "".join(submitter_method.split())
     csets = ComputedSet.objects.filter(unique_name=unique_name)
-    [c.delete() for c in csets]
+    for cset in csets:
+        cset.delete()
 
     # params = {
     #     'sdf': 'tests/test_data/test_chodera/test_0_2.sdf',
@@ -355,7 +334,7 @@ def process_one_set(set_df, name, set_type=None, set_description=None):
     new_set.set_description = set_description
     new_set.save()
     compounds = []
-    for i, row in set_df.iterrows():
+    for _, row in set_df.iterrows():
         compounds.append(process_design_compound(row))
 
     for compound in compounds:
@@ -367,6 +346,10 @@ def process_one_set(set_df, name, set_type=None, set_description=None):
 
 
 def process_design_sets(df, set_type=None, set_description=None):
+    # Unused variables
+    del set_type
+    del set_description
+
     set_names = list(set(df['set_name']))
     sets = []
     for name in set_names:
@@ -481,7 +464,7 @@ def process_job_file_transfer(auth_token, id):
 
     """
 
-    logger.info('+ Starting File Transfer: ' + str(id))
+    logger.info('+ Starting File Transfer (%s)', id)
     job_transfer = JobFileTransfer.objects.get(id=id)
     job_transfer.transfer_status = "STARTED"
     job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
@@ -489,23 +472,22 @@ def process_job_file_transfer(auth_token, id):
     try:
         process_file_transfer(auth_token, job_transfer.id)
     except RuntimeError as error:
-        logger.info('- File Transfer failed: ' + str(id))
+        logger.info('- File Transfer failed %s', id)
         logger.info(error)
         job_transfer.transfer_status = "FAILURE"
         job_transfer.save()
     else:
-        logger.info('+ File Transfer successful: ' + str(id))
+        logger.info('+ File Transfer Successful (%s)', id)
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
         job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
         job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
-        files_spec = [key for key in SQUONK_MAPPING.keys()]
+        files_spec = list(SQUONK_MAPPING.keys())
         job_transfer.transfer_spec = files_spec
         job_transfer.save()
-        logger.info('- File Transfer Ended Successfully: ' + str(id))
+        logger.info('- File Transfer Ended Successfully (%s)', id)
 
     return job_transfer.transfer_status
 
 # End File Transfer ###
-
