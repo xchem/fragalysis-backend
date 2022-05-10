@@ -1,0 +1,4 @@
+# Requirements specifically used to build/test the backend.
+# These are not rquirements needed by the backend in order for it to run.
+pylint
+pylint-django
