@@ -716,7 +716,7 @@ class JobFileTransferWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobFileTransfer
         fields = ("snapshot", "target", "squonk_project",
-                  "proteins")
+                  "proteins", "compounds")
 
 
 # (GET)
