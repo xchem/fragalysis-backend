@@ -18,10 +18,23 @@ logger = logging.getLogger(__name__)
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
-from viewer.models import *
 from rdkit import Chem
 from rdkit.Chem import Crippen, Descriptors
 import uuid
+
+from viewer.models import (
+    Compound,
+    ComputedMolecule,
+    ComputedSet,
+    ComputedSetSubmitter,
+    Molecule,
+    NumericalScoreValues,
+    Protein,
+    ScoreDescription,
+    Target,
+    TextScoreValues,
+    User,
+)
 
 
 def dataType(str):
@@ -47,6 +60,7 @@ def dataType(str):
                 return 'FLOAT'
         else:
             return 'TEXT'
+
 
 class PdbOps:
     def save_pdb_zip(self, pdb_file):
@@ -90,6 +104,7 @@ class PdbOps:
         zfile, zfile_hashval = self.save_pdb_zip(params['pdb_zip'])
 
         return zfile, zfile_hashval
+
 
 class MolOps:
 
@@ -411,7 +426,6 @@ class MolOps:
         [c.delete() for c in old_mols]
 
         return compound_set
-
 
 
 def blank_mol_vals(sdf_file):

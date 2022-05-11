@@ -896,9 +896,7 @@ class UploadCSet(View):
 
             elif choice == 'D':
                 # Delete
-                logger.info('- UploadCSet.post - deleting "%s"', selected_set.unique_name)
                 selected_set.delete()
-                # Media file?
 
                 request.session[_SESSION_MESSAGE] = \
                     f'Compound set "{selected_set.unique_name}" Deleted'
