@@ -75,6 +75,10 @@ from .download_structures import (
     maintain_download_links
 )
 
+from .squonk_job_file_transfer import (
+    check_file_transfer
+)
+
 from .squonk_job_request import (
     check_squonk_active,
     create_squonk_job
@@ -782,6 +786,7 @@ class UploadCSet(View):
         # - this can be switched off in settings.py.
         user = self.request.user
         if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+            context = {}
             context['error_message'] \
                 = 'Only authenticated users can upload files' \
                   ' - please navigate to landing page and Login'
@@ -2988,6 +2993,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
                 "target": 5,
                 "squonk_project": "project-e1ce441e-c4d1-4ad1-9057-1a11dbdccebe",
                 "proteins": "CD44MMA-x0022_0A, CD44MMA-x0017_0A"
+                "compounds": "PAU-WEI-b9b69149-9"
             }
 
 
@@ -3044,30 +3050,9 @@ class JobFileTransferView(viewsets.ModelViewSet):
                 'message': 'A squonk project must be entered'}
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
-        if request.data['proteins']:
-            # Get first part of protein code
-            proteins_list = [p.strip().split(":")[0]
-                             for p in request.data['proteins'].split(',')]
-        else:
-            proteins_list = []
-
-        if len(proteins_list) > 0:
-            proteins = []
-            # Filter by protein codes
-            for code_first_part in proteins_list:
-                prot = Protein.objects.filter(code__contains=code_first_part).values()
-                if prot.exists():
-                    proteins.append(prot.first())
-        else:
-            content = {
-                'message': 'A list of protein codes to transfer must be entered'}
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
-
-        if len(proteins) == 0:
-            content = {'message': 'Please enter list of valid protein codes '
-                                  'for' + " proteins: {} "
-                .format(proteins_list) }
-            return Response(content, status=status.HTTP_404_NOT_FOUND)
+        error, proteins, compounds = check_file_transfer(request)
+        if error:
+            return Response(error['message'], status=error['status'])
 
         # If transfer has already happened find the latest
         job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
@@ -3096,6 +3081,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
             job_transfer = JobFileTransfer()
             job_transfer.user = request.user
             job_transfer.proteins = [p['code'] for p in proteins]
+            job_transfer.compounds = [c['name'] for c in compounds]
             job_transfer.squonk_project = squonk_project
             job_transfer.target = Target.objects.get(id=target_id)
             job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)

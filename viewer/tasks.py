@@ -13,7 +13,7 @@ import numpy as np
 
 from rdkit import Chem
 from rdkit.Chem import Descriptors
-from viewer.models import Target, Compound, DesignSet
+from viewer.models import Compound, DesignSet
 import zipfile
 
 from .sdf_check import (
@@ -28,11 +28,14 @@ from .sdf_check import (
     check_field_populated,
     check_compound_set
 )
-from .compound_set_upload import get_additional_mols
 from .target_set_upload import process_target, validate_target
 from .cset_upload import blank_mol_vals, MolOps, PdbOps
-from .squonk_job_file_transfer import process_file_transfer, SQUONK_MAPPING
-from .models import ComputedSet, JobFileTransfer, Molecule, User
+from .squonk_job_file_transfer import (
+    process_file_transfer,
+    SQUONK_PROT_MAPPING,
+    SQUONK_COMP_MAPPING
+)
+from .models import ComputedSet, JobFileTransfer, Molecule
 
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
@@ -67,68 +70,41 @@ def check_services():
 
 @shared_task
 def process_compound_set(validate_output):
-    """Celery task to process a computed set. Used in a chain invoked from views.py's
-    UploadCSet, taking the output of the `validate_compound_set()`, and uploads
-    molecules to a new computed set if the uploaded files are valid.
-
-    (Code is legacy, and has been taken on by multiple users - comments often
-    retro-fitted and no apologies for the design)
+    """ Celery task to process a computed set, that takes the output of the validation task, and uploads molecules to a
+    new computed set if the uploaded files are valid
 
     Parameters
     ----------
     validate_output: tuple
-        see return value from 'validate_compound_set()'
+        contains the following:
+            - validate dict (dict): dict containing any errors found during the validation step
+            - validated (bool): True if the file(s) were validated, False if not
+            - filename (str): name of the uploaded sdf file
+            - target (str): name of the target that the computed set is associated with
+            - zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved to temporary storage by `viewer.views.UploadCSet`
+            - submitter_name (str): name of the author of the computed set
+            - submitter_method (str): name of the method used to generate the computed set
 
     Returns
     -------
-    If successful
+    compound_set.name: str
+        name of the computed set
 
-        process_stage: str
-            'process'
-        process_type: str
-            'cset'
-        compound_set.name: str
-            name of the computed set
-
-    Otherwise (i.e. not validated)...
-
-        Returns the response from 'validate_compound_set()'
     """
 
     process_stage, process_type, validate_dict, validated, params = validate_output
 
-    logger.info('process_compound_set() ENTER')
-    logger.info('process_compound_set() validated=%s', validated)
-    logger.info('process_compound_set() params=%s', params)
-
     if not validated:
-        logger.warning('process_compound_set() EXIT (not validated)')
-        return process_stage, 'cset', validate_dict, validated
+        return (process_stage, 'cset', validate_dict, validated)
 
+    if validated:
+        submitter_name, submitter_method, blank_version = blank_mol_vals(params['sdf'])
+        zfile, zfile_hashvals = PdbOps().run(params)
+        save_mols = MolOps(sdf_filename=params['sdf'], submitter_name=submitter_name, submitter_method=submitter_method,
+                           target=params['target'], version=blank_version, zfile=zfile, zfile_hashvals=zfile_hashvals)
+        compound_set = save_mols.task()
 
-    submitter_name, submitter_method, blank_version = blank_mol_vals(params['sdf'])
-    zfile, zfile_hashvals = PdbOps().run(params)
-
-    # This used to be in 'validate' (incorrectly), and is now here.
-    # Create a unique name and remove any that existing set with that name.
-    # Basically uploading erases any prior set.
-    unique_name = "".join(submitter_name.split()) + '-' + "".join(submitter_method.split())
-    csets = ComputedSet.objects.filter(unique_name=unique_name)
-    for cset in csets:
-        cset.delete()
-
-    save_mols = MolOps(user_id=params['user_id'],
-                       sdf_filename=params['sdf'],
-                       submitter_name=submitter_name,
-                       submitter_method=submitter_method,
-                       target=params['target'],
-                       version=blank_version,
-                       zfile=zfile,
-                       zfile_hashvals=zfile_hashvals)
-    compound_set = save_mols.task()
-
-    logger.warning('process_compound_set() EXIT (%s)', compound_set.name)
-    return 'process', 'cset', compound_set.name
+        return 'process', 'cset', compound_set.name
 
 # End Uploading Compound Sets ###
 
@@ -139,54 +115,34 @@ version = 'ver_1.2'
 
 
 @shared_task
-def validate_compound_set(user_id, sdf_file, target=None, zfile=None, update=None):
-    """ Celery task to process validate the uploaded files for a computed set upload.
-    SDF file is mandatory, zip file is optional. Used in a chain invoked from views.py's
-    UploadCSet and the first stage in a chain that includes 'process_compound_set()'
-
-    (Code is legacy, and has been taken on by multiple users - comments often
-    retro-fitted and no apologies for the design)
+def validate_compound_set(sdf_file, target=None, zfile=None, update=None):
+    """ Celery task to process validate the uploaded files for a computed set upload. SDF file is mandatory, zip file is
+    optional
 
     Parameters
     ----------
-    user_id: The record ID of the user initiating the task.
     sdf_file: str
-        filepath of the uploaded sdf file, which is saved to temporary storage
-        by `viewer.views.UploadCSet`
+        filepath of the uploaded sdf file, which is saved to temporary storage by `viewer.views.UploadCSet`
     target: str
         name of the target (`viewer.models.Target.title`) to add add the computed set to
     zfile: dict
-        dictionary where key is the name of the file minus extension and path,
-        and value is the filename, which is saved
+        dictionary where key is the name of the file minus extension and path, and value is the filename, which is saved
         to temporary storage by `viewer.views.UploadCSet`
-    update: str
-        The name of a computed set to update, or 'None'
 
     Returns
     -------
-    tuple containing the following:
-        - processing stage (str): 'validate'
-        - processing type (str): 'cset'
-        - validate dict (dict): dict containing any errors found during the calidation step
-        - validated (bool): True if the file(s) were validated, False if not
-        - params (dict):
-            - user_id (int): User record ID of user initiating the task
-            - sdf (str): name of the uploaded sdf file
+    validate_output: tuple
+        contains the following:
+            - validate dict (dict): dict containing any errors found during the calidation step
+            - validated (bool): True if the file(s) were validated, False if not
+            - filename (str): name of the uploaded sdf file
             - target (str): name of the target that the computed set is associated with
-            - zfile: dictionary where key is the name of the file minus extension
-                     and path, and value is the filename, which is saved to
-                     temporary storage by `viewer.views.UploadCSet`
-    If there are problems with the 'blank (initial) molecule' the following is also
-    returned...
+            - zfile (dict): dictionary where key is the name of the file minus extension and path, and value is the
+              filename, which is saved to temporary storage by `viewer.views.UploadCSet`
             - submitter_name (str): name of the author of the computed set
             - submitter_method (str): name of the method used to generate the computed set
-    """
 
-    logger.info('validate_compound_set() ENTER')
-    logger.info('validate_compound_set() user_id=%s', user_id)
-    logger.info('validate_compound_set() sdf_file=%s', sdf_file)
-    logger.info('validate_compound_set() target=%s', target)
-    logger.info('validate_compound_set() update=%s', update)
+    """
 
     validated = True
     validate_dict = {'molecule_name': [],
@@ -204,13 +160,9 @@ def validate_compound_set(user_id, sdf_file, target=None, zfile=None, update=Non
     if blank_mol is None:
         validate_dict = add_warning(molecule_name='Blank Mol',
                                     field='N/A',
-                                    warning_string='your blank molecule could not be'
-                                                   ' read by rdkit. The molecule must'
-                                                   ' have at least one atom!'
-                                                   ' No other checks were done',
+                                    warning_string='your blank molecule could not be read by rdkit. The molecule must have at least one atom! No other checks were done',
                                     validate_dict=validate_dict)
         validated = False
-        logger.info('validate_compound_set() EXIT validated=%s', validated)
         return (validate_dict, validated, sdf_file, target, zfile,
                 submitter_name, submitter_method)
 
@@ -233,8 +185,7 @@ def validate_compound_set(user_id, sdf_file, target=None, zfile=None, update=Non
         if not mol:
             add_warning(molecule_name='Unknown',
                         field='N/A',
-                        warning_string=f'SDF entry number: {index} cannot be converted'
-                                        ' into an rdkit mol object',
+                        warning_string=f'SDF entry number: {index} can not be converted into an rdkit mol object',
                         validate_dict=validate_dict)
         if mol:
             all_props.extend([key for key in list(mol.GetPropsAsDict().keys())])
@@ -258,8 +209,6 @@ def validate_compound_set(user_id, sdf_file, target=None, zfile=None, update=Non
     validate_dict = check_blank_mol_props(blank_mol, validate_dict)
 
     # Check properties have been described and validate url
-    # Anything wrong with validation goes into this and we leave
-    # with a validation error.
     validate_dict = check_blank_prop(blank_mol, validate_dict)
 
     # main mols checks
@@ -278,11 +227,13 @@ def validate_compound_set(user_id, sdf_file, target=None, zfile=None, update=Non
             validate_dict = check_field_populated(m, validate_dict)
             validate_dict = check_SMILES(m, validate_dict)
 
-    len_validate_dict = len(validate_dict['molecule_name'])
-    if len_validate_dict != 0:
-        logger.warning('validate_compound_set() validated=False'
-                       ' len_validate_dict=%s', len_validate_dict)
+    if len(validate_dict['molecule_name']) != 0:
         validated = False
+
+    unique_name = "".join(submitter_name.split()) + '-' + "".join(submitter_method.split())
+    csets = ComputedSet.objects.filter(unique_name=unique_name)
+    for cset in csets:
+        cset.delete()
 
     # params = {
     #     'sdf': 'tests/test_data/test_chodera/test_0_2.sdf',
@@ -293,14 +244,12 @@ def validate_compound_set(user_id, sdf_file, target=None, zfile=None, update=Non
     # }
 
     params = {
-        'user_id': user_id,
         'sdf': sdf_file,
         'target': target,
         'pdb_zip': zfile
     }
 
-    logger.info('validate_compound_set() EXIT validated=%s params=%s', validated, params)
-    return 'validate', 'cset', validate_dict, validated, params
+    return ('validate', 'cset', validate_dict, validated, params)
 
 # End Validating Compound Sets ###
 
@@ -537,7 +486,8 @@ def process_job_file_transfer(auth_token, id):
         job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
         job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
-        files_spec = list(SQUONK_MAPPING.keys())
+        files_spec = {"proteins": list(SQUONK_PROT_MAPPING.keys()),
+                      "compounds": list(SQUONK_COMP_MAPPING.keys())}
         job_transfer.transfer_spec = files_spec
         job_transfer.save()
         logger.info('- File Transfer Ended Successfully (%s)', id)
