@@ -33,7 +33,7 @@
                   <form method="post" enctype="multipart/form-data">
                       {% csrf_token %}
                       {{ form.as_ul }}
-                      <label for="{{ sets.id_for_label }}" class="col-sm-2 control-label">Update existing set:</label>
+                      <label for="{{ sets.id_for_label }}" class="col-sm-2 control-label">Update/delete existing set:</label>
                       <div class="col-sm-10">
                         <select name="update_set" class="form-control">
                           <option value="None" selected>None</option>
@@ -44,14 +44,29 @@
                       </div>
                     <button type="submit">Submit</button>
                 </form>
-                  {% autoescape off %}
-                      {% if download_url %}
-                        {{ download_url }}
-                      {% endif %}
-                      {% if table %}
-                        {{ table }}
-                      {% endif %}
-                  {% endautoescape %}
+
+                {# We may have been given an error from the previous attmept #}
+                {# For example the user may have selected 'DELETE' but not selected a prior set #}
+                {# if this is so we'll get a 'session_error' which we print with #}
+                {# a suitable "oops!" prefix. #}
+                {% if session_error %}
+                <p style="color:red;"><strong>Oops!</strong> {{ session_error }}</p>
+                {% endif %}
+
+                {# We may have been given a message from the previous attmept #}
+                {# For example the user may have selected 'DELETE' and this is the confirmation #}
+                {% if session_message %}
+                <p style="color:blue;">{{ session_message }}</p>
+                {% endif %}
+
+                {% autoescape off %}
+                  {% if download_url %}
+                    {{ download_url }}
+                  {% endif %}
+                  {% if table %}
+                    {{ table }}
+                  {% endif %}
+                {% endautoescape %}
               </div>
             </div>
           </div>
@@ -60,6 +75,15 @@
         <p class="has-text-centered" id="validate-id"></p>
         <p class="has-text-centered" id="upload-id"></p>
     </body>
+
+    {% if error_message %}
+    <script>
+      var content = document.getElementById('content');
+      content.innerHTML = "";
+      var content = document.getElementById('links');
+      content.innerHTML = "{{ error_message }}";
+    </script>
+    {% endif %}
 
     {% if validate_task_id %}
           <script>
@@ -109,9 +133,9 @@
             progressTitle.innerHTML = message;
           }
          </script>
-      {% endif %}
+    {% endif %}
 
-      {% if upload_task_id %}
+    {% if upload_task_id %}
           <script>
           var content = document.getElementById('content');
           content.innerHTML = "";
@@ -196,6 +220,6 @@
             progressTitle.innerHTML = message;
           }
          </script>
-      {% endif %}
+    {% endif %}
 
 {% endblock %}

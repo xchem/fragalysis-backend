@@ -56,7 +56,16 @@
         <p class="has-text-centered" id="links"></p>
     </body>
 
-      {% if update_task_id %}
+    {% if error_message %}
+    <script>
+      var content = document.getElementById('content');
+      content.innerHTML = "";
+      var content = document.getElementById('links');
+      content.innerHTML = "{{ error_message }}";
+    </script>
+    {% endif %}
+
+    {% if update_task_id %}
           <script>
           var content = document.getElementById('content');
           content.innerHTML = "";
@@ -96,6 +105,6 @@
             progressTitle.innerHTML = message;
           }
          </script>
-      {% endif %}
+    {% endif %}
 
 {% endblock %}
