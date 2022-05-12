@@ -901,7 +901,9 @@ class CreateOTSession(object):
 
         for i in startingmaterialsdf.index.values:
             extraerrorvolume = startingmaterialsdf.at[i, "materialquantity"] * 0.1
-            totalvolume = startingmaterialsdf.at[i, "materialquantity"] + extraerrorvolume
+            totalvolume = (
+                startingmaterialsdf.at[i, "materialquantity"] + extraerrorvolume
+            )
             if totalvolume > maxwellvolume:
                 nowellsneededratio = totalvolume / (maxwellvolume - deadvolume)
 
