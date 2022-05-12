@@ -1,4 +1,5 @@
 from django.db import models
+from sqlalchemy import ForeignKey
 
 
 class Project(models.Model):
@@ -120,11 +121,33 @@ class AnalyseAction(models.Model):
         NMR = "NMR"
         XChem = "XChem"
 
-    reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE)
+    class Unit(models.TextChoices):
+        mmol = "mmol"
+        ml = "ml"
+        ul = "ul"
+        moleq = "moleq"
+
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="analyseactions", on_delete=models.CASCADE
+    )
     actiontype = models.CharField(max_length=100)
     actionno = models.IntegerField()
     method = models.CharField(
         choices=QCMethod.choices, default=QCMethod.LCMS, max_length=10
+    )
+
+    sampleamount = models.FloatField(null=True)
+    sampleamountunit = models.CharField(
+        choices=Unit.choices,
+        default=Unit.ul,
+        max_length=10,
+    )
+    solvent = models.CharField(max_length=255, null=True)
+    solventamount = models.FloatField(null=True)
+    solventmountunit = models.CharField(
+        choices=Unit.choices,
+        default=Unit.ul,
+        max_length=10,
     )
 
 
@@ -326,6 +349,22 @@ class MCuleOrder(models.Model):
     orderplatecsv = models.FileField(upload_to="mculeorderplates/", max_length=255)
 
 
+# Models fro capturing LCMS analytics
+class LCMSSession(models.Model):
+    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey("OTSession", on_delete=models.CASCADE)
+    init_date = models.DateTimeField(auto_now_add=True)
+
+
+class LCMSPlateMap(models.Model):
+    lcmssession_id = models.ForeignKey(
+        LCMSSession, related_name="lcmsplatemaps", on_delete=models.CASCADE
+    )
+    platemapcsv = models.FileField(
+        upload_to="lcmsplatemaps/", max_length=255, null=True
+    )
+
+
 # Models for capturing OT session, Deck, Plates and Wells
 class OTProtocol(models.Model):
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
@@ -343,18 +382,29 @@ class OTBatchProtocol(models.Model):
 
 
 class OTSession(models.Model):
+    class SessionType(models.TextChoices):
+        reaction = "reaction"
+        workup = "workup"
+        lcmsprep = "lcmsprep"
+
     otbatchprotocol_id = models.ForeignKey(
         OTBatchProtocol, related_name="otsessions", on_delete=models.CASCADE
     )
     init_date = models.DateTimeField(auto_now_add=True)
     reactionstep = models.IntegerField()
+    sessiontype = models.CharField(
+        choices=SessionType.choices, default=SessionType.reaction, max_length=10
+    )
 
 
 class Deck(models.Model):
     otsession_id = models.ForeignKey(
-        OTSession, related_name="decks", on_delete=models.CASCADE
+        OTSession, related_name="otdecks", on_delete=models.CASCADE, null=True
     )
-    numberslots = models.IntegerField(default=11)
+    lcmssession_id = models.ForeignKey(
+        LCMSSession, related_name="lcmsdecks", on_delete=models.CASCADE, null=True
+    )
+    numberslots = models.IntegerField()
     slotavailable = models.BooleanField(default=True)
     indexslotavailable = models.IntegerField(default=1)
 
@@ -383,8 +433,20 @@ class TipRack(models.Model):
 
 
 class Plate(models.Model):
+    class PlateType(models.TextChoices):
+        reaction = "reaction"
+        analyse = "analyse"
+        startingmaterial = "startingmaterial"
+        dilution = "dilution"
+
     deck_id = models.ForeignKey(Deck, on_delete=models.CASCADE)
-    otsession_id = models.ForeignKey(OTSession, on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="otplates", on_delete=models.CASCADE, null=True
+    )
+    lcmssession_id = models.ForeignKey(
+        LCMSSession, related_name="lcmsplates", on_delete=models.CASCADE, null=True
+    )
+    platetype = models.CharField(choices=PlateType.choices, max_length=55, null=True)
     platename = models.CharField(max_length=255)
     plateindex = models.IntegerField()
     labware = models.CharField(max_length=255)
@@ -395,10 +457,22 @@ class Plate(models.Model):
 
 
 class Well(models.Model):
+    class WellType(models.TextChoices):
+        reaction = "reaction"
+        analyse = "analyse"
+        startingmaterial = "startingmaterial"
+        dilution = "dilution"
+
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)
-    otsession_id = models.ForeignKey(OTSession, on_delete=models.CASCADE)
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="otwells", on_delete=models.CASCADE, null=True
+    )
+    lcmssession_id = models.ForeignKey(
+        LCMSSession, related_name="lcmswells", on_delete=models.CASCADE, null=True
+    )
+    welltype = models.CharField(choices=WellType.choices, max_length=55, null=True)
     wellindex = models.IntegerField()
     volume = models.FloatField(null=True)
     smiles = models.CharField(max_length=255, null=True)
@@ -406,7 +480,6 @@ class Well(models.Model):
     solvent = models.CharField(max_length=255, null=True)
     reactantfornextstep = models.BooleanField(default=False)
     available = models.BooleanField(default=True)
-    fordilution = models.BooleanField(default=False)
 
 
 class CompoundOrder(models.Model):

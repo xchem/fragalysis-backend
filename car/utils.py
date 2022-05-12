@@ -162,7 +162,7 @@ def checkReactantSMARTS(reactant_SMILES: tuple, reaction_SMARTS: str):
 
 
 def getPubChemCAS(compound):
-    """Get CAS identifier for PubChem compound"""
+    """Get CAS identifier for PubChem compound synonyms"""
     synonyms = compound.synonyms
     if synonyms:
         for syn in synonyms:

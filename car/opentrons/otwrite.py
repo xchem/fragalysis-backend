@@ -36,26 +36,45 @@ class otWrite(object):
         self,
         protocolname: str,
         otsessionobj: DjangoObjectType,
-        alladdactionsquerysetflat: list,
         apiLevel="2.9",
         reactionplatequeryset: list = None,
+        alladdactionsquerysetflat: list = None,
+        allanalyseactionsqueryset: list = None,
     ):
         self.reactionstep = otsessionobj.reactionstep
         self.otsessionobj = otsessionobj
         self.otsessionid = otsessionobj.id
-        self.alladdactionsquerysetflat = alladdactionsquerysetflat
-        self.platequeryset = self.getPlates()
+        self.otsessiontype = otsessionobj.sessiontype
+        self.protocolname = protocolname
+        self.apiLevel = apiLevel
         self.tiprackqueryset = self.getTipRacks()
+        self.platequeryset = self.getPlates()
         self.pipetteobj = self.getPipette()
         self.pipettename = self.pipetteobj.pipettename
-        self.protocolname = protocolname
         self.filepath, self.filename = self.createFilePath()
-        self.apiLevel = apiLevel
-        self.reactionplatequeryset = reactionplatequeryset
         self.setupScript()
-        self.setupPlates()
         self.setupTipRacks()
+        self.setupPlates()
         self.setupPipettes()
+
+        if self.otsessiontype == "reaction":
+            self.writeReactionSession(
+                reactionplatequeryset=reactionplatequeryset,
+                alladdactionsquerysetflat=alladdactionsquerysetflat,
+            )
+        if self.otsessiontype == "analyse":
+            self.writeAnalyseSession(
+                allanalyseactionsqueryset=allanalyseactionsqueryset
+            )
+
+    def writeAnalyseSession(self, allanalyseactionsqueryset: list):
+        self.allanalyseactionsqueryset = allanalyseactionsqueryset
+        self.writeAnalyseActions()
+        self.createOTScriptModel()
+
+    def writeReactionSession(self, reactionplatequeryset, alladdactionsquerysetflat):
+        self.reactionplatequeryset = reactionplatequeryset
+        self.alladdactionsquerysetflat = alladdactionsquerysetflat
         self.writeAddActions()
         self.createOTScriptModel()
 
@@ -144,8 +163,13 @@ class otWrite(object):
         return previousproductmatches
 
     def createFilePath(self):
-        filename = "ot-script-batch-{}-reactionstep{}-sessionid-{}.txt".format(
-            self.protocolname, self.reactionstep, self.otsessionid
+        filename = (
+            "{}-session-ot-script-batch-{}-reactionstep{}-sessionid-{}.txt".format(
+                self.otsessiontype,
+                self.protocolname,
+                self.reactionstep,
+                self.otsessionid,
+            )
         )
         path = "tmp/" + filename
         filepath = str(os.path.join(settings.MEDIA_ROOT, path))
@@ -169,7 +193,7 @@ class otWrite(object):
                 otsession_id=self.otsessionid,
                 solvent=solvent,
                 available=True,
-                fordilution=True,
+                welltype="dilution",
             ).order_by("id")
             for wellobj in wellobjs:
                 areclose = self.checkVolumeClose(volume1=transfervolume, volume2=0.00)
@@ -177,7 +201,7 @@ class otWrite(object):
                     break
                 wellvolumeavailable = self.getWellVolumeAvailable(wellobj=wellobj)
                 if wellvolumeavailable > 0:
-                    if wellvolumeavailable > transfervolume:
+                    if wellvolumeavailable >= transfervolume:
                         self.updateWellVolume(
                             wellobj=wellobj, transfervolume=transfervolume
                         )
@@ -206,6 +230,7 @@ class otWrite(object):
                 otsession_id=self.otsessionid,
                 reaction_id=previousreactionobjs[0],
                 smiles=smiles,
+                welltype="reaction",
             )
             wellinfo.append([previousreactionobjs, wellobj, transfervolume])
         else:
@@ -216,6 +241,7 @@ class otWrite(object):
                     solvent=solvent,
                     concentration=concentration,
                     available=True,
+                    welltype="startingmaterial",
                 ).order_by("id")
                 for wellobj in wellobjects:
                     areclose = self.checkVolumeClose(
@@ -488,3 +514,62 @@ class otWrite(object):
                     towellindex=towellindex,
                     transvolume=transfervolume,
                 )
+
+    def writeAnalyseActions(self):
+        for analyseaction in self.allanalyseactionsqueryset:
+            sampleamount = analyseaction.sampleamount
+            analysesolvent = analyseaction.solvent
+            solventamount = analyseaction.solventamount
+            reaction_id = analyseaction.reaction_id.id
+            productsmiles = self.getProductSmiles(reactionid=reaction_id)
+
+            fromwellobj = Well.objects.get(
+                otsession_id=self.otsessionid, reaction_id=reaction_id, welltype="reaction", smiles=productsmiles
+            )
+            fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
+            towellobj = Well.objects.get(
+                otsession_id=self.otsessionid, reaction_id=reaction_id, welltype="analyse", smiles=productsmiles
+            )
+            toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
+
+            fromplatename = fromplateobj.platename
+            toplatename = toplateobj.platename
+            fromwellindex = fromwellobj.wellindex
+            towellindex = towellobj.wellindex
+
+            self.transferFluid(
+                fromplatename=fromplatename,
+                toplatename=toplatename,
+                fromwellindex=fromwellindex,
+                towellindex=towellindex,
+                transvolume=sampleamount,
+            )
+
+            fromsolventwellinfo = self.findSolventPlateWellObj(
+                solvent=analysesolvent,
+                transfervolume=solventamount,
+            )
+
+            for solventwellinfo in fromsolventwellinfo:
+                fromsolventwellobj = solventwellinfo[0]
+                transfervolume = solventwellinfo[1]
+
+                fromplateobj = self.getPlateObj(plateid=fromsolventwellobj.plate_id.id)
+                fromplatename = fromplateobj.platename
+                fromwellindex = fromsolventwellobj.wellindex
+
+                self.transferFluid(
+                    fromplatename=fromplatename,
+                    toplatename=toplatename,
+                    fromwellindex=fromwellindex,
+                    towellindex=towellindex,
+                    transvolume=transfervolume,
+                    transfertype="dilution",
+                )
+
+            self.mixWell(
+                wellindex=towellindex,
+                nomixes=3,
+                plate=toplatename,
+                volumetomix=solventamount,
+            )
