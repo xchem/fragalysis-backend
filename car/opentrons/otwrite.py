@@ -251,7 +251,7 @@ class otWrite(object):
                         break
                     wellvolumeavailable = self.getWellVolumeAvailable(wellobj=wellobj)
                     if wellvolumeavailable > 0:
-                        if wellvolumeavailable > transfervolume:
+                        if wellvolumeavailable >= transfervolume:
                             self.updateWellVolume(
                                 wellobj=wellobj, transfervolume=transfervolume
                             )
@@ -524,11 +524,17 @@ class otWrite(object):
             productsmiles = self.getProductSmiles(reactionid=reaction_id)
 
             fromwellobj = Well.objects.get(
-                otsession_id=self.otsessionid, reaction_id=reaction_id, welltype="reaction", smiles=productsmiles
+                otsession_id=self.otsessionid,
+                reaction_id=reaction_id,
+                welltype="reaction",
+                smiles=productsmiles,
             )
             fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
             towellobj = Well.objects.get(
-                otsession_id=self.otsessionid, reaction_id=reaction_id, welltype="analyse", smiles=productsmiles
+                otsession_id=self.otsessionid,
+                reaction_id=reaction_id,
+                welltype="analyse",
+                smiles=productsmiles,
             )
             toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
 

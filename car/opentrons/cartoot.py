@@ -128,8 +128,8 @@ class CreateOTSession(object):
         self.startingreactionplatequeryset = self.getStartingReactionPlateQuerySet()
 
     def getAllPreviousOTSessionReactionPlates(self):
-        """Get all input reaction plates for all previous otsessions 
-           of reaction type in a otbatchprotocol
+        """Get all input reaction plates for all previous otsessions
+        of reaction type in a otbatchprotocol
         """
         if self.otsessionqueryset:
             otsessionsids = [
