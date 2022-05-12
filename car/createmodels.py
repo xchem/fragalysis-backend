@@ -320,7 +320,7 @@ class CreateEncodedActionModels(object):
         action_type = action["name"]
 
         if action_type in actionMethods:
-            actionMethods[action_type](action_type, action)
+            actionMethods[action_type](action)
             return True
         else:
             logger.info(action_type)
@@ -352,21 +352,37 @@ class CreateEncodedActionModels(object):
         mass_material = (mol_material / reactant_MW) * 1e6
         return mass_material
 
-    def createAnalyseActionModel(self):
+    def createAnalyseActionModel(self, action):
+        action_type = action["name"]
+        action_no = action["content"]["action_no"]
+        method = action["content"]["method"]
+        sampleamount = action["content"]["sampleamount"]["value"]
+        sampleamountunit = action["content"]["sampleamount"]["unit"]
+        solvent = action["content"]["solvent"]
+        solventamount = action["content"]["solventamount"]["value"]
+        solventamountunit = action["content"]["solventamount"]["unit"]
         analyse = AnalyseAction()
         analyse.reaction_id = self.reaction_obj
-        analyse.actiontype = "analyse"
-        analyse.actionno = self.action_no
+        analyse.actiontype = action_type
+        analyse.actionno = action_no
+        analyse.method = method
+        analyse.sampleamount = sampleamount
+        analyse.sampleamountunit = sampleamountunit
+        analyse.solvent = solvent
+        analyse.solventamount = solventamount
+        analyse.solventmountunit = solventamountunit
         analyse.save()
 
-    def createAddActionModel(self, action_type, action):
+    def createAddActionModel(self, action):
         try:
+            action_type = action["name"]
+            action_no = action["content"]["action_no"]
+
             if action["content"]["material"]["SMARTS"]:
                 reactant_SMILES = self.reactant_pair_smiles[0]
                 del self.reactant_pair_smiles[0]
             if action["content"]["material"]["SMILES"]:
                 reactant_SMILES = action["content"]["material"]["SMILES"]
-            action_no = action["content"]["action_no"]
             molar_eqv = action["content"]["material"]["quantity"]["value"]
             concentration = action["content"]["material"]["concentration"]
             if not concentration:
@@ -433,8 +449,9 @@ class CreateEncodedActionModels(object):
             print(error)
             print(action)
 
-    def createExtractActionModel(self, action_type, action):
+    def createExtractActionModel(self, action):
         try:
+            action_type = action["name"]
             solvent = action["content"]["solvent"]["value"]
             quantity = action["content"]["solvent"]["quantity"]["value"]
             unit = action["content"]["solvent"]["quantity"]["unit"]
@@ -455,8 +472,9 @@ class CreateEncodedActionModels(object):
             print(error)
             print(action)
 
-    def createFilterActionModel(self, action_type, action):
+    def createFilterActionModel(self, action):
         try:
+            action_type = action["name"]
             phasetokeep = action["content"]["phase_to_keep"]["value"]
             rinsingsolvent = action["content"]["rinsing_solvent"]["value"]
             rinsingsolventquantity = action["content"]["rinsing_solvent"]["quantity"][
@@ -499,8 +517,9 @@ class CreateEncodedActionModels(object):
             print(error)
             print(action)
 
-    def createQuenchActionModel(self, action_type, action):
+    def createQuenchActionModel(self, action):
         try:
+            action_type = action["name"]
             material = action["content"]["material"]["value"]
             materialquantity = action["content"]["material"]["quantity"]["value"]
             materialquantityunit = action["content"]["material"]["quantity"]["unit"]
@@ -524,8 +543,9 @@ class CreateEncodedActionModels(object):
             print(error)
             print(action)
 
-    def createSetTemperatureActionModel(self, action_type, action):
+    def createSetTemperatureActionModel(self, action):
         try:
+            action_type = action["name"]
             temperature = action["content"]["temperature"]["value"]
 
             temp = SetTemperatureAction()
@@ -540,8 +560,9 @@ class CreateEncodedActionModels(object):
             print(error)
             print(action)
 
-    def createStirActionModel(self, action_type, action):
+    def createStirActionModel(self, action):
         try:
+            action_type = action["name"]
             action_no = action["content"]["action_no"]
             duration = action["content"]["duration"]["value"]
             durationunit = action["content"]["duration"]["unit"]

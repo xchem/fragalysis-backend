@@ -5,6 +5,7 @@ labware_plates = {
         "max_temp": 110,
         "reflux": False,
         "starting_plate": True,
+        "lcmsplate": False,
     },
     "8welltrough_8_reservoir_25000ul": {
         "no_wells": 8,
@@ -12,6 +13,7 @@ labware_plates = {
         "max_temp": 110,
         "reflux": False,
         "starting_plate": False,
+        "lcmsplate": False,
     },
     "12welltrough_12_reservoir_18000ul": {
         "no_wells": 12,
@@ -19,6 +21,7 @@ labware_plates = {
         "max_temp": 110,
         "reflux": False,
         "starting_plate": False,
+        "lcmsplate": False,
     },
     "24_reservoir_2500ul": {
         "no_wells": 24,
@@ -26,6 +29,7 @@ labware_plates = {
         "max_temp": 110,
         "reflux": False,
         "starting_plate": True,
+        "lcmsplate": False,
     },
     "labcyte_384_wellplate_100ul": {
         "no_wells": 384,
@@ -33,6 +37,7 @@ labware_plates = {
         "max_temp": 110,
         "reflux": False,
         "starting_plate": False,
+        "lcmsplate": True,
     },
     "plateone_96_wellplate_500ul": {
         "no_wells": 96,
@@ -40,6 +45,7 @@ labware_plates = {
         "max_temp": 110,
         "reflux": False,
         "starting_plate": False,
+        "lcmsplate": False,
     },
     "plateone_96_wellplate_2500ul": {
         "no_wells": 96,
@@ -47,6 +53,7 @@ labware_plates = {
         "max_temp": 110,
         "reflux": False,
         "starting_plate": False,
+        "lcmsplate": False,
     },
     "qmx_96_aluminumblock_962ul": {
         "no_wells": 96,
@@ -54,5 +61,6 @@ labware_plates = {
         "max_temp": 250,
         "reflux": True,
         "starting_plate": False,
+        "lcmsplate": False,
     },
 }

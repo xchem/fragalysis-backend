@@ -21,6 +21,7 @@ common_solvents = {
     "CCO": "ethanol",
     "CCOC(C)=O": "ethyl acetate",
     "OCCO": "ethylene glycol",
+    "O=CO": "formic acid",
     "OCC(O)CO": "glycerin",
     "CCCCCCC": "heptane",
     "CN(C)[P](=O)(N(C)C)N(C)C": "hexamethylphosphoramide",

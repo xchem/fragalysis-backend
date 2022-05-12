@@ -392,39 +392,81 @@ def createOTScript(batchids: list, protocol_name: str):
             )
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
-                    otsession = CreateOTSession(
-                        reactionstep=1,
+                    reactionotsession = CreateOTSession(
+                        reactionstep=index + 1,
                         otbatchprotocolobj=otbatchprotocolobj,
+                        sessiontype="reaction",
                         reactiongroupqueryset=reactiongroup,
                     )
 
-                    otsessionobj = otsession.otsessionobj
-                    alladdactionsquerysetflat = otsession.alladdactionquerysetflat
+                    otsessionobj = reactionotsession.otsessionobj
+                    alladdactionsquerysetflat = (
+                        reactionotsession.alladdactionquerysetflat
+                    )
 
                     otWrite(
                         protocolname=batch_tag,
                         otsessionobj=otsessionobj,
                         alladdactionsquerysetflat=alladdactionsquerysetflat,
                     )
+
+                    analyseotsession = CreateOTSession(
+                        reactionstep=index + 1,
+                        otbatchprotocolobj=otbatchprotocolobj,
+                        sessiontype="analyse",
+                        reactiongroupqueryset=reactiongroup,
+                    )
+
+                    otsessionobj = analyseotsession.otsessionobj
+                    allanalyseactionsqueryset = (
+                        analyseotsession.allanalyseactionqueryset
+                    )
+
+                    otWrite(
+                        protocolname=batch_tag,
+                        otsessionobj=otsessionobj,
+                        allanalyseactionsqueryset=allanalyseactionsqueryset,
+                    )
+
                 if index > 0:
                     reactiongrouptodo = getReactionsToDo(reactiongroup=reactiongroup)
                     if len(reactiongrouptodo) == 0:
                         break
                     else:
-
-                        otsession = CreateOTSession(
+                        reactionotsession = CreateOTSession(
                             reactionstep=index + 1,
                             otbatchprotocolobj=otbatchprotocolobj,
+                            sessiontype="reaction",
                             reactiongroupqueryset=reactiongrouptodo,
                         )
 
-                        otsessionobj = otsession.otsessionobj
-                        alladdactionsquerysetflat = otsession.alladdactionquerysetflat
+                        otsessionobj = reactionotsession.otsessionobj
+                        alladdactionsquerysetflat = (
+                            reactionotsession.alladdactionquerysetflat
+                        )
 
                         otWrite(
                             protocolname=batch_tag,
                             otsessionobj=otsessionobj,
                             alladdactionsquerysetflat=alladdactionsquerysetflat,
+                        )
+
+                        analyseotsession = CreateOTSession(
+                            reactionstep=index + 1,
+                            otbatchprotocolobj=otbatchprotocolobj,
+                            sessiontype="analyse",
+                            reactiongroupqueryset=reactiongroup,
+                        )
+
+                        otsessionobj = analyseotsession.otsessionobj
+                        allanalyseactionsqueryset = (
+                            analyseotsession.allanalyseactionqueryset
+                        )
+
+                        otWrite(
+                            protocolname=batch_tag,
+                            otsessionobj=otsessionobj,
+                            allanalyseactionsqueryset=allanalyseactionsqueryset,
                         )
 
             createZipOTBatchProtocol = ZipOTBatchProtocol(
@@ -577,17 +619,19 @@ class ZipOTBatchProtocol(object):
                     destdir = "solventprep"
                     self.writeZip(destdir=destdir, filepath=filepath)
 
-            for compoundorderobj in compoundorderqueryset:
-                filepath = self.getCompoundOrderFilePath(
-                    compoundorderobj=compoundorderobj
-                )
-                destdir = "compoundorders"
-                self.writeZip(destdir=destdir, filepath=filepath)
+            if compoundorderqueryset:
+                for compoundorderobj in compoundorderqueryset:
+                    filepath = self.getCompoundOrderFilePath(
+                        compoundorderobj=compoundorderobj
+                    )
+                    destdir = "compoundorders"
+                    self.writeZip(destdir=destdir, filepath=filepath)
 
-            for otscriptobj in otscriptqueryset:
-                filepath = self.getOTScriptFilePath(otscriptobj=otscriptobj)
-                destdir = "otscripts"
-                self.writeZip(destdir=destdir, filepath=filepath)
+            if otscriptqueryset:
+                for otscriptobj in otscriptqueryset:
+                    filepath = self.getOTScriptFilePath(otscriptobj=otscriptobj)
+                    destdir = "otscripts"
+                    self.writeZip(destdir=destdir, filepath=filepath)
 
         self.ziparchive.close()
         self.writeZipToMedia()

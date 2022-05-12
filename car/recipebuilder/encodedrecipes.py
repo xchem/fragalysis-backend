@@ -66,6 +66,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
             "Intramolecular": {
@@ -117,6 +127,16 @@ encoded_recipes = {
                             "action_no": 4,
                             "temperature": {"value": 25, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 5,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -177,6 +197,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 5,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
             "Intramolecular": {
@@ -215,6 +245,16 @@ encoded_recipes = {
                             "action_no": 3,
                             "temperature": {"value": 25, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 4,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -288,6 +328,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
         },
@@ -345,6 +395,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 5,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
             "Intramolecular": {
@@ -382,6 +442,16 @@ encoded_recipes = {
                             "action_no": 3,
                             "temperature": {"value": 80, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 4,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -440,6 +510,16 @@ encoded_recipes = {
                             "action_no": 4,
                             "temperature": {"value": 50, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 5,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -512,6 +592,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
             "Intramolecular": {
@@ -562,6 +652,16 @@ encoded_recipes = {
                             "action_no": 4,
                             "temperature": {"value": 25, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 5,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -652,6 +752,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 7,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
         },
@@ -726,6 +836,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
         },
@@ -772,6 +892,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 4,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
             "Intramolecular": {
@@ -793,9 +923,19 @@ encoded_recipes = {
                     {
                         "name": "stir",
                         "content": {
-                            "action_no": 3,
+                            "action_no": 2,
                             "temperature": {"value": 25, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 3,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -862,6 +1002,16 @@ encoded_recipes = {
                             "duration": {"value": 0.5, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 5,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
         },
@@ -908,6 +1058,16 @@ encoded_recipes = {
                             "action_no": 3,
                             "temperature": {"value": 25, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 4,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -981,6 +1141,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
         },
@@ -994,7 +1164,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 3,
+                            "action_no": 1,
                             "material": {
                                 "SMARTS": None,
                                 "SMILES": "CC(C)C(C=C1C(C)C)=CC(C(C)C)=C1C2=CC=CC=C2P(C3CCCCC3)C4CCCCC4.NC5=C(C6=C([Pd]OS(C)(=O)=O)C=CC=C6)C=CC=C5",
@@ -1007,7 +1177,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 1,
+                            "action_no": 2,
                             "material": {
                                 "SMARTS": ["[c:2]-[F,Cl,Br,I]"],
                                 "SMILES": None,
@@ -1020,7 +1190,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 2,
+                            "action_no": 3,
                             "material": {
                                 "SMARTS": ["[#6:1]-[#7;H2,H1:3]"],
                                 "SMILES": None,
@@ -1050,6 +1220,16 @@ encoded_recipes = {
                             "action_no": 5,
                             "temperature": {"value": 80, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -1124,6 +1304,16 @@ encoded_recipes = {
                             "duration": {"value": 12, "unit": "hours"},
                         },
                     },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
+                        },
+                    },
                 ],
             },
         },
@@ -1137,7 +1327,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 3,
+                            "action_no": 1,
                             "material": {
                                 "SMARTS": None,
                                 "SMILES": "CC(C)C(C=C1C(C)C)=CC(C(C)C)=C1C2=CC=CC=C2P(C3CCCCC3)C4CCCCC4.NC5=C(C6=C([Pd]OS(C)(=O)=O)C=CC=C6)C=CC=C5",
@@ -1151,7 +1341,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 1,
+                            "action_no": 2,
                             "material": {
                                 "SMARTS": ["[c:2]-[F,Cl,Br,I]"],
                                 "SMILES": None,
@@ -1164,7 +1354,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 2,
+                            "action_no": 3,
                             "material": {
                                 "SMARTS": ["[#6:1]-[#8;H1:3]"],
                                 "SMILES": None,
@@ -1194,6 +1384,16 @@ encoded_recipes = {
                             "action_no": 5,
                             "temperature": {"value": 80, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -1209,7 +1409,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 3,
+                            "action_no": 1,
                             "material": {
                                 "SMARTS": None,
                                 "SMILES": "CC(C)C(C=C1C(C)C)=CC(C(C)C)=C1C2=CC=CC=C2P(C3CCCCC3)C4CCCCC4.NC5=C(C6=C([Pd]OS(C)(=O)=O)C=CC=C6)C=CC=C5",
@@ -1223,7 +1423,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 1,
+                            "action_no": 2,
                             "material": {
                                 "SMARTS": ["[c:2]-[F,Cl,Br,I]"],
                                 "SMILES": None,
@@ -1236,7 +1436,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 2,
+                            "action_no": 3,
                             "material": {
                                 "SMARTS": ["[#6:1]-[#8;H1:3]"],
                                 "SMILES": None,
@@ -1266,6 +1466,16 @@ encoded_recipes = {
                             "action_no": 5,
                             "temperature": {"value": 80, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -1285,7 +1495,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 3,
+                            "action_no": 1,
                             "material": {
                                 "SMARTS": None,
                                 "SMILES": "CC(C)C(C=C1C(C)C)=CC(C(C)C)=C1C2=CC=CC=C2P(C3CCCCC3)C4CCCCC4.NC5=C(C6=C([Pd]OS(C)(=O)=O)C=CC=C6)C=CC=C5",
@@ -1298,7 +1508,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 1,
+                            "action_no": 2,
                             "material": {
                                 "SMARTS": ["[c:2]-[Cl,Br,I]"],
                                 "SMILES": None,
@@ -1311,7 +1521,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 2,
+                            "action_no": 3,
                             "material": {
                                 "SMARTS": ["[CH:1]"],
                                 "SMILES": None,
@@ -1351,9 +1561,19 @@ encoded_recipes = {
                     {
                         "name": "stir",
                         "content": {
-                            "action_no": 5,
+                            "action_no": 6,
                             "temperature": {"value": 80, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 7,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -1373,7 +1593,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 3,
+                            "action_no": 1,
                             "material": {
                                 "SMARTS": None,
                                 "SMILES": "CC(C)C(C=C1C(C)C)=CC(C(C)C)=C1C2=CC=CC=C2P(C3CCCCC3)C4CCCCC4.NC5=C(C6=C([Pd]OS(C)(=O)=O)C=CC=C6)C=CC=C5",
@@ -1386,7 +1606,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 1,
+                            "action_no": 2,
                             "material": {
                                 "SMARTS": ["[c:2]-[Cl,Br,I]"],
                                 "SMILES": None,
@@ -1399,7 +1619,7 @@ encoded_recipes = {
                     {
                         "name": "add",
                         "content": {
-                            "action_no": 2,
+                            "action_no": 3,
                             "material": {
                                 "SMARTS": ["[CH:1]"],
                                 "SMILES": None,
@@ -1429,6 +1649,16 @@ encoded_recipes = {
                             "action_no": 5,
                             "temperature": {"value": 80, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],
@@ -1502,6 +1732,16 @@ encoded_recipes = {
                             "action_no": 5,
                             "temperature": {"value": 80, "unit": "degC"},
                             "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "name": "analyse",
+                        "content": {
+                            "action_no": 6,
+                            "method": "LCMS",
+                            "sampleamount": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventamount": {"value": 80, "unit": "ul"},
                         },
                     },
                 ],

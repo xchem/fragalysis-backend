@@ -13,6 +13,7 @@ from pandas.core.frame import DataFrame
 
 
 from car.models import (
+    AnalyseAction,
     Batch,
     Reaction,
     Product,
@@ -41,12 +42,61 @@ class CreateOTSession(object):
         self,
         reactionstep: int,
         otbatchprotocolobj: DjangoObjectType,
-        reactiongroupqueryset: list,
+        sessiontype: str,
+        reactiongroupqueryset: list = None,
     ):
         self.reactionstep = reactionstep
         self.otbatchprotocolobj = otbatchprotocolobj
         self.otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
         self.batchobj = Batch.objects.get(id=otbatchprotocolobj.batch_id_id)
+        self.sessiontype = sessiontype
+        if sessiontype == "reaction":
+            self.createReactionSession(reactiongroupqueryset=reactiongroupqueryset)
+        if sessiontype == "analyse":
+            self.createAnalyseSession(reactiongroupqueryset=reactiongroupqueryset)
+
+    def createAnalyseSession(self, reactiongroupqueryset):
+        self.otsessionobj = self.createOTSessionModel()
+        self.reactiongroupqueryset = reactiongroupqueryset
+        self.reactionids = [
+            reactionobj.id for reactionobj in self.reactiongroupqueryset
+        ]
+        self.allanalyseactionqueryset = self.getAnalyseActionQuerySet(
+            reaction_ids=self.reactionids
+        )
+        self.productqueryset = self.getProductQuerySet(reaction_ids=self.reactionids)
+        self.productsmiles = [productobj.smiles for productobj in self.productqueryset]
+
+        self.analyseactionsdf = self.getAnalyseActionsDataFrame()
+        self.roundedvolumes = self.getRoundedAnalyseActionVolumes(
+            analyseactionqueryset=self.allanalyseactionqueryset
+        )
+        self.groupedanalysemethodobjs = self.getGroupedAnalyseMethods()
+        self.deckobj = self.createDeckModel()
+        self.numbertips = self.getNumberTips(queryset=self.allanalyseactionqueryset)
+        self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
+        self.createTipRacks(tipracktype=self.tipracktype)
+        self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
+        self.createPipetteModel()
+        self.createSolventPlate(materialsdf=self.analyseactionsdf)
+        self.inputplatequeryset = self.getPreviousOTSessionReactionPlates()
+        if self.inputplatequeryset:
+            self.cloneInputPlate()
+        for analysegroup in self.groupedanalysemethodobjs:
+            # May need to rethink and do seprate sessions (Deck space) or optimise tip usage
+            wellsneeded = len(analysegroup)
+            method = analysegroup[0].method
+            self.platetype = self.getAnalysePlateType(
+                wellsneeded=wellsneeded, method=method
+            )
+            self.createAnalysePlate(
+                method=method,
+                platetype=self.platetype,
+                analyseactionqueryset=analysegroup,
+            )
+
+    def createReactionSession(self, reactiongroupqueryset):
+        self.otsessionobj = self.createOTSessionModel()
         self.reactiongroupqueryset = reactiongroupqueryset
         self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
         self.alladdactionqueryset = [
@@ -56,43 +106,85 @@ class CreateOTSession(object):
         self.alladdactionquerysetflat = [
             item for sublist in self.alladdactionqueryset for item in sublist
         ]
-        self.roundedvolumes = self.getRoundedVolumes(
+        self.roundedvolumes = self.getRoundedAddActionVolumes(
             addactionqueryset=self.alladdactionquerysetflat
         )
-        self.numbertips = self.getNumberTips()
-        self.tipracktype = self.getTipRackType()
-        self.pipettetype = self.getPipetteType()
-
-        self.otsessionobj = self.createOTSessionModel()
         self.deckobj = self.createDeckModel()
-        self.addactionsdf = self.getOrderAddActions()
+        self.numbertips = self.getNumberTips(queryset=self.alladdactionquerysetflat)
+        self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
+        self.createTipRacks(tipracktype=self.tipracktype)
+        self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
+        self.addactionsdf = self.getAddActionsDataFrame()
         self.inputplatequeryset = self.getInputPlatesNeeded()
         if self.inputplatequeryset:
             self.cloneInputPlate()
         self.createPipetteModel()
-        self.createStartingPlate()
-        self.createSolventPlate()
+        self.createReactionStartingPlate()
+        self.solventmaterialsdf = self.getAddActionsMaterialDataFrame(
+            productexists=True
+        )
+        self.createSolventPlate(materialsdf=self.solventmaterialsdf)
         self.createReactionPlate()
-        self.createTipRacks()
         self.startingreactionplatequeryset = self.getStartingReactionPlateQuerySet()
 
-    def getAllImputPlates(self):
-        """Get all input plates for all previous otsessions in a otbatchprotocol"""
+    def getAllPreviousOTSessionReactionPlates(self):
+        """Get all input reaction plates for all previous otsessions
+        of reaction type in a otbatchprotocol
+        """
         if self.otsessionqueryset:
-            otsessionsids = [otsession.id for otsession in self.otsessionqueryset]
+            otsessionsids = [
+                otsession.id
+                for otsession in self.otsessionqueryset
+                if otsession.sessiontype == "reaction"
+            ]
             allinputplatesqueryset = Plate.objects.filter(
-                otsession_id__in=otsessionsids
+                otsession_id__in=otsessionsids, platetype="reaction"
             )
             return allinputplatesqueryset
         else:
             return False
+
+    def getPlateQuerySet(self, otsession_id: int):
+        platequeryset = Plate.objects.filter(otsession_id=otsession_id)
+        return platequeryset
+
+    def getPreviousOTSessionReactionPlates(self):
+        """Checks if previous Reaction Plates exist and if they do
+        check if the Wells match the products of the input
+        reactiongroupqueryset for the session
+        """
+        previousotsessionobj = self.getPreviousObjEntry(
+            queryset=self.otsessionqueryset, obj=self.otsessionobj
+        )
+        inputplatesneeded = []
+        if previousotsessionobj.sessiontype == "reaction":
+            previousotsessionplates = self.getPlateQuerySet(
+                otsession_id=previousotsessionobj.id
+            )
+            previousotsessioreactionplates = previousotsessionplates.filter(
+                platetype="reaction"
+            )
+            for previousotsessionreactionplate in previousotsessioreactionplates:
+                wellmatchqueryset = (
+                    previousotsessionreactionplate.well_set.all()
+                    .filter(
+                        reaction_id__in=self.reactionids,
+                        smiles__in=self.productsmiles,
+                        welltype="reaction",
+                    )
+                    .distinct()
+                )
+                if wellmatchqueryset:
+                    inputplatesneeded.append(previousotsessionreactionplate)
+
+        return inputplatesneeded
 
     def getInputPlatesNeeded(self):
         """Checks if a plate previosuly created is needed for the current otsession
         reactions
         """
         inputplatesneeded = []
-        allinputplatequerset = self.getAllImputPlates()
+        allinputplatequerset = self.getAllPreviousOTSessionReactionPlates()
         methodids = [
             reactionobj.method_id for reactionobj in self.reactiongroupqueryset
         ]
@@ -107,6 +199,7 @@ class CreateOTSession(object):
                         method_id__in=methodids,
                         reactantfornextstep=True,
                         smiles__in=allreactantsmiles,
+                        welltype="reaction",
                     )
                     .distinct()
                 )
@@ -114,31 +207,18 @@ class CreateOTSession(object):
                     inputplatesneeded.append(inputplateobj)
         return inputplatesneeded
 
-    def getOTsessions(self):
-        """Get otsessions queryset for otbatchprotocol_id
-        Returns:
-            otsessionsqueryset (Django_queryset): OtSession queryset related to otbatchprotocol_id
-        """
-        otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
-
     def getPreviousObjEntry(self, queryset: list, obj: DjangoObjectType):
-        """Finds previous object relative to obj of queryset. This is used to deal
-        with cases where ids are not sequential (prev_id = id - 1)
-        """
-        previousobj = queryset.filter(pk__lt=obj.pk).order_by("-pk").first()
-        return previousobj
+        """Finds all previous objects relative to obj of queryset"""
+        previousobj = queryset.filter(pk__lt=obj.pk).order_by("-pk")
+        if previousobj:
+            return previousobj[0]
+        else:
+            return None
 
     def getPreviousObjEntries(self, queryset: list, obj: DjangoObjectType):
         """Finds all previous objects relative to obj of queryset"""
         previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
         return previousqueryset
-
-    def getNextObjEntry(self, queryset: list, obj: DjangoObjectType):
-        """Finds next object relative to obj of queryset.This is used to deal
-        with cases where ids are not sequential (next_id = id + 1)
-        """
-        nextobj = queryset.filter(pk__gt=obj.pk).order_by("pk").first()
-        return nextobj
 
     def getNextObjEntries(self, queryset: list, obj: DjangoObjectType):
         """Finds all next objects relative to obj of queryset"""
@@ -188,18 +268,17 @@ class CreateOTSession(object):
                 addactionsmatches.append(addactionmatch[0])
         return addactionsmatches
 
-    def getAddAction(self, reaction_id: int, smiles: str):
-        """Get Addaction object matching reaction_id and smiles
+    def getAnalyseActionQuerySet(self, reaction_ids: list):
+        """Get Analyse Action queryset for list reaction ids object matching reaction_id and smiles
         Args:
-            reaction_id (int): Reaction DB id to search for
-            smiles (str): Smiles to search for next AddAction
+            reaction_ids (list): List Reaction ids to search for
         Returns:
-            addactionobj (Django_obj): AddAction Django object
+            analyseactionqueryset (Django_objs): AnalyseAction queryset
         """
-        addactionobj = AddAction.objects.get(
-            reaction_id=reaction_id, materialsmiles=smiles
+        analyseactionqueryset = AnalyseAction.objects.filter(
+            reaction_id__in=reaction_ids,
         )
-        return addactionobj
+        return analyseactionqueryset
 
     def getReaction(self, reaction_id: int):
         """Get reaction object
@@ -221,14 +300,14 @@ class CreateOTSession(object):
         reactionqueryset = Reaction.objects.filter(method_id=method_id)
         return reactionqueryset
 
-    def getProductQuerySet(self, reaction_id: int):
-        """Get product queryset for reaction_id
+    def getProductQuerySet(self, reaction_ids: list):
+        """Get Product queryset from list of reaction_ids
         Args:
-            reaction_id (int): Method DB id to search for
+            reaction_ids (list): Reaction DB ids to search for
         Returns:
-            productqueryset (Django_queryset): Reaction queryset related to method_id
+            productqueryset (Django_obj): Product queryset related to reaction_ids
         """
-        productqueryset = Product.objects.filter(reaction_id=reaction_id)
+        productqueryset = Product.objects.filter(reaction_id__in=reaction_ids)
         return productqueryset
 
     def getProduct(self, reaction_id: int):
@@ -259,37 +338,47 @@ class CreateOTSession(object):
         ).order_by("id")
         return reactionplatequeryset
 
-    def getRoundedVolumes(self, addactionqueryset):
+    def getRoundedAnalyseActionVolumes(self, analyseactionqueryset):
+        roundedvolumes = [
+            round(analyseactionobj.sampleamount + analyseactionobj.solventamount)
+            for analyseactionobj in analyseactionqueryset
+        ]
+        return roundedvolumes
+
+    def getRoundedAddActionVolumes(self, addactionqueryset):
         roundedvolumes = [
             round(addactionobj.materialquantity) for addactionobj in addactionqueryset
         ]
         return roundedvolumes
 
-    def getTipRackType(self):
+    def getTipRackType(self, roundedvolumes):
         tipsavailable = {
             300: "opentrons_96_tiprack_300ul",
             10: "opentrons_96_tiprack_20ul",
         }
         tipkey = min(
-            tipsavailable, key=lambda x: self.getNumberTransfers(pipettevolume=x)
+            tipsavailable,
+            key=lambda x: self.getNumberTransfers(
+                pipettevolume=x, roundedvolumes=roundedvolumes
+            ),
         )
         tipracktype = tipsavailable[tipkey]
         return tipracktype
 
-    def getNumberTips(self):
-        numbertips = len(self.alladdactionquerysetflat)
+    def getNumberTips(self, queryset):
+        numbertips = len(queryset)
         return numbertips
 
-    def getNumberTransfers(self, pipettevolume):
+    def getNumberTransfers(self, pipettevolume, roundedvolumes):
         numbertransfers = sum(
             [
                 round(volume / pipettevolume) if pipettevolume < volume else 1
-                for volume in self.roundedvolumes
+                for volume in roundedvolumes
             ]
         )
         return numbertransfers
 
-    def getPipetteType(self):
+    def getPipetteType(self, roundedvolumes):
         pipettesavailable = {
             10: {
                 "labware": "p10_single",
@@ -305,12 +394,24 @@ class CreateOTSession(object):
             },
         }
         pipettekey = min(
-            pipettesavailable, key=lambda x: self.getNumberTransfers(pipettevolume=x)
+            pipettesavailable,
+            key=lambda x: self.getNumberTransfers(
+                pipettevolume=x, roundedvolumes=roundedvolumes
+            ),
         )
         pipettetype = pipettesavailable[pipettekey]
         return pipettetype
 
-    def getOrderAddActions(self):
+    def getAnalyseActionsDataFrame(self):
+        # Optimise -> https://stackoverflow.com/questions/11697887/converting-django-queryset-to-pandas-dataframe
+        analyseactionsdf = pd.DataFrame(list(self.allanalyseactionqueryset.values()))
+        analyseactionsdf = analyseactionsdf.rename(
+            columns={"solventamount": "materialquantity"}
+        )
+        return analyseactionsdf
+
+    def getAddActionsDataFrame(self):
+        # Optimise -> https://stackoverflow.com/questions/11697887/converting-django-queryset-to-pandas-dataframe
         addactionslistdf = []
 
         for addactionqueryset in self.alladdactionqueryset:
@@ -337,6 +438,17 @@ class CreateOTSession(object):
         clonewellqueryset = Well.objects.filter(plate_id=plateobj.id)
         return clonewellqueryset
 
+    def getUniqueAnalyseMethods(self):
+        methods = sorted(
+            set(
+                [
+                    analyseactionobj.method
+                    for analyseactionobj in self.allanalyseactionqueryset
+                ]
+            )
+        )
+        return methods
+
     def getUniqueTemperatures(self):
         temperatures = sorted(
             set(
@@ -348,7 +460,46 @@ class CreateOTSession(object):
         )
         return temperatures
 
+    # def getDistinctFieldValues(self, djangomodel: Django_model, field: str):
+    #     """Returns distinct values of a a field for a Django model
+    #     """
+    #     distinctvaluesqueryset = djangomodel.__class__.objects.order_by().values_list(field, flat=True).distinct()
+    #     return distinctvaluesqueryset
+
+    # def getGroupedObjects(self, queryset: list, fieldvalues: list, field: str):
+    #     """Group objects by field value of a input queryset and fieldvalues
+    #     """
+    #     # djangomodel = queryset.model
+    #     # distinctvaluesqueryset = self.getDistinctFieldValues(djangomodel=djangomodel, field=field)
+    #     groupedobjs = []
+
+    #     for fieldvalue in fieldvalues:
+    #         group = [
+    #             obj
+    #             for obj in queryset
+    #             if getattr(obj, field) == fieldvalue
+    #         ]
+    #         groupedobjs.append(group)
+
+    #     return groupedobjs
+
+    def getGroupedAnalyseMethods(self):
+        """Group Analyse methods"""
+        methods = self.getUniqueAnalyseMethods()
+        groupedanalysemethodobjs = []
+
+        for method in methods:
+            analysemethodgroup = [
+                analyseactionobj
+                for analyseactionobj in self.allanalyseactionqueryset
+                if analyseactionobj.method == method
+            ]
+            groupedanalysemethodobjs.append(analysemethodgroup)
+
+        return groupedanalysemethodobjs
+
     def getGroupedTemperatureReactions(self):
+        """Group reactions done at the same temperature"""
         temperatures = self.getUniqueTemperatures()
         groupedtemperaturereactionobjs = []
 
@@ -381,10 +532,11 @@ class CreateOTSession(object):
     def getReactionLabwarePlateType(self, grouptemperaturereactionobjs):
         numberreactions = self.getNumberObjs(queryset=grouptemperaturereactionobjs)
         reactionvolumes = []
-
         for reactionobj in grouptemperaturereactionobjs:
             addactionqueryset = self.getAddActions(reaction_id=reactionobj.id)
-            roundedvolumes = self.getRoundedVolumes(addactionqueryset=addactionqueryset)
+            roundedvolumes = self.getRoundedAddActionVolumes(
+                addactionqueryset=addactionqueryset
+            )
             sumvolume = self.getSumValue(values=roundedvolumes)
             reactionvolumes.append(sumvolume)
         maxvolume = self.getMaxValue(values=reactionvolumes)
@@ -436,6 +588,33 @@ class CreateOTSession(object):
             novialsneeded = sum(volumestoadd)
         return novialsneeded
 
+    def getAnalysePlateType(self, wellsneeded: int, method: str):
+        """Finds best labware plate for analysis"""
+        analyselc = method.lower()
+
+        labwareplatetypes = [
+            labware_plate
+            for labware_plate in labware_plates
+            if labware_plates[labware_plate]["{}plate".format(analyselc)] == True
+        ]
+
+        wellcomparedict = {}
+
+        for labwareplate in labwareplatetypes:
+            maxvolumevial = labware_plates[labwareplate]["volume_well"]
+            noplatevials = labware_plates[labwareplate]["no_wells"]
+            platesneeded = int(math.ceil(wellsneeded / noplatevials))
+            wellcomparedict[maxvolumevial] = platesneeded
+            minimumnovialsvolume = min(wellcomparedict, key=wellcomparedict.get)
+
+        labwareplatetype = [
+            labware_plate
+            for labware_plate in labwareplatetypes
+            if labware_plates[labware_plate]["volume_well"] == minimumnovialsvolume
+        ][0]
+
+        return labwareplatetype
+
     def getStarterPlateType(self, startingmaterialsdf: DataFrame):
         labwareplatetypes = [
             labware_plate
@@ -470,7 +649,7 @@ class CreateOTSession(object):
 
         return labwareplatetype
 
-    def getMaterialsDataFrame(self, productexists: bool):
+    def getAddActionsMaterialDataFrame(self, productexists: bool):
         """Aggegates all materials and sums up volume requires using solvent type and
         concentration
         Args:
@@ -510,12 +689,14 @@ class CreateOTSession(object):
         otsessionobj = OTSession()
         otsessionobj.otbatchprotocol_id = self.otbatchprotocolobj
         otsessionobj.reactionstep = self.reactionstep
+        otsessionobj.sessiontype = self.sessiontype
         otsessionobj.save()
         return otsessionobj
 
     def createDeckModel(self):
         deckobj = Deck()
         deckobj.otsession_id = self.otsessionobj
+        deckobj.numberslots = 11
         deckobj.save()
         self.deckobj = deckobj
         return deckobj
@@ -532,7 +713,8 @@ class CreateOTSession(object):
         pipetteobj.labware = self.pipettetype["labware"]
         pipetteobj.save()
 
-    def createTiprackModel(self, name):
+    def createTiprackModel(self, name: str):
+        """Creates TipRack model"""
         indexslot = self.checkDeckSlotAvailable()
         if indexslot:
             tiprackindex = indexslot
@@ -546,7 +728,8 @@ class CreateOTSession(object):
         else:
             print("No more deck slots available")
 
-    def createPlateModel(self, platename, labwaretype):
+    def createPlateModel(self, platetype: str, platename: str, labwaretype: str):
+        """Creates Plate model if Deck index is available"""
         indexslot = self.checkDeckSlotAvailable()
         if indexslot:
             plateindex = indexslot
@@ -555,6 +738,7 @@ class CreateOTSession(object):
             plateobj = Plate()
             plateobj.otsession_id = self.otsessionobj
             plateobj.deck_id = self.deckobj
+            plateobj.platetype = platetype
             plateobj.platename = "Reaction_step_{}_{}_index_{}".format(
                 self.reactionstep, platename, indexslot
             )
@@ -570,6 +754,7 @@ class CreateOTSession(object):
     def createWellModel(
         self,
         plateobj,
+        welltype,
         wellindex,
         volume=None,
         reactionobj=None,
@@ -577,7 +762,6 @@ class CreateOTSession(object):
         concentration=None,
         solvent=None,
         reactantfornextstep=False,
-        fordilution=False,
     ):
         wellobj = Well()
         wellobj.otsession_id = self.otsessionobj
@@ -585,13 +769,13 @@ class CreateOTSession(object):
         if reactionobj:
             wellobj.reaction_id = reactionobj
             wellobj.method_id = reactionobj.method_id
+        wellobj.welltype = welltype
         wellobj.wellindex = wellindex
         wellobj.volume = volume
         wellobj.smiles = smiles
         wellobj.concentration = concentration
         wellobj.solvent = solvent
         wellobj.reactantfornextstep = reactantfornextstep
-        wellobj.fordilution = fordilution
         wellobj.save()
         return wellobj
 
@@ -608,8 +792,11 @@ class CreateOTSession(object):
         csvdata = orderdf.to_csv(encoding="utf-8", index=False)
         ordercsv = default_storage.save(
             "compoundorders/"
-            + "starterplate-for-batch-{}-reactionstep-{}-sessionid-{}".format(
-                self.batchobj.batch_tag, self.reactionstep, str(self.otsessionobj.id)
+            + "{}-session-starterplate-for-batch-{}-reactionstep-{}-sessionid-{}".format(
+                self.sessiontype,
+                self.batchobj.batch_tag,
+                self.reactionstep,
+                str(self.otsessionobj.id),
             )
             + ".csv",
             ContentFile(csvdata),
@@ -623,8 +810,11 @@ class CreateOTSession(object):
         csvdata = solventdf.to_csv(encoding="utf-8", index=False)
         ordercsv = default_storage.save(
             "solventprep/"
-            + "solventplate-for-batch-{}-reactionstep-{}-sessionid-{}".format(
-                self.batchobj.batch_tag, self.reactionstep, str(self.otsessionobj.id)
+            + "{}-session-solventplate-for-batch-{}-reactionstep-{}-sessionid-{}".format(
+                self.sessiontype,
+                self.batchobj.batch_tag,
+                self.reactionstep,
+                str(self.otsessionobj.id),
             )
             + ".csv",
             ContentFile(csvdata),
@@ -632,11 +822,10 @@ class CreateOTSession(object):
         solventprepobj.solventprepcsv = ordercsv
         solventprepobj.save()
 
-    def createTipRacks(self):
+    def createTipRacks(self, tipracktype: str):
         numberacks = int(-(-self.numbertips // 96))
-        self.tipracktype = self.getTipRackType()
         for rack in range(numberacks):
-            self.createTiprackModel(name=self.tipracktype)
+            self.createTiprackModel(name=tipracktype)
 
     def checkDeckSlotAvailable(self):
         testslotavailable = self.deckobj.indexslotavailable
@@ -661,15 +850,48 @@ class CreateOTSession(object):
             plateobj.save()
             return False
 
-    def createStartingPlate(self):
-        startingmaterialsdf = self.getMaterialsDataFrame(productexists=False)
+    def createAnalysePlate(
+        self, method: str, platetype: str, analyseactionqueryset: list
+    ):
+        plateobj = self.createPlateModel(
+            platetype="analyse",
+            platename="{}_analyse_plate".format(method),
+            labwaretype=platetype,
+        )
+
+        for analyseactionobj in analyseactionqueryset:
+            reactionobj = analyseactionobj.reaction_id
+            productobj = self.getProduct(reaction_id=reactionobj.id)
+            volume = analyseactionobj.sampleamount + analyseactionobj.solventamount
+            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+            if not indexwellavailable:
+                plateobj = self.createPlateModel(
+                    platename="{}_analyse_plate".format(method),
+                    labwaretype=platetype,
+                )
+
+                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+
+            self.createWellModel(
+                plateobj=plateobj,
+                reactionobj=reactionobj,
+                welltype="analyse",
+                wellindex=indexwellavailable - 1,
+                volume=volume,
+                smiles=productobj.smiles,
+            )
+
+    def createReactionStartingPlate(self):
+        startingmaterialsdf = self.getAddActionsMaterialDataFrame(productexists=False)
 
         startinglabwareplatetype = self.getStarterPlateType(
             startingmaterialsdf=startingmaterialsdf
         )
 
         plateobj = self.createPlateModel(
-            platename="Startingplate", labwaretype=startinglabwareplatetype
+            platetype="startingmaterial",
+            platename="Startingplate",
+            labwaretype=startinglabwareplatetype,
         )
 
         maxwellvolume = self.getMaxWellVolume(plateobj=plateobj)
@@ -678,7 +900,10 @@ class CreateOTSession(object):
         orderdictslist = []
 
         for i in startingmaterialsdf.index.values:
-            totalvolume = startingmaterialsdf.at[i, "materialquantity"]
+            extraerrorvolume = startingmaterialsdf.at[i, "materialquantity"] * 0.1
+            totalvolume = (
+                startingmaterialsdf.at[i, "materialquantity"] + extraerrorvolume
+            )
             if totalvolume > maxwellvolume:
                 nowellsneededratio = totalvolume / (maxwellvolume - deadvolume)
 
@@ -693,6 +918,7 @@ class CreateOTSession(object):
                     if not indexwellavailable:
 
                         plateobj = self.createPlateModel(
+                            platetype="startingmaterial",
                             platename="Startingplate",
                             labwaretype=startinglabwareplatetype,
                         )
@@ -706,6 +932,7 @@ class CreateOTSession(object):
                         reactionobj=self.getReaction(
                             reactionid=startingmaterialsdf.at[i, "reaction_id_id"]
                         ),
+                        welltype="startingmaterial",
                         wellindex=indexwellavailable - 1,
                         volume=volumetoadd,
                         smiles=startingmaterialsdf.at[i, "materialsmiles"],
@@ -730,7 +957,9 @@ class CreateOTSession(object):
 
                 if not indexwellavailable:
                     plateobj = self.createPlateModel(
-                        platename="Startingplate", labwaretype=startinglabwareplatetype
+                        platetype="startingmaterial",
+                        platename="Startingplate",
+                        labwaretype=startinglabwareplatetype,
                     )
                     indexwellavailable = self.checkPlateWellsAvailable(
                         plateobj=plateobj
@@ -741,6 +970,7 @@ class CreateOTSession(object):
                     reactionobj=self.getReaction(
                         reaction_id=startingmaterialsdf.at[i, "reaction_id_id"]
                     ),
+                    welltype="startingmaterial",
                     wellindex=indexwellavailable - 1,
                     volume=volumetoadd,
                     smiles=startingmaterialsdf.at[i, "materialsmiles"],
@@ -771,7 +1001,9 @@ class CreateOTSession(object):
             )
 
             plateobj = self.createPlateModel(
-                platename="Reactionplate", labwaretype=labwareplatetype
+                platetype="reaction",
+                platename="Reactionplate",
+                labwaretype=labwareplatetype,
             )
 
             for reactionobj in grouptemperaturereactionobjs:
@@ -779,7 +1011,9 @@ class CreateOTSession(object):
                 indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
                 if not indexwellavailable:
                     plateobj = self.createPlateModel(
-                        platename="Reactionplate", labwaretype=labwareplatetype
+                        platetype="reaction",
+                        platename="Reactionplate",
+                        labwaretype=labwareplatetype,
                     )
 
                     indexwellavailable = self.checkPlateWellsAvailable(
@@ -794,6 +1028,7 @@ class CreateOTSession(object):
                     self.createWellModel(
                         plateobj=plateobj,
                         reactionobj=reactionobj,
+                        welltype="reaction",
                         wellindex=indexwellavailable - 1,
                         volume=nextaddactionobj.materialquantity,
                         smiles=productobj.smiles,
@@ -806,6 +1041,7 @@ class CreateOTSession(object):
                     self.createWellModel(
                         plateobj=plateobj,
                         reactionobj=reactionobj,
+                        welltype="reaction",
                         wellindex=indexwellavailable - 1,
                         smiles=productobj.smiles,
                     )
@@ -846,34 +1082,30 @@ class CreateOTSession(object):
             clonewellobj.otsession_id = self.otsessionobj
             clonewellobj.save()
 
-    def createSolventPlate(self):
-        """Creates solvent plate/s for diluting concentrated reaction mixture
-        product used for next reaction step.
-        """
-        materialsdf = self.getMaterialsDataFrame(productexists=True)
+    def createSolventPlate(self, materialsdf: DataFrame):
+        """Creates solvent plate/s for diluting reactants for reactions or analysis."""
         if not materialsdf.empty:
             solventdictslist = []
             materialsdf = (
                 materialsdf.groupby(["solvent"])["materialquantity"].sum().to_frame()
             )
-
             startinglabwareplatetype = self.getStarterPlateType(
                 startingmaterialsdf=materialsdf
             )
 
             plateobj = self.createPlateModel(
-                platename="Solventplate", labwaretype=startinglabwareplatetype
+                platetype="dilution",
+                platename="Solventplate",
+                labwaretype=startinglabwareplatetype,
             )
 
             maxwellvolume = self.getMaxWellVolume(plateobj=plateobj)
             deadvolume = self.getDeadVolume(maxwellvolume=maxwellvolume)
 
             for solventgroup in materialsdf.index.values:
-
                 totalvolume = materialsdf.at[solventgroup, "materialquantity"]
                 if totalvolume > maxwellvolume:
                     nowellsneededratio = totalvolume / (maxwellvolume - deadvolume)
-
                     frac, whole = math.modf(nowellsneededratio)
                     volumestoadd = [maxwellvolume for i in range(int(whole))]
                     volumestoadd.append(frac * maxwellvolume + deadvolume)
@@ -885,6 +1117,7 @@ class CreateOTSession(object):
                         if not indexwellavailable:
 
                             plateobj = self.createPlateModel(
+                                platetype="dilution",
                                 platename="Solventplate",
                                 labwaretype=startinglabwareplatetype,
                             )
@@ -895,10 +1128,10 @@ class CreateOTSession(object):
 
                         wellobj = self.createWellModel(
                             plateobj=plateobj,
+                            welltype="dilution",
                             wellindex=indexwellavailable - 1,
                             volume=volumetoadd,
                             solvent=solventgroup,
-                            fordilution=True,
                         )
 
                         solventdictslist.append(
@@ -918,6 +1151,7 @@ class CreateOTSession(object):
 
                     if not indexwellavailable:
                         plateobj = self.createPlateModel(
+                            platetype="dilution",
                             platename="Solventplate",
                             labwaretype=startinglabwareplatetype,
                         )
@@ -927,10 +1161,10 @@ class CreateOTSession(object):
 
                     wellobj = self.createWellModel(
                         plateobj=plateobj,
+                        welltype="dilution",
                         wellindex=indexwellavailable - 1,
                         volume=volumetoadd,
                         solvent=solventgroup,
-                        fordilution=True,
                     )
 
                     solventdictslist.append(
