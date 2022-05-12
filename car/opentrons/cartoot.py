@@ -824,7 +824,6 @@ class CreateOTSession(object):
 
     def createTipRacks(self, tipracktype: str):
         numberacks = int(-(-self.numbertips // 96))
-        # self.tipracktype = self.getTipRackType()
         for rack in range(numberacks):
             self.createTiprackModel(name=tipracktype)
 
@@ -901,7 +900,8 @@ class CreateOTSession(object):
         orderdictslist = []
 
         for i in startingmaterialsdf.index.values:
-            totalvolume = startingmaterialsdf.at[i, "materialquantity"]
+            extraerrorvolume = startingmaterialsdf.at[i, "materialquantity"] * 0.1
+            totalvolume = startingmaterialsdf.at[i, "materialquantity"] + extraerrorvolume
             if totalvolume > maxwellvolume:
                 nowellsneededratio = totalvolume / (maxwellvolume - deadvolume)
 
