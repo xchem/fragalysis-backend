@@ -186,6 +186,7 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
     proteins = Protein.objects.filter(code__contains=code_first_part)
     if proteins.exists():
         new_prot = proteins.first()
+        logger.debug("Protein exists='%s'", new_prot[1])
     else:
         new_prot = Protein.objects.get_or_create(code=code, target_id=target)
         logger.debug("Protein created new_prot='%s'", new_prot[1])

@@ -322,10 +322,14 @@ def check_file_transfer(request):
             prot = Protein.objects.filter(code__contains=code_first_part).values()
             if prot.exists():
                 proteins.append(prot.first())
+            else:
+                error['message'] = 'Please enter valid protein code for' \
+                                   + ': {} '.format(code_first_part)
+                error['status'] = status.HTTP_404_NOT_FOUND
+                return error, proteins, compounds
 
         if len(proteins) == 0:
-            error['message'] = 'Please enter list of valid protein codes for' \
-                               + ' proteins: {} '.format(proteins_list)
+            error['message'] = 'API expects a list of comma-separated protein codes'
             error['status'] = status.HTTP_404_NOT_FOUND
             return error, proteins, compounds
 
@@ -338,10 +342,14 @@ def check_file_transfer(request):
             comp = ComputedMolecule.objects.filter(name=compound).values()
             if comp.exists():
                 compounds.append(comp.first())
+            else:
+                error['message'] = 'Please enter valid compound name for' \
+                                   + ': {} '.format(compound)
+                error['status'] = status.HTTP_404_NOT_FOUND
+                return error, proteins, compounds
 
         if len(compounds) == 0:
-            error['message'] = 'Please enter list of valid computed molecule names for' \
-                               + ' compounds: {} '.format(compounds_list)
+            error['message'] = 'API expects a list of comma-separated compound names'
             error['status'] = status.HTTP_404_NOT_FOUND
             return error, proteins, compounds
 

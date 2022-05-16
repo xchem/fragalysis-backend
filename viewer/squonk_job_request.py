@@ -38,6 +38,41 @@ def check_squonk_active(request):
 
     return False
 
+
+def get_squonk_job_config(request, squonk_job_name=None):
+    """get squonk job configuration details from squonk.
+    1. Get all available jobs for the user.
+    2. Filter the job for the specific job name if provided
+
+    Returns:
+        DICT
+        either the list of available jobs
+        or details for the requested job.
+    """
+
+    logger.info('+ get_squonk_job_config')
+    auth_token = request.session['oidc_access_token']
+    logger.info(auth_token)
+
+    result = DmApi.get_available_jobs(auth_token)
+    logger.info(result)
+
+    if result.success is True:
+        available_jobs = result.msg
+    else:
+        return result.msg
+
+    if not squonk_job_name:
+        return available_jobs
+    else:
+        for job in available_jobs['jobs']:
+            if job['job'] == squonk_job_name:
+                result = DmApi.get_job(auth_token, job['id'] )
+                # This either returns the definition or the squonk message.
+                return result.msg
+        return {'Job not found'}
+
+
 def create_squonk_job(request):
     """Check set up and create Squonk job instance.
     1. Check files have been successfully transferred for the snapshot.
