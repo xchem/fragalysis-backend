@@ -12,7 +12,7 @@ import pandas as pd
 
 from django.db import connections
 from django.http import HttpResponse, FileResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
@@ -1908,17 +1908,16 @@ class DSetUploadView(APIView):
         return HttpResponse(json.dumps(string))
 
 
-class ComputedSetView(viewsets.ReadOnlyModelViewSet):
-    """ DjagnoRF view to retrieve information about computed sets
+class ComputedSetView(viewsets.ModelViewSet):
+    """DjagnoRF view to retrieve information about and delete computed sets
 
     Methods
     -------
+    allowed requests:
+        - GET: retrieve all the sets or one based on its name
+        - DELETE: delete a set based on name
     url:
         api/compound-sets
-    queryset:
-        `viewer.models.ComputedSet.objects.filter()`
-    filter fields:
-        - `viewer.models.ComputedSet.target` - ?target=<int>
     returns: JSON
         - name: name of the computed set
         - submitted_sdf: link to the uploaded sdf file
@@ -1939,8 +1938,13 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
                     "spec_version": 1.2,
                     "method_url": "https://github.com/Waztom/xchem-xCOS",
                     "unique_name": "WT-xCOS2-ThreeHop",
-                    "target": 62,
-                    "submitter": 13
+                    "upload_task_id": null,
+                    "upload_status": null,
+                    "upload_progress": null,
+                    "upload_datetime": null,
+                    "target": 1,
+                    "submitter": 1,
+                    "owner_user": 3
                 },]
 
     """
@@ -1948,6 +1952,16 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
     serializer_class = ComputedSetSerializer
     filter_permissions = "project_id"
     filterset_fields = ('target', 'target__title')
+
+    http_method_names = ['get', 'head', 'delete']
+
+    def destroy(self, request, pk=None):
+        """User provides the name of the ComputedSet (that's its primary key).
+        We simply look it up and delete it, returning a standard 204 on success.
+        """
+        computed_set = get_object_or_404(ComputedSet, pk=pk)
+        computed_set.delete()
+        return HttpResponse(status=204)
 
 
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
@@ -3124,9 +3138,7 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
 
         .. code-block::
 
-            /api/download_structures/?squonk_job_name=run_smina
-
-
+            /api/job_config/?squonk_job_name=run_smina
     """
     def list(self, request):
         """Method to handle GET request

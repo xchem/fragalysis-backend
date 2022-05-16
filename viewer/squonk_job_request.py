@@ -52,7 +52,7 @@ def get_squonk_job_config(request, squonk_job_name=None):
 
     logger.info('+ get_squonk_job_config')
     auth_token = request.session['oidc_access_token']
-    logger.info(auth_token)
+    logger.debug(auth_token)
 
     result = DmApi.get_available_jobs(auth_token)
     logger.info(result)
@@ -85,7 +85,7 @@ def create_squonk_job(request):
 
     logger.info('+ create_squonk_job')
     auth_token = request.session['oidc_access_token']
-    logger.info(auth_token)
+    logger.debug(auth_token)
 
     squonk_job_name = request.data['squonk_job_name']
     target_id = request.data['target']
