@@ -900,7 +900,7 @@ class UploadCSet(View):
                 selected_set.delete()
 
                 request.session[_SESSION_MESSAGE] = \
-                    f'Compound set "{selected_set.unique_name}" Deleted'
+                    f'Compound set "{selected_set.unique_name}" deleted'
                 return redirect('upload_cset')
 
         context = {'form': form}
