@@ -105,7 +105,7 @@ def process_compound_set(validate_output):
     logger.info('process_compound_set() params=%s', params)
 
     if not validated:
-        logger.warning('process_compound_set() EXIT (not validated)')
+        logger.warning('process_compound_set() EXIT params=%s (not validated)', params)
         return process_stage, 'cset', validate_dict, validated
 
 
@@ -130,7 +130,7 @@ def process_compound_set(validate_output):
                        zfile_hashvals=zfile_hashvals)
     compound_set = save_mols.task()
 
-    logger.warning('process_compound_set() EXIT (%s)', compound_set.name)
+    logger.info('process_compound_set() EXIT (%s)', compound_set.name)
     return 'process', 'cset', compound_set.name
 
 # End Uploading Compound Sets ###
@@ -213,7 +213,9 @@ def validate_compound_set(user_id, sdf_file, target=None, zfile=None, update=Non
                                                    ' No other checks were done',
                                     validate_dict=validate_dict)
         validated = False
-        logger.info('validate_compound_set() EXIT validated=%s', validated)
+        logger.warning('validate_compound_set() EXIT'
+                       ' user_id=%s sdf_file=%s validated=False',
+                       user_id, sdf_file)
         return (validate_dict, validated, sdf_file, target, zfile,
                 submitter_name, submitter_method)
 
@@ -283,8 +285,9 @@ def validate_compound_set(user_id, sdf_file, target=None, zfile=None, update=Non
 
     len_validate_dict = len(validate_dict['molecule_name'])
     if len_validate_dict != 0:
-        logger.warning('validate_compound_set() validated=False'
-                       ' len_validate_dict=%s', len_validate_dict)
+        logger.warning('validate_compound_set()'
+                       ' user_id=%s sdf_file=%s len_validate_dict=%s validated=False',
+                       user_id, sdf_file, len_validate_dict)
         validated = False
 
     # params = {
