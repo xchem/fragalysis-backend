@@ -81,7 +81,8 @@ from .squonk_job_file_transfer import (
 
 from .squonk_job_request import (
     check_squonk_active,
-    create_squonk_job
+    get_squonk_job_config,
+    create_squonk_job,
 )
 
 from viewer.serializers import (
@@ -3102,6 +3103,47 @@ class JobFileTransferView(viewsets.ModelViewSet):
                    'transfer_task_id': str(job_transfer_task)}
         return Response(content,
                         status=status.HTTP_200_OK)
+
+
+class JobConfigView(viewsets.ReadOnlyModelViewSet):
+    """Django view that calls Squonk to get a requested job configuration
+
+    Methods
+    -------
+    allowed requests:
+        - GET: Get job config
+
+    url:
+       api/job_config
+    get params:
+       - squonk_job: name of the squonk job requested
+
+       Returns: job details.
+
+    example input for get
+
+        .. code-block::
+
+            /api/download_structures/?squonk_job_name=run_smina
+
+
+    """
+    def list(self, request):
+        """Method to handle GET request
+        """
+        query_params = request.query_params
+        logger.info('+ JobConfigView.get: '+json.dumps(query_params))
+
+        # Only authenticated users can have squonk jobs
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can access squonk jobs'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        squonk_job_name = request.query_params.get('squonk_job_name', None)
+        content = get_squonk_job_config(request, squonk_job_name)
+
+        return Response(content)
 
 
 class JobRequestView(viewsets.ModelViewSet):
