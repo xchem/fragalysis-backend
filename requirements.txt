@@ -16,9 +16,9 @@ coreapi==2.3.3
 coreschema==0.0.4
 coverage==5.2.1
 coveralls==2.1.1
-cryptography==3.0
+cryptography==3.2
 decorator==4.4.2
-Django==3.1
+Django==3.1.14
 django-bootstrap3==14.1.0
 django-cleanup==5.0.0
 django-extensions==3.0.3
@@ -95,7 +95,7 @@ pytz==2020.1
 pyxdg==0.26
 PyYAML==5.3.1
 redis==3.5.3
-requests==2.24.0
+requests==2.27.1
 Rx==1.6.1
 scandir==1.10.0
 SecretStorage==3.1.2

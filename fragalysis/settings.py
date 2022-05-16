@@ -345,33 +345,38 @@ SQUONK_UI_URL = os.environ.get('SQUONK_UI_URL')
 SQUONK_MEDIA_DIRECTORY = "/fragalysis-files"
 SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
 
-# This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with
-# errors. Hence connection to DEBUG flag.
-# Note that in development you have to jump on to docker and then look for logs/logfile.
-if DEBUG is True:
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'handlers': {
-            'console': {
-                'level': 'DEBUG',
-                'class': 'logging.StreamHandler',
-            },
-            'logfile': {
-                'level': 'DEBUG',
-                'class': 'logging.FileHandler',
-                'filename': BASE_DIR + "/logs/logfile.log",
-            },
-        },
-        # 'loggers': {
-        #     'celery': {
-        #         'handlers': ['celery'],
-        #         'level': 'INFO',
-        #         'propagate': False
-        #     },
-        #},
-        'root': {
-            'level': 'INFO',
-            'handlers': ['console', 'logfile']
-        },
-    }
+# Configure django logging.
+# We provide a standard formatter that emits a timestamp, the module issuing the log
+# and the level name, a little like this...
+#
+#   2022-05-16T09:04:29 django.request ERROR # Internal Server Error: /viewer/react/landing
+#
+# We provide a console and rotating file handler
+# (50Mi of logging  in 10 files of 5M each),
+# with the rotating file handler typically used for everything.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '%(asctime)s %(name)s %(levelname)s # %(message)s',
+            'datefmt': '%Y-%m-%dT%H:%M:%S'}},
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'},
+        'rotating': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': 5_000_000,
+            'backupCount': 10,
+            'filename': os.path.join(BASE_DIR, 'logs/logfile.log'),
+            'formatter': 'simple'}},
+    'loggers': {
+        'django': {
+            'level': 'WARNING',
+            'handlers': ['rotating']}},
+    'root': {
+        'level': 'WARNING',
+        'handlers': ['rotating']}}
