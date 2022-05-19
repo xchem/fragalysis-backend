@@ -122,7 +122,8 @@ from viewer.serializers import (
     JobFileTransferWriteSerializer,
     JobRequestReadSerializer,
     JobRequestWriteSerializer,
-    JobCallBackSerializer
+    JobCallBackReadSerializer,
+    JobCallBackWriteSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -3262,7 +3263,21 @@ class JobCallBackView(viewsets.ModelViewSet):
 
     """
 
-    serializer_class = JobCallBackSerializer
     queryset = JobRequest.objects.all()
     lookup_field = "code"
     http_method_names = ['get', 'head', 'put']
+
+    def get_serializer_class(self):
+        """Determine which serializer to use based on whether the request is a GET or a PUT
+
+        Returns
+        -------
+        Serializer (rest_framework.serializers.ModelSerializer):
+            - if GET: `viewer.serializers.JobCallBackWriteSerializer`
+            - if other: `viewer.serializers.JobCallBackWriteSerializer
+        """
+        if self.request.method in ['GET']:
+            # GET
+            return JobCallBackReadSerializer
+        # PUT
+        return JobCallBackWriteSerializer
