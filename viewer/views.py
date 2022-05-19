@@ -4,6 +4,7 @@ import zipfile
 from io import StringIO
 import uuid
 import shutil
+from datetime import datetime
 from wsgiref.util import FileWrapper
 
 # import the logging library
@@ -64,6 +65,7 @@ from .tasks import (
     process_compound_set,
     process_design_sets,
     process_job_file_transfer,
+    process_compound_set_job_file,
     process_target_set,
     validate_compound_set,
     validate_target_set,
@@ -865,12 +867,14 @@ class UploadCSet(View):
             if choice == 'V':
                 # Validate
                 # Start celery task
-                task_validate = validate_compound_set.delay(
-                    user.id,
-                    tmp_sdf_file,
-                    target=target,
-                    zfile=tmp_pdb_file,
-                    update=update_set)
+                task_params = {'user_id': user.id,
+                               'sdf_file': tmp_sdf_file,
+                               'target': target}
+                if tmp_pdb_file:
+                    task_params['zfile'] = tmp_pdb_file
+                if update_set:
+                    task_params['update'] = update_set
+                task_validate = validate_compound_set.delay(task_params)
 
                 # Update client side with task id and status
                 context = {'validate_task_id': task_validate.id,
@@ -881,14 +885,16 @@ class UploadCSet(View):
                 # Upload
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
+                task_params = {'user_id': user.id,
+                               'sdf_file': tmp_sdf_file,
+                               'target': target}
+                if tmp_pdb_file:
+                    task_params['zfile'] = tmp_pdb_file
+                if update_set:
+                    task_params['update'] = update_set
                 task_upload = (
-                            validate_compound_set.s(
-                                user.id,
-                                tmp_sdf_file,
-                                target=target,
-                                zfile=tmp_pdb_file,
-                                update=update_set)
-                            | process_compound_set.s()).apply_async()
+                        validate_compound_set.s(task_params) |
+                        process_compound_set.s()).apply_async()
 
                 # Update client side with task id and status
                 context = {'upload_task_id': task_upload.id,
@@ -1219,7 +1225,7 @@ class UploadTaskView(View):
                         - html (str): message to tell the user their data was not processed
 
         """
-        logger.info('+ UploadTaskView.get')
+        logger.debug('+ UploadTaskView.get')
         task = AsyncResult(upload_task_id)
         response_data = {'upload_task_status': task.status,
                          'upload_task_id': task.id}
@@ -1231,7 +1237,7 @@ class UploadTaskView(View):
             return JsonResponse(response_data)
 
         if task.status == 'SUCCESS':
-            logger.info('+ UploadTaskView.get.success')
+            logger.debug('+ UploadTaskView.get.success')
 
             results = task.get()
 
@@ -3278,3 +3284,63 @@ class JobCallBackView(viewsets.ModelViewSet):
     queryset = JobRequest.objects.all()
     lookup_field = "code"
     http_method_names = ['get', 'head', 'put']
+
+    def update(self, request, code=None):
+        """Response to a PUT on the Job-Callback.
+        We're given a 'code' which we use to lookup the corresponding JobRequest
+        (there'll only be one).
+        """
+
+        jr = JobRequest.objects.get(code=code)
+        logger.info('jr=%s', jr)
+
+        # request.data is rendered as a dictionary
+        if request.data:
+
+            status = request.data['job_status']
+            logger.info('code=%s status=%s', code, status)
+            # Get the appropriate SQUONK_STATUS...
+            found_status = False
+            for squonk_status in JobRequest.SQUONK_STATUS:
+                if squonk_status[0] == status:
+                    jr.job_status = squonk_status[1]
+                    found_status = True
+                    break
+
+            if not found_status:
+                logger.warning('code=%s got unrecognised status (%s)', code, status)
+            elif jr.job_status == 'SUCCESS':
+                # Job's finished.
+                # Ony act if upload_task_id is not set
+                # (i.e. has already started)
+                logger.info('SUCCESS')
+#                if jr.upload_task_id:
+#                    logger.warning('Ignoring, upload_task_id set (already uploading?)')
+#                else:
+                # Initiate an upload of files from Squonk.
+                # Which requires the linking of three tasks...
+                transition_time = request.data.get('state_transition_time')
+                if not transition_time:
+                    transition_time = str(datetime.now()).split()[0]
+                    logger.warning("Callback is missing state_transition_time"
+                                   " (using '%s')", transition_time)
+
+                jr_id = jr.id
+                logger.warning("Attempting to start"
+                               " process_compound_set_job_file(%s, %s)...",
+                               jr_id, transition_time)
+
+                task_params = {'jr_id': jr_id,
+                               'transition_time': transition_time}
+                task_upload = (
+                     process_compound_set_job_file.s(task_params) |
+                     validate_compound_set.s() |
+                     process_compound_set.s()
+                ).apply_async()
+
+                logger.info('Started process_job_file_upload(%s) task (%s)',
+                            jr.id, task_upload)
+
+            jr.save()
+
+        return HttpResponse(status=204)

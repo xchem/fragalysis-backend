@@ -1,7 +1,5 @@
-"""
-squonk_job_file_transfer Functions for the celery tasks for transferring
-files from Fragalysis to Squonk.
-
+"""Functions (for the celery tasks) that transfer (download) files from
+Fragalysis to Squonk.
 """
 import os
 import shutil
@@ -13,8 +11,13 @@ from dm_api.dm_api import DmApi
 from rdkit import Chem
 
 from celery.utils.log import get_task_logger
-from viewer.utils import clean_filename
-
+from viewer.utils import (
+    clean_filename,
+    add_prop_to_sdf,
+    add_prop_to_mol,
+    create_media_sub_directory,
+    delete_media_sub_directory
+)
 from viewer.models import (
     Molecule,
     Protein,
@@ -42,13 +45,13 @@ logger = get_task_logger(__name__)
 #
 
 SQUONK_PROT_MAPPING = {
-    'apo_desolve': { 'func': 'prot_file', 'field': 'apo_desolve_info'},
-    'mol': { 'func': 'mol_field', 'field': 'sdf_info'},
-    'sdf': { 'func': 'sdf_file', 'field': 'sdf_file'}
+    'apo_desolve': {'func': 'prot_file', 'field': 'apo_desolve_info'},
+    'mol': {'func': 'mol_field', 'field': 'sdf_info'},
+    'sdf': {'func': 'sdf_file', 'field': 'sdf_file'}
 }
 
 SQUONK_COMP_MAPPING = {
-    'mol': { 'func': 'comp_mol_field', 'field': 'sdf_info'},
+    'mol': {'func': 'comp_mol_field', 'field': 'sdf_info'},
 }
 
 REF_PROP = 'ref_mols'
@@ -67,23 +70,6 @@ def ref_mol_from_protein_code(protein_code, target_title):
         return protein_code.strip().split(":")[0].replace(target_prefix, '')
     else:
         return protein_code
-
-
-def add_prop_to_mol(mol_field, mol_file_out, value):
-    """Returns a mol_file with the requested property added
-    Note that the only property that seems to work with a .mol file if you write it is: "_Name".
-
-    Args:
-        mol_field
-        mol_file_out : filepath to write new file to
-        property
-        value
-    """
-    rd_mol = Chem.MolFromMolBlock(mol_field)
-    # Set the new property in the property mol object
-    rd_mol.SetProp("_Name", value)
-    logger.info('Getprop: %s', rd_mol.GetProp("_Name"))
-    Chem.MolToMolFile(rd_mol, mol_file_out)
 
 
 def mol_field(field, trans_dir, protein_code, target):
@@ -108,34 +94,6 @@ def mol_field(field, trans_dir, protein_code, target):
     return filepath
 
 
-def add_prop_to_sdf(sdf_file_in, sdf_file_out, property, value):
-    """Returns an SDF file with the requested property added.
-    Note that this assumes only one molecule is in the file (as is the case in Fragalysis)
-
-    SDF parameters are of format:
-    >  <TransFSScore>  (1)
-    0.115601
-
-    Args:
-        sdf_file_in : filepath of source file
-        sdf_file_out : filepath to write new file to
-        property
-        value
-    """
-    _REC_SEPARATOR = '$$$$\n'
-
-    with open(sdf_file_in, "r") as sdf_in:
-        contents = sdf_in.readlines()
-
-    end_of_rec = contents.index(_REC_SEPARATOR)
-    contents.insert(end_of_rec, value+'\n')
-    contents.insert(end_of_rec, '>  <'+property+'>  (1)\n')
-    contents = "".join(contents)
-
-    with open(sdf_file_out, "a") as sdf_out:
-        sdf_out.write(contents)
-
-
 def sdf_file(field, trans_dir, protein_code, target):
     """Copy the requested file from the molecule table to the transfer directory, standardising
     the filename.
@@ -158,7 +116,7 @@ def sdf_file(field, trans_dir, protein_code, target):
     inpath = os.path.join(settings.MEDIA_ROOT, file.name)
     filepath = os.path.join(trans_dir, clean_filename(inpath))
     code = ref_mol_from_protein_code(protein_code, target.title)
-    add_prop_to_sdf(inpath, filepath, REF_PROP, code)
+    add_prop_to_sdf(inpath, filepath, {REF_PROP: code})
     return filepath
 
 
@@ -216,15 +174,15 @@ def process_file_transfer(auth_token,
     """
 
     logger.info('+ process_file_transfer')
-    logger.info (auth_token)
+    logger.debug(auth_token)
     job_transfer = JobFileTransfer.objects.get(id=job_transfer_id)
 
-    trans_dir = os.path.join(settings.MEDIA_ROOT, 'squonk_transfer', str(job_transfer.id))
+    trans_sub_dir = os.path.join('squonk_transfer', str(job_transfer.id))
+    trans_dir = create_media_sub_directory(trans_sub_dir)
 
     # location in squonk project where files will reside e.g. "fragalysis-files"
     target = job_transfer.target
     squonk_directory = settings.SQUONK_MEDIA_DIRECTORY + '/' + target.title
-    os.makedirs(trans_dir, exist_ok=True)
 
     # This to pick up NULL values from the changeover to using compounds.
     if not job_transfer.compounds:
@@ -248,11 +206,11 @@ def process_file_transfer(auth_token,
         logger.info(squonk_directory)
         logger.info(file_list)
 
-        result = DmApi.upload_unmanaged_project_files(access_token=auth_token,
-                                                      project_id=job_transfer.squonk_project,
-                                                      project_files=file_list,
-                                                      project_path=squonk_directory,
-                                                      force=True)
+        result = DmApi.put_unmanaged_project_files(access_token=auth_token,
+                                                   project_id=job_transfer.squonk_project,
+                                                   project_files=file_list,
+                                                   project_path=squonk_directory,
+                                                   force=True)
         logger.info(result)
 
         if result.success:
@@ -279,11 +237,11 @@ def process_file_transfer(auth_token,
         logger.info(squonk_directory)
         logger.info(file_list)
 
-        result = DmApi.upload_unmanaged_project_files(access_token=auth_token,
-                                                      project_id=job_transfer.squonk_project,
-                                                      project_files=file_list,
-                                                      project_path=squonk_directory,
-                                                      force=True)
+        result = DmApi.put_unmanaged_project_files(access_token=auth_token,
+                                                   project_id=job_transfer.squonk_project,
+                                                   project_files=file_list,
+                                                   project_path=squonk_directory,
+                                                   force=True)
         logger.info(result)
 
         if result.success:
@@ -291,11 +249,11 @@ def process_file_transfer(auth_token,
             job_transfer.transfer_progress = (idx*100/num_to_transfer)
             job_transfer.save()
         else:
-            logger.info('File Transfer Failed')
+            logger.error('File Transfer Failed')
             raise RuntimeError('File Transfer Failed')
 
     # Tidy up the transfer directory.
-    shutil.rmtree(trans_dir)
+    delete_media_sub_directory(trans_sub_dir)
 
 
 def check_file_transfer(request):

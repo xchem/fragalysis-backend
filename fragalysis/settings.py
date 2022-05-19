@@ -82,6 +82,7 @@ REST_FRAMEWORK = {
 CELERY_BROKER_URL = 'redis://localhost:6379'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False').lower() in ['true', 'yes']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 # This is to stop Celery overwriting the Django logging defaults.
@@ -352,14 +353,14 @@ SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
 #   2022-05-16T09:04:29 django.request ERROR # Internal Server Error: /viewer/react/landing
 #
 # We provide a console and rotating file handler
-# (50Mi of logging  in 10 files of 5M each),
+# (50Mi of logging in 10 files of 5M each),
 # with the rotating file handler typically used for everything.
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'simple': {
-            'format': '%(asctime)s %(name)s %(levelname)s # %(message)s',
+            'format': '%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s',
             'datefmt': '%Y-%m-%dT%H:%M:%S'}},
     'handlers': {
         'console': {

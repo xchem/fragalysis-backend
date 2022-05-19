@@ -187,7 +187,7 @@ def check_blank_prop(blank_mol, validate_dict):
                                         field=key,
                                         warning_string='description for %s missing' % (key,),
                                         validate_dict=validate_dict)
-        if key == 'ref_url' and check_url(value) == False:
+        if key == 'ref_url' and check_url(value) is False:
             validate_dict = add_warning(molecule_name=blank_mol.GetProp('_Name'),
                                         field=key,
                                         warning_string='illegal URL %s provided' % (value,),
@@ -233,7 +233,7 @@ def check_url(value):
     """
 
     valid = validators.url(value)
-    if valid != True:
+    if valid is not True:
         return False
 
 
