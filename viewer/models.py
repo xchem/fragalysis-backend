@@ -1165,10 +1165,10 @@ class JobRequest(models.Model):
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE,
                                db_index=True)
     squonk_project = models.CharField(max_length=200, null=True)
-    squonk_job_spec = models.JSONField(encoder=DjangoJSONEncoder,null=True)
+    squonk_job_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     job_status = models.CharField(choices=SQUONK_STATUS, default=PENDING, max_length=7)
     job_status_datetime = models.DateTimeField(null=True)
-    squonk_job_info = models.JSONField(encoder=DjangoJSONEncoder,null=True)
+    squonk_job_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     squonk_url_ext = models.CharField(max_length=200, null=True)
     code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     upload_task_id = models.CharField(null=True, max_length=50)

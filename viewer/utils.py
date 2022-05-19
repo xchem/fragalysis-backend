@@ -5,6 +5,7 @@ Collection of technical methods tidied up in one location.
 """
 import fnmatch
 import os
+import shutil
 
 from django.conf import settings
 
@@ -24,8 +25,19 @@ def create_media_sub_directory(sub_directory):
 
 
 def delete_media_sub_directory(sub_directory):
-    directory = os.path.join(settings.MEDIA_ROOT, sub_directory)
-    os.makedirs(directory, exist_ok=True)
+    """Removes a media sub-directory."""
+    assert sub_directory
+    assert len(sub_directory)
+    directory = os.path.normpath(os.path.join(settings.MEDIA_ROOT, sub_directory))
+    if not os.path.isdir(directory):
+        # No such directory!
+        return
+    if not directory.startswith(settings.MEDIA_ROOT) or \
+            os.path.samefile(directory, settings.MEDIA_ROOT):
+        # Danger!
+        return
+
+    shutil.rmtree(directory)
 
 
 def add_prop_to_sdf(sdf_file_in, sdf_file_out, properties):

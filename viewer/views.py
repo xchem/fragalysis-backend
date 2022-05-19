@@ -6,6 +6,7 @@ import uuid
 import shutil
 from datetime import datetime
 from wsgiref.util import FileWrapper
+from dateutil.parser import parse
 
 # import the logging library
 import logging
@@ -62,6 +63,7 @@ from viewer import filters
 from .forms import CSetForm, CSetUpdateForm, TSetForm
 from .tasks import (
     check_services,
+    erase_compound_set_job_material,
     process_compound_set,
     process_design_sets,
     process_job_file_transfer,
@@ -124,7 +126,8 @@ from viewer.serializers import (
     JobFileTransferWriteSerializer,
     JobRequestReadSerializer,
     JobRequestWriteSerializer,
-    JobCallBackSerializer
+    JobCallBackReadSerializer,
+    JobCallBackWriteSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -3280,10 +3283,24 @@ class JobCallBackView(viewsets.ModelViewSet):
 
     """
 
-    serializer_class = JobCallBackSerializer
     queryset = JobRequest.objects.all()
     lookup_field = "code"
     http_method_names = ['get', 'head', 'put']
+
+    def get_serializer_class(self):
+        """Determine which serializer to use based on whether the request is a GET or a PUT
+
+        Returns
+        -------
+        Serializer (rest_framework.serializers.ModelSerializer):
+            - if GET: `viewer.serializers.JobCallBackWriteSerializer`
+            - if other: `viewer.serializers.JobCallBackWriteSerializer`
+        """
+        if self.request.method in ['GET']:
+            # GET
+            return JobCallBackReadSerializer
+        # PUT
+        return JobCallBackWriteSerializer
 
     def update(self, request, code=None):
         """Response to a PUT on the Job-Callback.
@@ -3310,35 +3327,37 @@ class JobCallBackView(viewsets.ModelViewSet):
             if not found_status:
                 logger.warning('code=%s got unrecognised status (%s)', code, status)
             elif jr.job_status == 'SUCCESS':
-                # Job's finished.
-                # Ony act if upload_task_id is not set
-                # (i.e. has already started)
-                logger.info('SUCCESS')
-#                if jr.upload_task_id:
-#                    logger.warning('Ignoring, upload_task_id set (already uploading?)')
-#                else:
-                # Initiate an upload of files from Squonk.
-                # Which requires the linking of three tasks...
+
+                # Update the transition time
                 transition_time = request.data.get('state_transition_time')
                 if not transition_time:
                     transition_time = str(datetime.now()).split()[0]
                     logger.warning("Callback is missing state_transition_time"
                                    " (using '%s')", transition_time)
+                jr.job_status_datetime = parse(transition_time)
 
-                jr_id = jr.id
-                logger.warning("Attempting to start"
-                               " process_compound_set_job_file(%s, %s)...",
-                               jr_id, transition_time)
+                # Only interested in acting on the callback if the Job's finished.
+                # And only act if upload_task_id is not already set
+                # (i.e. has already started)
+                logger.info('SUCCESS')
 
-                task_params = {'jr_id': jr_id,
+#                if jr.upload_task_id:
+#                    logger.warning('Ignoring, upload_task_id set (already uploading?)')
+#                else:
+
+                # Initiate an upload (and removal) of files from Squonk.
+                # Which requires the linking of several tasks...
+                task_params = {'jr_id': jr.id,
                                'transition_time': transition_time}
                 task_upload = (
                      process_compound_set_job_file.s(task_params) |
                      validate_compound_set.s() |
-                     process_compound_set.s()
+                     process_compound_set.s() |
+                     erase_compound_set_job_material.s(job_request_id=jr.id)
                 ).apply_async()
+                jr.upload_task_id = task_upload.id
 
-                logger.info('Started process_job_file_upload(%s) task (%s)',
+                logger.info('Started process_job_file_upload(%s) task_upload=%s',
                             jr.id, task_upload)
 
             jr.save()

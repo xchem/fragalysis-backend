@@ -116,6 +116,12 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
     os.rename(tmp_filename, sdf_filename)
 
 
+def get_upload_sub_directory(job_request):
+    """Returns the media-relative directory for the upload job data.
+    """
+    return os.path.join('squonk_upload', str(job_request.code))
+
+
 def process_compound_set_file(jr_id, transition_time):
     """Check the DM project for the expected file(s) and upload them.
     This code also applies the parameters to the uploaded compound set file.
@@ -135,7 +141,7 @@ def process_compound_set_file(jr_id, transition_time):
     # Do we need to create the upload path?
     # This is used for this 'job' and is removed when the upload is complete
     # successful or otherwise.
-    upload_sub_dir = os.path.join('squonk_upload', str(job_request.code))
+    upload_sub_dir = get_upload_sub_directory(job_request)
     upload_dir = create_media_sub_directory(upload_sub_dir)
 
     # There must be a 'variables.output' in the job's specification.
