@@ -1,7 +1,6 @@
 import os
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
-#L+
 from urllib.parse import urljoin
 
 from api.utils import draw_mol
@@ -26,8 +25,12 @@ from viewer.models import (
     TextScoreValues,
     TagCategory,
     MoleculeTag,
-    SessionProjectTag
+    SessionProjectTag,
+    JobFileTransfer,
+    JobRequest
 )
+from viewer.utils import get_https_host
+
 from scoring.models import MolGroup
 
 from django.contrib.auth.models import User
@@ -118,18 +121,6 @@ def template_protein(obj):
             return protein.pdb_info.url
     return "NOT AVAILABLE"
 
-def get_https_host(request):
-    """Common enabler code for returning https urls
-
-    This is to map links to HTTPS to avoid Mixed Content warnings from Chrome browsers
-    SECURE_PROXY_SSL_HEADER is referenced because it is used in redirecting URLs - if
-    it is changed it may affect this code.
-    Using relative links will probably also work, but This workaround allows both the
-    'download structures' button and the DRF API call to work.
-    Note that this link will not work on local
-    """
-    return settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
-
 
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
@@ -157,7 +148,8 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Target
-        fields = ("id", "title", "project_id", "protein_set", "template_protein", "metadata", "zip_archive", "sequences")
+        fields = ("id", "title", "project_id", "protein_set", "default_squonk_project",
+                  "template_protein", "metadata", "zip_archive", "upload_status", "sequences")
 
 
 class CompoundSerializer(serializers.ModelSerializer):
@@ -461,14 +453,16 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
     session_project  = SessionProjectWriteSerializer()
     class Meta:
         model = Snapshot
-        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data',
+                  'session_project', 'parent', 'children', 'additional_info')
 
 
 # (POST, PUT, PATCH)
 class SnapshotWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Snapshot
-        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data', 'session_project', 'parent', 'children')
+        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data',
+                  'session_project', 'parent', 'children', 'additional_info')
 
 
 # (GET, POST, PUT, PATCH)
@@ -683,9 +677,9 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Target
-        fields = ("id", "title", "project_id", "template_protein", "metadata",
-                  "zip_archive", "sequences",
-                  "molecules","tags_info","tag_categories")
+        fields = ("id", "title", "project_id", "default_squonk_project", "template_protein",
+                  "metadata", "zip_archive", "upload_status", "sequences",
+                  "molecules", "tags_info", "tag_categories")
 # Serializers for Tags - End
 
 
@@ -707,3 +701,41 @@ class DownloadStructuresSerializer(serializers.Serializer):
     smiles_info = serializers.BooleanField(default=False)
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200)
+
+
+# Start of Serializers for Squonk Jobs
+# (GET)
+class JobFileTransferReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobFileTransfer
+        fields = '__all__'
+
+
+# (POST, PUT, PATCH)
+class JobFileTransferWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobFileTransfer
+        fields = ("snapshot", "target", "squonk_project",
+                  "proteins")
+
+
+# (GET)
+class JobRequestReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobRequest
+        fields = '__all__'
+
+
+# (POST, PUT, PATCH)
+class JobRequestWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobRequest
+        fields = ("squonk_job_name", "snapshot", "target", "squonk_project",
+                  "squonk_job_spec")
+
+
+class JobCallBackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobRequest
+        fields = ("job_status", "squonk_job_info")
+# End of Serializers for Squonk Jobs
