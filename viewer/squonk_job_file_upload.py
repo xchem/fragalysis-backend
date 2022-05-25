@@ -10,6 +10,7 @@ that contains an 'outfile' declaration (e.g. "abc-molecules.sdf".).
 """
 import json
 import os
+import shlex
 import shutil
 
 from django.conf import settings
@@ -64,7 +65,7 @@ $$$$
 """
 
 # Expected Job parameter file suffix
-_JOB_PARAM_FILE_SUFFIX = '_param.json'
+_JOB_PARAM_FILE_SUFFIX = '_params.json'
 
 
 def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
@@ -142,60 +143,78 @@ def process_compound_set_file(jr_id, transition_time):
     upload_sub_dir = get_upload_sub_directory(job_request)
     upload_dir = create_media_sub_directory(upload_sub_dir)
 
-    # There must be a 'variables.output' in the job's specification.
-    job_squonk_job_spec = json.loads(job_request.squonk_job_spec)
-    job_output_filename = job_squonk_job_spec.get('variables', {}).get('outfile')
+    # What is the SD file the Job created?
+    # For now there must be a '--output' in the job info's 'command'.
+    # Here we have hard-coded the expectations because the logic to identify the
+    # command's outputs is not available via the DmApi.
+    # The command is a string that we split and search.
+    job_output = ''
+    jr_job_info_msg = job_request.squonk_job_info[1]
+    command = jr_job_info_msg.get('command')
+    command_parts = shlex.split(command)
+    outfile_index = 0
+    while outfile_index < len(command_parts) and command_parts[outfile_index] != '--outfile':
+        outfile_index += 1
+    # Found '--command'?
+    if outfile_index < len(command_parts) - 1:
+        # Yes ... the filename is the next item in the list
+        job_output = command_parts[outfile_index + 1]
+    job_output_path = '/' + os.path.dirname(job_output)
+    job_output_filename = os.path.basename(job_output)
 
     # The temporary files we plan to upload to...
     tmp_sdf_filename = os.path.join(upload_dir, 'job.sdf')
     tmp_param_filename = os.path.join(upload_dir, 'job_params.json')
 
-    # The actual file we expect to create (from the temporary files)...
-    sdf_filename = os.path.join(upload_dir, os.path.split(job_output_filename)[1])
+    # The actual file we expect to create (after processing the temporary files)...
+    sdf_filename = os.path.join(upload_dir, job_output_filename)
 
     if not job_output_filename:
-        logger.warning("Squonk job spec had no 'outfile' (%d)", jr_id)
+        logger.warning("Squonk job spec had no '--outfile' (%d)", jr_id)
         return sdf_filename
 
     # We expect an outfile (".sdf")
     # and an "{outfile}_params.json" file.
     got_all_files = False
-    # Get the parameter file.
-    # The callback token and instance ID is in JobRequest.squonk_job_info
-    # (the original response from Squonk when launching ht Job).
-    #
-    jr_job_info = job_request.squonk_job_info[1]
-    token = jr_job_info.get('callback_token')
-    instance_id = jr_job_info.get('instance_id')
+
+    # The callback token (required to make Squonk API calls from the callback)
+    # and instance ID are in JobRequest.
+    token = jr_job_info_msg.get('callback_token')
+    instance_id = jr_job_info_msg.get('instance_id')
     logger.info("Squonk API token=%s", token)
     logger.info("Squonk API instance_id=%s", instance_id)
+
+    # Get the parameter file...
+    #         --------------
     job_output_param_filename = os.path\
         .splitext(job_output_filename)[0] + _JOB_PARAM_FILE_SUFFIX
+    logger.info("Trying to get parameter file (path=%s filename=%s)...",
+                job_output_path, job_output_param_filename)
     result = DmApi.get_unmanaged_project_file_with_token(
         token=token,
         project_id=job_request.squonk_project,
+        project_path=job_output_path,
         project_file=job_output_param_filename,
         local_file=tmp_param_filename,
         timeout_s=20)
-    logger.debug('DmApi.get_unmanaged_project_file_with_token(%s) result=%s',
-                 job_output_param_filename, result)
     if not result.success:
-        logger.warning('Failed to get SDF parameter file (%s)',
-                       job_output_param_filename)
+        logger.warning('Failed to get SDF parameter file (path=%s filename=%s)',
+                       job_output_path, job_output_param_filename)
     else:
         # Got the parameter file so now get the SDF...
+        #                               -----------
+        logger.warning('Trying to get SDF (path=%s filename=%s)...',
+                       job_output_path, job_output_filename)
         result = DmApi.get_unmanaged_project_file_with_token(
             token=token,
             project_id=job_request.squonk_project,
+            project_path=job_output_path,
             project_file=job_output_filename,
             local_file=tmp_sdf_filename,
             timeout_s=120)
-        logger.debug(
-            'DmApi.get_unmanaged_project_file_with_token(%s) result=%s',
-            job_output_filename, result)
         if not result.success:
-            logger.warning('Failed to get SDF (%s)',
-                           job_output_param_filename)
+            logger.warning('Failed to get SDF (path=%s filename=%s)',
+                           job_output_path, job_output_filename)
         else:
             # Both files pulled back.
             got_all_files = True
@@ -212,7 +231,8 @@ def process_compound_set_file(jr_id, transition_time):
         # and then insert new parameters as we write to the actual SDF file.
         # i.e. we put a blank molecule in tmp.sdf and then apply parameters
         # as we re-write to {outfile}.
-        logger.info('Processing %s and %s', tmp_sdf_filename, tmp_param_filename)
+        logger.info('Uploaded parameters to %s', tmp_param_filename)
+        logger.info('Uploaded SDF to %s', tmp_sdf_filename)
         logger.info('Generating %s', sdf_filename)
 
         # Insert our 'blank molecule' into the uploaded file...
