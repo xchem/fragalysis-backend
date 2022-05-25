@@ -205,6 +205,28 @@ def validate_compound_set(task_params):
                      'field': [],
                      'warning_string': []}
 
+    # params = {
+    #     'sdf': 'tests/test_data/test_chodera/test_0_2.sdf',
+    #     'target': 'Mpro',
+    #     'choice': 1,
+    #     'update_set': None,
+    #     'pdb_zip': '/code/tests/test_data/test_chodera/references.zip'
+    # }
+
+    outbound_params = {
+        'user_id': user_id,
+        'sdf': sdf_file,
+        'target': target,
+        'pdb_zip': zfile
+    }
+
+    # Protect ourselves form a missing SD file.
+    if not os.path.isfile(sdf_file):
+        validated = False
+        logger.info('validate_compound_set() EXIT (missing file) validated=%s outbound_params=%s',
+                    validated, outbound_params)
+        return 'validate', 'cset', validate_dict, validated, outbound_params
+
     suppl = Chem.SDMolSupplier(sdf_file)
     # print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
@@ -299,23 +321,9 @@ def validate_compound_set(task_params):
                        user_id, sdf_file, len_validate_dict)
         validated = False
 
-    # params = {
-    #     'sdf': 'tests/test_data/test_chodera/test_0_2.sdf',
-    #     'target': 'Mpro',
-    #     'choice': 1,
-    #     'update_set': None,
-    #     'pdb_zip': '/code/tests/test_data/test_chodera/references.zip'
-    # }
-
-    params = {
-        'user_id': user_id,
-        'sdf': sdf_file,
-        'target': target,
-        'pdb_zip': zfile
-    }
-
-    logger.info('validate_compound_set() EXIT validated=%s params=%s', validated, params)
-    return 'validate', 'cset', validate_dict, validated, params
+    logger.info('validate_compound_set() EXIT validated=%s outbound_params=%s',
+                validated, outbound_params)
+    return 'validate', 'cset', validate_dict, validated, outbound_params
 
 # End Validating Compound Sets ###
 
