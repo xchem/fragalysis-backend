@@ -66,8 +66,6 @@ $$$$
 # Expected Job parameter file suffix
 _JOB_PARAM_FILE_SUFFIX = '_param.json'
 
-_DISABLE_DMAPI = True
-
 
 def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
 
@@ -148,46 +146,72 @@ def process_compound_set_file(jr_id, transition_time):
     job_squonk_job_spec = json.loads(job_request.squonk_job_spec)
     job_output_filename = job_squonk_job_spec.get('variables', {}).get('outfile')
 
-    # The files we plan to upload to...
+    # The temporary files we plan to upload to...
     tmp_sdf_filename = os.path.join(upload_dir, 'job.sdf')
     tmp_param_filename = os.path.join(upload_dir, 'job_params.json')
 
+    # The actual file we expect to create (from the temporary files)...
+    sdf_filename = os.path.join(upload_dir, os.path.split(job_output_filename)[1])
+
     if not job_output_filename:
         logger.warning("Squonk job spec had no 'outfile' (%d)", jr_id)
+        return sdf_filename
+
+    # We expect an outfile (".sdf")
+    # and an "{outfile}_params.json" file.
+    got_all_files = False
+    # Get the parameter file.
+    # The callback token and instance ID is in JobRequest.squonk_job_info
+    # (the original response from Squonk when launching ht Job).
+    #
+    jr_job_info = job_request.squonk_job_info[1]
+    token = jr_job_info.get('callback_token')
+    instance_id = jr_job_info.get('instance_id')
+    logger.info("Squonk API token=%s", token)
+    logger.info("Squonk API instance_id=%s", instance_id)
+    job_output_param_filename = os.path\
+        .splitext(job_output_filename)[0] + _JOB_PARAM_FILE_SUFFIX
+    result = DmApi.get_unmanaged_project_file_with_token(
+        token=token,
+        project_id=job_request.squonk_project,
+        project_file=job_output_param_filename,
+        local_file=tmp_param_filename,
+        timeout_s=20)
+    logger.debug('DmApi.get_unmanaged_project_file_with_token(%s) result=%s',
+                 job_output_param_filename, result)
+    if not result.success:
+        logger.warning('Failed to get SDF parameter file (%s)',
+                       job_output_param_filename)
     else:
+        # Got the parameter file so now get the SDF...
+        result = DmApi.get_unmanaged_project_file_with_token(
+            token=token,
+            project_id=job_request.squonk_project,
+            project_file=job_output_filename,
+            local_file=tmp_sdf_filename,
+            timeout_s=120)
+        logger.debug(
+            'DmApi.get_unmanaged_project_file_with_token(%s) result=%s',
+            job_output_filename, result)
+        if not result.success:
+            logger.warning('Failed to get SDF (%s)',
+                           job_output_param_filename)
+        else:
+            # Both files pulled back.
+            got_all_files = True
+            # Delete the callback token, which is no-longer needed.
+            # Don't care if this fails - the token will expire automatically
+            # after a period of time.
+#            _ = DmApi.delete_instance_token(
+#                instance_id=instance_id,
+#                token=token)
 
-        # We expect an outfile (".sdf")
-        # and an "{outfile}_params.json" file.
-
-        if not _DISABLE_DMAPI:
-            # Get the SDF file...
-            result = DmApi.get_unmanaged_project_file(access_token=auth_token,
-                                                      project_id=job_request.squonk_project,
-                                                      project_file=job_output_filename,
-                                                      local_file=tmp_sdf_filename,
-                                                      timeout_s=120)
-            logger.debug('DmApi.get_unmanaged_project_file(%s) result=%s',
-                         job_output_filename, result)
-            if result.success:
-                # Get the parameter file file...
-                job_output_param_filename = os.path\
-                    .splitext(job_output_filename)[0] + _JOB_PARAM_FILE_SUFFIX
-                result = DmApi.get_unmanaged_project_file(access_token=auth_token,
-                                                          project_id=job_request.squonk_project,
-                                                          project_file=job_output_param_filename,
-                                                          local_file=tmp_param_filename,
-                                                          timeout_s=20)
-                logger.debug('DmApi.get_unmanaged_project_file(%s) result=%s',
-                             job_output_param_filename, result)
-
-    # If we have an SDF and parameter file
-    # apply the blank molecule to the uploaded file
-    # and then insert new parameters as we write to the actual SDF file.
-    # i.e. we put a blank molecule in tmp.sdf and then apply parameters
-    # as we re-write to {outfile}.
-    sdf_filename = os.path.join(upload_dir, os.path.split(job_output_filename)[1])
-    if os.path.isfile(tmp_sdf_filename) and os.path.isfile(tmp_param_filename):
-
+    if got_all_files:
+        # If we have an SDF and parameter file
+        # apply the blank molecule to the uploaded file
+        # and then insert new parameters as we write to the actual SDF file.
+        # i.e. we put a blank molecule in tmp.sdf and then apply parameters
+        # as we re-write to {outfile}.
         logger.info('Processing %s and %s', tmp_sdf_filename, tmp_param_filename)
         logger.info('Generating %s', sdf_filename)
 
@@ -197,11 +221,10 @@ def process_compound_set_file(jr_id, transition_time):
             params = json.loads(param_file.read())
             add_prop_to_sdf(tmp_sdf_filename, sdf_filename, params)
 
+        logger.info('Done job compound file (%s)', jr_id)
     else:
         logger.warning('Not processing. Either %s or %s is missing',
                        tmp_sdf_filename, tmp_param_filename)
 
-    logger.info('Done job compound file (%s)', jr_id)
-
-    # Return the name of the file (which will exist if all's gone well).
+    # Return the name of the file (which will exist if we pulled two files).
     return sdf_filename

@@ -130,6 +130,7 @@ def create_squonk_job(request):
                                       job_request.squonk_project,
                                       job_name,
                                       callback_url=callback_url,
+                                      generate_callback_token=True,
                                       specification=json.loads(squonk_job_spec),
                                       timeout_s=8)
 

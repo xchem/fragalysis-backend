@@ -1168,7 +1168,16 @@ class JobRequest(models.Model):
     squonk_job_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     job_status = models.CharField(choices=SQUONK_STATUS, default=PENDING, max_length=7)
     job_status_datetime = models.DateTimeField(null=True)
+    # squonk_job_info is a copy of the response from DmApi.start_job_instance().
+    # It's an instance of a DmApiRv object (a namedtuple)
+    # that contains a 'success' (boolean) and 'msg' (the DmApi response's resp.json()).
+    # For us this will contain a 'task_id', 'instance_id' and 'callback_token'.
+    # The content will be a list with index '0' that's the value of the DmApiRv
+    # 'success' variable and, at index '1', the original response message json().
+    # The Job callback token will be squonk_job_info[0]['callback_token']
     squonk_job_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    # 'squonk_url_ext' is a Squonk UI URL to obtain information about the
+    # running instance. It's essentially the Squonk URL with the instance ID appended.
     squonk_url_ext = models.CharField(max_length=200, null=True)
     code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     upload_task_id = models.CharField(null=True, max_length=50)
