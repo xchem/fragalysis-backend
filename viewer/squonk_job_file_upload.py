@@ -55,9 +55,6 @@ Diamond Light Source
 >  <method>  (1) 
 {method}
 
->  <original SMILES>  (1) 
-O
-
 >  <ref_url>  (1) 
 {ref_url}
 
