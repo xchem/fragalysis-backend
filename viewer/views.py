@@ -3162,8 +3162,13 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
             content = {'Only authenticated users can access squonk jobs'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        squonk_job_name = request.query_params.get('squonk_job_name', None)
-        content = get_squonk_job_config(request, squonk_job_name)
+        job_collection = request.query_params.get('job_collection', None)
+        job_name = request.query_params.get('job_name', None)
+        job_version = request.query_params.get('job_version', None)
+        content = get_squonk_job_config(request,
+                                        job_collection=job_collection,
+                                        job_name=job_name,
+                                        job_version=job_version)
 
         return Response(content)
 
