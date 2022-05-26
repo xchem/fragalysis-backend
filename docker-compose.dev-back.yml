@@ -59,6 +59,8 @@ services:
       # DEBUG_FRAGALYSIS: 'True'
       #TODO
       OIDC_RP_CLIENT_SECRET: 'c6245428-04c7-466f-9c4f-58c340e981c2'
+      SQUONK_UI_URL: https://data-manager-ui.xchem-dev.diamond.ac.uk/data-manager-ui
+      SQUONK_API_URL: https://data-manager.xchem-dev.diamond.ac.uk/data-manager-api
       DISCOURSE_API_KEY: 'd6036de5e412123b77048c0b92d42fb108484ea1eef2918d67b236802fa8cd4f'
       DISCOURSE_HOST: 'https://discourse.xchem-dev.diamond.ac.uk'
       DISCOURSE_DEV_POST_SUFFIX: '-duncan-local'

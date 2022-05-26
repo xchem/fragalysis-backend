@@ -2,37 +2,35 @@ import json
 import os
 import zipfile
 from io import StringIO
-import pandas as pd
 import uuid
 import shutil
 from wsgiref.util import FileWrapper
 
 # import the logging library
 import logging
-# Get an instance of a logger
-logger = logging.getLogger(__name__)
+import pandas as pd
 
 from django.db import connections
 from django.http import HttpResponse, FileResponse
 from django.shortcuts import render
-from rest_framework import viewsets
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.conf import settings
 from django.http import JsonResponse
+from django.views import View
 
+from rest_framework import viewsets
 from rest_framework.parsers import BaseParser
 from rest_framework.exceptions import ParseError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from django.views import View
-
 from celery.result import AsyncResult
 
 from api.security import ISpyBSafeQuerySet
+
 from api.utils import get_params, get_highlighted_diffs
 
 from viewer.models import (
@@ -54,7 +52,9 @@ from viewer.models import (
     TagCategory,
     MoleculeTag,
     SessionProjectTag,
-    DownloadLinks
+    DownloadLinks,
+    JobRequest,
+    JobFileTransfer
 )
 from viewer import filters
 from .forms import CSetForm, UploadKeyForm, CSetUpdateForm, TSetForm
@@ -67,6 +67,10 @@ from .download_structures import (
     maintain_download_links
 )
 
+from .squonk_job_request import (
+    check_squonk_active,
+    create_squonk_job
+)
 
 from viewer.serializers import (
     MoleculeSerializer,
@@ -100,8 +104,15 @@ from viewer.serializers import (
     MoleculeTagSerializer,
     SessionProjectTagSerializer,
     TargetMoleculesSerializer,
-    DownloadStructuresSerializer
+    DownloadStructuresSerializer,
+    JobFileTransferReadSerializer,
+    JobFileTransferWriteSerializer,
+    JobRequestReadSerializer,
+    JobRequestWriteSerializer,
+    JobCallBackSerializer
 )
+
+logger = logging.getLogger(__name__)
 
 class VectorsView(ISpyBSafeQuerySet):
     """ DjagnoRF view for vectors
@@ -124,7 +135,7 @@ class VectorsView(ISpyBSafeQuerySet):
     queryset = Molecule.objects.filter()
     serializer_class = VectorsSerializer
     filter_permissions = "prot_id__target_id__project_id"
-    filter_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
+    filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
 
 class GraphView(ISpyBSafeQuerySet):
@@ -205,7 +216,7 @@ class GraphView(ISpyBSafeQuerySet):
     queryset = Molecule.objects.filter()
     serializer_class = GraphSerializer
     filter_permissions = "prot_id__target_id__project_id"
-    filter_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
+    filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
 
 class MolImageView(ISpyBSafeQuerySet):
@@ -237,7 +248,7 @@ class MolImageView(ISpyBSafeQuerySet):
     queryset = Molecule.objects.filter()
     serializer_class = MolImageSerialzier
     filter_permissions = "prot_id__target_id__project_id"
-    filter_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
+    filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
 
 class CompoundImageView(ISpyBSafeQuerySet):
@@ -266,7 +277,7 @@ class CompoundImageView(ISpyBSafeQuerySet):
     queryset = Compound.objects.filter()
     serializer_class = CmpdImageSerialzier
     filter_permissions = "project_id"
-    filter_fields = ("smiles",)
+    filterset_fields = ("smiles",)
 
 
 class ProteinMapInfoView(ISpyBSafeQuerySet):
@@ -289,7 +300,7 @@ class ProteinMapInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtMapInfoSerialzer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 class ProteinPDBInfoView(ISpyBSafeQuerySet):
@@ -325,7 +336,7 @@ class ProteinPDBInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtPDBInfoSerialzer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
@@ -361,7 +372,7 @@ class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProtPDBBoundInfoSerialzer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
 class TargetView(ISpyBSafeQuerySet):
@@ -383,6 +394,10 @@ class TargetView(ISpyBSafeQuerySet):
            - template_protein: the template protein displayed in fragalysis front-end for this target
            - metadata: link to the metadata file for the target if it was uploaded
            - zip_archive: link to the zip archive of the uploaded data
+           - default_squonk_project: project identifier of project on the Squonk application for
+           this target.
+           - upload_status: If set, this indicates the status of the most recent reload of the
+           target data. Should normally move from 'PENDING' to 'STARTED' to 'SUCCESS".
 
        example output:
 
@@ -412,7 +427,7 @@ class TargetView(ISpyBSafeQuerySet):
     queryset = Target.objects.filter()
     serializer_class = TargetSerializer
     filter_permissions = "project_id"
-    filter_fields = ("title",)
+    filterset_fields = ("title",)
 
 
 class MoleculeView(ISpyBSafeQuerySet):
@@ -489,7 +504,7 @@ class MoleculeView(ISpyBSafeQuerySet):
     queryset = Molecule.objects.filter()
     serializer_class = MoleculeSerializer
     filter_permissions = "prot_id__target_id__project_id"
-    filter_fields = (
+    filterset_fields = (
         "prot_id",
         "prot_id__code",
         "cmpd_id",
@@ -539,7 +554,7 @@ class CompoundView(ISpyBSafeQuerySet):
     queryset = Compound.objects.filter()
     serializer_class = CompoundSerializer
     filter_permissions = "project_id"
-    filter_fields = ("smiles", "current_identifier", "inchi", "long_inchi")
+    filterset_fields = ("smiles", "current_identifier", "inchi", "long_inchi")
 
 
 class ProteinView(ISpyBSafeQuerySet):
@@ -587,32 +602,46 @@ class ProteinView(ISpyBSafeQuerySet):
     queryset = Protein.objects.filter()
     serializer_class = ProteinSerializer
     filter_permissions = "target_id__project_id"
-    filter_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
+# START HERE! - THIS IS THE FIRST API THAT THE FRONT END CALLS.
 def react(request):
     """
     :param request:
     :return: viewer/react page with context
     """
+
     discourse_api_key = settings.DISCOURSE_API_KEY
+    squonk_api_url = settings.SQUONK_API_URL
+    squonk_ui_url = settings.SQUONK_UI_URL
 
     context = {}
     context['discourse_available'] = 'false'
+    context['squonk_available'] = 'false'
     if discourse_api_key:
         context['discourse_available'] = 'true'
+    if squonk_api_url and squonk_ui_url:
+        context['squonk_available'] = 'true'
 
-    # If user is authenticated and a discourse api key is available, then check discourse to
-    # see if user is set up and set up flag in context.
     user = request.user
+
     if user.is_authenticated:
         context['discourse_host'] = ''
         context['user_present_on_discourse'] = 'false'
+        # If user is authenticated and a discourse api key is available, then check discourse to
+        # see if user is set up and set up flag in context.
         if discourse_api_key:
             context['discourse_host'] = settings.DISCOURSE_HOST
             error, error_message, user_id = check_discourse_user(user)
             if user_id:
                 context['user_present_on_discourse'] = 'true'
+
+        # If user is authenticated Squonk can be called then return the Squonk host
+        # so the Frontend can navigate to it
+        context['squonk_ui_url'] = ''
+        if squonk_api_url and check_squonk_active(request):
+            context['squonk_ui_url'] = settings.SQUONK_UI_URL
 
     return render(request, "viewer/react_temp.html", context)
 
@@ -1537,7 +1566,7 @@ class ActionTypeView(viewsets.ModelViewSet):
     # for action types so that these can only be updated via the admin panel.
     #    http_method_names = ['get', 'head']
 
-    filter_fields = '__all__'
+    filterset_fields = '__all__'
 
 
 # Start of Session Project
@@ -1638,7 +1667,7 @@ class SessionProjectsView(viewsets.ModelViewSet):
         return SessionProjectWriteSerializer
 
     filter_permissions = "target_id__project_id"
-    filter_fields = '__all__'
+    filterset_fields = '__all__'
 
 
 class SessionActionsView(viewsets.ModelViewSet):
@@ -1689,7 +1718,7 @@ class SessionActionsView(viewsets.ModelViewSet):
     serializer_class = SessionActionsSerializer
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
-    filter_fields = ('id', 'author', 'session_project', 'last_update_date')
+    filterset_fields = ('id', 'author', 'session_project', 'last_update_date')
 
 
 class SnapshotsView(viewsets.ModelViewSet):
@@ -1732,6 +1761,7 @@ class SnapshotsView(viewsets.ModelViewSet):
             - author: name of the author who created the project
         - parent: parent snapshot id of the current snapshot
         - children: list of children ids of the current snapshot
+        - additional_info: Free format json for use by the Fragalysis frontend.
 
     example output:
 
@@ -1757,6 +1787,7 @@ class SnapshotsView(viewsets.ModelViewSet):
                     },
                     "parent": null,
                     "children": []
+                    "additional_info": []
                 },]
 
    """
@@ -1827,7 +1858,7 @@ class SnapshotActionsView(viewsets.ModelViewSet):
     serializer_class = SnapshotActionsSerializer
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
-    filter_fields = ('id', 'author', 'session_project', 'snapshot', 'last_update_date')
+    filterset_fields = ('id', 'author', 'session_project', 'snapshot', 'last_update_date')
 
 # End of Session Project
 
@@ -1939,7 +1970,7 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedSet.objects.filter()
     serializer_class = ComputedSetSerializer
     filter_permissions = "project_id"
-    filter_fields = ('target', 'target__title')
+    filterset_fields = ('target', 'target__title')
 
 
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
@@ -1984,7 +2015,7 @@ class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedMolecule.objects.filter()
     serializer_class = ComputedMoleculeSerializer
     filter_permissions = "project_id"
-    filter_fields = ('computed_set',)
+    filterset_fields = ('computed_set',)
 
 
 class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
@@ -2033,7 +2064,7 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = NumericalScoreValues.objects.filter()
     serializer_class = NumericalScoreSerializer
     filter_permissions = "project_id"
-    filter_fields = ('compound', 'score')
+    filterset_fields = ('compound', 'score')
 
 
 class TextScoresView(viewsets.ReadOnlyModelViewSet):
@@ -2081,7 +2112,7 @@ class TextScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = TextScoreValues.objects.filter()
     serializer_class = TextScoreSerializer
     filter_permissions = "project_id"
-    filter_fields = ('compound', 'score')
+    filterset_fields = ('compound', 'score')
 
 
 class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
@@ -2121,7 +2152,7 @@ class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
     queryset = ScoreDescription.objects.filter()
     serializer_class = ScoreDescriptionSerializer
     filter_permissions = "project_id"
-    filter_fields = ('computed_set', 'name')
+    filterset_fields = ('computed_set', 'name')
 
 
 class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
@@ -2173,7 +2204,7 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
     queryset = ComputedMolecule.objects.filter()
     serializer_class = ComputedMolAndScoreSerializer
     filter_permissions = "project_id"
-    filter_fields = ('computed_set',)
+    filterset_fields = ('computed_set',)
 
 
 class DiscoursePostView(viewsets.ViewSet):
@@ -2528,7 +2559,7 @@ class TagCategoryView(viewsets.ModelViewSet):
 
     queryset = TagCategory.objects.filter()
     serializer_class = TagCategorySerializer
-    filter_fields = ('id', 'category')
+    filterset_fields = ('id', 'category')
 
 
 class MoleculeTagView(viewsets.ModelViewSet):
@@ -2577,7 +2608,7 @@ class MoleculeTagView(viewsets.ModelViewSet):
 
     queryset = MoleculeTag.objects.filter()
     serializer_class = MoleculeTagSerializer
-    filter_fields = ('id', 'tag', 'category', 'target', 'molecules', 'mol_group')
+    filterset_fields = ('id', 'tag', 'category', 'target', 'molecules', 'mol_group')
 
 
 class SessionProjectTagView(viewsets.ModelViewSet):
@@ -2629,7 +2660,7 @@ class SessionProjectTagView(viewsets.ModelViewSet):
 
     queryset = SessionProjectTag.objects.filter()
     serializer_class = SessionProjectTagSerializer
-    filter_fields = ('id', 'tag', 'category', 'target', 'session_projects')
+    filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
 class TargetMoleculesView(ISpyBSafeQuerySet):
@@ -2652,9 +2683,11 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
                 "id": 4,
                 "title": "nsp13",
                 "project_id": [ 1 ],
+                "default_squonk_project": "project-48d33e2f-6af1-42ee-a2e9-a7acf6543a1e",
                 "template_protein": "/media/pdbs/nsp13-x0280_1B_apo_zOdoDll.pdb",
                 "metadata": "https://127.0.0.1:8080/media/metadata/metadata_GYuEefg.csv",
                 "zip_archive": "https://127.0.0.1:8080/media/targets/nsp13.zip",
+                "upload_status": "SUCCESS",
                 "sequences": [
                 {
                     "chain": "A",
@@ -2745,7 +2778,7 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
     queryset = Target.objects.filter()
     serializer_class = TargetMoleculesSerializer
     filter_permissions = "project_id"
-    filter_fields = ("title",)
+    filterset_fields = ("title",)
 # Classes Relating to Tags - End
 
 
@@ -2823,7 +2856,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
     queryset = Target.objects.filter()
     serializer_class = DownloadStructuresSerializer
     filter_permissions = "project_id"
-    filter_fields = ('title','id')
+    filterset_fields = ('title','id')
 
     def list(self, request):
         """Method to handle GET request
@@ -2952,3 +2985,285 @@ class DownloadStructures(ISpyBSafeQuerySet):
             content = {'message': 'Zip being rebuilt - please try later'}
             return Response(content,
                             status=status.HTTP_208_ALREADY_REPORTED)
+
+
+# Classes Relating to Squonk Jobs
+class JobFileTransferView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tags relating to Molecules
+
+    Methods
+    -------
+    url:
+        api/job_file_transfer
+    queryset:
+        `viewer.models.JobFileTransfer.objects.filter()`
+    filter fields:
+        - `viewer.models.JobFileTransfer.snapshot` - ?snapshot=<int>
+        - `viewer.models.JobFileTransfer.target` - ?target=<int>
+        - `viewer.models.JobFileTransfer.user` - ?user=<int>
+        - `viewer.models.JobFileTransfer.squonk_project` - ?squonk_project=<str>
+        - `viewer.models.JobFileTransfer.transfer_status` - ?transfer_status=<str>
+
+    returns: JSON
+
+    example input for post:
+
+        .. code-block::
+
+            {
+                "snapshot": 2,
+                "target": 5,
+                "squonk_project": "project-e1ce441e-c4d1-4ad1-9057-1a11dbdccebe",
+                "proteins": "CD44MMA-x0022_0A, CD44MMA-x0017_0A"
+            }
+
+
+    example output for post:
+
+        .. code-block::
+
+            {
+                "id": 2,
+                "transfer_status": "PENDING",
+                "transfer_task_id": "d8705b7d-c065-4038-8964-c19882333247"
+            }
+   """
+
+    queryset = JobFileTransfer.objects.filter()
+    filter_permissions = "target__project_id"
+    filterset_fields = ('id', 'snapshot', 'target', 'user',
+                     'squonk_project', 'transfer_status')
+
+    def get_serializer_class(self):
+        """Determine which serializer to use based on whether the request is a GET or a POST, PUT
+        or PATCH request
+
+        Returns
+        -------
+        Serializer (rest_framework.serializers.ModelSerializer):
+            - if GET: `viewer.serializers.JobFileTransferReadSerializer`
+            - if other: `viewer.serializers.JobFileTransferWriteSerializer`
+        """
+        if self.request.method in ['GET']:
+            # GET
+            return JobFileTransferReadSerializer
+        # (POST, PUT, PATCH)
+        return JobFileTransferWriteSerializer
+
+    def create(self, request):
+        """Method to handle POST request
+        """
+        logger.info('+ JobFileTransfer.post')
+        # Only authenticated users can transfer files to sqonk
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can transfer files'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        target_id = request.data['target']
+        target = Target.objects.get(id=target_id)
+        snapshot_id = request.data['snapshot']
+
+        if 'squonk_project' in request.data:
+            squonk_project = request.data['squonk_project']
+        else:
+            content = {
+                'message': 'A squonk project must be entered'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.data['proteins']:
+            # Get first part of protein code
+            proteins_list = [p.strip().split(":")[0]
+                             for p in request.data['proteins'].split(',')]
+        else:
+            proteins_list = []
+
+        if len(proteins_list) > 0:
+            proteins = []
+            # Filter by protein codes
+            for code_first_part in proteins_list:
+                prot = Protein.objects.filter(code__contains=code_first_part).values()
+                if prot.exists():
+                    proteins.append(prot.first())
+        else:
+            content = {
+                'message': 'A list of protein codes to transfer must be entered'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(proteins) == 0:
+            content = {'message': 'Please enter list of valid protein codes '
+                                  'for' + " proteins: {} "
+                .format(proteins_list) }
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        # If transfer has already happened find the latest
+        job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
+        if job_transfers:
+            job_transfer = job_transfers.latest('id')
+        else:
+            job_transfer = None
+
+        if job_transfer:
+            if (job_transfer.transfer_status == 'PENDING' or
+                job_transfer.transfer_status == 'STARTED'):
+                content = {'message': 'Files currently being transferred'}
+                return Response(content,
+                                status=status.HTTP_208_ALREADY_REPORTED)
+
+            if (target.upload_datetime and job_transfer.transfer_datetime) \
+                    and target.upload_datetime < job_transfer.transfer_datetime:
+                # The target data has already been transferred for the snapshot.
+                content = {'message': 'Files already transferred for this job'}
+                return Response(content,
+                                status=status.HTTP_200_OK)
+            # Restart existing transfer - it must have failed or be outdated
+            job_transfer.user = request.user
+        else:
+            # Create new file transfer job
+            job_transfer = JobFileTransfer()
+            job_transfer.user = request.user
+            job_transfer.proteins = [p['code'] for p in proteins]
+            job_transfer.squonk_project = squonk_project
+            job_transfer.target = Target.objects.get(id=target_id)
+            job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
+
+        job_transfer.transfer_status = 'PENDING'
+        job_transfer.transfer_datetime = None
+        job_transfer.transfer_progress = None
+        job_transfer.save()
+
+        # Check celery/rdis is up and running
+        check_services()
+        logger.info('oidc_access_token')
+        logger.info(request.session['oidc_access_token'])
+
+        job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
+                                                            job_transfer.id)
+
+        content = {'id' : job_transfer.id,
+                   'transfer_status': job_transfer.transfer_status,
+                   'transfer_task_id': str(job_transfer_task)}
+        return Response(content,
+                        status=status.HTTP_200_OK)
+
+
+class JobRequestView(viewsets.ModelViewSet):
+    """ Operational Django view to set up/retrieve information about tags relating to Session
+    Projects
+
+    Methods
+    -------
+    url:
+        api/job_request
+    queryset:
+        `viewer.models.JobRequest.objects.filter()`
+    filter fields:
+        - `viewer.models.JobRequest.snapshot` - ?snapshot=<int>
+        - `viewer.models.JobRequest.target` - ?target=<int>
+        - `viewer.models.JobRequest.user` - ?user=<int>
+        - `viewer.models.JobRequest.squonk_job_name` - ?squonk_job_name=<str>
+        - `viewer.models.JobRequest.squonk_project` - ?squonk_project=<str>
+        - `viewer.models.JobRequest.job_status` - ?job_status=<str>
+
+    returns: JSON
+
+    example input for post:
+
+        .. code-block::
+
+            {
+                "squonk_job_name": "nop",
+                "snapshot": 1,
+                "target": 1,
+                "squonk_project": "project-e1ce441e-c4d1-4ad1-9057-1a11dbdccebe",
+                "squonk_job_spec": "{\"collection\":\"im-test\",\"job\":\"nop\",\"version\":\"1.0.0\"}"
+            }
+
+    example output for post:
+
+        .. code-block::
+
+            {
+                "id": 1,
+                "squonk_url_ext": "data-manager-ui/results/instance/instance-c26fd27a-e837-4be5-af39-582b6f329f6a"
+            }
+
+    """
+
+    queryset = JobRequest.objects.filter()
+    filter_permissions = "target__project_id"
+    filterset_fields = ('id', 'snapshot', 'target', 'user', 'squonk_job_name',
+                     'squonk_project', 'job_status')
+
+    def get_serializer_class(self):
+        """Determine which serializer to use based on whether the request is a GET or a POST, PUT
+        or PATCH request
+
+        Returns
+        -------
+        Serializer (rest_framework.serializers.ModelSerializer):
+            - if GET: `viewer.serializers.JobRequestReadSerializer`
+            - if other: `viewer.serializers.JobRequestWriteSerializer
+        """
+        if self.request.method in ['GET']:
+            # GET
+            return JobRequestReadSerializer
+        # (POST, PUT, PATCH)
+        return JobRequestWriteSerializer
+
+    def create(self, request):
+        """Method to handle POST request
+        """
+        logger.info('+ JobRequest.post')
+        # Only authenticated users can create squonk job requests.
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can run jobs'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            job_id, squonk_url_ext = create_squonk_job(request)
+        except ValueError as error:
+            logger.info('Job Request failed: ')
+            logger.info(error)
+            content = {'error': str(error)}
+            return Response(content,
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        content = {'id': job_id, 'squonk_url_ext': squonk_url_ext}
+        return Response(content,
+                        status=status.HTTP_200_OK)
+
+
+class JobCallBackView(viewsets.ModelViewSet):
+    """ View to allow the Squonk system to update the status and job information for a
+    specific job identified by a UUID.
+
+    Methods
+    -------
+    allowed requests:
+        - GET
+        - PUT - update the status or job information fields
+    url:
+        api/job_callback/<job_request.code>
+    queryset:
+        `viewer.models.JobRequest.objects.filter()`
+        'lookup_value = code'
+
+    returns: JSON
+
+    example input:
+
+        .. code-block::
+
+            {
+                "job_status": "SUCCESS"
+            }
+
+
+    """
+
+    serializer_class = JobCallBackSerializer
+    queryset = JobRequest.objects.all()
+    lookup_field = "code"
+    http_method_names = ['get', 'head', 'put']

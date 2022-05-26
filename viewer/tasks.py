@@ -16,6 +16,7 @@ from .sdf_check import *
 from .compound_set_upload import *
 from .target_set_upload import process_target, validate_target
 from .cset_upload import *
+from .squonk_job_file_transfer import process_file_transfer, SQUONK_MAPPING
 
 # import the logging library
 #import logging
@@ -461,3 +462,50 @@ def process_target_set(validate_output):
 
         return 'process', 'tset', target_name, mols_loaded, mols_processed, contact_email
 # End Target Sets ###
+
+
+# File Transfer ###
+@shared_task
+def process_job_file_transfer(auth_token, id):
+    """ Celery task to take a list of proteins and specification and transfer the files to Squonk2
+
+    Parameters
+    ----------
+    id
+        id of job_file_transfer record
+
+    Returns
+    -------
+    target str
+        name of the processed target set
+
+    """
+
+    logger.info('+ Starting File Transfer: ' + str(id))
+    job_transfer = JobFileTransfer.objects.get(id=id)
+    job_transfer.transfer_status = "STARTED"
+    job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
+    job_transfer.save()
+    try:
+        process_file_transfer(auth_token, job_transfer.id)
+    except RuntimeError as error:
+        logger.info('- File Transfer failed: ' + str(id))
+        logger.info(error)
+        job_transfer.transfer_status = "FAILURE"
+        job_transfer.save()
+    else:
+        logger.info('+ File Transfer successful: ' + str(id))
+        # Update the transfer datetime for comparison with the target upload datetime.
+        # This should only be done on a successful upload.
+        job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
+        job_transfer.transfer_progress = 100.00
+        job_transfer.transfer_status = "SUCCESS"
+        files_spec = [key for key in SQUONK_MAPPING.keys()]
+        job_transfer.transfer_spec = files_spec
+        job_transfer.save()
+        logger.info('- File Transfer Ended Successfully: ' + str(id))
+
+    return job_transfer.transfer_status
+
+# End File Transfer ###
+
