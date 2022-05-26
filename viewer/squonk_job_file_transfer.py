@@ -211,7 +211,7 @@ def process_file_transfer(auth_token,
                                                    project_files=file_list,
                                                    project_path=squonk_directory,
                                                    force=True)
-        logger.info(result)
+        logger.debug(result)
 
         if result.success:
             idx += 1
@@ -242,7 +242,7 @@ def process_file_transfer(auth_token,
                                                    project_files=file_list,
                                                    project_path=squonk_directory,
                                                    force=True)
-        logger.info(result)
+        logger.debug(result)
 
         if result.success:
             idx += 1

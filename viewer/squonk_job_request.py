@@ -30,13 +30,9 @@ def check_squonk_active(request):
     logger.info(auth_token)
 
     result = DmApi.ping(auth_token)
+    logger.debug(result)
 
-    logger.info(result)
-
-    if result.success:
-        return True
-
-    return False
+    return result.success
 
 
 def get_squonk_job_config(request, squonk_job_name=None):
@@ -55,7 +51,7 @@ def get_squonk_job_config(request, squonk_job_name=None):
     logger.debug(auth_token)
 
     result = DmApi.get_available_jobs(auth_token)
-    logger.info(result)
+    logger.debug(result)
 
     if result.success is True:
         available_jobs = result.msg
@@ -67,7 +63,7 @@ def get_squonk_job_config(request, squonk_job_name=None):
     else:
         for job in available_jobs['jobs']:
             if job['job'] == squonk_job_name:
-                result = DmApi.get_job(auth_token, job['id'] )
+                result = DmApi.get_job(auth_token, job['id'])
                 # This either returns the definition or the squonk message.
                 return result.msg
         return {'Job not found'}
@@ -133,8 +129,7 @@ def create_squonk_job(request):
                                       generate_callback_token=True,
                                       specification=json.loads(squonk_job_spec),
                                       timeout_s=8)
-
-    logger.info(result)
+    logger.debug(result)
 
     if result.success:
         job_request.squonk_job_info = result
