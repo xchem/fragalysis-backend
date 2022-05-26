@@ -44,7 +44,7 @@ def check_services():
     if 'redis-server' not in services:
         os.system('redis-server &')
     if 'celery' not in services:
-        os.system('celery -A fragalysis worker -l info --concurrency=1 &')
+        os.system('celery -A fragalysis worker -l info &')
     services = [p.name() for p in psutil.process_iter()]
     if 'redis-server' not in services or 'celery' not in services:
         return False
