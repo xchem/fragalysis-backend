@@ -10,7 +10,6 @@ that contains an 'outfile' declaration (e.g. "abc-molecules.sdf".).
 """
 import json
 import os
-import shlex
 import shutil
 
 from django.conf import settings
@@ -118,7 +117,10 @@ def get_upload_sub_directory(job_request):
     return os.path.join('squonk_upload', str(job_request.code))
 
 
-def process_compound_set_file(jr_id, transition_time):
+def process_compound_set_file(jr_id,
+                              transition_time,
+                              job_output_path,
+                              job_output_filename):
     """Check the DM project for the expected file(s) and upload them.
     This code also applies the parameters to the uploaded compound set file.
     The full path to the uploaded/modified file is returned.
@@ -126,38 +128,21 @@ def process_compound_set_file(jr_id, transition_time):
     Args:
         The user's authentication token
         The JobRequest record ID
+        The Job's output file path (prefixed with '/' and relative to the project root)
+        The Job's filename (pathless, and an SD-File)
 
     Returns the fully-qualified path to the SDF file (which may not exist as a file).
     """
 
     logger.info('Processing job compound file (%s)...', jr_id)
 
-    job_request = JobRequest.objects.get(id=jr_id)
+    jr = JobRequest.objects.get(id=jr_id)
 
     # Do we need to create the upload path?
     # This is used for this 'job' and is removed when the upload is complete
     # successful or otherwise.
-    upload_sub_dir = get_upload_sub_directory(job_request)
+    upload_sub_dir = get_upload_sub_directory(jr)
     upload_dir = create_media_sub_directory(upload_sub_dir)
-
-    # What is the SD file the Job created?
-    # For now there must be a '--output' in the job info's 'command'.
-    # Here we have hard-coded the expectations because the logic to identify the
-    # command's outputs is not available via the DmApi.
-    # The command is a string that we split and search.
-    job_output = ''
-    jr_job_info_msg = job_request.squonk_job_info[1]
-    command = jr_job_info_msg.get('command')
-    command_parts = shlex.split(command)
-    outfile_index = 0
-    while outfile_index < len(command_parts) and command_parts[outfile_index] != '--outfile':
-        outfile_index += 1
-    # Found '--command'?
-    if outfile_index < len(command_parts) - 1:
-        # Yes ... the filename is the next item in the list
-        job_output = command_parts[outfile_index + 1]
-    job_output_path = '/' + os.path.dirname(job_output)
-    job_output_filename = os.path.basename(job_output)
 
     # The temporary files we plan to upload to...
     tmp_sdf_filename = os.path.join(upload_dir, 'job.sdf')
@@ -166,16 +151,13 @@ def process_compound_set_file(jr_id, transition_time):
     # The actual file we expect to create (after processing the temporary files)...
     sdf_filename = os.path.join(upload_dir, job_output_filename)
 
-    if not job_output_filename:
-        logger.warning("Squonk job spec had no '--outfile' (%d)", jr_id)
-        return sdf_filename
-
     # We expect an outfile (".sdf")
     # and an "{outfile}_params.json" file.
     got_all_files = False
 
     # The callback token (required to make Squonk API calls from the callback)
     # and instance ID are in JobRequest.
+    jr_job_info_msg = jr.squonk_job_info[1]
     token = jr_job_info_msg.get('callback_token')
     instance_id = jr_job_info_msg.get('instance_id')
     logger.info("Squonk API token=%s", token)
@@ -189,7 +171,7 @@ def process_compound_set_file(jr_id, transition_time):
                 job_output_path, job_output_param_filename)
     result = DmApi.get_unmanaged_project_file_with_token(
         token=token,
-        project_id=job_request.squonk_project,
+        project_id=jr.squonk_project,
         project_path=job_output_path,
         project_file=job_output_param_filename,
         local_file=tmp_param_filename,
@@ -204,7 +186,7 @@ def process_compound_set_file(jr_id, transition_time):
                        job_output_path, job_output_filename)
         result = DmApi.get_unmanaged_project_file_with_token(
             token=token,
-            project_id=job_request.squonk_project,
+            project_id=jr.squonk_project,
             project_path=job_output_path,
             project_file=job_output_filename,
             local_file=tmp_sdf_filename,
@@ -233,7 +215,7 @@ def process_compound_set_file(jr_id, transition_time):
         logger.info('Generating %s', sdf_filename)
 
         # Insert our 'blank molecule' into the uploaded file...
-        _insert_sdf_blank_mol(job_request, transition_time, tmp_sdf_filename)
+        _insert_sdf_blank_mol(jr, transition_time, tmp_sdf_filename)
         with open(tmp_param_filename, 'r') as param_file:
             params = json.loads(param_file.read())
             add_prop_to_sdf(tmp_sdf_filename, sdf_filename, params)

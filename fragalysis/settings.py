@@ -375,9 +375,14 @@ LOGGING = {
             'filename': os.path.join(BASE_DIR, 'logs/logfile.log'),
             'formatter': 'simple'}},
     'loggers': {
+        'asyncio': {
+            'level': 'WARNING'},
         'django': {
-            'level': 'WARNING',
-            'handlers': ['rotating']}},
+            'level': 'WARNING'},
+        'mozilla_django_oidc': {
+            'level': 'WARNING'},
+        'urllib3': {
+            'level': 'WARNING'}},
     'root': {
         'level': 'WARNING',
         'handlers': ['rotating']}}

@@ -89,14 +89,11 @@ def process_compound_set(validate_output):
 
     Returns
     -------
-    If successful
+    If successful, a dictionary that contains the fields: -
 
-        process_stage: str
-            'process'
-        process_type: str
-            'cset'
-        compound_set.name: str
-            name of the computed set
+        process_stage: with a value of 'process'
+        process_type: with a vlue of 'cset'
+        compound_set_name: the compound set name (its primary key)
 
     Otherwise (i.e. not validated)...
 
@@ -135,7 +132,9 @@ def process_compound_set(validate_output):
     compound_set = save_mols.task()
 
     logger.info('process_compound_set() EXIT (%s)', compound_set.name)
-    return 'process', 'cset', compound_set.name
+    return {'process_stage': 'process',
+            'process_type': 'cset',
+            'compound_set_name': compound_set.name}
 
 # End Uploading Compound Sets ###
 
@@ -589,16 +588,20 @@ def process_compound_set_job_file(task_params):
 
     jr_id = task_params['jr_id']
     transition_time = task_params['transition_time']
+    job_output_path = task_params['job_output_path']
+    job_output_filename = task_params['job_output_filename']
 
     logger.info('+ Starting File Upload (%s)', jr_id)
     job_request = JobRequest.objects.get(id=jr_id)
-    job_request.upload_status = "STARTED"
     job_request.upload_task_id = str(process_compound_set_job_file.request.id)
     job_request.save()
 
     sd_file = None
     try:
-        sd_file = process_compound_set_file(jr_id, transition_time)
+        sd_file = process_compound_set_file(jr_id,
+                                            transition_time,
+                                            job_output_path,
+                                            job_output_filename)
     except RuntimeError as error:
         logger.error('- File Upload failed (%s)', jr_id)
         logger.error(error)
@@ -639,14 +642,24 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
     job_request = JobRequest.objects.get(id=job_request_id)
 
     # Upload done (successfully or not)
-    # so set the upload status
-    if task_params[0] == 'process':
+    # 'task_params' (a dictionary) is expected to be
+    # the return value of 'process_compound_set()'
+    # so set the upload status. We expect to find
+    # 'process_stage' and 'compound_set_name'.
+    #
+    # Task linking is a bit of a mess atm,
+    # if something went wrong we'll get a tuple, not a dictionary.
+    if isinstance(task_params, dict) and task_params['process_stage'] == 'process':
+        logger.warning('Upload successful (%d)', job_request_id)
         job_request.upload_status = 'SUCCESS'
+        job_request.computed_set = task_params['compound_set_name']
     else:
         # Failed validation?
-        logger.warning('Upload failed (%d) "%s"', job_request_id, task_params[0])
+        logger.warning('Upload failed (%d) - process_stage value not satisfied',
+                       job_request_id)
         job_request.upload_status = 'FAILURE'
     job_request.save()
+    logger.info('Updated job_request %s', job_request)
 
     # Always erase uploaded data
     delete_media_sub_directory(get_upload_sub_directory(job_request))

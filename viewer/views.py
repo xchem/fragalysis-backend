@@ -3,6 +3,7 @@ import os
 import zipfile
 from io import StringIO
 import uuid
+import shlex
 import shutil
 from datetime import datetime
 from wsgiref.util import FileWrapper
@@ -3312,54 +3313,98 @@ class JobCallBackView(viewsets.ModelViewSet):
         logger.info('jr=%s', jr)
 
         # request.data is rendered as a dictionary
-        if request.data:
+        if not request.data:
+            return HttpResponse(status=204)
 
-            status = request.data['job_status']
-            logger.info('code=%s status=%s', code, status)
-            # Get the appropriate SQUONK_STATUS...
-            found_status = False
-            for squonk_status in JobRequest.SQUONK_STATUS:
-                if squonk_status[0] == status:
-                    jr.job_status = squonk_status[1]
-                    found_status = True
-                    break
+        status = request.data['job_status']
+        # Get the appropriate SQUONK_STATUS...
+        status_changed = False
+        for squonk_status in JobRequest.SQUONK_STATUS:
+            if squonk_status[0] == status and jr.job_status != status:
+                jr.job_status = squonk_status[1]
+                status_changed = True
+                break
 
-            if not found_status:
-                logger.warning('code=%s got unrecognised status (%s)', code, status)
-            elif jr.job_status == 'SUCCESS':
+        if not status_changed:
+            logger.info('code=%s status=%s ignoring (no status change)',
+                        code, status)
+            return HttpResponse(status=204)
 
-                # Update the transition time
-                transition_time = request.data.get('state_transition_time')
-                if not transition_time:
-                    transition_time = str(datetime.now()).split()[0]
-                    logger.warning("Callback is missing state_transition_time"
-                                   " (using '%s')", transition_time)
-                jr.job_status_datetime = parse(transition_time)
+        logger.info('code=%s status=%s (new status)', code, status)
 
-                # Only interested in acting on the callback if the Job's finished.
-                # And only act if upload_task_id is not already set
-                # (i.e. has already started)
-                logger.info('SUCCESS')
+        # Update the state transition time
+        transition_time = request.data.get('state_transition_time')
+        if not transition_time:
+            transition_time = str(datetime.now()).split()[0]
+            logger.warning("Callback is missing state_transition_time"
+                           " (using '%s')", transition_time)
+        jr.job_status_datetime = parse(transition_time)
+        jr.save()
 
-#                if jr.upload_task_id:
-#                    logger.warning('Ignoring, upload_task_id set (already uploading?)')
-#                else:
+        if status != 'SUCCESS':
+            # Go no further unless SUCCESS
+            return HttpResponse(status=204)
 
-                # Initiate an upload (and removal) of files from Squonk.
-                # Which requires the linking of several tasks...
-                task_params = {'jr_id': jr.id,
-                               'transition_time': transition_time}
-                task_upload = (
-                     process_compound_set_job_file.s(task_params) |
-                     validate_compound_set.s() |
-                     process_compound_set.s() |
-                     erase_compound_set_job_material.s(job_request_id=jr.id)
-                ).apply_async()
-                jr.upload_task_id = task_upload.id
+        # SUCCESS ... automatic upload?
+        #
+        # Only continue if the target file begins 'results_' and ends '.sdf'.
+        # For now there must be an '--outfile' in the job info's 'command'.
+        # Here we have hard-coded the expectations because the logic to identify the
+        # command's outputs is not fully understood.
+        # The command is a string that we split and search.
+        job_output = ''
+        jr_job_info_msg = jr.squonk_job_info[1]
+        command = jr_job_info_msg.get('command')
+        command_parts = shlex.split(command)
+        outfile_index = 0
+        while outfile_index < len(command_parts)\
+                and command_parts[outfile_index] != '--outfile':
+            outfile_index += 1
+        # Found '--command'?
+        if command_parts[outfile_index] == '--outfile'\
+                and outfile_index < len(command_parts) - 1:
+            # Yes ... the filename is the next item in the list
+            job_output = command_parts[outfile_index + 1]
+        job_output_path = '/' + os.path.dirname(job_output)
+        job_output_filename = os.path.basename(job_output)
 
-                logger.info('Started process_job_file_upload(%s) task_upload=%s',
-                            jr.id, task_upload)
+        logging.info('job_output_path="%s"', job_output_path)
+        logging.info('job_output_filename="%s"', job_output_filename)
 
-            jr.save()
+        # If it's not a suitably named SD-File, leave
+        if not job_output_filename.lower().startswith('results_')\
+                or not job_output_filename.lower().endswith('.sdf'):
+            # Incorrectly named file - nothing to get/upload.
+            logger.warning('SUCCESS but not uploading.'
+                           ' Unsupported job_output_filename'
+                           ' (%s)"', job_output_filename)
+            return HttpResponse(status=204)
+
+        if jr.upload_status != 'PENDING':
+            logger.warning('SUCCESS but ignoring.'
+                           ' upload_status=%s (already uploading?)', jr.upload_status)
+            return HttpResponse(status=204)
+
+        # OK - mark the job upload as 'started'
+        jr.upload_status = "STARTED"
+        jr.save()
+
+        # Initiate an upload (and removal) of files from Squonk.
+        # Which requires the linking of several tasks.
+        # We star the process with 'process_compound_set_job_file'
+        # with the path and filename already discoverd...
+        task_params = {'jr_id': jr.id,
+                       'transition_time': transition_time,
+                       'job_output_path': job_output_path,
+                       'job_output_filename': job_output_filename}
+        task_upload = (
+             process_compound_set_job_file.s(task_params) |
+             validate_compound_set.s() |
+             process_compound_set.s() |
+             erase_compound_set_job_material.s(job_request_id=jr.id)
+        ).apply_async()
+
+        logger.info('Started process_job_file_upload(%s) task_upload=%s',
+                    jr.id, task_upload)
 
         return HttpResponse(status=204)
