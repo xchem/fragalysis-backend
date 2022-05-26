@@ -42,6 +42,7 @@ class MCuleAPI(object):
                 return mculeid, mculeurl
 
         except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             try:
                 response_dict = self.mculewrapper.similaritysearch(
                     query=smiles, limit=1, threshold=0.7
@@ -56,6 +57,7 @@ class MCuleAPI(object):
                     else:
                         return None
             except Exception as e:
+                logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
                 print(e)
                 return None
 
@@ -144,4 +146,5 @@ class MCuleAPI(object):
             return quote_info
 
         except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             print(e)

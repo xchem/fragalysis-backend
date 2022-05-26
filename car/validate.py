@@ -225,7 +225,7 @@ class ValidateFile(object):
                 mols = [Chem.MolFromSmiles(smi) for smi in smi_pair]
                 if None in mols:
                     none_test_indices = [
-                        index for index, mol in enumerate(mols) if mol == None
+                        index for index, mol in enumerate(mols) if mol is None
                     ]
                     invalid_smiles = [smi_pair[index] for index in none_test_indices]
                     self.add_warning(

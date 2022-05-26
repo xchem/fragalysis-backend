@@ -126,7 +126,7 @@ def uploadManifoldReaction(validate_output):
                     first_route = routes[0]
 
                     # Check if target is in a catalogue and create catalog entries if it is
-                    if first_route["molecules"][0]["isBuildingBlock"] == True:
+                    if first_route["molecules"][0]["isBuildingBlock"]:
                         catalog_entries = first_route["molecules"][0]["catalogEntries"]
                         for catalog_entry in catalog_entries:
                             createCatalogEntryModel(
@@ -760,7 +760,7 @@ def canonicalizeSmiles(csvfile: str = None, smiles: list = None):
         return validated, canonicalizedsmiles
     else:
         validated = False
-        indexerrors = [i for i, v in enumerate(molcheck) if v == None]
+        indexerrors = [i for i, v in enumerate(molcheck) if v is None]
         errorsummary = "There was an error with the smiles csv at index: {}".format(
             indexerrors
         )

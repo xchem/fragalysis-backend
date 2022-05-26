@@ -21,9 +21,11 @@ from car.models import (
     Well,
     OTScript,
 )
-
-
 import math
+import inspect
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class otWrite(object):
@@ -214,6 +216,7 @@ class otWrite(object):
                         wellinfo.append([wellobj, wellvolumeavailable])
                         transfervolume = transfervolume - wellvolumeavailable
         except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             print(e)
             print(solvent)
         return wellinfo
@@ -268,6 +271,7 @@ class otWrite(object):
                             )
                             transfervolume = transfervolume - wellvolumeavailable
             except Exception as e:
+                logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
                 print(e)
                 print(smiles, solvent, concentration)
 

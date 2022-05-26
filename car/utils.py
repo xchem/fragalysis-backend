@@ -5,6 +5,11 @@ from rdkit.Chem import Draw
 import pubchempy as pcp
 import itertools
 import re
+import inspect
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def calculateproductmols(target_mass: float, target_SMILES: str) -> object:
@@ -153,6 +158,7 @@ def getAddtionOrder(
             if not product_mols:
                 continue  # reactants were in wrong order so no product
         except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             print(e)
             print(reactant_permutation)
             continue
@@ -196,6 +202,7 @@ def checkReactantSMARTS(reactant_SMILES: tuple, reaction_SMARTS: str) -> list:
             if not product_mols:
                 continue  # reactants were in wrong order so no product
         except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             print(e)
             print(reactant_permutation)
             continue
@@ -251,6 +258,7 @@ def getPubChemCompound(smiles: str) -> object:
         else:
             return compound
     except Exception as e:
+        logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
         print(
             "Pubchempy could not retrieve compound entry for input SMILES: {} with error {}".format(
                 smiles, e
@@ -283,6 +291,7 @@ def getChemicalName(smiles: str) -> str:
         else:
             return name
     except Exception as e:
+        logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
         print(
             "Pubchempy could not convert SMILES to a IUPAC name with error {}".format(e)
         )

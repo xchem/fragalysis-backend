@@ -541,7 +541,7 @@ class CreateOTSession(object):
             labwareplatetypes = [
                 labware_plate
                 for labware_plate in labware_plates
-                if labware_plates[labware_plate]["reflux"] == True
+                if labware_plates[labware_plate]["reflux"]
                 and labware_plates[labware_plate]["volume_well"] > headspacevolume
                 and labware_plates[labware_plate]["no_wells"] >= numberreactions
             ]
@@ -588,7 +588,7 @@ class CreateOTSession(object):
         labwareplatetypes = [
             labware_plate
             for labware_plate in labware_plates
-            if labware_plates[labware_plate]["{}plate".format(analyselc)] == True
+            if labware_plates[labware_plate]["{}plate".format(analyselc)]
         ]
 
         wellcomparedict = {}
@@ -612,7 +612,7 @@ class CreateOTSession(object):
         labwareplatetypes = [
             labware_plate
             for labware_plate in labware_plates
-            if labware_plates[labware_plate]["starting_plate"] == True
+            if labware_plates[labware_plate]["starting_plate"]
         ]
 
         vialcomparedict = {}
