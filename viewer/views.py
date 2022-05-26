@@ -3375,9 +3375,9 @@ class JobCallBackView(viewsets.ModelViewSet):
         if not job_output_filename.lower().startswith('results_')\
                 or not job_output_filename.lower().endswith('.sdf'):
             # Incorrectly named file - nothing to get/upload.
-            logger.warning('SUCCESS but not uploading.'
-                           ' Unsupported job_output_filename'
-                           ' (%s)"', job_output_filename)
+            logger.info('SUCCESS but not uploading.'
+                        ' Unsupported job_output_filename'
+                        ' (%s)"', job_output_filename)
             return HttpResponse(status=204)
 
         if jr.upload_status != 'PENDING':
@@ -3385,7 +3385,8 @@ class JobCallBackView(viewsets.ModelViewSet):
                            ' upload_status=%s (already uploading?)', jr.upload_status)
             return HttpResponse(status=204)
 
-        # OK - mark the job upload as 'started'
+        # Change of status and SUCCESS
+        # - mark the job upload as 'started'
         jr.upload_status = "STARTED"
         jr.save()
 
