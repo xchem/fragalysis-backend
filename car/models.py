@@ -1,8 +1,28 @@
 from django.db import models
-from sqlalchemy import ForeignKey
 
 
 class Project(models.Model):
+    """Django model to define a Project - a compound synthesis project.
+
+    Parameters
+    ----------
+    init_date: DateTimeField
+        The date the target was initiated (autofield)
+    name: SlugFieldField
+        The name of the project created as combination of the first three letters of the
+        submitter's name and submitter's organisation
+    submittername: Charfield
+        The name of the person creating the project
+    submitterorganisation: Charfield
+        The name of the person's organisation creating the project
+    proteintarget: Charfield
+        The target protein for the submitted compounds
+    quotecost: FloatField
+        Optional field for the total cost of the project using MCule as a supplier
+    quoteurl: CharField
+        Optional field for the MCule quote url
+    """
+
     init_date = models.DateTimeField(auto_now_add=True)
     name = models.SlugField(max_length=100, db_index=True)
     submitterorganisation = models.CharField(max_length=100)
@@ -13,14 +33,44 @@ class Project(models.Model):
 
 
 class Batch(models.Model):
+    """Django model to define a Batch - a batch of compounds.
+
+    Parameters
+    ----------
+    project_id: ForeignKey
+        Foreign key linking a batch to it's project
+    batch_id: ForeignKey
+        Optional foreign key linking a sub-batch to it's parent-batch
+    batchtag: Charfield
+        The name of the batch
+    """
+
     project_id = models.ForeignKey(
         Project, related_name="batches", on_delete=models.CASCADE
     )
     batch_id = models.ForeignKey("Batch", on_delete=models.CASCADE, null=True)
-    batch_tag = models.CharField(max_length=50)
+    batchtag = models.CharField(max_length=50)
 
 
 class Target(models.Model):
+    """Django model to define a Target - a target compound for synthesis.
+
+    Parameters
+    ----------
+    batch_id: ForeignKey
+        Foreign key linking a target to it's batch
+    smiles: Charfield
+        The SMILES of the target compound
+    image: FileField
+        File link to a stored version of the image file of the target compound
+    name: Charfield
+        The name of the compound (Must complete how this is made)
+    mass: FloatField
+        The target synthesis mass for a target compound
+    mols: FloatField
+        The target mols of the compound to be synthesised
+    """
+
     class Unit(models.TextChoices):
         mmol = "mmol"
         g = "g"
@@ -29,49 +79,99 @@ class Target(models.Model):
     batch_id = models.ForeignKey(
         Batch, related_name="targets", on_delete=models.CASCADE
     )
-    smiles = models.CharField(max_length=255, db_index=True, null=True)
+    smiles = models.CharField(max_length=255, db_index=True)
     image = models.FileField(upload_to="targetimages/", max_length=255)
     name = models.CharField(max_length=255, db_index=True)
-    targetmass = models.FloatField()
-    targetmols = models.FloatField()
-    unit = models.CharField(choices=Unit.choices, default=Unit.mg, max_length=10)
+    mass = models.FloatField()
+    mols = models.FloatField()
 
 
 class Method(models.Model):
+    """Django model to define a Method - a retrosynthetic pathway of reactions
+    for a target compound.
+
+    Parameters
+    ----------
+    target_id: ForeignKey
+        Foreign key linking a method to it's target compound
+    nosteps: IntegerField
+        The number of reaction steps for a method
+    otchem: BooleanField
+        Set to True if all the reactions in the method can be executed on the OpenTrons
+    """
+
     target_id = models.ForeignKey(
         Target, related_name="methods", on_delete=models.CASCADE
     )
-    status = models.BooleanField(default=True)
-    nosteps = models.IntegerField(null=True)
-    estimatecost = models.FloatField(default=100)
-    synthesise = models.BooleanField(default=True)
+    nosteps = models.IntegerField()
     otchem = models.BooleanField(default=False)
 
 
 class Reaction(models.Model):
+    """Django model to define a Reaction - the reaction to make a compound.
+
+    Parameters
+    ----------
+    method_id: ForeignKey
+        Foreign key linking a reaction to it's method
+    reactionclass: Charfield
+        The name of the reaction
+    image: FileField
+        File link to a stored version of the image file of the reaction
+    success: BooleanField
+        The success of the reaction with default success set to True
+    """
+
     method_id = models.ForeignKey(
         Method, related_name="reactions", on_delete=models.CASCADE
     )
     reactionclass = models.CharField(max_length=255)
-    reactiontemperature = models.IntegerField(default=25)
-    reactionimage = models.FileField(
+    temperature = models.IntegerField(default=25)
+    image = models.FileField(
         upload_to="reactionimages/",
         max_length=255,
         null=True,
     )
-    successrate = models.FloatField(default=0.5)
     success = models.BooleanField(default=True)
 
 
 class PubChemInfo(models.Model):
+    """Django model to define PubChemInfo - the PubChem info for a compound.
+
+    Parameters
+    ----------
+    compoundid: IntegerField
+        The PubChem compound id of a compound
+    summaryurl: Charfield
+        The PubChem compound url
+    lcssurl: Charfield
+        The PubChem Laboratory Chemical Safety Summary url
+    smiles: Charfield
+        The SMILES of the compound
+    cas: Charfield
+        Optional CAS number (if found) for a compound
+    """
+
+    compoundid = models.IntegerField()
+    summaryurl = models.CharField(max_length=255)
+    lcssurl = models.CharField(max_length=255)
     smiles = models.CharField(max_length=255)
     cas = models.CharField(max_length=50, null=True)
-    compoundid = models.IntegerField()
-    compoundsummarylink = models.CharField(max_length=255)
-    lcsslink = models.CharField(max_length=255)
 
 
 class Reactant(models.Model):
+    """Django model to define a Reactant - the reactant compound of a reaction.
+
+    Parameters
+    ----------
+    reaction_id: ForeignKey
+        Optional foreign key linking a reactant to it's reaction
+    pubcheminfo_id: ForeignKey
+        Optional foreign key linking a reactant to it's pubchem info (if found)
+    smiles: Charfield
+        The SMILES of the reactant compound
+    """
+
     reaction_id = models.ForeignKey(
         Reaction, related_name="reactants", on_delete=models.CASCADE, null=True
     )
@@ -85,6 +185,20 @@ class Reactant(models.Model):
 
 
 class Product(models.Model):
+    """Django model to define a Product- the product compound of a reaction.
+
+    Parameters
+    ----------
+    reaction_id: ForeignKey
+        Foreign key linking a product to it's reaction
+    pubcheminfo_id: ForeignKey
+        Optional foreign key linking a product to it's pubchem info (if found)
+    smiles: Charfield
+        The SMILES of the product compound
+    image: FileField
+        File link to a stored version of the image file of the product compound
+    """
+
     reaction_id = models.ForeignKey(
         Reaction, related_name="products", on_delete=models.CASCADE
     )
@@ -94,13 +208,31 @@ class Product(models.Model):
         on_delete=models.PROTECT,
         null=True,
     )
-    name = models.CharField(max_length=255)
     smiles = models.CharField(max_length=255, db_index=True, null=True)
     image = models.FileField(upload_to="productimages/", max_length=255)
-    mculeid = models.CharField(max_length=255, null=True)
 
 
 class CatalogEntry(models.Model):
+    """Django model to define a CatalogEntry- the catalog information for a compound.
+
+    Parameters
+    ----------
+    reactant_id: ForeignKey
+        Optional Foreign key linking a catalog entry to a reactant
+    target_id: ForeignKey
+        Optional Foreign key linking a catalog entry to a product
+    vendor: Charfield
+        The vendor/supplier of the compound
+    catalogid: Charfield
+        The catalog/vendor id of the compound
+    priceinfo: Charfield
+        The catalog price info ($) for a compound. This can be a range -> "$100 < 1k/g"
+    upperprice: IntegerField
+        Optional upper price ($) of a compound. Highest price if range given.
+    leadtime: IntegerField
+        Optional lead time (weeks) for a compound to be delivered
+    """
+
     reactant_id = models.ForeignKey(
         Reactant, related_name="catalogentries", on_delete=models.CASCADE, null=True
     )
@@ -116,186 +248,104 @@ class CatalogEntry(models.Model):
 
 
 class AnalyseAction(models.Model):
+    """Django model to define a AnalyseAction - the analyse action details for the
+       QC of a reaction
+
+    Parameters
+    ----------
+    reaction_id: ForeignKey
+        Foreign key linking a QC analysis action to a reaction
+    number: IntegerField
+        The number of the action to be executed in a list of action numbers
+    method: CharField
+        The QC method used
+    samplevolume: FloatField
+        The volum of the sample used for anaylsis
+    samplevolumeunit: CharField
+        The unit of the sample volume (default=ul)
+    solvent: CharField
+        The solvent used - see commonsolvents.py for solvent names and their SMILES
+    solventvolume: FloatField
+        The volume of solvent used to dilute the sample
+    solventvolumeunit: CharField
+        The unit of the solvent volume (default=ul) used for diluting the sample
+    """
+
     class QCMethod(models.TextChoices):
         LCMS = "LCMS"
         NMR = "NMR"
         XChem = "XChem"
 
-    class Unit(models.TextChoices):
-        mmol = "mmol"
-        ml = "ml"
-        ul = "ul"
-        moleq = "moleq"
-
     reaction_id = models.ForeignKey(
         Reaction, related_name="analyseactions", on_delete=models.CASCADE
     )
-    actiontype = models.CharField(max_length=100)
-    actionno = models.IntegerField()
+    number = models.IntegerField()
     method = models.CharField(
         choices=QCMethod.choices, default=QCMethod.LCMS, max_length=10
     )
-
-    sampleamount = models.FloatField(null=True)
-    sampleamountunit = models.CharField(
-        choices=Unit.choices,
-        default=Unit.ul,
-        max_length=10,
-    )
+    samplevolume = models.FloatField(null=True)
+    samplevolumeunit = models.CharField(default="ul", max_length=2)
     solvent = models.CharField(max_length=255, null=True)
-    solventamount = models.FloatField(null=True)
-    solventmountunit = models.CharField(
-        choices=Unit.choices,
-        default=Unit.ul,
-        max_length=10,
-    )
+    solventvolume = models.FloatField(null=True)
+    solventvolumeunit = models.CharField(default="ul", max_length=2)
 
 
 class AddAction(models.Model):
-    class Unit(models.TextChoices):
-        mmol = "mmol"
-        ml = "ml"
-        ul = "ul"
-        moleq = "moleq"
+    """Django model to define a AddAction - the add action details
 
-    class Atmosphere(models.TextChoices):
-        nitrogen = "nitrogen"
-        air = "air"
+    Parameters
+    ----------
+    reaction_id: ForeignKey
+        Foreign key linking an add action to a reaction
+    number: IntegerField
+        The number of the action to be executed in a list of action numbers
+    smiles: CharField
+        Optional SMILES of the material being added
+    volume: FloatField
+        The volume being added
+    volumeunit: CharField
+        The unit of the volume being added (default=ul)
+    molecularweight: FloatField
+        The molecular weight of the compound being added
+    solvent: CharField
+        Optional solvent used to dilute the material being added
+    concentration: FloatField
+        Optional concentration of the material solution prepared
+    """
 
     reaction_id = models.ForeignKey(
         Reaction, related_name="addactions", on_delete=models.CASCADE
     )
-    actiontype = models.CharField(max_length=100)
-    actionno = models.IntegerField()
-    additionorder = models.IntegerField(null=True)
-    material = models.CharField(max_length=255, null=True)
-    materialsmiles = models.CharField(max_length=255, null=True)
-    materialquantity = models.FloatField()
-    materialquantityunit = models.CharField(
-        choices=Unit.choices,
-        default=Unit.ul,
-        max_length=10,
-    )
-
-    dropwise = models.BooleanField(default=False)
-    atmosphere = models.CharField(
-        choices=Atmosphere.choices, default=Atmosphere.air, max_length=10
-    )
-
-    # These are extras for helping robotic execution/calcs
-    molecularweight = models.FloatField(null=True)
-    materialimage = models.FileField(
-        upload_to="addactionimages/",
-        max_length=255,
-        null=True,
-    )
+    number = models.IntegerField()
+    smiles = models.CharField(max_length=255)
+    volume = models.FloatField()
+    volumeunit = models.CharField(default="ul", max_length=2)
+    molecularweight = models.FloatField()
     solvent = models.CharField(max_length=255, null=True)
-    concentration = models.FloatField(null=True, blank=True)
-    mculeid = models.CharField(max_length=255, null=True)
-    mculeprice = models.FloatField(null=True)
-    mculeurl = models.CharField(max_length=255, null=True)
-    mculedeliverytime = models.IntegerField(null=True)
-
-
-class ExtractAction(models.Model):
-    class Unit(models.TextChoices):
-        ml = "ml"
-        mmol = "mmol"
-        moleq = "moleq"
-
-    reaction_id = models.ForeignKey(
-        Reaction, related_name="extractactions", on_delete=models.CASCADE
-    )
-    actiontype = models.CharField(max_length=100)
-    actionno = models.IntegerField()
-    solvent = models.CharField(max_length=100)
-    solventquantity = models.FloatField(null=True)
-    solventquantityunit = models.CharField(
-        choices=Unit.choices, default=Unit.ml, max_length=10
-    )
-    numberofrepetitions = models.IntegerField(null=True)
-
-
-class FilterAction(models.Model):
-    class PhaseToKeep(models.TextChoices):
-        filtrate = "filtrate"
-        precipitate = "precipitate"
-
-    class Unit(models.TextChoices):
-        ml = "ml"
-        mmol = "mmol"
-        moleq = "moleq"
-
-    reaction_id = models.ForeignKey(
-        Reaction, related_name="filteractions", on_delete=models.CASCADE
-    )
-    actiontype = models.CharField(max_length=100)
-    actionno = models.IntegerField()
-    phasetokeep = models.CharField(
-        choices=PhaseToKeep.choices, default=PhaseToKeep.filtrate, max_length=20
-    )
-    rinsingsolvent = models.CharField(max_length=255, null=True)
-    rinsingsolventquantity = models.IntegerField(null=True)
-    rinsingsolventquantityunit = models.CharField(
-        choices=Unit.choices,
-        default=Unit.ml,
-        max_length=10,
-    )
-
-    extractionforprecipitatesolvent = models.CharField(max_length=255, null=True)
-    extractionforprecipitatesolventquantity = models.IntegerField(null=True)
-    extractionforprecipitatesolventquantityunit = models.CharField(
-        choices=Unit.choices,
-        default=Unit.ml,
-        max_length=10,
-    )
-
-
-class QuenchAction(models.Model):
-    class TemperatureUnit(models.TextChoices):
-        degcel = "degC"
-        kelvin = "K"
-
-    class Unit(models.TextChoices):
-        ml = "ml"
-        mmol = "mmol"
-        moleq = "moleq"
-
-    reaction_id = models.ForeignKey(
-        Reaction, related_name="quenchactions", on_delete=models.CASCADE
-    )
-    actiontype = models.CharField(max_length=100)
-    actionno = models.IntegerField()
-
-    material = models.CharField(max_length=255)
-    materialquantity = models.FloatField(null=True)
-    materialquantityunit = models.CharField(
-        choices=Unit.choices, default=Unit.ml, max_length=10
-    )
-    dropwise = models.BooleanField(default=False)
-    temperature = models.IntegerField(null=True)
-    temperatureunit = models.CharField(
-        choices=TemperatureUnit.choices, default=TemperatureUnit.degcel, max_length=10
-    )
-
-
-class SetTemperatureAction(models.Model):
-    class TemperatureUnit(models.TextChoices):
-        degcel = "degC"
-        kelvin = "K"
-
-    reaction_id = models.ForeignKey(
-        Reaction, related_name="settemperatureactions", on_delete=models.CASCADE
-    )
-    actiontype = models.CharField(max_length=100)
-    actionno = models.IntegerField()
-    temperature = models.IntegerField()
-    temperatureunit = models.CharField(
-        choices=TemperatureUnit.choices, default=TemperatureUnit.degcel, max_length=10
-    )
+    concentration = models.FloatField(null=True)
 
 
 class StirAction(models.Model):
+    """Django model to define a StirAction - the stir action details
+
+    Parameters
+    ----------
+    reaction_id: ForeignKey
+        Foreign key linking an add action to a reaction
+    number: IntegerField
+        The number of the action to be executed in a list of action numbers
+    duration: FloatField
+        The duration of the stir action
+    durationunit: CharField
+        The duration unit of the stir action (default=hours)
+    temperature: IntegerField
+        The temperature of the stir action (default=25)
+    temperatureunit: CharField
+        The temperature unit of the stir action (default=degC)
+    stirringspeed: CharField
+        The speed of the stir action (default=normal)
+    """
+
     class TemperatureUnit(models.TextChoices):
         degcel = "degC"
         kelvin = "K"
@@ -310,78 +360,82 @@ class StirAction(models.Model):
         normal = "normal"
         vigorous = "vigorous"
 
-    class Atmosphere(models.TextChoices):
-        nitrogen = "nitrogen"
-        air = "air"
-
     reaction_id = models.ForeignKey(
         Reaction, related_name="stiractions", on_delete=models.CASCADE
     )
-    actiontype = models.CharField(max_length=100)
-    actionno = models.IntegerField()
-    duration = models.FloatField(null=True)
+    number = models.IntegerField()
+    duration = models.FloatField()
     durationunit = models.CharField(
         choices=Unit.choices, default=Unit.hours, max_length=10
     )
-    temperature = models.IntegerField(null=True)
+    temperature = models.IntegerField()
     temperatureunit = models.CharField(
         choices=TemperatureUnit.choices, default=TemperatureUnit.degcel, max_length=10
     )
     stirringspeed = models.CharField(
         choices=Speed.choices, default=Speed.normal, max_length=10
     )
-    atmosphere = models.CharField(
-        choices=Atmosphere.choices, default=Atmosphere.air, max_length=10
-    )
-
-
-# Mcule models
-class MculeQuote(models.Model):
-    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
-    quoteid = models.CharField(max_length=255)
-    quoteurl = models.CharField(max_length=255)
-    quotecost = models.FloatField()
-    quotevaliduntil = models.CharField(max_length=255)
-
-
-class MCuleOrder(models.Model):
-    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
-    orderplatecsv = models.FileField(upload_to="mculeorderplates/", max_length=255)
-
-
-# Models fro capturing LCMS analytics
-class LCMSSession(models.Model):
-    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
-    otsession_id = models.ForeignKey("OTSession", on_delete=models.CASCADE)
-    init_date = models.DateTimeField(auto_now_add=True)
-
-
-class LCMSPlateMap(models.Model):
-    lcmssession_id = models.ForeignKey(
-        LCMSSession, related_name="lcmsplatemaps", on_delete=models.CASCADE
-    )
-    platemapcsv = models.FileField(
-        upload_to="lcmsplatemaps/", max_length=255, null=True
-    )
 
 
 # Models for capturing OT session, Deck, Plates and Wells
-class OTProtocol(models.Model):
+class OTProject(models.Model):
+    """Django model to define an OTProject - an OT project will
+       have one or more batch protocols for a project
+
+    Parameters
+    ----------
+    project_id: ForeignKey
+        Foreign key linking an OT protocol action to a reaction
+    init_date: DateTimeField
+        The date the OT project was created (autofield)
+    name: CharField
+        The name of the OT project
+    """
+
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
     init_date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=150)
 
 
 class OTBatchProtocol(models.Model):
-    otprotocol_id = models.ForeignKey(OTProtocol, on_delete=models.CASCADE)
+    """Django model to define an OTBatchProtocol - OT protocols for a batch of
+       targets
+
+    Parameters
+    ----------
+    otproject_id: ForeignKey
+        Foreign key linking a batch OT protocol with a OT project
+    batch_id: ForeignKey
+        Foreign key linking a batch OT protocol with batch of targets
+    celery_taskid: CharField
+        The Celery task id when a new OT batch protocol is created
+    zipfile: FileField
+        File link to a zip file of all the OT protocols required for executing the
+        synthesis of a batch of targets
+    """
+
+    otproject_id = models.ForeignKey(OTProject, on_delete=models.CASCADE)
     batch_id = models.ForeignKey(
         Batch, related_name="otbatchprotocols", on_delete=models.CASCADE
     )
-    celery_task_id = models.CharField(max_length=50)
+    celery_taskid = models.CharField(max_length=50)
     zipfile = models.FileField(upload_to="otbatchprotocols/", max_length=255, null=True)
 
 
 class OTSession(models.Model):
+    """Django model to define an OT Session - a OT session is a session (Reaction, Analysis)
+       that needs to be executed on the OT
+
+    Parameters
+    ----------
+    otbatchprotocol_id: ForeignKey
+        Foreign key linking an OT session to a OT batch protocol
+    reactionstep: IntegerField
+        The reaction step that the session is being executed for
+    sessiontype: CharField
+        The type of session ebing excecuted
+    """
+
     class SessionType(models.TextChoices):
         reaction = "reaction"
         workup = "workup"
@@ -390,7 +444,6 @@ class OTSession(models.Model):
     otbatchprotocol_id = models.ForeignKey(
         OTBatchProtocol, related_name="otsessions", on_delete=models.CASCADE
     )
-    init_date = models.DateTimeField(auto_now_add=True)
     reactionstep = models.IntegerField()
     sessiontype = models.CharField(
         choices=SessionType.choices, default=SessionType.reaction, max_length=10
@@ -398,18 +451,48 @@ class OTSession(models.Model):
 
 
 class Deck(models.Model):
+    """Django model to define a Deck Session - an OT Deck
+
+    Parameters
+    ----------
+    otsession_id: ForeignKey
+        Foreign key linking a deck to an OT session
+    numberslots: IntegerField
+        The number of deck slots (default=11)
+    slotavailable: BooleanField
+        If a slot is still available on the deck (default=True)
+    indexslotavailable: IntegerField
+        The index (1-11) of the deck slot available
+    """
+
     otsession_id = models.ForeignKey(
-        OTSession, related_name="otdecks", on_delete=models.CASCADE, null=True
+        OTSession, related_name="otdecks", on_delete=models.CASCADE
     )
-    lcmssession_id = models.ForeignKey(
-        LCMSSession, related_name="lcmsdecks", on_delete=models.CASCADE, null=True
-    )
-    numberslots = models.IntegerField()
+    numberslots = models.IntegerField(default=11)
     slotavailable = models.BooleanField(default=True)
     indexslotavailable = models.IntegerField(default=1)
 
 
 class Pipette(models.Model):
+    """Django model to define a Pipette - an OT Pipette
+
+    Parameters
+    ----------
+    otsession_id: ForeignKey
+        Foreign key linking a deck to an OT session
+    position: CharField
+        The position (right or left) of the pipette for the OT session
+    labware: CharField
+        The name of the OT labware eg. p300_single
+    type: CharField
+        The type of pipette could be single or multi channel
+    maxvolume: FloatField
+        The maximum volume (ul) of the pipette
+    name: CharField
+        The name of the pipette - this is a combination of the OT labware name (p300_single)
+        and the position of the pipette uses in the session (right) eg. right_p300_single
+    """
+
     class Position(models.TextChoices):
         right = "Right"
         left = "Left"
@@ -417,39 +500,80 @@ class Pipette(models.Model):
     otsession_id = models.ForeignKey(
         OTSession, related_name="pipettes", on_delete=models.CASCADE
     )
-    pipettename = models.CharField(max_length=255)
+    position = models.CharField(choices=Position.choices, max_length=10)
     labware = models.CharField(max_length=100)
     type = models.CharField(max_length=255)
-    position = models.CharField(choices=Position.choices, max_length=10)
     maxvolume = models.FloatField(default=300)
+    name = models.CharField(max_length=255)
 
 
 class TipRack(models.Model):
-    deck_id = models.ForeignKey(Deck, on_delete=models.CASCADE)
+    """Django model to define a TipRack - an OT tiprack
+
+    Parameters
+    ----------
+    otsession_id: ForeignKey
+        Foreign key linking a tiprack to an OT session
+    deck_id: ForeignKey
+        Foreign key linking a tiprack to an OT deck
+    labware: CharField
+        The name of the OT labware eg. opentrons_96_tiprack_300ul
+    index: IntegerField
+        The deck index (1-11) of the tiprack
+    name: CharField
+        The name of the tiprack - this is a combination of the OT labware name (opentrons_96_tiprack_300ul)
+        and the deck index of the tiprack eg. opentrons_96_tiprack_300ul_2
+    """
+
     otsession_id = models.ForeignKey(OTSession, on_delete=models.CASCADE)
-    tiprackname = models.CharField(max_length=255)
-    tiprackindex = models.IntegerField()
+    deck_id = models.ForeignKey(Deck, on_delete=models.CASCADE)
     labware = models.CharField(max_length=255)
+    index = models.IntegerField()
+    name = models.CharField(max_length=255)
 
 
 class Plate(models.Model):
+    """Django model to define a Plate - an OT plate
+
+    Parameters
+    ----------
+    otsession_id: ForeignKey
+        Foreign key linking a plate to an OT session
+    deck_id: ForeignKey
+        Foreign key linking a plate to an OT deck
+    labware: CharField
+        The name of the OT labware eg. labcyte_384_wellplate_100ul
+    index: IntegerField
+        The deck index (1-11) of the plate
+    name: CharField
+        The name of the plate
+    type: CharField
+        The type of plate eg. analyse and reaction plate
+    maxwellvolume: FloatField
+        The maximum plate well volume (ul)
+    numberwells: IntegerField
+        The number of plate wells
+    wellavailable: BooleanField
+        If a well is available on a plate
+    indexswellavailable: IntegerField
+        The index of the well available. Wells are occupied in increasing
+        index starting from indices: A1, B1, C1 or 0, 1, 2 etc
+    """
+
     class PlateType(models.TextChoices):
         reaction = "reaction"
         analyse = "analyse"
         startingmaterial = "startingmaterial"
         dilution = "dilution"
 
-    deck_id = models.ForeignKey(Deck, on_delete=models.CASCADE)
     otsession_id = models.ForeignKey(
-        OTSession, related_name="otplates", on_delete=models.CASCADE, null=True
+        OTSession, related_name="otplates", on_delete=models.CASCADE
     )
-    lcmssession_id = models.ForeignKey(
-        LCMSSession, related_name="lcmsplates", on_delete=models.CASCADE, null=True
-    )
-    platetype = models.CharField(choices=PlateType.choices, max_length=55, null=True)
-    platename = models.CharField(max_length=255)
-    plateindex = models.IntegerField()
+    deck_id = models.ForeignKey(Deck, on_delete=models.CASCADE)
     labware = models.CharField(max_length=255)
+    index = models.IntegerField()
+    name = models.CharField(max_length=255)
+    type = models.CharField(choices=PlateType.choices, max_length=55, null=True)
     maxwellvolume = models.FloatField()
     numberwells = models.IntegerField()
     wellavailable = models.BooleanField(default=True)
@@ -457,23 +581,51 @@ class Plate(models.Model):
 
 
 class Well(models.Model):
+    """Django model to define a Well - an OT plate we
+
+    Parameters
+    ----------
+    otsession_id: ForeignKey
+        Foreign key linking a plate to an OT session
+    plate_id: ForeignKey
+        Foreign key linking a well to a plate
+    method_id: ForeignKey
+        Optional foreign key linking a well to a method
+    reaction_id: ForeignKey
+        Optional foreign key linking a well to a reaction
+    index: IntegerField
+        The deck index (1-11) of the plate
+    type: CharField
+        The type of well eg. analyse and reaction well
+    volume: FloatField
+        The optional volume of the contents in the well (ul)
+    smiles: CharField
+        The optional SMILES of the well contents
+    concentration: FloatField
+        The optional concentration of the well contents
+    solvent: CharField
+        The optional solvent used for diluting the well contents
+    reactantfornextstep: BooleanField
+        Wether the contents are used for the next reaction step (default=False)
+    available: BooleanField
+        If the well is available w.r.t still containing it's contents
+        vs. being empty (default=True)
+    """
+
     class WellType(models.TextChoices):
         reaction = "reaction"
         analyse = "analyse"
         startingmaterial = "startingmaterial"
         dilution = "dilution"
 
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="otwells", on_delete=models.CASCADE
+    )
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)
-    otsession_id = models.ForeignKey(
-        OTSession, related_name="otwells", on_delete=models.CASCADE, null=True
-    )
-    lcmssession_id = models.ForeignKey(
-        LCMSSession, related_name="lcmswells", on_delete=models.CASCADE, null=True
-    )
-    welltype = models.CharField(choices=WellType.choices, max_length=55, null=True)
-    wellindex = models.IntegerField()
+    index = models.IntegerField()
+    type = models.CharField(choices=WellType.choices, max_length=55)
     volume = models.FloatField(null=True)
     smiles = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)
@@ -483,6 +635,20 @@ class Well(models.Model):
 
 
 class CompoundOrder(models.Model):
+    """Django model to define a CompoundOrder - a csv
+       file of ordering information that includes SMILES,
+       plate name, well id, amount, solvent and concentration
+       required for the syhtesis of the reaction step
+
+    Parameters
+    ----------
+    otsession_id: ForeignKey
+        Foreign key linking a plate to an OT session
+    ordercsv: FileField
+        The csv file of the ordering information for executing
+        a reaction step on the OpenTrons
+    """
+
     otsession_id = models.ForeignKey(
         OTSession, related_name="compoundorders", on_delete=models.CASCADE
     )
@@ -490,6 +656,17 @@ class CompoundOrder(models.Model):
 
 
 class OTScript(models.Model):
+    """Django model to define a OTScript - a Python script
+       for executing a reaction OpenTrons protocol
+
+    Parameters
+    ----------
+    otsession_id: ForeignKey
+        Foreign key linking a plate to an OT session
+    otscript: FileField
+        The Python OpenTrons protocol file
+    """
+
     otsession_id = models.ForeignKey(
         OTSession, related_name="otscripts", on_delete=models.CASCADE
     )
@@ -497,6 +674,18 @@ class OTScript(models.Model):
 
 
 class SolventPrep(models.Model):
+    """Django model to define a SolventPrep - a csv
+       file detailing the prepreation required for diluting previous
+       reaction step products for use in the next reaction
+
+    Parameters
+    ----------
+    otsession_id: ForeignKey
+        Foreign key linking a plate to an OT session
+    solventprepcsv: FileField
+        The csv file with solvent amount (ul), plate name and well index
+    """
+
     otsession_id = models.ForeignKey(
         OTSession, related_name="solventpreps", on_delete=models.CASCADE
     )

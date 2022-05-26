@@ -1,3 +1,4 @@
+"""CAR's celery tasks"""
 from __future__ import annotations
 from celery import shared_task, current_task
 from django.conf import settings
@@ -15,7 +16,7 @@ from car.models import (
     Method,
     Reaction,
     CompoundOrder,
-    OTProtocol,
+    OTProject,
     OTBatchProtocol,
     OTScript,
     OTSession,
@@ -32,7 +33,6 @@ from .createmodels import (
     createProductModel,
     createReactantModel,
     CreateEncodedActionModels,
-    CreateMculeQuoteModel,
 )
 
 from .manifold.apicalls import getManifoldRetrosynthesis
@@ -47,10 +47,9 @@ def delete_tmp_file(filepath):
     os.remove(filepath)
 
 
-# Celery validate task
 @shared_task
 def validateFileUpload(
-    csv_fp, validate_type=None, project_info=None, validate_only=True
+    csv_fp, validate_type: str = None, project_info=None, validate_only=True
 ):
     """Celery task to process validate the uploaded files for retrosynthesis planning.
 
@@ -104,23 +103,21 @@ def uploadManifoldReaction(validate_output):
 
         grouped_targets = uploaded_df.groupby("batch-tag")
 
-        for batch_tag, group in grouped_targets:
+        for batchtag, group in grouped_targets:
             batch_id = createBatchModel(
                 project_id=project_id,
-                batch_tag=batch_tag,
+                batchtag=batchtag,
             )
 
-            for target_smiles, target_mass in zip(
-                group["targets"], group["amount-required-mg"]
-            ):
+            for smiles, mass in zip(group["targets"], group["amount-required-mg"]):
 
                 target_id = createTargetModel(
                     batch_id=batch_id,
-                    smiles=target_smiles,
-                    target_mass=target_mass,
+                    smiles=smiles,
+                    mass=mass,
                 )
 
-                retrosynthesis_result = getManifoldRetrosynthesis(target_smiles)
+                retrosynthesis_result = getManifoldRetrosynthesis(smiles=smiles)
                 routes = retrosynthesis_result["routes"]
 
                 if not routes:
@@ -169,8 +166,6 @@ def uploadManifoldReaction(validate_output):
 
                                 createProductModel(
                                     reaction_id=reaction_id,
-                                    project_name=project_name,
-                                    batch_tag=batch_tag,
                                     product_smiles=product_smiles,
                                 )
 
@@ -209,7 +204,7 @@ def uploadManifoldReaction(validate_output):
                                     stir_action = [
                                         action
                                         for action in actions
-                                        if action["name"] == "stir"
+                                        if action["type"] == "stir"
                                     ][0]
                                     reaction_temperature = stir_action["content"][
                                         "temperature"
@@ -220,7 +215,7 @@ def uploadManifoldReaction(validate_output):
                                     stir_action = [
                                         action
                                         for action in actions
-                                        if action["name"] == "stir"
+                                        if action["type"] == "stir"
                                     ][0]
                                     reaction_temperature = stir_action["content"][
                                         "temperature"
@@ -250,8 +245,6 @@ def uploadManifoldReaction(validate_output):
 
                                 createProductModel(
                                     reaction_id=reaction_id,
-                                    project_name=project_name,
-                                    batch_tag=batch_tag,
                                     product_smiles=product_smiles,
                                 )
 
@@ -302,34 +295,34 @@ def uploadCustomReaction(validate_output):
 
         grouped_targets = uploaded_df.groupby("batch-tag")
 
-        for batch_tag, group in grouped_targets:
+        for batchtag, group in grouped_targets:
             batch_id = createBatchModel(
                 project_id=project_id,
-                batch_tag=batch_tag,
+                batchtag=batchtag,
             )
 
-            for reactant_pair_smiles, reaction_name, target_smiles, target_mass in zip(
+            for reactant_pair_smiles, reaction_name, smiles, mass in zip(
                 group["reactant-pair-smiles"],
                 group["reaction-name"],
                 group["target-smiles"],
                 group["amount-required-mg"],
             ):
                 reaction_smarts = AllChem.ReactionFromSmarts(
-                    "{}>>{}".format(".".join(reactant_pair_smiles), target_smiles),
+                    "{}>>{}".format(".".join(reactant_pair_smiles), smiles),
                     useSmiles=True,
                 )
 
                 target_id = createTargetModel(
                     batch_id=batch_id,
-                    smiles=target_smiles,
-                    target_mass=target_mass,
+                    smiles=smiles,
+                    mass=mass,
                 )
 
                 recipes = encoded_recipes[reaction_name]["recipes"]
 
                 actions = recipes["Standard"]["actions"]
                 stir_action = [
-                    action for action in actions if action["name"] == "stir"
+                    action for action in actions if action["type"] == "stir"
                 ][0]
                 reaction_temperature = stir_action["content"]["temperature"]["value"]
 
@@ -347,9 +340,7 @@ def uploadCustomReaction(validate_output):
 
                 createProductModel(
                     reaction_id=reaction_id,
-                    project_name=project_name,
-                    batch_tag=batch_tag,
-                    product_smiles=target_smiles,
+                    product_smiles=smiles,
                 )
 
                 CreateEncodedActionModels(
@@ -371,21 +362,21 @@ def createOTScript(batchids: list, protocol_name: str):
     Create otscripts and starting plates for a list of batch ids
     """
     task_summary = {}
-    otprotocolobj = OTProtocol()
+    otprojectobj = OTProject()
     projectobj = Batch.objects.get(id=batchids[0]).project_id
-    otprotocolobj.project_id = projectobj
-    otprotocolobj.name = protocol_name
-    otprotocolobj.save()
+    otprojectobj.project_id = projectobj
+    otprojectobj.name = protocol_name
+    otprojectobj.save()
 
     for batchid in batchids:
         allreactionquerysets = getBatchReactions(batchid=batchid)
         if allreactionquerysets:
             otbatchprotocolobj = OTBatchProtocol()
             otbatchprotocolobj.batch_id = Batch.objects.get(id=batchid)
-            otbatchprotocolobj.otprotocol_id = otprotocolobj
-            otbatchprotocolobj.celery_task_id = current_task.request.id
+            otbatchprotocolobj.otproject_id = otprojectobj
+            otbatchprotocolobj.celery_taskid = current_task.request.id
             otbatchprotocolobj.save()
-            batch_tag = getBatchTag(batchid=batchid)
+            batchtag = getBatchTag(batchid=batchid)
             maxsteps = findmaxlist(allreactionquerysets=allreactionquerysets)
             groupedreactionquerysets = groupReactions(
                 allreactionquerysets=allreactionquerysets, maxsteps=maxsteps
@@ -405,7 +396,7 @@ def createOTScript(batchids: list, protocol_name: str):
                     )
 
                     otWrite(
-                        protocolname=batch_tag,
+                        protocolname=batchtag,
                         otsessionobj=otsessionobj,
                         alladdactionsquerysetflat=alladdactionsquerysetflat,
                     )
@@ -423,7 +414,7 @@ def createOTScript(batchids: list, protocol_name: str):
                     )
 
                     otWrite(
-                        protocolname=batch_tag,
+                        protocolname=batchtag,
                         otsessionobj=otsessionobj,
                         allanalyseactionsqueryset=allanalyseactionsqueryset,
                     )
@@ -446,7 +437,7 @@ def createOTScript(batchids: list, protocol_name: str):
                         )
 
                         otWrite(
-                            protocolname=batch_tag,
+                            protocolname=batchtag,
                             otsessionobj=otsessionobj,
                             alladdactionsquerysetflat=alladdactionsquerysetflat,
                         )
@@ -464,13 +455,13 @@ def createOTScript(batchids: list, protocol_name: str):
                         )
 
                         otWrite(
-                            protocolname=batch_tag,
+                            protocolname=batchtag,
                             otsessionobj=otsessionobj,
                             allanalyseactionsqueryset=allanalyseactionsqueryset,
                         )
 
             createZipOTBatchProtocol = ZipOTBatchProtocol(
-                otbatchprotocolobj=otbatchprotocolobj, batchtag=batch_tag
+                otbatchprotocolobj=otbatchprotocolobj, batchtag=batchtag
             )
 
             if createZipOTBatchProtocol.errors:
@@ -481,7 +472,7 @@ def createOTScript(batchids: list, protocol_name: str):
         else:
             task_summary[batchid] = False
 
-    return task_summary, otprotocolobj.id
+    return task_summary, otprojectobj.id
 
 
 def getPreviousObjEntries(queryset: list, obj: DjangoObjectType):
@@ -544,8 +535,8 @@ def getReactions(methodid):
 
 def getBatchTag(batchid):
     batch_obj = Batch.objects.get(id=batchid)
-    batch_tag = batch_obj.batch_tag
-    return batch_tag
+    batchtag = batch_obj.batchtag
+    return batchtag
 
 
 def getBatchReactions(batchid):
@@ -774,17 +765,3 @@ def canonicalizeSmiles(csvfile: str = None, smiles: list = None):
             indexerrors
         )
         return validated, errorsummary
-
-
-@shared_task
-def updateReactionSuccess(reactionids: list):
-    """Updates reaction success fields using reactionids that
-    failed QC from frontend
-    Args:
-         reactionids (list): List of reactionids that failed QC as strings
-    """
-    reactionids = [int(reactionid) for reactionid in reactionids]
-    failingreactionqueryset = Reaction.objects.filter(id__in=reactionids)
-    for reactionobj in failingreactionqueryset:
-        reactionobj.success = False
-        reactionobj.save()

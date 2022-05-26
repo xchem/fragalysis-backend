@@ -3,7 +3,6 @@ from rest_framework import serializers
 # Import standard models
 from .models import (
     Project,
-    MculeQuote,
     Batch,
     Target,
     Method,
@@ -12,16 +11,12 @@ from .models import (
     Product,
     Reactant,
     CatalogEntry,
-    AnalyseAction,
 )
 
 # Import action models
 from .models import (
+    AnalyseAction,
     AddAction,
-    ExtractAction,
-    FilterAction,
-    QuenchAction,
-    SetTemperatureAction,
     StirAction,
 )
 
@@ -33,7 +28,7 @@ from .models import (
     TipRack,
     Plate,
     Well,
-    OTProtocol,
+    OTProject,
     OTBatchProtocol,
     CompoundOrder,
     OTScript,
@@ -163,12 +158,6 @@ class ProjectSerializerAll(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class MculeQuoteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MculeQuote
-        fields = "__all__"
-
-
 # Action models here
 class AnalyseActionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -179,30 +168,6 @@ class AnalyseActionSerializer(serializers.ModelSerializer):
 class AddActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AddAction
-        fields = "__all__"
-
-
-class ExtractActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ExtractAction
-        fields = "__all__"
-
-
-class FilterActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FilterAction
-        fields = "__all__"
-
-
-class QuenchActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = QuenchAction
-        fields = "__all__"
-
-
-class SetTemperatureActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SetTemperatureAction
         fields = "__all__"
 
 
@@ -270,7 +235,7 @@ class OTBatchProtocolSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class OTProtocolSerializer(serializers.ModelSerializer):
+class OTProjectSerializer(serializers.ModelSerializer):
     class Meta:
-        model = OTProtocol
+        model = OTProject
         fields = "__all__"

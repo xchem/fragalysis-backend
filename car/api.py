@@ -15,13 +15,11 @@ from car.tasks import (
     uploadCustomReaction,
     createOTScript,
     canonicalizeSmiles,
-    updateReactionSuccess,
 )
 
 # Import standard models
 from .models import (
     Project,
-    MculeQuote,
     Batch,
     PubChemInfo,
     Target,
@@ -30,16 +28,12 @@ from .models import (
     Reactant,
     CatalogEntry,
     Product,
-    AnalyseAction,
 )
 
 # Import action models
 from .models import (
+    AnalyseAction,
     AddAction,
-    ExtractAction,
-    FilterAction,
-    QuenchAction,
-    SetTemperatureAction,
     StirAction,
 )
 
@@ -51,7 +45,7 @@ from .models import (
     TipRack,
     Plate,
     Well,
-    OTProtocol,
+    OTProject,
     OTBatchProtocol,
     CompoundOrder,
     OTScript,
@@ -59,11 +53,9 @@ from .models import (
 
 # Import standard serializers
 from .serializers import (
-    OTProtocolSerializer,
-    OTBatchProtocolSerializer,
+    OTProjectSerializer,
     ProjectSerializer,
     ProjectSerializerAll,
-    MculeQuoteSerializer,
     BatchSerializer,
     BatchSerializerAll,
     TargetSerializer,
@@ -84,10 +76,6 @@ from .serializers import (
 from .serializers import (
     AnalyseActionSerializer,
     AddActionSerializer,
-    ExtractActionSerializer,
-    FilterActionSerializer,
-    QuenchActionSerializer,
-    SetTemperatureActionSerializer,
     StirActionSerializer,
 )
 
@@ -111,7 +99,7 @@ from django.core.files.storage import default_storage
 from .utils import createSVGString
 
 
-def duplicatetarget(target_obj: Target, fk_obj: Batch):
+def duplicatetarget(target_obj: object, fk_obj: object) -> object:
     related_catalogentry_queryset = target_obj.catalogentries.all()
 
     target_obj.image = ContentFile(target_obj.image.read(), name=target_obj.image.name)
@@ -127,7 +115,7 @@ def duplicatetarget(target_obj: Target, fk_obj: Batch):
     return target_obj
 
 
-def duplicatemethod(method_obj: Method, fk_obj: Target):
+def duplicatemethod(method_obj: object, fk_obj: object):
     related_reaction_queryset = method_obj.reactions.all()
 
     # Duplicate method before cloning the related children reaction objs
@@ -142,8 +130,8 @@ def duplicatemethod(method_obj: Method, fk_obj: Target):
         related_analyseaction_objs = reaction_obj.analyseactions.all()
         related_reactant_objs = reaction_obj.reactants.all()
 
-        reaction_obj.reactionimage = ContentFile(
-            reaction_obj.reactionimage.read(), name=reaction_obj.reactionimage.name
+        reaction_obj.image = ContentFile(
+            reaction_obj.image.read(), name=reaction_obj.image.name
         )
         reaction_obj.pk = None
         reaction_obj.method_id = method_obj
@@ -319,11 +307,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 return JsonResponse(data)
 
 
-class MculeQuoteViewSet(viewsets.ModelViewSet):
-    queryset = MculeQuote.objects.all()
-    serializer_class = MculeQuoteSerializer
-
-
 class BatchViewSet(viewsets.ModelViewSet):
     queryset = Batch.objects.all()
     filterset_fields = ["project_id"]
@@ -332,17 +315,17 @@ class BatchViewSet(viewsets.ModelViewSet):
         fetchall = self.request.GET.get("fetchall", None)
         return BatchSerializerAll if fetchall == "yes" else BatchSerializer
 
-    def createBatch(self, project_obj, batch_node_obj, batch_tag):
+    def createBatch(self, project_obj, batch_node_obj, batchtag):
         batch_obj = Batch()
         batch_obj.project_id = project_obj
         batch_obj.batch_id = batch_node_obj
-        batch_obj.batch_tag = batch_tag
+        batch_obj.batchtag = batchtag
         batch_obj.save()
         return batch_obj
 
     def create(self, request, **kwargs):
         method_ids = request.data["methodids"]
-        batch_tag = request.data["batchtag"]
+        batchtag = request.data["batchtag"]
         try:
             target_query_set = Target.objects.filter(
                 methods__id__in=method_ids
@@ -350,7 +333,7 @@ class BatchViewSet(viewsets.ModelViewSet):
             batch_obj = target_query_set[0].batch_id
             project_obj = batch_obj.project_id
             batch_obj_new = self.createBatch(
-                project_obj=project_obj, batch_node_obj=batch_obj, batch_tag=batch_tag
+                project_obj=project_obj, batch_node_obj=batch_obj, batchtag=batchtag
             )
             for target_obj in target_query_set:
                 method_query_set_to_clone = Method.objects.filter(
@@ -366,8 +349,8 @@ class BatchViewSet(viewsets.ModelViewSet):
                 return JsonResponse(data=serialized_data)
             else:
                 return JsonResponse(data="Something went wrong")
-        except:
-            return JsonResponse(data="Something went wrong")
+        except Exception as e:
+            return JsonResponse(data={"message": "Something went wrong", "error": e})
 
     @action(methods=["post"], detail=False)
     def canonicalizesmiles(self, request, pk=None):
@@ -533,30 +516,6 @@ class AddActionViewSet(viewsets.ModelViewSet):
                 return JsonResponse(data="wrong parameters")
 
 
-class ExtractActionViewSet(viewsets.ModelViewSet):
-    queryset = ExtractAction.objects.all()
-    serializer_class = ExtractActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class FilterActionViewSet(viewsets.ModelViewSet):
-    queryset = FilterAction.objects.all()
-    serializer_class = FilterActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class QuenchActionViewSet(viewsets.ModelViewSet):
-    queryset = QuenchAction.objects.all()
-    serializer_class = QuenchActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
-class SetTemperatureActionViewSet(viewsets.ModelViewSet):
-    queryset = SetTemperatureAction.objects.all()
-    serializer_class = SetTemperatureActionSerializer
-    filterset_fields = ["reaction_idd"]
-
-
 class StirActionViewSet(viewsets.ModelViewSet):
     queryset = StirAction.objects.all()
     serializer_class = StirActionSerializer
@@ -564,13 +523,13 @@ class StirActionViewSet(viewsets.ModelViewSet):
 
 
 # OT Session viewsets
-class OTProtocolViewSet(viewsets.ModelViewSet):
-    queryset = OTProtocol.objects.all()
-    serializer_class = OTProtocolSerializer
+class OTProjectViewSet(viewsets.ModelViewSet):
+    queryset = OTProject.objects.all()
+    serializer_class = OTProjectSerializer
     filterset_fields = ["project_id"]
 
     @action(methods=["post"], detail=False)
-    def createotprotocol(self, request, pk=None):
+    def createotproject(self, request, pk=None):
         check_services()
         batch_ids = request.data["batchids"]
         protocol_name = request.data["protocol_name"]
@@ -589,10 +548,10 @@ class OTProtocolViewSet(viewsets.ModelViewSet):
                 return JsonResponse(data)
 
             if task.status == "SUCCESS":
-                task_summary, otprotocol_id = task.get()
+                task_summary, otproject_id = task.get()
                 data = {
                     "task_status": task.status,
-                    "otprotocol_id": otprotocol_id,
+                    "otproject_id": otproject_id,
                     "task_summary": task_summary,
                 }
                 return JsonResponse(data)
@@ -605,7 +564,7 @@ class OTProtocolViewSet(viewsets.ModelViewSet):
 class OTBatchProtocolViewSet(viewsets.ModelViewSet):
     queryset = OTBatchProtocol.objects.all()
     serializer_class = OTBatchProtocolSerializer
-    filterset_fields = ["otprotocol_id", "batch_id", "celery_task_id"]
+    filterset_fields = ["otproject_id", "batch_id", "celery_taskid"]
 
 
 class OTSessionViewSet(viewsets.ModelViewSet):

@@ -7,16 +7,20 @@ api_key = os.environ["MANIFOLD_API_KEY"]
 
 @sleep_and_retry
 @limits(calls=100, period=60)
-def getManifoldRetrosynthesis(target_smiles):
+def getManifoldRetrosynthesis(smiles: str):
+    """Call Manifold API to search for a retrosynthesis for a given smiles
+
+    Parameters
+    ----------
+    smiles: str
+        SMILES for Manifold retrosynthesis search
     """
-    Function to call the Manifold API to search for a retrosynthesis for a given smiles
-    """
+
     data = {
-        "smiles": target_smiles,
+        "smiles": smiles,
         "maxLeadTimeWeeks": 12,
         "maxSearchDepth": 3,
         "maxNumRoutesToReturn": 10,
-        # "reactionTag": "diamond_robotic_synthesis",
     }
 
     response = requests.post(
@@ -29,13 +33,13 @@ def getManifoldRetrosynthesis(target_smiles):
     return response.json()
 
 
-def getexactsearch(target_smiles):
+def getexactsearch(smiles):
     response = requests.post(
         "https://api.postera.ai/api/v1/exact/",
         headers={
             "X-API-KEY": api_key,
         },
-        json={"smiles": target_smiles},
+        json={"smiles": smiles},
     )
 
     return response.json()

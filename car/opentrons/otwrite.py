@@ -50,7 +50,7 @@ class otWrite(object):
         self.tiprackqueryset = self.getTipRacks()
         self.platequeryset = self.getPlates()
         self.pipetteobj = self.getPipette()
-        self.pipettename = self.pipetteobj.pipettename
+        self.pipettename = self.pipetteobj.name
         self.filepath, self.filename = self.createFilePath()
         self.setupScript()
         self.setupTipRacks()
@@ -193,7 +193,7 @@ class otWrite(object):
                 otsession_id=self.otsessionid,
                 solvent=solvent,
                 available=True,
-                welltype="dilution",
+                type="dilution",
             ).order_by("id")
             for wellobj in wellobjs:
                 areclose = self.checkVolumeClose(volume1=transfervolume, volume2=0.00)
@@ -230,7 +230,7 @@ class otWrite(object):
                 otsession_id=self.otsessionid,
                 reaction_id=previousreactionobjs[0],
                 smiles=smiles,
-                welltype="reaction",
+                type="reaction",
             )
             wellinfo.append([previousreactionobjs, wellobj, transfervolume])
         else:
@@ -241,7 +241,7 @@ class otWrite(object):
                     solvent=solvent,
                     concentration=concentration,
                     available=True,
-                    welltype="startingmaterial",
+                    type="startingmaterial",
                 ).order_by("id")
                 for wellobj in wellobjects:
                     areclose = self.checkVolumeClose(
@@ -341,9 +341,9 @@ class otWrite(object):
         script = open(self.filepath, "a")
         script.write("\n\t# labware")
         for plateobj in self.platequeryset:
-            platename = plateobj.platename
+            platename = plateobj.name
             labware = plateobj.labware
-            plateindex = plateobj.plateindex
+            plateindex = plateobj.index
             script.write(
                 f"\n\t{platename} = protocol.load_labware('{labware}', '{plateindex}')"
             )
@@ -353,12 +353,10 @@ class otWrite(object):
     def setupTipRacks(self):
         script = open(self.filepath, "a")
         for tiprackobj in self.tiprackqueryset:
-            tiprackname = tiprackobj.tiprackname
+            name = tiprackobj.name
             labware = tiprackobj.labware
-            tiprackindex = tiprackobj.tiprackindex
-            script.write(
-                f"\n\t{tiprackname} = protocol.load_labware('{labware}', '{tiprackindex}')"
-            )
+            index = tiprackobj.index
+            script.write(f"\n\t{name} = protocol.load_labware('{labware}', '{index}')")
 
         script.close()
 
@@ -367,13 +365,13 @@ class otWrite(object):
         script.write("\n\n\t# pipettes\n")
         script.write(
             "\t"
-            + str(self.pipetteobj.pipettename)
+            + str(self.pipetteobj.name)
             + " = protocol.load_instrument('"
             + str(self.pipetteobj.labware)
             + "', '"
             + str(self.pipetteobj.position)
             + "', tip_racks=["
-            + ",".join([tiprackobj.tiprackname for tiprackobj in self.tiprackqueryset])
+            + ",".join([tiprackobj.name for tiprackobj in self.tiprackqueryset])
             + "])\n"
         )
 
@@ -444,12 +442,12 @@ class otWrite(object):
 
     def writeAddActions(self):
         for addaction in self.alladdactionsquerysetflat:
-            transfervolume = addaction.materialquantity
+            transfervolume = addaction.volume
             solvent = addaction.solvent
 
             fromwellinfo = self.findStartingPlateWellObj(
                 reactionid=addaction.reaction_id.id,
-                smiles=addaction.materialsmiles,
+                smiles=addaction.smiles,
                 solvent=solvent,
                 concentration=addaction.concentration,
                 transfervolume=transfervolume,
@@ -475,10 +473,10 @@ class otWrite(object):
                         )
                         toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
 
-                        fromplatename = fromplateobj.platename
-                        toplatename = toplateobj.platename
-                        fromwellindex = fromsolventwellobj.wellindex
-                        towellindex = towellobj.wellindex
+                        fromplatename = fromplateobj.name
+                        toplatename = toplateobj.name
+                        fromwellindex = fromsolventwellobj.index
+                        towellindex = towellobj.index
 
                         self.transferFluid(
                             fromplatename=fromplatename,
@@ -502,10 +500,10 @@ class otWrite(object):
                 fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
                 toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
 
-                fromplatename = fromplateobj.platename
-                toplatename = toplateobj.platename
-                fromwellindex = fromwellobj.wellindex
-                towellindex = towellobj.wellindex
+                fromplatename = fromplateobj.name
+                toplatename = toplateobj.name
+                fromwellindex = fromwellobj.index
+                towellindex = towellobj.index
 
                 self.transferFluid(
                     fromplatename=fromplatename,
@@ -517,43 +515,43 @@ class otWrite(object):
 
     def writeAnalyseActions(self):
         for analyseaction in self.allanalyseactionsqueryset:
-            sampleamount = analyseaction.sampleamount
+            samplevolume = analyseaction.samplevolume
             analysesolvent = analyseaction.solvent
-            solventamount = analyseaction.solventamount
+            solventvolume = analyseaction.solventvolume
             reaction_id = analyseaction.reaction_id.id
             productsmiles = self.getProductSmiles(reactionid=reaction_id)
 
             fromwellobj = Well.objects.get(
                 otsession_id=self.otsessionid,
                 reaction_id=reaction_id,
-                welltype="reaction",
+                type="reaction",
                 smiles=productsmiles,
             )
             fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
             towellobj = Well.objects.get(
                 otsession_id=self.otsessionid,
                 reaction_id=reaction_id,
-                welltype="analyse",
+                type="analyse",
                 smiles=productsmiles,
             )
             toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
 
-            fromplatename = fromplateobj.platename
-            toplatename = toplateobj.platename
-            fromwellindex = fromwellobj.wellindex
-            towellindex = towellobj.wellindex
+            fromplatename = fromplateobj.name
+            toplatename = toplateobj.name
+            fromwellindex = fromwellobj.index
+            towellindex = towellobj.index
 
             self.transferFluid(
                 fromplatename=fromplatename,
                 toplatename=toplatename,
                 fromwellindex=fromwellindex,
                 towellindex=towellindex,
-                transvolume=sampleamount,
+                transvolume=samplevolume,
             )
 
             fromsolventwellinfo = self.findSolventPlateWellObj(
                 solvent=analysesolvent,
-                transfervolume=solventamount,
+                transfervolume=solventvolume,
             )
 
             for solventwellinfo in fromsolventwellinfo:
@@ -561,8 +559,8 @@ class otWrite(object):
                 transfervolume = solventwellinfo[1]
 
                 fromplateobj = self.getPlateObj(plateid=fromsolventwellobj.plate_id.id)
-                fromplatename = fromplateobj.platename
-                fromwellindex = fromsolventwellobj.wellindex
+                fromplatename = fromplateobj.name
+                fromwellindex = fromsolventwellobj.index
 
                 self.transferFluid(
                     fromplatename=fromplatename,
@@ -577,5 +575,5 @@ class otWrite(object):
                 wellindex=towellindex,
                 nomixes=3,
                 plate=toplatename,
-                volumetomix=solventamount,
+                volumetomix=solventvolume,
             )

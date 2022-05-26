@@ -1,10 +1,15 @@
 """Checks validation of file for uploading to CAR"""
-from __future__ import annotations
+from typing import BinaryIO
+import inspect
 import pandas as pd
 from rdkit import Chem
 
 from .recipebuilder.encodedrecipes import encoded_recipes
 from .utils import canonSmiles, getAddtionOrder, checkReactantSMARTS, combichem
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ValidateFile(object):
@@ -12,11 +17,14 @@ class ValidateFile(object):
     Creates a validate object for checking file validation for upload
     """
 
-    def __init__(self, csv_to_validate: csvFile, validate_type: str):
-        """
-        ValidateFile constructor
-        Args:
-            csv_to_validate (.csv): Uploaded .csv file for testing validation
+    def __init__(self, csv_to_validate: BinaryIO, validate_type: str):
+        """ValidateFile constructor
+
+        Parameters
+        ----------
+
+        csv_to_validate: IO
+            The uploaded csv file for validating
         """
         self.df = pd.read_csv(csv_to_validate, encoding="utf8")
         self.df_columns = self.df.columns
@@ -27,9 +35,9 @@ class ValidateFile(object):
         self.validated = True
 
         if self.upload_type == "custom-chem":
-            self.validatecustomchem()
+            self.validateCustomChem()
         if self.upload_type == "combi-custom-chem":
-            self.validatecustomcombichem()
+            self.validateCustomCombiChem()
 
         if self.upload_type == "retro-API":
             self.expected_no_columns = 3
@@ -46,7 +54,10 @@ class ValidateFile(object):
                 if self.validated:
                     self.checkIsString()
 
-    def validatecustomchem(self):
+    def validateCustomChem(self):
+        """Validates the csv file if the custom chemistry
+        option selected
+        """
         self.expected_no_columns = 5
         self.expected_column_names = [
             "reactant-1",
@@ -79,7 +90,7 @@ class ValidateFile(object):
                 if self.validated:
                     self.checkIsString()
 
-    def validatecustomcombichem(self):
+    def validateCustomCombiChem(self):
         self.expected_no_columns = 5
         self.expected_column_names = [
             "reactant-1",
@@ -94,7 +105,7 @@ class ValidateFile(object):
         if self.validated:
             self.reactant_pair_smiles = []
             self.reaction_names = []
-            self.batch_tags = []
+            self.batchtags = []
             grouped = self.df.groupby("reaction-name")
             for name, group in grouped:
                 group = group.reset_index()
@@ -117,12 +128,12 @@ class ValidateFile(object):
                     reactant_2_SMILES=reactant_2_SMILES,
                 )
                 reaction_names = [name] * len(reactant_pair_smiles)
-                batch_tags = [group.at[0, "batch-tag"]] * len(reactant_pair_smiles)
+                batchtags = [group.at[0, "batch-tag"]] * len(reactant_pair_smiles)
                 self.reactant_pair_smiles = (
                     self.reactant_pair_smiles + reactant_pair_smiles
                 )
                 self.reaction_names = self.reaction_names + reaction_names
-                self.batch_tags = self.batch_tags + batch_tags
+                self.batchtags = self.batchtags + batchtags
 
             self.checkReactantSMILES()
             if self.validated:
@@ -140,7 +151,7 @@ class ValidateFile(object):
                     self.df["amount-required-mg"] = [amount_required_mg] * len(
                         self.reactant_pair_smiles
                     )
-                    self.df["batch-tag"] = self.batch_tags
+                    self.df["batch-tag"] = self.batchtags
                     self.checkIsNumber()
 
     def add_warning(self, field, warning_string):
@@ -148,116 +159,174 @@ class ValidateFile(object):
         self.validate_dict["warning_string"].append(warning_string)
 
     def checkColumnNames(self):
-        if not all(self.df_columns == self.expected_column_names):
+        try:
+            if not all(self.df_columns == self.expected_column_names):
+                self.add_warning(
+                    field="name_columns",
+                    warning_string="Column names should be set to: {}".format(
+                        self.expected_column_names
+                    ),
+                )
+                self.validated = False
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             self.add_warning(
                 field="name_columns",
-                warning_string="Column names should be set to: {}".format(
-                    self.expected_column_names
-                ),
+                warning_string="Column names check failed with error: {}".format(e),
             )
             self.validated = False
 
     def checkNumberColumns(self):
-        if self.no_df_columns != self.expected_no_columns:
+        try:
+            if self.no_df_columns != self.expected_no_columns:
+                self.add_warning(
+                    field="number_columns",
+                    warning_string="Found {} columns. Expected {} columns. Set and name columns to {} only".format(
+                        self.no_df_columns,
+                        self.expected_no_columns,
+                        self.expected_column_names,
+                    ),
+                )
+                self.validated = False
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             self.add_warning(
                 field="number_columns",
-                warning_string="Found {} columns. Expected {} columns. Set and name columns to {} only".format(
-                    self.no_df_columns,
-                    self.expected_no_columns,
-                    self.expected_column_names,
-                ),
+                warning_string="Number columns check failed with error: {}".format(e),
             )
             self.validated = False
 
     def checkTargetSMILES(self):
-        for index, smi in zip(self.index_df_rows, self.target_smiles):
-            canonsmiles = canonSmiles(smi)
-            if not canonsmiles:
-                self.add_warning(
-                    field="check_smiles",
-                    warning_string="Input target smiles: '{}' at index {} is not a valid smiles".format(
-                        smi,
-                        index,
-                    ),
-                )
-                self.validated = False
+        try:
+            for index, smi in zip(self.index_df_rows, self.target_smiles):
+                canonsmiles = canonSmiles(smi)
+                if not canonsmiles:
+                    self.add_warning(
+                        field="check_smiles",
+                        warning_string="Input target smiles: '{}' at index {} is not a valid smiles".format(
+                            smi,
+                            index,
+                        ),
+                    )
+                    self.validated = False
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+            self.add_warning(
+                field="check_smiles",
+                warning_string="Input target smiles check failed with error: {}".format(
+                    e
+                ),
+            )
+            self.validated = False
 
     def checkReactantSMILES(self):
-        for index, smi_pair in zip(self.index_df_rows, self.reactant_pair_smiles):
-            mols = [Chem.MolFromSmiles(smi) for smi in smi_pair]
-            if None in mols:
-                none_test_indices = [
-                    index for index, mol in enumerate(mols) if mol == None
-                ]
-                invalid_smiles = [smi_pair[index] for index in none_test_indices]
-                self.add_warning(
-                    field="check_smiles",
-                    warning_string="Input reactant smiles: ".join(
-                        "{} ".format(*smi) for smi in invalid_smiles
+        try:
+            for index, smi_pair in zip(self.index_df_rows, self.reactant_pair_smiles):
+                mols = [Chem.MolFromSmiles(smi) for smi in smi_pair]
+                if None in mols:
+                    none_test_indices = [
+                        index for index, mol in enumerate(mols) if mol == None
+                    ]
+                    invalid_smiles = [smi_pair[index] for index in none_test_indices]
+                    self.add_warning(
+                        field="check_smiles",
+                        warning_string="Input reactant smiles: ".join(
+                            "{} ".format(*smi) for smi in invalid_smiles
+                        )
+                        + "at index {} is not a valid smiles".format(
+                            index,
+                        ),
                     )
-                    + "at index {} is not a valid smiles".format(
-                        index,
-                    ),
-                )
-                self.validated = False
+                    self.validated = False
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+            self.add_warning(
+                field="check_smiles",
+                warning_string="Input reactant smiles check failed with error: {}".format(
+                    e
+                ),
+            )
+            self.validated = False
 
     def checkIsNumber(self):
-        self.target_amounts = [amount for amount in self.df["amount-required-mg"]]
-        for index, amount in zip(self.index_df_rows, self.target_amounts):
-            if not isinstance(amount, (int, float)):
-                self.add_warning(
-                    field="check_number",
-                    warning_string="Target mass {} at index {} is not a valid number".format(
-                        amount, index
-                    ),
-                )
-                self.validated = False
+        try:
+            self.target_amounts = [amount for amount in self.df["amount-required-mg"]]
+            for index, amount in zip(self.index_df_rows, self.target_amounts):
+                if not isinstance(amount, (int, float)):
+                    self.add_warning(
+                        field="check_number",
+                        warning_string="Target mass {} at index {} is not a valid number".format(
+                            amount, index
+                        ),
+                    )
+                    self.validated = False
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+            self.add_warning(
+                field="check_number",
+                warning_string="Input amount check failed with error: {}".format(e),
+            )
+            self.validated = False
 
     def checkIsString(self):
-        self.batch_tags = [tag.strip() for tag in self.df["batch-tag"]]
-        for index, tag in zip(self.index_df_rows, self.batch_tags):
-            if not type(tag) == str:
-                self.add_warning(
-                    field="check_string",
-                    warning_string="Batch tag {} at index {} is not a valid string format".format(
-                        tag, index
-                    ),
-                )
-                self.validated = False
+        try:
+            self.batchtags = [tag.strip() for tag in self.df["batch-tag"]]
+            for index, tag in zip(self.index_df_rows, self.batchtags):
+                if not type(tag) == str:
+                    self.add_warning(
+                        field="check_string",
+                        warning_string="Batch tag {} at index {} is not a valid string format".format(
+                            tag, index
+                        ),
+                    )
+                    self.validated = False
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+            self.add_warning(
+                field="check_string",
+                warning_string="Input batch tag check failed with error: {}".format(e),
+            )
+            self.validated = False
 
     def checkReaction(self):
-        self.product_smiles = []
-        self.reactant_pair_smiles_ordered = []
-        no_reaction_tests = len(self.reaction_names)
+        try:
+            self.product_smiles = []
+            self.reactant_pair_smiles_ordered = []
+            no_reaction_tests = len(self.reaction_names)
 
-        for index, reactant_pair, reaction_name in zip(
-            range(no_reaction_tests), self.reactant_pair_smiles, self.reaction_names
-        ):
-            smarts = encoded_recipes[reaction_name]["reactionSMARTS"]
-            product_mols = checkReactantSMARTS(
-                reactant_SMILES=reactant_pair, reaction_SMARTS=smarts
+            for index, reactant_pair, reaction_name in zip(
+                range(no_reaction_tests), self.reactant_pair_smiles, self.reaction_names
+            ):
+                smarts = encoded_recipes[reaction_name]["reactionSMARTS"]
+                product_mols = checkReactantSMARTS(
+                    reactant_SMILES=reactant_pair, reaction_SMARTS=smarts
+                )
+
+                if not product_mols:
+                    print(smarts)
+                    print(reactant_pair)
+                    self.add_warning(
+                        field="check_reaction",
+                        warning_string="Reaction for reactants at index {} is not a valid reaction".format(
+                            index
+                        ),
+                    )
+                    self.validated = False
+
+                if product_mols:
+                    product_mol = product_mols[0]
+                    product_smi = Chem.MolToSmiles(product_mol)
+                    reactant_smis = getAddtionOrder(
+                        product_smi=product_smi,
+                        reactant_SMILES=reactant_pair,
+                        reaction_SMARTS=smarts,
+                    )
+                    self.product_smiles.append(product_smi)
+                    self.reactant_pair_smiles_ordered.append(reactant_smis)
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+            self.add_warning(
+                field="check_reaction",
+                warning_string="Reaction check failed with error: {}".format(e),
             )
-
-            if not product_mols:
-                print(smarts)
-                print(reactant_pair)
-                self.add_warning(
-                    field="check_reaction",
-                    warning_string="Reaction for reactants at index {} is not a valid reaction".format(
-                        index
-                    ),
-                )
-                self.validated = False
-
-            if product_mols:
-                product_mol = product_mols[
-                    0
-                ]  # Need to build in something to show muttiple products and then let user choose product!
-                product_smi = Chem.MolToSmiles(product_mol)
-                reactant_smis = getAddtionOrder(
-                    product_smi=product_smi,
-                    reactant_SMILES=reactant_pair,
-                    reaction_SMARTS=smarts,
-                )
-                self.product_smiles.append(product_smi)
-                self.reactant_pair_smiles_ordered.append(reactant_smis)
+            self.validated = False

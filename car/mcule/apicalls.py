@@ -1,7 +1,12 @@
 from pycule import MCuleWrapper
 import os
+import inspect
 
 from ..utils import canonSmiles
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MCuleAPI(object):
@@ -41,12 +46,9 @@ class MCuleAPI(object):
                 response_dict = self.mculewrapper.similaritysearch(
                     query=smiles, limit=1, threshold=0.7
                 )
-                print(smiles)
-                print(response_dict)
                 results = response_dict["response"]["results"]
                 if results:
                     smiles_test = canonSmiles(results[0]["smiles"])
-                    print(smiles_test)
                     if smiles_test == smiles:
                         mculeid = results[0]["mcule_id"]
                         mculeurl = results[0]["url"]
@@ -80,6 +82,7 @@ class MCuleAPI(object):
                 return price, deliverytime
 
         except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             print(e)
             print(response_dict)
             return None
@@ -89,8 +92,6 @@ class MCuleAPI(object):
         mculeids: list,
         amount: float = 1,
         delivery_country: str = "GB",
-        target_volume: float = None,
-        target_cc: float = None,
     ):
         """
         Get quote from MCule for list of mcule ids
