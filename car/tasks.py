@@ -3,7 +3,6 @@ from __future__ import annotations
 from celery import shared_task, current_task
 from django.conf import settings
 from zipfile import ZipFile
-from graphene_django import DjangoObjectType
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -475,13 +474,13 @@ def createOTScript(batchids: list, protocol_name: str):
     return task_summary, otprojectobj.id
 
 
-def getPreviousObjEntries(queryset: list, obj: DjangoObjectType):
+def getPreviousObjEntries(queryset: list, obj: object):
     """Finds all previous objecta relative to obj of queryset"""
     previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
     return previousqueryset
 
 
-def checkPreviousReactionFailures(reactionobj: DjangoObjectType):
+def checkPreviousReactionFailures(reactionobj: object):
     """Check if any previous reaction failures for a method"""
     reactionqueryset = getReactions(methodid=reactionobj.method_id.id)
     previousreactionqueryset = getPreviousObjEntries(
@@ -578,7 +577,7 @@ class ZipOTBatchProtocol(object):
     for a batch
     """
 
-    def __init__(self, otbatchprotocolobj: DjangoObjectType, batchtag: str):
+    def __init__(self, otbatchprotocolobj: object, batchtag: str):
         """
         zipOTBatchProtocol constructor
         Args:
@@ -646,7 +645,7 @@ class ZipOTBatchProtocol(object):
         else:
             return otsessionqueryset
 
-    def getSolventPrepQuerySet(self, otsessionobj: DjangoObjectType):
+    def getSolventPrepQuerySet(self, otsessionobj: object):
         """Retrieve SolventPrep model queryset
         Args:
             otsessionobj (Django obj): OTSession Django object
@@ -662,7 +661,7 @@ class ZipOTBatchProtocol(object):
         else:
             return solventprepqueryset
 
-    def getCompoundOrderQuerySet(self, otsessionobj: DjangoObjectType):
+    def getCompoundOrderQuerySet(self, otsessionobj: object):
         """Retrieve CompoundOrder model queryset
         Args:
             otsessionobj (Django obj): OTSession Django object
@@ -677,7 +676,7 @@ class ZipOTBatchProtocol(object):
         else:
             return compoundorderqueryset
 
-    def getOTScriptQuerySet(self, otsessionobj: DjangoObjectType):
+    def getOTScriptQuerySet(self, otsessionobj: object):
         """Retrieve OTScript model queryset
         Args:
             otsessionobj (Django obj): OTSession Django object
@@ -692,7 +691,7 @@ class ZipOTBatchProtocol(object):
         else:
             return otscriptqueryset
 
-    def getSolventPrepFilePath(self, solventprepobj: DjangoObjectType):
+    def getSolventPrepFilePath(self, solventprepobj: object):
         """Retrieve SolventPrep csv file path
         Args:
             solventprepobj (Django obj): SolventPrep Django object
@@ -700,7 +699,7 @@ class ZipOTBatchProtocol(object):
         filepath = os.path.join(self.mediaroot, solventprepobj.solventprepcsv.name)
         return filepath
 
-    def getCompoundOrderFilePath(self, compoundorderobj: DjangoObjectType):
+    def getCompoundOrderFilePath(self, compoundorderobj: object):
         """Retrieve CompoundOrder csv file path
         Args:
             compoundorderobj (Django obj): OTSession Django object
@@ -708,7 +707,7 @@ class ZipOTBatchProtocol(object):
         filepath = os.path.join(self.mediaroot, compoundorderobj.ordercsv.name)
         return filepath
 
-    def getOTScriptFilePath(self, otscriptobj: DjangoObjectType):
+    def getOTScriptFilePath(self, otscriptobj: object):
         """Retrieve OTScript Python file path
         Args:
             otscriptobj (Django obj): OTScript Django object

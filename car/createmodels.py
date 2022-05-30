@@ -1,11 +1,11 @@
 """Create Django models from Manifold API/custom chemistry outputs"""
 from __future__ import annotations
 from typing import Tuple
+import inspect
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-import inspect
 
 from .mcule.apicalls import MCuleAPI
 

@@ -99,12 +99,20 @@ from django.core.files.storage import default_storage
 from .utils import createSVGString
 
 
-def duplicatetarget(target_obj: object, fk_obj: object) -> object:
-    related_catalogentry_queryset = target_obj.catalogentries.all()
+def cloneTarget(target_obj: Target, batch_obj: Batch) -> Target:
+    """Clone a target
 
+    Parameters
+    ----------
+    target_obj: Target
+        The target to be cloned
+    batch_obj: Batch
+        The batch of targets the target is related to
+    """
+    related_catalogentry_queryset = target_obj.catalogentries.all()
     target_obj.image = ContentFile(target_obj.image.read(), name=target_obj.image.name)
     target_obj.pk = None
-    target_obj.batch_id = fk_obj
+    target_obj.batch_id = batch_obj
     target_obj.save()
 
     for catalogentry_obj in related_catalogentry_queryset:
@@ -115,12 +123,19 @@ def duplicatetarget(target_obj: object, fk_obj: object) -> object:
     return target_obj
 
 
-def duplicatemethod(method_obj: object, fk_obj: object):
-    related_reaction_queryset = method_obj.reactions.all()
+def cloneMethod(method_obj: Method, target_obj: Target):
+    """Clone a synthesis method
 
-    # Duplicate method before cloning the related children reaction objs
+    Parameters
+    ----------
+    method_obj: Method
+        The method of reactions to be cloned
+    target_obj: Target
+        The target the synthesis method is related to
+    """
+    related_reaction_queryset = method_obj.reactions.all()
     method_obj.pk = None
-    method_obj.target_id = fk_obj
+    method_obj.target_id = target_obj
     method_obj.save()
 
     for reaction_obj in related_reaction_queryset:
@@ -186,6 +201,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(methods=["post"], detail=False)
     def createproject(self, request, pk=None):
+        """Post method to create a new project
+
+        Parameters
+        ----------
+        request: JSON
+            Will have structure:
+
+            {"projectname": str,
+             "submittername": str,
+             "submitterorganisation": str,
+             "proteintarget": str
+             "validate_choice": int,
+             "API_choice": int,
+            }
+
+        """
         check_services()
         project_info = {}
         project_info["projectname"] = request.data["project_name"]
@@ -254,6 +285,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def gettaskstatus(self, request, pk=None):
+        """Get method to get the Celery task status"""
         task_id = self.request.GET.get("task_id", None)
         if task_id:
             task = AsyncResult(task_id)
@@ -315,7 +347,25 @@ class BatchViewSet(viewsets.ModelViewSet):
         fetchall = self.request.GET.get("fetchall", None)
         return BatchSerializerAll if fetchall == "yes" else BatchSerializer
 
-    def createBatch(self, project_obj, batch_node_obj, batchtag):
+    def createBatch(
+        self, project_obj: Project, batch_node_obj: Batch, batchtag: str
+    ) -> Batch:
+        """Creates a batch object
+
+        Parameters
+        ----------
+        project_obj: Project
+            The project object that the new batch will be related to
+        batch_node_obj: Batch
+            The parent batch of the newly created batch
+        batchtag: str
+            The batch tag for the new batch
+
+        Returns
+        -------
+        batch_obj: Batch
+            The newly created batch object
+        """
         batch_obj = Batch()
         batch_obj.project_id = project_obj
         batch_obj.batch_id = batch_node_obj
@@ -324,6 +374,21 @@ class BatchViewSet(viewsets.ModelViewSet):
         return batch_obj
 
     def create(self, request, **kwargs):
+        """Post method to create a new batch
+
+        Parameters
+        ----------
+        request: JSON
+            Will have structure:
+
+            {"methodids": list,
+             "batchtag": str,
+            }
+
+        The methodids are the methods selected for the new batch
+        The batchtag is the name of the new batch to be created
+        """
+
         method_ids = request.data["methodids"]
         batchtag = request.data["batchtag"]
         try:
@@ -339,11 +404,11 @@ class BatchViewSet(viewsets.ModelViewSet):
                 method_query_set_to_clone = Method.objects.filter(
                     target_id=target_obj
                 ).filter(pk__in=method_ids)
-                target_obj_clone = duplicatetarget(
-                    target_obj=target_obj, fk_obj=batch_obj_new
+                target_obj_clone = cloneTarget(
+                    target_obj=target_obj, batch_obj=batch_obj_new
                 )
                 for method_obj in method_query_set_to_clone:
-                    duplicatemethod(method_obj=method_obj, fk_obj=target_obj_clone)
+                    cloneMethod(method_obj=method_obj, target_obj=target_obj_clone)
             serialized_data = BatchSerializer(batch_obj_new).data
             if serialized_data:
                 return JsonResponse(data=serialized_data)
@@ -354,6 +419,7 @@ class BatchViewSet(viewsets.ModelViewSet):
 
     @action(methods=["post"], detail=False)
     def canonicalizesmiles(self, request, pk=None):
+        """Post method to canonicalise a list or csv file of SMILES"""
         check_services()
         if request.POST.get("smiles"):
             smiles = request.POST.getlist("smiles")
@@ -369,6 +435,9 @@ class BatchViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def gettaskstatus(self, request, pk=None):
+        """Get method to check the Celery task status of the the
+        SMILES being canonicalised
+        """
         task_id = self.request.GET.get("task_id", None)
         if task_id:
             task = AsyncResult(task_id)
@@ -398,6 +467,7 @@ class BatchViewSet(viewsets.ModelViewSet):
 
     @action(methods=["post"], detail=False)
     def updatereactionsuccess(self, request, pk=None):
+        """Updates reactions to be set to be unsuccessful"""
         if request.POST.get("reaction_ids"):
             reaction_ids = request.POST.getlist("reaction_ids")
         if len(request.FILES) != 0:
@@ -479,42 +549,6 @@ class AddActionViewSet(viewsets.ModelViewSet):
     serializer_class = AddActionSerializer
     filterset_fields = ["reaction_id"]
 
-    def get_patch_object(self, pk):
-        return AddAction.objects.get(pk=pk)
-
-    def partial_update(self, request, pk):
-        addaction = self.get_patch_object(pk)
-
-        if "materialsmiles" in request.data:
-            materialsmiles = request.data["materialsmiles"]
-            mol = Chem.MolFromSmiles(materialsmiles)
-            molecular_weight = Descriptors.ExactMolWt(mol)
-            add_svg_string = createSVGString(materialsmiles)
-            # Delete previous image
-            svg_fp = addaction.materialimage.path
-            default_storage.delete(svg_fp)
-            # Add new image
-            add_svg_fn = default_storage.save(
-                "addactionimages/{}.svg".format(materialsmiles),
-                ContentFile(add_svg_string),
-            )
-            addaction.materialsmiles = materialsmiles
-            addaction.molecularweight = molecular_weight
-            addaction.materialimage = add_svg_fn
-            addaction.save()
-            serialized_data = AddActionSerializer(addaction).data
-            if serialized_data:
-                return JsonResponse(data=serialized_data)
-            else:
-                return JsonResponse(data="wrong parameters")
-        else:
-            serializer = AddActionSerializer(addaction, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return JsonResponse(data=serializer.data)
-            else:
-                return JsonResponse(data="wrong parameters")
-
 
 class StirActionViewSet(viewsets.ModelViewSet):
     queryset = StirAction.objects.all()
@@ -530,9 +564,23 @@ class OTProjectViewSet(viewsets.ModelViewSet):
 
     @action(methods=["post"], detail=False)
     def createotproject(self, request, pk=None):
+        """Post method to create an OT project
+
+        Parameters
+        ----------
+        request: JSON
+            Will have structure:
+
+            {"batchids": list,
+             "protocol_name": str,
+            }
+
+        The batch ids that the OT project will be created for
+        The project name of the OT project
+        """
         check_services()
         batch_ids = request.data["batchids"]
-        protocol_name = request.data["protocol_name"]
+        protocol_name = request.data["project_name"]
         print(batch_ids)
         task = createOTScript.delay(batchids=batch_ids, protocol_name=protocol_name)
         data = {"task_id": task.id}
@@ -540,6 +588,7 @@ class OTProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def gettaskstatus(self, request, pk=None):
+        """Get method for getting the OT project celery task status"""
         task_id = self.request.GET.get("task_id", None)
         if task_id:
             task = AsyncResult(task_id)
