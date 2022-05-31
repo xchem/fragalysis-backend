@@ -31,7 +31,7 @@ cd /code
 gunicorn fragalysis.wsgi:application \
     --daemon \
     --name fragalysis \
-    --bind unix:django_app.sock \
+    --bind 0.0.0.0:80 \
     --timeout 3000 \
     --workers 3 \
     --log-level=debug \
