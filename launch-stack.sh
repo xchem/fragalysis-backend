@@ -22,10 +22,6 @@ printf "$script" | python manage.py shell
 touch /srv/logs/gunicorn.log
 touch /srv/logs/access.log
 tail -n 0 -f /srv/logs/*.log &
-# Start the NPM build
-echo "Starting..."
-# Start Gunicorn processes
-cd /code/
 echo "Starting Gunicorn...."
 cd /code
 gunicorn fragalysis.wsgi:application \
@@ -42,4 +38,3 @@ echo "Testing nginx config..."
 nginx -t
 echo "Running nginx..."
 nginx
-
