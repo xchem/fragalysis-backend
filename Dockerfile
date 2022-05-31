@@ -24,6 +24,7 @@ RUN apt-get --allow-releaseinfo-change update -y && \
 COPY django_nginx.conf /etc/nginx/sites-available/default.conf
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled
 COPY nginx.conf /etc/nginx/nginx.conf
-WORKDIR /srv/logs/
 
+WORKDIR /srv/logs/
+WORKDIR /code/logs
 WORKDIR /code

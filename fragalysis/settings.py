@@ -355,34 +355,36 @@ SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
 # We provide a console and rotating file handler
 # (50Mi of logging in 10 files of 5M each),
 # with the rotating file handler typically used for everything.
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'simple': {
-            'format': '%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s',
-            'datefmt': '%Y-%m-%dT%H:%M:%S'}},
-    'handlers': {
-        'console': {
+DISABLE_LOGGING_FRAMEWORK = True if os.environ.get("DISABLE_LOGGING_FRAMEWORK", "yes").lower() in ["yes"] else False
+if not DISABLE_LOGGING_FRAMEWORK:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'simple': {
+                'format': '%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s',
+                'datefmt': '%Y-%m-%dT%H:%M:%S'}},
+        'handlers': {
+            'console': {
+                'level': 'DEBUG',
+                'class': 'logging.StreamHandler',
+                'formatter': 'simple'},
+            'rotating': {
+                'level': 'DEBUG',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'maxBytes': 5_000_000,
+                'backupCount': 10,
+                'filename': os.path.join(BASE_DIR, 'logs/logfile.log'),
+                'formatter': 'simple'}},
+        'loggers': {
+            'asyncio': {
+                'level': 'WARNING'},
+            'django': {
+                'level': 'WARNING'},
+            'mozilla_django_oidc': {
+                'level': 'WARNING'},
+            'urllib3': {
+                'level': 'WARNING'}},
+        'root': {
             'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple'},
-        'rotating': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': 5_000_000,
-            'backupCount': 10,
-            'filename': os.path.join(BASE_DIR, 'logs/logfile.log'),
-            'formatter': 'simple'}},
-    'loggers': {
-        'asyncio': {
-            'level': 'WARNING'},
-        'django': {
-            'level': 'WARNING'},
-        'mozilla_django_oidc': {
-            'level': 'WARNING'},
-        'urllib3': {
-            'level': 'WARNING'}},
-    'root': {
-        'level': 'WARNING',
-        'handlers': ['rotating']}}
+            'handlers': ['rotating']}}
