@@ -30,7 +30,7 @@ from .models import (
 )
 
 from .utils import (
-    calculateproductmols,
+    calculateProductMols,
     createSVGString,
     createReactionSVGString,
     getPubChemCAS,
@@ -63,7 +63,7 @@ def createProjectModel(project_info: dict) -> Tuple[int, str]:
     project.submitterorganisation = project_info["submitterorganisation"]
     project.proteintarget = project_info["proteintarget"]
     project.save()
-    return project.id, project.name
+    return project.id
 
 
 def createBatchModel(project_id: int, batchtag: str, batch_id: int = None) -> int:
@@ -117,7 +117,7 @@ def createTargetModel(batch_id: int, smiles: str, mass: float) -> int:
     batchtag = batch_obj.batchtag
     target.batch_id = batch_obj
     target.smiles = smiles
-    target.mols = calculateproductmols(mass, smiles)
+    target.mols = calculateProductMols(mass, smiles)
     target.name = batchtag
     target_svg_string = createSVGString(smiles)
     target_svg_fn = default_storage.save(

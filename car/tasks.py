@@ -97,10 +97,11 @@ def uploadManifoldReaction(validate_output):
         return (validate_dict, validated, project_info)
 
     if validated:
-        project_id, project_name = createProjectModel(project_info)
+        project_id = createProjectModel(project_info)
         project_info["project_id"] = project_id
 
         grouped_targets = uploaded_df.groupby("batch-tag")
+        print(grouped_targets)
 
         for batchtag, group in grouped_targets:
             batch_id = createBatchModel(
@@ -289,7 +290,7 @@ def uploadCustomReaction(validate_output):
         return (validate_dict, validated, project_info)
 
     if validated:
-        project_id, project_name = createProjectModel(project_info)
+        project_id = createProjectModel(project_info)
         project_info["project_id"] = project_id
 
         grouped_targets = uploaded_df.groupby("batch-tag")

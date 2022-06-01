@@ -5,7 +5,7 @@ import pandas as pd
 from rdkit import Chem
 
 from .recipebuilder.encodedrecipes import encoded_recipes
-from .utils import canonSmiles, getAddtionOrder, checkReactantSMARTS, combichem
+from .utils import canonSmiles, getAddtionOrder, checkReactantSMARTS, combiChem
 
 import logging
 
@@ -123,7 +123,7 @@ class ValidateFile(object):
                         if str(reactant) != "nan"
                     ]
                 )
-                reactant_pair_smiles = combichem(
+                reactant_pair_smiles = combiChem(
                     reactant_1_SMILES=reactant_1_SMILES,
                     reactant_2_SMILES=reactant_2_SMILES,
                 )

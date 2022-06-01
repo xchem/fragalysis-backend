@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def calculateproductmols(target_mass: float, target_SMILES: str) -> object:
+def calculateProductMols(target_mass: float, target_SMILES: str) -> object:
     """Function to calculate product mols of reaction using a target mass
 
     Parameters
@@ -57,7 +57,7 @@ def canonSmiles(smiles: str) -> str:
         return False
 
 
-def combichem(reactant_1_SMILES: list, reactant_2_SMILES: list) -> list:
+def combiChem(reactant_1_SMILES: list, reactant_2_SMILES: list) -> list:
     """Gets all possible combinations between two uneven lists of
        reactants
 
