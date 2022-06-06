@@ -1166,6 +1166,10 @@ class JobRequest(models.Model):
                                db_index=True)
     squonk_project = models.CharField(max_length=200, null=True)
     squonk_job_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    # Start and finish times for the Job
+    job_start_datetime = models.DateTimeField(null=True)
+    job_finish_datetime = models.DateTimeField(null=True)
+    # Job status (and status Datetime), delivered via callbacks from Squonk
     job_status = models.CharField(choices=SQUONK_STATUS, default=PENDING, max_length=7)
     job_status_datetime = models.DateTimeField(null=True)
     # squonk_job_info is a copy of the response from DmApi.start_job_instance().

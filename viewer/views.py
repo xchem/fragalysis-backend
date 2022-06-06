@@ -3340,10 +3340,22 @@ class JobCallBackView(viewsets.ModelViewSet):
         # Update the state transition time
         transition_time = request.data.get('state_transition_time')
         if not transition_time:
-            transition_time = str(datetime.now()).split()[0]
+            transition_time = str(datetime.utcnow())
             logger.warning("Callback is missing state_transition_time"
                            " (using '%s')", transition_time)
         jr.job_status_datetime = parse(transition_time)
+
+        # If the Job's start-time is not set, set it.
+        if not jr.job_start_datetime:
+            jr.job_start_datetime = jr.job_status_datetime
+
+        # Set the Job's finish time (once) if it looks lie the Job's finished.
+        # We can assume the Job's finished if the status is one of a number
+        # of values...
+        if not jr.job_finish_datetime and status in ('SUCCESS', 'FAILURE', 'REVOKED'):
+            jr.job_finish_datetime = jr.job_status_datetime
+
+        # Save - before going further.
         jr.save()
 
         if status != 'SUCCESS':

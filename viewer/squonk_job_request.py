@@ -142,6 +142,7 @@ def create_squonk_job(request):
     if result.success:
         job_request.squonk_job_info = result
         job_request.squonk_url_ext = settings.SQUONK_INSTANCE_API + str(result.msg['instance_id'])
+        job_request.job_start_datetime = datetime.utcnow()
         job_request.save()
         return job_request.id, job_request.squonk_url_ext
 

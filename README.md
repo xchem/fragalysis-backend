@@ -86,6 +86,23 @@ If not exists file `fragalysis/data/input/django_data/EXAMPLE/TARGET_LIST` creat
 Mpro, NUDT7A,...
 ```
 
+## Making database migrations
+The best approach is to spin-up the development stack (locally) using
+`docker-compose` and then shell into the Django (stack). For example,
+to make new migrations called "add_job_request_start_and_finish_times"
+for the viewer's models run the following: -
+
+    docker-compose up -d
+    docker-compose exec stack bash
+
+Then from within the stack...
+
+    python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
+
+Exit the container and tear-down the deployemnt: -
+
+    docker-compose down
+
 ## Start
 Start `Fragalysis stack` (All infrastructure - databases + populating data)
 
