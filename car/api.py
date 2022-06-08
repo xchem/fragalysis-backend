@@ -92,11 +92,7 @@ from .serializers import (
     OTScriptSerializer,
 )
 
-from rdkit import Chem
-from rdkit.Chem import Descriptors
 from django.core.files.storage import default_storage
-
-from .utils import createSVGString
 
 
 def cloneTarget(target_obj: Target, batch_obj: Batch) -> Target:
@@ -580,8 +576,7 @@ class OTProjectViewSet(viewsets.ModelViewSet):
         """
         check_services()
         batch_ids = request.data["batchids"]
-        protocol_name = request.data["project_name"]
-        print(batch_ids)
+        protocol_name = request.data["protocol_name"]
         task = createOTScript.delay(batchids=batch_ids, protocol_name=protocol_name)
         data = {"task_id": task.id}
         return JsonResponse(data=data)

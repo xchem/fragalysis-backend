@@ -398,4 +398,3 @@ svg_reaction_str = (
     " style='fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1'"
     " />\n</svg>\n"
 )
-

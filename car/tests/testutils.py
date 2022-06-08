@@ -2,9 +2,9 @@ from unittest import TestCase
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from ..recipebuilder.encodedrecipes import encoded_recipes
+from car.recipebuilder.encodedrecipes import encoded_recipes
 
-from ..utils import (
+from car.utils import (
     calculateProductMols,
     canonSmiles,
     combiChem,
@@ -34,15 +34,20 @@ class ChemistryFunctionsTestCase(TestCase):
         self.smiles = "C1COC2=C(C3=C(C(=C21)CCN)OCC3)Br"
         self.snar_reactant_smiles_one = snar_reactant_smiles_one
         self.snar_reactant_smiles_two = snar_reactant_smiles_two
-        self.snar_reactant_smiles_tuple = (snar_reactant_smiles_one[0], snar_reactant_smiles_two[0])
-        self.snar_encoded_smarts = encoded_recipes["N-nucleophilic aromatic substitution"]["reactionSMARTS"]
+        self.snar_reactant_smiles_tuple = (
+            snar_reactant_smiles_one[0],
+            snar_reactant_smiles_two[0],
+        )
+        self.snar_encoded_smarts = encoded_recipes[
+            "N-nucleophilic aromatic substitution"
+        ]["reactionSMARTS"]
         self.snar_product_smiles = "O=C(O)Cc1ccc(Nc2ccccc2)cc1F"
         self.snar_product_mols = Chem.MolFromSmiles(self.snar_product_smiles)
         self.svg_str = self.strip_white_space(str=svg_str)
         self.reaction_smarts = AllChem.ReactionFromSmarts(
             "{}.{}>>{}".format(
-                self.reactant_smiles_list_1[0],
-                self.reactant_smiles_list_2[0],
+                self.snar_reactant_smiles_one[0],
+                self.snar_reactant_smiles_two[0],
                 self.snar_product_smiles,
             )
         )
@@ -53,7 +58,9 @@ class ChemistryFunctionsTestCase(TestCase):
 
     def test_calculate_product_mols(self):
         target_mass = 10
-        test_product_mols = calculateProductMols(target_mass=target_mass, target_SMILES=self.smiles)
+        test_product_mols = calculateProductMols(
+            target_mass=target_mass, target_SMILES=self.smiles
+        )
 
         self.assertAlmostEqual(
             first=test_product_mols,
@@ -80,8 +87,8 @@ class ChemistryFunctionsTestCase(TestCase):
 
     def test_combi_chem_equal(self):
         test_all_possible_combinations = combiChem(
-            reactant_1_SMILES=self.reactant_smiles_list_1,
-            reactant_2_SMILES=self.reactant_smiles_list_2,
+            reactant_1_SMILES=self.snar_reactant_smiles_one,
+            reactant_2_SMILES=self.snar_reactant_smiles_two,
         )
         self.assertEqual(
             test_all_possible_combinations,
@@ -91,8 +98,8 @@ class ChemistryFunctionsTestCase(TestCase):
 
     def test_combi_chem_unequal(self):
         test_all_possible_combinations = combiChem(
-            reactant_1_SMILES=self.reactant_smiles_list_1[0:1],
-            reactant_2_SMILES=self.reactant_smiles_list_2,
+            reactant_1_SMILES=self.snar_reactant_smiles_one[0:1],
+            reactant_2_SMILES=self.snar_reactant_smiles_two,
         )
         self.assertEqual(
             test_all_possible_combinations,
@@ -119,27 +126,38 @@ class ChemistryFunctionsTestCase(TestCase):
         )
 
     def test_get_addition_order_success(self):
-        test_ordered_smis = getAddtionOrder(product_smi=self.snar_product_smiles, reactant_SMILES=self.snar_reactant_smiles_tuple, reaction_SMARTS=self.snar_encoded_smarts)
+        test_ordered_smis = getAddtionOrder(
+            product_smi=self.snar_product_smiles,
+            reactant_SMILES=self.snar_reactant_smiles_tuple,
+            reaction_SMARTS=self.snar_encoded_smarts,
+        )
         self.assertEqual(
             test_ordered_smis,
-            self.snar_reactant_smiles_tuple,
+            list(self.snar_reactant_smiles_tuple),
             "incorrect addtion order for a SNAr encoded recipe SMARTS",
         )
-    
+
     def test_get_addition_order_fail(self):
         first_reactant_smiles = "OT Chemistry is possible"
-        second_reactant_smiles  = self.reactant_smiles_list_1[0]
+        second_reactant_smiles = self.snar_reactant_smiles_one[0]
         reactant_SMILES = (first_reactant_smiles, second_reactant_smiles)
-        test_ordered_smis = getAddtionOrder(product_smi=self.snar_product_smiles, reactant_SMILES=reactant_SMILES, reaction_SMARTS=self.snar_encoded_smarts)
+        test_ordered_smis = getAddtionOrder(
+            product_smi=self.snar_product_smiles,
+            reactant_SMILES=reactant_SMILES,
+            reaction_SMARTS=self.snar_encoded_smarts,
+        )
         self.assertEqual(
             test_ordered_smis,
             None,
             "incorrect SMILES input should return None for addtion order",
         )
-    
+
     def test_check_reactant_smarts_success(self):
-        test_product_mols = checkReactantSMARTS(reactant_SMILES=self.snar_reactant_smiles_tuple, reaction_SMARTS=self.snar_encoded_smarts)
-        
+        test_product_mols = checkReactantSMARTS(
+            reactant_SMILES=self.snar_reactant_smiles_tuple,
+            reaction_SMARTS=self.snar_encoded_smarts,
+        )
+
         self.assertEqual(
             len(test_product_mols),
             2,
@@ -156,7 +174,7 @@ class PubChemFunctionsTestCase(TestCase):
     def setUp(self) -> None:
         self.smiles = "C1COC2=C(C3=C(C(=C21)CCN)OCC3)Br"
         self.compound = getPubChemCompound(smiles=self.smiles)
-    
+
     def test_get_pubchem_compound_success(self):
         test_compound = getPubChemCompound(smiles=self.smiles)
         self.assertEqual(
@@ -169,7 +187,7 @@ class PubChemFunctionsTestCase(TestCase):
             "733720-95-1",
             "incorrect CAS number for PubChem compound search",
         )
-    
+
     def test_get_pubchem_compound_fail(self):
         test_compound = getPubChemCompound(smiles="OT chemistry is possible")
         self.assertEqual(
@@ -185,8 +203,7 @@ class PubChemFunctionsTestCase(TestCase):
             "2-(4-bromo-2,3,6,7-tetrahydrofuro[2,3-f][1]benzofuran-8-yl)ethanamine",
             "incorrect PubChem IUPAC name for compound",
         )
-    
-    
+
     def test_get_chemical_name_fail(self):
         test_name = getChemicalName(smiles="OT chemistry is possible")
         self.assertEqual(
@@ -194,15 +211,7 @@ class PubChemFunctionsTestCase(TestCase):
             None,
             "PubChem name search should fail and return None",
         )
-    
+
     def test_get_pubchem_cas(self):
         test_cas = getPubChemCAS(compound=self.compound)
-        self.assertEqual(
-            test_cas,
-            "733720-95-1",
-            "incorrect CAS number returned"
-        )
-
-
- 
- 
+        self.assertEqual(test_cas, "733720-95-1", "incorrect CAS number returned")

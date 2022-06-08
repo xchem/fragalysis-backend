@@ -312,7 +312,7 @@ class otWrite(object):
                 otsession_id=self.otsessionid,
                 solvent=solvent,
                 available=True,
-                type="dilution",
+                type="solvent",
             ).order_by("id")
             for wellobj in wellobjs:
                 areclose = self.checkVolumeClose(volume1=transfervolume, volume2=0.00)
@@ -629,11 +629,13 @@ class otWrite(object):
             The index of the destination well
         transvolume: float
             The volume being transferred
-        aspirateheight: int = 2
-            The height the pipette tip will aspirate from
-        dispenseheight: int = -5
-            The hieght at which the pipette tip will dispense
-        transfertype: str = "standard",
+        aspirateheight: int
+            The height (mm) the pipette tip will aspirate from. 
+            Set to 2 mm.
+        dispenseheight: int
+            The hieght (mm) at which the pipette tip will dispense.
+            Set to 5 mm above the bottom of the well.
+        transfertype: str
         """
 
         humanread = f"transfertype - {transfertype} - transfer - {transvolume:.1f}ul from {aspiratewellindex} to {dispensewellindex}"

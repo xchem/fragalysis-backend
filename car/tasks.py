@@ -101,7 +101,6 @@ def uploadManifoldReaction(validate_output):
         project_info["project_id"] = project_id
 
         grouped_targets = uploaded_df.groupby("batch-tag")
-        print(grouped_targets)
 
         for batchtag, group in grouped_targets:
             batch_id = createBatchModel(

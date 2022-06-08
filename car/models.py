@@ -562,9 +562,11 @@ class Plate(models.Model):
 
     class PlateType(models.TextChoices):
         reaction = "reaction"
-        analyse = "analyse"
+        lcms = "lcms"
+        xchem = "xchem"
+        nmr = "nmr"
         startingmaterial = "startingmaterial"
-        dilution = "dilution"
+        solvent = "solvent"
 
     otsession_id = models.ForeignKey(
         OTSession, related_name="otplates", on_delete=models.CASCADE
@@ -614,9 +616,11 @@ class Well(models.Model):
 
     class WellType(models.TextChoices):
         reaction = "reaction"
-        analyse = "analyse"
+        lcms = "lcms"
+        xchem = "xchem"
+        nmr = "nmr"
         startingmaterial = "startingmaterial"
-        dilution = "dilution"
+        solvent = "solvent"
 
     otsession_id = models.ForeignKey(
         OTSession, related_name="otwells", on_delete=models.CASCADE
