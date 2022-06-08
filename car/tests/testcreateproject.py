@@ -1,7 +1,7 @@
 from rest_framework.test import APIClient, APITestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from celery.contrib.testing.worker import start_worker
-from fragalysis.celery import app 
+from fragalysis.celery import app
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -10,44 +10,60 @@ import os
 
 from rdkit.Chem import AllChem
 
-from car.createmodels import CreateEncodedActionModels, createBatchModel, createCatalogEntryModel, createMethodModel, createProductModel, createProjectModel, createReactantModel, createReactionModel, createTargetModel
+from car.createmodels import (
+    CreateEncodedActionModels,
+    createBatchModel,
+    createCatalogEntryModel,
+    createMethodModel,
+    createProductModel,
+    createProjectModel,
+    createReactantModel,
+    createReactionModel,
+    createTargetModel,
+)
 from car.tasks import validateFileUpload
 from car.utils import getAddtionOrder
 
 # from .testdata.indata.testcreateproject import grouped_targets, routes
 
+
 def save_tmp_file(myfile):
-    path = default_storage.save("/code/car/tests/testdata/indata/tmpcsvfile.csv", ContentFile(myfile.read()))
+    path = default_storage.save(
+        "/code/car/tests/testdata/indata/tmpcsvfile.csv", ContentFile(myfile.read())
+    )
     return path
+
 
 class APICreateProjectTestCase(APITestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.celery_worker = start_worker(app, perform_ping_check=False)
-        cls.celery_worker.__enter__()   
-    
+        cls.celery_worker.__enter__()
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
         cls.celery_worker.__exit__(None, None, None)
 
     def setUp(self) -> None:
-        """This is very close to the 
-            uploadManifoldReaction Celery task. Ideal to
-            actually use that function for testing. Will need some
-            work to adapt the function.
+        """This is very close to the
+        uploadManifoldReaction Celery task. Ideal to
+        actually use that function for testing. Will need some
+        work to adapt the function.
         """
         super().setUp()
         self.client = APIClient()
-        self.project_info={
-                "projectname": "Test",
-                "submittername": "Tester",
-                "submitterorganisation": "Rest Framework",
-                "proteintarget": "MID2",
-                "API_choice": 0,
-            }
-        self.csvfile = open("/code/car/tests/testdata/indata/CAR-test-project-upload-1.2.csv", "rb")
+        self.project_info = {
+            "projectname": "Test",
+            "submittername": "Tester",
+            "submitterorganisation": "Rest Framework",
+            "proteintarget": "MID2",
+            "API_choice": 0,
+        }
+        self.csvfile = open(
+            "/code/car/tests/testdata/indata/CAR-test-project-upload-1.2.csv", "rb"
+        )
 
     def test_validation_celery_task(self):
         self.project_info["validate_choice"] = 0
@@ -59,12 +75,10 @@ class APICreateProjectTestCase(APITestCase):
         self.assertEqual(test_task.status, "SUCCESS")
         self.assertEqual(test_task.validated, True)
 
+
 #     def test_create_project(self):
 
 #         self.client.post()
- 
-
-    
 
 
 #         for batchtag, group in grouped_targets:
@@ -164,8 +178,7 @@ class APICreateProjectTestCase(APITestCase):
 #                         reactant_pair_smiles=reactant_smiles_ordered,
 #                         reaction_name=reaction_name,
 #                     )
-    
+
 # class APICreateOTProjectTestCase(APITestCase):
 #     def setUp(self) -> None:
 #         self.client = APIClient()
-

@@ -630,7 +630,7 @@ class otWrite(object):
         transvolume: float
             The volume being transferred
         aspirateheight: int
-            The height (mm) the pipette tip will aspirate from. 
+            The height (mm) the pipette tip will aspirate from.
             Set to 2 mm.
         dispenseheight: int
             The hieght (mm) at which the pipette tip will dispense.

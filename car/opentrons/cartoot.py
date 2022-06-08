@@ -111,17 +111,18 @@ class CreateOTSession(object):
             # May need to rethink and do seprate sessions (Deck space) or optimise tip usage
             wellsneeded = len(analysegroup)
             method = analysegroup[0].method
-            volumes = self.getRoundedAnalyseActionVolumes(analyseactionqueryset=analysegroup)
-            platetype = self.getPlateType(platetype=method, volumes=volumes, wellsneeded=wellsneeded) 
-            # self.platetype = self.getAnalysePlateType(
-            #     wellsneeded=wellsneeded, method=method
-            # )
+            volumes = self.getRoundedAnalyseActionVolumes(
+                analyseactionqueryset=analysegroup
+            )
+            platetype = self.getPlateType(
+                platetype=method, volumes=volumes, wellsneeded=wellsneeded
+            )
             self.createAnalysePlate(
                 method=method,
                 platetype=platetype,
                 analyseactionqueryset=analysegroup,
             )
-         
+
     def createReactionSession(self, reactiongroupqueryset: QuerySet[Reaction]):
         """Creates a reaction OT session
 
@@ -564,6 +565,33 @@ class CreateOTSession(object):
         ]
         return roundedvolumes
 
+    def getRoundedReactionVolumes(
+        self, grouptemperaturereactionobjs: list[Reaction]
+    ) -> list:
+        """Gets the total rounded volume (ul) for all the reactions done at the
+           same temperature
+
+        Parameters
+        ----------
+        grouptemperaturereactionobjs: list[Reaction]
+            The reactions executed at the same temeprature to
+            calculate the rounded volumes (ul)
+
+        Returns
+        -------
+        roundedvolumes: list
+            The list of rounded volumes (ul) for the add actions
+        """
+        reactionvolumes = []
+        for reactionobj in grouptemperaturereactionobjs:
+            addactionqueryset = self.getAddActions(reaction_id=reactionobj.id)
+            roundedvolumes = self.getRoundedAddActionVolumes(
+                addactionqueryset=addactionqueryset
+            )
+            sumvolume = self.getSumValue(values=roundedvolumes)
+            reactionvolumes.append(sumvolume)
+        return reactionvolumes
+
     def getTipRackType(self, roundedvolumes: list) -> str:
         """Gets OT tiprack best suited for transferring volumes (ul)
            that minimises the number of tranfers required
@@ -847,76 +875,6 @@ class CreateOTSession(object):
         numberobjs = len(queryset)
         return numberobjs
 
-    def getReactionVolumes(self, grouptemperaturereactionobjs: list) -> list:
-        reactionvolumes = []
-        for reactionobj in grouptemperaturereactionobjs:
-            addactionqueryset = self.getAddActions(reaction_id=reactionobj.id)
-            roundedvolumes = self.getRoundedAddActionVolumes(
-                addactionqueryset=addactionqueryset
-            )
-            sumvolume = self.getSumValue(values=roundedvolumes)
-            reactionvolumes.append(sumvolume)
-        return reactionvolumes
-
-    def getReactionPlateType(self, grouptemperaturereactionobjs: list) -> str:
-        """Gets the labware plate type needed based on a grouped list of
-           reactions needing the same temperature. Plate selected based on getting
-           closest well volume to the median volume of the
-
-        XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-        Parameters
-        ----------
-        grouptemperaturereactionobjs: list
-            The list of grouped reactions done at the same temperature
-
-        Returns
-        -------
-        labwareplatetype: str
-            The type of labware plate required
-        """
-        reactionvolumes = []
-        for reactionobj in grouptemperaturereactionobjs:
-            addactionqueryset = self.getAddActions(reaction_id=reactionobj.id)
-            roundedvolumes = self.getRoundedAddActionVolumes(
-                addactionqueryset=addactionqueryset
-            )
-            sumvolume = self.getSumValue(values=roundedvolumes)
-            reactionvolumes.append(sumvolume)
-        maxvolume = self.getMaxValue(values=reactionvolumes)
-        medianvolume = self.getMedianValue(values=reactionvolumes)
-        headspacevolume = maxvolume + (maxvolume * 0.2)
-        reactiontemperature = grouptemperaturereactionobjs[0].temperature
-
-        if reactiontemperature > 25:
-            labwareplatetypes = [
-                labware_plate
-                for labware_plate in labware_plates
-                if labware_plates[labware_plate]["reflux"]
-                and labware_plates[labware_plate]["volume_well"] > headspacevolume
-            ]
-        else:
-            labwareplatetypes = [
-                labware_plate
-                for labware_plate in labware_plates
-                if not labware_plates[labware_plate]["reflux"]
-                and labware_plates[labware_plate]["volume_well"] > headspacevolume
-            ]
-
-        if len(labwareplatetypes) > 1:
-            volumewells = [
-                labware_plates[labware_plate]["volume_well"]
-                for labware_plate in labwareplatetypes
-            ]
-            indexclosestvalue = min(
-                range(len(volumewells)), key=lambda x: abs(x - medianvolume)
-            )
-            labwareplatetype = labwareplatetypes[indexclosestvalue]
-        else:
-            labwareplatetype = labwareplatetypes[0]
-
-        return labwareplatetype
-
     def getNumberVials(self, maxvolumevial: float, volumematerial: float) -> int:
         """Gets the total number of vials needed to prepare a starter plate
 
@@ -944,20 +902,26 @@ class CreateOTSession(object):
             novialsneeded = sum(volumestoadd)
         return novialsneeded
 
-    def getPlateType(self, platetype: str, volumes: list, temperature: int = 25, wellsneeded: int = None):
+    def getPlateType(
+        self,
+        platetype: str,
+        volumes: list,
+        temperature: int = 25,
+        wellsneeded: int = None,
+    ):
         """Gets best suited plate
-           Optimises for (in order of decreasing preference) minimum: 
-           number of plates, volume difference and mumber of vials 
+        Optimises for (in order of decreasing preference) minimum:
+        number of plates, volume difference and mumber of vials
         """
         platetype = platetype.lower()
         maxvolume = self.getMaxValue(values=volumes)
         medianvolume = self.getMedianValue(values=volumes)
         headspacevolume = maxvolume + (maxvolume * 0.2)
-        
+
         possiblelabwareplatetypes = [
             labware_plate
             for labware_plate in labware_plates
-            if platetype in labware_plates[labware_plate]["type"] 
+            if platetype in labware_plates[labware_plate]["type"]
             and labware_plates[labware_plate]["max_temp"] >= temperature
             and labware_plates[labware_plate]["volume_well"] >= headspacevolume
         ]
@@ -969,97 +933,58 @@ class CreateOTSession(object):
             maxvolumevial = labware_plates[labwareplate]["volume_well"]
             noplatevials = labware_plates[labwareplate]["no_wells"]
             if not wellsneeded:
-                wellsneeded = sum([self.getNumberVials(
-                        maxvolumevial=maxvolumevial, volumematerial=volume) for volume in volumes])
+                wellsneeded = sum(
+                    [
+                        self.getNumberVials(
+                            maxvolumevial=maxvolumevial, volumematerial=volume
+                        )
+                        for volume in volumes
+                    ]
+                )
             noplatesneeded = int(math.ceil(wellsneeded / noplatevials))
             volumedifference = maxvolumevial - medianvolume
             tempdifference = maxtemp - temperature
-            vialcomparedict[labwareplate] = {"noplatesneeded": noplatesneeded, "volumedifference": volumedifference, "novialsneeded": wellsneeded, "tempdifference": tempdifference} 
+            vialcomparedict[labwareplate] = {
+                "noplatesneeded": noplatesneeded,
+                "volumedifference": volumedifference,
+                "novialsneeded": wellsneeded,
+                "tempdifference": tempdifference,
+            }
 
-        mininumnoplatesneeeded = min((d["noplatesneeded"] for d in vialcomparedict.values()))
-        mininumtempdifference = min((d["tempdifference"] for d in vialcomparedict.values()))
+        mininumnoplatesneeeded = min(
+            (d["noplatesneeded"] for d in vialcomparedict.values())
+        )
+        mininumtempdifference = min(
+            (d["tempdifference"] for d in vialcomparedict.values())
+        )
 
         labwareplatetypes = [
-            labwareplate 
-            for labwareplate in vialcomparedict 
-            if vialcomparedict[labwareplate]["noplatesneeded"]==mininumnoplatesneeeded 
-            and vialcomparedict[labwareplate]["tempdifference"]==mininumtempdifference
+            labwareplate
+            for labwareplate in vialcomparedict
+            if vialcomparedict[labwareplate]["noplatesneeded"] == mininumnoplatesneeeded
+            and vialcomparedict[labwareplate]["tempdifference"] == mininumtempdifference
         ]
         if len(labwareplatetypes) > 1:
-            mininumvolumedifference = min((d["volumedifference"] for d in vialcomparedict.values()))
-            labwareplatetypes =  [labwareplate for labwareplate in vialcomparedict if vialcomparedict[labwareplate]["volumedifference"]==mininumvolumedifference]
-            if len(labwareplatetypes) > 1:
-                mininumnovialsneeded = min((d["novialsneeded"] for d in vialcomparedict.values()))
-                labwareplatetypes =  [labwareplate for labwareplate in vialcomparedict if vialcomparedict[labwareplate]["novialsneeded"]==mininumnovialsneeded]
-        
-        return labwareplatetypes[0]
-
-    def getAnalysePlateType(self, wellsneeded: int, method: str):
-        """Finds best labware plate for analysis"""
-        analyselc = method.lower()
-
-        labwareplatetypes = [
-            labware_plate
-            for labware_plate in labware_plates
-            if analyselc in labware_plates[labware_plate]["type"]
-        ]
-
-        wellcomparedict = {}
-
-        for labwareplate in labwareplatetypes:
-            maxvolumevial = labware_plates[labwareplate]["volume_well"]
-            noplatevials = labware_plates[labwareplate]["no_wells"]
-            platesneeded = int(math.ceil(wellsneeded / noplatevials))
-            wellcomparedict[maxvolumevial] = platesneeded
-            minimumnovialsvolume = min(wellcomparedict, key=wellcomparedict.get)
-
-        labwareplatetype = [
-            labware_plate
-            for labware_plate in labwareplatetypes
-            if labware_plates[labware_plate]["volume_well"] == minimumnovialsvolume
-        ][0]
-
-        return labwareplatetype
-
-    def getStartingMaterialPlateType(self, platetype: str, materialsdf: DataFrame):
-        """Gets best suited plate for a list of materials and volumes
-           Optimises for least amount of plates, wells and closest volume well 
-           vs volume material needed
-        """
-        labwareplatetypes = [
-            labware_plate
-            for labware_plate in labware_plates
-            if platetype in labware_plates[labware_plate]["type"]
-        ]
-
-        vialcomparedict = {}
-
-        medianvolume = self.getMedianValue(values=materialsdf["volume"])
-
-        for labwareplate in labwareplatetypes:
-            maxvolumevial = labware_plates[labwareplate]["volume_well"]
-            noplatevials = labware_plates[labwareplate]["no_wells"]
-
-            vialsneeded = materialsdf.apply(
-                lambda row: self.getNumberVials(
-                    maxvolumevial=maxvolumevial, volumematerial=row["volume"]
-                ),
-                axis=1,
+            mininumvolumedifference = min(
+                (d["volumedifference"] for d in vialcomparedict.values())
             )
-            totalvialsneeded = sum(vialsneeded)
-            noplatesneeded = int(math.ceil(totalvialsneeded / noplatevials))
-            volumedifference = maxvolumevial - medianvolume
-            vialcomparedict[labwareplate] = {"noplatesneeded": noplatesneeded, "volumedifference": volumedifference, "novialsneeded": totalvialsneeded} 
-
-        mininumnoplatesneeeded = min((d["noplatesneeded"] for d in vialcomparedict.values()))
-        labwareplatetypes = [labwareplate for labwareplate in vialcomparedict if vialcomparedict[labwareplate]["noplatesneeded"]==mininumnoplatesneeeded]
-        if len(labwareplatetypes) > 1:
-            mininumvolumedifference = min((d["volumedifference"] for d in vialcomparedict.values()))
-            labwareplatetypes =  [labwareplate for labwareplate in vialcomparedict if vialcomparedict[labwareplate]["volumedifference"]==mininumvolumedifference]
+            labwareplatetypes = [
+                labwareplate
+                for labwareplate in vialcomparedict
+                if vialcomparedict[labwareplate]["volumedifference"]
+                == mininumvolumedifference
+            ]
             if len(labwareplatetypes) > 1:
-                mininumnovialsneeded = min((d["novialsneeded"] for d in vialcomparedict.values()))
-                labwareplatetypes =  [labwareplate for labwareplate in vialcomparedict if vialcomparedict[labwareplate]["novialsneeded"]==mininumnovialsneeded]
-        
+                mininumnovialsneeded = min(
+                    (d["novialsneeded"] for d in vialcomparedict.values())
+                )
+                labwareplatetypes = [
+                    labwareplate
+                    for labwareplate in vialcomparedict
+                    if vialcomparedict[labwareplate]["novialsneeded"]
+                    == mininumnovialsneeded
+                ]
+
         return labwareplatetypes[0]
 
     def getAddActionsMaterialDataFrame(self, productexists: bool) -> DataFrame:
@@ -1229,27 +1154,6 @@ class CreateOTSession(object):
         wellobj.save()
         return wellobj
 
-    def calcMass(self, row) -> float:
-        """Calculates the mass of material (mg) from the
-           concentration (mol/L) and volume (ul) needed
-
-        Parameters
-        ----------
-        row: DataFrame row
-            The row from the dataframe containing the
-            concentration and volume information
-
-        Retruns
-        -------
-        massmg: float
-            The mass of the material needed
-        """
-        mols = row["concentration"] * row["amount-ul"] * 1e-6
-        smiles = row["SMILES"]
-        mw = Descriptors.ExactMolWt(Chem.MolFromSmiles(smiles))
-        massmg = mols * mw * 1e3
-        return round(massmg, 2)
-
     def createCompoundOrderModel(self, orderdf: DataFrame):
         """Creates a compound order object"""
         compoundorderobj = CompoundOrder()
@@ -1308,6 +1212,27 @@ class CreateOTSession(object):
         for rack in range(numberacks):
             self.createTiprackModel(name=tipracktype)
 
+    def calcMass(self, row) -> float:
+        """Calculates the mass of material (mg) from the
+           concentration (mol/L) and volume (ul) needed
+
+        Parameters
+        ----------
+        row: DataFrame row
+            The row from the dataframe containing the
+            concentration and volume information
+
+        Retruns
+        -------
+        massmg: float
+            The mass of the material needed
+        """
+        mols = row["concentration"] * row["amount-ul"] * 1e-6
+        smiles = row["SMILES"]
+        mw = Descriptors.ExactMolWt(Chem.MolFromSmiles(smiles))
+        massmg = mols * mw * 1e3
+        return round(massmg, 2)
+
     def checkDeckSlotAvailable(self) -> int:
         """Check if a deck slot is available
 
@@ -1354,48 +1279,65 @@ class CreateOTSession(object):
             plateobj.save()
             return False
 
-
-    def createAnalysePlate(
-        self, method: str, platetype: str, analyseactionqueryset: list
-    ):
-        """Creates analyse plate/s for executing analyse actions"""
-        plateobj = self.createPlateModel(
-            platetype=platetype.lower(),
-            platename="{}_analyse_plate".format(method),
-            labwaretype=platetype,
+    def combinestrings(self, row):
+        return (
+            str(row["smiles"])
+            + "-"
+            + str(row["solvent"])
+            + "-"
+            + str(row["concentration"])
         )
 
-        for analyseactionobj in analyseactionqueryset:
-            reactionobj = analyseactionobj.reaction_id
-            productobj = self.getProduct(reaction_id=reactionobj.id)
-            volume = analyseactionobj.samplevolume + analyseactionobj.solventvolume
-            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-            if not indexwellavailable:
-                plateobj = self.createPlateModel(
-                    platename="{}_analyse_plate".format(method),
-                    labwaretype=platetype,
+    def cloneInputPlate(self, platesforcloning: list[Plate]):
+        """Clones plates
+
+        Parameters
+        ----------
+        platesforcloning: list[Plate]
+            List of plates to be cloned
+        """
+        for plateobj in platesforcloning:
+            indexslot = self.checkDeckSlotAvailable()
+            if indexslot:
+                clonewellqueryset = self.getCloneWells(plateobj=plateobj)
+                plateindex = indexslot
+                previousname = plateobj.name
+                platename = "Startingplate"
+                plateobj.pk = None
+                plateobj.deck_id = self.deckobj
+                plateobj.otsession_id = self.otsessionobj
+                plateobj.index = plateindex
+                plateobj.name = "{}_{}_from_{}".format(
+                    platename, indexslot, previousname
                 )
+                plateobj.save()
+                self.cloneInputWells(clonewellqueryset, plateobj)
+            else:
+                print("No more deck slots available")
 
-                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+    def cloneInputWells(self, clonewellqueryset: QuerySet[Well], plateobj: Plate):
+        """Clones wells
 
-            self.createWellModel(
-                plateobj=plateobj,
-                reactionobj=reactionobj,
-                welltype="analyse",
-                wellindex=indexwellavailable - 1,
-                volume=volume,
-                smiles=productobj.smiles,
-            )
+        Parameters
+        ----------
+        clonewellqueryset: QuerySet[Well]
+            The wells to be cloned
+        plateobj: Plate
+            The plate object (Usually previously cloned) related to the cloned well
+        """
+        for clonewellobj in clonewellqueryset:
+            clonewellobj.pk = None
+            clonewellobj.plate_id = plateobj
+            clonewellobj.otsession_id = self.otsessionobj
+            clonewellobj.save()
 
     def createReactionStartingPlate(self):
         """Creates the starting material plate/s for executing a reaction's add actions"""
         startingmaterialsdf = self.getAddActionsMaterialDataFrame(productexists=False)
 
-        startinglabwareplatetype = self.getPlateType(platetype="startingmaterial", volumes=startingmaterialsdf["volume"])
-        # startinglabwareplatetype = self.getStartingMaterialPlateType(
-        #     platetype="startingmaterial",
-        #     materialsdf=startingmaterialsdf
-        # )
+        startinglabwareplatetype = self.getPlateType(
+            platetype="startingmaterial", volumes=startingmaterialsdf["volume"]
+        )
 
         plateobj = self.createPlateModel(
             platetype="startingmaterial",
@@ -1507,11 +1449,12 @@ class CreateOTSession(object):
         """Creates reaction plate/s for executing reaction's add actions"""
         for grouptemperaturereactionobjs in self.groupedtemperaturereactionobjs:
             reactiontemperature = grouptemperaturereactionobjs[0].temperature
-            volumes  = self.getReactionVolumes(grouptemperaturereactionobjs=grouptemperaturereactionobjs)
-            labwareplatetype = self.getPlateType(platetype="reaction", temperature=reactiontemperature, volumes=volumes)
-            # labwareplatetype = self.getReactionPlateType(
-            #     grouptemperaturereactionobjs=grouptemperaturereactionobjs
-            # )
+            volumes = self.getRoundedReactionVolumes(
+                grouptemperaturereactionobjs=grouptemperaturereactionobjs
+            )
+            labwareplatetype = self.getPlateType(
+                platetype="reaction", temperature=reactiontemperature, volumes=volumes
+            )
 
             plateobj = self.createPlateModel(
                 platetype="reaction",
@@ -1559,68 +1502,15 @@ class CreateOTSession(object):
                         smiles=productobj.smiles,
                     )
 
-    def combinestrings(self, row):
-        return (
-            str(row["smiles"])
-            + "-"
-            + str(row["solvent"])
-            + "-"
-            + str(row["concentration"])
-        )
-
-    def cloneInputPlate(self, platesforcloning: list[Plate]):
-        """Clones plates
-
-        Parameters
-        ----------
-        platesforcloning: list[Plate]
-            List of plates to be cloned
-        """
-        for plateobj in platesforcloning:
-            indexslot = self.checkDeckSlotAvailable()
-            if indexslot:
-                clonewellqueryset = self.getCloneWells(plateobj=plateobj)
-                plateindex = indexslot
-                previousname = plateobj.name
-                platename = "Startingplate"
-                plateobj.pk = None
-                plateobj.deck_id = self.deckobj
-                plateobj.otsession_id = self.otsessionobj
-                plateobj.index = plateindex
-                plateobj.name = "{}_{}_from_{}".format(
-                    platename, indexslot, previousname
-                )
-                plateobj.save()
-                self.cloneInputWells(clonewellqueryset, plateobj)
-            else:
-                print("No more deck slots available")
-
-    def cloneInputWells(self, clonewellqueryset: QuerySet[Well], plateobj: Plate):
-        """Clones wells
-
-        Parameters
-        ----------
-        clonewellqueryset: QuerySet[Well]
-            The wells to be cloned
-        plateobj: Plate
-            The plate object (Usually previously cloned) related to the cloned well
-        """
-        for clonewellobj in clonewellqueryset:
-            clonewellobj.pk = None
-            clonewellobj.plate_id = plateobj
-            clonewellobj.otsession_id = self.otsessionobj
-            clonewellobj.save()
-
     def createSolventPlate(self, materialsdf: DataFrame):
         """Creates solvent plate/s for diluting reactants for reactions or analysis."""
         if not materialsdf.empty:
             solventdictslist = []
             materialsdf = materialsdf.groupby(["solvent"])["volume"].sum().to_frame()
-            startinglabwareplatetype = self.getPlateType(platetype="solvent", volumes=materialsdf["volume"])
-            # startinglabwareplatetype = self.getStartingMaterialPlateType(
-            #     platetype="solvent",
-            #     materialsdf=materialsdf
-            # )
+
+            startinglabwareplatetype = self.getPlateType(
+                platetype="solvent", volumes=materialsdf["volume"]
+            )
 
             plateobj = self.createPlateModel(
                 platetype="solvent",
@@ -1710,3 +1600,34 @@ class CreateOTSession(object):
             solventdf = pd.DataFrame(solventdictslist)
 
             self.createSolventPrepModel(solventdf=solventdf)
+
+
+def createAnalysePlate(self, method: str, platetype: str, analyseactionqueryset: list):
+    """Creates analyse plate/s for executing analyse actions"""
+    plateobj = self.createPlateModel(
+        platetype=platetype.lower(),
+        platename="{}_analyse_plate".format(method),
+        labwaretype=platetype,
+    )
+
+    for analyseactionobj in analyseactionqueryset:
+        reactionobj = analyseactionobj.reaction_id
+        productobj = self.getProduct(reaction_id=reactionobj.id)
+        volume = analyseactionobj.samplevolume + analyseactionobj.solventvolume
+        indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+        if not indexwellavailable:
+            plateobj = self.createPlateModel(
+                platename="{}_analyse_plate".format(method),
+                labwaretype=platetype,
+            )
+
+            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+
+        self.createWellModel(
+            plateobj=plateobj,
+            reactionobj=reactionobj,
+            welltype="analyse",
+            wellindex=indexwellavailable - 1,
+            volume=volume,
+            smiles=productobj.smiles,
+        )
