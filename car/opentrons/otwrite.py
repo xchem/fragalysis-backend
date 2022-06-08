@@ -723,12 +723,14 @@ class otWrite(object):
 
     def writeAnalyseActions(self):
         for analyseaction in self.allanalyseactionsqueryset:
+            method = analyseaction.method
             samplevolume = analyseaction.samplevolume
             analysesolvent = analyseaction.solvent
             solventvolume = analyseaction.solventvolume
             reaction_id = analyseaction.reaction_id.id
             productsmiles = self.getProductSmiles(reactionid=reaction_id)
 
+            print(self.otsessionid, reaction_id,productsmiles)
             fromwellobj = Well.objects.get(
                 otsession_id=self.otsessionid,
                 reaction_id=reaction_id,
@@ -739,7 +741,7 @@ class otWrite(object):
             towellobj = Well.objects.get(
                 otsession_id=self.otsessionid,
                 reaction_id=reaction_id,
-                type="analyse",
+                type=method.lower(),
                 smiles=productsmiles,
             )
             toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)

@@ -398,7 +398,7 @@ class CreateOTSession(object):
         addactionsmatches = []
         for reactionobj in nextreactionqueryset:
             addactionmatch = self.getAddActions(reaction_id=reactionobj.id).filter(
-                materialsmiles=productsmiles
+                smiles=productsmiles
             )
             if addactionmatch:
                 addactionsmatches.append(addactionmatch[0])
@@ -1602,32 +1602,32 @@ class CreateOTSession(object):
             self.createSolventPrepModel(solventdf=solventdf)
 
 
-def createAnalysePlate(self, method: str, platetype: str, analyseactionqueryset: list):
-    """Creates analyse plate/s for executing analyse actions"""
-    plateobj = self.createPlateModel(
-        platetype=platetype.lower(),
-        platename="{}_analyse_plate".format(method),
-        labwaretype=platetype,
-    )
-
-    for analyseactionobj in analyseactionqueryset:
-        reactionobj = analyseactionobj.reaction_id
-        productobj = self.getProduct(reaction_id=reactionobj.id)
-        volume = analyseactionobj.samplevolume + analyseactionobj.solventvolume
-        indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-        if not indexwellavailable:
-            plateobj = self.createPlateModel(
-                platename="{}_analyse_plate".format(method),
-                labwaretype=platetype,
-            )
-
-            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-
-        self.createWellModel(
-            plateobj=plateobj,
-            reactionobj=reactionobj,
-            welltype="analyse",
-            wellindex=indexwellavailable - 1,
-            volume=volume,
-            smiles=productobj.smiles,
+    def createAnalysePlate(self, method: str, platetype: str, analyseactionqueryset: list):
+        """Creates analyse plate/s for executing analyse actions"""
+        plateobj = self.createPlateModel(
+            platetype=platetype.lower(),
+            platename="{}_analyse_plate".format(method),
+            labwaretype=platetype,
         )
+
+        for analyseactionobj in analyseactionqueryset:
+            reactionobj = analyseactionobj.reaction_id
+            productobj = self.getProduct(reaction_id=reactionobj.id)
+            volume = analyseactionobj.samplevolume + analyseactionobj.solventvolume
+            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+            if not indexwellavailable:
+                plateobj = self.createPlateModel(
+                    platename="{}_analyse_plate".format(method),
+                    labwaretype=platetype,
+                )
+
+                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+
+            self.createWellModel(
+                plateobj=plateobj,
+                reactionobj=reactionobj,
+                welltype=method.lower(),
+                wellindex=indexwellavailable - 1,
+                volume=volume,
+                smiles=productobj.smiles,
+            )
