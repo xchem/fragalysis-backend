@@ -730,7 +730,6 @@ class otWrite(object):
             reaction_id = analyseaction.reaction_id.id
             productsmiles = self.getProductSmiles(reactionid=reaction_id)
 
-            print(self.otsessionid, reaction_id,productsmiles)
             fromwellobj = Well.objects.get(
                 otsession_id=self.otsessionid,
                 reaction_id=reaction_id,
