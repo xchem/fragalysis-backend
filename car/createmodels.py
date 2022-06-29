@@ -11,9 +11,11 @@ from .mcule.apicalls import MCuleAPI
 
 # Import standard models
 from .models import (
+    ActionSession,
     Project,
     Batch,
     PubChemInfo,
+    ActionSession,
     Target,
     Method,
     Reaction,
@@ -417,7 +419,8 @@ class CreateEncodedActionModels(object):
 
     def __init__(
         self,
-        actions: list,
+        intramolecular: bool,
+        actionsessions: dict,
         target_id: int,
         reaction_id: int,
         reactant_pair_smiles: list,
@@ -428,8 +431,10 @@ class CreateEncodedActionModels(object):
 
         Parameters
         ----------
-        actions: list)
-            The list of synthetic actions for a reaction
+        intramolecular: bool
+            Set to true if the reaction is intramolecular
+        actionsessions: dict
+            The action (add, stir, analyse) actionsessions  for the execution of a synthesis
         project_id: int
             The Django project model object id
         reaction_id: int
@@ -442,8 +447,9 @@ class CreateEncodedActionModels(object):
         reaction_name: str
             The name of the reaction type
         """
+        self.intramolecular = intramolecular
         self.mculeapi = MCuleAPI()
-        self.actions = actions
+        self.actionsessions = actionsessions
         self.reaction_id = reaction_id
         self.reaction_obj = Reaction.objects.get(id=reaction_id)
         self.reactant_pair_smiles = reactant_pair_smiles
@@ -452,15 +458,44 @@ class CreateEncodedActionModels(object):
         self.mculeidlist = []
         self.amountslist = []
 
-        for action in self.actions:
-            self.createEncodedActionModel(action)
+        for type, session in actionsessions.items():
+            actionsession_obj = self.createActionSessionModel(
+                type=type, driver=session["driver"]
+            )
+            print(actionsession_obj)
+            if type == "reaction" and self.intramolecular:
+                reaction_actions = session["intramolecular"]["actions"]
+                [
+                    self.createEncodedActionModel(
+                        actionsession_obj=actionsession_obj, action=action
+                    )
+                    for action in reaction_actions
+                ]
+            if type == "reaction" and not self.intramolecular:
+                reaction_actions = session["intermolecular"]["actions"]
+                [
+                    self.createEncodedActionModel(
+                        actionsession_obj=actionsession_obj, action=action
+                    )
+                    for action in reaction_actions
+                ]
+            else:
+                actions = session["actions"]
+                [
+                    self.createEncodedActionModel(
+                        actionsession_obj=actionsession_obj, action=action
+                    )
+                    for action in actions
+                ]
 
-    def createEncodedActionModel(self, action: dict):
+    def createEncodedActionModel(self, actionsession_obj: ActionSession, action: dict):
         """Calls the functions to create the appropriate Django action
            model object for the action
 
         Parameters
         ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
         action: dict
             The action that needs to be executed
         """
@@ -473,7 +508,9 @@ class CreateEncodedActionModels(object):
         action_type = action["type"]
 
         if action_type in actionMethods:
-            actionMethods[action_type](action)
+            actionMethods[action_type](
+                actionsession_obj=actionsession_obj, action=action
+            )
             return True
         else:
             logger.info(action_type)
@@ -511,11 +548,36 @@ class CreateEncodedActionModels(object):
             vol_material = (mol_material / conc_reagents) * 1e6  # in uL
         return vol_material
 
-    def createAnalyseActionModel(self, action: dict):
+    def createActionSessionModel(self, type: str, driver: str):
+        """Creates a Django action session object - a session are colelctions of
+           actions that can be collectively exceuted. Eg. a reaction will
+           inlcude a series of add actions
+
+        Parameters
+        ----------
+        type: str
+            The session type eg. reaction, stir etc
+        driver: str
+            The main driver operating the session. If any operations can be
+            automated then the driver is a robot else human
+        """
+        try:
+            actionsession = ActionSession()
+            actionsession.reaction_id = self.reaction_obj
+            actionsession.type = type
+            actionsession.driver = driver
+            actionsession.save()
+            return actionsession
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+
+    def createAnalyseActionModel(self, actionsession_obj: ActionSession, action: dict):
         """Creates a Django analyse object - an analyse action
 
         Parameters
         ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
         action: dict
             The analyse action that needs to be executed
         """
@@ -529,6 +591,7 @@ class CreateEncodedActionModels(object):
             solventvolumeunit = action["content"]["solventvolume"]["unit"]
             analyse = AnalyseAction()
             analyse.reaction_id = self.reaction_obj
+            analyse.actionsession_id = actionsession_obj
             analyse.number = number
             analyse.method = method
             analyse.samplevolume = samplevolume
@@ -540,11 +603,13 @@ class CreateEncodedActionModels(object):
         except Exception as e:
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
-    def createAddActionModel(self, action: dict):
+    def createAddActionModel(self, actionsession_obj: ActionSession, action: dict):
         """Creates a Django add action object - an add action
 
         Parameters
         ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
         action: dict
             The analyse action that needs to be executed
         """
@@ -564,6 +629,7 @@ class CreateEncodedActionModels(object):
             molecular_weight = Descriptors.ExactMolWt(mol)
             add = AddAction()
             add.reaction_id = self.reaction_obj
+            add.actionsession_id = actionsession_obj
             add.number = number
             add.smiles = smiles
             add.molecularweight = molecular_weight
@@ -586,11 +652,13 @@ class CreateEncodedActionModels(object):
         except Exception as e:
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
-    def createStirActionModel(self, action: dict):
+    def createStirActionModel(self, actionsession_obj: ActionSession, action: dict):
         """Creates a Django stir action object - a stir action
 
         Parameters
         ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
         action: dict
             The analyse action that needs to be executed
         """
@@ -603,6 +671,7 @@ class CreateEncodedActionModels(object):
 
             stir = StirAction()
             stir.reaction_id = self.reaction_obj
+            stir.actionsession_id = actionsession_obj
             stir.number = action_no
             stir.duration = duration
             stir.durationunit = durationunit

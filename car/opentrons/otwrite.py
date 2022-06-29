@@ -29,7 +29,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class otWrite(object):
+class OTWrite(object):
     """ "
     Creates a otWrite object for generating an OT protocol
     script
@@ -39,9 +39,11 @@ class otWrite(object):
         self,
         protocolname: str,
         otsessionobj: OTSession,
+        reaction_ids: list,
+        actionsession_ids: list,
         apiLevel: str = "2.9",
-        alladdactionsquerysetflat: list[AddAction] = None,
-        allanalyseactionsqueryset: QuerySet[AnalyseAction] = None,
+        # alladdactionsquerysetflat: list[AddAction] = None,
+        # allanalyseactionsqueryset: QuerySet[AnalyseAction] = None,
     ):
         """Initiates an otWrite object
 
@@ -53,10 +55,10 @@ class otWrite(object):
             The OT session the protocol is related to
         apiLevel: str = "2.9"
             The OpenTrons API version used
-        alladdactionsquerysetflat: list[AddAction]
-            The optional add actions that the protocol is being created for
-        allanalyseactionsqueryset: QuerySet[AnalyseAction]
-            The optional analyse actions the protocol is being created for
+        reaction_ids: list
+            The reactions that the an OT script will be generated for
+        actionsession_ids: list
+            The action session ids that the protocol is being written for
         """
         self.reactionstep = otsessionobj.reactionstep
         self.otsessionobj = otsessionobj
@@ -64,6 +66,9 @@ class otWrite(object):
         self.otsessiontype = otsessionobj.sessiontype
         self.protocolname = protocolname
         self.apiLevel = apiLevel
+        self.reaction_ids = reaction_ids
+        self.actionsession_ids = actionsession_ids
+
         self.tiprackqueryset = self.getTipRacks()
         self.platequeryset = self.getPlates()
         self.pipetteobj = self.getPipette()
@@ -75,23 +80,47 @@ class otWrite(object):
         self.setupPipettes()
 
         if self.otsessiontype == "reaction":
-            self.writeReactionSession(
-                alladdactionsquerysetflat=alladdactionsquerysetflat,
-            )
+            self.writeReactionSession()
         if self.otsessiontype == "analyse":
-            self.writeAnalyseSession(
-                allanalyseactionsqueryset=allanalyseactionsqueryset
-            )
+            self.writeAnalyseSession()
 
-    def writeAnalyseSession(self, allanalyseactionsqueryset: QuerySet[AnalyseAction]):
-        self.allanalyseactionsqueryset = allanalyseactionsqueryset
-        self.writeAnalyseActions()
+    def writeReactionSession(self):
+        addactionsqueryset = self.getAddActionQuerySet()
+        self.writeAddActions(addactionqueryset=addactionsqueryset)
         self.createOTScriptModel()
 
-    def writeReactionSession(self, alladdactionsquerysetflat: list[AddAction]):
-        self.alladdactionsquerysetflat = alladdactionsquerysetflat
-        self.writeAddActions()
+    def writeAnalyseSession(self):
+        analyseactionqueryset = self.getAnalyseActionQuerySet()
+        self.writeAnalyseActions(analyseactionqueryset=analyseactionqueryset)
         self.createOTScriptModel()
+
+    def getAddActionQuerySet(self):
+        """Get add actions queryset for reaction_ids and actionsession_ids
+
+        Returns
+        -------
+        addactionqueryset: QuerySet[AddAction]
+            The add actions related to the reaction and action sessions
+        """
+        addactionqueryset = AddAction.objects.filter(
+            reaction_id__in=self.reaction_ids,
+            actionsession_id__in=self.actionsession_ids,
+        ).order_by("id")
+        return addactionqueryset
+
+    def getAnalyseActionQuerySet(self):
+        """Get analyse actions queryset for reaction_ids and actionsession_ids
+
+        Returns
+        -------
+        analyseactionqueryset: QuerySet[AddAction]
+            The analyse actions related to the reaction and action sessions
+        """
+        analyseactionqueryset = AnalyseAction.objects.filter(
+            reaction_id__in=self.reaction_ids,
+            actionsession_id__in=self.actionsession_ids,
+        ).order_by("id")
+        return analyseactionqueryset
 
     def getProduct(self, reaction_id: int) -> Product:
         """Gets the product for a reaction
@@ -648,8 +677,8 @@ class otWrite(object):
 
         self.writeCommand(instruction)
 
-    def writeAddActions(self):
-        for addaction in self.alladdactionsquerysetflat:
+    def writeAddActions(self, addactionqueryset: QuerySet[AddAction]):
+        for addaction in addactionqueryset:
             transfervolume = addaction.volume
             solvent = addaction.solvent
 
@@ -721,8 +750,8 @@ class otWrite(object):
                     transvolume=transfervolume,
                 )
 
-    def writeAnalyseActions(self):
-        for analyseaction in self.allanalyseactionsqueryset:
+    def writeAnalyseActions(self, analyseactionqueryset: QuerySet[AnalyseAction]):
+        for analyseaction in analyseactionqueryset:
             method = analyseaction.method
             samplevolume = analyseaction.samplevolume
             analysesolvent = analyseaction.solvent

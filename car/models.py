@@ -247,12 +247,37 @@ class CatalogEntry(models.Model):
     leadtime = models.IntegerField(null=True)
 
 
+class ActionSession(models.Model):
+    class Type(models.TextChoices):
+        reaction = "reaction"
+        stir = "stir"
+        analyse = "analyse"
+
+    class Driver(models.TextChoices):
+        human = "human"
+        robot = "robot"
+
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="actionsessions", on_delete=models.CASCADE
+    )
+    type = models.CharField(choices=Type.choices, max_length=10)
+    driver = models.CharField(
+        choices=Driver.choices, default=Driver.robot, max_length=10
+    )
+
+
 class AnalyseAction(models.Model):
     """Django model to define a AnalyseAction - the analyse action details for the
        QC of a reaction
 
     Parameters
     ----------
+    actionsession_id: ForeignKey
+        Foreign key linking an add action to an action session. An
+        action session if a group of actions that represent a unit of
+        operation executed by a robot or human eg. perfrom a reaction
+        (liquid handling robot), stir (human)
+        on a hot plate, analyse (human)
     reaction_id: ForeignKey
         Foreign key linking a QC analysis action to a reaction
     number: IntegerField
@@ -276,6 +301,7 @@ class AnalyseAction(models.Model):
         NMR = "NMR"
         XChem = "XChem"
 
+    actionsession_id = models.ForeignKey(ActionSession, on_delete=models.CASCADE)
     reaction_id = models.ForeignKey(
         Reaction, related_name="analyseactions", on_delete=models.CASCADE
     )
@@ -294,7 +320,13 @@ class AddAction(models.Model):
     """Django model to define a AddAction - the add action details
 
     Parameters
-    ----------
+    ----------#
+    actionsession_id: ForeignKey
+        Foreign key linking an add action to an action session. An
+        action session if a group of actions that represent a unit of
+        operation executed by a robot or human eg. perfrom a reaction
+        (liquid handling robot), stir (human)
+        on a hot plate, analyse (human)
     reaction_id: ForeignKey
         Foreign key linking an add action to a reaction
     number: IntegerField
@@ -313,6 +345,7 @@ class AddAction(models.Model):
         Optional concentration of the material solution prepared
     """
 
+    actionsession_id = models.ForeignKey(ActionSession, on_delete=models.CASCADE)
     reaction_id = models.ForeignKey(
         Reaction, related_name="addactions", on_delete=models.CASCADE
     )
@@ -330,6 +363,12 @@ class StirAction(models.Model):
 
     Parameters
     ----------
+    actionsession_id: ForeignKey
+        Foreign key linking an add action to an action session. An
+        action session if a group of actions that represent a unit of
+        operation executed by a robot or human eg. perfrom a reaction
+        (liquid handling robot), stir (human)
+        on a hot plate, analyse (human)
     reaction_id: ForeignKey
         Foreign key linking an add action to a reaction
     number: IntegerField
@@ -360,6 +399,9 @@ class StirAction(models.Model):
         normal = "normal"
         vigorous = "vigorous"
 
+    actionsession_id = models.ForeignKey(
+        ActionSession, related_name="stiractions", on_delete=models.CASCADE
+    )
     reaction_id = models.ForeignKey(
         Reaction, related_name="stiractions", on_delete=models.CASCADE
     )
