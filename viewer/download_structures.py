@@ -94,8 +94,59 @@ def _add_file_to_zip(ziparchive, param, filepath):
     return True
 
 
+def _is_mol_or_sdf(path):
+    """Returns True if the file and path look like a MOL or SDF file.
+    It does this by simply checking the file's extension.
+    """
+    path_parts = os.path.splitext(os.path.basename(path))
+    if path_parts[1].lower() in ('.sdf', '.mol'):
+        return True
+    # Doesn't look like a MOL or SDF if we get here.
+    return False
+
+
+def _read_and_patch_molecule_name(path, molecule_name=None):
+    """Patches the source file (expected to be a MOL or SDF file)
+    by adding the molecule name (the basename of the file) and returning the
+    file content as string. the assumption is that the source file is smll
+    and can be read into memory.
+
+    If a code/molecule is added we use that.
+
+    Do not call this function for files that are not MOL or SD files.
+    """
+    assert _is_mol_or_sdf(path)
+
+    logger.debug('Patching MOL/SDF "%s" molecule_name=%s', path, molecule_name)
+
+    # Get the file name (without path prefix and the extension)
+    path_parts = os.path.splitext(os.path.basename(path))
+
+    # Now read the file, checking the first line
+    # and setting it to the molecule name if it's blank.
+    # We accumulate the file's content into 'content',
+    # which we eventually return to the caller.
+    name = molecule_name if molecule_name else path_parts[0]
+    content = ''
+    with open(path, 'r') as f_in:
+        # First line (stripped)
+        first_line = f_in.readline().strip()
+        if first_line:
+            content += first_line + '\n'
+        else:
+            content += name + '\n'
+        # The rest of the file...
+        for next_line in f_in:
+            content += next_line
+
+    return content
+
+
 def _add_file_to_zip_aligned(ziparchive, code, filepath):
     """Add the requested file to the zip archive.
+
+    If the file is an SDF or MOL we insert the name of the molecule
+    if it is not set  (the basename of the file).
 
     Args:
         ziparchive: Handle of zip archive
@@ -112,9 +163,17 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
     fullpath = os.path.join(media_root, filepath)
 
     if os.path.isfile(fullpath):
-        cleaned_filename = clean_filename(filepath)
-        ziparchive.write(fullpath,
-                         os.path.join('aligned', code, cleaned_filename))
+        cleaned_filename = clean_filename(fullpath)
+        archive_path = os.path.join('aligned', code, cleaned_filename)
+        if _is_mol_or_sdf(fullpath):
+            # It's a MOL or SD file.
+            # Read and (potentially) adjust the file
+            # and add to the archive as a string.
+            content = _read_and_patch_molecule_name(fullpath, molecule_name=code)
+            ziparchive.writestr(archive_path, content)
+        else:
+            # Copy the file without modification
+            ziparchive.write(fullpath, archive_path)
         return False
 
     return True
@@ -139,8 +198,8 @@ def _add_file_to_sdf(combined_sdf_file, filepath):
 
     if os.path.isfile(fullpath):
         with open(combined_sdf_file, 'a') as f_out:
-            with open(fullpath, 'r') as f_in:
-                f_out.write(f_in.read())
+            patched_sdf_content = _read_and_patch_molecule_name(fullpath)
+            f_out.write(patched_sdf_content)
         return False
 
     return True
@@ -247,8 +306,7 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
     readme_filepath = os.path.join(download_path, 'Readme.md')
     pdf_filepath = os.path.join(download_path, 'Readme.pdf')
 
-    with open(readme_filepath, "a") as readme, \
-            open(template_file, "r") as template:
+    with open(readme_filepath, "a") as readme:
         readme.write("# Documentation for the downloaded zipfile\n")
         # Download links
         readme.write("## Download details\n")
@@ -266,7 +324,12 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
         readme.write("```"+json.dumps(original_search)+"```\n\n")
 
         # Download Structure from the template
-        readme.write(template.read())
+        # (but prepare for the template file not existing)?
+        if os.path.isfile(template_file):
+            with open(template_file, "r") as template:
+                readme.write(template.read())
+        else:
+            logger.warning('Could not find template file (%s)', template_file)
 
         # Files Included
         list_of_files = ziparchive.namelist()
@@ -300,7 +363,9 @@ def _create_structures_zip(target,
 
     """
 
-    logger.info('+ _create_structures_zip')
+    logger.info('+ _create_structures_zip(%s)', target.title)
+    logger.info('file_url="%s"', file_url)
+
     download_path = os.path.dirname(file_url)
     os.makedirs(download_path, exist_ok=True)
 
@@ -310,7 +375,7 @@ def _create_structures_zip(target,
     errors = 0
 
     # If a single sdf file is also wanted then create file to
-    # add sdf files to a file called {targer}_combined.sdf.
+    # add sdf files to a file called {target}_combined.sdf.
     combined_sdf_file = None
     if zip_contents['molecules']['single_sdf_file'] is True:
         combined_sdf_file = \
@@ -327,7 +392,7 @@ def _create_structures_zip(target,
 
         # Add combined_sdf_file to the archive.
         if zip_contents['molecules']['single_sdf_file'] is True \
-                and os.path.isfile(combined_sdf_file) :
+                and os.path.isfile(combined_sdf_file):
             ziparchive.write(
                 combined_sdf_file,
                 os.path.join(_ZIP_FILEPATHS['single_sdf_file'],
@@ -496,8 +561,7 @@ def check_download_links(request,
         [file]: [URL to the file in the media directory]
     """
 
-
-    logger.info('+ _check_download_links')
+    logger.info('+ check_download_links(%s)', target.title)
     host = request.get_host()
 
     protein_params, other_params, static_link  = get_download_params(request)
