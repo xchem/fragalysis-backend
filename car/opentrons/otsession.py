@@ -2,7 +2,7 @@
 from __future__ import annotations
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 
 from statistics import median
 from graphene_django import DjangoObjectType
@@ -73,18 +73,18 @@ class CreateOTSession(object):
         self.otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
         self.batchobj = Batch.objects.get(id=otbatchprotocolobj.batch_id_id)
         self.actionsessiontype = self.getActionSessionType()
+        self.otsessionobj = self.createOTSessionModel()
         self.createActionSession()
 
     def createActionSession(self):
         """Calls the functions to create the appropriate action session"""
         actionSessionTypes = {
             "reaction": self.createReactionSession,
-            "stir": self.createStirSession,
             "analyse": self.createAnalyseSession,
         }
 
         if self.actionsessiontype in actionSessionTypes:
-            actionSessionTypes[self.actionsessiontype]
+            actionSessionTypes[self.actionsessiontype]()
 
     def createReactionSession(self):
         """Creates a reaction OT session
@@ -93,19 +93,16 @@ class CreateOTSession(object):
         actionsessiontype: str
             The type of OT session session being created eg. reaction.
         """
-        self.otsessionobj = self.createOTSessionModel()
         self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
-        self.alladdactionqueryset = self.getAddActionQuerySet(
-            reaction_ids=self.reaction_ids
+        self.addactionqueryset = self.getAddActionQuerySet(
+            reaction_ids=self.reaction_ids,
+            actionsession_ids=self.actionsession_ids,
         )
-        # self.alladdactionquerysetflat = [
-        #     item for sublist in self.alladdactionqueryset for item in sublist
-        # ]
         self.roundedvolumes = self.getRoundedAddActionVolumes(
-            addactionqueryset=self.alladdactionqueryset
+            addactionqueryset=self.addactionqueryset
         )
         self.deckobj = self.createDeckModel()
-        self.numbertips = self.getNumberTips(queryset=self.alladdactionqueryset)
+        self.numbertips = self.getNumberTips(queryset=self.addactionqueryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
@@ -126,16 +123,18 @@ class CreateOTSession(object):
 
     def createAnalyseSession(self):
         """Creates an analyse OT session"""
-        self.otsessionobj = self.createOTSessionModel()
         self.allanalyseactionqueryset = self.getAnalyseActionQuerySet()
         self.productqueryset = self.getProductQuerySet(reaction_ids=self.reaction_ids)
-        self.productsmiles = [productobj.smiles for productobj in self.productqueryset]
+        self.productsmiles = self.productqueryset.values_list("smiles", flat=True)
 
         self.analyseactionsdf = self.getAnalyseActionsDataFrame()
         self.roundedvolumes = self.getRoundedAnalyseActionVolumes(
             analyseactionqueryset=self.allanalyseactionqueryset
         )
         self.groupedanalysemethodobjs = self.getGroupedAnalyseMethods()
+        print(
+            "The grouped analyse methods are: {}".format(self.groupedanalysemethodobjs)
+        )
         self.deckobj = self.createDeckModel()
         self.numbertips = self.getNumberTips(queryset=self.allanalyseactionqueryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
@@ -144,10 +143,12 @@ class CreateOTSession(object):
         self.createPipetteModel()
         self.createSolventPlate(materialsdf=self.analyseactionsdf)
         previousreactionplates = self.getPreviousOTSessionReactionPlates()
+        print(
+            "The previous reaction plates found are: {}".format(previousreactionplates)
+        )
         if previousreactionplates:
             self.cloneInputPlate(platesforcloning=previousreactionplates)
         for analysegroup in self.groupedanalysemethodobjs:
-            # May need to rethink and do seprate sessions (Deck space) or optimise tip usage
             wellsneeded = len(analysegroup)
             method = analysegroup[0].method
             volumes = self.getRoundedAnalyseActionVolumes(
@@ -243,9 +244,8 @@ class CreateOTSession(object):
         inputplatesneeded = []
         allinputplatequerset = self.getAllPreviousOTSessionReactionPlates()
         methodids = [reactionobj.method_id for reactionobj in self.reactiongrouplist]
-        allreactantsmiles = [
-            addaction.smiles for addaction in self.alladdactionqueryset
-        ]
+        allreactantsmiles = self.addactionqueryset.values_list("smiles", flat=True)
+
         if allinputplatequerset:
             for inputplateobj in allinputplatequerset:
                 wellmatchqueryset = (
@@ -408,10 +408,12 @@ class CreateOTSession(object):
         nextreactionqueryset = self.getNextObjEntries(
             queryset=reactionqueryset, obj=reactionobj
         )
+
         addactionsmatches = []
         for reactionobj in nextreactionqueryset:
             addactionmatch = self.getAddActionQuerySet(
-                reaction_ids=[reactionobj.id]
+                reaction_ids=[reactionobj.id],
+                actionsessiontype="reaction",
             ).filter(smiles=productsmiles)
             if addactionmatch:
                 addactionsmatches.append(addactionmatch[0])
@@ -425,9 +427,11 @@ class CreateOTSession(object):
         analyseactionqueryset: QuerySet[AnalyseAction]
             The analyse actions queryset
         """
+        criterion1 = Q(reaction_id__in=self.reaction_ids)
+        criterion2 = Q(actionsession_id__in=self.actionsession_ids)
+
         analyseactionqueryset = AnalyseAction.objects.filter(
-            reaction_id__in=self.reaction_ids,
-            actionsession_id__in=self.actionsession_ids,
+            criterion1 & criterion2
         ).order_by("id")
         return analyseactionqueryset
 
@@ -495,25 +499,42 @@ class CreateOTSession(object):
         productobj = Product.objects.get(reaction_id=reaction_id)
         return productobj
 
-    def getAddActionQuerySet(self, reaction_ids: list) -> QuerySet[AddAction]:
+    def getAddActionQuerySet(
+        self,
+        reaction_ids: list,
+        actionsession_ids: list = None,
+        actionsessiontype: str = None,
+    ) -> QuerySet[AddAction]:
         """Get add actions queryset for reaction_id
 
         Parameters
         ----------
         reaction_ids: list
             The reactions to search for related add actions
+        actionsession_ids: list
+            Optional action session ids to match add actions with
         actionsessiontype: str
-            Optional, use to get add actions vi
+            The optional action session type to look for add actions for
 
         Returns
         -------
         addactionqueryset: QuerySet[AddAction]
             The add actions related to the reaction
         """
-        addactionqueryset = AddAction.objects.filter(
-            reaction_id__in=reaction_ids, actionsession_id__in=self.actionsession_ids
-        ).order_by("id")
-        return addactionqueryset
+
+        if actionsession_ids:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__in=actionsession_ids)
+            addactionqueryset = AddAction.objects.filter(
+                criterion1 & criterion2
+            ).order_by("id")
+            return addactionqueryset
+        if actionsessiontype:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            addactionqueryset = AddAction.objects.filter(
+                criterion1, actionsession_id__type=actionsessiontype
+            ).order_by("id")
+            return addactionqueryset
 
     def getRoundedAnalyseActionVolumes(
         self, analyseactionqueryset: QuerySet[AnalyseAction]
@@ -576,7 +597,9 @@ class CreateOTSession(object):
         """
         reactionvolumes = []
         for reactionobj in grouptemperaturereactionobjs:
-            addactionqueryset = self.getAddActionQuerySet(reaction_ids=[reactionobj.id])
+            addactionqueryset = self.getAddActionQuerySet(
+                reaction_ids=[reactionobj.id], actionsession_ids=self.actionsession_ids
+            )
             roundedvolumes = self.getRoundedAddActionVolumes(
                 addactionqueryset=addactionqueryset
             )
@@ -713,14 +736,7 @@ class CreateOTSession(object):
             The dataframe of the add actions
         """
         # Optimise -> https://stackoverflow.com/questions/11697887/converting-django-queryset-to-pandas-dataframe
-        addactionslistdf = []
-
-        for addactionqueryset in self.alladdactionqueryset:
-            addactionsdf = pd.DataFrame(list(addactionqueryset.values()))
-            if not addactionsdf.empty:
-                addactionslistdf.append(addactionsdf)
-        addactionsdf = pd.concat(addactionslistdf)
-
+        addactionsdf = pd.DataFrame(list(self.addactionqueryset.values()))
         addactionsdf["uniquesolution"] = addactionsdf.apply(
             lambda row: self.combinestrings(row), axis=1
         )
@@ -783,7 +799,7 @@ class CreateOTSession(object):
         actionsessiontype: list
             The set of action session types
         """
-        actionsessiontype = self.actionsessions.values_list(
+        actionsessiontype = self.actionsessionqueryset.values_list(
             "type", flat=True
         ).distinct()[0]
         return actionsessiontype
@@ -797,17 +813,15 @@ class CreateOTSession(object):
             The unique set of methods related to the analyse
             actions
         """
-        methods = self.allanalyseactionqueryset.values_list(
-            "method", flat=True
-        ).distinct()
-        # methods = sorted(
-        #     set(
-        #         [
-        #             analyseactionobj.method
-        #             for analyseactionobj in self.allanalyseactionqueryset
-        #         ]
-        #     )
-        # )
+        methods = sorted(
+            set(
+                [
+                    analyseactionobj.method
+                    for analyseactionobj in self.allanalyseactionqueryset
+                ]
+            )
+        )
+        print("Methods are: {}".format(methods))
         return methods
 
     def getUniqueTemperatures(self) -> list:
@@ -832,6 +846,7 @@ class CreateOTSession(object):
             List of sublists of analyse actions grouped by synthesis method
         """
         methods = self.getUniqueAnalyseMethods()
+        print("The methods are: {}".format(methods))
         groupedanalysemethodobjs = []
 
         for method in methods:
@@ -1050,7 +1065,6 @@ class CreateOTSession(object):
         deckobj.otsession_id = self.otsessionobj
         deckobj.numberslots = 11
         deckobj.save()
-        self.deckobj = deckobj
         return deckobj
 
     def createPipetteModel(self):

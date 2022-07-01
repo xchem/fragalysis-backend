@@ -462,7 +462,6 @@ class CreateEncodedActionModels(object):
             actionsession_obj = self.createActionSessionModel(
                 type=type, driver=session["driver"]
             )
-            print(actionsession_obj)
             if type == "reaction" and self.intramolecular:
                 reaction_actions = session["intramolecular"]["actions"]
                 [

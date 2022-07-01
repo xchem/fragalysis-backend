@@ -3,6 +3,7 @@ from __future__ import annotations
 from celery import shared_task, current_task
 from django.conf import settings
 from django.db.models import QuerySet
+from django.db.models import Q
 
 from zipfile import ZipFile
 import pandas as pd
@@ -394,10 +395,10 @@ def createOTScript(batchids: list, protocol_name: str):
             for index, reactiongroup in enumerate(groupedreactionquerysets):
                 if index == 0:
                     reaction_ids = [reaction.id for reaction in reactiongroup]
-                    human_actionsessionqueryset = getActionSessions(
+                    human_actionsessionqueryset = getActionSessionQuerySet(
                         driver="human", reaction_ids=reaction_ids
                     )
-                    robot_actionsessionqueryset = getActionSessions(
+                    robot_actionsessionqueryset = getActionSessionQuerySet(
                         driver="robot", reaction_ids=reaction_ids
                     )
                     if human_actionsessionqueryset:
@@ -405,60 +406,21 @@ def createOTScript(batchids: list, protocol_name: str):
                     if robot_actionsessionqueryset:
                         actionsessiontypes = getActionSessionTypes()
                         for actionsessiontype in actionsessiontypes:
-                            type_actionsessionqueryset = getActionSessionByType(
+                            type_actionsessionqueryset = getActionSessionQuerySetByType(
                                 actionsessiontype=actionsessiontype,
                                 actionsessionqueryset=robot_actionsessionqueryset,
                             )
-                            actionsession_ids = type_actionsessionqueryset.values_list(
-                                "id", flat=True
-                            )
-
-                            session = CreateOTSession(
-                                reactionstep=index + 1,
-                                otbatchprotocolobj=otbatchprotocolobj,
-                                actionsessionqueryset=type_actionsessionqueryset,
-                                reactiongrouplist=reactiongroup,
-                            )
-
-                            OTWrite(
-                                protocolname=batchtag,
-                                otsessionobj=session.otsessionobj,
-                                reaction_ids=reaction_ids,
-                                actionsession_ids=actionsession_ids,
-                            )
-
-                if index > 0:
-                    reactiongrouptodo = getReactionsToDo(reactiongroup=reactiongroup)
-                    if len(reactiongrouptodo) == 0:
-                        break
-                    else:
-                        reaction_ids = [reaction.id for reaction in reactiongrouptodo]
-                        human_actionsessionqueryset = getActionSessions(
-                            driver="human", reaction_ids=reaction_ids
-                        )
-                        robot_actionsessionqueryset = getActionSessions(
-                            driver="robot", reaction_ids=reaction_ids
-                        )
-                        if human_actionsessionqueryset:
-                            pass
-                        if robot_actionsessionqueryset:
-                            actionsessiontypes = getActionSessionTypes()
-                            for actionsessiontype in actionsessiontypes:
-                                type_actionsessionqueryset = getActionSessionByType(
-                                    actionsessiontype=actionsessiontype,
-                                    actionsessionqueryset=robot_actionsessionqueryset,
-                                )
+                            if type_actionsessionqueryset:
                                 actionsession_ids = (
                                     type_actionsessionqueryset.values_list(
                                         "id", flat=True
                                     )
                                 )
-
                                 session = CreateOTSession(
                                     reactionstep=index + 1,
                                     otbatchprotocolobj=otbatchprotocolobj,
                                     actionsessionqueryset=type_actionsessionqueryset,
-                                    reactiongrouplist=reactiongrouptodo,
+                                    reactiongrouplist=reactiongroup,
                                 )
 
                                 OTWrite(
@@ -468,6 +430,49 @@ def createOTScript(batchids: list, protocol_name: str):
                                     actionsession_ids=actionsession_ids,
                                 )
 
+                if index > 0:
+                    reactiongrouptodo = getReactionsToDo(reactiongroup=reactiongroup)
+                    if len(reactiongrouptodo) == 0:
+                        break
+                    else:
+                        reaction_ids = [reaction.id for reaction in reactiongrouptodo]
+                        human_actionsessionqueryset = getActionSessionQuerySet(
+                            driver="human", reaction_ids=reaction_ids
+                        )
+                        robot_actionsessionqueryset = getActionSessionQuerySet(
+                            driver="robot", reaction_ids=reaction_ids
+                        )
+                        if human_actionsessionqueryset:
+                            pass
+                        if robot_actionsessionqueryset:
+                            actionsessiontypes = getActionSessionTypes()
+
+                            for actionsessiontype in actionsessiontypes:
+                                type_actionsessionqueryset = getActionSessionQuerySetByType(
+                                    actionsessiontype=actionsessiontype,
+                                    actionsessionqueryset=robot_actionsessionqueryset,
+                                )
+
+                                if type_actionsessionqueryset:
+                                    actionsession_ids = (
+                                        type_actionsessionqueryset.values_list(
+                                            "id", flat=True
+                                        )
+                                    )
+                                    session = CreateOTSession(
+                                        reactionstep=index + 1,
+                                        otbatchprotocolobj=otbatchprotocolobj,
+                                        actionsessionqueryset=type_actionsessionqueryset,
+                                        reactiongrouplist=reactiongrouptodo,
+                                    )
+
+                                    OTWrite(
+                                        protocolname=batchtag,
+                                        otsessionobj=session.otsessionobj,
+                                        reaction_ids=reaction_ids,
+                                        actionsession_ids=actionsession_ids,
+                                    )
+
             createZipOTBatchProtocol = ZipOTBatchProtocol(
                 otbatchprotocolobj=otbatchprotocolobj, batchtag=batchtag
             )
@@ -476,14 +481,14 @@ def createOTScript(batchids: list, protocol_name: str):
                 task_summary[batchid] = False
             else:
                 task_summary[batchid] = True
-
         else:
             task_summary[batchid] = False
-
     return task_summary, otprojectobj.id
 
 
-def getActionSessions(driver: str, reaction_ids: list[int]) -> QuerySet[ActionSession]:
+def getActionSessionQuerySet(
+    driver: str, reaction_ids: list[int]
+) -> QuerySet[ActionSession]:
     """Returns the action session wueryset for a type of driver
        (human or robot)
 
@@ -499,13 +504,14 @@ def getActionSessions(driver: str, reaction_ids: list[int]) -> QuerySet[ActionSe
     actionsessionqueryset: QuerySet[ActionSession]
         The action session queryset for a given driver
     """
-    actionsessionqueryset = ActionSession.objects.filter(
-        reaction_id__in=reaction_ids, driver=driver
-    )
+    criterion1 = Q(reaction_id__in=reaction_ids)
+    criterion2 = Q(driver=driver)
+
+    actionsessionqueryset = ActionSession.objects.filter(criterion1 & criterion2)
     return actionsessionqueryset
 
 
-def getActionSessionByType(
+def getActionSessionQuerySetByType(
     actionsessiontype: str, actionsessionqueryset: QuerySet[ActionSession]
 ) -> QuerySet[ActionSession]:
     """Returns the action session queryset for a type of

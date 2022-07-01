@@ -6,7 +6,7 @@
 from __future__ import annotations
 from django.core.files.storage import default_storage
 from django.conf import settings
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 
 import os
 
@@ -62,7 +62,7 @@ class OTWrite(object):
         """
         self.reactionstep = otsessionobj.reactionstep
         self.otsessionobj = otsessionobj
-        self.otsessionid = otsessionobj.id
+        self.otsession_id = otsessionobj.id
         self.otsessiontype = otsessionobj.sessiontype
         self.protocolname = protocolname
         self.apiLevel = apiLevel
@@ -102,10 +102,12 @@ class OTWrite(object):
         addactionqueryset: QuerySet[AddAction]
             The add actions related to the reaction and action sessions
         """
-        addactionqueryset = AddAction.objects.filter(
-            reaction_id__in=self.reaction_ids,
-            actionsession_id__in=self.actionsession_ids,
-        ).order_by("id")
+        criterion1 = Q(reaction_id__in=self.reaction_ids)
+        criterion2 = Q(actionsession_id__in=self.actionsession_ids)
+
+        addactionqueryset = AddAction.objects.filter(criterion1 & criterion2).order_by(
+            "id"
+        )
         return addactionqueryset
 
     def getAnalyseActionQuerySet(self):
@@ -116,9 +118,11 @@ class OTWrite(object):
         analyseactionqueryset: QuerySet[AddAction]
             The analyse actions related to the reaction and action sessions
         """
+        criterion1 = Q(reaction_id__in=self.reaction_ids)
+        criterion2 = Q(actionsession_id__in=self.actionsession_ids)
+
         analyseactionqueryset = AnalyseAction.objects.filter(
-            reaction_id__in=self.reaction_ids,
-            actionsession_id__in=self.actionsession_ids,
+            criterion1 & criterion2
         ).order_by("id")
         return analyseactionqueryset
 
@@ -162,7 +166,7 @@ class OTWrite(object):
         platequeryset: QuerySet[Plate]
             The plates linked to the OT session
         """
-        platequeryset = Plate.objects.filter(otsession_id=self.otsessionid).order_by(
+        platequeryset = Plate.objects.filter(otsession_id=self.otsession_id).order_by(
             "id"
         )
         return platequeryset
@@ -192,7 +196,7 @@ class OTWrite(object):
             The tipracks linked to an OT Session
         """
         tipracksqueryset = TipRack.objects.filter(
-            otsession_id=self.otsessionid
+            otsession_id=self.otsession_id
         ).order_by("id")
         return tipracksqueryset
 
@@ -204,8 +208,7 @@ class OTWrite(object):
         pipetteobj: Pipette
             The pipette used for an OT session
         """
-
-        pipetteobj = Pipette.objects.get(otsession_id=self.otsessionid)
+        pipetteobj = Pipette.objects.get(otsession_id=self.otsession_id)
         return pipetteobj
 
     def getProductSmiles(self, reactionid: int) -> str:
@@ -301,7 +304,7 @@ class OTWrite(object):
                 self.otsessiontype,
                 self.protocolname,
                 self.reactionstep,
-                self.otsessionid,
+                self.otsession_id,
             )
         )
         path = "tmp/" + filename
@@ -338,7 +341,7 @@ class OTWrite(object):
         wellinfo = []
         try:
             wellobjs = Well.objects.filter(
-                otsession_id=self.otsessionid,
+                otsession_id=self.otsession_id,
                 solvent=solvent,
                 available=True,
                 type="solvent",
@@ -400,9 +403,13 @@ class OTWrite(object):
             reaction_id=reactionid, smiles=smiles
         )
         wellinfo = []
+        # print("The OT session is: {}".format(self.otsessionobj))
+        # print("the SMILES is: {}".format(smiles))
+        # print("The reaction id is: {}".format(reactionid))
+        # print("The prev reaction objects found are: {}".format(previousreactionobjs))
         if previousreactionobjs:
             wellobj = Well.objects.get(
-                otsession_id=self.otsessionid,
+                otsession_id=self.otsession_id,
                 reaction_id=previousreactionobjs[0],
                 smiles=smiles,
                 type="reaction",
@@ -411,7 +418,7 @@ class OTWrite(object):
         else:
             try:
                 wellobjects = Well.objects.filter(
-                    otsession_id=self.otsessionid,
+                    otsession_id=self.otsession_id,
                     smiles=smiles,
                     solvent=solvent,
                     concentration=concentration,
@@ -472,7 +479,7 @@ class OTWrite(object):
         """
         productsmiles = self.getProductSmiles(reactionid=reactionid)
         wellobj = Well.objects.get(
-            otsession_id=self.otsessionid, reaction_id=reactionid, smiles=productsmiles
+            otsession_id=self.otsession_id, reaction_id=reactionid, smiles=productsmiles
         )
         return wellobj
 
@@ -760,14 +767,15 @@ class OTWrite(object):
             productsmiles = self.getProductSmiles(reactionid=reaction_id)
 
             fromwellobj = Well.objects.get(
-                otsession_id=self.otsessionid,
+                otsession_id=self.otsession_id,
                 reaction_id=reaction_id,
                 type="reaction",
                 smiles=productsmiles,
             )
             fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
+            print(self.otsession_id, reaction_id, method.lower(), productsmiles)
             towellobj = Well.objects.get(
-                otsession_id=self.otsessionid,
+                otsession_id=self.otsession_id,
                 reaction_id=reaction_id,
                 type=method.lower(),
                 smiles=productsmiles,
