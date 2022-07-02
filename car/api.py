@@ -226,6 +226,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
         tmp_file = save_tmp_file(csvfile)
 
         if str(validate_choice) == "0":
+            if str(API_choice) == "0":
+                task = validateFileUpload.delay(
+                    csv_fp=tmp_file, validate_type="retro-API"
+                )
 
             if str(API_choice) == "1":
                 task = validateFileUpload.delay(
@@ -235,11 +239,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             if str(API_choice) == "2":
                 task = validateFileUpload.delay(
                     csv_fp=tmp_file, validate_type="combi-custom-chem"
-                )
-
-            else:
-                task = validateFileUpload.delay(
-                    csv_fp=tmp_file, validate_type="retro-API"
                 )
 
         if str(validate_choice) == "1":

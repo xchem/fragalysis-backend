@@ -826,7 +826,7 @@ encoded_recipes = {
                                 },
                             ],
                         },
-                        "intermolecular": {
+                        "intramolecular": {
                             "actions": [
                                 {
                                     "type": "add",

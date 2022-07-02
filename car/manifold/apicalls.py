@@ -14,6 +14,11 @@ def getManifoldRetrosynthesis(smiles: str):
     ----------
     smiles: str
         SMILES for Manifold retrosynthesis search
+
+    Returns
+    -------
+    response.json(): json
+        The route matches
     """
 
     data = {
@@ -33,13 +38,100 @@ def getManifoldRetrosynthesis(smiles: str):
     return response.json()
 
 
-def getexactsearch(smiles):
+@sleep_and_retry
+@limits(calls=100, period=60)
+def getManifoldRetrosynthesisBatch(smiles: list):
+    """Call Manifold API to search for a retrosynthesis for a given smiles
+
+    Parameters
+    ----------
+    smiles: list
+        The list of SMILES for Manifold retrosynthesis search
+
+    Returns
+    -------
+    response.json(): json
+        The route matches to the list of SMILES
+    """
+
+    data = {
+        "smiles": smiles,
+        "maxLeadTimeWeeks": 12,
+        "maxSearchDepth": 3,
+        "maxNumRoutesToReturn": 10,
+    }
+
+    response = requests.post(
+        url="https://api.postera.ai/api/v1/retrosynthesis/",
+        headers={
+            "X-API-KEY": api_key,
+        },
+        json=data,
+    )
+    return response.json()
+
+
+@sleep_and_retry
+@limits(calls=100, period=60)
+def getExactSearch(smiles: str):
+    """Searches for exact compound match for catalogue info
+
+    Parameters
+    ----------
+    smiles: str
+        The SMILES of the compound to search the manifold API
+        for catalogue info
+
+    Returns
+    -------
+    response.json(): json
+        The catalogue matches
+    """
+    data = {
+        "smiles": smiles,
+        "maxLeadTimeWeeks": 12,
+        "patentDatabases": [],
+    }
+
     response = requests.post(
         "https://api.postera.ai/api/v1/exact/",
         headers={
             "X-API-KEY": api_key,
         },
-        json={"smiles": smiles},
+        json=data,
     )
 
-    return response.json()
+    return response.json()["results"]
+
+
+@sleep_and_retry
+@limits(calls=100, period=60)
+def getExactSearchBatch(smiles: list):
+    """Searches for exact compound match for catalogue info
+
+    Parameters
+    ----------
+    smiles: lits
+        The list of SMILES of compounds to search the manifold API
+        for catalogue info
+
+    Returns
+    -------
+    response.json(): json
+        The catalogue matches for the list of SMILES
+    """
+    data = {
+        "smiles": smiles,
+        "maxLeadTimeWeeks": 12,
+        "patentDatabases": [],
+    }
+
+    response = requests.post(
+        "https://api.postera.ai/api/v1/exact/",
+        headers={
+            "X-API-KEY": api_key,
+        },
+        json=data,
+    )
+
+    return response.json()["results"]

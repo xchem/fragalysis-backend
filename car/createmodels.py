@@ -478,7 +478,7 @@ class CreateEncodedActionModels(object):
                     )
                     for action in reaction_actions
                 ]
-            else:
+            if type != "reaction":
                 actions = session["actions"]
                 [
                     self.createEncodedActionModel(
