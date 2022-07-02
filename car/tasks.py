@@ -38,7 +38,7 @@ from .createmodels import (
     CreateEncodedActionModels,
 )
 
-from .manifold.apicalls import getManifoldRetrosynthesis
+from .manifold.apicalls import getExactSearch, getManifoldRetrosynthesis
 from .recipebuilder.encodedrecipes import encoded_recipes
 from .utils import getAddtionOrder, canonSmiles
 
@@ -127,8 +127,6 @@ def uploadManifoldReaction(validate_output):
                     continue
                 else:
                     first_route = routes[0]
-
-                    # Check if target is in a catalogue and create catalog entries if it is
                     if first_route["molecules"][0]["isBuildingBlock"]:
                         catalog_entries = first_route["molecules"][0]["catalogEntries"]
                         for catalog_entry in catalog_entries:
@@ -312,34 +310,35 @@ def uploadCustomReaction(validate_output):
                 batchtag=batchtag,
             )
 
-            for reactant_pair_smiles, reaction_name, smiles, mass in zip(
+            for reactant_pair_smiles, reaction_name, product_smiles, mass in zip(
                 group["reactant-pair-smiles"],
                 group["reaction-name"],
                 group["target-smiles"],
                 group["amount-required-mg"],
             ):
+
                 reaction_smarts = AllChem.ReactionFromSmarts(
-                    "{}>>{}".format(".".join(reactant_pair_smiles), smiles),
+                    "{}>>{}".format(".".join(reactant_pair_smiles), product_smiles),
                     useSmiles=True,
                 )
 
                 target_id = createTargetModel(
                     batch_id=batch_id,
-                    smiles=smiles,
+                    smiles=product_smiles,
                     mass=mass,
                 )
 
-                recipes = encoded_recipes[reaction_name]["recipes"]
-
-                actions = recipes["Standard"]["actions"]
-                stir_action = [
-                    action for action in actions if action["type"] == "stir"
-                ][0]
+                std_recipe = encoded_recipes[reaction_name]["recipes"][
+                    "standard"
+                ]  # NB need to include multiple recipes
+                actionsessions = std_recipe["actionsessions"]
+                stir_action = std_recipe["actionsessions"]["stir"]["actions"][0]
                 reaction_temperature = stir_action["content"]["temperature"]["value"]
 
                 method_id = createMethodModel(
                     target_id=target_id,
                     nosteps=1,
+                    otchem=True,
                 )
 
                 reaction_id = createReactionModel(
@@ -351,11 +350,24 @@ def uploadCustomReaction(validate_output):
 
                 createProductModel(
                     reaction_id=reaction_id,
-                    product_smiles=smiles,
+                    product_smiles=product_smiles,
                 )
 
+                for reactant_smi in reactant_pair_smiles:
+                    reactant_id = createReactantModel(
+                        reaction_id=reaction_id,
+                        reactant_smiles=reactant_smi,
+                    )
+                    catalog_entries = getExactSearch(smiles=reactant_smi)
+                    for catalog_entry in catalog_entries:
+                        createCatalogEntryModel(
+                            catalog_entry=catalog_entry,
+                            reactant_id=reactant_id,
+                        )
+
                 CreateEncodedActionModels(
-                    actions=actions,
+                    intramolecular=True,
+                    actionsessions=actionsessions,
                     target_id=target_id,
                     reaction_id=reaction_id,
                     reactant_pair_smiles=reactant_pair_smiles,
