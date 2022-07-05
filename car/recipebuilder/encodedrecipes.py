@@ -690,7 +690,7 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": "[#6:3]-[#7;H2,H1:2]",
                                             "SMILES": None,
-                                            "quantity": {"value": 1, "unit": "moleq"},
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
                                             "solvent": "DMA",
                                             "concentration": 0.5,
                                         },
@@ -703,7 +703,7 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": "[c:1]-[F,Cl,Br,I]",
                                             "SMILES": None,
-                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
                                             "solvent": "DMA",
                                             "concentration": 0.5,
                                         },
@@ -716,7 +716,7 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
-                                            "quantity": {"value": 2.5, "unit": "moleq"},
+                                            "quantity": {"value": 1, "unit": "moleq"},
                                             "solvent": None,
                                             "density": 0.74,
                                             "concentration": None,
@@ -734,7 +734,7 @@ encoded_recipes = {
                                 "content": {
                                     "number": 4,
                                     "temperature": {
-                                        "value": 170,
+                                        "value": 160,
                                         "unit": "degC",
                                     },  # 150, 160 and 170 test
                                     "duration": {"value": 12, "unit": "hours"},
