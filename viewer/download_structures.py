@@ -111,7 +111,8 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     file content as string. the assumption is that the source file is smll
     and can be read into memory.
 
-    If a code/molecule is added we use that.
+    If a code/molecule is added we use that, otherwise we use the basename of
+    the cleaned filename.
 
     Do not call this function for files that are not MOL or SD files.
     """
@@ -119,14 +120,20 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
 
     logger.debug('Patching MOL/SDF "%s" molecule_name=%s', path, molecule_name)
 
-    # Get the file name (without path prefix and the extension)
-    path_parts = os.path.splitext(os.path.basename(path))
+    name = molecule_name
+    if not name:
+        # No molecule name provided.
+        # The name will be set from file name
+        # (without path prefix and the extension)
+        # of the cleaned-up name.
+        # e.g. the name of 'media/sdfs/Mpro-x3351_0A_rtEVbqf.sdf'
+        # is 'Mpro-x3351_0A'.
+        name = os.path.splitext(clean_filename(path))[0]
 
     # Now read the file, checking the first line
     # and setting it to the molecule name if it's blank.
     # We accumulate the file's content into 'content',
     # which we eventually return to the caller.
-    name = molecule_name if molecule_name else path_parts[0]
     content = ''
     with open(path, 'r') as f_in:
         # First line (stripped)
