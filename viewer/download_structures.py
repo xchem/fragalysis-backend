@@ -365,6 +365,9 @@ def _create_structures_zip(target,
 
     logger.info('+ _create_structures_zip(%s)', target.title)
     logger.info('file_url="%s"', file_url)
+    logger.info('zip_contents=%s', zip_contents)
+    logger.info('single_sdf_file=%s', zip_contents['molecules']['single_sdf_file'])
+    logger.info('sdf_files=%s', zip_contents['molecules']['sdf_files'])
 
     download_path = os.path.dirname(file_url)
     os.makedirs(download_path, exist_ok=True)
@@ -391,8 +394,11 @@ def _create_structures_zip(target,
                                           combined_sdf_file, error_file)
 
         # Add combined_sdf_file to the archive.
+        combined_sdf_file_exists = os.path.isfile(combined_sdf_file)
+        logger.info('combined_sdf_file_exists=%s', combined_sdf_file_exists)
+
         if zip_contents['molecules']['single_sdf_file'] is True \
-                and os.path.isfile(combined_sdf_file):
+                and combined_sdf_file_exists:
             ziparchive.write(
                 combined_sdf_file,
                 os.path.join(_ZIP_FILEPATHS['single_sdf_file'],
