@@ -300,7 +300,6 @@ def _molecule_files_zip(zip_contents, ziparchive, combined_sdf_file, error_file)
             mol_errors += 1
             continue
 
-        logger.info('file=%s prot=% sdf_info=%s', file, prot, zip_contents['molecules']['sdf_info'])
         if zip_contents['molecules']['sdf_info'] is True:
             # Add sdf file on the Molecule record to the archive folder.
             if _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], file):
@@ -548,7 +547,6 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
         zip_contents['molecules']['sdf_info'] = True
 
     # sdf information is held as a file on the Molecule record.
-    target_directory = os.path.join(settings.MEDIA_ROOT, 'targets')
     if other_params['sdf_info'] or other_params['single_sdf_file']:
         num_missing_sd_files = 0
         for molecule in molecules:
