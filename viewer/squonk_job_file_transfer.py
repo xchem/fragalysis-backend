@@ -263,8 +263,8 @@ def check_file_transfer(request):
         request
     Returns
         error dict
-        dict of validated protein codes
-        dict of validated computed molecule names
+        list of validated protein codes
+        list of validated computed molecule names
     """
     error  = {}
     proteins = []

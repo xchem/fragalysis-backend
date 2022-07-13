@@ -356,7 +356,7 @@ SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
 # (50Mi of logging in 10 files of 5M each),
 # with the rotating file handler typically used for everything.
 DISABLE_LOGGING_FRAMEWORK = True if os.environ.get("DISABLE_LOGGING_FRAMEWORK", "no").lower() in ["yes"] else False
-LOGGING_FRAMEWORK_ROOT_LEVEL = os.environ.get("LOGGING_FRAMEWORK_ROOT_LEVEL", "WARNING")
+LOGGING_FRAMEWORK_ROOT_LEVEL = os.environ.get("LOGGING_FRAMEWORK_ROOT_LEVEL", "INFO")
 if not DISABLE_LOGGING_FRAMEWORK:
     LOGGING = {
         'version': 1,
