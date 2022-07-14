@@ -403,10 +403,6 @@ class OTWrite(object):
             reaction_id=reactionid, smiles=smiles
         )
         wellinfo = []
-        # print("The OT session is: {}".format(self.otsessionobj))
-        # print("the SMILES is: {}".format(smiles))
-        # print("The reaction id is: {}".format(reactionid))
-        # print("The prev reaction objects found are: {}".format(previousreactionobjs))
         if previousreactionobjs:
             wellobj = Well.objects.get(
                 otsession_id=self.otsession_id,
@@ -647,7 +643,7 @@ class OTWrite(object):
         aspiratewellindex: int,
         dispensewellindex: int,
         transvolume: float,
-        aspirateheight: int = 2,
+        aspirateheight: int = 1,
         dispenseheight: int = -5,
         transfertype: str = "standard",
     ):
@@ -773,7 +769,6 @@ class OTWrite(object):
                 smiles=productsmiles,
             )
             fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
-            print(self.otsession_id, reaction_id, method.lower(), productsmiles)
             towellobj = Well.objects.get(
                 otsession_id=self.otsession_id,
                 reaction_id=reaction_id,
