@@ -13,6 +13,7 @@ import fnmatch
 import logging
 import copy
 import json
+from pathlib import Path
 import pandoc
 
 from django.conf import settings
@@ -67,6 +68,11 @@ zip_template = {'proteins': {'pdb_info': {},
                 'metadata_info': None, }
 
 
+# A file prefix for missing (SD) file references.
+# Added to support FE issue 907
+_MISSING_SD_FILE_PREFIX = 'MISSING/'
+
+
 def _add_file_to_zip(ziparchive, param, filepath):
     """Add the requested file to the zip archive.
 
@@ -94,8 +100,66 @@ def _add_file_to_zip(ziparchive, param, filepath):
     return True
 
 
+def _is_mol_or_sdf(path):
+    """Returns True if the file and path look like a MOL or SDF file.
+    It does this by simply checking the file's extension.
+    """
+    path_parts = os.path.splitext(os.path.basename(path))
+    if path_parts[1].lower() in ('.sdf', '.mol'):
+        return True
+    # Doesn't look like a MOL or SDF if we get here.
+    return False
+
+
+def _read_and_patch_molecule_name(path, molecule_name=None):
+    """Patches the source file (expected to be a MOL or SDF file)
+    by adding the molecule name (the basename of the file) and returning the
+    file content as string. the assumption is that the source file is smll
+    and can be read into memory.
+
+    If a code/molecule is added we use that, otherwise we use the basename of
+    the cleaned filename.
+
+    Do not call this function for files that are not MOL or SD files.
+    """
+    assert _is_mol_or_sdf(path)
+
+    logger.debug('Patching MOL/SDF "%s" molecule_name=%s', path, molecule_name)
+
+    name = molecule_name
+    if not name:
+        # No molecule name provided.
+        # The name will be set from file name
+        # (without path prefix and the extension)
+        # of the cleaned-up name.
+        # e.g. the name of 'media/sdfs/Mpro-x3351_0A_rtEVbqf.sdf'
+        # is 'Mpro-x3351_0A'.
+        name = os.path.splitext(clean_filename(path))[0]
+
+    # Now read the file, checking the first line
+    # and setting it to the molecule name if it's blank.
+    # We accumulate the file's content into 'content',
+    # which we eventually return to the caller.
+    content = ''
+    with open(path, 'r') as f_in:
+        # First line (stripped)
+        first_line = f_in.readline().strip()
+        if first_line:
+            content += first_line + '\n'
+        else:
+            content += name + '\n'
+        # The rest of the file...
+        for next_line in f_in:
+            content += next_line
+
+    return content
+
+
 def _add_file_to_zip_aligned(ziparchive, code, filepath):
     """Add the requested file to the zip archive.
+
+    If the file is an SDF or MOL we insert the name of the molecule
+    if it is not set  (the basename of the file).
 
     Args:
         ziparchive: Handle of zip archive
@@ -112,9 +176,17 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
     fullpath = os.path.join(media_root, filepath)
 
     if os.path.isfile(fullpath):
-        cleaned_filename = clean_filename(filepath)
-        ziparchive.write(fullpath,
-                         os.path.join('aligned', code, cleaned_filename))
+        cleaned_filename = clean_filename(fullpath)
+        archive_path = os.path.join('aligned', code, cleaned_filename)
+        if _is_mol_or_sdf(fullpath):
+            # It's a MOL or SD file.
+            # Read and (potentially) adjust the file
+            # and add to the archive as a string.
+            content = _read_and_patch_molecule_name(fullpath, molecule_name=code)
+            ziparchive.writestr(archive_path, content)
+        else:
+            # Copy the file without modification
+            ziparchive.write(fullpath, archive_path)
         return False
 
     return True
@@ -139,8 +211,8 @@ def _add_file_to_sdf(combined_sdf_file, filepath):
 
     if os.path.isfile(fullpath):
         with open(combined_sdf_file, 'a') as f_out:
-            with open(fullpath, 'r') as f_in:
-                f_out.write(f_in.read())
+            patched_sdf_content = _read_and_patch_molecule_name(fullpath)
+            f_out.write(patched_sdf_content)
         return False
 
     return True
@@ -158,32 +230,42 @@ def _protein_files_zip(zip_contents, ziparchive, error_file):
         for prot, file in files.items():
             if _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], file):
                 error_file.write(
-                    '{},{},{}\n'.format(prot, param, file))
+                    '{},{},{}\n'.format(param, prot, file))
                 prot_errors += 1
     return prot_errors
 
 
 def _molecule_files_zip(zip_contents, ziparchive, combined_sdf_file, error_file):
-    """Write molecule related data to the ZIP file
+    """Write molecule (SD file) related data to the ZIP file
        Returns molecule errors
     """
 
     mol_errors = 0
+    logger.info('len(molecules.sd_files)=%s', len(zip_contents['molecules']['sdf_files']))
     for file, prot in zip_contents['molecules']['sdf_files'].items():
 
+        # Do not try and process any missing SD files.
+        # They're missing if they have a path that begins 'MISSING/'
+        # so add an error and add the expected filename
+        if file.startswith(_MISSING_SD_FILE_PREFIX):
+            error_file.write(
+                '{},{},{}\n'.format('sdf_files', prot, file))
+            mol_errors += 1
+            continue
+
+        logger.info('file=%s prot=% sdf_info=%s', file, prot, zip_contents['molecules']['sdf_info'])
         if zip_contents['molecules']['sdf_info'] is True:
             # Add sdf file on the Molecule record to the archive folder.
             if _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], file):
                 error_file.write(
-                    '{},{},{}\n'.format(prot, 'sdf_info', file))
+                    '{},{},{}\n'.format('sdf_info', prot, file))
                 mol_errors += 1
 
         # Append sdf file on the Molecule record to the combined_sdf_file.
         if zip_contents['molecules']['single_sdf_file'] is True:
             if _add_file_to_sdf(combined_sdf_file, file):
                 error_file.write(
-                    '{},{},{}\n'.format(prot, 'single_sdf_file',
-                                        file))
+                    '{},{},{}\n'.format('single_sdf_file', prot, file))
                 mol_errors += 1
 
     return mol_errors
@@ -247,8 +329,7 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
     readme_filepath = os.path.join(download_path, 'Readme.md')
     pdf_filepath = os.path.join(download_path, 'Readme.pdf')
 
-    with open(readme_filepath, "a") as readme, \
-            open(template_file, "r") as template:
+    with open(readme_filepath, "a") as readme:
         readme.write("# Documentation for the downloaded zipfile\n")
         # Download links
         readme.write("## Download details\n")
@@ -266,7 +347,12 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
         readme.write("```"+json.dumps(original_search)+"```\n\n")
 
         # Download Structure from the template
-        readme.write(template.read())
+        # (but prepare for the template file not existing)?
+        if os.path.isfile(template_file):
+            with open(template_file, "r") as template:
+                readme.write(template.read())
+        else:
+            logger.warning('Could not find template file (%s)', template_file)
 
         # Files Included
         list_of_files = ziparchive.namelist()
@@ -300,17 +386,22 @@ def _create_structures_zip(target,
 
     """
 
-    logger.info('+ _create_structures_zip')
+    logger.info('+ _create_structures_zip(%s)', target.title)
+    logger.debug('file_url="%s"', file_url)
+    logger.debug('zip_contents=%s', zip_contents)
+    logger.debug('single_sdf_file=%s', zip_contents['molecules']['single_sdf_file'])
+    logger.debug('sdf_files=%s', zip_contents['molecules']['sdf_files'])
+
     download_path = os.path.dirname(file_url)
     os.makedirs(download_path, exist_ok=True)
 
     error_filename = os.path.join(download_path, "errors.csv")
     error_file = open(error_filename, "w")
-    error_file.write("Param, Code, Invalid file reference\n")
+    error_file.write("Param,Code,Invalid file reference\n")
     errors = 0
 
     # If a single sdf file is also wanted then create file to
-    # add sdf files to a file called {targer}_combined.sdf.
+    # add sdf files to a file called {target}_combined.sdf.
     combined_sdf_file = None
     if zip_contents['molecules']['single_sdf_file'] is True:
         combined_sdf_file = \
@@ -326,8 +417,10 @@ def _create_structures_zip(target,
                                           combined_sdf_file, error_file)
 
         # Add combined_sdf_file to the archive.
+        combined_sdf_file_exists = os.path.isfile(combined_sdf_file)
+
         if zip_contents['molecules']['single_sdf_file'] is True \
-                and os.path.isfile(combined_sdf_file) :
+                and combined_sdf_file_exists:
             ziparchive.write(
                 combined_sdf_file,
                 os.path.join(_ZIP_FILEPATHS['single_sdf_file'],
@@ -344,7 +437,7 @@ def _create_structures_zip(target,
             if _add_file_to_zip(ziparchive, 'metadata_info',
                                 zip_contents['metadata_info']):
                 error_file.write(
-                    '{},{},{}\n'.format(target, 'metadata_info',
+                    '{},{},{}\n'.format('metadata_info', target,
                                         zip_contents['metadata_info']))
                 errors += 1
 
@@ -385,12 +478,15 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
     Returns:
         [dict]: [dictionary containing the file contents]
     """
-    zip_contents =  copy.deepcopy(zip_template)
-
     logger.info('+ _create_structures_dict')
+
+    zip_contents =  copy.deepcopy(zip_template)
 
     molecules = Molecule.objects.filter(prot_id__in=[protein['id'] for protein
                                                      in proteins]).values()
+    logger.info('Got %d molecules from %d proteins', len(molecules), len(proteins))
+    num_molecules = len(molecules)
+    logger.debug('molecules=%s', molecules)
 
     # Read through zip_params to compile the parameters
     for protein in proteins:
@@ -405,11 +501,44 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
         zip_contents['molecules']['sdf_info'] = True
 
     # sdf information is held as a file on the Molecule record.
-    if other_params['sdf_info'] is True or \
-            other_params['single_sdf_file'] is True:
+    target_directory = os.path.join(settings.MEDIA_ROOT, 'targets')
+    if other_params['sdf_info'] or other_params['single_sdf_file']:
+        num_missing_sd_files = 0
         for molecule in molecules:
             protein = Protein.objects.get(id=molecule['prot_id_id'])
-            zip_contents['molecules']['sdf_files'].update({molecule['sdf_file']: protein.code})
+            # Issue 907. If there is no corresponding `sdf-file` then...
+            # look for the first one we can find (in `[media-root]/targets`)
+            # or create an error.
+            rel_sd_file = None
+            if molecule['sdf_file']:
+                rel_sd_file = molecule['sdf_file']
+            else:
+                logger.warning("Molecule record's 'sdf_file' isn't set (protein.code=%s)."
+                               " Searching 'targets' for a file...", protein.code)
+                expected_filename = f'{protein.code}.sdf'
+                sd_files = list(Path(target_directory).rglob(expected_filename))
+                if sd_files:
+                    # Found at least one matching file - use the first.
+                    # The path to any SD file we find
+                    # should be stored with a path relative to the media root
+                    # i.e. strip every thing in front of 'targets'
+                    fq_sdf_file = str(sd_files[0])
+                    rel_sd_file = fq_sdf_file[fq_sdf_file.find('targets'):]
+                    logger.info("Success - found '%s' (protein.code=%s)", rel_sd_file, protein.code)
+                else:
+                    # No file found.
+                    # Insert a clear marker for the user of the zip_contents object
+                    logger.error("Couldn't find '%s' (protein.code=%s)",
+                                 expected_filename, protein.code)
+                    rel_sd_file = f'{_MISSING_SD_FILE_PREFIX}{expected_filename}'
+                    num_missing_sd_files += 1
+            logger.debug('sdf_file=%s protein.code=%s', rel_sd_file, protein.code)
+            zip_contents['molecules']['sdf_files'].update({rel_sd_file: protein.code})
+
+        # Report (in the log) anomalies
+        if num_missing_sd_files > 0:
+            logger.error('Expected %d SD files but %d missing',
+                         num_molecules, num_missing_sd_files)
 
     # The smiles at molecule level may not be unique.
     if other_params['smiles_info'] is True:
@@ -496,8 +625,7 @@ def check_download_links(request,
         [file]: [URL to the file in the media directory]
     """
 
-
-    logger.info('+ _check_download_links')
+    logger.info('+ check_download_links(%s)', target.title)
     host = request.get_host()
 
     protein_params, other_params, static_link  = get_download_params(request)
@@ -539,6 +667,10 @@ def check_download_links(request,
             return existing_link[0].file_url, False
 
         # Recreate file.
+        #
+        # This step can result in references to missing SD Files (see FE issue 907).
+        # If so the missing file will have a file reference of 'MISSING/<filename>'
+        # in the corresponding ['molecules']['sdf_files'] entry.
         zip_contents = _create_structures_dict(target,
                                                proteins,
                                                protein_params,

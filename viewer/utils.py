@@ -102,6 +102,9 @@ def clean_filename(filepath):
     """Return the "clean" version of a Django filename without the '_abcdefg_' that is created
     when a file is overwritten.
 
+    Given a path and a file, e.g. './media/sdfs/Mpro-x3351_0A_rtEVbqf.sdf' this
+    function will return 'Mpro-x3351_0A.sdf'.
+
     Args:
         filepath
 
