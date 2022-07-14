@@ -9,6 +9,8 @@ import shutil
 
 from django.conf import settings
 
+from rdkit import Chem
+
 # Set .sdf file format version
 # Used at the start of every SDF file.
 SDF_VERSION = 'ver_1.2'
