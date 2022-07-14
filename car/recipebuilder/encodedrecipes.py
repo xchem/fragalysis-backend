@@ -8,115 +8,67 @@ encoded_recipes = {
         "reactionSMARTS": "[#6:1](=[#8:2])-[#8].[#7;H3,H2,H1:3]>>[#6:1](=[#8:2])-[#7:3]",
         "intramolecular": True,
         "recipes": {
-            "standard": {
-                "references": None,
-                "actionsessions": {
+            "Standard": {
+                "reference": None,
+                "sessions": {
                     "reaction": {
-                        "driver": "robot",
-                        "intermolecular": {
-                            "actions": [
-                                {
-                                    "type": "add",
-                                    "content": {
-                                        "number": 1,
-                                        "material": {
-                                            "SMARTS": "[#6](=[#8])-[#8]",
-                                            "SMILES": None,
-                                            "quantity": {"value": 1.0, "unit": "moleq"},
-                                            "solvent": "DMA",
-                                            "concentration": 0.5,
-                                        },
+                        "actions": [
+                            {
+                                "type": "add",
+                                "content": {
+                                    "number": 1,
+                                    "material": {
+                                        "SMARTS": "[#6](=[#8])-[#8]",
+                                        "SMILES": None,
+                                        "quantity": {"value": 1.0, "unit": "moleq"},
+                                        "solvent": "DMA",
+                                        "concentration": 0.5,
                                     },
                                 },
-                                {
-                                    "type": "add",
-                                    "content": {
-                                        "number": 2,
-                                        "material": {
-                                            "SMARTS": None,
-                                            "SMILES": "CCCP1(=O)OP(=O)(OP(=O)(O1)CCC)CCC",
-                                            "quantity": {"value": 1.2, "unit": "moleq"},
-                                            "solvent": "DMA",
-                                            "concentration": 0.5,
-                                        },
+                            },
+                            {
+                                "type": "add",
+                                "content": {
+                                    "number": 2,
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "CCCP1(=O)OP(=O)(OP(=O)(O1)CCC)CCC",
+                                        "quantity": {"value": 1.2, "unit": "moleq"},
+                                        "solvent": "DMA",
+                                        "concentration": 0.5,
                                     },
                                 },
-                                {
-                                    "type": "add",
-                                    "content": {
-                                        "number": 3,
-                                        "material": {
-                                            "SMARTS": None,
-                                            "SMILES": "CCN(C(C)C)C(C)C",
-                                            "quantity": {"value": 3.5, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
-                                        },
+                            },
+                            {
+                                "type": "add",
+                                "content": {
+                                    "number": 3,
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "CCN(C(C)C)C(C)C",
+                                        "quantity": {"value": 3.5, "unit": "moleq"},
+                                        "solvent": None,
+                                        "density": 0.74,
+                                        "concentration": None,
                                     },
                                 },
-                                {
-                                    "type": "add",
-                                    "content": {
-                                        "number": 4,
-                                        "material": {
-                                            "SMARTS": "[#7;H3,H2,H1]",
-                                            "SMILES": None,
-                                            "quantity": {"value": 1.1, "unit": "moleq"},
-                                            "solvent": "DMA",
-                                            "concentration": 0.5,
-                                        },
+                            },
+                            {
+                                "type": "add",
+                                "content": {
+                                    "number": 4,
+                                    "material": {
+                                        "SMARTS": "[#7;H3,H2,H1]",
+                                        "SMILES": None,
+                                        "quantity": {"value": 1.1, "unit": "moleq"},
+                                        "solvent": "DMA",
+                                        "concentration": 0.5,
                                     },
                                 },
-                            ],
-                        },
-                        "intramolecular": {
-                            "actions": [
-                                {
-                                    "type": "add",
-                                    "content": {
-                                        "number": 1,
-                                        "material": {
-                                            "SMARTS": "[#6](=[#8])-[#8]",
-                                            "SMILES": None,
-                                            "quantity": {"value": 1.0, "unit": "moleq"},
-                                            "solvent": "DMA",
-                                            "concentration": 0.5,
-                                        },
-                                    },
-                                },
-                                {
-                                    "type": "add",
-                                    "content": {
-                                        "number": 2,
-                                        "material": {
-                                            "SMARTS": None,
-                                            "SMILES": "CCCP1(=O)OP(=O)(OP(=O)(O1)CCC)CCC",
-                                            "quantity": {"value": 1.2, "unit": "moleq"},
-                                            "solvent": "DMA",
-                                            "concentration": 0.5,
-                                        },
-                                    },
-                                },
-                                {
-                                    "type": "add",
-                                    "content": {
-                                        "number": 3,
-                                        "material": {
-                                            "SMARTS": None,
-                                            "SMILES": "CCN(C(C)C)C(C)C",
-                                            "quantity": {"value": 3.5, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
-                                        },
-                                    },
-                                },
-                            ],
-                        },
+                            },
+                        ],
                     },
                     "stir": {
-                        "driver": "human",
                         "actions": [
                             {
                                 "type": "stir",
@@ -162,7 +114,6 @@ encoded_recipes = {
                         ],
                     },
                     "analyse": {
-                        "driver": "robot",
                         "actions": [
                             {
                                 "type": "analyse",
@@ -177,6 +128,69 @@ encoded_recipes = {
                         ],
                     },
                 },
+            },
+            "Intramolecular": {
+                "reference": None,
+                "actions": [
+                    {
+                        "type": "add",
+                        "content": {
+                            "number": 1,
+                            "material": {
+                                "SMARTS": "[#6](=[#8])-[#8]",
+                                "SMILES": None,
+                                "quantity": {"value": 1.0, "unit": "moleq"},
+                                "solvent": "DMA",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "type": "add",
+                        "content": {
+                            "number": 2,
+                            "material": {
+                                "SMARTS": None,
+                                "SMILES": "CCCP1(=O)OP(=O)(OP(=O)(O1)CCC)CCC",
+                                "quantity": {"value": 1.2, "unit": "moleq"},
+                                "solvent": "DMA",
+                                "concentration": 0.5,
+                            },
+                        },
+                    },
+                    {
+                        "type": "add",
+                        "content": {
+                            "number": 3,
+                            "material": {
+                                "SMARTS": None,
+                                "SMILES": "CCN(C(C)C)C(C)C",
+                                "quantity": {"value": 3.5, "unit": "moleq"},
+                                "solvent": None,
+                                "density": 0.74,
+                                "concentration": None,
+                            },
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "content": {
+                            "number": 4,
+                            "temperature": {"value": 25, "unit": "degC"},
+                            "duration": {"value": 12, "unit": "hours"},
+                        },
+                    },
+                    {
+                        "type": "analyse",
+                        "content": {
+                            "number": 5,
+                            "method": "LCMS",
+                            "samplevolume": {"value": 10, "unit": "ul"},
+                            "solvent": "formic acid/acetonitrile",
+                            "solventvolume": {"value": 80, "unit": "ul"},
+                        },
+                    },
+                ],
             },
         },
     },
@@ -723,7 +737,7 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": "[#6:3]-[#7;H2,H1:2]",
                                             "SMILES": None,
-                                            "quantity": {"value": 1, "unit": "moleq"},
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
                                             "solvent": "DMA",
                                             "concentration": 0.5,
                                         },
@@ -736,7 +750,7 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": "[c:1]-[F,Cl,Br,I]",
                                             "SMILES": None,
-                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
                                             "solvent": "DMA",
                                             "concentration": 0.5,
                                         },
@@ -749,7 +763,7 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
-                                            "quantity": {"value": 2.5, "unit": "moleq"},
+                                            "quantity": {"value": 1, "unit": "moleq"},
                                             "solvent": None,
                                             "density": 0.74,
                                             "concentration": None,
@@ -767,7 +781,7 @@ encoded_recipes = {
                                 "content": {
                                     "number": 4,
                                     "temperature": {
-                                        "value": 170,
+                                        "value": 160,
                                         "unit": "degC",
                                     },  # 150, 160 and 170 test
                                     "duration": {"value": 12, "unit": "hours"},

@@ -852,7 +852,6 @@ class CreateOTSession(object):
                 ]
             )
         )
-        print("Methods are: {}".format(methods))
         return methods
 
     def getUniqueTemperatures(self) -> list:
@@ -877,7 +876,6 @@ class CreateOTSession(object):
             List of sublists of analyse actions grouped by synthesis method
         """
         methods = self.getUniqueAnalyseMethods()
-        print("The methods are: {}".format(methods))
         groupedanalysemethodobjs = []
 
         for method in methods:
@@ -978,16 +976,16 @@ class CreateOTSession(object):
             Optional to specifiy if a speciifc number of wells are needed
         """
         platetype = platetype.lower()
-        maxvolume = self.getMaxValue(values=volumes)
+        # maxvolume = self.getMaxValue(values=volumes)
         medianvolume = self.getMedianValue(values=volumes)
-        headspacevolume = maxvolume + (maxvolume * 0.2)
+        # headspacevolume = maxvolume + (maxvolume * 0.2)
 
         possiblelabwareplatetypes = [
             labware_plate
             for labware_plate in labware_plates
             if platetype in labware_plates[labware_plate]["type"]
             and labware_plates[labware_plate]["max_temp"] >= temperature
-            and labware_plates[labware_plate]["volume_well"] >= headspacevolume
+            # and labware_plates[labware_plate]["volume_well"] >= headspacevolume
         ]
 
         vialcomparedict = {}
@@ -1074,6 +1072,7 @@ class CreateOTSession(object):
                 "volume": "sum",
                 "solvent": "first",
                 "concentration": "first",
+                "molecularweight": "first",
             }
         )
         materialsdf["productexists"] = materialsdf.apply(
@@ -1460,6 +1459,7 @@ class CreateOTSession(object):
                             "well": wellobj.index,
                             "concentration": startingmaterialsdf.at[i, "concentration"],
                             "solvent": startingmaterialsdf.at[i, "solvent"],
+                            "molecularweight": startingmaterialsdf.at[i, "molecularweight"],
                             "amount-ul": round(volumetoadd, 2),
                         }
                     )
@@ -1499,6 +1499,7 @@ class CreateOTSession(object):
                         "well": wellobj.index,
                         "concentration": startingmaterialsdf.at[i, "concentration"],
                         "solvent": startingmaterialsdf.at[i, "solvent"],
+                        "molecularweight": startingmaterialsdf.at[i, "molecularweight"],
                         "amount-ul": round(volumetoadd, 2),
                     }
                 )

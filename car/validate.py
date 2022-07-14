@@ -106,7 +106,7 @@ class ValidateFile(object):
             self.reactant_pair_smiles = []
             self.reaction_names = []
             self.batchtags = []
-            grouped = self.df.groupby("reaction-name")
+            grouped = self.df.groupby(["reaction-name", "batch-tag"])
             for name, group in grouped:
                 group = group.reset_index()
                 reactant_1_SMILES = set(
@@ -127,7 +127,7 @@ class ValidateFile(object):
                     reactant_1_SMILES=reactant_1_SMILES,
                     reactant_2_SMILES=reactant_2_SMILES,
                 )
-                reaction_names = [name] * len(reactant_pair_smiles)
+                reaction_names = [name[0]] * len(reactant_pair_smiles)
                 batchtags = [group.at[0, "batch-tag"]] * len(reactant_pair_smiles)
                 self.reactant_pair_smiles = (
                     self.reactant_pair_smiles + reactant_pair_smiles
@@ -297,18 +297,17 @@ class ValidateFile(object):
             for index, reactant_pair, reaction_name in zip(
                 range(no_reaction_tests), self.reactant_pair_smiles, self.reaction_names
             ):
+
                 smarts = encoded_recipes[reaction_name]["reactionSMARTS"]
                 product_mols = checkReactantSMARTS(
                     reactant_SMILES=reactant_pair, reaction_SMARTS=smarts
                 )
 
                 if not product_mols:
-                    print(smarts)
-                    print(reactant_pair)
                     self.add_warning(
                         field="check_reaction",
-                        warning_string="Reaction for reactants at index {} is not a valid reaction".format(
-                            index
+                        warning_string="Reaction for reactants: {} and reaction: {} is not a valid reaction".format(
+                            reactant_pair, reaction_name
                         ),
                     )
                     self.validated = False

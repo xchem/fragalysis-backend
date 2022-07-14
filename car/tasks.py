@@ -366,7 +366,7 @@ def uploadCustomReaction(validate_output):
                         )
 
                 CreateEncodedActionModels(
-                    intramolecular=True,
+                    intramolecular=False,
                     actionsessions=actionsessions,
                     target_id=target_id,
                     reaction_id=reaction_id,

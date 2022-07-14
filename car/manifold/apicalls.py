@@ -26,6 +26,13 @@ def getManifoldRetrosynthesis(smiles: str):
         "maxLeadTimeWeeks": 12,
         "maxSearchDepth": 3,
         "maxNumRoutesToReturn": 10,
+        "catalogs": [
+            "enamine_bb",
+            "enamine_bb_EU-US", 
+            "molport",
+            "mcule",
+            "mcule_ultimate",
+        ],
     }
 
     response = requests.post(
@@ -59,6 +66,13 @@ def getManifoldRetrosynthesisBatch(smiles: list):
         "maxLeadTimeWeeks": 12,
         "maxSearchDepth": 3,
         "maxNumRoutesToReturn": 10,
+        "catalogs": [
+            "enamine_bb",
+            "enamine_bb_EU-US",
+            "molport",
+            "mcule",
+            "mcule_ultimate",
+        ],
     }
 
     response = requests.post(
