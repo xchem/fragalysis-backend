@@ -17,6 +17,7 @@ from .api import (
 from .api import (
     AnalyseActionViewSet,
     AddActionViewSet,
+    ExtractActionViewSet,
     StirActionViewSet,
 )
 
@@ -49,6 +50,7 @@ router.register("api/catalogentries", CatalogEntryViewSet, "catalogentries")
 # Register action routes
 router.register("api/analyseactions", AnalyseActionViewSet, "analyseactions")
 router.register("api/addactions", AddActionViewSet, "addactions")
+router.register("api/extractactions", ExtractActionViewSet, "extractactions")
 router.register("api/stiractions", StirActionViewSet, "stiractions")
 
 # Register Ot Session routes

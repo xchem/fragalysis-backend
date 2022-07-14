@@ -128,13 +128,46 @@ encoded_recipes = {
                             },
                         ],
                     },
+                    "workup": {
+                        "driver": "robot",
+                        "actions": [
+                            {
+                                "type": "add",
+                                "content": {
+                                    "number": 6,
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "O",
+                                        "quantity": {"value": 5, "unit": "masseq"},
+                                        "solvent": "O",
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "extract",
+                                "content": {
+                                    "number": 7,
+                                    "material": {
+                                        "layer": "bottom",
+                                        "SMILES": None, # Product of reaction
+                                        "quantity": {"value": 5, "unit": "masseq"},
+                                        "solvent": None,
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                        ],
+                    },
                     "analyse": {
                         "driver": "robot",
                         "actions": [
                             {
                                 "type": "analyse",
                                 "content": {
-                                    "number": 6,
+                                    "number": 8,
                                     "method": "LCMS",
                                     "samplevolume": {"value": 10, "unit": "ul"},
                                     "solvent": "formic acid/acetonitrile",

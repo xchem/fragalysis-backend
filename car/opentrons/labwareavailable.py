@@ -42,7 +42,7 @@ labware_plates = {
         "reflux": False,
     },
     "plateone_96_wellplate_2500ul": {
-        "type": ["solvent", "reaction"],
+        "type": ["solvent", "reaction", "workup"],
         "no_wells": 96,
         "volume_well": 2500,
         "max_temp": 110,

@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Tuple
 import inspect
+from numpy import product
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from django.core.files.storage import default_storage
@@ -12,6 +13,7 @@ from .mcule.apicalls import MCuleAPI
 # Import standard models
 from .models import (
     ActionSession,
+    ExtractAction,
     Project,
     Batch,
     PubChemInfo,
@@ -454,7 +456,7 @@ class CreateEncodedActionModels(object):
         self.reaction_obj = Reaction.objects.get(id=reaction_id)
         self.reactant_pair_smiles = reactant_pair_smiles
         self.reaction_name = reaction_name
-        self.target_mols = Target.objects.get(id=target_id).mols
+        self.target_obj = Target.objects.get(id=target_id)
         self.mculeidlist = []
         self.amountslist = []
 
@@ -500,6 +502,7 @@ class CreateEncodedActionModels(object):
         """
         actionMethods = {
             "add": self.createAddActionModel,
+            "extract": self.createExtractActionModel,
             "stir": self.createStirActionModel,
             "analyse": self.createAnalyseActionModel,
         }
@@ -514,9 +517,16 @@ class CreateEncodedActionModels(object):
         else:
             logger.info(action_type)
 
+    def getProductSmiles(self):
+        """Gets the product SMILES for the reaction
+        """
+        product = Product.objects.get(reaction_id=self.reaction_id)
+        return product.smiles
+
     def calculateVolume(
         self,
-        molar_eqv: float,
+        mass_eqv: int = None,
+        molar_eqv: float = None,
         conc_reagents: float = None,
         reactant_density: float = None,
         reactant_MW: float = None,
@@ -525,8 +535,10 @@ class CreateEncodedActionModels(object):
 
         Parameters
         ----------
+        mass_eqv: int
+            The optional mass equivalents
         molar_eqv: float
-            The molar equivalents required for the add action
+            The optional molar equivalents required for the add action
         conc_reagents: float
             The optional concentration of the reactant
         reactant_density: float
@@ -539,13 +551,16 @@ class CreateEncodedActionModels(object):
         vol_material: float
             The volume (ul) of the material required for the add action step
         """
-        mol_material = molar_eqv * self.target_mols
-
-        if reactant_density:
-            vol_material = ((mol_material * reactant_MW) / reactant_density) * 1e3
-        else:
-            vol_material = (mol_material / conc_reagents) * 1e6  # in uL
-        return vol_material
+        if mass_eqv:
+            vol_material = mass_eqv * self.target_obj.mass
+            return vol_material
+        if molar_eqv:
+            mol_material = molar_eqv * self.target_obj.mols
+            if reactant_density:
+                vol_material = ((mol_material * reactant_MW) / reactant_density) * 1e3
+            else:
+                vol_material = (mol_material / conc_reagents) * 1e6  # in uL
+            return vol_material
 
     def createActionSessionModel(self, type: str, driver: str):
         """Creates a Django action session object - a session are colelctions of
@@ -620,6 +635,7 @@ class CreateEncodedActionModels(object):
             if action["content"]["material"]["SMILES"]:
                 smiles = action["content"]["material"]["SMILES"]
             molar_eqv = action["content"]["material"]["quantity"]["value"]
+            calcunit = action["content"]["material"]["quantity"]["unit"] 
             concentration = action["content"]["material"]["concentration"]
             if not concentration:
                 concentration = 0
@@ -632,21 +648,69 @@ class CreateEncodedActionModels(object):
             add.number = number
             add.smiles = smiles
             add.molecularweight = molecular_weight
+            if calcunit == "masseq":
+                add.volume = self.calculateVolume(mass_eqv=calcunit)
+            if calcunit == "moleq":    
+                if not solvent:
+                    reactant_density = action["content"]["material"]["density"]
+                    add.volume = self.calculateVolume(
+                        molar_eqv=molar_eqv,
+                        reactant_density=reactant_density,
+                        reactant_MW=molecular_weight,
+                    )
+                if solvent:
+                    add.volume = self.calculateVolume(
+                        molar_eqv=molar_eqv,
+                        conc_reagents=concentration,
+                    )
+                    add.solvent = solvent
+            add.concentration = concentration
+            add.save()
+
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+
+    def createExtractActionModel(self, actionsession_obj: ActionSession, action: dict):
+        """Creates a Django extract action object - an add action
+
+        Parameters
+        ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
+        action: dict
+            The analyse action that needs to be executed
+        """
+        try:
+            number = action["content"]["number"]
+            molar_eqv = action["content"]["material"]["quantity"]["value"]
+            concentration = action["content"]["material"]["concentration"]
+            if not concentration:
+                concentration = 0
+            solvent = action["content"]["material"]["solvent"]
+            smiles = self.getProductSmiles()
+            mol = Chem.MolFromSmiles(smiles)
+            molecular_weight = Descriptors.ExactMolWt(mol)
+            extract = ExtractAction()
+            extract.reaction_id = self.reaction_obj
+            extract.actionsession_id = actionsession_obj
+            extract.number = number
+            extract.smiles = smiles
+            extract.molecularweight = molecular_weight
             if not solvent:
                 reactant_density = action["content"]["material"]["density"]
-                add.volume = self.calculateVolume(
+                extract.volume = self.calculateVolume(
                     molar_eqv=molar_eqv,
                     reactant_density=reactant_density,
                     reactant_MW=molecular_weight,
                 )
             if solvent:
-                add.volume = self.calculateVolume(
+                extract.volume = self.calculateVolume(
                     molar_eqv=molar_eqv,
                     conc_reagents=concentration,
                 )
-                add.solvent = solvent
-            add.concentration = concentration
-            add.save()
+                extract.solvent = solvent
+            extract.concentration = concentration
+            extract.save()
 
         except Exception as e:
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))

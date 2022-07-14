@@ -66,16 +66,10 @@ class Target(models.Model):
     name: Charfield
         The name of the compound (Must complete how this is made)
     mass: FloatField
-        The target synthesis mass for a target compound
+        The target synthesis mass (mg) for a target compound
     mols: FloatField
         The target mols of the compound to be synthesised
     """
-
-    class Unit(models.TextChoices):
-        mmol = "mmol"
-        g = "g"
-        mg = "mg"
-
     batch_id = models.ForeignKey(
         Batch, related_name="targets", on_delete=models.CASCADE
     )
@@ -333,6 +327,9 @@ class AddAction(models.Model):
         The number of the action to be executed in a list of action numbers
     smiles: CharField
         Optional SMILES of the material being added
+    clacunit: CharField
+        The unit used for calculating the amount to add eg. molar eq. (moleq)
+        and mass eq. (masseq)
     volume: FloatField
         The volume being added
     volumeunit: CharField
@@ -344,11 +341,66 @@ class AddAction(models.Model):
     concentration: FloatField
         Optional concentration of the material solution prepared
     """
+    class CalcUnit(models.TextChoices):
+        moleq = "moleq"
+        masseq = "masseq"
+    
+    class VolumeUnit(models.TextChoices):
+        ul = "ul"
+        ml = "ml"
 
     actionsession_id = models.ForeignKey(ActionSession, on_delete=models.CASCADE)
     reaction_id = models.ForeignKey(
         Reaction, related_name="addactions", on_delete=models.CASCADE
     )
+    number = models.IntegerField()
+    smiles = models.CharField(max_length=255)
+    calcunit = models.CharField(choices=CalcUnit.choices, max_length=10)
+    volume = models.FloatField()
+    volumeunit = models.CharField(choices=VolumeUnit.choices, default="ul", max_length=2)
+    molecularweight = models.FloatField()
+    solvent = models.CharField(max_length=255, null=True)
+    concentration = models.FloatField(null=True)
+
+
+class ExtractAction(models.Model):
+    """Django model to define an extract action
+
+    Parameters
+    ----------
+    actionsession_id: ForeignKey
+        Foreign key linking an add action to an action session. An
+        action session if a group of actions that represent a unit of
+        operation executed by a robot or human eg. perfrom a reaction
+        (liquid handling robot), stir (human)
+        on a hot plate, analyse (human)
+    reaction_id: ForeignKey
+        Foreign key linking an add action to a reaction
+    number: IntegerField
+        The number of the action to be executed in a list of action numbers
+    layer: CharField
+        The layer to extract
+    volume: FloatField
+        The volume to extract
+    volumeunit: CharField
+        The unit of the volume being extracted (default=ul)
+    molecularweight: FloatField
+        The molecular weight of the compound being added
+    solvent: CharField
+        Optional solvent used to dilute the material being added
+    concentration: FloatField
+        Optional concentration of the material solution prepared
+    """
+
+    class Layer(models.TextChoices):
+        top = "top"
+        bottom = "bottom"
+
+    actionsession_id = models.ForeignKey(ActionSession, on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="extractactions", on_delete=models.CASCADE
+    )
+    layer = models.CharField(choices=Layer.choices, default="bottom", max_length=10)
     number = models.IntegerField()
     smiles = models.CharField(max_length=255)
     volume = models.FloatField()
@@ -604,6 +656,7 @@ class Plate(models.Model):
 
     class PlateType(models.TextChoices):
         reaction = "reaction"
+        workup = "workup"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -658,6 +711,7 @@ class Well(models.Model):
 
     class WellType(models.TextChoices):
         reaction = "reaction"
+        workup = "workup"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"

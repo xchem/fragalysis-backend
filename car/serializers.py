@@ -17,6 +17,7 @@ from .models import (
 from .models import (
     AnalyseAction,
     AddAction,
+    ExtractAction,
     StirAction,
 )
 
@@ -168,6 +169,12 @@ class AnalyseActionSerializer(serializers.ModelSerializer):
 class AddActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AddAction
+        fields = "__all__"
+
+
+class ExtractActionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExtractAction
         fields = "__all__"
 
 

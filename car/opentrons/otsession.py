@@ -2,7 +2,7 @@
 from __future__ import annotations
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-from django.db.models import QuerySet, Q
+from django.db.models import QuerySet, Q, Sum
 
 from statistics import median
 from graphene_django import DjangoObjectType
@@ -69,7 +69,6 @@ class CreateOTSession(object):
         self.actionsessionqueryset = actionsessionqueryset
         self.actionsession_ids = actionsessionqueryset.values_list("id", flat=True)
         self.reactiongrouplist = reactiongrouplist
-        self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
         self.otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
         self.batchobj = Batch.objects.get(id=otbatchprotocolobj.batch_id_id)
         self.actionsessiontype = self.getActionSessionType()
@@ -80,6 +79,7 @@ class CreateOTSession(object):
         """Calls the functions to create the appropriate action session"""
         actionSessionTypes = {
             "reaction": self.createReactionSession,
+            "workup": self.createWorkUpSession,
             "analyse": self.createAnalyseSession,
         }
 
@@ -88,11 +88,8 @@ class CreateOTSession(object):
 
     def createReactionSession(self):
         """Creates a reaction OT session
-
-        Parameters
-        actionsessiontype: str
-            The type of OT session session being created eg. reaction.
         """
+        self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
         self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
@@ -117,12 +114,43 @@ class CreateOTSession(object):
         )
         self.createSolventPlate(materialsdf=self.solventmaterialsdf)
         self.createReactionPlate()
-        self.startingreactionplatequeryset = self.getStartingReactionPlateQuerySet(
-            otsession_id=self.otsessionobj.id
-        )
+        # self.startingreactionplatequeryset = self.getStartingReactionPlateQuerySet(
+        #     otsession_id=self.otsessionobj.id
+        # )
 
+    def createWorkUpSession(self):
+        """Creates a workup OT session
+        """
+        self.reaction_ids = [actionsessionobj.reaction_id for actionsessionobj  in self.actionsessionqueryset]
+        self.productqueryset = self.getProductQuerySet(reaction_ids=self.reaction_ids)
+        self.wellsneeded = len(self.actionsessionqueryset)
+        self.productsmiles = self.productqueryset.values_list("smiles", flat=True)        
+        self.addactionqueryset = self.getAddActionQuerySet(
+            reaction_ids=self.reaction_ids,
+            actionsession_ids=self.actionsession_ids,
+        )
+        self.roundedvolumes = self.getRoundedAddActionVolumes(
+            addactionqueryset=self.addactionqueryset
+        )
+        self.deckobj = self.createDeckModel()
+        self.numbertips = self.getNumberTips(queryset=self.addactionqueryset)
+        self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
+        self.createTipRacks(tipracktype=self.tipracktype)
+        self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
+        self.addactionsdf = self.getAddActionsDataFrame()
+        previousreactionplates = self.getPreviousOTSessionReactionPlates(smiles=self.productsmiles)
+        if previousreactionplates:
+            self.cloneInputPlate(platesforcloning=previousreactionplates)
+        self.createPipetteModel()
+        self.solventmaterialsdf = self.getAddActionsMaterialDataFrame()
+        self.createSolventPlate(materialsdf=self.solventmaterialsdf)
+        
+        self.createWorkUpPlate()
+        
+  
     def createAnalyseSession(self):
         """Creates an analyse OT session"""
+        self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
         self.allanalyseactionqueryset = self.getAnalyseActionQuerySet()
         self.productqueryset = self.getProductQuerySet(reaction_ids=self.reaction_ids)
         self.productsmiles = self.productqueryset.values_list("smiles", flat=True)
@@ -132,9 +160,6 @@ class CreateOTSession(object):
             analyseactionqueryset=self.allanalyseactionqueryset
         )
         self.groupedanalysemethodobjs = self.getGroupedAnalyseMethods()
-        print(
-            "The grouped analyse methods are: {}".format(self.groupedanalysemethodobjs)
-        )
         self.deckobj = self.createDeckModel()
         self.numbertips = self.getNumberTips(queryset=self.allanalyseactionqueryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
@@ -142,10 +167,8 @@ class CreateOTSession(object):
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
         self.createPipetteModel()
         self.createSolventPlate(materialsdf=self.analyseactionsdf)
-        previousreactionplates = self.getPreviousOTSessionReactionPlates()
-        print(
-            "The previous reaction plates found are: {}".format(previousreactionplates)
-        )
+        previousreactionplates = self.getPreviousOTSessionReactionPlates(smiles=self.productsmiles)
+
         if previousreactionplates:
             self.cloneInputPlate(platesforcloning=previousreactionplates)
         for analysegroup in self.groupedanalysemethodobjs:
@@ -192,10 +215,16 @@ class CreateOTSession(object):
         platequeryset = Plate.objects.filter(otsession_id=otsession_id)
         return platequeryset
 
-    def getPreviousOTSessionReactionPlates(self) -> list[Plate]:
+    def getPreviousOTSessionReactionPlates(self, smiles: list) -> list[Plate]:
         """Checks if previous Reaction Plates exist and if they do
         check if the Wells match the products of the input
         reactiongrouplist for the session
+
+        Parameters
+        ----------
+        smiles: list
+            The list of SMILES that are required from previous 
+            reaction plate wells
 
         Returns
         -------
@@ -203,29 +232,31 @@ class CreateOTSession(object):
             The list of previous OT session reaction plates in
             an OT batch protocol
         """
-        previousotsessionobj = self.getPreviousObjEntry(
+        previousotsessionqueryset = self.getPreviousObjEntries(
             queryset=self.otsessionqueryset, obj=self.otsessionobj
         )
+        previousreactionotsessionqueryset = previousotsessionqueryset.filter(sessiontype="reaction")
         previousreactionplates = []
-        if previousotsessionobj.sessiontype == "reaction":
-            previousotsessionplates = self.getPlateQuerySet(
-                otsession_id=previousotsessionobj.id
-            )
-            previousotsessioreactionplates = previousotsessionplates.filter(
-                type="reaction"
-            )
-            for previousotsessionreactionplate in previousotsessioreactionplates:
-                wellmatchqueryset = (
-                    previousotsessionreactionplate.well_set.all()
-                    .filter(
-                        reaction_id__in=self.reaction_ids,
-                        smiles__in=self.productsmiles,
-                        type="reaction",
-                    )
-                    .distinct()
+
+        for previousotsessionobj in previousreactionotsessionqueryset:
+                previousotsessionplates = self.getPlateQuerySet(
+                    otsession_id=previousotsessionobj.id
                 )
-                if wellmatchqueryset:
-                    previousreactionplates.append(previousotsessionreactionplate)
+                previousotsessioreactionplates = previousotsessionplates.filter(
+                    type="reaction"
+                )
+                for previousotsessionreactionplate in previousotsessioreactionplates:
+                    wellmatchqueryset = (
+                        previousotsessionreactionplate.well_set.all()
+                        .filter(
+                            reaction_id__in=self.reaction_ids,
+                            smiles__in=smiles,
+                            type="reaction",
+                        )
+                        .distinct()
+                    )
+                    if wellmatchqueryset:
+                        previousreactionplates.append(previousotsessionreactionplate)               
 
         return previousreactionplates
 
@@ -244,7 +275,7 @@ class CreateOTSession(object):
         inputplatesneeded = []
         allinputplatequerset = self.getAllPreviousOTSessionReactionPlates()
         methodids = [reactionobj.method_id for reactionobj in self.reactiongrouplist]
-        allreactantsmiles = self.addactionqueryset.values_list("smiles", flat=True)
+        smiles = self.addactionqueryset.values_list("smiles", flat=True)
 
         if allinputplatequerset:
             for inputplateobj in allinputplatequerset:
@@ -253,7 +284,7 @@ class CreateOTSession(object):
                     .filter(
                         method_id__in=methodids,
                         reactantfornextstep=True,
-                        smiles__in=allreactantsmiles,
+                        smiles__in=smiles,
                         type="reaction",
                     )
                     .distinct()
@@ -262,23 +293,23 @@ class CreateOTSession(object):
                     inputplatesneeded.append(inputplateobj)
         return inputplatesneeded
 
-    def getStartingReactionPlateQuerySet(self, otsession_id: int) -> QuerySet[Plate]:
-        """Get all plates used in reactions for an OT session
+    # def getStartingReactionPlateQuerySet(self, otsession_id: int) -> QuerySet[Plate]:
+    #     """Get all plates used in reactions for an OT session
 
-        Parameters
-        ----------
-        otsession_id: int
-            The OT session to search for all the reaction plates
+    #     Parameters
+    #     ----------
+    #     otsession_id: int
+    #         The OT session to search for all the reaction plates
 
-        Returns
-        -------
-        reactionplatequeryset: QuerySet[Plate]
-            The plates used in reactions in an OT session
-        """
-        reactionplatequeryset = Plate.objects.filter(
-            otsession_id=otsession_id, name__contains="Reactionplate"
-        ).order_by("id")
-        return reactionplatequeryset
+    #     Returns
+    #     -------
+    #     reactionplatequeryset: QuerySet[Plate]
+    #         The plates used in reactions in an OT session
+    #     """
+    #     reactionplatequeryset = Plate.objects.filter(
+    #         otsession_id=otsession_id, name__contains="Reactionplate"
+    #     ).order_by("id")
+    #     return reactionplatequeryset
 
     def getPreviousObjEntry(
         self, queryset: QuerySet, obj: DjangoObjectType
@@ -934,6 +965,17 @@ class CreateOTSession(object):
         """Gets best suited plate
         Optimises for (in order of decreasing preference) minimum:
         number of plates, volume difference and mumber of vials
+
+        Paramters
+        ---------
+        platetype: str
+            The plateype eg. reaction, starting plate
+        volumes: list
+            The volumes that the plate and wells need to accomadate
+        temperature: int = 25
+            The temperature (degC) the plate will be used at
+        wellsneeded: int = None
+            Optional to specifiy if a speciifc number of wells are needed
         """
         platetype = platetype.lower()
         maxvolume = self.getMaxValue(values=volumes)
@@ -1522,6 +1564,43 @@ class CreateOTSession(object):
                         wellindex=indexwellavailable - 1,
                         smiles=productobj.smiles,
                     )
+    
+    def createWorkUpPlate(self):
+        """Creates workup plate/s for executing work up actions"""
+        
+        labwareplatetype = self.getPlateType(
+                platetype="workup", volumes=self.roundedvolumes, wellsneeded=self.wellsneeded
+            )
+        plateobj = self.createPlateModel(
+            platetype="workup",
+            platename="Workupplate",
+            labwaretype=labwareplatetype,
+        )
+
+        for actionsessionobj in self.actionsessionqueryset:
+            # Check volume
+            totalvolumetoadd = AddAction.objects.filter(actionsession_id=actionsessionobj.id, volume__isnull=True).aggregate(Sum('volume'))
+            
+            reactionobj = analyseactionobj.reaction_id
+            productobj = self.getProduct(reaction_id=reactionobj.id)
+            volume = analyseactionobj.samplevolume + analyseactionobj.solventvolume
+            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+            if not indexwellavailable:
+                plateobj = self.createPlateModel(
+                    platename="{}_analyse_plate".format(method),
+                    labwaretype=platetype,
+                )
+
+                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+
+            self.createWellModel(
+                plateobj=plateobj,
+                reactionobj=reactionobj,
+                welltype=method.lower(),
+                wellindex=indexwellavailable - 1,
+                volume=volume,
+                smiles=productobj.smiles,
+            )
 
     def createSolventPlate(self, materialsdf: DataFrame):
         """Creates solvent plate/s for diluting reactants for reactions or analysis."""

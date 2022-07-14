@@ -19,6 +19,7 @@ from car.tasks import (
 
 # Import standard models
 from .models import (
+    ExtractAction,
     Project,
     Batch,
     PubChemInfo,
@@ -76,6 +77,7 @@ from .serializers import (
 from .serializers import (
     AnalyseActionSerializer,
     AddActionSerializer,
+    ExtractActionSerializer,
     StirActionSerializer,
 )
 
@@ -542,6 +544,12 @@ class AnalyseActionViewSet(viewsets.ModelViewSet):
 class AddActionViewSet(viewsets.ModelViewSet):
     queryset = AddAction.objects.all()
     serializer_class = AddActionSerializer
+    filterset_fields = ["reaction_id"]
+
+
+class ExtractActionViewSet(viewsets.ModelViewSet):
+    queryset = ExtractAction.objects.all()
+    serializer_class = ExtractActionSerializer
     filterset_fields = ["reaction_id"]
 
 
