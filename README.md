@@ -103,6 +103,22 @@ Exit the container and tear-down the deployemnt: -
 
     docker-compose down
 
+## Pre-commit hooks
+The project uses [pre-commit] to enforce linting of files prior to committing
+them to the upstream repository.
+
+To get started review the pre-commit utility and then set-up your local clone
+by following the **Installation** and **Quick Start** sections of the
+pre-commit documentation.
+
+Ideally from a Python environment...
+
+    pip install --upgrade pip
+    pip install -r build-requirements.txt
+    pre-commit install -t commit-msg -t pre-commit
+
+Now the project's rules will run on every commit.
+
 ## Start
 Start `Fragalysis stack` (All infrastructure - databases + populating data)
 
@@ -201,5 +217,4 @@ The documents will be stored in the /design_docs folder in the repo. Current doc
 - [Fragalysis Job Launcher V1.0](design_docs/Fragalysis_Job_Launcher_V1.0.pdf)
 - [Fragalysis Job Launcher V2.0](design_docs/Fragalysis_Job_Launcher_Phase2_V1.0.pdf)
 
-
-
+[pre-commit]: https://pre-commit.com

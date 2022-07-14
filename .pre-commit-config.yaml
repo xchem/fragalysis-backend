@@ -1,7 +1,47 @@
+---
+minimum_pre_commit_version: 2.20.0
+exclude: ^(design_docs|doc_templates|docs|tests|)
+
 repos:
--   repo: https://github.com/ambv/black
-    rev: stable
-    hooks:
-    - id: black
-      args: [--line-length=88, --safe]
-      python_version: python3.6
+
+# pre-commit hooks
+# ----------
+
+# Standard pre-commit rules
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.3.0
+  hooks:
+  - id: check-case-conflict
+  - id: check-docstring-first
+  - id: check-executables-have-shebangs
+  - id: check-shebang-scripts-are-executable
+  - id: detect-private-key
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+    args:
+    - --markdown-linebreak-ext=md
+# MyPy
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v0.961
+  hooks:
+  - id: mypy
+    files: ^app
+    additional_dependencies:
+    - types-PyYAML
+    - types-python-dateutil
+    - types-pytz
+    - types-requests
+# Pylint
+# To check import errors we need to install every package
+# used by the DM. This is often impractical on the client,
+# and so we disable import errors on pre-commit and rely
+# on this category of test in the CI stage. Consequently,
+# pylint may pass on pre-commit but fail in CI - but at least
+# the user has done 90% of the lint checks before the code
+# hits the server.
+- repo: https://github.com/pycqa/pylint
+  rev: v2.14.4
+  hooks:
+  - id: pylint
+    args:
+    - --disable=import-error
