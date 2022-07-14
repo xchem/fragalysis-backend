@@ -68,9 +68,58 @@ zip_template = {'proteins': {'pdb_info': {},
                 'metadata_info': None, }
 
 
-# A file prefix for missing (SD) file references.
-# Added to support FE issue 907
-_MISSING_SD_FILE_PREFIX = 'MISSING/'
+# A directory, relative to the media directory,
+# where missing SD files are written.
+# The SD files are constructed from the molecule 'sdf_info' field
+# (essentially MOL-file text) when the 'sdf_file' field is blank.
+_MISSING_SDF_DIRECTORY = 'missing-sdfs'
+_MISSING_SDF_PATH = os.path.join(settings.MEDIA_ROOT, _MISSING_SDF_DIRECTORY)
+
+
+def _replace_missing_sdf(molecule, code):
+    """Creates a file in the 'missing SDFs' directory, using the protein code
+    provided. The file is constructed using the molecule's sdf_info field, skipping the
+    action if the file exists. The media-relative path of the written file is returned
+    (if it was written).
+
+    Files, once written, are left and are not removed (or replaced).
+    The directory serves an archive of missing SD files.
+
+    This was added for FE/915 to generate SD files for those that are missing
+    from the upload directory.
+    """
+    if not os.path.isdir(_MISSING_SDF_PATH):
+        os.mkdir(_MISSING_SDF_PATH)
+
+    # We shouldn't be called if molecule['sdf_info'] is blank.
+    # but check anyway.
+    sdf_info = molecule['sdf_info']
+    if not sdf_info:
+        return None
+    sdf_lines = sdf_info.splitlines(True)[1:]
+    if not sdf_lines:
+        return None
+    # Make sure last line ends with a new-line
+    if not sdf_lines[-1].endswith('\n'):
+        sdf_lines[-1] += '\n'
+
+    # media-relative path to missing file...
+    missing_file = os.path.join(_MISSING_SDF_DIRECTORY, f'{code}.sdf')
+    # absolute path to missing file...
+    missing_path = os.path.join(settings.MEDIA_ROOT, missing_file)
+    # create the file if it doesn't exist...
+    if not os.path.isfile(missing_path):
+        # No file - create one.
+        with open(missing_path, 'w') as sd_file:
+            # First line is the protein code, i.e. "PGN_RS02895PGA-x0346_0B"
+            sd_file.write(f'{code}\n')
+            # Now write the lines from the molecule sdf_info record
+            sd_file.writelines(sdf_lines)
+            # And append file terminator...
+            sd_file.write('$$$$\n')
+
+    # Returns the media-relative path to the file in the missing file directory
+    return missing_file
 
 
 def _add_file_to_zip(ziparchive, param, filepath):
@@ -245,15 +294,12 @@ def _molecule_files_zip(zip_contents, ziparchive, combined_sdf_file, error_file)
     for file, prot in zip_contents['molecules']['sdf_files'].items():
 
         # Do not try and process any missing SD files.
-        # They're missing if they have a path that begins 'MISSING/'
-        # so add an error and add the expected filename
-        if file.startswith(_MISSING_SD_FILE_PREFIX):
+        if not file:
             error_file.write(
-                '{},{},{}\n'.format('sdf_files', prot, file))
+                '{},{},{}\n'.format('sdf_files', prot, 'missing'))
             mol_errors += 1
             continue
 
-        logger.info('file=%s prot=% sdf_info=%s', file, prot, zip_contents['molecules']['sdf_info'])
         if zip_contents['molecules']['sdf_info'] is True:
             # Add sdf file on the Molecule record to the archive folder.
             if _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], file):
@@ -501,37 +547,32 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
         zip_contents['molecules']['sdf_info'] = True
 
     # sdf information is held as a file on the Molecule record.
-    target_directory = os.path.join(settings.MEDIA_ROOT, 'targets')
     if other_params['sdf_info'] or other_params['single_sdf_file']:
         num_missing_sd_files = 0
         for molecule in molecules:
             protein = Protein.objects.get(id=molecule['prot_id_id'])
-            # Issue 907. If there is no corresponding `sdf-file` then...
-            # look for the first one we can find (in `[media-root]/targets`)
-            # or create an error.
+            # Issue 915. If there is no corresponding 'sdf-file' then
+            # try and create one from the molecule's 'sdf_info' field...
             rel_sd_file = None
             if molecule['sdf_file']:
+                # There is an SD file (normal)
                 rel_sd_file = molecule['sdf_file']
             else:
-                logger.warning("Molecule record's 'sdf_file' isn't set (protein.code=%s)."
-                               " Searching 'targets' for a file...", protein.code)
-                expected_filename = f'{protein.code}.sdf'
-                sd_files = list(Path(target_directory).rglob(expected_filename))
-                if sd_files:
-                    # Found at least one matching file - use the first.
-                    # The path to any SD file we find
-                    # should be stored with a path relative to the media root
-                    # i.e. strip every thing in front of 'targets'
-                    fq_sdf_file = str(sd_files[0])
-                    rel_sd_file = fq_sdf_file[fq_sdf_file.find('targets'):]
-                    logger.info("Success - found '%s' (protein.code=%s)", rel_sd_file, protein.code)
+                # No file value (odd).
+                logger.warning("Molecule record's 'sdf_file' isn't set (protein.code=%s).",
+                               protein.code)
+                # Try and recreate the missing SD file
+                if molecule['sdf_info']:
+                    rel_sd_file = _replace_missing_sdf(molecule, protein.code)
                 else:
-                    # No file found.
-                    # Insert a clear marker for the user of the zip_contents object
-                    logger.error("Couldn't find '%s' (protein.code=%s)",
-                                 expected_filename, protein.code)
-                    rel_sd_file = f'{_MISSING_SD_FILE_PREFIX}{expected_filename}'
+                    # No file and no sdf_info field - not much more we can do
+                    # except count it and report. Failures will be translated to a line
+                    # in the 'errors.csv' by _create_structures_zip()
+                    logger.error(
+                        "Molecule record's 'sdf_info' isn't set (protein.code=%s).",
+                        protein.code)
                     num_missing_sd_files += 1
+
             logger.debug('sdf_file=%s protein.code=%s', rel_sd_file, protein.code)
             zip_contents['molecules']['sdf_files'].update({rel_sd_file: protein.code})
 
