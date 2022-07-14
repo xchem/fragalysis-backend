@@ -17,6 +17,7 @@ from car.models import (
     ActionSession,
     AnalyseAction,
     Batch,
+    ExtractAction,
     OTBatchProtocol,
     Reaction,
     Product,
@@ -87,8 +88,7 @@ class CreateOTSession(object):
             actionSessionTypes[self.actionsessiontype]()
 
     def createReactionSession(self):
-        """Creates a reaction OT session
-        """
+        """Creates a reaction OT session"""
         self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
         self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
         self.addactionqueryset = self.getAddActionQuerySet(
@@ -119,35 +119,45 @@ class CreateOTSession(object):
         # )
 
     def createWorkUpSession(self):
-        """Creates a workup OT session
-        """
-        self.reaction_ids = [actionsessionobj.reaction_id for actionsessionobj  in self.actionsessionqueryset]
+        """Creates a workup OT session"""
+        self.reaction_ids = [
+            actionsessionobj.reaction_id
+            for actionsessionobj in self.actionsessionqueryset
+        ]
         self.productqueryset = self.getProductQuerySet(reaction_ids=self.reaction_ids)
         self.wellsneeded = len(self.actionsessionqueryset)
-        self.productsmiles = self.productqueryset.values_list("smiles", flat=True)        
+        self.productsmiles = self.productqueryset.values_list("smiles", flat=True)
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
         )
-        self.roundedvolumes = self.getRoundedAddActionVolumes(
+        self.roundedaddvolumes = self.getRoundedAddActionVolumes(
             addactionqueryset=self.addactionqueryset
         )
+        self.extractactionqueryset = self.getExtractActionQuerySet(
+            reaction_ids=self.reaction_ids,
+            actionsession_ids=self.actionsession_ids,
+        )
+        self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
+            extractactionqueryset=self.extractactionqueryset
+        )
+        self.roundedvolumes = self.roundedaddvolumes + self.roundedextractvolumes
         self.deckobj = self.createDeckModel()
         self.numbertips = self.getNumberTips(queryset=self.addactionqueryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
         self.addactionsdf = self.getAddActionsDataFrame()
-        previousreactionplates = self.getPreviousOTSessionReactionPlates(smiles=self.productsmiles)
+        previousreactionplates = self.getPreviousOTSessionReactionPlates(
+            smiles=self.productsmiles
+        )
         if previousreactionplates:
             self.cloneInputPlate(platesforcloning=previousreactionplates)
         self.createPipetteModel()
         self.solventmaterialsdf = self.getAddActionsMaterialDataFrame()
         self.createSolventPlate(materialsdf=self.solventmaterialsdf)
-        
         self.createWorkUpPlate()
-        
-  
+
     def createAnalyseSession(self):
         """Creates an analyse OT session"""
         self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
@@ -167,8 +177,9 @@ class CreateOTSession(object):
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
         self.createPipetteModel()
         self.createSolventPlate(materialsdf=self.analyseactionsdf)
-        previousreactionplates = self.getPreviousOTSessionReactionPlates(smiles=self.productsmiles)
-
+        previousreactionplates = self.getPreviousOTSessionReactionPlates(
+            smiles=self.productsmiles
+        )
         if previousreactionplates:
             self.cloneInputPlate(platesforcloning=previousreactionplates)
         for analysegroup in self.groupedanalysemethodobjs:
@@ -223,7 +234,7 @@ class CreateOTSession(object):
         Parameters
         ----------
         smiles: list
-            The list of SMILES that are required from previous 
+            The list of SMILES that are required from previous
             reaction plate wells
 
         Returns
@@ -235,28 +246,30 @@ class CreateOTSession(object):
         previousotsessionqueryset = self.getPreviousObjEntries(
             queryset=self.otsessionqueryset, obj=self.otsessionobj
         )
-        previousreactionotsessionqueryset = previousotsessionqueryset.filter(sessiontype="reaction")
+        previousreactionotsessionqueryset = previousotsessionqueryset.filter(
+            sessiontype="reaction"
+        )
         previousreactionplates = []
 
         for previousotsessionobj in previousreactionotsessionqueryset:
-                previousotsessionplates = self.getPlateQuerySet(
-                    otsession_id=previousotsessionobj.id
-                )
-                previousotsessioreactionplates = previousotsessionplates.filter(
-                    type="reaction"
-                )
-                for previousotsessionreactionplate in previousotsessioreactionplates:
-                    wellmatchqueryset = (
-                        previousotsessionreactionplate.well_set.all()
-                        .filter(
-                            reaction_id__in=self.reaction_ids,
-                            smiles__in=smiles,
-                            type="reaction",
-                        )
-                        .distinct()
+            previousotsessionplates = self.getPlateQuerySet(
+                otsession_id=previousotsessionobj.id
+            )
+            previousotsessioreactionplates = previousotsessionplates.filter(
+                type="reaction"
+            )
+            for previousotsessionreactionplate in previousotsessioreactionplates:
+                wellmatchqueryset = (
+                    previousotsessionreactionplate.well_set.all()
+                    .filter(
+                        reaction_id__in=self.reaction_ids,
+                        smiles__in=smiles,
+                        type="reaction",
                     )
-                    if wellmatchqueryset:
-                        previousreactionplates.append(previousotsessionreactionplate)               
+                    .distinct()
+                )
+                if wellmatchqueryset:
+                    previousreactionplates.append(previousotsessionreactionplate)
 
         return previousreactionplates
 
@@ -567,6 +580,43 @@ class CreateOTSession(object):
             ).order_by("id")
             return addactionqueryset
 
+    def getExtractActionQuerySet(
+        self,
+        reaction_ids: list,
+        actionsession_ids: list = None,
+        actionsessiontype: str = None,
+    ) -> QuerySet[ExtractAction]:
+        """Get extract actions queryset for reaction_id
+
+        Parameters
+        ----------
+        reaction_ids: list
+            The reactions to search for related add actions
+        actionsession_ids: list
+            Optional action session ids to match add actions with
+        actionsessiontype: str
+            The optional action session type to look for add actions for
+
+        Returns
+        -------
+        extractactionqueryset: QuerySet[ExtractAction]
+            The extract actions related to the reaction
+        """
+
+        if actionsession_ids:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__in=actionsession_ids)
+            extractactionqueryset = ExtractAction.objects.filter(
+                criterion1 & criterion2
+            ).order_by("id")
+            return extractactionqueryset
+        if actionsessiontype:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            extractactionqueryset = ExtractAction.objects.filter(
+                criterion1, actionsession_id__type=actionsessiontype
+            ).order_by("id")
+            return extractactionqueryset
+
     def getRoundedAnalyseActionVolumes(
         self, analyseactionqueryset: QuerySet[AnalyseAction]
     ) -> list:
@@ -606,6 +656,26 @@ class CreateOTSession(object):
         """
         roundedvolumes = [
             round(addactionobj.volume) for addactionobj in addactionqueryset
+        ]
+        return roundedvolumes
+
+    def getRoundedExtractActionVolumes(
+        self, extractactionqueryset: QuerySet[ExtractAction]
+    ) -> list:
+        """Gets the total rounded volume (ul) for all the extract actions
+
+        Parameters
+        ----------
+        extractactionqueryset: QuerySet[ExtractAction]
+            The extract actions to calculate the rounded volumes (ul)
+
+        Returns
+        -------
+        roundedvolumes: list
+            The list of rounded volumes for the extract actions
+        """
+        roundedvolumes = [
+            round(extractactionobj.volume) for extractactionobj in extractactionqueryset
         ]
         return roundedvolumes
 
@@ -1459,7 +1529,9 @@ class CreateOTSession(object):
                             "well": wellobj.index,
                             "concentration": startingmaterialsdf.at[i, "concentration"],
                             "solvent": startingmaterialsdf.at[i, "solvent"],
-                            "molecularweight": startingmaterialsdf.at[i, "molecularweight"],
+                            "molecularweight": startingmaterialsdf.at[
+                                i, "molecularweight"
+                            ],
                             "amount-ul": round(volumetoadd, 2),
                         }
                     )
@@ -1565,13 +1637,15 @@ class CreateOTSession(object):
                         wellindex=indexwellavailable - 1,
                         smiles=productobj.smiles,
                     )
-    
+
     def createWorkUpPlate(self):
         """Creates workup plate/s for executing work up actions"""
-        
+
         labwareplatetype = self.getPlateType(
-                platetype="workup", volumes=self.roundedvolumes, wellsneeded=self.wellsneeded
-            )
+            platetype="workup",
+            volumes=self.roundedextractvolumes,
+            wellsneeded=self.wellsneeded,
+        )
         plateobj = self.createPlateModel(
             platetype="workup",
             platename="Workupplate",
@@ -1579,17 +1653,18 @@ class CreateOTSession(object):
         )
 
         for actionsessionobj in self.actionsessionqueryset:
-            # Check volume
-            totalvolumetoadd = AddAction.objects.filter(actionsession_id=actionsessionobj.id, volume__isnull=True).aggregate(Sum('volume'))
-            
-            reactionobj = analyseactionobj.reaction_id
+            reactionobj = actionsessionobj.reaction_id
             productobj = self.getProduct(reaction_id=reactionobj.id)
-            volume = analyseactionobj.samplevolume + analyseactionobj.solventvolume
+            totalvolumeextracted = ExtractAction.objects.filter(
+                actionsession_id=actionsessionobj.id,
+                platetype="workup",
+                volume__isnull=True,
+            ).aggregate(Sum("volume"))
             indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
             if not indexwellavailable:
                 plateobj = self.createPlateModel(
-                    platename="{}_analyse_plate".format(method),
-                    labwaretype=platetype,
+                    platename="Workupplate",
+                    labwaretype=labwareplatetype,
                 )
 
                 indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
@@ -1597,9 +1672,9 @@ class CreateOTSession(object):
             self.createWellModel(
                 plateobj=plateobj,
                 reactionobj=reactionobj,
-                welltype=method.lower(),
+                welltype="workup",
                 wellindex=indexwellavailable - 1,
-                volume=volume,
+                volume=totalvolumeextracted,
                 smiles=productobj.smiles,
             )
 

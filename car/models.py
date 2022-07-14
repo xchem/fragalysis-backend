@@ -70,6 +70,7 @@ class Target(models.Model):
     mols: FloatField
         The target mols of the compound to be synthesised
     """
+
     batch_id = models.ForeignKey(
         Batch, related_name="targets", on_delete=models.CASCADE
     )
@@ -245,6 +246,7 @@ class ActionSession(models.Model):
     class Type(models.TextChoices):
         reaction = "reaction"
         stir = "stir"
+        workup = "workup"
         analyse = "analyse"
 
     class Driver(models.TextChoices):
@@ -340,14 +342,26 @@ class AddAction(models.Model):
         Optional solvent used to dilute the material being added
     concentration: FloatField
         Optional concentration of the material solution prepared
+    platetype: CharField
+        Optional platype where the add action is destimed for
     """
+
     class CalcUnit(models.TextChoices):
         moleq = "moleq"
         masseq = "masseq"
-    
+
     class VolumeUnit(models.TextChoices):
         ul = "ul"
         ml = "ml"
+
+    class PlateType(models.TextChoices):
+        reaction = "reaction"
+        workup = "workup"
+        lcms = "lcms"
+        xchem = "xchem"
+        nmr = "nmr"
+        startingmaterial = "startingmaterial"
+        solvent = "solvent"
 
     actionsession_id = models.ForeignKey(ActionSession, on_delete=models.CASCADE)
     reaction_id = models.ForeignKey(
@@ -357,10 +371,13 @@ class AddAction(models.Model):
     smiles = models.CharField(max_length=255)
     calcunit = models.CharField(choices=CalcUnit.choices, max_length=10)
     volume = models.FloatField()
-    volumeunit = models.CharField(choices=VolumeUnit.choices, default="ul", max_length=2)
+    volumeunit = models.CharField(
+        choices=VolumeUnit.choices, default="ul", max_length=2
+    )
     molecularweight = models.FloatField()
     solvent = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)
+    platetype = models.CharField(choices=PlateType.choices, null=True, max_length=15)
 
 
 class ExtractAction(models.Model):
@@ -390,11 +407,22 @@ class ExtractAction(models.Model):
         Optional solvent used to dilute the material being added
     concentration: FloatField
         Optional concentration of the material solution prepared
+    platetype: CharField
+        Optional platype where the add action is destimed for
     """
 
     class Layer(models.TextChoices):
         top = "top"
         bottom = "bottom"
+
+    class PlateType(models.TextChoices):
+        reaction = "reaction"
+        workup = "workup"
+        lcms = "lcms"
+        xchem = "xchem"
+        nmr = "nmr"
+        startingmaterial = "startingmaterial"
+        solvent = "solvent"
 
     actionsession_id = models.ForeignKey(ActionSession, on_delete=models.CASCADE)
     reaction_id = models.ForeignKey(
@@ -408,6 +436,7 @@ class ExtractAction(models.Model):
     molecularweight = models.FloatField()
     solvent = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)
+    platetype = models.CharField(choices=PlateType.choices, null=True, max_length=15)
 
 
 class StirAction(models.Model):

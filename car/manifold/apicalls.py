@@ -28,7 +28,7 @@ def getManifoldRetrosynthesis(smiles: str):
         "maxNumRoutesToReturn": 10,
         "catalogs": [
             "enamine_bb",
-            "enamine_bb_EU-US", 
+            "enamine_bb_EU-US",
             "molport",
             "mcule",
             "mcule_ultimate",

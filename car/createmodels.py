@@ -518,8 +518,7 @@ class CreateEncodedActionModels(object):
             logger.info(action_type)
 
     def getProductSmiles(self):
-        """Gets the product SMILES for the reaction
-        """
+        """Gets the product SMILES for the reaction"""
         product = Product.objects.get(reaction_id=self.reaction_id)
         return product.smiles
 
@@ -635,7 +634,7 @@ class CreateEncodedActionModels(object):
             if action["content"]["material"]["SMILES"]:
                 smiles = action["content"]["material"]["SMILES"]
             molar_eqv = action["content"]["material"]["quantity"]["value"]
-            calcunit = action["content"]["material"]["quantity"]["unit"] 
+            calcunit = action["content"]["material"]["quantity"]["unit"]
             concentration = action["content"]["material"]["concentration"]
             if not concentration:
                 concentration = 0
@@ -650,7 +649,7 @@ class CreateEncodedActionModels(object):
             add.molecularweight = molecular_weight
             if calcunit == "masseq":
                 add.volume = self.calculateVolume(mass_eqv=calcunit)
-            if calcunit == "moleq":    
+            if calcunit == "moleq":
                 if not solvent:
                     reactant_density = action["content"]["material"]["density"]
                     add.volume = self.calculateVolume(
@@ -665,6 +664,9 @@ class CreateEncodedActionModels(object):
                     )
                     add.solvent = solvent
             add.concentration = concentration
+            if action["content"]["platetype"]:
+                platetype = action["content"]["platetype"]
+                add.platetype = platetype
             add.save()
 
         except Exception as e:
@@ -710,6 +712,9 @@ class CreateEncodedActionModels(object):
                 )
                 extract.solvent = solvent
             extract.concentration = concentration
+            if action["content"]["platetype"]:
+                platetype = action["content"]["platetype"]
+                extract.platetype = platetype
             extract.save()
 
         except Exception as e:
