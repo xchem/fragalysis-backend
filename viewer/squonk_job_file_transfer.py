@@ -186,7 +186,7 @@ def process_file_transfer(auth_token,
     # e.g. "/fragalysis-files/Mpro"
     target = job_transfer.target
     squonk_directory = settings.SQUONK_MEDIA_DIRECTORY + '/' + target.title
-    logger.info('+ Destination squonk_directory=%s', job_transfer.squonk_directory)
+    logger.info('+ Destination squonk_directory=%s', squonk_directory)
 
     # This to pick up NULL values from the changeover to using compounds.
     if not job_transfer.compounds:

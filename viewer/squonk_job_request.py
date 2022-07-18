@@ -114,9 +114,7 @@ def create_squonk_job(request):
     if job_transfer.transfer_status != 'SUCCESS':
         logger.warning('JobFileTransfer status is not SUCCESS (is %s)',
                        job_transfer.transfer_status)
-        raise ValueError('Job Transfer not complete (snapshot_id=%s transfer_status=%s)',
-                         snapshot_id,
-                         job_transfer.transfer_status)
+        raise ValueError('Job Transfer not complete')
 
     job_request = JobRequest()
     job_request.squonk_job_name = squonk_job_name
