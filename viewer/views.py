@@ -8,6 +8,7 @@ import shutil
 from datetime import datetime
 from wsgiref.util import FileWrapper
 from dateutil.parser import parse
+import pytz
 
 # import the logging library
 import logging
@@ -3325,7 +3326,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         """
 
         jr = JobRequest.objects.get(code=code)
-        logger.info('jr=%s', jr)
+        logger.info('+ JobCallBackView.update(code=%s) jr=%s', code, jr)
 
         # request.data is rendered as a dictionary
         if not request.data:
@@ -3345,24 +3346,28 @@ class JobCallBackView(viewsets.ModelViewSet):
                         code, status)
             return HttpResponse(status=204)
 
-        logger.info('code=%s status=%s (new status)', code, status)
-
-        # Update the state transition time
+        # Update the state transition time,
+        # assuming UTC.
         transition_time = request.data.get('state_transition_time')
         if not transition_time:
             transition_time = str(datetime.utcnow())
             logger.warning("Callback is missing state_transition_time"
                            " (using '%s')", transition_time)
-        jr.job_status_datetime = parse(transition_time)
+        jr.job_status_datetime = parse(transition_time).replace(tzinfo=pytz.UTC)
+
+        logger.info('code=%s status=%s transition_time=%s (new status)',
+                    code, status, transition_time)
 
         # If the Job's start-time is not set, set it.
         if not jr.job_start_datetime:
+            logger.info('Setting job START datetime (%s)', transition_time)
             jr.job_start_datetime = jr.job_status_datetime
 
         # Set the Job's finish time (once) if it looks lie the Job's finished.
         # We can assume the Job's finished if the status is one of a number
         # of values...
         if not jr.job_finish_datetime and status in ('SUCCESS', 'FAILURE', 'REVOKED'):
+            logger.info('Setting job FINISH datetime (%s)', transition_time)
             jr.job_finish_datetime = jr.job_status_datetime
 
         # Save - before going further.
@@ -3371,6 +3376,8 @@ class JobCallBackView(viewsets.ModelViewSet):
         if status != 'SUCCESS':
             # Go no further unless SUCCESS
             return HttpResponse(status=204)
+
+        logger.info('Job finished (SUCCESS). Can we upload the results..?')
 
         # SUCCESS ... automatic upload?
         #
