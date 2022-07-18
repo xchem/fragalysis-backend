@@ -540,7 +540,7 @@ def process_job_file_transfer(auth_token, id):
 
     """
 
-    logger.info('+ Starting File Transfer (%s)', id)
+    logger.info('+ Starting File Transfer (%s) [STARTED]', id)
     job_transfer = JobFileTransfer.objects.get(id=id)
     job_transfer.transfer_status = "STARTED"
     job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
@@ -552,6 +552,7 @@ def process_job_file_transfer(auth_token, id):
         logger.error(error)
         job_transfer.transfer_status = "FAILURE"
         job_transfer.save()
+        logger.info('+ Failed File Transfer (%s) [FAILURE]', id)
     else:
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
@@ -562,7 +563,7 @@ def process_job_file_transfer(auth_token, id):
                       "compounds": list(SQUONK_COMP_MAPPING.keys())}
         job_transfer.transfer_spec = files_spec
         job_transfer.save()
-        logger.info('- File Transfer Ended Successfully (%s)', id)
+        logger.info('+ Successful File Transfer (%s) [SUCCESS]', id)
 
     return job_transfer.transfer_status
 

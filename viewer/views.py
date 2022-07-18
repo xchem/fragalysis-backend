@@ -3084,9 +3084,14 @@ class JobFileTransferView(viewsets.ModelViewSet):
         else:
             job_transfer = None
 
+        logger.info('+ target_id=%s', target_id)
+        logger.info('+ snapshot_id=%s', snapshot_id)
+        logger.info('+ squonk_project=%s', squonk_project)
+
         if job_transfer:
             if (job_transfer.transfer_status == 'PENDING' or
                 job_transfer.transfer_status == 'STARTED'):
+                logger.info('+ Existing transfer_status=%s', job_transfer.transfer_status)
                 content = {'message': 'Files currently being transferred'}
                 return Response(content,
                                 status=status.HTTP_208_ALREADY_REPORTED)
@@ -3094,6 +3099,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
             if (target.upload_datetime and job_transfer.transfer_datetime) \
                     and target.upload_datetime < job_transfer.transfer_datetime:
                 # The target data has already been transferred for the snapshot.
+                logger.info('+ Existing transfer finished (transfer_status=%s)',
+                            job_transfer.transfer_status)
                 content = {'message': 'Files already transferred for this job'}
                 return Response(content,
                                 status=status.HTTP_200_OK)
@@ -3119,6 +3126,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
         logger.info('oidc_access_token')
         logger.info(request.session['oidc_access_token'])
 
+        logger.info('+ Starting transfer (celery) (job_transfer.id=%s)...',
+                    job_transfer.id)
         job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
                                                             job_transfer.id)
 
@@ -3154,7 +3163,7 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
         """Method to handle GET request
         """
         query_params = request.query_params
-        logger.info('+ JobConfigView.get: '+json.dumps(query_params))
+        logger.info('+ JobConfigView.get: %s', json.dumps(query_params))
 
         # Only authenticated users can have squonk jobs
         user = self.request.user
@@ -3250,11 +3259,12 @@ class JobRequestView(viewsets.ModelViewSet):
         try:
             job_id, squonk_url_ext = create_squonk_job(request)
         except ValueError as error:
-            logger.info('Job Request failed: ')
-            logger.info(error)
+            logger.info('Job Request failed: %s', error)
             content = {'error': str(error)}
             return Response(content,
                             status=status.HTTP_400_BAD_REQUEST)
+
+        logger.info('SUCCESS (job_id=%s squonk_url_ext=%s)', job_id, squonk_url_ext)
 
         content = {'id': job_id, 'squonk_url_ext': squonk_url_ext}
         return Response(content,

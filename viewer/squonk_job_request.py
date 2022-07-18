@@ -97,13 +97,26 @@ def create_squonk_job(request):
     squonk_project = request.data['squonk_project']
     squonk_job_spec = request.data['squonk_job_spec']
 
+    logger.info('+ squonk_job_name=%s', squonk_job_name)
+    logger.info('+ target_id=%s', target_id)
+    logger.info('+ snapshot_id=%s', snapshot_id)
+    logger.info('+ squonk_project=%s', squonk_project)
+    logger.info('+ squonk_job_spec=%s', squonk_job_spec)
+
     job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
     if not job_transfers:
-        raise ValueError('Files must be transferred before a job can be queued')
+        logger.warning('No JobFileTransfer object for snapshot %s', snapshot_id)
+        raise ValueError('No JobFileTransfer object for snapshot %s.'
+                         ' Files must be transferred before a job can be requested.',
+                         snapshot_id)
 
     job_transfer = JobFileTransfer.objects.filter(snapshot=snapshot_id).latest('id')
     if job_transfer.transfer_status != 'SUCCESS':
-        raise ValueError('Job Transfer not complete')
+        logger.warning('JobFileTransfer status is not SUCCESS (is %s)',
+                       job_transfer.transfer_status)
+        raise ValueError('Job Transfer not complete (snapshot_id=%s transfer_status=%s)',
+                         snapshot_id,
+                         job_transfer.transfer_status)
 
     job_request = JobRequest()
     job_request.squonk_job_name = squonk_job_name
@@ -123,13 +136,9 @@ def create_squonk_job(request):
     # Used for identifying the run, set to the username + date.
     job_name = job_request.user.username + '-' + datetime.date.today().strftime('%Y-%m-%d')
 
-    logger.info('squonk_job_spec')
-    logger.info(json.loads(squonk_job_spec))
-    logger.info('callback url')
-    logger.info(callback_url)
-    logger.info('job_name')
-    logger.info(job_name)
-
+    logger.info('+ job_name=%s', job_name)
+    logger.info('+ callback_url=%s', callback_url)
+    logger.info('+ Calling DmApi.start_job_instance(%s)', job_name)
     result = DmApi.start_job_instance(auth_token,
                                       job_request.squonk_project,
                                       job_name,
@@ -144,7 +153,10 @@ def create_squonk_job(request):
         job_request.squonk_url_ext = settings.SQUONK_INSTANCE_API + str(result.msg['instance_id'])
         job_request.job_start_datetime = datetime.datetime.utcnow()
         job_request.save()
+        logger.info('+ SUCCESS (job started) (%s)', job_name)
         return job_request.id, job_request.squonk_url_ext
 
+    logger.warning('+ start_job_instance(%s) result=%s', job_name, result)
+    logger.error('+ FAILED (job probably did not start) (%s)', job_name)
     job_request.delete()
     raise ValueError(result.msg)

@@ -173,29 +173,37 @@ def process_file_transfer(auth_token,
 
     """
 
-    logger.info('+ process_file_transfer')
+    logger.info('+ process_file_transfer(job_transfer_id=%s)', job_transfer_id)
     logger.debug(auth_token)
+
     job_transfer = JobFileTransfer.objects.get(id=job_transfer_id)
+    logger.info('+ job_transfer.squonk_project=%s', job_transfer.squonk_project)
 
     trans_sub_dir = os.path.join('squonk_transfer', str(job_transfer.id))
     trans_dir = create_media_sub_directory(trans_sub_dir)
 
-    # location in squonk project where files will reside e.g. "fragalysis-files"
+    # location in squonk project where files will reside
+    # e.g. "/fragalysis-files/Mpro"
     target = job_transfer.target
     squonk_directory = settings.SQUONK_MEDIA_DIRECTORY + '/' + target.title
+    logger.info('+ Destination squonk_directory=%s', job_transfer.squonk_directory)
 
     # This to pick up NULL values from the changeover to using compounds.
     if not job_transfer.compounds:
         job_transfer.compounds = []
 
-    num_to_transfer = len(job_transfer.proteins) + len(job_transfer.compounds)
+    num_proteins_to_transfer = len(job_transfer.proteins)
+    num_compounds_to_transfer = len(job_transfer.compounds)
+    num_to_transfer = num_proteins_to_transfer + num_compounds_to_transfer
     idx = 0
+    logger.info('+ num_to_transfer=%s (%s + %s)',
+                num_to_transfer, num_proteins_to_transfer, num_compounds_to_transfer)
 
     # Proteins
     for protein_code in job_transfer.proteins:
         # For each protein transfer the list of files to squonk
         # Then update the progress in the job_transfer record
-        logger.info('+ Processing files for: ' + protein_code)
+        logger.info('+ Processing files for protein_code=%s', protein_code)
         file_list = []
         for file_type in SQUONK_PROT_MAPPING.values():
             filepath = globals()[file_type['func']](file_type['field'], trans_dir,
@@ -203,9 +211,8 @@ def process_file_transfer(auth_token,
             if filepath:
                 file_list.append(filepath)
 
-        logger.info(squonk_directory)
-        logger.info(file_list)
-
+        logger.info('+ Protein file_list=%s', file_list)
+        logger.info('+ Calling DmApi.put_unmanaged_project_files() [proteins]...')
         result = DmApi.put_unmanaged_project_files(access_token=auth_token,
                                                    project_id=job_transfer.squonk_project,
                                                    project_files=file_list,
@@ -217,16 +224,16 @@ def process_file_transfer(auth_token,
             idx += 1
             job_transfer.transfer_progress = (idx*100/num_to_transfer)
             job_transfer.save()
+            logger.info('+ SUCCESS [proteins]')
         else:
-            logger.info('File Transfer Failed')
+            logger.error('File Transfer Failed')
             raise RuntimeError('File Transfer Failed')
-
 
     # Computed Molecules
     for name in job_transfer.compounds:
         # For each protein transfer the list of files to squonk
         # Then update the progress in the job_transfer record
-        logger.info('+ Processing files for: ' + name)
+        logger.info('+ Processing files for compound=%s', name)
         file_list = []
         for file_type in SQUONK_COMP_MAPPING.values():
             filepath = globals()[file_type['func']](file_type['field'], trans_dir,
@@ -234,9 +241,8 @@ def process_file_transfer(auth_token,
             if filepath:
                 file_list.append(filepath)
 
-        logger.info(squonk_directory)
-        logger.info(file_list)
-
+        logger.info('+ Compound file_list=%s', file_list)
+        logger.info('+ Calling DmApi.put_unmanaged_project_files() [compounds]...')
         result = DmApi.put_unmanaged_project_files(access_token=auth_token,
                                                    project_id=job_transfer.squonk_project,
                                                    project_files=file_list,
@@ -248,6 +254,7 @@ def process_file_transfer(auth_token,
             idx += 1
             job_transfer.transfer_progress = (idx*100/num_to_transfer)
             job_transfer.save()
+            logger.info('+ SUCCESS [compounds]')
         else:
             logger.error('File Transfer Failed')
             raise RuntimeError('File Transfer Failed')
