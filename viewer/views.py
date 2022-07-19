@@ -3085,34 +3085,49 @@ class JobFileTransferView(viewsets.ModelViewSet):
         else:
             job_transfer = None
 
+        # The root (in the Squonk project) where files will be written.
+        # This is "understood" by the celery task (which uses this constant).
+        transfer_root = settings.SQUONK_MEDIA_DIRECTORY
+        # The 'transfer target' (a sub-directory of the transfer root)
+        # For example the root might be '/transfer-files'
+        # and the target may be `CD44MMA` so the targets will be written to the
+        # Squonk project at /transfer-files/CD44MMA
+        transfer_target = job_transfer.target.title
+
         logger.info('+ target_id=%s', target_id)
         logger.info('+ snapshot_id=%s', snapshot_id)
         logger.info('+ squonk_project=%s', squonk_project)
-        logger.info('+ squonk_media_directory=%s', settings.SQUONK_MEDIA_DIRECTORY)
+        logger.info('+ transfer_root=%s', transfer_root)
+        logger.info('+ transfer_target=%s', transfer_target)
 
         if job_transfer:
             if (job_transfer.transfer_status == 'PENDING' or
-                job_transfer.transfer_status == 'STARTED'):
+                    job_transfer.transfer_status == 'STARTED'):
+
                 logger.info('+ Existing transfer_status=%s', job_transfer.transfer_status)
-                content = {'transfer_root': settings.SQUONK_MEDIA_DIRECTORY,
-                           'transfer_target': job_transfer.target.title,
+                content = {'transfer_root': transfer_root,
+                           'transfer_target': transfer_target,
                            'message': 'Files currently being transferred'}
                 return Response(content,
                                 status=status.HTTP_208_ALREADY_REPORTED)
 
             if (target.upload_datetime and job_transfer.transfer_datetime) \
                     and target.upload_datetime < job_transfer.transfer_datetime:
+
                 # The target data has already been transferred for the snapshot.
                 logger.info('+ Existing transfer finished (transfer_status=%s)',
                             job_transfer.transfer_status)
-                content = {'transfer_root': settings.SQUONK_MEDIA_DIRECTORY,
-                           'transfer_target': job_transfer.target.title,
+                content = {'transfer_root': transfer_root,
+                           'transfer_target': transfer_target,
                            'message': 'Files already transferred for this job'}
                 return Response(content,
                                 status=status.HTTP_200_OK)
+
             # Restart existing transfer - it must have failed or be outdated
             job_transfer.user = request.user
+
         else:
+
             # Create new file transfer job
             job_transfer = JobFileTransfer()
             job_transfer.user = request.user
@@ -3138,8 +3153,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
                                                             job_transfer.id)
 
         content = {'id' : job_transfer.id,
-                   'transfer_root': settings.SQUONK_MEDIA_DIRECTORY,
-                   'transfer_target': job_transfer.target.title,
+                   'transfer_root': transfer_root,
+                   'transfer_target': transfer_target,
                    'transfer_status': job_transfer.transfer_status,
                    'transfer_task_id': str(job_transfer_task)}
         return Response(content,
