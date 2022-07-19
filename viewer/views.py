@@ -3088,12 +3088,15 @@ class JobFileTransferView(viewsets.ModelViewSet):
         logger.info('+ target_id=%s', target_id)
         logger.info('+ snapshot_id=%s', snapshot_id)
         logger.info('+ squonk_project=%s', squonk_project)
+        logger.info('+ squonk_media_directory=%s', settings.SQUONK_MEDIA_DIRECTORY)
 
         if job_transfer:
             if (job_transfer.transfer_status == 'PENDING' or
                 job_transfer.transfer_status == 'STARTED'):
                 logger.info('+ Existing transfer_status=%s', job_transfer.transfer_status)
-                content = {'message': 'Files currently being transferred'}
+                content = {'transfer_root': settings.SQUONK_MEDIA_DIRECTORY,
+                           'transfer_target': job_transfer.target.title,
+                           'message': 'Files currently being transferred'}
                 return Response(content,
                                 status=status.HTTP_208_ALREADY_REPORTED)
 
@@ -3102,7 +3105,9 @@ class JobFileTransferView(viewsets.ModelViewSet):
                 # The target data has already been transferred for the snapshot.
                 logger.info('+ Existing transfer finished (transfer_status=%s)',
                             job_transfer.transfer_status)
-                content = {'message': 'Files already transferred for this job'}
+                content = {'transfer_root': settings.SQUONK_MEDIA_DIRECTORY,
+                           'transfer_target': job_transfer.target.title,
+                           'message': 'Files already transferred for this job'}
                 return Response(content,
                                 status=status.HTTP_200_OK)
             # Restart existing transfer - it must have failed or be outdated
@@ -3133,6 +3138,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
                                                             job_transfer.id)
 
         content = {'id' : job_transfer.id,
+                   'transfer_root': settings.SQUONK_MEDIA_DIRECTORY,
+                   'transfer_target': job_transfer.target.title,
                    'transfer_status': job_transfer.transfer_status,
                    'transfer_task_id': str(job_transfer_task)}
         return Response(content,
@@ -3353,7 +3360,8 @@ class JobCallBackView(viewsets.ModelViewSet):
             transition_time = str(datetime.utcnow())
             logger.warning("Callback is missing state_transition_time"
                            " (using '%s')", transition_time)
-        jr.job_status_datetime = parse(transition_time).replace(tzinfo=pytz.UTC)
+        transition_time_utc = parse(transition_time).replace(tzinfo=pytz.UTC)
+        jr.job_status_datetime = transition_time_utc
 
         logger.info('code=%s status=%s transition_time=%s (new status)',
                     code, status, transition_time)
@@ -3361,14 +3369,14 @@ class JobCallBackView(viewsets.ModelViewSet):
         # If the Job's start-time is not set, set it.
         if not jr.job_start_datetime:
             logger.info('Setting job START datetime (%s)', transition_time)
-            jr.job_start_datetime = jr.job_status_datetime
+            jr.job_start_datetime = transition_time_utc
 
         # Set the Job's finish time (once) if it looks lie the Job's finished.
         # We can assume the Job's finished if the status is one of a number
         # of values...
         if not jr.job_finish_datetime and status in ('SUCCESS', 'FAILURE', 'REVOKED'):
             logger.info('Setting job FINISH datetime (%s)', transition_time)
-            jr.job_finish_datetime = jr.job_status_datetime
+            jr.job_finish_datetime = transition_time_utc
 
         # Save - before going further.
         jr.save()
