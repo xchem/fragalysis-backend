@@ -146,15 +146,20 @@ def create_squonk_job(request):
                                       timeout_s=8)
     logger.debug(result)
 
-    if result.success:
-        job_request.squonk_job_info = result
-        job_request.squonk_url_ext = settings.SQUONK_INSTANCE_API + str(result.msg['instance_id'])
-        job_request.job_start_datetime = datetime.datetime.utcnow()
-        job_request.save()
-        logger.info('+ SUCCESS (job started) (%s)', job_name)
-        return job_request.id, job_request.squonk_url_ext
+    if not result.success:
+        logger.warning('+ start_job_instance(%s) result=%s', job_name, result)
+        logger.error('+ FAILED (job probably did not start) (%s)', job_name)
+        job_request.delete()
+        raise ValueError(result.msg)
 
-    logger.warning('+ start_job_instance(%s) result=%s', job_name, result)
-    logger.error('+ FAILED (job probably did not start) (%s)', job_name)
-    job_request.delete()
-    raise ValueError(result.msg)
+    job_request.squonk_job_info = result
+    job_request.squonk_url_ext = settings.SQUONK_INSTANCE_API + str(result.msg['instance_id'])
+    job_request.job_start_datetime = datetime.datetime.utcnow()
+    job_request.save()
+
+    job_instance_id = result.get('instance_id')
+    job_task_id = result.get('task_id')
+    logger.info('+ SUCCESS. Job "%s" started (job_instance_id=%s job_task_id=%s)',
+                job_name, job_instance_id, job_task_id)
+
+    return job_request.id, job_request.squonk_url_ext
