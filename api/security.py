@@ -88,7 +88,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         if os.environ.get("TEST_SECURITY_FLAG", False):
             return ["OPEN", "private_dummy_project"]
         else:
-            return ["OPEN"]
+            return ["OPEN", "lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
