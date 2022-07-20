@@ -113,7 +113,7 @@ def getExactSearch(smiles: str):
         json=data,
     )
 
-    return response.json()["results"]
+    return response.json()
 
 
 @sleep_and_retry
@@ -146,4 +146,4 @@ def getExactSearchBatch(smiles: list):
         json=data,
     )
 
-    return response.json()["results"]
+    return response.json()
