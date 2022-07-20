@@ -343,7 +343,7 @@ DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 SQUONK_API_URL = os.environ.get('SQUONK_API_URL')
 SQUONK_UI_URL = os.environ.get('SQUONK_UI_URL')
 
-SQUONK_MEDIA_DIRECTORY = "/fragalysis-files"
+SQUONK_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
 
 # Configure django logging.
