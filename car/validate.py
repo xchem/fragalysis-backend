@@ -46,7 +46,9 @@ class ValidateFile(object):
             if self.validated:
                 self.checkColumnNames()
             if self.validated:
-                self.target_smiles = [smi.strip() for smi in self.df["targets"]]
+                self.target_smiles = [
+                    canonSmiles(smi.strip()) for smi in self.df["targets"]
+                ]
                 self.df["targets"] = self.target_smiles
                 self.checkTargetSMILES()
                 if self.validated:

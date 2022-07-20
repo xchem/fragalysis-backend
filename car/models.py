@@ -111,6 +111,8 @@ class Reaction(models.Model):
         Foreign key linking a reaction to it's method
     reactionclass: Charfield
         The name of the reaction
+    recipetype: CharField
+        The encoded recipe type used to execute the reaction
     image: FileField
         File link to a stored version of the image file of the reaction
     success: BooleanField
@@ -121,6 +123,7 @@ class Reaction(models.Model):
         Method, related_name="reactions", on_delete=models.CASCADE
     )
     reactionclass = models.CharField(max_length=255)
+    recipetype = models.CharField(max_length=50, default="standard", null=True)
     temperature = models.IntegerField(default=25)
     image = models.FileField(
         upload_to="reactionimages/",
@@ -369,7 +372,9 @@ class AddAction(models.Model):
     )
     number = models.IntegerField()
     smiles = models.CharField(max_length=255)
-    calcunit = models.CharField(choices=CalcUnit.choices, max_length=10)
+    calcunit = models.CharField(
+        choices=CalcUnit.choices, default="moleq", max_length=10
+    )
     volume = models.FloatField()
     volumeunit = models.CharField(
         choices=VolumeUnit.choices, default="ul", max_length=2
@@ -377,7 +382,7 @@ class AddAction(models.Model):
     molecularweight = models.FloatField()
     solvent = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)
-    platetype = models.CharField(choices=PlateType.choices, null=True, max_length=15)
+    platetype = models.CharField(choices=PlateType.choices, null=True, max_length=30)
 
 
 class ExtractAction(models.Model):
@@ -436,7 +441,7 @@ class ExtractAction(models.Model):
     molecularweight = models.FloatField()
     solvent = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)
-    platetype = models.CharField(choices=PlateType.choices, null=True, max_length=15)
+    platetype = models.CharField(choices=PlateType.choices, null=True, max_length=30)
 
 
 class StirAction(models.Model):

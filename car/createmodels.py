@@ -166,6 +166,7 @@ def createReactionModel(
     reaction_class: str,
     reaction_smarts: str,
     reaction_temperature: float = None,
+    recipe_type: str = None,
 ) -> int:
     """Creates a Django reaction object - a chemical reaction
 
@@ -179,6 +180,8 @@ def createReactionModel(
         The SMARTS for the reaction
     reaction_temperature: float
         The reaction temperature
+    recipe_type: str
+        The optional (if found in encoded recipes) type of encoded recipe used to execute the reaction
 
     Returns
     -------
@@ -191,6 +194,8 @@ def createReactionModel(
     reaction.reactionclass = reaction_class
     if reaction_temperature:
         reaction.temperature = reaction_temperature
+    if recipe_type:
+        reaction.recipetype = recipe_type
     reaction_svg_string = createReactionSVGString(reaction_smarts)
     reaction_svg_fn = default_storage.save(
         "reactionimages/" + reaction_class + ".svg", ContentFile(reaction_svg_string)
@@ -524,8 +529,8 @@ class CreateEncodedActionModels(object):
 
     def calculateVolume(
         self,
-        mass_eqv: int = None,
-        molar_eqv: float = None,
+        calcunit: str,
+        calceqv: float,
         conc_reagents: float = None,
         reactant_density: float = None,
         reactant_MW: float = None,
@@ -534,8 +539,10 @@ class CreateEncodedActionModels(object):
 
         Parameters
         ----------
-        mass_eqv: int
-            The optional mass equivalents
+        calcunit: str
+            The unit used for the calculation eg. mass equivalents
+        calceqv: int
+            The the quivalents to use in the calculation
         molar_eqv: float
             The optional molar equivalents required for the add action
         conc_reagents: float
@@ -550,11 +557,12 @@ class CreateEncodedActionModels(object):
         vol_material: float
             The volume (ul) of the material required for the add action step
         """
-        if mass_eqv:
-            vol_material = mass_eqv * self.target_obj.mass
+
+        if calcunit == "masseq":
+            vol_material = float(calceqv) * self.target_obj.mass
             return vol_material
-        if molar_eqv:
-            mol_material = molar_eqv * self.target_obj.mols
+        if calcunit == "moleq":
+            mol_material = float(calceqv) * self.target_obj.mols
             if reactant_density:
                 vol_material = ((mol_material * reactant_MW) / reactant_density) * 1e3
             else:
@@ -633,7 +641,7 @@ class CreateEncodedActionModels(object):
                 del self.reactant_pair_smiles[0]
             if action["content"]["material"]["SMILES"]:
                 smiles = action["content"]["material"]["SMILES"]
-            molar_eqv = action["content"]["material"]["quantity"]["value"]
+            calceqv = action["content"]["material"]["quantity"]["value"]
             calcunit = action["content"]["material"]["quantity"]["unit"]
             concentration = action["content"]["material"]["concentration"]
             if not concentration:
@@ -648,24 +656,30 @@ class CreateEncodedActionModels(object):
             add.smiles = smiles
             add.molecularweight = molecular_weight
             if calcunit == "masseq":
-                add.volume = self.calculateVolume(mass_eqv=calcunit)
+                add.volume = self.calculateVolume(
+                    calcunit=calcunit,
+                    calceqv=calceqv,
+                )
+                add.solvent = solvent
             if calcunit == "moleq":
                 if not solvent:
                     reactant_density = action["content"]["material"]["density"]
                     add.volume = self.calculateVolume(
-                        molar_eqv=molar_eqv,
+                        calcunit=calcunit,
+                        calceqv=calceqv,
                         reactant_density=reactant_density,
                         reactant_MW=molecular_weight,
                     )
                 if solvent:
                     add.volume = self.calculateVolume(
-                        molar_eqv=molar_eqv,
+                        calcunit=calcunit,
+                        calceqv=calceqv,
                         conc_reagents=concentration,
                     )
                     add.solvent = solvent
             add.concentration = concentration
-            if action["content"]["platetype"]:
-                platetype = action["content"]["platetype"]
+            if "platetype" in action:
+                platetype = action["platetype"]
                 add.platetype = platetype
             add.save()
 
@@ -684,7 +698,8 @@ class CreateEncodedActionModels(object):
         """
         try:
             number = action["content"]["number"]
-            molar_eqv = action["content"]["material"]["quantity"]["value"]
+            calceqv = action["content"]["material"]["quantity"]["value"]
+            calcunit = action["content"]["material"]["quantity"]["unit"]
             concentration = action["content"]["material"]["concentration"]
             if not concentration:
                 concentration = 0
@@ -701,19 +716,21 @@ class CreateEncodedActionModels(object):
             if not solvent:
                 reactant_density = action["content"]["material"]["density"]
                 extract.volume = self.calculateVolume(
-                    molar_eqv=molar_eqv,
+                    calcunit=calcunit,
+                    calceqv=calceqv,
                     reactant_density=reactant_density,
                     reactant_MW=molecular_weight,
                 )
             if solvent:
                 extract.volume = self.calculateVolume(
-                    molar_eqv=molar_eqv,
+                    calcunit=calcunit,
+                    calceqv=calceqv,
                     conc_reagents=concentration,
                 )
                 extract.solvent = solvent
             extract.concentration = concentration
-            if action["content"]["platetype"]:
-                platetype = action["content"]["platetype"]
+            if "platetype" in action:
+                platetype = action["platetype"]
                 extract.platetype = platetype
             extract.save()
 
