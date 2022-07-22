@@ -8,7 +8,7 @@ encoded_recipes = {
         "reactionSMARTS": "[#6:1](=[#8:2])-[#8].[#7;H3,H2,H1:3]>>[#6:1](=[#8:2])-[#7:3]",
         "intramolecular": True,
         "recipes": {
-            "Standard": {
+            "standard": {
                 "reference": None,
                 "sessions": {
                     "reaction": {
