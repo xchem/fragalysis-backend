@@ -13,12 +13,17 @@ encoded_recipes = {
                 "actionsessions": {
                     "reaction": {
                         "driver": "robot",
+                        "sessionnumber": 1,
                         "intermolecular": {
                             "actions": [
                                 {
                                     "type": "add",
+                                    "actionnumber": 1,
                                     "content": {
-                                        "number": 1,
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
                                         "material": {
                                             "SMARTS": "[#6](=[#8])-[#8]",
                                             "SMILES": None,
@@ -30,8 +35,12 @@ encoded_recipes = {
                                 },
                                 {
                                     "type": "add",
+                                    "actionnumber": 2,
                                     "content": {
-                                        "number": 2,
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "CCCP1(=O)OP(=O)(OP(=O)(O1)CCC)CCC",
@@ -43,8 +52,12 @@ encoded_recipes = {
                                 },
                                 {
                                     "type": "add",
+                                    "actionnumber": 3,
                                     "content": {
-                                        "number": 3,
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
@@ -57,8 +70,12 @@ encoded_recipes = {
                                 },
                                 {
                                     "type": "add",
+                                    "actionnumber": 4,
                                     "content": {
-                                        "number": 4,
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
                                         "material": {
                                             "SMARTS": "[#7;H3,H2,H1]",
                                             "SMILES": None,
@@ -68,14 +85,27 @@ encoded_recipes = {
                                         },
                                     },
                                 },
+                                {
+                                    "type": "mix",
+                                    "actionnumber": 5,
+                                    "content": {
+                                        "platetype": "reaction",
+                                        "repetitions": {"value": 3},
+                                        "quantity": {"value": 3, "unit": "masseq"},
+                                    },
+                                },
                             ],
                         },
                         "Intramolecular": {
                             "actions": [
                                 {
                                     "type": "add",
+                                    "actionnumber": 6,
                                     "content": {
-                                        "number": 1,
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
                                         "material": {
                                             "SMARTS": "[#6](=[#8])-[#8]",
                                             "SMILES": None,
@@ -87,8 +117,12 @@ encoded_recipes = {
                                 },
                                 {
                                     "type": "add",
+                                    "actionnumber": 7,
                                     "content": {
-                                        "number": 2,
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "CCCP1(=O)OP(=O)(OP(=O)(O1)CCC)CCC",
@@ -100,8 +134,12 @@ encoded_recipes = {
                                 },
                                 {
                                     "type": "add",
+                                    "actionnumber": 8,
                                     "content": {
-                                        "number": 3,
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
@@ -112,16 +150,27 @@ encoded_recipes = {
                                         },
                                     },
                                 },
+                                {
+                                    "type": "mix",
+                                    "actionnumber": 9,
+                                    "content": {
+                                        "platetype": "reaction",
+                                        "repetitions": {"value": 3},
+                                        "quantity": {"value": 3, "unit": "masseq"},
+                                    },
+                                },
                             ],
                         },
                     },
                     "stir": {
                         "driver": "human",
+                        "sessionnumber": 2,
                         "actions": [
                             {
                                 "type": "stir",
+                                "actionnumber": 10,
                                 "content": {
-                                    "number": 5,
+                                    "platetype": "reaction",
                                     "temperature": {"value": 25, "unit": "degC"},
                                     "duration": {"value": 12, "unit": "hours"},
                                 },
@@ -130,12 +179,16 @@ encoded_recipes = {
                     },
                     "workup": {
                         "driver": "robot",
+                        "sessionnumber": 3,
                         "actions": [
                             {
                                 "type": "add",
-                                "platetype": "reaction",
+                                "actionnumber": 11,
                                 "content": {
-                                    "number": 6,
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "reaction",
+                                    },
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "C(Cl)Cl",
@@ -148,9 +201,12 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "platetype": "reaction",
+                                "actionnumber": 12,
                                 "content": {
-                                    "number": 7,
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "reaction",
+                                    },
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "O",
@@ -163,9 +219,12 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "platetype": "workup",
+                                "actionnumber": 13,
                                 "content": {
-                                    "number": 8,
+                                    "plates": {
+                                        "fromplatetype": "reaction",
+                                        "toplatetype": "workup1",
+                                    },
                                     "material": {
                                         "layer": "bottom",
                                         "SMILES": None,  # Product of reaction
@@ -178,9 +237,12 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "platetype": "reaction",
+                                "actionnumber": 14,
                                 "content": {
-                                    "number": 9,
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "reaction",
+                                    },
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "C(Cl)Cl",
@@ -193,12 +255,51 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "platetype": "workup",
+                                "actionnumber": 15,
                                 "content": {
-                                    "number": 10,
+                                    "plates": {
+                                        "fromplatetype": "reaction",
+                                        "toplatetype": "workup1",
+                                    },
                                     "material": {
                                         "layer": "bottom",
-                                        "SMILES": None,  # Product of reaction
+                                        "SMILES": None,
+                                        "quantity": {"value": 5, "unit": "masseq"},
+                                        "solvent": None,
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "add",
+                                "actionnumber": 16,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "workup1",
+                                    },
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "C(Cl)Cl",
+                                        "quantity": {"value": 5, "unit": "masseq"},
+                                        "solvent": "DCM",
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "extract",
+                                "actionnumber": 17,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "workup1",
+                                        "toplatetype": "workup2",
+                                    },
+                                    "material": {
+                                        "layer": "bottom",
+                                        "SMILES": None,
                                         "quantity": {"value": 5, "unit": "masseq"},
                                         "solvent": None,
                                         "density": 1.00,
@@ -210,30 +311,105 @@ encoded_recipes = {
                     },
                     "analyse": {
                         "driver": "robot",
+                        "sessionnumber": 4,
                         "actions": [
                             {
-                                "type": "analyse",
+                                "type": "add",
+                                "actionnumber": 18,
                                 "content": {
-                                    "number": 11,
-                                    "method": "LCMS",
-                                    "samplevolume": {"value": 10, "unit": "ul"},
-                                    "solvent": "formic acid/acetonitrile",
-                                    "solventvolume": {"value": 80, "unit": "ul"},
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "workup2",
+                                    },
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "CN(C)C=O",
+                                        "quantity": {"value": 5, "unit": "masseq"},
+                                        "solvent": "DMA",
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
                                 },
                             },
-                        ],
-                    },
-                    "analyse": {
-                        "driver": "robot",
-                        "actions": [
                             {
-                                "type": "analyse",
+                                "type": "mix",
+                                "actionnumber": 19,
                                 "content": {
-                                    "number": 12,
-                                    "method": "XChem",
-                                    "samplevolume": {"value": 10, "unit": "ul"},
-                                    "solvent": "DMSO",
-                                    "solventvolume": {"value": 80, "unit": "ul"},
+                                    "platetype": "reaction",
+                                    "repetitions": {"value": 3},
+                                    "quantity": {"value": 5, "unit": "masseq"},
+                                },
+                            },
+                            {
+                                "type": "extract",
+                                "actionnumber": 20,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "workup2",
+                                        "toplatetype": "lcms",
+                                    },
+                                    "material": {
+                                        "layer": "bottom",
+                                        "SMILES": None,  # Product of reaction
+                                        "quantity": {"value": 10, "unit": "ul"},
+                                        "solvent": None,
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "add",
+                                "actionnumber": 21,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "lcms",
+                                    },
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "CC#N",
+                                        "quantity": {"value": 80, "unit": "ul"},
+                                        "solvent": "ACN",
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "extract",
+                                "actionnumber": 22,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "workup2",
+                                        "toplatetype": "xchem",
+                                    },
+                                    "material": {
+                                        "layer": "bottom",
+                                        "SMILES": None,  # Product of reaction
+                                        "quantity": {"value": 10, "unit": "ul"},
+                                        "solvent": None,
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "add",
+                                "actionnumber": 23,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "xchem",
+                                    },
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "C[S](C)=O",
+                                        "quantity": {"value": 50, "unit": "ul"},
+                                        "solvent": "DMSO",
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
                                 },
                             },
                         ],
@@ -847,6 +1023,21 @@ encoded_recipes = {
                                     "method": "LCMS",
                                     "samplevolume": {"value": 10, "unit": "ul"},
                                     "solvent": "formic acid/acetonitrile",
+                                    "solventvolume": {"value": 80, "unit": "ul"},
+                                },
+                            },
+                        ],
+                    },
+                    "analyse": {
+                        "driver": "robot",
+                        "actions": [
+                            {
+                                "type": "analyse",
+                                "content": {
+                                    "number": 6,
+                                    "method": "XChem",
+                                    "samplevolume": {"value": 10, "unit": "ul"},
+                                    "solvent": "DMSO",
                                     "solventvolume": {"value": 80, "unit": "ul"},
                                 },
                             },

@@ -19,7 +19,6 @@ from car.tasks import (
 
 # Import standard models
 from .models import (
-    ExtractAction,
     Project,
     Batch,
     PubChemInfo,
@@ -33,8 +32,9 @@ from .models import (
 
 # Import action models
 from .models import (
-    AnalyseAction,
     AddAction,
+    ExtractAction,
+    MixAction,
     StirAction,
 )
 
@@ -75,9 +75,9 @@ from .serializers import (
 
 # Import action serializers
 from .serializers import (
-    AnalyseActionSerializer,
     AddActionSerializer,
     ExtractActionSerializer,
+    MixActionSerializer,
     StirActionSerializer,
 )
 
@@ -535,12 +535,6 @@ class CatalogEntryViewSet(viewsets.ModelViewSet):
 
 
 # Action viewsets
-class AnalyseActionViewSet(viewsets.ModelViewSet):
-    queryset = AnalyseAction.objects.all()
-    serializer_class = AnalyseActionSerializer
-    filterset_fields = ["reaction_id"]
-
-
 class AddActionViewSet(viewsets.ModelViewSet):
     queryset = AddAction.objects.all()
     serializer_class = AddActionSerializer
@@ -550,6 +544,12 @@ class AddActionViewSet(viewsets.ModelViewSet):
 class ExtractActionViewSet(viewsets.ModelViewSet):
     queryset = ExtractAction.objects.all()
     serializer_class = ExtractActionSerializer
+    filterset_fields = ["reaction_id"]
+
+
+class MixActionViewSet(viewsets.ModelViewSet):
+    queryset = MixAction.objects.all()
+    serializer_class = MixActionSerializer
     filterset_fields = ["reaction_id"]
 
 

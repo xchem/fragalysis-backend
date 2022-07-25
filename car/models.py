@@ -1,3 +1,4 @@
+from pyexpat import model
 from django.db import models
 
 
@@ -111,6 +112,8 @@ class Reaction(models.Model):
         Foreign key linking a reaction to it's method
     reactionclass: Charfield
         The name of the reaction
+    intramolecular: BooleanField
+        Set to True if the reaction is intermolecular
     recipetype: CharField
         The encoded recipe type used to execute the reaction
     image: FileField
@@ -123,6 +126,7 @@ class Reaction(models.Model):
         Method, related_name="reactions", on_delete=models.CASCADE
     )
     reactionclass = models.CharField(max_length=255)
+    intramolecular = models.BooleanField(default=False)
     recipetype = models.CharField(max_length=50, default="standard", null=True)
     temperature = models.IntegerField(default=25)
     image = models.FileField(
@@ -259,15 +263,15 @@ class ActionSession(models.Model):
     reaction_id = models.ForeignKey(
         Reaction, related_name="actionsessions", on_delete=models.CASCADE
     )
+    sessionnumber = models.IntegerField()
     type = models.CharField(choices=Type.choices, max_length=10)
     driver = models.CharField(
         choices=Driver.choices, default=Driver.robot, max_length=10
     )
 
 
-class AnalyseAction(models.Model):
-    """Django model to define a AnalyseAction - the analyse action details for the
-       QC of a reaction
+class AddAction(models.Model):
+    """Django model to define a AddAction - the add action details
 
     Parameters
     ----------
@@ -278,61 +282,14 @@ class AnalyseAction(models.Model):
         (liquid handling robot), stir (human)
         on a hot plate, analyse (human)
     reaction_id: ForeignKey
-        Foreign key linking a QC analysis action to a reaction
-    number: IntegerField
-        The number of the action to be executed in a list of action numbers
-    method: CharField
-        The QC method used
-    samplevolume: FloatField
-        The volum of the sample used for anaylsis
-    samplevolumeunit: CharField
-        The unit of the sample volume (default=ul)
-    solvent: CharField
-        The solvent used - see commonsolvents.py for solvent names and their SMILES
-    solventvolume: FloatField
-        The volume of solvent used to dilute the sample
-    solventvolumeunit: CharField
-        The unit of the solvent volume (default=ul) used for diluting the sample
-    """
-
-    class QCMethod(models.TextChoices):
-        LCMS = "LCMS"
-        NMR = "NMR"
-        XChem = "XChem"
-
-    actionsession_id = models.ForeignKey(ActionSession, on_delete=models.CASCADE)
-    reaction_id = models.ForeignKey(
-        Reaction, related_name="analyseactions", on_delete=models.CASCADE
-    )
-    number = models.IntegerField()
-    method = models.CharField(
-        choices=QCMethod.choices, default=QCMethod.LCMS, max_length=10
-    )
-    samplevolume = models.FloatField(null=True)
-    samplevolumeunit = models.CharField(default="ul", max_length=2)
-    solvent = models.CharField(max_length=255, null=True)
-    solventvolume = models.FloatField(null=True)
-    solventvolumeunit = models.CharField(default="ul", max_length=2)
-
-
-class AddAction(models.Model):
-    """Django model to define a AddAction - the add action details
-
-    Parameters
-    ----------#
-    actionsession_id: ForeignKey
-        Foreign key linking an add action to an action session. An
-        action session if a group of actions that represent a unit of
-        operation executed by a robot or human eg. perfrom a reaction
-        (liquid handling robot), stir (human)
-        on a hot plate, analyse (human)
-    reaction_id: ForeignKey
         Foreign key linking an add action to a reaction
-    number: IntegerField
-        The number of the action to be executed in a list of action numbers
+    fromplatetype: CharField
+        The plate the add action is moving material from
+    toplatetype: CharField
+        The plate the add action is moviong material to
     smiles: CharField
         Optional SMILES of the material being added
-    clacunit: CharField
+    calcunit: CharField
         The unit used for calculating the amount to add eg. molar eq. (moleq)
         and mass eq. (masseq)
     volume: FloatField
@@ -352,6 +309,7 @@ class AddAction(models.Model):
     class CalcUnit(models.TextChoices):
         moleq = "moleq"
         masseq = "masseq"
+        ul = "ul"
 
     class VolumeUnit(models.TextChoices):
         ul = "ul"
@@ -359,7 +317,9 @@ class AddAction(models.Model):
 
     class PlateType(models.TextChoices):
         reaction = "reaction"
-        workup = "workup"
+        workup1 = "workup1"
+        workup2 = "workup2"
+        workup3 = "workup3"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -371,6 +331,8 @@ class AddAction(models.Model):
         Reaction, related_name="addactions", on_delete=models.CASCADE
     )
     number = models.IntegerField()
+    fromplatetype = models.CharField(choices=PlateType.choices, max_length=20)
+    toplatetype = models.CharField(choices=PlateType.choices, max_length=20)
     smiles = models.CharField(max_length=255)
     calcunit = models.CharField(
         choices=CalcUnit.choices, default="moleq", max_length=10
@@ -382,7 +344,6 @@ class AddAction(models.Model):
     molecularweight = models.FloatField()
     solvent = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)
-    platetype = models.CharField(choices=PlateType.choices, null=True, max_length=30)
 
 
 class ExtractAction(models.Model):
@@ -398,8 +359,10 @@ class ExtractAction(models.Model):
         on a hot plate, analyse (human)
     reaction_id: ForeignKey
         Foreign key linking an add action to a reaction
-    number: IntegerField
-        The number of the action to be executed in a list of action numbers
+    fromplatetype: CharField
+        The plate the add action is moving material from
+    toplatetype: CharField
+        The plate the add action is moviong material to
     layer: CharField
         The layer to extract
     volume: FloatField
@@ -422,7 +385,9 @@ class ExtractAction(models.Model):
 
     class PlateType(models.TextChoices):
         reaction = "reaction"
-        workup = "workup"
+        workup1 = "workup1"
+        workup2 = "workup2"
+        workup3 = "workup3"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -433,15 +398,74 @@ class ExtractAction(models.Model):
     reaction_id = models.ForeignKey(
         Reaction, related_name="extractactions", on_delete=models.CASCADE
     )
-    layer = models.CharField(choices=Layer.choices, default="bottom", max_length=10)
     number = models.IntegerField()
+    fromplatetype = models.CharField(choices=PlateType.choices, max_length=20)
+    toplatetype = models.CharField(choices=PlateType.choices, max_length=20)
+    layer = models.CharField(choices=Layer.choices, default="bottom", max_length=10)
     smiles = models.CharField(max_length=255)
     volume = models.FloatField()
     volumeunit = models.CharField(default="ul", max_length=2)
     molecularweight = models.FloatField()
     solvent = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)
-    platetype = models.CharField(choices=PlateType.choices, null=True, max_length=30)
+
+
+class MixAction(models.Model):
+    """Django model to define a mix action
+
+    Parameters
+    ----------
+    actionsession_id: ForeignKey
+        Foreign key linking an add action to an action session. An
+        action session if a group of actions that represent a unit of
+        operation executed by a robot or human eg. perfrom a reaction
+        (liquid handling robot), stir (human)
+        on a hot plate, analyse (human)
+    reaction_id: ForeignKey
+        Foreign key linking an add action to a reaction
+    platetype: CharField
+        The plate being mixed
+    repetitions: IntField
+        The number of mixes
+    volume: FloatField
+        The volume to mix
+    volumeunit: CharField
+        The unit of the volume being mixed (default=ul)
+    """
+
+    class CalcUnit(models.TextChoices):
+        masseq = "masseq"
+        ul = "ul"
+
+    class VolumeUnit(models.TextChoices):
+        ul = "ul"
+        ml = "ml"
+
+    class PlateType(models.TextChoices):
+        reaction = "reaction"
+        workup1 = "workup1"
+        workup2 = "workup2"
+        workup3 = "workup3"
+        lcms = "lcms"
+        xchem = "xchem"
+        nmr = "nmr"
+        startingmaterial = "startingmaterial"
+        solvent = "solvent"
+
+    actionsession_id = models.ForeignKey(ActionSession, on_delete=models.CASCADE)
+    reaction_id = models.ForeignKey(
+        Reaction, related_name="mixactions", on_delete=models.CASCADE
+    )
+    number = models.IntegerField()
+    platetype = models.CharField(choices=PlateType.choices, max_length=20)
+    repetitions = models.IntegerField()
+    calcunit = models.CharField(
+        choices=CalcUnit.choices, default="moleq", max_length=10
+    )
+    volume = models.FloatField()
+    volumeunit = models.CharField(
+        choices=VolumeUnit.choices, default="ul", max_length=2
+    )
 
 
 class StirAction(models.Model):
@@ -471,6 +495,17 @@ class StirAction(models.Model):
         The speed of the stir action (default=normal)
     """
 
+    class PlateType(models.TextChoices):
+        reaction = "reaction"
+        workup1 = "workup1"
+        workup2 = "workup2"
+        workup3 = "workup3"
+        lcms = "lcms"
+        xchem = "xchem"
+        nmr = "nmr"
+        startingmaterial = "startingmaterial"
+        solvent = "solvent"
+
     class TemperatureUnit(models.TextChoices):
         degcel = "degC"
         kelvin = "K"
@@ -492,6 +527,7 @@ class StirAction(models.Model):
         Reaction, related_name="stiractions", on_delete=models.CASCADE
     )
     number = models.IntegerField()
+    platetype = models.CharField(choices=PlateType.choices, max_length=20)
     duration = models.FloatField()
     durationunit = models.CharField(
         choices=Unit.choices, default=Unit.hours, max_length=10
@@ -690,7 +726,9 @@ class Plate(models.Model):
 
     class PlateType(models.TextChoices):
         reaction = "reaction"
-        workup = "workup"
+        workup1 = "workup1"
+        workup2 = "workup2"
+        workup3 = "workup3"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -745,7 +783,9 @@ class Well(models.Model):
 
     class WellType(models.TextChoices):
         reaction = "reaction"
-        workup = "workup"
+        workup1 = "workup1"
+        workup2 = "workup2"
+        workup3 = "workup3"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -758,6 +798,7 @@ class Well(models.Model):
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)
+    clonewellid = models.IntegerField(null=True)
     index = models.IntegerField()
     type = models.CharField(choices=WellType.choices, max_length=55)
     volume = models.FloatField(null=True)

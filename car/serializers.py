@@ -15,9 +15,9 @@ from .models import (
 
 # Import action models
 from .models import (
-    AnalyseAction,
     AddAction,
     ExtractAction,
+    MixAction,
     StirAction,
 )
 
@@ -160,12 +160,6 @@ class ProjectSerializerAll(serializers.ModelSerializer):
 
 
 # Action models here
-class AnalyseActionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AnalyseAction
-        fields = "__all__"
-
-
 class AddActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AddAction
@@ -175,6 +169,12 @@ class AddActionSerializer(serializers.ModelSerializer):
 class ExtractActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExtractAction
+        fields = "__all__"
+
+
+class MixActionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MixAction
         fields = "__all__"
 
 

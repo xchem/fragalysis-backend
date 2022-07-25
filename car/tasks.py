@@ -3,13 +3,14 @@ from __future__ import annotations
 from celery import shared_task, current_task
 from django.conf import settings
 from django.db.models import QuerySet
-from django.db.models import Q
+from django.db.models import Q, Max
 
 from zipfile import ZipFile
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import os
+
 
 from car.models import (
     ActionSession,
@@ -40,7 +41,6 @@ from .createmodels import (
 
 from .manifold.apicalls import (
     getExactSearch,
-    getManifoldRetrosynthesis,
     getManifoldRetrosynthesisBatch,
 )
 from .recipebuilder.encodedrecipes import encoded_recipes
@@ -130,7 +130,7 @@ def uploadManifoldReaction(validate_output):
                             smiles=smiles,
                             mass=mass,
                         )
-
+                        print(routes)
                         first_route = routes[0]
 
                         if first_route["molecules"][0]["isBuildingBlock"]:
@@ -166,10 +166,15 @@ def uploadManifoldReaction(validate_output):
                                         ),
                                         useSmiles=True,
                                     )
+                                    if len(reactant_smiles) == 1:
+                                        intramolecular = True
+                                    if len(reactant_smiles) == 2:
+                                        intramolecular = False
 
                                     reaction_id = createReactionModel(
                                         method_id=method_id,
                                         reaction_class=reaction_name,
+                                        intramolecular=intramolecular,
                                         reaction_smarts=reaction_smarts,
                                     )
 
@@ -230,12 +235,14 @@ def uploadManifoldReaction(validate_output):
                                         and intramolecular_possible
                                     ):
                                         reactant_smiles_ordered = reactant_smiles
+                                        intramolecular = True
                                     else:
                                         reactant_smiles_ordered = getAddtionOrder(
                                             product_smi=product_smiles,
                                             reactant_SMILES=reactant_smiles,
                                             reaction_SMARTS=recipe_rxn_smarts,
                                         )
+                                        intramolecular = False
                                         if not reactant_smiles_ordered:
                                             continue
 
@@ -250,6 +257,7 @@ def uploadManifoldReaction(validate_output):
                                     reaction_id = createReactionModel(
                                         method_id=method_id,
                                         reaction_class=reaction_name,
+                                        intramolecular=intramolecular,
                                         recipe_type="standard",  # Need to change when we get multiple recipes runnning!
                                         reaction_temperature=reaction_temperature,
                                         reaction_smarts=reaction_smarts,
@@ -337,6 +345,7 @@ def uploadCustomReaction(validate_output):
                 reaction_id = createReactionModel(
                     method_id=method_id,
                     reaction_class=reaction_name,
+                    intramolecular=False,
                     recipe_type="standard",
                     reaction_temperature=reaction_temperature,
                     reaction_smarts=reaction_smarts,
@@ -353,11 +362,12 @@ def uploadCustomReaction(validate_output):
                         reactant_smiles=reactant_smi,
                     )
                     catalog_entries = getExactSearch(smiles=reactant_smi)
-                    for catalog_entry in catalog_entries:
-                        createCatalogEntryModel(
-                            catalog_entry=catalog_entry,
-                            reactant_id=reactant_id,
-                        )
+                    if "results" in catalog_entries:
+                        for catalog_entry in catalog_entries["results"]:
+                            createCatalogEntryModel(
+                                catalog_entry=catalog_entry,
+                                reactant_id=reactant_id,
+                            )
 
     delete_tmp_file(csv_fp)
 
@@ -440,31 +450,46 @@ def createOTScript(batchids: list, protocol_name: str):
                 for index, reactiongroup in enumerate(groupedreactionquerysets):
                     if index == 0:
                         reaction_ids = [reaction.id for reaction in reactiongroup]
-                        human_actionsessionqueryset = getActionSessionQuerySet(
-                            driver="human", reaction_ids=reaction_ids
+                        actionsessionqueryset = getActionSessionQuerySet(
+                            reaction_ids=reaction_ids
                         )
-                        robot_actionsessionqueryset = getActionSessionQuerySet(
-                            driver="robot", reaction_ids=reaction_ids
+                        sessionnumbers = getActionSessionSequenceNumbers(
+                            actionsessionqueryset=actionsessionqueryset
                         )
-                        if human_actionsessionqueryset:
-                            pass
-                        if robot_actionsessionqueryset:
-                            actionsessiontypes = getActionSessionTypes()
-                            for actionsessiontype in actionsessiontypes:
-                                type_actionsessionqueryset = getActionSessionQuerySetByType(
-                                    actionsessiontype=actionsessiontype,
-                                    actionsessionqueryset=robot_actionsessionqueryset,
+                        groupedactionsessionsequences = (
+                            getGroupedActionSessionSequences(
+                                sessionnumbers=sessionnumbers,
+                                actionsessionqueryset=actionsessionqueryset,
+                            )
+                        )
+                        for groupactionsession in groupedactionsessionsequences:
+                            actionsessiontypes = getActionSessionTypes(
+                                actionsessionqueryset=groupactionsession
+                            )
+                            groupedactionsessiontypes = getGroupedActionSessionTypes(
+                                actionsessiontypes=actionsessiontypes,
+                                actionsessionqueryset=groupactionsession,
+                            )
+                            for groupactionsessiontype in groupedactionsessiontypes:
+                                human_actionsessionqueryset = (
+                                    groupactionsessiontype.filter(driver="human")
                                 )
-                                if type_actionsessionqueryset:
+                                robot_actionsessionqueryset = (
+                                    groupactionsessiontype.filter(driver="robot")
+                                )
+                                if human_actionsessionqueryset:
+                                    pass
+                                if robot_actionsessionqueryset:
+
                                     actionsession_ids = (
-                                        type_actionsessionqueryset.values_list(
+                                        robot_actionsessionqueryset.values_list(
                                             "id", flat=True
                                         )
                                     )
                                     session = CreateOTSession(
                                         reactionstep=index + 1,
                                         otbatchprotocolobj=otbatchprotocolobj,
-                                        actionsessionqueryset=type_actionsessionqueryset,
+                                        actionsessionqueryset=robot_actionsessionqueryset,
                                         reactiongrouplist=reactiongroup,
                                     )
 
@@ -485,34 +510,48 @@ def createOTScript(batchids: list, protocol_name: str):
                             reaction_ids = [
                                 reaction.id for reaction in reactiongrouptodo
                             ]
-                            human_actionsessionqueryset = getActionSessionQuerySet(
-                                driver="human", reaction_ids=reaction_ids
+                            actionsessionqueryset = getActionSessionQuerySet(
+                                reaction_ids=reaction_ids
                             )
-                            robot_actionsessionqueryset = getActionSessionQuerySet(
-                                driver="robot", reaction_ids=reaction_ids
+                            sessionnumbers = getActionSessionSequenceNumbers(
+                                actionsessionqueryset=actionsessionqueryset
                             )
-                            if human_actionsessionqueryset:
-                                pass
-                            if robot_actionsessionqueryset:
-                                actionsessiontypes = getActionSessionTypes()
-
-                                for actionsessiontype in actionsessiontypes:
-                                    type_actionsessionqueryset = getActionSessionQuerySetByType(
-                                        actionsessiontype=actionsessiontype,
-                                        actionsessionqueryset=robot_actionsessionqueryset,
+                            groupedactionsessionsequences = (
+                                getGroupedActionSessionSequences(
+                                    sessionnumbers=sessionnumbers,
+                                    actionsessionqueryset=actionsessionqueryset,
+                                )
+                            )
+                            for groupactionsession in groupedactionsessionsequences:
+                                actionsessiontypes = getActionSessionTypes(
+                                    actionsessionqueryset=groupactionsession
+                                )
+                                groupedactionsessiontypes = (
+                                    getGroupedActionSessionTypes(
+                                        actionsessiontypes=actionsessiontypes,
+                                        actionsessionqueryset=groupactionsession,
                                     )
-
-                                    if type_actionsessionqueryset:
+                                )
+                                for groupactionsessiontype in groupedactionsessiontypes:
+                                    human_actionsessionqueryset = (
+                                        groupactionsessiontype.filter(driver="human")
+                                    )
+                                    robot_actionsessionqueryset = (
+                                        groupactionsessiontype.filter(driver="robot")
+                                    )
+                                    if human_actionsessionqueryset:
+                                        pass
+                                    if robot_actionsessionqueryset:
                                         actionsession_ids = (
-                                            type_actionsessionqueryset.values_list(
+                                            robot_actionsessionqueryset.values_list(
                                                 "id", flat=True
                                             )
                                         )
                                         session = CreateOTSession(
                                             reactionstep=index + 1,
                                             otbatchprotocolobj=otbatchprotocolobj,
-                                            actionsessionqueryset=type_actionsessionqueryset,
-                                            reactiongrouplist=reactiongrouptodo,
+                                            actionsessionqueryset=robot_actionsessionqueryset,
+                                            reactiongrouplist=reactiongroup,
                                         )
 
                                         OTWrite(
@@ -552,6 +591,90 @@ def getOTBatchProtocolQuerySet(batch_id: int) -> QuerySet[OTBatchProtocol]:
     return otbatchprotocolqueryset
 
 
+def getActionSessionSequenceNumbers(
+    actionsessionqueryset: QuerySet[ActionSession],
+) -> list:
+    """Set of action session sequence numbers
+
+    Returns
+    ------
+    sessionnumbers: list
+        The set of session numbers in an action session
+        queryset eg. [1,2,3,4....n]
+    """
+    maxsessionnumber = actionsessionqueryset.aggregate(Max("sessionnumber"))[
+        "sessionnumber__max"
+    ]
+    sessionnumbers = list(range(1, maxsessionnumber + 1))
+    return sessionnumbers
+
+
+def getActionSessionTypes(actionsessionqueryset: QuerySet[ActionSession]) -> QuerySet:
+    """Set of action session types
+
+    Returns
+    ------
+    actionsessiontypes: QuerySet
+        The set of action session types in a queryset
+        eg. ["reaction", "workup", "stir"]
+    """
+    actionsessiontypes = set(list(actionsessionqueryset.values_list("type", flat=True)))
+    return actionsessiontypes
+
+
+def getGroupedActionSessionSequences(
+    sessionnumbers: list, actionsessionqueryset: QuerySet[ActionSession]
+) -> list:
+    """Group action sessions by sequence number
+
+    Parameters
+    ----------
+    sessionnumbers: list
+        The list of action session sequence numbers
+    actionsessionqueryset: QuerySet[ActionSession]
+        The action session queryset to group by sequence number
+
+    Returns
+    -------
+    groupedactionsessionsequences: list
+        List of sublists of action sessions grouped by sequence number
+    """
+    groupedactionsessionsequences = []
+
+    for sessionnumber in sessionnumbers:
+        actionsessiongroup = actionsessionqueryset.filter(
+            sessionnumber=sessionnumber
+        ).order_by("-pk")
+        groupedactionsessionsequences.append(actionsessiongroup)
+    return groupedactionsessionsequences
+
+
+def getGroupedActionSessionTypes(
+    actionsessiontypes: QuerySet, actionsessionqueryset: QuerySet[ActionSession]
+) -> list:
+    """Group action sessions by type
+
+    Parameters
+    ----------
+    actionsessiontypes: QuerySet
+        The list of action session sequence numbers
+    actionsessionqueryset: QuerySet[ActionSession]
+        The action session queryset to group by sequence number
+
+    Returns
+    -------
+    groupedactionsessionquerysettypes: list
+        List of sublists of action sessions grouped by types
+    """
+    groupedactionsessiontypes = []
+    for actionsessiontype in actionsessiontypes:
+        actionsessiongrouptype = actionsessionqueryset.filter(
+            type=actionsessiontype
+        ).order_by("-pk")
+        groupedactionsessiontypes.append(actionsessiongrouptype)
+    return groupedactionsessiontypes
+
+
 def getActionSessionQuerySet(
     reaction_ids: list[int],
     driver: str = None,
@@ -582,38 +705,38 @@ def getActionSessionQuerySet(
         return actionsessionqueryset
 
 
-def getActionSessionQuerySetByType(
-    actionsessiontype: str, actionsessionqueryset: QuerySet[ActionSession]
-) -> QuerySet[ActionSession]:
-    """Returns the action session queryset for a type of
-       action session eg. reaction, stir, analyse etc
+# def getActionSessionQuerySetByType(
+#     actionsessiontype: str, actionsessionqueryset: QuerySet[ActionSession]
+# ) -> QuerySet[ActionSession]:
+#     """Returns the action session queryset for a type of
+#        action session eg. reaction, stir, analyse etc
 
-    Parameters
-    ----------
-    actionsessiontype: str
-        The actionsession type to filter the queryset
-    actionsessionqueryset: QuerySet[ActionSession]
-        The action session queryset to filter for a given action session type
+#     Parameters
+#     ----------
+#     actionsessiontype: str
+#         The actionsession type to filter the queryset
+#     actionsessionqueryset: QuerySet[ActionSession]
+#         The action session queryset to filter for a given action session type
 
-    Returns
-    -------
-    actionsessionqueryset: QuerySet[ActionSession]
-        The action session queryset for a given action session type
-    """
-    actionsessionqueryset = actionsessionqueryset.filter(type=actionsessiontype)
-    return actionsessionqueryset
+#     Returns
+#     -------
+#     actionsessionqueryset: QuerySet[ActionSession]
+#         The action session queryset for a given action session type
+#     """
+#     actionsessionqueryset = actionsessionqueryset.filter(type=actionsessiontype)
+#     return actionsessionqueryset
 
 
-def getActionSessionTypes() -> list:
-    """Returns the action session types eg. reaction, stir, analyse
+# def getActionSessionTypes() -> list:
+#     """Returns the action session types eg. reaction, stir, analyse
 
-    Returns
-    -------
-    actionsessiontypes: list
-        The action session types
-    """
-    actionsessiontypes = [choice[0] for choice in ActionSession.type.field.choices]
-    return actionsessiontypes
+#     Returns
+#     -------
+#     actionsessiontypes: list
+#         The action session types
+#     """
+#     actionsessiontypes = [choice[0] for choice in ActionSession.type.field.choices]
+#     return actionsessiontypes
 
 
 def getPreviousObjEntries(queryset: list, obj: object):
