@@ -641,8 +641,8 @@ def react(request):
     """
 
     discourse_api_key = settings.DISCOURSE_API_KEY
-    squonk_api_url = settings.SQUONK_API_URL
-    squonk_ui_url = settings.SQUONK_UI_URL
+    squonk_api_url = settings.SQUONK2_DMAPI_URL
+    squonk_ui_url = settings.SQUONK2_UI_URL
 
     context = {}
     context['discourse_available'] = 'false'
@@ -669,7 +669,7 @@ def react(request):
         # so the Frontend can navigate to it
         context['squonk_ui_url'] = ''
         if squonk_api_url and check_squonk_active(request):
-            context['squonk_ui_url'] = settings.SQUONK_UI_URL
+            context['squonk_ui_url'] = settings.SQUONK2_UI_URL
 
     return render(request, "viewer/react_temp.html", context)
 

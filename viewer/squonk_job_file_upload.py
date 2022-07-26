@@ -14,7 +14,7 @@ import shutil
 
 from django.conf import settings
 from rest_framework import status
-from dm_api.dm_api import DmApi
+from squonk2.dm_api import DmApi
 
 from celery.utils.log import get_task_logger
 from viewer.models import JobRequest, User

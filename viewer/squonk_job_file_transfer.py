@@ -213,7 +213,7 @@ def process_file_transfer(auth_token,
 
         logger.info('+ Protein file_list=%s', file_list)
         logger.info('+ Calling DmApi.put_unmanaged_project_files() [proteins]...')
-        result = DmApi.put_unmanaged_project_files(access_token=auth_token,
+        result = DmApi.put_unmanaged_project_files(auth_token,
                                                    project_id=job_transfer.squonk_project,
                                                    project_files=file_list,
                                                    project_path=squonk_directory,
@@ -243,7 +243,7 @@ def process_file_transfer(auth_token,
 
         logger.info('+ Compound file_list=%s', file_list)
         logger.info('+ Calling DmApi.put_unmanaged_project_files() [compounds]...')
-        result = DmApi.put_unmanaged_project_files(access_token=auth_token,
+        result = DmApi.put_unmanaged_project_files(auth_token,
                                                    project_id=job_transfer.squonk_project,
                                                    project_files=file_list,
                                                    project_path=squonk_directory,

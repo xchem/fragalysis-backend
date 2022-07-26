@@ -58,8 +58,8 @@ services:
       DEBUG_FRAGALYSIS: 'True'
       DISABLE_LOGGING_FRAMEWORK: 'No'
       OIDC_RP_CLIENT_SECRET: 'c6245428-04c7-466f-9c4f-58c340e981c2'
-      SQUONK_UI_URL: https://data-manager-ui.xchem-dev.diamond.ac.uk/data-manager-ui
-      SQUONK_API_URL: https://data-manager.xchem-dev.diamond.ac.uk/data-manager-api
+      SQUONK2_UI_URL: https://data-manager-ui.xchem-dev.diamond.ac.uk/data-manager-ui
+      SQUONK2_DMAPI_URL: https://data-manager.xchem-dev.diamond.ac.uk/data-manager-api
       # Celery tasks run synchronously?
 #      CELERY_TASK_ALWAYS_EAGER: 'True'
     ports:

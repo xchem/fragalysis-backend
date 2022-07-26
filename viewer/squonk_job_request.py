@@ -9,7 +9,7 @@ import logging
 import datetime
 
 from django.conf import settings
-from dm_api.dm_api import DmApi
+from squonk2.dm_api import DmApi
 
 from viewer.models import ( Target,
                             Snapshot,
@@ -138,8 +138,8 @@ def create_squonk_job(request):
     logger.info('+ callback_url=%s', callback_url)
     logger.info('+ Calling DmApi.start_job_instance(%s)', job_name)
     result = DmApi.start_job_instance(auth_token,
-                                      job_request.squonk_project,
-                                      job_name,
+                                      project_id=job_request.squonk_project,
+                                      name=job_name,
                                       callback_url=callback_url,
                                       generate_callback_token=True,
                                       specification=json.loads(squonk_job_spec),

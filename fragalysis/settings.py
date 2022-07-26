@@ -339,9 +339,16 @@ DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
-# Squonk settings for API calls to Squonk Platform
-SQUONK_API_URL = os.environ.get('SQUONK_API_URL')
-SQUONK_UI_URL = os.environ.get('SQUONK_UI_URL')
+# Squonk settings for API calls to Squonk Platform.
+# The environment variable SQUONK2_DMAPI_URL
+# is expected by the squonk2-client package.
+# As part of the transition from the 'data-manager-api' PyPI package to the
+# new 'squonk2-client' package we set defaults usign the values we're using today,
+# but the deployment is expected to provide these.
+SQUONK2_DMAPI_URL = os.environ.get('SQUONK2_DMAPI_URL',
+                                   'https://data-manager.xchem-dev.diamond.ac.uk/data-manager-api')
+SQUONK2_UI_URL = os.environ.get('SQUONK2_UI_URL',
+                                'https://data-manager-ui.xchem-dev.diamond.ac.uk/data-manager-ui')
 
 SQUONK_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
