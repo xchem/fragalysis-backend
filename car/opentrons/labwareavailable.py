@@ -35,7 +35,7 @@ labware_plates = {
         "reflux": False,
     },
     "plateone_96_wellplate_500ul": {
-        "type": ["reaction","lcms", "xchem"],
+        "type": ["reaction", "lcms", "xchem"],
         "no_wells": 96,
         "volume_well": 500,
         "max_temp": 110,

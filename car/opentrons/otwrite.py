@@ -92,9 +92,6 @@ class OTWrite(object):
 
     def writeReactionSession(self):
         actionsessionqueryset = self.getActionSessionQuerySet()
-        # addactionsqueryset = self.getAddActionQuerySet(
-        #     reaction_ids=self.reaction_ids, actionsession_ids=self.actionsession_ids
-        # )
         self.writeReactionActions(actionsessionqueryset=actionsessionqueryset)
         self.createOTScriptModel()
 
@@ -105,14 +102,6 @@ class OTWrite(object):
 
     def writeAnalyseSession(self):
         actionsessionqueryset = self.getActionSessionQuerySet()
-        # analyseactionqueryset = self.getAnalyseActionQuerySet()
-        # uniqueanalysemethods = self.getUniqueAnalyseMethods(
-        #     analyseactionqueryset=analyseactionqueryset
-        # )
-        # groupedanalysemethodobjs = self.getGroupedAnalyseMethods(
-        #     uniquemethods=uniqueanalysemethods,
-        #     analyseactionqueryset=analyseactionqueryset,
-        # )
         self.writeAnalyseActions(actionsessionqueryset=actionsessionqueryset)
         self.createOTScriptModel()
 
@@ -471,6 +460,9 @@ class OTWrite(object):
 
     def createOTScriptModel(self):
         """Creates an OT Script model object"""
+        script = open(self.filepath, "a")
+        script.close()
+
         otscriptobj = OTScript()
         otscriptobj.otsession_id = self.otsessionobj
         otscriptfile = open(self.filepath, "rb")
@@ -478,6 +470,7 @@ class OTWrite(object):
             "otscripts/{}.py".format(self.filename.strip(".txt")), otscriptfile
         )
         otscriptobj.otscript = otscriptfn
+        otscriptfile.close()
         otscriptobj.save()
 
     def findSolventPlateWellObj(self, solvent: str, transfervolume: float) -> list:
@@ -893,7 +886,8 @@ class OTWrite(object):
 
         instruction = [
             "\n\t# " + str(humanread),
-            self.pipettename + f".pick_up_tip()",
+            "if not {}.has_tip:\n".format(self.pipettename),
+            "\t{}.pick_up_tip()".format(self.pipettename),
         ]
 
         self.writeCommand(instruction)
@@ -1008,7 +1002,7 @@ class OTWrite(object):
                         concentration=concentration,
                         transfervolume=transfervolume,
                     )
-        
+
                     for wellinfo in fromwellinfo:
                         previousreactionobjs = wellinfo[0]
                         fromwellobj = wellinfo[1]
@@ -1019,6 +1013,8 @@ class OTWrite(object):
                                 solvent=solvent,
                                 transfervolume=transfervolume,
                             )
+
+                            self.pickUpTip()
 
                             for solventwellinfo in fromsolventwellinfo:
                                 fromsolventwellobj = solventwellinfo[0]
@@ -1043,7 +1039,7 @@ class OTWrite(object):
                                     dispensewellindex=dispensewellindex,
                                     transvolume=transfervolume,
                                     transfertype="dilution",
-                                    newtip="never"
+                                    newtip="never",
                                 )
 
                             self.mixWell(
@@ -1146,6 +1142,7 @@ class OTWrite(object):
                         transfervolume=transfervolume,
                     )
 
+                    self.pickUpTip()
                     for solventwellinfo in fromsolventwellinfo:
                         fromsolventwellobj = solventwellinfo[0]
                         transfervolume = solventwellinfo[1]
@@ -1213,6 +1210,31 @@ class OTWrite(object):
                     self.updateReactantForNextStep(wellobj=towellobj)
                     self.updateReactantIsNotForNextStep(wellobj=fromwellobj)
 
+                if actiontype == "mix":
+                    mixactionobj = MixAction.objects.get(
+                        actionsession_id=actionsessionobj,
+                        reaction_id=reactionobj,
+                        number=actionnumber,
+                    )
+                    platetype = mixactionobj.platetype
+                    repetitions = mixactionobj.repetitions
+
+                    mixwellobj = self.getWellObj(
+                        reaction_id=reaction_id, welltype=platetype
+                    )
+                    mixplateobj = self.getPlateObj(plateid=mixwellobj.plate_id.id)
+                    mixwellindex = mixwellobj.index
+                    mixplatename = mixplateobj.name
+
+                    self.pickUpTip()
+                    self.mixWell(
+                        wellindex=mixwellindex,
+                        nomixes=repetitions,
+                        plate=mixplatename,
+                        volumetomix=transfervolume,
+                    )
+                    self.dropTip()
+
     def writeAnalyseActions(self, actionsessionqueryset: QuerySet[ActionSession]):
         for actionsessionobj in actionsessionqueryset:
             sessionnumber = actionsessionobj.sessionnumber
@@ -1277,6 +1299,7 @@ class OTWrite(object):
                             transfervolume=transfervolume,
                         )
 
+                        self.pickUpTip()
                         for solventwellinfo in fromsolventwellinfo:
                             fromsolventwellobj = solventwellinfo[0]
                             transfervolume = solventwellinfo[1]
@@ -1296,6 +1319,7 @@ class OTWrite(object):
                                 transfertype="analyse",
                                 newtip="never",
                             )
+                        self.dropTip()
 
                 if actiontype == "extract":
                     fromplatetype = analyseaction["content"]["plates"]["fromplatetype"]
@@ -1333,3 +1357,27 @@ class OTWrite(object):
                         transvolume=transfervolume,
                         transfertype="analyse",
                     )
+                if actiontype == "mix":
+                    mixactionobj = MixAction.objects.get(
+                        actionsession_id=actionsessionobj,
+                        reaction_id=reactionobj,
+                        number=actionnumber,
+                    )
+                    platetype = mixactionobj.platetype
+                    repetitions = mixactionobj.repetitions
+
+                    mixwellobj = self.getWellObj(
+                        reaction_id=reaction_id, welltype=platetype
+                    )
+                    mixplateobj = self.getPlateObj(plateid=mixwellobj.plate_id.id)
+                    mixwellindex = mixwellobj.index
+                    mixplatename = mixplateobj.name
+
+                    self.pickUpTip()
+                    self.mixWell(
+                        wellindex=mixwellindex,
+                        nomixes=repetitions,
+                        plate=mixplatename,
+                        volumetomix=transfervolume,
+                    )
+                    self.dropTip()
