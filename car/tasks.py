@@ -329,11 +329,13 @@ def uploadCustomReaction(validate_output):
                     mass=mass,
                 )
 
-                reaction_temperature = [actionsession["actions"][0]["content"]["temperature"][
-                    "value"
-                ] for actionsession in encoded_recipes[reaction_name]["recipes"][
-                    "standard"
-                ]["actionsessions"] if actionsession["type"] == "stir"][0]
+                reaction_temperature = [
+                    actionsession["actions"][0]["content"]["temperature"]["value"]
+                    for actionsession in encoded_recipes[reaction_name]["recipes"][
+                        "standard"
+                    ]["actionsessions"]
+                    if actionsession["type"] == "stir"
+                ][0]
 
                 method_id = createMethodModel(
                     target_id=target_id,

@@ -576,7 +576,9 @@ class CreateEncodedActionModels(object):
                 vol_material = (mol_material / conc_reagents) * 1e6  # in uL
             return vol_material
 
-    def createActionSessionModel(self, actionsessiontype: str, driver: str, sessionnumber: int):
+    def createActionSessionModel(
+        self, actionsessiontype: str, driver: str, sessionnumber: int
+    ):
         """Creates a Django action session object - a session are colelctions of
            actions that can be collectively exceuted. Eg. a reaction will
            inlcude a series of add actions

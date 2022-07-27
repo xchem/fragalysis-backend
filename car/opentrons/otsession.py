@@ -1547,17 +1547,17 @@ class CreateOTSession(object):
         )
         if addactionqueryset:
             roundedaddvolumes = self.getRoundedAddActionVolumes(
-            addactionqueryset=addactionqueryset
-        )
+                addactionqueryset=addactionqueryset
+            )
         if not addactionqueryset:
             extractactionqueryset = ExtractAction.objects.filter(
-            actionsession_id__in=actionsessionqueryset, toplatetype=platetype
-        )
+                actionsession_id__in=actionsessionqueryset, toplatetype=platetype
+            )
             if extractactionqueryset:
                 roundedaddvolumes = self.getRoundedExtractActionVolumes(
-                extractactionqueryset=extractactionqueryset
-        )
-      
+                    extractactionqueryset=extractactionqueryset
+                )
+
         labwareplatetype = self.getPlateType(
             platetype=platetype,
             volumes=roundedaddvolumes,

@@ -175,7 +175,6 @@ class OTWrite(object):
         ).order_by("id")
         return extractactionqueryset
 
-
     def getAddAction(self, reaction_id: int) -> Product:
         """Gets the product for a reaction
 
@@ -224,7 +223,6 @@ class OTWrite(object):
         reactionobj = Reaction.objects.get(id=reaction_id)
         return reactionobj
 
-    
     def getPlates(self) -> QuerySet[Plate]:
         """Gets plates for an OT session
 
@@ -902,7 +900,8 @@ class OTWrite(object):
             reactionactions = [
                 actionsession[reactionactionsearch]["actions"]
                 for actionsession in actionsessions
-                if actionsession["type"] == "reaction" and actionsession["sessionnumber"] == sessionnumber
+                if actionsession["type"] == "reaction"
+                and actionsession["sessionnumber"] == sessionnumber
             ][0]
 
             for reactionaction in reactionactions:
@@ -1036,7 +1035,8 @@ class OTWrite(object):
             workupactions = [
                 actionsession["actions"]
                 for actionsession in actionsessions
-                if actionsession["type"] == "workup" and actionsession["sessionnumber"] == sessionnumber
+                if actionsession["type"] == "workup"
+                and actionsession["sessionnumber"] == sessionnumber
             ][0]
 
             for workupaction in workupactions:
@@ -1174,7 +1174,8 @@ class OTWrite(object):
             analyseactions = [
                 actionsession["actions"]
                 for actionsession in actionsessions
-                if actionsession["type"] == "analyse" and actionsession["sessionnumber"] == sessionnumber
+                if actionsession["type"] == "analyse"
+                and actionsession["sessionnumber"] == sessionnumber
             ][0]
 
             for analyseaction in analyseactions:
