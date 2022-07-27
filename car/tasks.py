@@ -704,40 +704,6 @@ def getActionSessionQuerySet(
         return actionsessionqueryset
 
 
-# def getActionSessionQuerySetByType(
-#     actionsessiontype: str, actionsessionqueryset: QuerySet[ActionSession]
-# ) -> QuerySet[ActionSession]:
-#     """Returns the action session queryset for a type of
-#        action session eg. reaction, stir, analyse etc
-
-#     Parameters
-#     ----------
-#     actionsessiontype: str
-#         The actionsession type to filter the queryset
-#     actionsessionqueryset: QuerySet[ActionSession]
-#         The action session queryset to filter for a given action session type
-
-#     Returns
-#     -------
-#     actionsessionqueryset: QuerySet[ActionSession]
-#         The action session queryset for a given action session type
-#     """
-#     actionsessionqueryset = actionsessionqueryset.filter(type=actionsessiontype)
-#     return actionsessionqueryset
-
-
-# def getActionSessionTypes() -> list:
-#     """Returns the action session types eg. reaction, stir, analyse
-
-#     Returns
-#     -------
-#     actionsessiontypes: list
-#         The action session types
-#     """
-#     actionsessiontypes = [choice[0] for choice in ActionSession.type.field.choices]
-#     return actionsessiontypes
-
-
 def getPreviousObjEntries(queryset: list, obj: object):
     """Finds all previous objects relative to obj of queryset"""
     previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")

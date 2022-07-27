@@ -159,22 +159,6 @@ class OTWrite(object):
             ).order_by("id")
             return addactionqueryset
 
-    # def getAddActionQuerySet(self) -> QuerySet[AddAction]:
-    #     """Get add actions queryset for reaction_ids and actionsession_ids
-
-    #     Returns
-    #     -------
-    #     addactionqueryset: QuerySet[AddAction]
-    #         The add actions related to the reaction and action sessions
-    #     """
-    #     criterion1 = Q(reaction_id__in=self.reaction_ids)
-    #     criterion2 = Q(actionsession_id__in=self.actionsession_ids)
-
-    #     addactionqueryset = AddAction.objects.filter(
-    #         criterion1 and criterion2
-    #     ).order_by("id")
-    #     return addactionqueryset
-
     def getExtractActionQuerySet(self) -> QuerySet[ExtractAction]:
         """Get extract actions queryset for reaction_ids and actionsession_ids
 
@@ -191,21 +175,6 @@ class OTWrite(object):
         ).order_by("id")
         return extractactionqueryset
 
-    # def getAnalyseActionQuerySet(self):
-    #     """Get analyse actions queryset for reaction_ids and actionsession_ids
-
-    #     Returns
-    #     -------
-    #     analyseactionqueryset: QuerySet[AddAction]
-    #         The analyse actions related to the reaction and action sessions
-    #     """
-    #     criterion1 = Q(reaction_id__in=self.reaction_ids)
-    #     criterion2 = Q(actionsession_id__in=self.actionsession_ids)
-
-    #     analyseactionqueryset = AnalyseAction.objects.filter(
-    #         criterion1 & criterion2
-    #     ).order_by("id")
-    #     return analyseactionqueryset
 
     def getAddAction(self, reaction_id: int) -> Product:
         """Gets the product for a reaction
@@ -255,56 +224,7 @@ class OTWrite(object):
         reactionobj = Reaction.objects.get(id=reaction_id)
         return reactionobj
 
-    # def getUniqueAnalyseMethods(
-    #     self, analyseactionqueryset: QuerySet[AnalyseAction]
-    # ) -> list:
-    #     """Get the methods related to analyse actions
-
-    #     Parameters
-    #     ----------
-    #     analyseactionqueryset: QuerySet[AnalyseAction]
-    #         The analyse queryset to group by analyse method
-
-    #     Returns
-    #     -------
-    #     methods: list
-    #         The unique set of methods related to the analyse
-    #         actions
-    #     """
-    #     methods = sorted(
-    #         set([analyseactionobj.method for analyseactionobj in analyseactionqueryset])
-    #     )
-    #     return methods
-
-    # def getGroupedAnalyseMethods(
-    #     self, uniquemethods: list, analyseactionqueryset: QuerySet[AnalyseAction]
-    # ) -> list:
-    #     """Group analyse actions by method
-
-    #     Parameters
-    #     ----------
-    #     uniquemethods: list
-    #         The list of analyse methods eg. ["lcms", "xchem"]
-    #     analysequeryset: QuerySet[AnalyseAction]
-    #         The analyse queryset to group
-
-    #     Returns
-    #     -------
-    #     groupedanalysemethodobjs: list
-    #         List of sublists of analyse actions grouped by synthesis method
-    #     """
-    #     groupedanalysemethodobjs = []
-
-    #     for method in uniquemethods:
-    #         analysemethodgroup = [
-    #             analyseactionobj
-    #             for analyseactionobj in analyseactionqueryset
-    #             if analyseactionobj.method == method
-    #         ]
-    #         groupedanalysemethodobjs.append(analysemethodgroup)
-
-    #     return groupedanalysemethodobjs
-
+    
     def getPlates(self) -> QuerySet[Plate]:
         """Gets plates for an OT session
 
@@ -677,7 +597,6 @@ class OTWrite(object):
             The well used in the reaction
         """
         productsmiles = self.getProductSmiles(reaction_id=reaction_id)
-        # print(welltype, reaction_id, self.otsession_id)
         wellobj = Well.objects.get(
             otsession_id=self.otsession_id,
             reaction_id=reaction_id,
