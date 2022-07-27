@@ -28,7 +28,6 @@ def getManifoldRetrosynthesis(smiles: str):
         "maxNumRoutesToReturn": 10,
         "catalogs": [
             "enamine_bb",
-            "enamine_bb_EU-US", 
             "molport",
             "mcule",
             "mcule_ultimate",
@@ -62,13 +61,12 @@ def getManifoldRetrosynthesisBatch(smiles: list):
     """
 
     data = {
-        "smiles": smiles,
+        "smilesList": smiles,
         "maxLeadTimeWeeks": 12,
         "maxSearchDepth": 3,
         "maxNumRoutesToReturn": 10,
         "catalogs": [
             "enamine_bb",
-            "enamine_bb_EU-US",
             "molport",
             "mcule",
             "mcule_ultimate",
@@ -76,7 +74,7 @@ def getManifoldRetrosynthesisBatch(smiles: list):
     }
 
     response = requests.post(
-        url="https://api.postera.ai/api/v1/retrosynthesis/",
+        url="https://api.postera.ai/api/v1/retrosynthesis/batch/",
         headers={
             "X-API-KEY": api_key,
         },
@@ -115,7 +113,7 @@ def getExactSearch(smiles: str):
         json=data,
     )
 
-    return response.json()["results"]
+    return response.json()
 
 
 @sleep_and_retry
@@ -141,11 +139,11 @@ def getExactSearchBatch(smiles: list):
     }
 
     response = requests.post(
-        "https://api.postera.ai/api/v1/exact/",
+        "https://api.postera.ai/api/v1/exact/batch/",
         headers={
             "X-API-KEY": api_key,
         },
         json=data,
     )
 
-    return response.json()["results"]
+    return response.json()

@@ -32,8 +32,10 @@ from .models import (
 
 # Import action models
 from .models import (
-    AnalyseAction,
+    ActionSession,
     AddAction,
+    ExtractAction,
+    MixAction,
     StirAction,
 )
 
@@ -74,8 +76,10 @@ from .serializers import (
 
 # Import action serializers
 from .serializers import (
-    AnalyseActionSerializer,
+    ActionSessionSerializer,
     AddActionSerializer,
+    ExtractActionSerializer,
+    MixActionSerializer,
     StirActionSerializer,
 )
 
@@ -136,9 +140,6 @@ def cloneMethod(method_obj: Method, target_obj: Target):
 
     for reaction_obj in related_reaction_queryset:
         product_obj = reaction_obj.products.all()[0]
-        related_addaction_objs = reaction_obj.addactions.all()
-        related_stiraction_objs = reaction_obj.stiractions.all()
-        related_analyseaction_objs = reaction_obj.analyseactions.all()
         related_reactant_objs = reaction_obj.reactants.all()
 
         reaction_obj.image = ContentFile(
@@ -154,21 +155,6 @@ def cloneMethod(method_obj: Method, target_obj: Target):
         product_obj.pk = None
         product_obj.reaction_id = reaction_obj
         product_obj.save()
-
-        for addaction_obj in related_addaction_objs:
-            addaction_obj.pk = None
-            addaction_obj.reaction_id = reaction_obj
-            addaction_obj.save()
-
-        for stiraction_obj in related_stiraction_objs:
-            stiraction_obj.pk = None
-            stiraction_obj.reaction_id = reaction_obj
-            stiraction_obj.save()
-
-        for analyseaction_obj in related_analyseaction_objs:
-            analyseaction_obj.pk = None
-            analyseaction_obj.reaction_id = reaction_obj
-            analyseaction_obj.save()
 
         for reactant_obj in related_reactant_objs:
             related_catalogentry_objs = reactant_obj.catalogentries.all()
@@ -533,15 +519,27 @@ class CatalogEntryViewSet(viewsets.ModelViewSet):
 
 
 # Action viewsets
-class AnalyseActionViewSet(viewsets.ModelViewSet):
-    queryset = AnalyseAction.objects.all()
-    serializer_class = AnalyseActionSerializer
+class ActionSessionViewSet(viewsets.ModelViewSet):
+    queryset = ActionSession.objects.all()
+    serializer_class = ActionSessionSerializer
     filterset_fields = ["reaction_id"]
 
 
 class AddActionViewSet(viewsets.ModelViewSet):
     queryset = AddAction.objects.all()
     serializer_class = AddActionSerializer
+    filterset_fields = ["reaction_id"]
+
+
+class ExtractActionViewSet(viewsets.ModelViewSet):
+    queryset = ExtractAction.objects.all()
+    serializer_class = ExtractActionSerializer
+    filterset_fields = ["reaction_id"]
+
+
+class MixActionViewSet(viewsets.ModelViewSet):
+    queryset = MixAction.objects.all()
+    serializer_class = MixActionSerializer
     filterset_fields = ["reaction_id"]
 
 

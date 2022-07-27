@@ -15,8 +15,10 @@ from .api import (
 
 # Import action views
 from .api import (
-    AnalyseActionViewSet,
+    ActionSessionViewSet,
     AddActionViewSet,
+    ExtractActionViewSet,
+    MixActionViewSet,
     StirActionViewSet,
 )
 
@@ -47,8 +49,10 @@ router.register("api/reactants", ReactantViewSet, "reactants")
 router.register("api/catalogentries", CatalogEntryViewSet, "catalogentries")
 
 # Register action routes
-router.register("api/analyseactions", AnalyseActionViewSet, "analyseactions")
+router.register("api/actionsessions", ActionSessionViewSet, "actionsessions")
 router.register("api/addactions", AddActionViewSet, "addactions")
+router.register("api/extractactions", ExtractActionViewSet, "extractactions")
+router.register("api/mixactions", MixActionViewSet, "mixactions")
 router.register("api/stiractions", StirActionViewSet, "stiractions")
 
 # Register Ot Session routes

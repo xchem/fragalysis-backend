@@ -1,8 +1,9 @@
 """Create OT session"""
 from __future__ import annotations
+from audioop import add
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-from django.db.models import QuerySet, Q
+from django.db.models import QuerySet, Q, Sum
 
 from statistics import median
 from graphene_django import DjangoObjectType
@@ -15,8 +16,8 @@ from pandas.core.frame import DataFrame
 
 from car.models import (
     ActionSession,
-    AnalyseAction,
     Batch,
+    ExtractAction,
     OTBatchProtocol,
     Reaction,
     Product,
@@ -69,7 +70,6 @@ class CreateOTSession(object):
         self.actionsessionqueryset = actionsessionqueryset
         self.actionsession_ids = actionsessionqueryset.values_list("id", flat=True)
         self.reactiongrouplist = reactiongrouplist
-        self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
         self.otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
         self.batchobj = Batch.objects.get(id=otbatchprotocolobj.batch_id_id)
         self.actionsessiontype = self.getActionSessionType()
@@ -80,6 +80,7 @@ class CreateOTSession(object):
         """Calls the functions to create the appropriate action session"""
         actionSessionTypes = {
             "reaction": self.createReactionSession,
+            "workup": self.createWorkUpSession,
             "analyse": self.createAnalyseSession,
         }
 
@@ -87,97 +88,212 @@ class CreateOTSession(object):
             actionSessionTypes[self.actionsessiontype]()
 
     def createReactionSession(self):
-        """Creates a reaction OT session
-
-        Parameters
-        actionsessiontype: str
-            The type of OT session session being created eg. reaction.
-        """
+        """Creates a reaction OT session"""
+        self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
         self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
         )
-        self.roundedvolumes = self.getRoundedAddActionVolumes(
+        self.addactionsdf = self.getAddActionsDataFrame(
             addactionqueryset=self.addactionqueryset
         )
+        self.extractactionqueryset = self.getExtractActionQuerySet(
+            reaction_ids=self.reaction_ids,
+            actionsession_ids=self.actionsession_ids,
+        )
+        self.roundedaddvolumes = self.getRoundedAddActionVolumes(
+            addactionqueryset=self.addactionqueryset
+        )
+        self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
+            extractactionqueryset=self.extractactionqueryset
+        )
+        self.roundedvolumes = self.roundedaddvolumes + self.roundedextractvolumes
+
         self.deckobj = self.createDeckModel()
-        self.numbertips = self.getNumberTips(queryset=self.addactionqueryset)
+        self.numbertips = self.getNumberTips(
+            queryset=self.addactionqueryset
+        ) + self.getNumberTips(queryset=self.extractactionqueryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
-        self.addactionsdf = self.getAddActionsDataFrame()
-        inputplatequeryset = self.getInputPlatesNeeded()
+
+        inputplatequeryset = self.getInputPlatesNeeded(
+            smiles=self.addactionqueryset.values_list("smiles", flat=True)
+        )
         if inputplatequeryset:
             self.cloneInputPlate(platesforcloning=inputplatequeryset)
         self.createPipetteModel()
         self.createReactionStartingPlate()
+        self.createReactionPlate()
+
+    def createWorkUpSession(self):
+        """Creates a workup OT session"""
+        self.reaction_ids = [
+            actionsessionobj.reaction_id.id
+            for actionsessionobj in self.actionsessionqueryset
+        ]
+        self.addactionqueryset = self.getAddActionQuerySet(
+            reaction_ids=self.reaction_ids,
+            actionsession_ids=self.actionsession_ids,
+        )
+        self.roundedaddvolumes = self.getRoundedAddActionVolumes(
+            addactionqueryset=self.addactionqueryset
+        )
+        self.addactionsmiles = self.addactionqueryset.values_list("smiles", flat=True)
+        self.extractactionqueryset = self.getExtractActionQuerySet(
+            reaction_ids=self.reaction_ids,
+            actionsession_ids=self.actionsession_ids,
+        )
+        self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
+            extractactionqueryset=self.extractactionqueryset
+        )
+        self.extractactionsmiles = self.extractactionqueryset.values_list(
+            "smiles", flat=True
+        )
+        self.roundedvolumes = self.roundedaddvolumes + self.roundedextractvolumes
+
+        self.deckobj = self.createDeckModel()
+        self.numbertips = self.getNumberTips(
+            queryset=self.addactionqueryset
+        ) + self.getNumberTips(queryset=self.extractactionqueryset)
+        self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
+        self.createTipRacks(tipracktype=self.tipracktype)
+        self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
+        self.addactionsdf = self.getAddActionsDataFrame(
+            addactionqueryset=self.addactionqueryset
+        )
+        smiles = set(list(self.addactionsmiles) + list(self.extractactionsmiles))
+        inputplatequeryset = self.getInputPlatesNeeded(
+            smiles=smiles, reaction_ids=self.reaction_ids
+        )
+
+        if inputplatequeryset:
+            self.cloneInputPlate(platesforcloning=inputplatequeryset)
+        self.createPipetteModel()
         self.solventmaterialsdf = self.getAddActionsMaterialDataFrame(
-            productexists=True
+            productexists=False
         )
         self.createSolventPlate(materialsdf=self.solventmaterialsdf)
-        self.createReactionPlate()
-        self.startingreactionplatequeryset = self.getStartingReactionPlateQuerySet(
-            otsession_id=self.otsessionobj.id
+        self.workupplatesneeded = self.getUniqueToPlates(
+            actionsessionqueryset=self.actionsessionqueryset,
+            platetypes=["workup1", "workup2", "workup3"],
         )
+        for workuplateneeded in self.workupplatesneeded:
+            self.createWorkUpPlate(platetype=workuplateneeded)
 
     def createAnalyseSession(self):
         """Creates an analyse OT session"""
-        self.allanalyseactionqueryset = self.getAnalyseActionQuerySet()
-        self.productqueryset = self.getProductQuerySet(reaction_ids=self.reaction_ids)
-        self.productsmiles = self.productqueryset.values_list("smiles", flat=True)
-
-        self.analyseactionsdf = self.getAnalyseActionsDataFrame()
-        self.roundedvolumes = self.getRoundedAnalyseActionVolumes(
-            analyseactionqueryset=self.allanalyseactionqueryset
+        self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
+        self.addactionqueryset = self.getAddActionQuerySet(
+            reaction_ids=self.reaction_ids,
+            actionsession_ids=self.actionsession_ids,
         )
-        self.groupedanalysemethodobjs = self.getGroupedAnalyseMethods()
+        self.addactionsdf = self.getAddActionsDataFrame(
+            addactionqueryset=self.addactionqueryset
+        )
+        self.addactionsmiles = self.addactionqueryset.values_list("smiles", flat=True)
+        self.roundedaddvolumes = self.getRoundedAddActionVolumes(
+            addactionqueryset=self.addactionqueryset
+        )
+        self.extractactionqueryset = self.getExtractActionQuerySet(
+            reaction_ids=self.reaction_ids,
+            actionsession_ids=self.actionsession_ids,
+        )
+        self.extractactionsmiles = self.extractactionqueryset.values_list(
+            "smiles", flat=True
+        )
+        self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
+            extractactionqueryset=self.extractactionqueryset
+        )
+        self.roundedvolumes = self.roundedaddvolumes + self.roundedextractvolumes
+        self.solventmaterialsdf = self.getAddActionsMaterialDataFrame(
+            productexists=False
+        )
         self.deckobj = self.createDeckModel()
-        self.numbertips = self.getNumberTips(queryset=self.allanalyseactionqueryset)
+        self.numbertips = self.getNumberTips(
+            queryset=self.addactionqueryset
+        ) + self.getNumberTips(queryset=self.extractactionqueryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
         self.createPipetteModel()
-        self.createSolventPlate(materialsdf=self.analyseactionsdf)
-        previousreactionplates = self.getPreviousOTSessionReactionPlates()
-        if previousreactionplates:
-            self.cloneInputPlate(platesforcloning=previousreactionplates)
-        for analysegroup in self.groupedanalysemethodobjs:
-            wellsneeded = len(analysegroup)
-            method = analysegroup[0].method
-            volumes = self.getRoundedAnalyseActionVolumes(
-                analyseactionqueryset=analysegroup
-            )
-            platetype = self.getPlateType(
-                platetype=method, volumes=volumes, wellsneeded=wellsneeded
-            )
-            self.createAnalysePlate(
-                method=method,
-                platetype=platetype,
-                analyseactionqueryset=analysegroup,
-            )
+        smiles = set(list(self.addactionsmiles) + list(self.extractactionsmiles))
+        inputplatequeryset = self.getInputPlatesNeeded(
+            smiles=smiles, reaction_ids=self.reaction_ids
+        )
+        if inputplatequeryset:
+            self.cloneInputPlate(platesforcloning=inputplatequeryset)
+        self.createSolventPlate(materialsdf=self.solventmaterialsdf)
 
-    def getAllPreviousOTSessionReactionPlates(self) -> QuerySet[Plate]:
-        """Get all input reaction plates for all previous reaction OT sessions
-        in a OT batch of protocols
+        self.analyseplatesneeded = self.getUniqueToPlates(
+            actionsessionqueryset=self.actionsessionqueryset,
+            platetypes=["lcms", "xchem"],
+        )
+        for analyseplateneeded in self.analyseplatesneeded:
+            self.createAnalysePlate(platetype=analyseplateneeded)
+
+    def getActionSessionByPlateType(self, platetype: str) -> QuerySet[ActionSession]:
+
+        criterion1 = Q(id__in=self.actionsessionqueryset)
+        criterion2 = Q(addaction__toplatetype=platetype)
+        criterion3 = Q(extractaction__toplatetype=platetype)
+        actionsessionqueryset = ActionSession.objects.filter(
+            criterion1 & (criterion2 | criterion3)
+        ).distinct()
+        return actionsessionqueryset
+
+    def getUniqueToPlates(
+        self, actionsessionqueryset: QuerySet[ActionSession], platetypes: list
+    ) -> list:
+        """Gets the distinct to plate types to plates an action session
+        queryset
+
+        Parameters
+        ----------
+        actionsessionqueryset: QuerySet[ActionSession]
+            The action queryset to get the to plates for
+        platetypes: list
+            The plate types to try and find in an action session
+            queryset eg. ["reaction", "workup1"]
+
+        Returns
+        -------
+        toplatetypes: list
+            The to plates needed for an action session
+        """
+        criterion1 = Q(actionsession_id__in=actionsessionqueryset)
+        criterion2 = Q(toplatetype__in=platetypes)
+        toaddplates = (
+            AddAction.objects.filter(criterion1 & criterion2)
+            .values_list("toplatetype", flat=True)
+            .distinct()
+        )
+        toextractplates = (
+            ExtractAction.objects.filter(criterion1 & criterion2)
+            .values_list("toplatetype", flat=True)
+            .distinct()
+        )
+        toplatetypes = set(list(toaddplates) + list(toextractplates))
+        return toplatetypes
+
+    def getAllPreviousOTSessionPlates(self) -> QuerySet[Plate]:
+        """Get all input reaction plates for all previous reaction and workup
+        sessions in a OT batch of protocols
 
         Returns
         -------
         allinputplatesqueryset: QuerySet[Plate]
-            The plates used for all previous reaction OT
+            The plates used for all previous reaction and workup
             sessions
         status: False
             The status if no plates were found
         """
         if self.otsessionqueryset:
-            otsessionsids = [
-                otsession.id
-                for otsession in self.otsessionqueryset
-                if otsession.sessiontype == "reaction"
-            ]
-            allinputplatesqueryset = Plate.objects.filter(
-                otsession_id__in=otsessionsids, type="reaction"
-            )
+            criterion1 = Q(otsession_id__in=self.otsessionqueryset)
+            criterion2 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
+
+            allinputplatesqueryset = Plate.objects.filter(criterion1 & criterion2)
             return allinputplatesqueryset
         else:
             return False
@@ -186,47 +302,20 @@ class CreateOTSession(object):
         platequeryset = Plate.objects.filter(otsession_id=otsession_id)
         return platequeryset
 
-    def getPreviousOTSessionReactionPlates(self) -> list[Plate]:
-        """Checks if previous Reaction Plates exist and if they do
-        check if the Wells match the products of the input
-        reactiongrouplist for the session
+    def getInputPlatesNeeded(
+        self, smiles: list, reaction_ids: list = None
+    ) -> list[Plate]:
+        """Gets plates, created in previous reaction and workup
+        sessions with reaction products that are required as
+        reactants in current reaction session
 
-        Returns
-        -------
-        previousreactionplates: list
-            The list of previous OT session reaction plates in
-            an OT batch protocol
-        """
-        previousotsessionobj = self.getPreviousObjEntry(
-            queryset=self.otsessionqueryset, obj=self.otsessionobj
-        )
-        previousreactionplates = []
-        if previousotsessionobj.sessiontype == "reaction":
-            previousotsessionplates = self.getPlateQuerySet(
-                otsession_id=previousotsessionobj.id
-            )
-            previousotsessioreactionplates = previousotsessionplates.filter(
-                type="reaction"
-            )
-            for previousotsessionreactionplate in previousotsessioreactionplates:
-                wellmatchqueryset = (
-                    previousotsessionreactionplate.well_set.all()
-                    .filter(
-                        reaction_id__in=self.reaction_ids,
-                        smiles__in=self.productsmiles,
-                        type="reaction",
-                    )
-                    .distinct()
-                )
-                if wellmatchqueryset:
-                    previousreactionplates.append(previousotsessionreactionplate)
-
-        return previousreactionplates
-
-    def getInputPlatesNeeded(self) -> list[Plate]:
-        """Gets plates, created in previous reaction OT sessions,
-        with reaction products that are required as reactants in
-        current reaction session
+        Parameters
+        ----------
+        smiles: list
+            The list of SMILES that are required from previous
+            reaction plate wells
+        reaction_ids: list
+            The optional reaction ids to match wells and plates with.
 
         Returns
         -------
@@ -236,70 +325,27 @@ class CreateOTSession(object):
             reactants for current reaction OT session
         """
         inputplatesneeded = []
-        allinputplatequerset = self.getAllPreviousOTSessionReactionPlates()
-        methodids = [reactionobj.method_id for reactionobj in self.reactiongrouplist]
-        allreactantsmiles = self.addactionqueryset.values_list("smiles", flat=True)
+        allinputplatequerset = self.getAllPreviousOTSessionPlates()
+        if not reaction_ids:
+            methodids = [
+                reactionobj.method_id for reactionobj in self.reactiongrouplist
+            ]
+            criterion1 = Q(method_id__in=methodids)
+        if reaction_ids:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+        criterion2 = Q(reactantfornextstep=True)
+        criterion3 = Q(smiles__in=smiles)
+        criterion4 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
 
         if allinputplatequerset:
             for inputplateobj in allinputplatequerset:
-                wellmatchqueryset = (
-                    inputplateobj.well_set.all()
-                    .filter(
-                        method_id__in=methodids,
-                        reactantfornextstep=True,
-                        smiles__in=allreactantsmiles,
-                        type="reaction",
-                    )
-                    .distinct()
+                wellmatchqueryset = inputplateobj.well_set.all().filter(
+                    criterion1 & criterion2 & criterion3 & criterion4
                 )
                 if wellmatchqueryset:
                     inputplatesneeded.append(inputplateobj)
+
         return inputplatesneeded
-
-    def getStartingReactionPlateQuerySet(self, otsession_id: int) -> QuerySet[Plate]:
-        """Get all plates used in reactions for an OT session
-
-        Parameters
-        ----------
-        otsession_id: int
-            The OT session to search for all the reaction plates
-
-        Returns
-        -------
-        reactionplatequeryset: QuerySet[Plate]
-            The plates used in reactions in an OT session
-        """
-        reactionplatequeryset = Plate.objects.filter(
-            otsession_id=otsession_id, name__contains="Reactionplate"
-        ).order_by("id")
-        return reactionplatequeryset
-
-    def getPreviousObjEntry(
-        self, queryset: QuerySet, obj: DjangoObjectType
-    ) -> DjangoObjectType:
-        """Finds previous Django model object relative to the Django model
-           object in a queryset
-
-        Parameters
-        ----------
-        queryset: QuerySet
-            The queryset to search for previous entries
-        obj: DjangoObjectType
-            The object that you want to find all previous object entries relative to
-
-        Returns
-        -------
-        previousobj: DjangoObjectType
-            The previous Django model object
-        status: None
-            None returned if no previous object is found
-        """
-        previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
-        if previousqueryset:
-            previousobj = previousqueryset[0]
-            return previousobj
-        else:
-            return None
 
     def getPreviousObjEntries(
         self, queryset: QuerySet, obj: DjangoObjectType
@@ -321,25 +367,6 @@ class CreateOTSession(object):
         """
         previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
         return previousqueryset
-
-    def getNextObjEntries(self, queryset: QuerySet, obj: DjangoObjectType) -> QuerySet:
-        """Finds all proceeding Django model object relative to the Django model
-           object in a queryset
-
-        Parameters
-        ----------
-        queryset: QuerySet
-            The queryset to search for proceeding entries
-        obj: DjangoObjectType
-            The object that you want to find all proceeding object entries relative to
-
-        Returns
-        -------
-        nextqueryset: QuerySet
-            The proceeding Django model objects as a queryset
-        """
-        nextqueryset = queryset.filter(pk__gt=obj.pk).order_by("pk")
-        return nextqueryset
 
     def checkPreviousReactionProducts(self, reaction_id: int, smiles: str) -> bool:
         """Checks if any previous reactions had a product matching the smiles
@@ -375,59 +402,6 @@ class CreateOTSession(object):
                 return False
         else:
             return False
-
-    def checkNextReactionsAddActions(
-        self, reactionobj: Reaction, productsmiles: str
-    ) -> list:
-        """Checks if there are any reaction objects following the reaction in a method.
-           If there is, checks if any of the proceeding reaction add actions match
-           the reaction product's SMILES
-
-        Parameters
-        ----------
-        reactionobj: Reaction
-            The Django reaction model object to search for it's product SMILES
-            matching any add actions needing the product as a reactant in the
-            proceeding reactions
-        productsmiles: str
-            The SMILES of the reaction's product
-
-        Returns
-        -------
-        addactionsmatches: list
-            The Django add action model objects that require the reaction product
-            as an input reactant
-        """
-        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
-        nextreactionqueryset = self.getNextObjEntries(
-            queryset=reactionqueryset, obj=reactionobj
-        )
-
-        addactionsmatches = []
-        for reactionobj in nextreactionqueryset:
-            addactionmatch = self.getAddActionQuerySet(
-                reaction_ids=[reactionobj.id],
-                actionsessiontype="reaction",
-            ).filter(smiles=productsmiles)
-            if addactionmatch:
-                addactionsmatches.append(addactionmatch[0])
-        return addactionsmatches
-
-    def getAnalyseActionQuerySet(self) -> QuerySet[AnalyseAction]:
-        """Get Analyse Action queryset for list reaction ids object matching reaction_id
-
-        Returns
-        -------
-        analyseactionqueryset: QuerySet[AnalyseAction]
-            The analyse actions queryset
-        """
-        criterion1 = Q(reaction_id__in=self.reaction_ids)
-        criterion2 = Q(actionsession_id__in=self.actionsession_ids)
-
-        analyseactionqueryset = AnalyseAction.objects.filter(
-            criterion1 & criterion2
-        ).order_by("id")
-        return analyseactionqueryset
 
     def getReaction(self, reaction_id: int) -> Reaction:
         """Get reaction object
@@ -525,32 +499,48 @@ class CreateOTSession(object):
             return addactionqueryset
         if actionsessiontype:
             criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__type=actionsessiontype)
             addactionqueryset = AddAction.objects.filter(
-                criterion1, actionsession_id__type=actionsessiontype
+                criterion1 & criterion2
             ).order_by("id")
             return addactionqueryset
 
-    def getRoundedAnalyseActionVolumes(
-        self, analyseactionqueryset: QuerySet[AnalyseAction]
-    ) -> list:
-        """Gets the total rounded volume (ul), for sample and solvent volume used,
-           for all the analyse actions
+    def getExtractActionQuerySet(
+        self,
+        reaction_ids: list,
+        actionsession_ids: list = None,
+        actionsessiontype: str = None,
+    ) -> QuerySet[ExtractAction]:
+        """Get extract actions queryset for reaction_id
 
         Parameters
         ----------
-        analyseactionqueryset: QuerySet[AnalyseAction]
-            The analyse actions to calculate the rounded volumes (ul)
+        reaction_ids: list
+            The reactions to search for related add actions
+        actionsession_ids: list
+            Optional action session ids to match add actions with
+        actionsessiontype: str
+            The optional action session type to look for add actions for
 
         Returns
         -------
-        roundedvolumes: list
-            The list of rounded volumes for the analyse actions
+        extractactionqueryset: QuerySet[ExtractAction]
+            The extract actions related to the reaction
         """
-        roundedvolumes = [
-            round(analyseactionobj.samplevolume + analyseactionobj.solventvolume)
-            for analyseactionobj in analyseactionqueryset
-        ]
-        return roundedvolumes
+
+        if actionsession_ids:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__in=actionsession_ids)
+            extractactionqueryset = ExtractAction.objects.filter(
+                criterion1 & criterion2
+            ).order_by("id")
+            return extractactionqueryset
+        if actionsessiontype:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            extractactionqueryset = ExtractAction.objects.filter(
+                criterion1, actionsession_id__type=actionsessiontype
+            ).order_by("id")
+            return extractactionqueryset
 
     def getRoundedAddActionVolumes(
         self, addactionqueryset: QuerySet[AddAction]
@@ -569,6 +559,26 @@ class CreateOTSession(object):
         """
         roundedvolumes = [
             round(addactionobj.volume) for addactionobj in addactionqueryset
+        ]
+        return roundedvolumes
+
+    def getRoundedExtractActionVolumes(
+        self, extractactionqueryset: QuerySet[ExtractAction]
+    ) -> list:
+        """Gets the total rounded volume (ul) for all the extract actions
+
+        Parameters
+        ----------
+        extractactionqueryset: QuerySet[ExtractAction]
+            The extract actions to calculate the rounded volumes (ul)
+
+        Returns
+        -------
+        roundedvolumes: list
+            The list of rounded volumes for the extract actions
+        """
+        roundedvolumes = [
+            round(extractactionobj.volume) for extractactionobj in extractactionqueryset
         ]
         return roundedvolumes
 
@@ -716,13 +726,20 @@ class CreateOTSession(object):
             The dataframe of the analyse actions
         """
         # Optimise -> https://stackoverflow.com/questions/11697887/converting-django-queryset-to-pandas-dataframe
-        analyseactionsdf = pd.DataFrame(list(self.allanalyseactionqueryset.values()))
+        analyseactionsdf = pd.DataFrame(list(self.analyseactionqueryset.values()))
         analyseactionsdf = analyseactionsdf.rename(columns={"solventvolume": "volume"})
         return analyseactionsdf
 
-    def getAddActionsDataFrame(self) -> DataFrame:
+    def getAddActionsDataFrame(
+        self, addactionqueryset: QuerySet[AddAction]
+    ) -> DataFrame:
         """Creates a Pandas dataframe from the add actions.
            Current version of code uses a dataframe to create plates and wells.
+
+        Parameters
+        ----------
+        addactionqueryset: QuerySet[AddAction]
+            The add action queryset top convert to a dataframe
 
         Returns
         -------
@@ -730,7 +747,7 @@ class CreateOTSession(object):
             The dataframe of the add actions
         """
         # Optimise -> https://stackoverflow.com/questions/11697887/converting-django-queryset-to-pandas-dataframe
-        addactionsdf = pd.DataFrame(list(self.addactionqueryset.values()))
+        addactionsdf = pd.DataFrame(list(addactionqueryset.values()))
         addactionsdf["uniquesolution"] = addactionsdf.apply(
             lambda row: self.combinestrings(row), axis=1
         )
@@ -798,25 +815,6 @@ class CreateOTSession(object):
         ).distinct()[0]
         return actionsessiontype
 
-    def getUniqueAnalyseMethods(self) -> list:
-        """Get the methods related to analyse actions
-
-        Returns
-        -------
-        methods: list
-            The unique set of methods related to the analyse
-            actions
-        """
-        methods = sorted(
-            set(
-                [
-                    analyseactionobj.method
-                    for analyseactionobj in self.allanalyseactionqueryset
-                ]
-            )
-        )
-        return methods
-
     def getUniqueTemperatures(self) -> list:
         """Set of reaction temperatures
 
@@ -829,27 +827,6 @@ class CreateOTSession(object):
             set([reactionobj.temperature for reactionobj in self.reactiongrouplist])
         )
         return temperatures
-
-    def getGroupedAnalyseMethods(self) -> list:
-        """Group analyse actions by method
-
-        Returns
-        -------
-        groupedanalysemethodobjs: list
-            List of sublists of analyse actions grouped by synthesis method
-        """
-        methods = self.getUniqueAnalyseMethods()
-        groupedanalysemethodobjs = []
-
-        for method in methods:
-            analysemethodgroup = [
-                analyseactionobj
-                for analyseactionobj in self.allanalyseactionqueryset
-                if analyseactionobj.method == method
-            ]
-            groupedanalysemethodobjs.append(analysemethodgroup)
-
-        return groupedanalysemethodobjs
 
     def getGroupedTemperatureReactions(self) -> list:
         """Group reactions done at the same temperature
@@ -877,17 +854,9 @@ class CreateOTSession(object):
         medianvalue = median(values)
         return medianvalue
 
-    def getMaxValue(self, values: list) -> float:
-        maxvalue = max(values)
-        return maxvalue
-
     def getSumValue(self, values: list) -> float:
         sumvalue = sum(values)
         return sumvalue
-
-    def getNumberObjs(self, queryset: list) -> int:
-        numberobjs = len(queryset)
-        return numberobjs
 
     def getNumberVials(self, maxvolumevial: float, volumematerial: float) -> int:
         """Gets the total number of vials needed to prepare a starter plate
@@ -926,18 +895,26 @@ class CreateOTSession(object):
         """Gets best suited plate
         Optimises for (in order of decreasing preference) minimum:
         number of plates, volume difference and mumber of vials
+
+        Paramters
+        ---------
+        platetype: str
+            The plateype eg. reaction, starting plate
+        volumes: list
+            The volumes that the plate and wells need to accomadate
+        temperature: int = 25
+            The temperature (degC) the plate will be used at
+        wellsneeded: int = None
+            Optional to specifiy if a speciifc number of wells are needed
         """
         platetype = platetype.lower()
-        # maxvolume = self.getMaxValue(values=volumes)
         medianvolume = self.getMedianValue(values=volumes)
-        # headspacevolume = maxvolume + (maxvolume * 0.2)
 
         possiblelabwareplatetypes = [
             labware_plate
             for labware_plate in labware_plates
             if platetype in labware_plates[labware_plate]["type"]
             and labware_plates[labware_plate]["max_temp"] >= temperature
-            # and labware_plates[labware_plate]["volume_well"] >= headspacevolume
         ]
 
         vialcomparedict = {}
@@ -1340,7 +1317,10 @@ class CreateOTSession(object):
             The plate object (Usually previously cloned) related to the cloned well
         """
         for clonewellobj in clonewellqueryset:
+            clonewellid = clonewellobj.id
             clonewellobj.pk = None
+            clonewellobj.reactantfornextstep = False
+            clonewellobj.clonewellid = clonewellid
             clonewellobj.plate_id = plateobj
             clonewellobj.otsession_id = self.otsessionobj
             clonewellobj.save()
@@ -1411,7 +1391,9 @@ class CreateOTSession(object):
                             "well": wellobj.index,
                             "concentration": startingmaterialsdf.at[i, "concentration"],
                             "solvent": startingmaterialsdf.at[i, "solvent"],
-                            "molecularweight": startingmaterialsdf.at[i, "molecularweight"],
+                            "molecularweight": startingmaterialsdf.at[
+                                i, "molecularweight"
+                            ],
                             "amount-ul": round(volumetoadd, 2),
                         }
                     )
@@ -1492,31 +1474,127 @@ class CreateOTSession(object):
                         plateobj=plateobj
                     )
 
-                nextaddactionobjs = self.checkNextReactionsAddActions(
-                    reactionobj=reactionobj, productsmiles=productobj.smiles
+                self.createWellModel(
+                    plateobj=plateobj,
+                    reactionobj=reactionobj,
+                    welltype="reaction",
+                    wellindex=indexwellavailable - 1,
+                    smiles=productobj.smiles,
                 )
-                if nextaddactionobjs:
-                    nextaddactionobj = nextaddactionobjs[0]
-                    self.createWellModel(
-                        plateobj=plateobj,
-                        reactionobj=reactionobj,
-                        welltype="reaction",
-                        wellindex=indexwellavailable - 1,
-                        volume=nextaddactionobj.volume,
-                        smiles=productobj.smiles,
-                        concentration=nextaddactionobj.concentration,
-                        solvent=nextaddactionobj.solvent,
-                        reactantfornextstep=True,
-                    )
 
-                else:
-                    self.createWellModel(
-                        plateobj=plateobj,
-                        reactionobj=reactionobj,
-                        welltype="reaction",
-                        wellindex=indexwellavailable - 1,
-                        smiles=productobj.smiles,
-                    )
+    def createWorkUpPlate(self, platetype: str):
+        """Creates workup plate/s for executing work up actions"""
+
+        actionsessionqueryset = self.getActionSessionByPlateType(platetype=platetype)
+        wellsneeded = len(actionsessionqueryset)
+        addactionqueryset = AddAction.objects.filter(
+            actionsession_id__in=actionsessionqueryset, toplatetype=platetype
+        )
+        extractactionqueryset = ExtractAction.objects.filter(
+            actionsession_id__in=actionsessionqueryset, toplatetype=platetype
+        )
+        roundedaddvolumes = self.getRoundedAddActionVolumes(
+            addactionqueryset=addactionqueryset
+        )
+        roundedextractvolumes = self.getRoundedExtractActionVolumes(
+            extractactionqueryset=extractactionqueryset
+        )
+        roundedvolumes = roundedaddvolumes + roundedextractvolumes
+        labwareplatetype = self.getPlateType(
+            platetype=platetype,
+            volumes=roundedvolumes,
+            wellsneeded=wellsneeded,
+        )
+        plateobj = self.createPlateModel(
+            platetype=platetype,
+            platename="Workupplate",
+            labwaretype=labwareplatetype,
+        )
+
+        for actionsessionobj in actionsessionqueryset:
+            reactionobj = actionsessionobj.reaction_id
+            productobj = self.getProduct(reaction_id=reactionobj.id)
+            totalvolumeextracted = ExtractAction.objects.filter(
+                actionsession_id=actionsessionobj.id,
+                toplatetype=platetype,
+                volume__isnull=False,
+            ).aggregate(Sum("volume"))["volume__sum"]
+            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+            if not indexwellavailable:
+                plateobj = self.createPlateModel(
+                    platetype=platetype,
+                    platename="Workupplate",
+                    labwaretype=labwareplatetype,
+                )
+
+                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+
+            self.createWellModel(
+                plateobj=plateobj,
+                reactionobj=reactionobj,
+                welltype=platetype,
+                wellindex=indexwellavailable - 1,
+                volume=totalvolumeextracted,
+                smiles=productobj.smiles,
+            )
+
+    def createAnalysePlate(self, platetype: str):
+        """Creates analyse plate/s for executing analyse actions"""
+        actionsessionqueryset = self.getActionSessionByPlateType(platetype=platetype)
+        wellsneeded = len(actionsessionqueryset)
+        addactionqueryset = AddAction.objects.filter(
+            actionsession_id__in=actionsessionqueryset, toplatetype=platetype
+        )
+        if addactionqueryset:
+            roundedaddvolumes = self.getRoundedAddActionVolumes(
+            addactionqueryset=addactionqueryset
+        )
+        if not addactionqueryset:
+            extractactionqueryset = ExtractAction.objects.filter(
+            actionsession_id__in=actionsessionqueryset, toplatetype=platetype
+        )
+            if extractactionqueryset:
+                roundedaddvolumes = self.getRoundedExtractActionVolumes(
+                extractactionqueryset=extractactionqueryset
+        )
+      
+        labwareplatetype = self.getPlateType(
+            platetype=platetype,
+            volumes=roundedaddvolumes,
+            wellsneeded=wellsneeded,
+        )
+        plateobj = self.createPlateModel(
+            platetype=platetype,
+            platename="{}_analyse_plate".format(platetype),
+            labwaretype=labwareplatetype,
+        )
+
+        for actionsessionobj in actionsessionqueryset:
+            reactionobj = actionsessionobj.reaction_id
+            productobj = self.getProduct(reaction_id=reactionobj.id)
+            totalvolumeadded = AddAction.objects.filter(
+                actionsession_id=actionsessionobj.id,
+                toplatetype=platetype,
+                volume__isnull=False,
+            ).aggregate(Sum("volume"))["volume__sum"]
+            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+            if not indexwellavailable:
+                plateobj = self.createPlateModel(
+                    platetype=platetype,
+                    platename="{}_analyse_plate".format(platetype),
+                    labwaretype=labwareplatetype,
+                )
+
+                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+
+            self.createWellModel(
+                plateobj=plateobj,
+                reactionobj=reactionobj,
+                welltype=platetype,
+                wellindex=indexwellavailable - 1,
+                volume=totalvolumeadded,
+                smiles=productobj.smiles,
+            )
 
     def createSolventPlate(self, materialsdf: DataFrame):
         """Creates solvent plate/s for diluting reactants for reactions or analysis."""
@@ -1616,35 +1694,3 @@ class CreateOTSession(object):
             solventdf = pd.DataFrame(solventdictslist)
 
             self.createSolventPrepModel(solventdf=solventdf)
-
-    def createAnalysePlate(
-        self, method: str, platetype: str, analyseactionqueryset: list
-    ):
-        """Creates analyse plate/s for executing analyse actions"""
-        plateobj = self.createPlateModel(
-            platetype=platetype.lower(),
-            platename="{}_analyse_plate".format(method),
-            labwaretype=platetype,
-        )
-
-        for analyseactionobj in analyseactionqueryset:
-            reactionobj = analyseactionobj.reaction_id
-            productobj = self.getProduct(reaction_id=reactionobj.id)
-            volume = analyseactionobj.samplevolume + analyseactionobj.solventvolume
-            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-            if not indexwellavailable:
-                plateobj = self.createPlateModel(
-                    platename="{}_analyse_plate".format(method),
-                    labwaretype=platetype,
-                )
-
-                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-
-            self.createWellModel(
-                plateobj=plateobj,
-                reactionobj=reactionobj,
-                welltype=method.lower(),
-                wellindex=indexwellavailable - 1,
-                volume=volume,
-                smiles=productobj.smiles,
-            )
