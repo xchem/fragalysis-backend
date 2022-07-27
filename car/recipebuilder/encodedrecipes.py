@@ -10,8 +10,9 @@ encoded_recipes = {
         "recipes": {
             "standard": {
                 "reference": None,
-                "actionsessions": {
-                    "reaction": {
+                "actionsessions": [
+                    {
+                        "type": "reaction",
                         "driver": "robot",
                         "sessionnumber": 1,
                         "intermolecular": {
@@ -144,7 +145,8 @@ encoded_recipes = {
                             ],
                         },
                     },
-                    "stir": {
+                    {
+                        "type": "stir",
                         "driver": "human",
                         "sessionnumber": 2,
                         "actions": [
@@ -159,13 +161,60 @@ encoded_recipes = {
                             },
                         ],
                     },
-                    "workup": {
+                    {
+                        "type": "analyse",
                         "driver": "robot",
                         "sessionnumber": 3,
                         "actions": [
                             {
-                                "type": "add",
+                                "type": "extract",
                                 "actionnumber": 9,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "reaction",
+                                        "toplatetype": "lcms",
+                                    },
+                                    "material": {
+                                        "layer": "bottom",
+                                        "SMILES": None,  # Product of reaction
+                                        "quantity": {"value": 10, "unit": "ul"},
+                                        "solvent": None,
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "add",
+                                "actionnumber": 10,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "lcms",
+                                    },
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "CO",
+                                        "quantity": {
+                                            "value": 80,
+                                            "unit": "ul",
+                                        },  # Check conc for XChem
+                                        "solvent": "MeOH",
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        "type": "workup",
+                        "driver": "robot",
+                        "sessionnumber": 4,
+                        "actions": [
+                            {
+                                "type": "add",
+                                "actionnumber": 11,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -183,7 +232,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "actionnumber": 10,
+                                "actionnumber": 12,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -201,7 +250,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "actionnumber": 11,
+                                "actionnumber": 13,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "reaction",
@@ -255,9 +304,10 @@ encoded_recipes = {
                             },
                         ],
                     },
-                    "analyse": {
+                    {
+                        "type": "analyse",
                         "driver": "robot",
-                        "sessionnumber": 4,
+                        "sessionnumber": 5,
                         "actions": [
                             {
                                 "type": "add",
@@ -345,7 +395,7 @@ encoded_recipes = {
                             },
                         ],
                     },
-                },
+                ],
             },
         },
     },
@@ -880,8 +930,9 @@ encoded_recipes = {
         "recipes": {
             "standard": {
                 "references": None,
-                "actionsessions": {
-                    "reaction": {
+                "actionsessions": [
+                    {
+                        "type": "reaction",
                         "driver": "robot",
                         "sessionnumber": 1,
                         "intermolecular": {
@@ -941,7 +992,8 @@ encoded_recipes = {
                             ],
                         },
                     },
-                    "stir": {
+                    {
+                        "type": "stir",
                         "driver": "human",
                         "sessionnumber": 2,
                         "actions": [
@@ -959,13 +1011,60 @@ encoded_recipes = {
                             },
                         ],
                     },
-                    "workup": {
+                    {
+                        "type": "analyse",
                         "driver": "robot",
                         "sessionnumber": 3,
                         "actions": [
                             {
-                                "type": "add",
+                                "type": "extract",
                                 "actionnumber": 5,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "reaction",
+                                        "toplatetype": "lcms",
+                                    },
+                                    "material": {
+                                        "layer": "bottom",
+                                        "SMILES": None,  # Product of reaction
+                                        "quantity": {"value": 10, "unit": "ul"},
+                                        "solvent": None,
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "add",
+                                "actionnumber": 6,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "lcms",
+                                    },
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "CO",
+                                        "quantity": {
+                                            "value": 80,
+                                            "unit": "ul",
+                                        },  # Check conc for XChem
+                                        "solvent": "MeOH",
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        "type": "workup",
+                        "driver": "robot",
+                        "sessionnumber": 4,
+                        "actions": [
+                            {
+                                "type": "add",
+                                "actionnumber": 7,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -983,7 +1082,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "actionnumber": 6,
+                                "actionnumber": 8,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -1001,7 +1100,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "actionnumber": 7,
+                                "actionnumber": 9,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "reaction",
@@ -1055,9 +1154,10 @@ encoded_recipes = {
                             },
                         ],
                     },
-                    "analyse": {
+                    {
+                        "type": "analyse",
                         "driver": "robot",
-                        "sessionnumber": 4,
+                        "sessionnumber": 5,
                         "actions": [
                             {
                                 "type": "add",
@@ -1145,7 +1245,7 @@ encoded_recipes = {
                             },
                         ],
                     },
-                },
+                ],
             },
         },
     },

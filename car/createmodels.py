@@ -469,30 +469,31 @@ class CreateEncodedActionModels(object):
         self.mculeidlist = []
         self.amountslist = []
 
-        for type, session in actionsessions.items():
+        for actionsession in actionsessions:
+            actionsessiontype = actionsession["type"]
             actionsession_obj = self.createActionSessionModel(
-                type=type,
-                driver=session["driver"],
-                sessionnumber=session["sessionnumber"],
+                actionsessiontype=actionsessiontype,
+                driver=actionsession["driver"],
+                sessionnumber=actionsession["sessionnumber"],
             )
-            if type == "reaction" and self.intramolecular:
-                reaction_actions = session["intramolecular"]["actions"]
+            if actionsessiontype == "reaction" and self.intramolecular:
+                reaction_actions = actionsession["intramolecular"]["actions"]
                 [
                     self.createEncodedActionModel(
                         actionsession_obj=actionsession_obj, action=action
                     )
                     for action in reaction_actions
                 ]
-            if type == "reaction" and not self.intramolecular:
-                reaction_actions = session["intermolecular"]["actions"]
+            if actionsessiontype == "reaction" and not self.intramolecular:
+                reaction_actions = actionsession["intermolecular"]["actions"]
                 [
                     self.createEncodedActionModel(
                         actionsession_obj=actionsession_obj, action=action
                     )
                     for action in reaction_actions
                 ]
-            if type != "reaction":
-                actions = session["actions"]
+            if actionsessiontype != "reaction":
+                actions = actionsession["actions"]
                 [
                     self.createEncodedActionModel(
                         actionsession_obj=actionsession_obj, action=action
@@ -575,7 +576,7 @@ class CreateEncodedActionModels(object):
                 vol_material = (mol_material / conc_reagents) * 1e6  # in uL
             return vol_material
 
-    def createActionSessionModel(self, type: str, driver: str, sessionnumber: int):
+    def createActionSessionModel(self, actionsessiontype: str, driver: str, sessionnumber: int):
         """Creates a Django action session object - a session are colelctions of
            actions that can be collectively exceuted. Eg. a reaction will
            inlcude a series of add actions
@@ -593,7 +594,7 @@ class CreateEncodedActionModels(object):
         try:
             actionsession = ActionSession()
             actionsession.reaction_id = self.reaction_obj
-            actionsession.type = type
+            actionsession.type = actionsessiontype
             actionsession.driver = driver
             actionsession.sessionnumber = sessionnumber
             actionsession.save()

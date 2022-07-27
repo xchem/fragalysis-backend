@@ -1319,6 +1319,7 @@ class CreateOTSession(object):
         for clonewellobj in clonewellqueryset:
             clonewellid = clonewellobj.id
             clonewellobj.pk = None
+            clonewellobj.reactantfornextstep = False
             clonewellobj.clonewellid = clonewellid
             clonewellobj.plate_id = plateobj
             clonewellobj.otsession_id = self.otsessionobj
@@ -1544,10 +1545,19 @@ class CreateOTSession(object):
         addactionqueryset = AddAction.objects.filter(
             actionsession_id__in=actionsessionqueryset, toplatetype=platetype
         )
-        roundedaddvolumes = self.getRoundedAddActionVolumes(
+        if addactionqueryset:
+            roundedaddvolumes = self.getRoundedAddActionVolumes(
             addactionqueryset=addactionqueryset
         )
-
+        if not addactionqueryset:
+            extractactionqueryset = ExtractAction.objects.filter(
+            actionsession_id__in=actionsessionqueryset, toplatetype=platetype
+        )
+            if extractactionqueryset:
+                roundedaddvolumes = self.getRoundedExtractActionVolumes(
+                extractactionqueryset=extractactionqueryset
+        )
+      
         labwareplatetype = self.getPlateType(
             platetype=platetype,
             volumes=roundedaddvolumes,

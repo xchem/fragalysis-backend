@@ -130,7 +130,6 @@ def uploadManifoldReaction(validate_output):
                             smiles=smiles,
                             mass=mass,
                         )
-                        print(routes)
                         first_route = routes[0]
 
                         if first_route["molecules"][0]["isBuildingBlock"]:
@@ -330,11 +329,11 @@ def uploadCustomReaction(validate_output):
                     mass=mass,
                 )
 
-                reaction_temperature = encoded_recipes[reaction_name]["recipes"][
-                    "standard"
-                ]["actionsessions"]["stir"]["actions"][0]["content"]["temperature"][
+                reaction_temperature = [actionsession["actions"][0]["content"]["temperature"][
                     "value"
-                ]
+                ] for actionsession in encoded_recipes[reaction_name]["recipes"][
+                    "standard"
+                ]["actionsessions"] if actionsession["type"] == "stir"][0]
 
                 method_id = createMethodModel(
                     target_id=target_id,
@@ -417,6 +416,7 @@ def createOTScript(batchids: list, protocol_name: str):
                         intramolecular_possible = True
                     else:
                         intramolecular_possible = False
+
                     actionsessions = std_recipe["actionsessions"]
 
                     CreateEncodedActionModels(
@@ -640,7 +640,6 @@ def getGroupedActionSessionSequences(
         List of sublists of action sessions grouped by sequence number
     """
     groupedactionsessionsequences = []
-
     for sessionnumber in sessionnumbers:
         actionsessiongroup = actionsessionqueryset.filter(
             sessionnumber=sessionnumber

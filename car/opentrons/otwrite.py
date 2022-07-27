@@ -677,6 +677,7 @@ class OTWrite(object):
             The well used in the reaction
         """
         productsmiles = self.getProductSmiles(reaction_id=reaction_id)
+        # print(welltype, reaction_id, self.otsession_id)
         wellobj = Well.objects.get(
             otsession_id=self.otsession_id,
             reaction_id=reaction_id,
@@ -725,6 +726,11 @@ class OTWrite(object):
         """Updates well object to have reactant for next step
         set to True
         """
+        clonewellqueryset = Well.objects.filter(id=wellobj.clonewellid)
+        if clonewellqueryset:
+            clonewellobj = clonewellqueryset[0]
+            clonewellobj.reactantfornextstep = False
+            clonewellobj.save()
         wellobj.reactantfornextstep = True
         wellobj.save()
 
@@ -910,7 +916,7 @@ class OTWrite(object):
         aspiratewellindex: int,
         dispensewellindex: int,
         transvolume: float,
-        aspirateheight: int = 1,
+        aspirateheight: int = 0.1,
         dispenseheight: int = -5,
         transfertype: str = "standard",
         newtip: str = None,
@@ -947,13 +953,13 @@ class OTWrite(object):
             instruction = [
                 "\n\t# " + str(humanread),
                 self.pipettename
-                + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = 15)",
+                + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = 15, blow_out=True, blowout_location='destination well')",
             ]
         if newtip == "never":
             instruction = [
                 "\n\t# " + str(humanread),
                 self.pipettename
-                + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = 15, new_tip='never')",
+                + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = 15, new_tip='never', blow_out=True, blowout_location='destination well')",
             ]
 
         self.writeCommand(instruction)
@@ -975,9 +981,9 @@ class OTWrite(object):
                 "actionsessions"
             ]
             reactionactions = [
-                session[reactionactionsearch]["actions"]
-                for type, session in actionsessions.items()
-                if type == "reaction" and session["sessionnumber"] == sessionnumber
+                actionsession[reactionactionsearch]["actions"]
+                for actionsession in actionsessions
+                if actionsession["type"] == "reaction" and actionsession["sessionnumber"] == sessionnumber
             ][0]
 
             for reactionaction in reactionactions:
@@ -1109,9 +1115,9 @@ class OTWrite(object):
                 "actionsessions"
             ]
             workupactions = [
-                session["actions"]
-                for type, session in actionsessions.items()
-                if type == "workup" and session["sessionnumber"] == sessionnumber
+                actionsession["actions"]
+                for actionsession in actionsessions
+                if actionsession["type"] == "workup" and actionsession["sessionnumber"] == sessionnumber
             ][0]
 
             for workupaction in workupactions:
@@ -1247,9 +1253,9 @@ class OTWrite(object):
                 "actionsessions"
             ]
             analyseactions = [
-                session["actions"]
-                for type, session in actionsessions.items()
-                if type == "analyse" and session["sessionnumber"] == sessionnumber
+                actionsession["actions"]
+                for actionsession in actionsessions
+                if actionsession["type"] == "analyse" and actionsession["sessionnumber"] == sessionnumber
             ][0]
 
             for analyseaction in analyseactions:

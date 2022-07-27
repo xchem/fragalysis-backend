@@ -20,7 +20,7 @@ labware_plates = {
         "max_temp": 110,
         "reflux": False,
     },
-    "24_reservoir_2500ul": {
+    "fluidx_24_vials_2500ul": {
         "type": ["startingmaterial", "solvent"],
         "no_wells": 24,
         "volume_well": 2500,
@@ -28,14 +28,14 @@ labware_plates = {
         "reflux": False,
     },
     "labcyte_384_wellplate_100ul": {
-        "type": ["lcms"],
+        "type": ["xchem"],
         "no_wells": 384,
         "volume_well": 100,
         "max_temp": 110,
         "reflux": False,
     },
     "plateone_96_wellplate_500ul": {
-        "type": ["reaction", "lcms", "xchem"],
+        "type": ["lcms"],
         "no_wells": 96,
         "volume_well": 500,
         "max_temp": 110,

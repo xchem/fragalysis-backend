@@ -15,6 +15,7 @@ from .models import (
 
 # Import action models
 from .models import (
+    ActionSession,
     AddAction,
     ExtractAction,
     MixAction,
@@ -160,6 +161,12 @@ class ProjectSerializerAll(serializers.ModelSerializer):
 
 
 # Action models here
+class ActionSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActionSession
+        fields = "__all__"
+
+
 class AddActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AddAction
