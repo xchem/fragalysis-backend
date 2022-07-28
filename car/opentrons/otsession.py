@@ -1,6 +1,5 @@
 """Create OT session"""
 from __future__ import annotations
-from audioop import add
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.db.models import QuerySet, Q, Sum

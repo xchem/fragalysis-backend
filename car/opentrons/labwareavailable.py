@@ -1,5 +1,5 @@
 labware_plates = {
-    "4welltrough_4_reservoir_60000µL": {
+    "4welltrough_4_reservoir_60000ul": {
         "type": ["solvent"],
         "no_wells": 4,
         "volume_well": 60000,
@@ -47,6 +47,8 @@ labware_plates = {
         "volume_well": 2500,
         "max_temp": 110,
         "reflux": False,
+        "aspirateheightconversion-m": 0.05535,
+        "aspirateheightconversion-c": -1.849,
     },
     "qmx_96_aluminumblock_962ul": {
         "type": ["reaction"],
@@ -54,5 +56,7 @@ labware_plates = {
         "volume_well": 962,
         "max_temp": 250,
         "reflux": True,
+        "aspirateheightconversion-m": 10,
+        "aspirateheightconversion-c": 3,
     },
 }

@@ -32,6 +32,8 @@ import math
 import inspect
 import logging
 
+from .labwareavailable import labware_plates
+
 logger = logging.getLogger(__name__)
 
 
@@ -825,6 +827,24 @@ class OTWrite(object):
         ]
 
         self.writeCommand(instruction)
+    
+    def delayProtocol(self, delay: int):
+        """Delays protocol from executing next operation
+        
+        Parameters
+        ----------
+        delay: int
+            The delay in seconds
+        
+        """
+        humanread = f"Delaying protocol operation"
+
+        instruction = [
+            "\n\t# " + str(humanread),
+            "protocol.delay(seconds={})".format(delay),
+        ]
+
+        self.writeCommand(instruction)
 
     def transferFluid(
         self,
@@ -880,6 +900,37 @@ class OTWrite(object):
             ]
 
         self.writeCommand(instruction)
+
+    def calculateAspirateHeight(
+        self, bottomlayervolume: float, labware: str
+    ) -> float:
+        """Calculate the height at wich to extract the top layer based
+        on volume occupying the bottom layer
+
+        Parameters
+        ----------
+        bottomlayervolume: float
+            The volume occupying the bottom layer
+        platetype: str
+            The type of plate being used for the extraction
+
+        Returns
+        -------
+        aspirateheight: float
+            The height (mm) from the bottom of the plate,
+            the pipette tip should aspirate from
+        """
+        aspirateheightconvesion_m = labware_plates[labware][
+            "aspirateheightconversion-m"
+        ]
+        aspirateheightconvesion_c = labware_plates[labware][
+            "aspirateheightconversion-c"
+        ]
+        bottomlayerheight = (
+            aspirateheightconvesion_m * bottomlayervolume
+        ) + aspirateheightconvesion_c
+        aspirateheight = (bottomlayerheight * 0.1) + bottomlayerheight
+        return aspirateheight
 
     def writeReactionActions(self, actionsessionqueryset: QuerySet[ActionSession]):
         for actionsessionobj in actionsessionqueryset:
@@ -966,12 +1017,6 @@ class OTWrite(object):
                                     newtip="never",
                                 )
 
-                            self.mixWell(
-                                wellindex=dispensewellindex,
-                                nomixes=3,
-                                plate=dispenseplatename,
-                                volumetomix=transfervolume,
-                            )
                             self.dropTip()
 
                         towellobj = self.getWellObj(
@@ -1012,14 +1057,13 @@ class OTWrite(object):
                     mixwellindex = mixwellobj.index
                     mixplatename = mixplateobj.name
 
-                    self.pickUpTip()
                     self.mixWell(
                         wellindex=mixwellindex,
                         nomixes=repetitions,
                         plate=mixplatename,
                         volumetomix=transfervolume,
                     )
-                    self.dropTip()
+
 
     def writeWorkUpActions(self, actionsessionqueryset: QuerySet[ActionSession]):
         for actionsessionobj in actionsessionqueryset:
@@ -1087,13 +1131,6 @@ class OTWrite(object):
                             transfertype="workup",
                             newtip="never",
                         )
-
-                    self.mixWell(
-                        wellindex=dispensewellindex,
-                        nomixes=3,
-                        plate=dispenseplatename,
-                        volumetomix=transfervolume,
-                    )
                     self.dropTip()
 
                 if actiontype == "extract":
@@ -1107,6 +1144,7 @@ class OTWrite(object):
                     )
                     solvent = extractactionobj.solvent
                     transfervolume = extractactionobj.volume
+                    bottomlayervolume = extractactionobj.bottomlayervolume
 
                     towellobj = self.getWellObj(
                         reaction_id=reaction_id,
@@ -1123,6 +1161,14 @@ class OTWrite(object):
                     fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
                     aspirateplatename = fromplateobj.name
                     aspiratewellindex = fromsolventwellobj.index
+                    if bottomlayervolume:
+                        aspirateheight = self.calculateAspirateHeight(
+                            labware=fromplateobj.labware, bottomlayervolume=bottomlayervolume
+                        )
+                    else:
+                        aspirateheight = 0.1
+
+                    self.delayProtocol(delay=15)
 
                     self.transferFluid(
                         aspirateplatename=aspirateplatename,
@@ -1131,7 +1177,9 @@ class OTWrite(object):
                         dispensewellindex=dispensewellindex,
                         transvolume=transfervolume,
                         transfertype="workup",
+                        aspirateheight=aspirateheight,
                     )
+
                     self.updateReactantForNextStep(wellobj=towellobj)
                     self.updateReactantIsNotForNextStep(wellobj=fromwellobj)
 
@@ -1143,6 +1191,7 @@ class OTWrite(object):
                     )
                     platetype = mixactionobj.platetype
                     repetitions = mixactionobj.repetitions
+                    mixvolume = mixactionobj.volume
 
                     mixwellobj = self.getWellObj(
                         reaction_id=reaction_id, welltype=platetype
@@ -1151,14 +1200,12 @@ class OTWrite(object):
                     mixwellindex = mixwellobj.index
                     mixplatename = mixplateobj.name
 
-                    self.pickUpTip()
                     self.mixWell(
                         wellindex=mixwellindex,
                         nomixes=repetitions,
                         plate=mixplatename,
-                        volumetomix=transfervolume,
+                        volumetomix=mixvolume,
                     )
-                    self.dropTip()
 
     def writeAnalyseActions(self, actionsessionqueryset: QuerySet[ActionSession]):
         for actionsessionobj in actionsessionqueryset:
@@ -1299,11 +1346,9 @@ class OTWrite(object):
                     mixwellindex = mixwellobj.index
                     mixplatename = mixplateobj.name
 
-                    self.pickUpTip()
                     self.mixWell(
                         wellindex=mixwellindex,
                         nomixes=repetitions,
                         plate=mixplatename,
                         volumetomix=transfervolume,
                     )
-                    self.dropTip()

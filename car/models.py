@@ -371,6 +371,10 @@ class ExtractAction(models.Model):
         The unit of the volume being extracted (default=ul)
     molecularweight: FloatField
         The molecular weight of the compound being added
+    bottomlayervolume:
+        The volume of the bottom layer (ul)
+    bottomlayervolumeunit:
+        The otional unit used to calculate the volume of the bottom layer
     solvent: CharField
         Optional solvent used to dilute the material being added
     concentration: FloatField
@@ -406,6 +410,8 @@ class ExtractAction(models.Model):
     volume = models.FloatField()
     volumeunit = models.CharField(default="ul", max_length=2)
     molecularweight = models.FloatField()
+    bottomlayervolume = models.FloatField(null=True)
+    bottomlayervolumeunit = models.CharField(default="ul", max_length=2)
     solvent = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)
 

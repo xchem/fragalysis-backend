@@ -162,56 +162,28 @@ encoded_recipes = {
                         ],
                     },
                     {
-                        "type": "analyse",
-                        "driver": "robot",
-                        "sessionnumber": 3,
-                        "actions": [
-                            {
-                                "type": "extract",
-                                "actionnumber": 9,
-                                "content": {
-                                    "plates": {
-                                        "fromplatetype": "reaction",
-                                        "toplatetype": "lcms",
-                                    },
-                                    "material": {
-                                        "layer": "bottom",
-                                        "SMILES": None,  # Product of reaction
-                                        "quantity": {"value": 10, "unit": "ul"},
-                                        "solvent": None,
-                                        "density": 1.00,
-                                        "concentration": None,
-                                    },
-                                },
-                            },
-                            {
-                                "type": "add",
-                                "actionnumber": 10,
-                                "content": {
-                                    "plates": {
-                                        "fromplatetype": "solvent",
-                                        "toplatetype": "lcms",
-                                    },
-                                    "material": {
-                                        "SMARTS": None,
-                                        "SMILES": "CO",
-                                        "quantity": {
-                                            "value": 80,
-                                            "unit": "ul",
-                                        },  # Check conc for XChem
-                                        "solvent": "MeOH",
-                                        "density": 1.00,
-                                        "concentration": None,
-                                    },
-                                },
-                            },
-                        ],
-                    },
-                    {
                         "type": "workup",
                         "driver": "robot",
                         "sessionnumber": 4,
                         "actions": [
+                            {
+                                "type": "add",
+                                "actionnumber": 9,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "reaction",
+                                    },
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "CCOC(C)=O",
+                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "solvent": "EtOAc",
+                                        "density": None,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
                             {
                                 "type": "add",
                                 "actionnumber": 11,
@@ -222,27 +194,9 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "SMARTS": None,
-                                        "SMILES": "C(Cl)Cl",
+                                        "SMILES": "O.C(=O)(O)[O-].[Na+]",
                                         "quantity": {"value": 25, "unit": "masseq"},
-                                        "solvent": "DCM",
-                                        "density": None,
-                                        "concentration": None,
-                                    },
-                                },
-                            },
-                            {
-                                "type": "add",
-                                "actionnumber": 12,
-                                "content": {
-                                    "plates": {
-                                        "fromplatetype": "solvent",
-                                        "toplatetype": "reaction",
-                                    },
-                                    "material": {
-                                        "SMARTS": None,
-                                        "SMILES": "O",
-                                        "quantity": {"value": 25, "unit": "masseq"},
-                                        "solvent": "H2O",
+                                        "solvent": "satNaHCO3/H2O",
                                         "density": 1.00,
                                         "concentration": None,
                                     },
@@ -257,9 +211,13 @@ encoded_recipes = {
                                         "toplatetype": "workup1",
                                     },
                                     "material": {
-                                        "layer": "bottom",
+                                        "bottomlayerquantity": {
+                                            "value": 25,
+                                            "unit": "masseq",
+                                        },
+                                        "layer": "top",
                                         "SMILES": None,
-                                        "quantity": {"value": 23, "unit": "masseq"},
+                                        "quantity": {"value": 38, "unit": "masseq"},
                                         "solvent": None,
                                         "density": 1.00,
                                         "concentration": None,
@@ -272,13 +230,53 @@ encoded_recipes = {
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
+                                        "toplatetype": "reaction",
+                                    },
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "CCOC(C)=O",
+                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "solvent": "EtOAc",
+                                        "density": None,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "extract",
+                                "actionnumber": 16,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "reaction",
+                                        "toplatetype": "workup1",
+                                    },
+                                    "material": {
+                                        "bottomlayerquantity": {
+                                            "value": 25,
+                                            "unit": "masseq",
+                                        },
+                                        "layer": "top",
+                                        "SMILES": None,
+                                        "quantity": {"value": 38, "unit": "masseq"},
+                                        "solvent": None,
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "add",
+                                "actionnumber": 17,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "solvent",
                                         "toplatetype": "workup1",
                                     },
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "O.[Na+].[Cl-]",
                                         "quantity": {"value": 25, "unit": "masseq"},
-                                        "solvent": "H2O/NaCl",
+                                        "solvent": "Brine",
                                         "density": 1.00,
                                         "concentration": None,
                                     },
@@ -286,16 +284,20 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "actionnumber": 15,
+                                "actionnumber": 19,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "workup1",
                                         "toplatetype": "workup2",
                                     },
                                     "material": {
-                                        "layer": "bottom",
+                                        "bottomlayerquantity": {
+                                            "value": 25,
+                                            "unit": "masseq",
+                                        },
+                                        "layer": "top",
                                         "SMILES": None,
-                                        "quantity": {"value": 23, "unit": "masseq"},
+                                        "quantity": {"value": 76, "unit": "masseq"},
                                         "solvent": None,
                                         "density": 1.00,
                                         "concentration": None,
@@ -311,7 +313,7 @@ encoded_recipes = {
                         "actions": [
                             {
                                 "type": "add",
-                                "actionnumber": 16,
+                                "actionnumber": 20,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -332,7 +334,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "mix",
-                                "actionnumber": 17,
+                                "actionnumber": 21,
                                 "content": {
                                     "platetype": "workup2",
                                     "repetitions": {"value": 3},
@@ -341,7 +343,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "actionnumber": 18,
+                                "actionnumber": 22,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "workup2",
@@ -359,7 +361,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "actionnumber": 19,
+                                "actionnumber": 23,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -377,7 +379,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "actionnumber": 20,
+                                "actionnumber": 24,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "workup2",

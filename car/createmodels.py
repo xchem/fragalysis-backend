@@ -726,6 +726,17 @@ class CreateEncodedActionModels(object):
                         conc_reagents=concentration,
                     )
                     extract.solvent = solvent
+            if "bottomlayerquantity" in action["content"]["material"]:
+                bottomlayercalcvalue = action["content"]["material"][
+                    "bottomlayerquantity"
+                ]["value"]
+                bottomlayercalcunit = action["content"]["material"][
+                    "bottomlayerquantity"
+                ]["unit"]
+                extract.bottomlayervolume = self.calculateVolume(
+                    calcunit=bottomlayercalcunit,
+                    calcvalue=bottomlayercalcvalue,
+                )
             extract.concentration = concentration
             extract.save()
 
