@@ -132,39 +132,49 @@ class CreateOTSession(object):
             actionsessionobj.reaction_id.id
             for actionsessionobj in self.actionsessionqueryset
         ]
+        self.roundedvolumes = []
+        self.numbertips = 0
+        self.searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
+
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
         )
-        self.roundedaddvolumes = self.getRoundedAddActionVolumes(
-            addactionqueryset=self.addactionqueryset
-        )
-        self.addactionsmiles = self.addactionqueryset.values_list("smiles", flat=True)
+        if self.addactionqueryset:
+            self.roundedaddvolumes = self.getRoundedAddActionVolumes(
+                addactionqueryset=self.addactionqueryset
+            )
+            self.addactionsmiles = self.addactionqueryset.values_list(
+                "smiles", flat=True
+            )
+            self.roundedvolumes = self.roundedvolumes + self.roundedaddvolumes
+            self.numbertips += self.getNumberTips(queryset=self.addactionqueryset)
+            self.searchsmiles = self.searchsmiles + list(self.addactionsmiles)
         self.extractactionqueryset = self.getExtractActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
         )
-        self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
-            extractactionqueryset=self.extractactionqueryset
-        )
-        self.extractactionsmiles = self.extractactionqueryset.values_list(
-            "smiles", flat=True
-        )
-        self.roundedvolumes = self.roundedaddvolumes + self.roundedextractvolumes
+        if self.extractactionqueryset:
+            self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
+                extractactionqueryset=self.extractactionqueryset
+            )
+            self.extractactionsmiles = self.extractactionqueryset.values_list(
+                "smiles", flat=True
+            )
+            self.roundedvolumes = self.roundedvolumes + self.roundedextractvolumes
+            self.numbertips += self.getNumberTips(queryset=self.extractactionqueryset)
+            self.searchsmiles = self.searchsmiles + list(self.extractactionsmiles)
+        self.searchsmiles = set(self.searchsmiles)
 
         self.deckobj = self.createDeckModel()
-        self.numbertips = self.getNumberTips(
-            queryset=self.addactionqueryset
-        ) + self.getNumberTips(queryset=self.extractactionqueryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
         self.addactionsdf = self.getAddActionsDataFrame(
             addactionqueryset=self.addactionqueryset
         )
-        smiles = set(list(self.addactionsmiles) + list(self.extractactionsmiles))
         inputplatequeryset = self.getInputPlatesNeeded(
-            smiles=smiles, reaction_ids=self.reaction_ids
+            smiles=self.searchsmiles, reaction_ids=self.reaction_ids
         )
 
         if inputplatequeryset:
@@ -183,46 +193,61 @@ class CreateOTSession(object):
 
     def createAnalyseSession(self):
         """Creates an analyse OT session"""
-        self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
+        self.reaction_ids = [
+            actionsessionobj.reaction_id.id
+            for actionsessionobj in self.actionsessionqueryset
+        ]
+        self.roundedvolumes = []
+        self.numbertips = 0
+        self.searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
+
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
         )
-        self.addactionsdf = self.getAddActionsDataFrame(
-            addactionqueryset=self.addactionqueryset
-        )
-        self.addactionsmiles = self.addactionqueryset.values_list("smiles", flat=True)
-        self.roundedaddvolumes = self.getRoundedAddActionVolumes(
-            addactionqueryset=self.addactionqueryset
-        )
+        if self.addactionqueryset:
+            self.roundedaddvolumes = self.getRoundedAddActionVolumes(
+                addactionqueryset=self.addactionqueryset
+            )
+            self.addactionsmiles = self.addactionqueryset.values_list(
+                "smiles", flat=True
+            )
+            self.roundedvolumes = self.roundedvolumes + self.roundedaddvolumes
+            self.numbertips += self.getNumberTips(queryset=self.addactionqueryset)
+            self.searchsmiles = self.searchsmiles + list(self.addactionsmiles)
         self.extractactionqueryset = self.getExtractActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
         )
-        self.extractactionsmiles = self.extractactionqueryset.values_list(
-            "smiles", flat=True
-        )
-        self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
-            extractactionqueryset=self.extractactionqueryset
-        )
-        self.roundedvolumes = self.roundedaddvolumes + self.roundedextractvolumes
-        self.solventmaterialsdf = self.getAddActionsMaterialDataFrame(
-            productexists=False
-        )
+        if self.extractactionqueryset:
+            self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
+                extractactionqueryset=self.extractactionqueryset
+            )
+            self.extractactionsmiles = self.extractactionqueryset.values_list(
+                "smiles", flat=True
+            )
+            self.roundedvolumes = self.roundedvolumes + self.roundedextractvolumes
+            self.numbertips += self.getNumberTips(queryset=self.extractactionqueryset)
+            self.searchsmiles = self.searchsmiles + list(self.extractactionsmiles)
+        self.searchsmiles = set(self.searchsmiles)
+
         self.deckobj = self.createDeckModel()
-        self.numbertips = self.getNumberTips(
-            queryset=self.addactionqueryset
-        ) + self.getNumberTips(queryset=self.extractactionqueryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
-        self.createPipetteModel()
-        smiles = set(list(self.addactionsmiles) + list(self.extractactionsmiles))
-        inputplatequeryset = self.getInputPlatesNeeded(
-            smiles=smiles, reaction_ids=self.reaction_ids
+        self.addactionsdf = self.getAddActionsDataFrame(
+            addactionqueryset=self.addactionqueryset
         )
+        inputplatequeryset = self.getInputPlatesNeeded(
+            smiles=self.searchsmiles, reaction_ids=self.reaction_ids
+        )
+
         if inputplatequeryset:
             self.cloneInputPlate(platesforcloning=inputplatequeryset)
+        self.createPipetteModel()
+        self.solventmaterialsdf = self.getAddActionsMaterialDataFrame(
+            productexists=False
+        )
         self.createSolventPlate(materialsdf=self.solventmaterialsdf)
 
         self.analyseplatesneeded = self.getUniqueToPlates(
@@ -275,6 +300,28 @@ class CreateOTSession(object):
         )
         toplatetypes = set(list(toaddplates) + list(toextractplates))
         return toplatetypes
+
+    def getProductSmiles(self, reaction_ids: list) -> list:
+        """Get product smiles of reactions
+
+        Parameters
+        ----------
+        reaction_ids: list
+            The reactions to get product smiles for
+
+        Returns
+        -------
+        productsmiles: list
+            The list of product smiles
+        """
+
+        productsmiles = Product.objects.filter(
+            reaction_id__in=reaction_ids
+        ).values_list("smiles", flat=True)
+        if productsmiles:
+            return list(productsmiles)
+        else:
+            return None
 
     def getAllPreviousOTSessionPlates(self) -> QuerySet[Plate]:
         """Get all input reaction plates for all previous reaction and workup

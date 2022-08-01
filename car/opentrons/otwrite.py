@@ -597,6 +597,8 @@ class OTWrite(object):
             The well used in the reaction
         """
         productsmiles = self.getProductSmiles(reaction_id=reaction_id)
+        # print(productsmiles, reaction_id, self.otsession_id, welltype)
+
         wellobj = Well.objects.get(
             otsession_id=self.otsession_id,
             reaction_id=reaction_id,
@@ -827,15 +829,15 @@ class OTWrite(object):
         ]
 
         self.writeCommand(instruction)
-    
+
     def delayProtocol(self, delay: int):
         """Delays protocol from executing next operation
-        
+
         Parameters
         ----------
         delay: int
             The delay in seconds
-        
+
         """
         humanread = f"Delaying protocol operation"
 
@@ -856,7 +858,6 @@ class OTWrite(object):
         aspirateheight: int = 0.1,
         dispenseheight: int = -5,
         transfertype: str = "standard",
-        newtip: str = None,
     ):
         """Prepares the transfer commmand instruction for a tranfer action
 
@@ -881,29 +882,18 @@ class OTWrite(object):
         transfertype: str
             The tpye of transfer eg. reaction, workup
         newtip:
-            Optional set to "never" to keep using the same tip
+            Set to "never" to deal with pick up and drop tips built into protocol
         """
 
         humanread = f"transfertype - {transfertype} - transfer - {transvolume:.1f}ul from {aspiratewellindex} to {dispensewellindex}"
-
-        if not newtip:
-            instruction = [
-                "\n\t# " + str(humanread),
-                self.pipettename
-                + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = 15, blow_out=True, blowout_location='destination well')",
-            ]
-        if newtip == "never":
-            instruction = [
-                "\n\t# " + str(humanread),
-                self.pipettename
-                + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = 15, new_tip='never', blow_out=True, blowout_location='destination well')",
-            ]
-
+        instruction = [
+            "\n\t# " + str(humanread),
+            self.pipettename
+            + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = 15, new_tip='never', blow_out=True, blowout_location='destination well')",
+        ]
         self.writeCommand(instruction)
 
-    def calculateAspirateHeight(
-        self, bottomlayervolume: float, labware: str
-    ) -> float:
+    def calculateAspirateHeight(self, bottomlayervolume: float, labware: str) -> float:
         """Calculate the height at wich to extract the top layer based
         on volume occupying the bottom layer
 
@@ -929,7 +919,7 @@ class OTWrite(object):
         bottomlayerheight = (
             aspirateheightconvesion_m * bottomlayervolume
         ) + aspirateheightconvesion_c
-        aspirateheight = (bottomlayerheight * 0.1) + bottomlayerheight
+        aspirateheight = (bottomlayerheight * 0.15) + bottomlayerheight
         return aspirateheight
 
     def writeReactionActions(self, actionsessionqueryset: QuerySet[ActionSession]):
@@ -955,7 +945,7 @@ class OTWrite(object):
                 and actionsession["sessionnumber"] == sessionnumber
             ][0]
 
-            for reactionaction in reactionactions:
+            for index, reactionaction in enumerate(reactionactions):
                 actiontype = reactionaction["type"]
                 actionnumber = reactionaction["actionnumber"]
                 if actiontype == "add":
@@ -990,7 +980,6 @@ class OTWrite(object):
                             )
 
                             self.pickUpTip()
-
                             for solventwellinfo in fromsolventwellinfo:
                                 fromsolventwellobj = solventwellinfo[0]
                                 transfervolume = solventwellinfo[1]
@@ -1014,10 +1003,7 @@ class OTWrite(object):
                                     dispensewellindex=dispensewellindex,
                                     transvolume=transfervolume,
                                     transfertype="dilution",
-                                    newtip="never",
                                 )
-
-                            self.dropTip()
 
                         towellobj = self.getWellObj(
                             reaction_id=reaction_id,
@@ -1038,6 +1024,11 @@ class OTWrite(object):
                             dispensewellindex=dispensewellindex,
                             transvolume=transfervolume,
                         )
+                        if index + 1 == len(reactionactions):
+                            self.dropTip()
+                        if index + 1 < len(reactionactions):
+                            if reactionactions[index + 1]["type"] != "mix":
+                                self.dropTip()
                         self.updateReactantForNextStep(wellobj=towellobj)
                         self.updateReactantIsNotForNextStep(wellobj=fromwellobj)
 
@@ -1063,7 +1054,7 @@ class OTWrite(object):
                         plate=mixplatename,
                         volumetomix=transfervolume,
                     )
-
+                    self.dropTip()
 
     def writeWorkUpActions(self, actionsessionqueryset: QuerySet[ActionSession]):
         for actionsessionobj in actionsessionqueryset:
@@ -1083,7 +1074,7 @@ class OTWrite(object):
                 and actionsession["sessionnumber"] == sessionnumber
             ][0]
 
-            for workupaction in workupactions:
+            for index, workupaction in enumerate(workupactions):
                 actiontype = workupaction["type"]
                 actionnumber = workupaction["actionnumber"]
 
@@ -1129,9 +1120,12 @@ class OTWrite(object):
                             dispensewellindex=dispensewellindex,
                             transvolume=transfervolume,
                             transfertype="workup",
-                            newtip="never",
                         )
-                    self.dropTip()
+                    if index + 1 == len(workupactions):
+                        self.dropTip()
+                    if index + 1 < len(workupactions):
+                        if workupactions[index + 1]["type"] != "mix":
+                            self.dropTip()
 
                 if actiontype == "extract":
                     fromplatetype = workupaction["content"]["plates"]["fromplatetype"]
@@ -1160,16 +1154,17 @@ class OTWrite(object):
                     )
                     fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
                     aspirateplatename = fromplateobj.name
-                    aspiratewellindex = fromsolventwellobj.index
+                    aspiratewellindex = fromwellobj.index
                     if bottomlayervolume:
                         aspirateheight = self.calculateAspirateHeight(
-                            labware=fromplateobj.labware, bottomlayervolume=bottomlayervolume
+                            labware=fromplateobj.labware,
+                            bottomlayervolume=bottomlayervolume,
                         )
                     else:
                         aspirateheight = 0.1
 
-                    self.delayProtocol(delay=15)
-
+                    self.delayProtocol(delay=5)
+                    self.pickUpTip()
                     self.transferFluid(
                         aspirateplatename=aspirateplatename,
                         dispenseplatename=dispenseplatename,
@@ -1179,6 +1174,11 @@ class OTWrite(object):
                         transfertype="workup",
                         aspirateheight=aspirateheight,
                     )
+                    if index + 1 == len(workupactions):
+                        self.dropTip()
+                    if index + 1 < len(workupactions):
+                        if workupactions[index + 1]["type"] != "mix":
+                            self.dropTip()
 
                     self.updateReactantForNextStep(wellobj=towellobj)
                     self.updateReactantIsNotForNextStep(wellobj=fromwellobj)
@@ -1206,6 +1206,7 @@ class OTWrite(object):
                         plate=mixplatename,
                         volumetomix=mixvolume,
                     )
+                    self.dropTip()
 
     def writeAnalyseActions(self, actionsessionqueryset: QuerySet[ActionSession]):
         for actionsessionobj in actionsessionqueryset:
@@ -1225,7 +1226,7 @@ class OTWrite(object):
                 and actionsession["sessionnumber"] == sessionnumber
             ][0]
 
-            for analyseaction in analyseactions:
+            for index, analyseaction in enumerate(analyseactions):
                 actiontype = analyseaction["type"]
                 actionnumber = analyseaction["actionnumber"]
 
@@ -1249,6 +1250,7 @@ class OTWrite(object):
                     dispenseplatename = toplateobj.name
                     dispensewellindex = towellobj.index
 
+                    self.pickUpTip()
                     if fromplatetype in ["reaction", "workup1", "workup2", "workup3"]:
                         fromwellobj = self.getWellObj(
                             reaction_id=reaction_id,
@@ -1271,8 +1273,6 @@ class OTWrite(object):
                             solvent=solvent,
                             transfervolume=transfervolume,
                         )
-
-                        self.pickUpTip()
                         for solventwellinfo in fromsolventwellinfo:
                             fromsolventwellobj = solventwellinfo[0]
                             transfervolume = solventwellinfo[1]
@@ -1290,9 +1290,12 @@ class OTWrite(object):
                                 dispensewellindex=dispensewellindex,
                                 transvolume=transfervolume,
                                 transfertype="analyse",
-                                newtip="never",
                             )
+                    if index + 1 == len(analyseactions):
                         self.dropTip()
+                    if index + 1 < len(analyseactions):
+                        if analyseactions[index + 1]["type"] != "mix":
+                            self.dropTip()
 
                 if actiontype == "extract":
                     fromplatetype = analyseaction["content"]["plates"]["fromplatetype"]
@@ -1322,6 +1325,7 @@ class OTWrite(object):
                     aspirateplatename = fromplateobj.name
                     aspiratewellindex = fromwellobj.index
 
+                    self.pickUpTip()
                     self.transferFluid(
                         aspirateplatename=aspirateplatename,
                         dispenseplatename=dispenseplatename,
@@ -1330,6 +1334,12 @@ class OTWrite(object):
                         transvolume=transfervolume,
                         transfertype="analyse",
                     )
+                    if index + 1  == len(analyseactions):
+                        self.dropTip()
+                    if index + 1 < len(analyseactions):
+                        if analyseactions[index + 1]["type"] != "mix":
+                            self.dropTip()
+
                 if actiontype == "mix":
                     mixactionobj = MixAction.objects.get(
                         actionsession_id=actionsessionobj,
@@ -1352,3 +1362,4 @@ class OTWrite(object):
                         plate=mixplatename,
                         volumetomix=transfervolume,
                     )
+                    self.dropTip()

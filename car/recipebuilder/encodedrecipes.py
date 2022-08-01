@@ -164,7 +164,7 @@ encoded_recipes = {
                     {
                         "type": "workup",
                         "driver": "robot",
-                        "sessionnumber": 4,
+                        "sessionnumber": 3,
                         "actions": [
                             {
                                 "type": "add",
@@ -186,7 +186,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "actionnumber": 11,
+                                "actionnumber": 10,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -202,9 +202,32 @@ encoded_recipes = {
                                     },
                                 },
                             },
+                        ],
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 4,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 11,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {"value": 25, "unit": "degC"},
+                                    "duration": {"value": 1, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        "type": "workup",
+                        "driver": "robot",
+                        "sessionnumber": 5,
+                        "actions": [
                             {
                                 "type": "extract",
-                                "actionnumber": 13,
+                                "actionnumber": 12,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "reaction",
@@ -226,7 +249,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "actionnumber": 14,
+                                "actionnumber": 13,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -243,8 +266,17 @@ encoded_recipes = {
                                 },
                             },
                             {
+                                "type": "mix",
+                                "actionnumber": 14,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "repetitions": {"value": 3},
+                                    "quantity": {"value": 20, "unit": "masseq"},
+                                },
+                            },
+                            {
                                 "type": "extract",
-                                "actionnumber": 16,
+                                "actionnumber": 15,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "reaction",
@@ -266,7 +298,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "actionnumber": 17,
+                                "actionnumber": 16,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -283,8 +315,17 @@ encoded_recipes = {
                                 },
                             },
                             {
+                                "type": "mix",
+                                "actionnumber": 17,
+                                "content": {
+                                    "platetype": "workup1",
+                                    "repetitions": {"value": 3},
+                                    "quantity": {"value": 20, "unit": "masseq"},
+                                },
+                            },
+                            {
                                 "type": "extract",
-                                "actionnumber": 19,
+                                "actionnumber": 18,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "workup1",
@@ -309,11 +350,11 @@ encoded_recipes = {
                     {
                         "type": "analyse",
                         "driver": "robot",
-                        "sessionnumber": 5,
+                        "sessionnumber": 6,
                         "actions": [
                             {
                                 "type": "add",
-                                "actionnumber": 20,
+                                "actionnumber": 19,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -334,7 +375,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "mix",
-                                "actionnumber": 21,
+                                "actionnumber": 20,
                                 "content": {
                                     "platetype": "workup2",
                                     "repetitions": {"value": 3},
@@ -343,7 +384,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "actionnumber": 22,
+                                "actionnumber": 21,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "workup2",
@@ -361,7 +402,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "actionnumber": 23,
+                                "actionnumber": 22,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -379,7 +420,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "actionnumber": 24,
+                                "actionnumber": 23,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "workup2",
@@ -1059,7 +1100,7 @@ encoded_recipes = {
                             },
                         ],
                     },
-                    {
+  {
                         "type": "workup",
                         "driver": "robot",
                         "sessionnumber": 4,
@@ -1074,9 +1115,9 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "SMARTS": None,
-                                        "SMILES": "C(Cl)Cl",
-                                        "quantity": {"value": 25, "unit": "masseq"},
-                                        "solvent": "DCM",
+                                        "SMILES": "CCOC(C)=O",
+                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "solvent": "EtOAc",
                                         "density": None,
                                         "concentration": None,
                                     },
@@ -1100,18 +1141,45 @@ encoded_recipes = {
                                     },
                                 },
                             },
+                        ],
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 5,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 9,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {"value": 25, "unit": "degC"},
+                                    "duration": {"value": 1, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        "type": "workup",
+                        "driver": "robot",
+                        "sessionnumber": 6,
+                        "actions": [
                             {
                                 "type": "extract",
-                                "actionnumber": 9,
+                                "actionnumber": 10,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "reaction",
                                         "toplatetype": "workup1",
                                     },
                                     "material": {
-                                        "layer": "bottom",
+                                        "bottomlayerquantity": {
+                                            "value": 25,
+                                            "unit": "masseq",
+                                        },
+                                        "layer": "top",
                                         "SMILES": None,
-                                        "quantity": {"value": 23, "unit": "masseq"},
+                                        "quantity": {"value": 38, "unit": "masseq"},
                                         "solvent": None,
                                         "density": 1.00,
                                         "concentration": None,
@@ -1120,7 +1188,56 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "actionnumber": 10,
+                                "actionnumber": 11,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "solvent",
+                                        "toplatetype": "reaction",
+                                    },
+                                    "material": {
+                                        "SMARTS": None,
+                                        "SMILES": "CCOC(C)=O",
+                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "solvent": "EtOAc",
+                                        "density": None,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "mix",
+                                "actionnumber": 12,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "repetitions": {"value": 3},
+                                    "quantity": {"value": 20, "unit": "masseq"},
+                                },
+                            },
+                            {
+                                "type": "extract",
+                                "actionnumber": 13,
+                                "content": {
+                                    "plates": {
+                                        "fromplatetype": "reaction",
+                                        "toplatetype": "workup1",
+                                    },
+                                    "material": {
+                                        "bottomlayerquantity": {
+                                            "value": 25,
+                                            "unit": "masseq",
+                                        },
+                                        "layer": "top",
+                                        "SMILES": None,
+                                        "quantity": {"value": 38, "unit": "masseq"},
+                                        "solvent": None,
+                                        "density": 1.00,
+                                        "concentration": None,
+                                    },
+                                },
+                            },
+                            {
+                                "type": "add",
+                                "actionnumber": 14,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -1130,24 +1247,37 @@ encoded_recipes = {
                                         "SMARTS": None,
                                         "SMILES": "O.[Na+].[Cl-]",
                                         "quantity": {"value": 25, "unit": "masseq"},
-                                        "solvent": "H2O/NaCl",
+                                        "solvent": "Brine",
                                         "density": 1.00,
                                         "concentration": None,
                                     },
                                 },
                             },
                             {
+                                "type": "mix",
+                                "actionnumber": 15,
+                                "content": {
+                                    "platetype": "workup1",
+                                    "repetitions": {"value": 3},
+                                    "quantity": {"value": 20, "unit": "masseq"},
+                                },
+                            },
+                            {
                                 "type": "extract",
-                                "actionnumber": 11,
+                                "actionnumber": 16,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "workup1",
                                         "toplatetype": "workup2",
                                     },
                                     "material": {
-                                        "layer": "bottom",
+                                        "bottomlayerquantity": {
+                                            "value": 25,
+                                            "unit": "masseq",
+                                        },
+                                        "layer": "top",
                                         "SMILES": None,
-                                        "quantity": {"value": 23, "unit": "masseq"},
+                                        "quantity": {"value": 76, "unit": "masseq"},
                                         "solvent": None,
                                         "density": 1.00,
                                         "concentration": None,
@@ -1159,11 +1289,11 @@ encoded_recipes = {
                     {
                         "type": "analyse",
                         "driver": "robot",
-                        "sessionnumber": 5,
+                        "sessionnumber": 7,
                         "actions": [
                             {
                                 "type": "add",
-                                "actionnumber": 12,
+                                "actionnumber": 17,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -1184,7 +1314,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "mix",
-                                "actionnumber": 13,
+                                "actionnumber": 18,
                                 "content": {
                                     "platetype": "workup2",
                                     "repetitions": {"value": 3},
@@ -1193,7 +1323,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "actionnumber": 14,
+                                "actionnumber": 19,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "workup2",
@@ -1211,7 +1341,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "add",
-                                "actionnumber": 15,
+                                "actionnumber": 20,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "solvent",
@@ -1229,7 +1359,7 @@ encoded_recipes = {
                             },
                             {
                                 "type": "extract",
-                                "actionnumber": 16,
+                                "actionnumber": 21,
                                 "content": {
                                     "plates": {
                                         "fromplatetype": "workup2",

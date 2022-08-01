@@ -302,8 +302,6 @@ class AddAction(models.Model):
         Optional solvent used to dilute the material being added
     concentration: FloatField
         Optional concentration of the material solution prepared
-    platetype: CharField
-        Optional platype where the add action is destimed for
     """
 
     class CalcUnit(models.TextChoices):
@@ -379,8 +377,6 @@ class ExtractAction(models.Model):
         Optional solvent used to dilute the material being added
     concentration: FloatField
         Optional concentration of the material solution prepared
-    platetype: CharField
-        Optional platype where the add action is destimed for
     """
 
     class Layer(models.TextChoices):

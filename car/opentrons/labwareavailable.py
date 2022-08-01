@@ -47,8 +47,8 @@ labware_plates = {
         "volume_well": 2500,
         "max_temp": 110,
         "reflux": False,
-        "aspirateheightconversion-m": 0.05535,
-        "aspirateheightconversion-c": -1.849,
+        "aspirateheightconversion-m": 0.01806,
+        "aspirateheightconversion-c": 0.6015,
     },
     "qmx_96_aluminumblock_962ul": {
         "type": ["reaction"],
@@ -56,7 +56,7 @@ labware_plates = {
         "volume_well": 962,
         "max_temp": 250,
         "reflux": True,
-        "aspirateheightconversion-m": 10,
-        "aspirateheightconversion-c": 3,
+        "aspirateheightconversion-m": 0.02865,
+        "aspirateheightconversion-c": -0.4040,
     },
 }
