@@ -46,7 +46,7 @@ class CreateOTSession(object):
         reactionstep: int,
         otbatchprotocolobj: OTBatchProtocol,
         actionsessionqueryset: QuerySet[ActionSession],
-        reactiongrouplist: list[Reaction],
+        groupreactionqueryset: QuerySet[Reaction],
     ):
         """Initiates a CreateOTSession
 
@@ -60,15 +60,14 @@ class CreateOTSession(object):
         actionsession: QuerySet[ActionSession]
             The action sessions being executed on the OT for a type eg. reaction,
             stir, analayse
-        reactiongrouplist: list[Reaction]
-            The group of reactions that a reaction and analyse
-            session needs to execute the actions for
+        groupreactionqueryset: QuerySet[Reaction]
+            The reactions the session needs to execute the actions for
         """
         self.reactionstep = reactionstep
         self.otbatchprotocolobj = otbatchprotocolobj
         self.actionsessionqueryset = actionsessionqueryset
         self.actionsession_ids = actionsessionqueryset.values_list("id", flat=True)
-        self.reactiongrouplist = reactiongrouplist
+        self.groupreactionqueryset = groupreactionqueryset
         self.otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
         self.batchobj = Batch.objects.get(id=otbatchprotocolobj.batch_id_id)
         self.actionsessiontype = self.getActionSessionType()
@@ -88,8 +87,8 @@ class CreateOTSession(object):
 
     def createReactionSession(self):
         """Creates a reaction OT session"""
-        self.reaction_ids = [reactionobj.id for reactionobj in self.reactiongrouplist]
-        self.groupedtemperaturereactionobjs = self.getGroupedTemperatureReactions()
+        self.reaction_ids = [reactionobj.id for reactionobj in self.groupreactionqueryset]
+        self.groupedreactiontemperaturequerysets = self.getGroupedTemperatureReactions()
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
@@ -374,7 +373,7 @@ class CreateOTSession(object):
         allinputplatequerset = self.getAllPreviousOTSessionPlates()
         if not reaction_ids:
             methodids = [
-                reactionobj.method_id for reactionobj in self.reactiongrouplist
+                reactionobj.method_id for reactionobj in self.groupreactionqueryset
             ]
             criterion1 = Q(method_id__in=methodids)
         if reaction_ids:
@@ -629,14 +628,14 @@ class CreateOTSession(object):
         return roundedvolumes
 
     def getRoundedReactionVolumes(
-        self, grouptemperaturereactionobjs: list[Reaction]
+        self, groupedreactiontemperaturequeryset: QuerySet[Reaction]
     ) -> list:
         """Gets the total rounded volume (ul) for all the reactions done at the
            same temperature
 
         Parameters
         ----------
-        grouptemperaturereactionobjs: list[Reaction]
+        groupedreactiontemperaturequerysets: QuerySet[Reaction]
             The reactions executed at the same temeprature to
             calculate the rounded volumes (ul)
 
@@ -646,7 +645,7 @@ class CreateOTSession(object):
             The list of rounded volumes (ul) for the add actions
         """
         reactionvolumes = []
-        for reactionobj in grouptemperaturereactionobjs:
+        for reactionobj in groupedreactiontemperaturequeryset:
             addactionqueryset = self.getAddActionQuerySet(
                 reaction_ids=[reactionobj.id], actionsession_ids=self.actionsession_ids
             )
@@ -869,32 +868,76 @@ class CreateOTSession(object):
         temperatures: list
             The set of reaction temperatures
         """
-        temperatures = sorted(
-            set([reactionobj.temperature for reactionobj in self.reactiongrouplist])
-        )
+        temperatures = self.groupreactionqueryset.values_list("temperature", flat=True).order_by("temperature").distinct()  
+        # temperatures = sorted(
+        #     set([reactionobj.temperature for reactionobj in self.groupreactionqueryset])
+        # )
         return temperatures
+
+    def getUniqueReactionClasses(self) -> list:
+        """Set of unique reaction classes
+
+        Returns
+        ------
+        reactionclasses: list
+            The set of reactionclasses
+        """
+        reactionclasses = sorted(
+            set([reactionobj.reactionclass for reactionobj in self.groupreactionqueryset])
+        )
+        return reactionclasses
 
     def getGroupedTemperatureReactions(self) -> list:
         """Group reactions done at the same temperature
 
         Returns
         -------
-        groupedtemperaturereactionobjs: list
-            The list of sublists of reactions grouped by reaction
+        groupedreactiontemperaturequerysets: list
+            A list of sublists of reaction querysets grouped by reaction
             temperature
         """
         temperatures = self.getUniqueTemperatures()
-        groupedtemperaturereactionobjs = []
-
+        groupedreactiontemperaturequerysets = []
         for temperature in temperatures:
-            temperaturereactiongroup = [
-                reactionobj
-                for reactionobj in self.reactiongrouplist
-                if reactionobj.temperature == temperature
-            ]
-            groupedtemperaturereactionobjs.append(temperaturereactiongroup)
+            reactiontemperaturequeryset = self.groupreactionqueryset.filter(temperature=temperature).distinct().order_by("id")
+            groupedreactiontemperaturequerysets.append(reactiontemperaturequeryset)
 
-        return groupedtemperaturereactionobjs
+        # for temperature in temperatures:
+        #     temperaturereactiongroup = [
+        #         reactionobj
+        #         for reactionobj in self.groupreactionqueryset
+        #         if reactionobj.temperature == temperature
+        #     ]
+        #     groupedtemperaturereactionobjs.append(temperaturereactiongroup)
+
+        return groupedreactiontemperaturequerysets
+
+    def getGroupedReactionByClass(self, reactionqueryset: QuerySet[Reaction]) -> list:
+        """Group reactions by reaction class
+
+        Parameters
+        ----------
+        reactionqueryset: QuerySet[Reaction]
+            The reactions to to group by reaction class
+
+        Returns
+        -------
+        groupedreactionbyclassquerysets: list
+            The list of sublists of reaction querysets grouped by reaction class
+        """
+        reactionclasses = self.getUniqueReactionClasses()
+        groupedreactionbyclassquerysets = []
+
+        for reactionclass in reactionclasses:
+            reactionbyclassqueryset = reactionqueryset.filter(reactionclass=reactionclass).distinct().order_by("reactionclass")
+            # reactionbyclassgroup = [
+            #     reactionobj
+            #     for reactionobj in reactiongroup
+            #     if reactionobj.reactionclass == reactionclass
+            # ]
+            groupedreactionbyclassquerysets.append(reactionbyclassqueryset)
+
+        return groupedreactionbyclassquerysets
 
     def getMedianValue(self, values: list) -> float:
         medianvalue = median(values)
@@ -1118,6 +1161,7 @@ class CreateOTSession(object):
             plateindex = indexslot
             maxwellvolume = labware_plates[labwaretype]["volume_well"]
             numberwells = labware_plates[labwaretype]["no_wells"]
+            numbercolumns = labware_plates[labwaretype]["no_columns"]
             plateobj = Plate()
             plateobj.otsession_id = self.otsessionobj
             plateobj.deck_id = self.deckobj
@@ -1129,6 +1173,7 @@ class CreateOTSession(object):
             plateobj.type = platetype
             plateobj.maxwellvolume = maxwellvolume
             plateobj.numberwells = numberwells
+            plateobj.numbercolumns = numbercolumns
             plateobj.save()
             return plateobj
         else:
@@ -1316,6 +1361,33 @@ class CreateOTSession(object):
             plateobj.save()
             return False
 
+    def checkPlateColumnsAvailable(self, plateobj: Plate) -> int:
+        """Check if any columns available on a plate
+
+        Parameters
+        ----------
+        plateobj: Plate
+            The plate to search for a column available
+
+        Returns
+        -------
+        plateobj.indexcolumnavailable: int
+            The index of the column available on a plate
+        status: False
+            Returns false if no column is available
+        """
+        columnavailable = plateobj.indexcolumnavailable + 1
+        numbercolumns = plateobj.numbercolumns
+        if columnavailable <= numbercolumns:
+            plateobj.indexcolumnavailable = columnavailable
+            plateobj.save()
+            return plateobj.indexcolumnavailable
+        else:
+            plateobj.columnavailable = False
+            plateobj.save()
+            return False
+
+
     def combinestrings(self, row):
         return (
             str(row["smiles"])
@@ -1489,12 +1561,35 @@ class CreateOTSession(object):
 
         self.createCompoundOrderModel(orderdf=orderdf)
 
+    # def getNumberPlateColumns(self, numberreactions: int) -> int:
+    #     """Calculate the number of reaction colums needed for a reaction type
+        
+    #     Parameters
+    #     ----------
+    #     numberreactions: int
+    #         The number of reactions that need to be made
+        
+    #     Returns
+    #     -------
+    #     numberplatecolumns: int
+    #         The number of plate columns needed
+    #     """
+    #     numberplatecolumns = int(math.ceil(numberreactions / 8))
+    #     return numberplatecolumns
+
+
+    def updatePlateColumnIndex(self, plateobj: Plate):
+        """Updates the plate columnn index once all 8 wells have been occupied
+        """
+        plateobj.indexcolumnavailable = plateobj.indexcolumnavailable + 1
+        plateobj.save() 
+
     def createReactionPlate(self):
         """Creates reaction plate/s for executing reaction's add actions"""
-        for grouptemperaturereactionobjs in self.groupedtemperaturereactionobjs:
-            reactiontemperature = grouptemperaturereactionobjs[0].temperature
+        for groupreactiontemperaturequeryset in self.groupedreactiontemperaturequerysets:
+            reactiontemperature = groupreactiontemperaturequeryset[0].temperature
             volumes = self.getRoundedReactionVolumes(
-                grouptemperaturereactionobjs=grouptemperaturereactionobjs
+                grouptemperaturereactionobjs=groupreactiontemperaturequeryset
             )
             labwareplatetype = self.getPlateType(
                 platetype="reaction", temperature=reactiontemperature, volumes=volumes
@@ -1505,28 +1600,31 @@ class CreateOTSession(object):
                 platename="Reactionplate",
                 labwaretype=labwareplatetype,
             )
+            groupedreactionclassquerysets = self.getGroupedReactionByClass(reactiongroup=groupreactiontemperaturequeryset)
+            for groupreactionclassqueryset in groupedreactionclassquerysets:
+                for index, reactionobj in enumerate(groupreactionclassqueryset):
+                    productobj = self.getProduct(reaction_id=reactionobj.id)
+                    if (index + 1) % 8 == 0:
+                        self.updatePlateColumnIndex(plateobj=plateobj)
+                    indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+                    if not indexwellavailable:
+                        plateobj = self.createPlateModel(
+                            platetype="reaction",
+                            platename="Reactionplate",
+                            labwaretype=labwareplatetype,
+                        )
 
-            for reactionobj in grouptemperaturereactionobjs:
-                productobj = self.getProduct(reaction_id=reactionobj.id)
-                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-                if not indexwellavailable:
-                    plateobj = self.createPlateModel(
-                        platetype="reaction",
-                        platename="Reactionplate",
-                        labwaretype=labwareplatetype,
+                        indexwellavailable = self.checkPlateWellsAvailable(
+                            plateobj=plateobj
+                        )
+
+                    self.createWellModel(
+                        plateobj=plateobj,
+                        reactionobj=reactionobj,
+                        welltype="reaction",
+                        wellindex=indexwellavailable - 1,
+                        smiles=productobj.smiles,
                     )
-
-                    indexwellavailable = self.checkPlateWellsAvailable(
-                        plateobj=plateobj
-                    )
-
-                self.createWellModel(
-                    plateobj=plateobj,
-                    reactionobj=reactionobj,
-                    welltype="reaction",
-                    wellindex=indexwellavailable - 1,
-                    smiles=productobj.smiles,
-                )
 
     def createWorkUpPlate(self, platetype: str):
         """Creates workup plate/s for executing work up actions"""

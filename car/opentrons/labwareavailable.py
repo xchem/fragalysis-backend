@@ -2,6 +2,7 @@ labware_plates = {
     "4welltrough_4_reservoir_60000ul": {
         "type": ["solvent"],
         "no_wells": 4,
+        "no_columns": 4,
         "volume_well": 60000,
         "max_temp": 110,
         "reflux": False,
@@ -9,6 +10,7 @@ labware_plates = {
     "8welltrough_8_reservoir_25000ul": {
         "type": ["solvent"],
         "no_wells": 8,
+        "no_columns": 8,
         "volume_well": 25000,
         "max_temp": 110,
         "reflux": False,
@@ -16,6 +18,7 @@ labware_plates = {
     "12welltrough_12_reservoir_18000ul": {
         "type": ["solvent"],
         "no_wells": 12,
+        "no_columns": 12,
         "volume_well": 18000,
         "max_temp": 110,
         "reflux": False,
@@ -23,6 +26,7 @@ labware_plates = {
     "fluidx_24_vials_2500ul": {
         "type": ["startingmaterial", "solvent"],
         "no_wells": 24,
+        "no_columns": 6,
         "volume_well": 2500,
         "max_temp": 110,
         "reflux": False,
@@ -30,6 +34,7 @@ labware_plates = {
     "labcyte_384_wellplate_100ul": {
         "type": ["xchem"],
         "no_wells": 384,
+        "no_columns": 24,
         "volume_well": 100,
         "max_temp": 110,
         "reflux": False,
@@ -37,6 +42,7 @@ labware_plates = {
     "plateone_96_wellplate_500ul": {
         "type": ["lcms"],
         "no_wells": 96,
+        "no_columns": 12,
         "volume_well": 500,
         "max_temp": 110,
         "reflux": False,
@@ -44,6 +50,7 @@ labware_plates = {
     "plateone_96_wellplate_2500ul": {
         "type": ["solvent", "reaction", "workup1", "workup2", "workup3"],
         "no_wells": 96,
+        "no_columns": 12,
         "volume_well": 2500,
         "max_temp": 110,
         "reflux": False,
@@ -53,6 +60,7 @@ labware_plates = {
     "qmx_96_aluminumblock_962ul": {
         "type": ["reaction"],
         "no_wells": 96,
+        "no_columns": 12,
         "volume_well": 962,
         "max_temp": 250,
         "reflux": True,

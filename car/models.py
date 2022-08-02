@@ -112,6 +112,8 @@ class Reaction(models.Model):
         Foreign key linking a reaction to it's method
     reactionclass: Charfield
         The name of the reaction
+    reactionnumber: IntegerField
+        The number of the reaction eg. reaction 1 of 3
     intramolecular: BooleanField
         Set to True if the reaction is intermolecular
     recipetype: CharField
@@ -126,6 +128,7 @@ class Reaction(models.Model):
         Method, related_name="reactions", on_delete=models.CASCADE
     )
     reactionclass = models.CharField(max_length=255)
+    number = models.IntegerField()
     intramolecular = models.BooleanField(default=False)
     recipetype = models.CharField(max_length=50, default="standard", null=True)
     temperature = models.IntegerField(default=25)
@@ -724,6 +727,13 @@ class Plate(models.Model):
     indexswellavailable: IntegerField
         The index of the well available. Wells are occupied in increasing
         index starting from indices: A1, B1, C1 or 0, 1, 2 etc
+    columnavailable: BooleanField
+        Wether a column of a plate is available. Example 4 rows of column 1 taken up
+        by amidation reactions, column is then no longer avilable to any other reaction
+        classes. 
+    indexscolumnavailable: IntegerField
+        The index of the column available. Columns are occupied in increasing
+        index starting from indices: A1, B1, C1 or 0, 1, 2 etc
     """
 
     class PlateType(models.TextChoices):
@@ -749,6 +759,9 @@ class Plate(models.Model):
     numberwells = models.IntegerField()
     wellavailable = models.BooleanField(default=True)
     indexswellavailable = models.IntegerField(default=0)
+    numbercolumns = models.IntegerField()
+    columnavailable = models.BooleanField(default=True)
+    indexcolumnavailable = models.IntegerField(default=0)
 
 
 class Well(models.Model):

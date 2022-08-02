@@ -164,6 +164,7 @@ def createMethodModel(target_id: int, nosteps: int, otchem: bool) -> int:
 def createReactionModel(
     method_id: int,
     reaction_class: str,
+    reaction_number: int,
     intramolecular: bool,
     reaction_smarts: str,
     reaction_temperature: float = None,
@@ -177,6 +178,8 @@ def createReactionModel(
         The method model object id the reaction is linked to
     reaction_class: str
         The name of the reaction eg. Buchwald-Hartwig amination
+    reaction_number: int
+        The number of the reaction
     intramolecular: bool
         Set to True if the reaction is intramolecular
     reaction_SMARTS: str
@@ -195,6 +198,7 @@ def createReactionModel(
     method_obj = Method.objects.get(id=method_id)
     reaction.method_id = method_obj
     reaction.reactionclass = reaction_class
+    reaction.number = reaction_number
     reaction.intramolecular = intramolecular
     if reaction_temperature:
         reaction.temperature = reaction_temperature
