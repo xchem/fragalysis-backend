@@ -157,8 +157,8 @@ def create_squonk_job(request):
     job_request.job_start_datetime = datetime.datetime.utcnow()
     job_request.save()
 
-    job_instance_id = result.get('instance_id')
-    job_task_id = result.get('task_id')
+    job_instance_id = result.msg['instance_id']
+    job_task_id = result.msg['task_id']
     logger.info('+ SUCCESS. Job "%s" started (job_instance_id=%s job_task_id=%s)',
                 job_name, job_instance_id, job_task_id)
 

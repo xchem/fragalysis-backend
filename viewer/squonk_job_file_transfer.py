@@ -263,8 +263,9 @@ def process_file_transfer(auth_token,
             job_transfer.save()
             logger.info('+ Transferred Protein files')
         else:
-            logger.error('File Transfer Failed')
-            raise RuntimeError('File Transfer Failed')
+            msg = f'File Transfer Failed (msg={result.msg})'
+            logger.error(msg)
+            raise RuntimeError(msg)
 
     # Computed Molecules
     for name in job_transfer.compounds:
@@ -299,8 +300,9 @@ def process_file_transfer(auth_token,
             job_transfer.save()
             logger.info('+ Transferred Compound files')
         else:
-            logger.error('File Transfer Failed')
-            raise RuntimeError('File Transfer Failed')
+            msg = f'File Transfer Failed (msg={result.msg})'
+            logger.error(msg)
+            raise RuntimeError(msg)
 
     # Tidy up the transfer directory.
     delete_media_sub_directory(trans_sub_dir)
