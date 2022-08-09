@@ -3063,6 +3063,11 @@ class JobFileTransferView(viewsets.ModelViewSet):
             content = {'Only authenticated users can transfer files'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
+        # Can't use this method if the squonk variables are not set!
+        if not settings.SQUONK2_DMAPI_URL:
+            content = {'SQUONK2_DMAPI_URL is not set'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
         target_id = request.data['target']
         target = Target.objects.get(id=target_id)
         snapshot_id = request.data['snapshot']
@@ -3206,6 +3211,11 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
             content = {'Only authenticated users can access squonk jobs'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
+        # Can't use this method if the squonk variables are not set!
+        if not settings.SQUONK2_DMAPI_URL:
+            content = {'SQUONK2_DMAPI_URL is not set'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
         job_collection = request.query_params.get('job_collection', None)
         job_name = request.query_params.get('job_name', None)
         job_version = request.query_params.get('job_version', None)
@@ -3289,6 +3299,11 @@ class JobRequestView(viewsets.ModelViewSet):
         user = self.request.user
         if not user.is_authenticated:
             content = {'Only authenticated users can run jobs'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        # Can't use this method if the squonk variables are not set!
+        if not settings.SQUONK2_DMAPI_URL:
+            content = {'SQUONK2_DMAPI_URL is not set'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         try:
