@@ -6,8 +6,7 @@ import shutil
 
 from django.conf import settings
 from rest_framework import status
-from dm_api.dm_api import DmApi
-
+from squonk2.dm_api import DmApi
 from rdkit import Chem
 
 from celery.utils.log import get_task_logger
@@ -46,12 +45,12 @@ logger = get_task_logger(__name__)
 
 SQUONK_PROT_MAPPING = {
     'apo_desolve': {'func': 'prot_file', 'field': 'apo_desolve_info'},
-    'mol': {'func': 'mol_field', 'field': 'sdf_info'},
+    'mol': {'func': 'mol_file', 'field': 'sdf_info'},
     'sdf': {'func': 'sdf_file', 'field': 'sdf_file'}
 }
 
 SQUONK_COMP_MAPPING = {
-    'mol': {'func': 'comp_mol_field', 'field': 'sdf_info'},
+    'mol': {'func': 'comp_mol_file', 'field': 'sdf_info'},
 }
 
 REF_PROP = 'ref_mols'
@@ -72,8 +71,9 @@ def ref_mol_from_protein_code(protein_code, target_title):
         return protein_code
 
 
-def mol_field(field, trans_dir, protein_code, target):
-    """Extract the contents of the mol_field to a file in the transfer directory
+def mol_file(field, trans_dir, protein_code, target):
+    """Copy the requested file from the molecule table to the transfer directory, standardising
+    the filename. Extract the contents of the mol_field to a file in the transfer directory.
 
     Args:
         field : source field in Molecule table
@@ -83,6 +83,9 @@ def mol_field(field, trans_dir, protein_code, target):
     Returns:
         filepath
     """
+    logger.info('Generating filepath from ield=%s trans_dir=%s protein_code=%s target=%s',
+                field, trans_dir, protein_code, target)
+
     protein = Protein.objects.get(code=protein_code)
     mol = Molecule.objects.get(prot_id=protein.id)
 
@@ -90,6 +93,8 @@ def mol_field(field, trans_dir, protein_code, target):
     filepath = os.path.join(trans_dir, protein.code.strip().split(":")[0] + '.mol')
     code = ref_mol_from_protein_code(protein_code, target.title)
     add_prop_to_mol(mol_block, filepath, code)
+
+    logger.info('Generated filepath "%s"', filepath)
 
     return filepath
 
@@ -107,16 +112,25 @@ def sdf_file(field, trans_dir, protein_code, target):
         filepath
     """
 
+    logger.info('Generated filepath from field=%s trans_dir=%s protein_code=%s target=%s',
+                field, trans_dir, protein_code, target)
+
     protein = Protein.objects.get(code=protein_code)
     mol = Molecule.objects.get(prot_id=protein.id)
     file = getattr(mol, field)
     if not file:
+        logger.warning(
+            'No file (field=%s trans_dir=%s protein_code=%s target=%s)',
+            field, trans_dir, protein_code, target)
         return None
 
     inpath = os.path.join(settings.MEDIA_ROOT, file.name)
     filepath = os.path.join(trans_dir, clean_filename(inpath))
     code = ref_mol_from_protein_code(protein_code, target.title)
     add_prop_to_sdf(inpath, filepath, {REF_PROP: code})
+
+    logger.info('Generated filepath "%s"', filepath)
+
     return filepath
 
 
@@ -133,18 +147,27 @@ def prot_file(field, trans_dir, protein_code, target):
         filepath
     """
 
+    logger.info('Generating filepath from field=%s trans_dir=%s protein_code=%s target=%s',
+                field, trans_dir, protein_code, target)
+
     protein = Protein.objects.get(code=protein_code)
     file = getattr(protein, field)
     if not file:
+        logger.warning(
+            'No file (field=%s trans_dir=%s protein_code=%s target=%s)',
+            field, trans_dir, protein_code, target)
         return None
 
     inpath = os.path.join(settings.MEDIA_ROOT, file.name)
     filepath = os.path.join(trans_dir, clean_filename(inpath))
     shutil.copyfile(inpath, filepath)
+
+    logger.info('Generated filepath "%s"', filepath)
+
     return filepath
 
 
-def comp_mol_field(field, trans_dir, name, target):
+def comp_mol_file(field, trans_dir, name, target):
     """Extract the contents of the mol_field to a file in the transfer directory
 
     Args:
@@ -155,11 +178,19 @@ def comp_mol_field(field, trans_dir, name, target):
     Returns:
         filepath
     """
+    del target
+
+    logger.info('Generated filepath from field=%s trans_dir=%s name=%s',
+                field, trans_dir, name)
+
     comp = ComputedMolecule.objects.get(name=name)
     mol_block = getattr(comp, field)
     filepath = os.path.join(trans_dir, name + '.mol')
     # In the case of a computed molecule the whole name is used.
     add_prop_to_mol(mol_block, filepath, name)
+
+    logger.info('Generated filepath "%s"', filepath)
+
     return filepath
 
 
@@ -203,7 +234,8 @@ def process_file_transfer(auth_token,
     for protein_code in job_transfer.proteins:
         # For each protein transfer the list of files to squonk
         # Then update the progress in the job_transfer record
-        logger.info('+ Processing files for protein_code=%s', protein_code)
+        logger.info('+ Collecting files for protein_code=%s (trans_dir=%s target=%s)',
+                    protein_code, trans_dir, target)
         file_list = []
         for file_type in SQUONK_PROT_MAPPING.values():
             filepath = globals()[file_type['func']](file_type['field'], trans_dir,
@@ -211,6 +243,11 @@ def process_file_transfer(auth_token,
             if filepath:
                 file_list.append(filepath)
 
+        if not file_list:
+            logger.warning('No files found for protein_code=%s', protein_code)
+            continue
+
+        logger.info('+ Found % Protein files', len(file_list))
         logger.info('+ Protein file_list=%s', file_list)
         logger.info('+ Calling DmApi.put_unmanaged_project_files() [proteins]...')
         result = DmApi.put_unmanaged_project_files(auth_token,
@@ -224,7 +261,7 @@ def process_file_transfer(auth_token,
             idx += 1
             job_transfer.transfer_progress = (idx*100/num_to_transfer)
             job_transfer.save()
-            logger.info('+ SUCCESS [proteins]')
+            logger.info('+ Transferred Protein files')
         else:
             logger.error('File Transfer Failed')
             raise RuntimeError('File Transfer Failed')
@@ -233,7 +270,8 @@ def process_file_transfer(auth_token,
     for name in job_transfer.compounds:
         # For each protein transfer the list of files to squonk
         # Then update the progress in the job_transfer record
-        logger.info('+ Processing files for compound=%s', name)
+        logger.info('+ Collecting files for compound=%s (trans_dir=%s target=%s)',
+                    name, trans_dir, target)
         file_list = []
         for file_type in SQUONK_COMP_MAPPING.values():
             filepath = globals()[file_type['func']](file_type['field'], trans_dir,
@@ -241,6 +279,11 @@ def process_file_transfer(auth_token,
             if filepath:
                 file_list.append(filepath)
 
+        if not file_list:
+            logger.warning('No files found for compound=%s', name)
+            continue
+
+        logger.info('+ Found % Compound files', len(file_list))
         logger.info('+ Compound file_list=%s', file_list)
         logger.info('+ Calling DmApi.put_unmanaged_project_files() [compounds]...')
         result = DmApi.put_unmanaged_project_files(auth_token,
@@ -254,7 +297,7 @@ def process_file_transfer(auth_token,
             idx += 1
             job_transfer.transfer_progress = (idx*100/num_to_transfer)
             job_transfer.save()
-            logger.info('+ SUCCESS [compounds]')
+            logger.info('+ Transferred Compound files')
         else:
             logger.error('File Transfer Failed')
             raise RuntimeError('File Transfer Failed')
