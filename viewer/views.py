@@ -3084,16 +3084,12 @@ class JobFileTransferView(viewsets.ModelViewSet):
             job_transfer = job_transfers.latest('id')
         else:
             job_transfer = None
-        if not job_transfer:
-            content = {'message':
-                           'Could not find JobTransfer record'
-                           f' for snapshot {snapshot_id}'}
-            return Response(content,
-                            status=status.HTTP_404_NOT_FOUND)
-        if not job_transfer.target:
-            content = {'message':
-                           f'JobTransfer record ({job_transfer.id})'
-                           f' for snapshot {snapshot_id} has no target'}
+        if job_transfer and not job_transfer.target:
+            msg = f'JobTransfer record ({job_transfer.id})' \
+                  f' for snapshot {snapshot_id} has no target.' \
+                  ' Cannot continue'
+            content = {'message': msg}
+            logger.error(msg)
             return Response(content,
                             status=status.HTTP_404_NOT_FOUND)
 
@@ -3101,17 +3097,11 @@ class JobFileTransferView(viewsets.ModelViewSet):
         # This is "understood" by the celery task (which uses this constant).
         # e.g. 'fragalysis-files'
         transfer_root = settings.SQUONK_MEDIA_DIRECTORY
-        # The 'transfer target' (a sub-directory of the transfer root)
-        # For example the root might be 'fragalysis-files'
-        # and the target may be `CD44MMA` so the targets will be written to the
-        # Squonk project at fragalysis-files/CD44MMA
-        transfer_target = job_transfer.target.title
 
         logger.info('+ target_id=%s', target_id)
         logger.info('+ snapshot_id=%s', snapshot_id)
         logger.info('+ squonk_project=%s', squonk_project)
         logger.info('+ transfer_root=%s', transfer_root)
-        logger.info('+ transfer_target=%s', transfer_target)
 
         if job_transfer:
             if (job_transfer.transfer_status == 'PENDING' or
@@ -3149,6 +3139,15 @@ class JobFileTransferView(viewsets.ModelViewSet):
             job_transfer.squonk_project = squonk_project
             job_transfer.target = Target.objects.get(id=target_id)
             job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
+
+        # The 'transfer target' (a sub-directory of the transfer root)
+        # For example the root might be 'fragalysis-files'
+        # and the target may be `CD44MMA` so the targets will be written to the
+        # Squonk project at fragalysis-files/CD44MMA
+        assert job_transfer.target
+        assert job_transfer.target.title
+        transfer_target = job_transfer.target.title
+        logger.info('+ transfer_target=%s', transfer_target)
 
         job_transfer.transfer_status = 'PENDING'
         job_transfer.transfer_datetime = None
