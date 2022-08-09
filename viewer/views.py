@@ -3084,6 +3084,18 @@ class JobFileTransferView(viewsets.ModelViewSet):
             job_transfer = job_transfers.latest('id')
         else:
             job_transfer = None
+        if not job_transfer:
+            content = {'message':
+                           'Could not find JobTransfer record'
+                           f' for snapshot {snapshot_id}'}
+            return Response(content,
+                            status=status.HTTP_404_NOT_FOUND)
+        if not job_transfer.target:
+            content = {'message':
+                           f'JobTransfer record ({job_transfer.id})'
+                           f' for snapshot {snapshot_id} has no target'}
+            return Response(content,
+                            status=status.HTTP_404_NOT_FOUND)
 
         # The root (in the Squonk project) where files will be written.
         # This is "understood" by the celery task (which uses this constant).
