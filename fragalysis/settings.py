@@ -345,8 +345,8 @@ DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 SQUONK2_DMAPI_URL = os.environ.get('SQUONK2_DMAPI_URL')
 SQUONK2_UI_URL = os.environ.get('SQUONK2_UI_URL')
 
-SQUONK_MEDIA_DIRECTORY = "fragalysis-files"
-SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
+SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
+SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 
 # Configure django logging.
 # We provide a standard formatter that emits a timestamp, the module issuing the log
@@ -377,7 +377,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 'class': 'logging.handlers.RotatingFileHandler',
                 'maxBytes': 5_000_000,
                 'backupCount': 10,
-                'filename': os.path.join(BASE_DIR, 'logs/logfile.log'),
+                'filename': os.path.join(BASE_DIR, 'logs/backend.log'),
                 'formatter': 'simple'}},
         'loggers': {
             'asyncio': {

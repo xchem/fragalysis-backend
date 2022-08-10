@@ -3101,7 +3101,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         # The root (in the Squonk project) where files will be written.
         # This is "understood" by the celery task (which uses this constant).
         # e.g. 'fragalysis-files'
-        transfer_root = settings.SQUONK_MEDIA_DIRECTORY
+        transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
 
         logger.info('+ target_id=%s', target_id)
         logger.info('+ snapshot_id=%s', snapshot_id)

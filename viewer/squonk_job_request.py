@@ -153,7 +153,7 @@ def create_squonk_job(request):
         raise ValueError(result.msg)
 
     job_request.squonk_job_info = result
-    job_request.squonk_url_ext = settings.SQUONK_INSTANCE_API + str(result.msg['instance_id'])
+    job_request.squonk_url_ext = settings.SQUONK2_INSTANCE_API + str(result.msg['instance_id'])
     job_request.job_start_datetime = datetime.datetime.utcnow()
     job_request.save()
 
