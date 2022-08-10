@@ -1017,6 +1017,7 @@ class OTWrite(object):
                         aspiratewellindex = fromwellobj.index
                         dispensewellindex = towellobj.index
 
+                        self.pickUpTip()
                         self.transferFluid(
                             aspirateplatename=aspirateplatename,
                             dispenseplatename=dispenseplatename,
