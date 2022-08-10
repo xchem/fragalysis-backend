@@ -8,6 +8,7 @@ import json
 from celery.result import AsyncResult
 from viewer.tasks import check_services
 import pandas as pd
+from rdkit.Chem import Descriptors
 
 from car.tasks import (
     validateFileUpload,
@@ -98,6 +99,27 @@ from .serializers import (
 
 from django.core.files.storage import default_storage
 
+def getOTBatchProductSmiles(batch_obj: Batch)->list:
+    """Gets the product SMILES for a batch
+
+    Parameters
+    ----------
+    batch_obj: Batch
+        The batch to search for product smiles
+
+    Returns
+    -------
+    productsmiles: list
+        The list of product SMILES in execution order, this will also follow
+        an increasing well index pattern 
+    """
+                                                                                                                         
+    targetqs = Batch.objects.get(id=batch_obj).targets.all()                                                                                              
+    methodqs = Method.objects.filter(target_id__in=targetqs)                                                                                       
+    wellsqs = Well.objects.filter(method_id__in=methodqs, type="reaction").order_by("index").distinct()                                                       
+    productsmiles = wellsqs.values_list("smiles", flat=True)
+
+    return productsmiles
 
 def cloneTarget(target_obj: Target, batch_obj: Batch) -> Target:
     """Clone a target

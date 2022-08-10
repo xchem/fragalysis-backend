@@ -11,6 +11,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def getMWs(smiles: list[str])->list[float]:
+    """Gets the molecular weights of a list of compounds SMILES
+
+    Parameters
+    ----------
+    smiles: list[str]
+        The SMILES to calculate molecular weights for
+
+    Returns
+    -------
+    MWs: list[float]
+        The list of molecular weights 
+    """
+                                                                                                                         
+    MWs = [Descriptors.ExactMolWt(Chem.MolFromSmiles(smi)) for smi in smiles]
+    return MWs
 
 def calculateProductMols(target_mass: float, target_SMILES: str) -> object:
     """Function to calculate product mols of reaction using a target mass
