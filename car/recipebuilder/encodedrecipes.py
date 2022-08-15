@@ -1100,7 +1100,7 @@ encoded_recipes = {
                             },
                         ],
                     },
-  {
+                    {
                         "type": "workup",
                         "driver": "robot",
                         "sessionnumber": 4,

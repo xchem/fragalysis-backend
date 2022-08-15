@@ -1,8 +1,9 @@
 """Create OT session"""
 from __future__ import annotations
+from cgi import test
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-from django.db.models import QuerySet, Q, Sum
+from django.db.models import QuerySet, Q
 
 from statistics import median
 from graphene_django import DjangoObjectType
@@ -16,6 +17,7 @@ from pandas.core.frame import DataFrame
 from car.models import (
     ActionSession,
     Batch,
+    Column,
     ExtractAction,
     OTBatchProtocol,
     Reaction,
@@ -87,8 +89,12 @@ class CreateOTSession(object):
 
     def createReactionSession(self):
         """Creates a reaction OT session"""
-        self.reaction_ids = [reactionobj.id for reactionobj in self.groupreactionqueryset]
-        self.groupedreactiontemperaturequerysets = self.getGroupedTemperatureReactions()
+        self.reaction_ids = [
+            reactionobj.id for reactionobj in self.groupreactionqueryset
+        ]
+        self.groupedreactiontemperaturequerysets = self.getGroupedTemperatureReactions(
+            reactionqueryset=self.groupreactionqueryset
+        )
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
@@ -107,7 +113,6 @@ class CreateOTSession(object):
             extractactionqueryset=self.extractactionqueryset
         )
         self.roundedvolumes = self.roundedaddvolumes + self.roundedextractvolumes
-
         self.deckobj = self.createDeckModel()
         self.numbertips = self.getNumberTips(
             queryset=self.addactionqueryset
@@ -115,7 +120,6 @@ class CreateOTSession(object):
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
-
         inputplatequeryset = self.getInputPlatesNeeded(
             smiles=self.addactionqueryset.values_list("smiles", flat=True)
         )
@@ -123,7 +127,7 @@ class CreateOTSession(object):
             self.cloneInputPlate(platesforcloning=inputplatequeryset)
         self.createPipetteModel()
         self.createReactionStartingPlate()
-        self.createReactionPlate()
+        self.createReactionPlate(platetype="reaction")
 
     def createWorkUpSession(self):
         """Creates a workup OT session"""
@@ -168,7 +172,9 @@ class CreateOTSession(object):
         self.deckobj = self.createDeckModel()
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
-        self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
+        self.pipettetype = self.getPipetteType(
+            roundedvolumes=self.roundedvolumes, channeltype="multi"
+        )
         self.addactionsdf = self.getAddActionsDataFrame(
             addactionqueryset=self.addactionqueryset
         )
@@ -233,7 +239,9 @@ class CreateOTSession(object):
         self.deckobj = self.createDeckModel()
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
-        self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
+        self.pipettetype = self.getPipetteType(
+            roundedvolumes=self.roundedvolumes, channeltype="multi"
+        )
         self.addactionsdf = self.getAddActionsDataFrame(
             addactionqueryset=self.addactionqueryset
         )
@@ -464,20 +472,27 @@ class CreateOTSession(object):
         reactionobj = Reaction.objects.get(id=reaction_id)
         return reactionobj
 
-    def getReactionQuerySet(self, method_id: int) -> list[Reaction]:
-        """Get reaction queryset for method_id
+    def getReactionQuerySet(
+        self, reaction_ids: list = None, method_id: int = None
+    ) -> QuerySet[Reaction]:
+        """Get a  synthesis methods reactions
 
         Parameters
         ----------
+        reaction_id: int or Reaction
+            The reaction ids to find reactions for
         method_id: int
-            The method id to search for related reactions
+            The optional synthesis method's id to get reactions for
 
         Returns
         -------
-        reactionqueryset: list[Reaction]
-            The reaction queryset related to the method id
+        reactionqueryset: QuerySet[Reaction]
+            The reactions of a synthesis method
         """
-        reactionqueryset = Reaction.objects.filter(method_id=method_id)
+        if reaction_ids:
+            reactionqueryset = Reaction.objects.filter(id__in=reaction_ids)
+        if method_id:
+            reactionqueryset = Reaction.objects.filter(method_id=method_id)
         return reactionqueryset
 
     def getProductQuerySet(self, reaction_ids: list) -> QuerySet[Product]:
@@ -683,7 +698,7 @@ class CreateOTSession(object):
         tipracktype = tipsavailable[tipkey]
         return tipracktype
 
-    def getPipetteType(self, roundedvolumes: list) -> str:
+    def getPipetteType(self, roundedvolumes: list, channeltype: str = "single") -> str:
         """Gets the type of pippete that minmises the number of tranfers
            needed for transferring volumes (ul).
 
@@ -691,33 +706,40 @@ class CreateOTSession(object):
         ----------
         roundedvolumes: list
             The list of rounded volumes that need to be transferred
+        channeltype: str
+            The type of channel eg. single or multi. Default set to single
 
         Returns
         -------
         pipettetype: str
             The pipette type needed
         """
-        pipettesavailable = {
-            10: {
+        pipettesavailable = [
+            {
                 "labware": "p10_single",
                 "position": "right",
                 "type": "single",
                 "maxvolume": 10,
             },
-            300: {
+            {
                 "labware": "p300_single",
                 "position": "right",
                 "type": "single",
                 "maxvolume": 300,
             },
-        }
-        pipettekey = min(
+            {
+                "labware": "p300_multi",
+                "position": "left",
+                "type": "multi",
+                "maxvolume": 300,
+            },
+        ]
+        pipettetype = min(
             pipettesavailable,
             key=lambda x: self.getNumberTransfers(
-                pipettevolume=x, roundedvolumes=roundedvolumes
+                pipettevolume=x["maxvolume"], roundedvolumes=roundedvolumes
             ),
         )
-        pipettetype = pipettesavailable[pipettekey]
         return pipettetype
 
     def getNumberTips(self, queryset: QuerySet) -> int:
@@ -847,6 +869,22 @@ class CreateOTSession(object):
         clonewellqueryset = Well.objects.filter(plate_id=plateobj.id)
         return clonewellqueryset
 
+    def getCloneColumns(self, plateobj: Plate) -> QuerySet[Column]:
+        """Retrieves the columns for a plate
+
+        Parameters
+        ----------
+        plateobj: Plate
+            The plate to get all the related wells to
+
+        Returns
+        -------
+        clonecolumnqueryset: QuerySet[Column]
+            The plates columns
+        """
+        clonecolumnqueryset = Column.objects.filter(plate_id=plateobj.id)
+        return clonecolumnqueryset
+
     def getActionSessionType(self) -> str:
         """Get the action session type
 
@@ -860,35 +898,55 @@ class CreateOTSession(object):
         ).distinct()[0]
         return actionsessiontype
 
-    def getUniqueTemperatures(self) -> list:
+    def getUniqueTemperatures(self, reactionqueryset: QuerySet[Reaction]) -> list:
         """Set of reaction temperatures
+
+        Parameters
+        ----------
+        reactionqueryset: QuerySet[Reaction]
+            The reactions to get unique list of reaction classes for
 
         Returns
         ------
         temperatures: list
             The set of reaction temperatures
         """
-        temperatures = self.groupreactionqueryset.values_list("temperature", flat=True).order_by("temperature").distinct()  
-        # temperatures = sorted(
-        #     set([reactionobj.temperature for reactionobj in self.groupreactionqueryset])
-        # )
+        temperatures = (
+            self.groupreactionqueryset.values_list("temperature", flat=True)
+            .order_by("temperature")
+            .distinct()
+        )
         return temperatures
 
-    def getUniqueReactionClasses(self) -> list:
+    def getUniqueReactionClasses(self, reactionqueryset: QuerySet[Reaction]) -> list:
         """Set of unique reaction classes
+
+        Parameters
+        ----------
+        reactionqueryset: QuerySet[Reaction]
+            The reactions to get unique list of reaction classes for
 
         Returns
         ------
         reactionclasses: list
             The set of reactionclasses
         """
-        reactionclasses = sorted(
-            set([reactionobj.reactionclass for reactionobj in self.groupreactionqueryset])
+        reactionclasses = (
+            reactionqueryset.values_list("reactionclass", flat=True)
+            .order_by("reactionclass")
+            .distinct()
         )
         return reactionclasses
 
-    def getGroupedTemperatureReactions(self) -> list:
+    def getGroupedTemperatureReactions(
+        self, reactionqueryset: QuerySet[Reaction]
+    ) -> list:
         """Group reactions done at the same temperature
+
+        Parameters
+        ----------
+        reactionqueryset: QuerySet[Reaction]
+            The reactions to to group by reaction class
 
         Returns
         -------
@@ -896,20 +954,16 @@ class CreateOTSession(object):
             A list of sublists of reaction querysets grouped by reaction
             temperature
         """
-        temperatures = self.getUniqueTemperatures()
+        temperatures = self.getUniqueTemperatures(reactionqueryset=reactionqueryset)
         groupedreactiontemperaturequerysets = []
         for temperature in temperatures:
-            reactiontemperaturequeryset = self.groupreactionqueryset.filter(temperature=temperature).distinct().order_by("id")
-            groupedreactiontemperaturequerysets.append(reactiontemperaturequeryset)
-
-        # for temperature in temperatures:
-        #     temperaturereactiongroup = [
-        #         reactionobj
-        #         for reactionobj in self.groupreactionqueryset
-        #         if reactionobj.temperature == temperature
-        #     ]
-        #     groupedtemperaturereactionobjs.append(temperaturereactiongroup)
-
+            reactiontemperaturequeryset = (
+                reactionqueryset.filter(temperature=temperature)
+                .distinct()
+                .order_by("id")
+            )
+            if reactiontemperaturequeryset:
+                groupedreactiontemperaturequerysets.append(reactiontemperaturequeryset)
         return groupedreactiontemperaturequerysets
 
     def getGroupedReactionByClass(self, reactionqueryset: QuerySet[Reaction]) -> list:
@@ -925,17 +979,19 @@ class CreateOTSession(object):
         groupedreactionbyclassquerysets: list
             The list of sublists of reaction querysets grouped by reaction class
         """
-        reactionclasses = self.getUniqueReactionClasses()
+        reactionclasses = self.getUniqueReactionClasses(
+            reactionqueryset=reactionqueryset
+        )
         groupedreactionbyclassquerysets = []
 
         for reactionclass in reactionclasses:
-            reactionbyclassqueryset = reactionqueryset.filter(reactionclass=reactionclass).distinct().order_by("reactionclass")
-            # reactionbyclassgroup = [
-            #     reactionobj
-            #     for reactionobj in reactiongroup
-            #     if reactionobj.reactionclass == reactionclass
-            # ]
-            groupedreactionbyclassquerysets.append(reactionbyclassqueryset)
+            reactionbyclassqueryset = (
+                reactionqueryset.filter(reactionclass=reactionclass)
+                .distinct()
+                .order_by("reactionclass")
+            )
+            if reactionbyclassqueryset:
+                groupedreactionbyclassquerysets.append(reactionbyclassqueryset)
 
         return groupedreactionbyclassquerysets
 
@@ -1152,6 +1208,7 @@ class CreateOTSession(object):
             tiprackobj.labware = name
             tiprackobj.save()
         else:
+            print("createTiprackModel")
             print("No more deck slots available")
 
     def createPlateModel(self, platetype: str, platename: str, labwaretype: str):
@@ -1177,7 +1234,44 @@ class CreateOTSession(object):
             plateobj.save()
             return plateobj
         else:
+            print("CreatePlateModel")
             print("No more deck slots available")
+
+    def createColumnModel(
+        self,
+        plateobj: Plate,
+        columnindex: int,
+        columntype: str,
+        reactionclass: str,
+    ) -> Column:
+        """Creates a column object
+
+        Parameters
+        ----------
+        plateobj: Plate
+            The plate that the column is linked to
+        columnindex: int
+            The index of the well in the plate
+        columntype: str
+            The type of plate the column is used on for eg.
+            reaction, workup1, workup2, lcms
+        reactionclass: str
+            The reaction class occupying the column eg. amidation.
+            Only one type of reaction class can occupy a column
+
+        Returns
+        -------
+        columnobj: Column
+            The column created
+        """
+        columnobj = Column()
+        columnobj.otsession_id = self.otsessionobj
+        columnobj.plate_id = plateobj
+        columnobj.index = columnindex
+        columnobj.type = columntype
+        columnobj.reactionclass = reactionclass
+        columnobj.save()
+        return columnobj
 
     def createWellModel(
         self,
@@ -1186,6 +1280,7 @@ class CreateOTSession(object):
         wellindex: int,
         volume: float = None,
         reactionobj: Reaction = None,
+        columnobj: Column = None,
         smiles: str = None,
         concentration: float = None,
         solvent: str = None,
@@ -1205,6 +1300,8 @@ class CreateOTSession(object):
             The optional volume of the well contents
         reactionobj: Reaction = None
             The optional reaction the well is linked to
+        columnobj: Column = None
+            The optional column object the well is linked to
         smiles: str = None
             The optional contents of the well
         concentration: float = None
@@ -1226,6 +1323,8 @@ class CreateOTSession(object):
         if reactionobj:
             wellobj.reaction_id = reactionobj
             wellobj.method_id = reactionobj.method_id
+        if columnobj:
+            wellobj.column_id = columnobj
         wellobj.type = welltype
         wellobj.index = wellindex
         wellobj.volume = volume
@@ -1335,14 +1434,38 @@ class CreateOTSession(object):
             self.deckobj.save()
             return False
 
-    def checkPlateWellsAvailable(self, plateobj: Plate) -> int:
-        """Check if any wells available on a plate
+    def checkPlateColumnsAvailable(self, plateobj: Plate) -> int:
+        """Check if any coollumns available on a plate
 
         Parameters
         ----------
         plateobj: Plate
             The plate to search for a well available
 
+        Returns
+        -------
+        plateobj.indexcolumnavailable: int
+            The index of the column available on a plate
+        status: False
+            Returns false if no column is available
+        """
+        columnavailable = plateobj.indexcolumnavailable + 1
+        numbercolumns = plateobj.numbercolumns
+        if columnavailable <= numbercolumns:
+            plateobj.indexswellavailable = columnavailable
+            plateobj.save()
+            return plateobj.indexcolumnavailable
+        else:
+            plateobj.wellavailable = False
+            plateobj.save()
+            return False
+
+    def checkPlateWellsAvailable(self, plateobj: Plate) -> int:
+        """Check if any wells available on a plate
+        Parameters
+        ----------
+        plateobj: Plate
+            The plate to search for a well available
         Returns
         -------
         plateobj.indexswellavailable: int
@@ -1376,17 +1499,16 @@ class CreateOTSession(object):
         status: False
             Returns false if no column is available
         """
-        columnavailable = plateobj.indexcolumnavailable + 1
+        testcolumnavailable = plateobj.indexcolumnavailable
         numbercolumns = plateobj.numbercolumns
-        if columnavailable <= numbercolumns:
-            plateobj.indexcolumnavailable = columnavailable
-            plateobj.save()
-            return plateobj.indexcolumnavailable
-        else:
+        if testcolumnavailable > numbercolumns:
             plateobj.columnavailable = False
             plateobj.save()
             return False
-
+        else:
+            plateobj.indexcolumnavailable = testcolumnavailable + 1
+            plateobj.save()
+            return testcolumnavailable
 
     def combinestrings(self, row):
         return (
@@ -1409,6 +1531,7 @@ class CreateOTSession(object):
             indexslot = self.checkDeckSlotAvailable()
             if indexslot:
                 clonewellqueryset = self.getCloneWells(plateobj=plateobj)
+                clonecolumnqueryset = self.getCloneColumns(plateobj=plateobj)
                 plateindex = indexslot
                 previousname = plateobj.name
                 platename = "Startingplate"
@@ -1420,8 +1543,14 @@ class CreateOTSession(object):
                     platename, indexslot, previousname
                 )
                 plateobj.save()
-                self.cloneInputWells(clonewellqueryset, plateobj)
+                self.cloneInputColumns(
+                    clonecolumnqueryset=clonecolumnqueryset, plateobj=plateobj
+                )
+                self.cloneInputWells(
+                    clonewellqueryset=clonewellqueryset, plateobj=plateobj
+                )
             else:
+                print("cloneInputPlate")
                 print("No more deck slots available")
 
     def cloneInputWells(self, clonewellqueryset: QuerySet[Well], plateobj: Plate):
@@ -1442,6 +1571,22 @@ class CreateOTSession(object):
             clonewellobj.plate_id = plateobj
             clonewellobj.otsession_id = self.otsessionobj
             clonewellobj.save()
+
+    def cloneInputColumns(self, clonecolumnqueryset: QuerySet[Column], plateobj: Plate):
+        """Clones columns
+
+        Parameters
+        ----------
+        clonecolumnqueryset: QuerySet[column]
+            The columns to be cloned
+        plateobj: Plate
+            The plate object (Usually previously cloned) related to the cloned column
+        """
+        for clonecolumnobj in clonecolumnqueryset:
+            clonecolumnobj.pk = None
+            clonecolumnobj.otsession_id = self.otsessionobj
+            clonecolumnobj.plate_id = plateobj
+            clonecolumnobj.save()
 
     def createReactionStartingPlate(self):
         """Creates the starting material plate/s for executing a reaction's add actions"""
@@ -1477,7 +1622,6 @@ class CreateOTSession(object):
                         plateobj=plateobj
                     )
                     if not indexwellavailable:
-
                         plateobj = self.createPlateModel(
                             platetype="startingmaterial",
                             platename="Startingplate",
@@ -1519,7 +1663,6 @@ class CreateOTSession(object):
             else:
                 indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
                 volumetoadd = totalvolume + deadvolume
-
                 if not indexwellavailable:
                     plateobj = self.createPlateModel(
                         platetype="startingmaterial",
@@ -1561,70 +1704,141 @@ class CreateOTSession(object):
 
         self.createCompoundOrderModel(orderdf=orderdf)
 
-    # def getNumberPlateColumns(self, numberreactions: int) -> int:
-    #     """Calculate the number of reaction colums needed for a reaction type
-        
-    #     Parameters
-    #     ----------
-    #     numberreactions: int
-    #         The number of reactions that need to be made
-        
-    #     Returns
-    #     -------
-    #     numberplatecolumns: int
-    #         The number of plate columns needed
-    #     """
-    #     numberplatecolumns = int(math.ceil(numberreactions / 8))
-    #     return numberplatecolumns
+    def updateStartingWellIndexFromColumnIndex(self, plateobj: Plate):
+        """Updates the plate well index based on the column index
+           Only works for 96 well plates!
+           eg. Plate column index = 2 then starting well index available
+               is 8 or A1
 
+        Parameters
+        ----------
+        plateobj: Plate
+            The plate to search for a column available
 
-    def updatePlateColumnIndex(self, plateobj: Plate):
-        """Updates the plate columnn index once all 8 wells have been occupied
+        Returns
+        -------
+        plateobj.indexwellavailable: int
+            The index of the well available on a plate
+
         """
-        plateobj.indexcolumnavailable = plateobj.indexcolumnavailable + 1
-        plateobj.save() 
 
-    def createReactionPlate(self):
-        """Creates reaction plate/s for executing reaction's add actions"""
-        for groupreactiontemperaturequeryset in self.groupedreactiontemperaturequerysets:
-            reactiontemperature = groupreactiontemperaturequeryset[0].temperature
-            volumes = self.getRoundedReactionVolumes(
-                grouptemperaturereactionobjs=groupreactiontemperaturequeryset
-            )
-            labwareplatetype = self.getPlateType(
-                platetype="reaction", temperature=reactiontemperature, volumes=volumes
-            )
+        indexcolumnavailable = plateobj.indexcolumnavailable
+        columstartingwellindex = indexcolumnavailable * 8
+        plateobj.indexswellavailable = columstartingwellindex
+        plateobj.save()
 
-            plateobj = self.createPlateModel(
-                platetype="reaction",
-                platename="Reactionplate",
-                labwaretype=labwareplatetype,
+    def createPlateByReactionClass(
+        self,
+        reactionqueryset: QuerySet[Reaction],
+        labwareplatetype: str,
+        platetype: str,
+    ):
+        """Creates plates based on reaction class where columns in a plate
+           are occupied by the same reaction
+
+        Parameters
+        ----------
+        reactionqueryset: QuerySet[Reaction]
+            The reactions to group by reaction class
+        labwareplatetype: str
+            The type of labware to be created eg. "plateone_96_wellplate_2500ul"
+        platetype: str
+            The type of plate being created eg. reaction, workup1, workup2, workup3, analyse
+        """
+        platename = "{}_plate".format(platetype.capitalize())
+        groupedreactionclassquerysets = self.getGroupedReactionByClass(
+            reactionqueryset=reactionqueryset
+        )
+        plateobj = self.createPlateModel(
+            platetype=platetype,
+            platename=platename,
+            labwaretype=labwareplatetype,
+        )
+        for groupreactionclassqueryset in groupedreactionclassquerysets:
+            reactionclass = groupreactionclassqueryset.values_list(
+                "reactionclass", flat=True
+            ).distinct()[0]
+            indexcolumavailable = self.checkPlateColumnsAvailable(plateobj=plateobj)
+            if not indexcolumavailable:
+                plateobj = self.createPlateModel(
+                    platetype=platetype,
+                    platename=platename,
+                    labwaretype=labwareplatetype,
+                )
+            columnobj = self.createColumnModel(
+                plateobj=plateobj,
+                columnindex=indexcolumavailable - 1,
+                columntype=platetype,
+                reactionclass=reactionclass,
             )
-            groupedreactionclassquerysets = self.getGroupedReactionByClass(reactiongroup=groupreactiontemperaturequeryset)
-            for groupreactionclassqueryset in groupedreactionclassquerysets:
-                for index, reactionobj in enumerate(groupreactionclassqueryset):
-                    productobj = self.getProduct(reaction_id=reactionobj.id)
-                    if (index + 1) % 8 == 0:
-                        self.updatePlateColumnIndex(plateobj=plateobj)
-                    indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-                    if not indexwellavailable:
+            self.updateStartingWellIndexFromColumnIndex(plateobj=plateobj)
+            for index, reactionobj in enumerate(groupreactionclassqueryset):
+                if (index + 1) % 8 == 0:
+                    indexcolumavailable = self.checkPlateColumnsAvailable(
+                        plateobj=plateobj
+                    )
+                    if not indexcolumavailable:
                         plateobj = self.createPlateModel(
-                            platetype="reaction",
-                            platename="Reactionplate",
+                            platetype=platetype,
+                            platename=platename,
                             labwaretype=labwareplatetype,
                         )
-
-                        indexwellavailable = self.checkPlateWellsAvailable(
+                        indexcolumavailable = self.checkPlateColumnsAvailable(
                             plateobj=plateobj
                         )
-
-                    self.createWellModel(
+                    columnobj = self.createColumnModel(
                         plateobj=plateobj,
-                        reactionobj=reactionobj,
-                        welltype="reaction",
-                        wellindex=indexwellavailable - 1,
-                        smiles=productobj.smiles,
+                        columnindex=indexcolumavailable - 1,
+                        columntype=platetype,
+                        reactionclass=reactionclass,
                     )
+                productobj = self.getProduct(reaction_id=reactionobj.id)
+                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+                if not indexwellavailable:
+                    plateobj = self.createPlateModel(
+                        platetype=platetype,
+                        platename=platename,
+                        labwaretype=labwareplatetype,
+                    )
+                    indexcolumavailable = self.checkPlateColumnsAvailable(
+                        plateobj=plateobj
+                    )
+                    columnobj = self.createColumnModel(
+                        plateobj=plateobj,
+                        columnindex=indexcolumavailable - 1,
+                        columntype=platetype,
+                        reactionclass=reactionclass,
+                    )
+                    indexwellavailable = self.checkPlateWellsAvailable(
+                        plateobj=plateobj
+                    )
+
+                self.createWellModel(
+                    plateobj=plateobj,
+                    reactionobj=reactionobj,
+                    columnobj=columnobj,
+                    welltype=platetype,
+                    wellindex=indexwellavailable - 1,
+                    smiles=productobj.smiles,
+                )
+
+    def createReactionPlate(self, platetype: str):
+        """Creates reaction plate/s for executing reaction's add actions"""
+        for (
+            groupreactiontemperaturequeryset
+        ) in self.groupedreactiontemperaturequerysets:
+            reactiontemperature = groupreactiontemperaturequeryset[0].temperature
+            volumes = self.getRoundedReactionVolumes(
+                groupedreactiontemperaturequeryset=groupreactiontemperaturequeryset
+            )
+            labwareplatetype = self.getPlateType(
+                platetype=platetype, temperature=reactiontemperature, volumes=volumes
+            )
+            self.createPlateByReactionClass(
+                reactionqueryset=groupreactiontemperaturequeryset,
+                labwareplatetype=labwareplatetype,
+                platetype=platetype,
+            )
 
     def createWorkUpPlate(self, platetype: str):
         """Creates workup plate/s for executing work up actions"""
@@ -1649,38 +1863,15 @@ class CreateOTSession(object):
             volumes=roundedvolumes,
             wellsneeded=wellsneeded,
         )
-        plateobj = self.createPlateModel(
+        reaction_ids = actionsessionqueryset.values_list(
+            "reaction_id", flat=True
+        ).order_by("reaction_id")
+        reactionqueryset = self.getReactionQuerySet(reaction_ids=reaction_ids)
+        self.createPlateByReactionClass(
+            reactionqueryset=reactionqueryset,
+            labwareplatetype=labwareplatetype,
             platetype=platetype,
-            platename="Workupplate",
-            labwaretype=labwareplatetype,
         )
-
-        for actionsessionobj in actionsessionqueryset:
-            reactionobj = actionsessionobj.reaction_id
-            productobj = self.getProduct(reaction_id=reactionobj.id)
-            totalvolumeextracted = ExtractAction.objects.filter(
-                actionsession_id=actionsessionobj.id,
-                toplatetype=platetype,
-                volume__isnull=False,
-            ).aggregate(Sum("volume"))["volume__sum"]
-            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-            if not indexwellavailable:
-                plateobj = self.createPlateModel(
-                    platetype=platetype,
-                    platename="Workupplate",
-                    labwaretype=labwareplatetype,
-                )
-
-                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-
-            self.createWellModel(
-                plateobj=plateobj,
-                reactionobj=reactionobj,
-                welltype=platetype,
-                wellindex=indexwellavailable - 1,
-                volume=totalvolumeextracted,
-                smiles=productobj.smiles,
-            )
 
     def createAnalysePlate(self, platetype: str):
         """Creates analyse plate/s for executing analyse actions"""
@@ -1707,38 +1898,16 @@ class CreateOTSession(object):
             volumes=roundedaddvolumes,
             wellsneeded=wellsneeded,
         )
-        plateobj = self.createPlateModel(
+
+        reaction_ids = actionsessionqueryset.values_list(
+            "reaction_id", flat=True
+        ).order_by("reaction_id")
+        reactionqueryset = self.getReactionQuerySet(reaction_ids=reaction_ids)
+        self.createPlateByReactionClass(
+            reactionqueryset=reactionqueryset,
+            labwareplatetype=labwareplatetype,
             platetype=platetype,
-            platename="{}_analyse_plate".format(platetype),
-            labwaretype=labwareplatetype,
         )
-
-        for actionsessionobj in actionsessionqueryset:
-            reactionobj = actionsessionobj.reaction_id
-            productobj = self.getProduct(reaction_id=reactionobj.id)
-            totalvolumeadded = AddAction.objects.filter(
-                actionsession_id=actionsessionobj.id,
-                toplatetype=platetype,
-                volume__isnull=False,
-            ).aggregate(Sum("volume"))["volume__sum"]
-            indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-            if not indexwellavailable:
-                plateobj = self.createPlateModel(
-                    platetype=platetype,
-                    platename="{}_analyse_plate".format(platetype),
-                    labwaretype=labwareplatetype,
-                )
-
-                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
-
-            self.createWellModel(
-                plateobj=plateobj,
-                reactionobj=reactionobj,
-                welltype=platetype,
-                wellindex=indexwellavailable - 1,
-                volume=totalvolumeadded,
-                smiles=productobj.smiles,
-            )
 
     def createSolventPlate(self, materialsdf: DataFrame):
         """Creates solvent plate/s for diluting reactants for reactions or analysis."""

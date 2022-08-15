@@ -14,6 +14,7 @@ from car.recipebuilder.encodedrecipes import encoded_recipes
 from car.models import (
     ActionSession,
     AddAction,
+    Column,
     ExtractAction,
     MixAction,
     OTSession,
@@ -128,6 +129,7 @@ class OTWrite(object):
         reaction_ids: list,
         actionsession_ids: list = None,
         actionsessiontype: str = None,
+        actionnumber: int = None,
     ) -> QuerySet[AddAction]:
         """Get add actions queryset for reaction_id
 
@@ -139,6 +141,8 @@ class OTWrite(object):
             Optional action session ids to match add actions with
         actionsessiontype: str
             The optional action session type to look for add actions for
+        actionnumber: int
+            The optional number the action is executed in a process
 
         Returns
         -------
@@ -160,22 +164,112 @@ class OTWrite(object):
                 criterion1 & criterion2
             ).order_by("id")
             return addactionqueryset
+        if actionnumber:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__type=actionsessiontype)
+            criterion3 = Q(number=actionnumber)
+            addactionqueryset = AddAction.objects.filter(
+                criterion1 & criterion2 & criterion3
+            ).order_by("id")
+            return addactionqueryset
 
-    def getExtractActionQuerySet(self) -> QuerySet[ExtractAction]:
-        """Get extract actions queryset for reaction_ids and actionsession_ids
+    def getExtractActionQuerySet(
+        self,
+        reaction_ids: list,
+        actionsession_ids: list = None,
+        actionsessiontype: str = None,
+        actionnumber: int = None,
+    ) -> QuerySet[ExtractAction]:
+        """Get extract actions queryset for reaction_ids
+
+        Parameters
+        ----------
+        reaction_ids: list
+            The reactions to search for related extract actions
+        actionsession_ids: list
+            Optional action session ids to match extract actions with
+        actionsessiontype: str
+            The optional action session type to look for extract actions for
+        actionnumber: int
+            The optional number the action is executed in a process
 
         Returns
         -------
-        addactionqueryset: QuerySet[AddAction]
-            The add actions related to the reaction and action sessions
+        extractactionqueryset: QuerySet[ExtractAction]
+            The extract actions related to the reaction
         """
-        criterion1 = Q(reaction_id__in=self.reaction_ids)
-        criterion2 = Q(actionsession_id__in=self.actionsession_ids)
 
-        extractactionqueryset = ExtractAction.objects.filter(
-            criterion1 & criterion2
-        ).order_by("id")
-        return extractactionqueryset
+        if actionsession_ids:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__in=actionsession_ids)
+            extractactionqueryset = ExtractAction.objects.filter(
+                criterion1 & criterion2
+            ).order_by("id")
+            return extractactionqueryset
+        if actionsessiontype:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__type=actionsessiontype)
+            extractactionqueryset = ExtractAction.objects.filter(
+                criterion1 & criterion2
+            ).order_by("id")
+            return extractactionqueryset
+        if actionnumber:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__type=actionsessiontype)
+            criterion3 = Q(number=actionnumber)
+            extractactionqueryset = ExtractAction.objects.filter(
+                criterion1 & criterion2 & criterion3
+            ).order_by("id")
+            return extractactionqueryset
+
+    def getMixActionQuerySet(
+        self,
+        reaction_ids: list,
+        actionsession_ids: list = None,
+        actionsessiontype: str = None,
+        actionnumber: int = None,
+    ) -> QuerySet[MixAction]:
+        """Get mix actions queryset for reaction_ids
+
+        Parameters
+        ----------
+        reaction_ids: list
+            The reactions to search for related mix actions
+        actionsession_ids: list
+            Optional action session ids to match mix actions with
+        actionsessiontype: str
+            The optional action session type to look for extract actions for
+        actionnumber: int
+            The optional number the action is executed in a process
+
+        Returns
+        -------
+        mixactionqueryset: QuerySet[MixAction]
+            The mix actions related to the reaction
+        """
+
+        if actionsession_ids:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__in=actionsession_ids)
+            mixactionqueryset = MixAction.objects.filter(
+                criterion1 & criterion2
+            ).order_by("id")
+            return mixactionqueryset
+        if actionsessiontype:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__type=actionsessiontype)
+            mixactionqueryset = MixAction.objects.filter(
+                criterion1 & criterion2
+            ).order_by("id")
+            return mixactionqueryset
+        if actionnumber:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+            criterion2 = Q(actionsession_id__type=actionsessiontype)
+            criterion3 = Q(number=actionnumber)
+            mixactionqueryset = MixAction.objects.filter(
+                criterion1 & criterion2 & criterion3
+            ).order_by("id")
+            return mixactionqueryset
 
     def getAddAction(self, reaction_id: int) -> Product:
         """Gets the product for a reaction
@@ -315,21 +409,56 @@ class OTWrite(object):
         previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
         return previousqueryset
 
-    def getReactionQuerySet(self, method_id: int) -> QuerySet[Reaction]:
+    def getReactionQuerySet(
+        self, reaction_ids: list = None, method_id: int = None
+    ) -> QuerySet[Reaction]:
         """Get a  synthesis methods reactions
 
         Parameters
         ----------
+        reaction_id: int or Reaction
+            The reaction ids to find reactions for
         method_id: int
-            The synthesis method's id to get reactions for
+            The optional synthesis method's id to get reactions for
 
         Returns
         -------
         reactionqueryset: QuerySet[Reaction]
             The reactions of a synthesis method
         """
-        reactionqueryset = Reaction.objects.filter(method_id=method_id)
+        if reaction_ids:
+            reactionqueryset = Reaction.objects.filter(id__in=reaction_ids)
+        if method_id:
+            reactionqueryset = Reaction.objects.filter(method_id=method_id)
         return reactionqueryset
+
+    def getColumnQuerySet(
+        self,
+        columntype: str,
+        reactionclass: str,
+    ) -> QuerySet[Column]:
+        """Get column queryset for column type and reactionclass
+
+        Parameters
+        ----------
+        columntype: str
+            The type of plate the column is on eg. reaction, workup1, workup2, analyse
+        reactionclass: str
+            The reaction class that occupy the columns
+
+        Returns
+        -------
+        columnqueryset: QuerySet[Column]
+            The columns related to the column type and reaction class
+        """
+        print(self.otsession_id, columntype, reactionclass)
+        criterion1 = Q(otsession_id=self.otsession_id)
+        criterion2 = Q(type=columntype)
+        criterion3 = Q(reactionclass=reactionclass)
+        columnqueryset = Column.objects.filter(
+            criterion1 & criterion2 & criterion3
+        ).order_by("id")
+        return columnqueryset
 
     def checkPreviousReactionProduct(
         self, reaction_id: int, smiles: str
@@ -643,6 +772,36 @@ class OTWrite(object):
         wellobj.volume = wellobj.volume - transfervolume
         wellobj.save()
 
+    def updateReactantsForNextStep(self, columnobj: Column):
+        """Updates well objects related to a column
+        to have reactant for next step set to True
+        """
+        columnwellqueryset = Well.objects.filter(column_id=columnobj)
+        if columnwellqueryset:
+            for columnwellobj in columnwellqueryset:
+                clonewellqueryset = Well.objects.filter(id=columnwellobj.clonewellid)
+                if clonewellqueryset:
+                    clonewellobj = clonewellqueryset[0]
+                    clonewellobj.reactantfornextstep = False
+                    clonewellobj.save()
+                columnwellobj.reactantfornextstep = True
+                columnwellobj.save()
+
+    def updateReactantsIsNotForNextStep(self, columnobj: Column):
+        """Updates well objects related to a cloumn to have reactant for
+        next step set to False
+        """
+        columnwellqueryset = Well.objects.filter(column_id=columnobj)
+        if columnwellqueryset:
+            for columnwellobj in columnwellqueryset:
+                clonewellqueryset = Well.objects.filter(id=columnwellobj.clonewellid)
+                if clonewellqueryset:
+                    clonewellobj = clonewellqueryset[0]
+                    clonewellobj.reactantfornextstep = False
+                    clonewellobj.save()
+                columnwellobj.reactantfornextstep = False
+                columnwellobj.save()
+
     def updateReactantForNextStep(self, wellobj: Well):
         """Updates well object to have reactant for next step
         set to True
@@ -706,6 +865,76 @@ class OTWrite(object):
     def getDeadVolume(self, maxwellvolume: float) -> float:
         deadvolume = maxwellvolume * 0.05
         return deadvolume
+
+    def getUniqueReactionClasses(self, reactionqueryset: QuerySet[Reaction]) -> list:
+        """Set of unique reaction classes
+
+        Parameters
+        ----------
+        reactionqueryset: QuerySet[Reaction]
+            The reactions to get unique list of reaction classes for
+
+        Returns
+        ------
+        reactionclasses: list
+            The set of reactionclasses
+        """
+        reactionclasses = (
+            reactionqueryset.values_list("reactionclass", flat=True)
+            .order_by("reactionclass")
+            .distinct()
+        )
+        return reactionclasses
+
+    def getGroupedReactionByClass(self, reactionqueryset: QuerySet[Reaction]) -> list:
+        """Group reactions by reaction class
+
+        Parameters
+        ----------
+        reactionqueryset: QuerySet[Reaction]
+            The reactions to to group by reaction class
+
+        Returns
+        -------
+        groupedreactionbyclassquerysets: list
+            The list of sublists of reaction querysets grouped by reaction class
+        """
+        reactionclasses = self.getUniqueReactionClasses(
+            reactionqueryset=reactionqueryset
+        )
+        groupedreactionbyclassquerysets = []
+
+        for reactionclass in reactionclasses:
+            reactionbyclassqueryset = (
+                reactionqueryset.filter(reactionclass=reactionclass)
+                .distinct()
+                .order_by("reactionclass")
+            )
+            if reactionbyclassqueryset:
+                groupedreactionbyclassquerysets.append(reactionbyclassqueryset)
+
+        return groupedreactionbyclassquerysets
+
+    def getColumns(self, columntype: str, reactionclass: str) -> QuerySet[Column]:
+        """Get columns related to a reactions of a partiular reaction class
+
+        Parameters
+        ----------
+        columntype: str
+            The type of column eg. reaction, workup1, workup2 etc
+        reactionclass: str
+            The reaction class to find columns for
+
+        Returns
+        -------
+        columnqueryset: QuerySet[Columns]
+            The columns containing wells where reactions of the same class
+            were executed
+        """
+        columnqueryset = Column.objects.filter(
+            otsession_id=self.otsession_id, type=columntype, reactionclass=reactionclass
+        ).order_by("index")
+        return columnqueryset
 
     def setupScript(self):
         """Writes header information for an OT script"""
@@ -807,6 +1036,31 @@ class OTWrite(object):
 
         self.writeCommand(instruction)
 
+    def mixColumn(self, columnindex: int, nomixes: int, plate: str, volumetomix: float):
+        """Prepares mixing commmand instruction for a mixing action
+        on a column in a plate
+
+        Parameters
+        ----------
+        columnindex: int
+            The index of the column to be mixed
+        nomixes: int
+            The number of mixes needed
+        plate: str
+            The plate linked to the column being mixed
+        volumetomix: float
+            The volume (ul) to be aspirated/dipsensed for the mxing action
+        """
+        humanread = f"Mixing contents of plate: {plate} at column index: {columnindex}"
+
+        instruction = [
+            "\n\t# " + str(humanread),
+            self.pipettename
+            + f".mix({nomixes}, {volumetomix}, {plate}[{columnindex}])",
+        ]
+
+        self.writeCommand(instruction)
+
     def pickUpTip(self):
         """Prepares a pick up tip action"""
         humanread = f"Picking up a new tip"
@@ -825,7 +1079,8 @@ class OTWrite(object):
 
         instruction = [
             "\n\t# " + str(humanread),
-            self.pipettename + f".drop_tip()",
+            "if {}.has_tip:\n".format(self.pipettename),
+            "\t{}.drop_tip()".format(self.pipettename),
         ]
 
         self.writeCommand(instruction)
@@ -848,7 +1103,7 @@ class OTWrite(object):
 
         self.writeCommand(instruction)
 
-    def transferFluid(
+    def transferFluidSingle(
         self,
         aspirateplatename: str,
         dispenseplatename: str,
@@ -857,9 +1112,11 @@ class OTWrite(object):
         transvolume: float,
         aspirateheight: int = 0.1,
         dispenseheight: int = -5,
+        airgap: int = 15,
         transfertype: str = "standard",
     ):
         """Prepares the transfer commmand instruction for a tranfer action
+           using a single well index
 
         Parameters
         ----------
@@ -881,6 +1138,9 @@ class OTWrite(object):
             Set to 5 mm above the bottom of the well.
         transfertype: str
             The tpye of transfer eg. reaction, workup
+        airgap: int
+            The airgap (uL) setting for the pipette to draw air in after aspirating
+            to prevent solvent pearling
         newtip:
             Set to "never" to deal with pick up and drop tips built into protocol
         """
@@ -889,7 +1149,58 @@ class OTWrite(object):
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = 15, new_tip='never', blow_out=True, blowout_location='destination well')",
+            + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
+        ]
+        self.writeCommand(instruction)
+
+    def transferFluidMulti(
+        self,
+        aspirateplatename: str,
+        dispenseplatename: str,
+        aspiratecolumnindex: int,
+        dispensecolumnindex: int,
+        transvolume: float,
+        aspirateheight: int = 0.1,
+        dispenseheight: int = -5,
+        airgap: int = 15,
+        transfertype: str = "standard",
+    ):
+        """Prepares the mutli-pipette transfer commmand instruction for a tranfer action
+           using a column index
+
+        Parameters
+        ----------
+        aspirateplatename: str
+            The name of the plate the transfer is orignating from
+        dispenseplatename: str
+            The name of the destination plate
+        aspiratecolumnindex: int
+            The index of the column the transfer is orginating from
+        dispensecolumnindex: int
+            The index of the destination column
+        transvolume: float
+            The volume being transferred
+        aspirateheight: int
+            The height (mm) the pipette tip will aspirate from.
+            Set to 2 mm.
+        dispenseheight: int
+            The hieght (mm) at which the pipette tip will dispense.
+            Set to 5 mm above the bottom of the well.
+        transfertype: str
+            The tpye of transfer eg. reaction, workup
+        airgap: int
+            The airgap (uL) setting for the pipette to draw air in after aspirating
+            to prevent solvent pearling
+        newtip:
+            Set to "never" to deal with pick up and drop tips built into protocol
+        """
+        print("Transferring multi")
+
+        humanread = f"transfertype - {transfertype} - transfer - {transvolume:.1f}ul from {aspiratecolumnindex} column to {dispensecolumnindex} column"
+        instruction = [
+            "\n\t# " + str(humanread),
+            self.pipettename
+            + f".transfer({transvolume}, {aspirateplatename}[{aspiratecolumnindex}].bottom({aspirateheight}), {dispenseplatename}[{dispensecolumnindex}].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
         ]
         self.writeCommand(instruction)
 
@@ -996,7 +1307,7 @@ class OTWrite(object):
                                 aspiratewellindex = fromsolventwellobj.index
                                 dispensewellindex = towellobj.index
 
-                                self.transferFluid(
+                                self.transferFluidSingle(
                                     aspirateplatename=aspirateplatename,
                                     dispenseplatename=dispenseplatename,
                                     aspiratewellindex=aspiratewellindex,
@@ -1018,7 +1329,7 @@ class OTWrite(object):
                         dispensewellindex = towellobj.index
 
                         self.pickUpTip()
-                        self.transferFluid(
+                        self.transferFluidSingle(
                             aspirateplatename=aspirateplatename,
                             dispenseplatename=dispenseplatename,
                             aspiratewellindex=aspiratewellindex,
@@ -1058,13 +1369,22 @@ class OTWrite(object):
                     self.dropTip()
 
     def writeWorkUpActions(self, actionsessionqueryset: QuerySet[ActionSession]):
-        for actionsessionobj in actionsessionqueryset:
-            sessionnumber = actionsessionobj.sessionnumber
-            reactionobj = Reaction.objects.get(id=actionsessionobj.reaction_id.id)
-            reaction_id = reactionobj.id
-            reactionclass = reactionobj.reactionclass
-            recipetype = reactionobj.recipetype
-
+        sessionnumber = actionsessionqueryset.values_list(
+            "sessionnumber", flat=True
+        ).distinct()[0]
+        reaction_ids = actionsessionqueryset.values_list(
+            "reaction_id", flat=True
+        ).order_by("reaction_id")
+        reactionqueryset = self.getReactionQuerySet(reaction_ids=reaction_ids)
+        groupedreactionclassquerysets = self.getGroupedReactionByClass(
+            reactionqueryset=reactionqueryset
+        )
+        for groupreactionclassqueryset in groupedreactionclassquerysets:
+            actionsessiontype = "workup"
+            reactionclass = groupreactionclassqueryset.values_list(
+                "reactionclass", flat=True
+            ).distinct()[0]
+            recipetype = "standard"  # Introduce loop here to group by recipe type
             actionsessions = encoded_recipes[reactionclass]["recipes"][recipetype][
                 "actionsessions"
             ]
@@ -1074,54 +1394,55 @@ class OTWrite(object):
                 if actionsession["type"] == "workup"
                 and actionsession["sessionnumber"] == sessionnumber
             ][0]
-
             for index, workupaction in enumerate(workupactions):
                 actiontype = workupaction["type"]
                 actionnumber = workupaction["actionnumber"]
-
                 if actiontype == "add":
+                    addactionqueryset = self.getAddActionQuerySet(
+                        reaction_ids=groupreactionclassqueryset,
+                        actionsessiontype=actionsessiontype,
+                        actionnumber=actionnumber,
+                    )
+                    transfervolume = addactionqueryset.values_list(
+                        "volume", flat=True
+                    ).distinct()[0]
+                    solvent = addactionqueryset.values_list(
+                        "solvent", flat=True
+                    ).distinct()[0]
                     toplatetype = workupaction["content"]["plates"]["toplatetype"]
-
-                    addactionobj = AddAction.objects.get(
-                        actionsession_id=actionsessionobj,
-                        reaction_id=reactionobj,
-                        number=actionnumber,
+                    tocolumnqueryset = self.getColumnQuerySet(
+                        columntype=toplatetype, reactionclass=reactionclass
                     )
-                    solvent = addactionobj.solvent
-                    transfervolume = addactionobj.volume
-
-                    towellobj = self.getWellObj(
-                        reaction_id=reaction_id,
-                        welltype=toplatetype,
-                    )
-                    toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
-                    dispenseplatename = toplateobj.name
-                    dispensewellindex = towellobj.index
-
-                    fromsolventwellinfo = self.findSolventPlateWellObj(
-                        solvent=solvent,
-                        transfervolume=transfervolume,
-                    )
-
                     self.pickUpTip()
-                    for solventwellinfo in fromsolventwellinfo:
-                        fromsolventwellobj = solventwellinfo[0]
-                        transfervolume = solventwellinfo[1]
+                    for topcolumnobj in tocolumnqueryset:
+                        toplateobj = topcolumnobj.plate_id
+                        dispenseplatename = toplateobj.name
+                        dispensecolumnindex = topcolumnobj.index
 
-                        fromplateobj = self.getPlateObj(
-                            plateid=fromsolventwellobj.plate_id.id
+                        fromsolventwellinfo = self.findSolventPlateWellObj(
+                            solvent=solvent,
+                            transfervolume=transfervolume,
                         )
-                        aspirateplatename = fromplateobj.name
-                        aspiratewellindex = fromsolventwellobj.index
+                        for solventwellinfo in fromsolventwellinfo:
+                            fromsolventwellobj = solventwellinfo[0]
+                            transfervolume = solventwellinfo[1]
 
-                        self.transferFluid(
-                            aspirateplatename=aspirateplatename,
-                            dispenseplatename=dispenseplatename,
-                            aspiratewellindex=aspiratewellindex,
-                            dispensewellindex=dispensewellindex,
-                            transvolume=transfervolume,
-                            transfertype="workup",
-                        )
+                            fromplateobj = self.getPlateObj(
+                                plateid=fromsolventwellobj.plate_id.id
+                            )
+                            aspirateplatename = fromplateobj.name
+                            aspiratecolumnindex = fromsolventwellobj.index
+
+                            self.transferFluidMulti(
+                                aspirateplatename=aspirateplatename,
+                                dispenseplatename=dispenseplatename,
+                                aspiratecolumnindex=aspiratecolumnindex,
+                                dispensecolumnindex=dispensecolumnindex,
+                                transvolume=transfervolume,
+                                transfertype="workup",
+                            )
+                    self.dropTip()
+
                     if index + 1 == len(workupactions):
                         self.dropTip()
                     if index + 1 < len(workupactions):
@@ -1131,92 +1452,116 @@ class OTWrite(object):
                 if actiontype == "extract":
                     fromplatetype = workupaction["content"]["plates"]["fromplatetype"]
                     toplatetype = workupaction["content"]["plates"]["toplatetype"]
-
-                    extractactionobj = ExtractAction.objects.get(
-                        actionsession_id=actionsessionobj,
-                        reaction_id=reactionobj,
-                        number=actionnumber,
+                    extractactionqueyset = self.getExtractActionQuerySet(
+                        reaction_ids=groupreactionclassqueryset,
+                        actionsessiontype=actionsessiontype,
+                        actionnumber=actionnumber,
                     )
-                    solvent = extractactionobj.solvent
-                    transfervolume = extractactionobj.volume
-                    bottomlayervolume = extractactionobj.bottomlayervolume
-
-                    towellobj = self.getWellObj(
-                        reaction_id=reaction_id,
-                        welltype=toplatetype,
+                    transfervolume = extractactionqueyset.values_list(
+                        "volume", flat=True
+                    ).distinct()[0]
+                    solvent = extractactionqueyset.values_list(
+                        "solvent", flat=True
+                    ).distinct()[0]
+                    bottomlayervolume = extractactionqueyset.values_list(
+                        "bottomlayervolume", flat=True
+                    ).distinct()[0]
+                    fromcolumnqueryset = self.getColumnQuerySet(
+                        columntype=fromplatetype, reactionclass=reactionclass
                     )
-                    toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
-                    dispenseplatename = toplateobj.name
-                    dispensewellindex = towellobj.index
-
-                    fromwellobj = self.getWellObj(
-                        reaction_id=reaction_id,
-                        welltype=fromplatetype,
+                    tocolumnqueryset = self.getColumnQuerySet(
+                        columntype=toplatetype, reactionclass=reactionclass
                     )
-                    fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
-                    aspirateplatename = fromplateobj.name
-                    aspiratewellindex = fromwellobj.index
-                    if bottomlayervolume:
-                        aspirateheight = self.calculateAspirateHeight(
-                            labware=fromplateobj.labware,
-                            bottomlayervolume=bottomlayervolume,
+                    aspirateheight = None
+                    for fromcolumnobj, tocolumnobj in zip(
+                        fromcolumnqueryset, tocolumnqueryset
+                    ):
+                        fromplateobj = fromcolumnobj.plate_id
+                        aspirateplatename = fromplateobj.name
+                        aspiratecolumnindex = fromcolumnobj.index
+                        toplateobj = tocolumnobj.plate_id
+                        dispenseplatename = toplateobj.name
+                        dispensecolumnindex = tocolumnobj.index
+                        if not aspirateheight:
+                            if bottomlayervolume:
+                                aspirateheight = self.calculateAspirateHeight(
+                                    labware=fromplateobj.labware,
+                                    bottomlayervolume=bottomlayervolume,
+                                )
+                            else:
+                                aspirateheight = 0.1
+                        self.delayProtocol(delay=5)
+                        self.pickUpTip()
+                        self.transferFluidMulti(
+                            aspirateplatename=aspirateplatename,
+                            dispenseplatename=dispenseplatename,
+                            aspiratecolumnindex=aspiratecolumnindex,
+                            dispensecolumnindex=dispensecolumnindex,
+                            transvolume=transfervolume,
+                            transfertype="workup",
+                            aspirateheight=aspirateheight,
                         )
-                    else:
-                        aspirateheight = 0.1
+                        self.dropTip()
+                        self.updateReactantsForNextStep(columnobj=tocolumnobj)
+                        self.updateReactantsIsNotForNextStep(columnobj=fromcolumnobj)
 
-                    self.delayProtocol(delay=5)
-                    self.pickUpTip()
-                    self.transferFluid(
-                        aspirateplatename=aspirateplatename,
-                        dispenseplatename=dispenseplatename,
-                        aspiratewellindex=aspiratewellindex,
-                        dispensewellindex=dispensewellindex,
-                        transvolume=transfervolume,
-                        transfertype="workup",
-                        aspirateheight=aspirateheight,
-                    )
                     if index + 1 == len(workupactions):
                         self.dropTip()
                     if index + 1 < len(workupactions):
                         if workupactions[index + 1]["type"] != "mix":
                             self.dropTip()
 
-                    self.updateReactantForNextStep(wellobj=towellobj)
-                    self.updateReactantIsNotForNextStep(wellobj=fromwellobj)
-
                 if actiontype == "mix":
-                    mixactionobj = MixAction.objects.get(
-                        actionsession_id=actionsessionobj,
-                        reaction_id=reactionobj,
-                        number=actionnumber,
+                    mixactionqueyset = self.getMixActionQuerySet(
+                        reaction_ids=groupreactionclassqueryset,
+                        actionsessiontype=actionsessiontype,
+                        actionnumber=actionnumber,
                     )
-                    platetype = mixactionobj.platetype
-                    repetitions = mixactionobj.repetitions
-                    mixvolume = mixactionobj.volume
+                    platetype = mixactionqueyset.values_list(
+                        "platetype", flat=True
+                    ).distinct()[0]
+                    repetitions = mixactionqueyset.values_list(
+                        "repetitions", flat=True
+                    ).distinct()[0]
+                    mixvolume = mixactionqueyset.values_list(
+                        "volume", flat=True
+                    ).distinct()[0]
 
-                    mixwellobj = self.getWellObj(
-                        reaction_id=reaction_id, welltype=platetype
+                    mixcolumnqueryset = self.getColumnQuerySet(
+                        columntype=platetype, reactionclass=reactionclass
                     )
-                    mixplateobj = self.getPlateObj(plateid=mixwellobj.plate_id.id)
-                    mixwellindex = mixwellobj.index
-                    mixplatename = mixplateobj.name
 
-                    self.mixWell(
-                        wellindex=mixwellindex,
-                        nomixes=repetitions,
-                        plate=mixplatename,
-                        volumetomix=mixvolume,
-                    )
-                    self.dropTip()
+                    for mixcolumnobj in mixcolumnqueryset:
+                        self.pickUpTip()
+                        mixplateobj = mixcolumnobj.plate_id
+                        mixplatename = mixplateobj.name
+                        mixcolumnindex = mixcolumnobj.index
+                        self.mixColumn(
+                            columnindex=mixcolumnindex,
+                            nomixes=repetitions,
+                            plate=mixplatename,
+                            volumetomix=mixvolume,
+                        )
+                        self.dropTip()
 
     def writeAnalyseActions(self, actionsessionqueryset: QuerySet[ActionSession]):
-        for actionsessionobj in actionsessionqueryset:
-            sessionnumber = actionsessionobj.sessionnumber
-            reactionobj = Reaction.objects.get(id=actionsessionobj.reaction_id.id)
-            reaction_id = reactionobj.id
-            reactionclass = reactionobj.reactionclass
-            recipetype = reactionobj.recipetype
+        sessionnumber = actionsessionqueryset.values_list(
+            "sessionnumber", flat=True
+        ).distinct()[0]
+        reaction_ids = actionsessionqueryset.values_list(
+            "reaction_id", flat=True
+        ).order_by("reaction_id")
+        reactionqueryset = self.getReactionQuerySet(reaction_ids=reaction_ids)
+        groupedreactionclassquerysets = self.getGroupedReactionByClass(
+            reactionqueryset=reactionqueryset
+        )
 
+        for groupreactionclassqueryset in groupedreactionclassquerysets:
+            actionsessiontype = "analyse"
+            reactionclass = groupreactionclassqueryset.values_list(
+                "reactionclass", flat=True
+            ).distinct()[0]
+            recipetype = "standard"  # Introduce loop here to group by recipe type
             actionsessions = encoded_recipes[reactionclass]["recipes"][recipetype][
                 "actionsessions"
             ]
@@ -1230,137 +1575,122 @@ class OTWrite(object):
             for index, analyseaction in enumerate(analyseactions):
                 actiontype = analyseaction["type"]
                 actionnumber = analyseaction["actionnumber"]
-
                 if actiontype == "add":
                     fromplatetype = analyseaction["content"]["plates"]["fromplatetype"]
                     toplatetype = analyseaction["content"]["plates"]["toplatetype"]
-
-                    addactionobj = AddAction.objects.get(
-                        actionsession_id=actionsessionobj,
-                        reaction_id=reactionobj,
-                        number=actionnumber,
+                    addactionqueryset = self.getAddActionQuerySet(
+                        reaction_ids=groupreactionclassqueryset,
+                        actionsessiontype=actionsessiontype,
+                        actionnumber=actionnumber,
                     )
-                    solvent = addactionobj.solvent
-                    transfervolume = addactionobj.volume
-
-                    towellobj = self.getWellObj(
-                        reaction_id=reaction_id,
-                        welltype=toplatetype,
+                    transfervolume = addactionqueryset.values_list(
+                        "volume", flat=True
+                    ).distinct()[0]
+                    solvent = addactionqueryset.values_list(
+                        "solvent", flat=True
+                    ).distinct()[0]
+                    tocolumnqueryset = self.getColumnQuerySet(
+                        columntype=toplatetype, reactionclass=reactionclass
                     )
-                    toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
-                    dispenseplatename = toplateobj.name
-                    dispensewellindex = towellobj.index
-
-                    self.pickUpTip()
-                    if fromplatetype in ["reaction", "workup1", "workup2", "workup3"]:
-                        fromwellobj = self.getWellObj(
-                            reaction_id=reaction_id,
-                            welltype=fromplatetype,
-                        )
-                        aspirateplatename = fromplateobj.name
-                        aspiratewellindex = fromplateobj.index
-
-                        self.transferFluid(
-                            aspirateplatename=aspirateplatename,
-                            dispenseplatename=dispenseplatename,
-                            aspiratewellindex=aspiratewellindex,
-                            dispensewellindex=dispensewellindex,
-                            transvolume=transfervolume,
-                            transfertype="analyse",
-                        )
 
                     if fromplatetype == "solvent":
-                        fromsolventwellinfo = self.findSolventPlateWellObj(
-                            solvent=solvent,
-                            transfervolume=transfervolume,
-                        )
-                        for solventwellinfo in fromsolventwellinfo:
-                            fromsolventwellobj = solventwellinfo[0]
-                            transfervolume = solventwellinfo[1]
+                        print("Adding solvent")
+                        self.pickUpTip()
+                        print("The to column queryset is: {}".format(tocolumnqueryset))
+                        for topcolumnobj in tocolumnqueryset:
+                            toplateobj = topcolumnobj.plate_id
+                            dispenseplatename = toplateobj.name
+                            dispensecolumnindex = topcolumnobj.index
 
-                            fromplateobj = self.getPlateObj(
-                                plateid=fromsolventwellobj.plate_id.id
+                            fromsolventwellinfo = self.findSolventPlateWellObj(
+                                solvent=solvent,
+                                transfervolume=transfervolume,
                             )
-                            aspirateplatename = fromplateobj.name
-                            aspiratewellindex = fromsolventwellobj.index
+                            print(
+                                "The from solvent well info is: {}".format(
+                                    fromsolventwellinfo
+                                )
+                            )
+                            for solventwellinfo in fromsolventwellinfo:
+                                fromsolventwellobj = solventwellinfo[0]
+                                transfervolume = solventwellinfo[1]
 
-                            self.transferFluid(
+                                fromplateobj = self.getPlateObj(
+                                    plateid=fromsolventwellobj.plate_id.id
+                                )
+                                aspirateplatename = fromplateobj.name
+                                aspiratecolumnindex = fromsolventwellobj.index
+
+                                self.transferFluidMulti(
+                                    aspirateplatename=aspirateplatename,
+                                    dispenseplatename=dispenseplatename,
+                                    aspiratecolumnindex=aspiratecolumnindex,
+                                    dispensecolumnindex=dispensecolumnindex,
+                                    transvolume=transfervolume,
+                                    transfertype="analyse",
+                                )
+                        self.dropTip()
+
+                    if fromplatetype in ["reaction", "workup1", "workup2", "workup3"]:
+                        fromcolumnqueryset = self.getColumnQuerySet(
+                            columntype=fromplatetype, reactionclass=reactionclass
+                        )
+                        for fromcolumnobj, tocolumnobj in zip(
+                            fromcolumnqueryset, tocolumnqueryset
+                        ):
+                            fromplateobj = fromcolumnobj.plate_id
+                            aspirateplatename = fromplateobj.name
+                            aspiratecolumnindex = fromcolumnobj.index
+                            toplateobj = tocolumnobj.plate_id
+                            dispenseplatename = toplateobj.name
+                            dispensecolumnindex = tocolumnobj.index
+                            self.delayProtocol(delay=5)
+                            self.pickUpTip()
+                            self.transferFluidMulti(
                                 aspirateplatename=aspirateplatename,
                                 dispenseplatename=dispenseplatename,
-                                aspiratewellindex=aspiratewellindex,
-                                dispensewellindex=dispensewellindex,
+                                aspiratecolumnindex=aspiratecolumnindex,
+                                dispensecolumnindex=dispensecolumnindex,
                                 transvolume=transfervolume,
                                 transfertype="analyse",
                             )
+                            self.dropTip()
+
                     if index + 1 == len(analyseactions):
                         self.dropTip()
                     if index + 1 < len(analyseactions):
                         if analyseactions[index + 1]["type"] != "mix":
                             self.dropTip()
 
-                if actiontype == "extract":
-                    fromplatetype = analyseaction["content"]["plates"]["fromplatetype"]
-                    toplatetype = analyseaction["content"]["plates"]["toplatetype"]
-
-                    extractactionobj = ExtractAction.objects.get(
-                        actionsession_id=actionsessionobj,
-                        reaction_id=reactionobj,
-                        number=actionnumber,
-                    )
-                    solvent = extractactionobj.solvent
-                    transfervolume = extractactionobj.volume
-
-                    towellobj = self.getWellObj(
-                        reaction_id=reaction_id,
-                        welltype=toplatetype,
-                    )
-                    toplateobj = self.getPlateObj(plateid=towellobj.plate_id.id)
-                    dispenseplatename = toplateobj.name
-                    dispensewellindex = towellobj.index
-
-                    fromwellobj = self.getWellObj(
-                        reaction_id=reaction_id,
-                        welltype=fromplatetype,
-                    )
-                    fromplateobj = self.getPlateObj(plateid=fromwellobj.plate_id.id)
-                    aspirateplatename = fromplateobj.name
-                    aspiratewellindex = fromwellobj.index
-
-                    self.pickUpTip()
-                    self.transferFluid(
-                        aspirateplatename=aspirateplatename,
-                        dispenseplatename=dispenseplatename,
-                        aspiratewellindex=aspiratewellindex,
-                        dispensewellindex=dispensewellindex,
-                        transvolume=transfervolume,
-                        transfertype="analyse",
-                    )
-                    if index + 1  == len(analyseactions):
-                        self.dropTip()
-                    if index + 1 < len(analyseactions):
-                        if analyseactions[index + 1]["type"] != "mix":
-                            self.dropTip()
-
                 if actiontype == "mix":
-                    mixactionobj = MixAction.objects.get(
-                        actionsession_id=actionsessionobj,
-                        reaction_id=reactionobj,
-                        number=actionnumber,
+                    mixactionqueyset = self.getMixActionQuerySet(
+                        reaction_ids=groupreactionclassqueryset,
+                        actionsessiontype=actionsessiontype,
+                        actionnumber=actionnumber,
                     )
-                    platetype = mixactionobj.platetype
-                    repetitions = mixactionobj.repetitions
+                    platetype = mixactionqueyset.values_list(
+                        "platetype", flat=True
+                    ).distinct()[0]
+                    repetitions = mixactionqueyset.values_list(
+                        "repetitions", flat=True
+                    ).distinct()[0]
+                    mixvolume = mixactionqueyset.values_list(
+                        "volume", flat=True
+                    ).distinct()[0]
 
-                    mixwellobj = self.getWellObj(
-                        reaction_id=reaction_id, welltype=platetype
+                    mixcolumnqueryset = self.getColumnQuerySet(
+                        columntype=platetype, reactionclass=reactionclass
                     )
-                    mixplateobj = self.getPlateObj(plateid=mixwellobj.plate_id.id)
-                    mixwellindex = mixwellobj.index
-                    mixplatename = mixplateobj.name
 
-                    self.mixWell(
-                        wellindex=mixwellindex,
-                        nomixes=repetitions,
-                        plate=mixplatename,
-                        volumetomix=transfervolume,
-                    )
-                    self.dropTip()
+                    for mixcolumnobj in mixcolumnqueryset:
+                        self.pickUpTip()
+                        mixplateobj = mixcolumnobj.plate_id
+                        mixplatename = mixplateobj.name
+                        mixcolumnindex = mixcolumnobj.index
+                        self.mixColumn(
+                            columnindex=mixcolumnindex,
+                            nomixes=repetitions,
+                            plate=mixplatename,
+                            volumetomix=mixvolume,
+                        )
+                        self.dropTip()

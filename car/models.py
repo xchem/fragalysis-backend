@@ -112,7 +112,7 @@ class Reaction(models.Model):
         Foreign key linking a reaction to it's method
     reactionclass: Charfield
         The name of the reaction
-    reactionnumber: IntegerField
+    nnumber: IntegerField
         The number of the reaction eg. reaction 1 of 3
     intramolecular: BooleanField
         Set to True if the reaction is intermolecular
@@ -726,14 +726,14 @@ class Plate(models.Model):
         If a well is available on a plate
     indexswellavailable: IntegerField
         The index of the well available. Wells are occupied in increasing
-        index starting from indices: A1, B1, C1 or 0, 1, 2 etc
+        index starting from indices: A1, B1, C1 or 1, 2, 3 etc.
     columnavailable: BooleanField
         Wether a column of a plate is available. Example 4 rows of column 1 taken up
         by amidation reactions, column is then no longer avilable to any other reaction
-        classes. 
+        classes.
     indexscolumnavailable: IntegerField
         The index of the column available. Columns are occupied in increasing
-        index starting from indices: A1, B1, C1 or 0, 1, 2 etc
+        index starting from indices: A1, B1, C1 or 1, 2, 3 etc
     """
 
     class PlateType(models.TextChoices):
@@ -758,14 +758,51 @@ class Plate(models.Model):
     maxwellvolume = models.FloatField()
     numberwells = models.IntegerField()
     wellavailable = models.BooleanField(default=True)
-    indexswellavailable = models.IntegerField(default=0)
+    indexswellavailable = models.IntegerField(default=1)
     numbercolumns = models.IntegerField()
     columnavailable = models.BooleanField(default=True)
-    indexcolumnavailable = models.IntegerField(default=0)
+    indexcolumnavailable = models.IntegerField(default=1)
+
+
+class Column(models.Model):
+    """Django model to define a plate column
+
+    Parameters
+    ----------
+    otsession_id: ForeignKey
+        Foreign key linking a plate to an OT session
+    plate_id: ForeignKey
+        Foreign key linking a well to a plate
+    index: IntegerField
+        The column index (0-11) on the plate
+    reactionclass: CharField
+        The reaction class eg. amidation. Each column can only contain
+        one type of reaction class -> for multi-pipette handling
+        and grouping reactions on plates
+    """
+
+    class ColumnType(models.TextChoices):
+        reaction = "reaction"
+        workup1 = "workup1"
+        workup2 = "workup2"
+        workup3 = "workup3"
+        lcms = "lcms"
+        xchem = "xchem"
+        nmr = "nmr"
+        startingmaterial = "startingmaterial"
+        solvent = "solvent"
+
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="otcolumns", on_delete=models.CASCADE
+    )
+    plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
+    index = models.IntegerField()
+    type = models.CharField(choices=ColumnType.choices, max_length=55)
+    reactionclass = models.CharField(max_length=100)
 
 
 class Well(models.Model):
-    """Django model to define a Well - an OT plate we
+    """Django model to define a Well - an OT plate well
 
     Parameters
     ----------
@@ -778,7 +815,7 @@ class Well(models.Model):
     reaction_id: ForeignKey
         Optional foreign key linking a well to a reaction
     index: IntegerField
-        The deck index (1-11) of the plate
+        The well index (0-95) on the plate
     type: CharField
         The type of well eg. analyse and reaction well
     volume: FloatField
@@ -813,6 +850,7 @@ class Well(models.Model):
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)
+    column_id = models.ForeignKey(Column, on_delete=models.CASCADE, null=True)
     clonewellid = models.IntegerField(null=True)
     index = models.IntegerField()
     type = models.CharField(choices=WellType.choices, max_length=55)

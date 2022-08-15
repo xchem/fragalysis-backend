@@ -173,7 +173,7 @@ def uploadManifoldReaction(validate_output):
                                     reaction_id = createReactionModel(
                                         method_id=method_id,
                                         reaction_class=reaction_name,
-                                        reaction_number = index + 1,
+                                        reaction_number=index + 1,
                                         intramolecular=intramolecular,
                                         reaction_smarts=reaction_smarts,
                                     )
@@ -209,19 +209,15 @@ def uploadManifoldReaction(validate_output):
                                     reactant_smiles = reaction["reactantSmiles"]
                                     product_smiles = reaction["productSmiles"]
 
-                                    reaction_temperature = encoded_recipes[
-                                        reaction_name
-                                    ]["recipes"]["standard"]["actionsessions"]["stir"][
-                                        "actions"
-                                    ][
-                                        0
-                                    ][
-                                        "content"
-                                    ][
-                                        "temperature"
-                                    ][
-                                        "value"
-                                    ]
+                                    reaction_temperature = [
+                                        actionsession["actions"][0]["content"][
+                                            "temperature"
+                                        ]["value"]
+                                        for actionsession in encoded_recipes[
+                                            reaction_name
+                                        ]["recipes"]["standard"]["actionsessions"]
+                                        if actionsession["type"] == "stir"
+                                    ][0]
                                     intramolecular_possible = encoded_recipes[
                                         reaction_name
                                     ]["intramolecular"]
@@ -257,7 +253,7 @@ def uploadManifoldReaction(validate_output):
                                     reaction_id = createReactionModel(
                                         method_id=method_id,
                                         reaction_class=reaction_name,
-                                        reaction_number = index + 1,
+                                        reaction_number=index + 1,
                                         intramolecular=intramolecular,
                                         recipe_type="standard",  # Need to change when we get multiple recipes runnning!
                                         reaction_temperature=reaction_temperature,
@@ -348,7 +344,7 @@ def uploadCustomReaction(validate_output):
                 reaction_id = createReactionModel(
                     method_id=method_id,
                     reaction_class=reaction_name,
-                    reaction_number = 1,
+                    reaction_number=1,
                     intramolecular=False,
                     recipe_type="standard",
                     reaction_temperature=reaction_temperature,
@@ -399,9 +395,7 @@ def createOTScript(batchids: list, protocol_name: str):
         #         for reactionobj in sublist
         #     ]
         # reaction_ids = [reactionobj.id for reactionobj in reactionqueryset]
-        actionsessionqueryset = getActionSessionQuerySet(
-            reaction_ids=reactionqueryset
-        )
+        actionsessionqueryset = getActionSessionQuerySet(reaction_ids=reactionqueryset)
         if not actionsessionqueryset:
             for reactionobj in reactionqueryset:
                 reaction_id = reactionobj.id
@@ -451,7 +445,7 @@ def createOTScript(batchids: list, protocol_name: str):
             # maxsteps = findmaxlist(reactionqueryset=reactionqueryset)
             maxreactionnumber = getMaxReactionNumber(reactionqueryset=reactionqueryset)
             groupedreactionquerysets = groupReactions(
-                reactionquerysets=reactionqueryset, maxreactionnumber=maxreactionnumber 
+                reactionqueryset=reactionqueryset, maxreactionnumber=maxreactionnumber
             )
             for index, groupreactionqueryset in enumerate(groupedreactionquerysets):
                 if index == 0:
@@ -462,11 +456,9 @@ def createOTScript(batchids: list, protocol_name: str):
                     sessionnumbers = getActionSessionSequenceNumbers(
                         actionsessionqueryset=actionsessionqueryset
                     )
-                    groupedactionsessionsequences = (
-                        getGroupedActionSessionSequences(
-                            sessionnumbers=sessionnumbers,
-                            actionsessionqueryset=actionsessionqueryset,
-                        )
+                    groupedactionsessionsequences = getGroupedActionSessionSequences(
+                        sessionnumbers=sessionnumbers,
+                        actionsessionqueryset=actionsessionqueryset,
                     )
                     for groupactionsession in groupedactionsessionsequences:
                         actionsessiontypes = getActionSessionTypes(
@@ -477,11 +469,11 @@ def createOTScript(batchids: list, protocol_name: str):
                             actionsessionqueryset=groupactionsession,
                         )
                         for groupactionsessiontype in groupedactionsessiontypes:
-                            human_actionsessionqueryset = (
-                                groupactionsessiontype.filter(driver="human")
+                            human_actionsessionqueryset = groupactionsessiontype.filter(
+                                driver="human"
                             )
-                            robot_actionsessionqueryset = (
-                                groupactionsessiontype.filter(driver="robot")
+                            robot_actionsessionqueryset = groupactionsessiontype.filter(
+                                driver="robot"
                             )
                             if human_actionsessionqueryset:
                                 pass
@@ -532,11 +524,9 @@ def createOTScript(batchids: list, protocol_name: str):
                             actionsessiontypes = getActionSessionTypes(
                                 actionsessionqueryset=groupactionsession
                             )
-                            groupedactionsessiontypes = (
-                                getGroupedActionSessionTypes(
-                                    actionsessiontypes=actionsessiontypes,
-                                    actionsessionqueryset=groupactionsession,
-                                )
+                            groupedactionsessiontypes = getGroupedActionSessionTypes(
+                                actionsessiontypes=actionsessiontypes,
+                                actionsessionqueryset=groupactionsession,
                             )
                             for groupactionsessiontype in groupedactionsessiontypes:
                                 human_actionsessionqueryset = (
@@ -608,6 +598,7 @@ def getActionSessionSequenceNumbers(
         The set of session numbers in an action session
         queryset eg. [1,2,3,4....n]
     """
+    maxsessionnumber = actionsessionqueryset.aggregate(Max("sessionnumber"))
     maxsessionnumber = actionsessionqueryset.aggregate(Max("sessionnumber"))[
         "sessionnumber__max"
     ]
@@ -676,7 +667,8 @@ def getGroupedActionSessionTypes(
         actionsessiongrouptype = actionsessionqueryset.filter(
             type=actionsessiontype
         ).order_by("-pk")
-        groupedactionsessiontypes.append(actionsessiongrouptype)
+        if actionsessiongrouptype:
+            groupedactionsessiontypes.append(actionsessiongrouptype)
     return groupedactionsessiontypes
 
 
@@ -703,11 +695,13 @@ def getActionSessionQuerySet(
         criterion1 = Q(reaction_id__in=reaction_ids)
         criterion2 = Q(driver=driver)
         actionsessionqueryset = ActionSession.objects.filter(criterion1 & criterion2)
-        return actionsessionqueryset
+        if actionsessionqueryset:
+            return actionsessionqueryset
     if not driver:
         criterion1 = Q(reaction_id__in=reaction_ids)
         actionsessionqueryset = ActionSession.objects.filter(criterion1)
-        return actionsessionqueryset
+        if actionsessionqueryset:
+            return actionsessionqueryset
 
 
 def getPreviousObjEntries(queryset: list, obj: object):
@@ -723,7 +717,7 @@ def checkPreviousReactionFailures(reactionobj: object):
         queryset=reactionqueryset, obj=reactionobj
     )
     failedreactions = previousreactionqueryset.filter(success=False)
-    if failedreactions:
+    if failedreactions.exists():
         return True
     else:
         return False
@@ -746,30 +740,34 @@ def getReactionsToDo(groupreactionqueryset: QuerySet[Reaction]) -> QuerySet[Reac
     Parameters
     ---------
     groupreactionqueryset: QuerySet[Reaction]
-        The group of reactions to find to do based on if the previous reaction was successful 
+        The group of reactions to find to do based on if the previous reaction was successful
 
     Returns
     -------
     groupreactiontodoqueryset: QuerySet[Reaction]
-        The reactions that need to be done 
+        The reactions that need to be done
     """
     reactionstodo = []
     for reactionobj in groupreactionqueryset:
         if checkNoMethodSteps(reactionobj=reactionobj):
             if not checkPreviousReactionFailures(reactionobj=reactionobj):
                 reactionstodo.append(reactionobj)
-    groupreactiontodoqueryset = groupreactionqueryset.filter(reaction_id__in=reactionstodo)
+    groupreactiontodoqueryset = groupreactionqueryset.filter(
+        reaction_id__in=reactionstodo
+    )
     return groupreactiontodoqueryset
 
 
-def getTargets(batch_ids: QuerySet[Batch] ) -> QuerySet[Target]:
+def getTargets(batch_ids: QuerySet[Batch]) -> QuerySet[Target]:
     targetqueryset = Target.objects.filter(batch_id__in=batch_ids).order_by("id")
     return targetqueryset
 
 
 def getMethods(target_ids: QuerySet[Target]) -> QuerySet[Method]:
     methodqueryset = (
-        Method.objects.filter(target_id__in=target_ids).filter(otchem=True).order_by("id")
+        Method.objects.filter(target_id__in=target_ids)
+        .filter(otchem=True)
+        .order_by("id")
     )
     return methodqueryset
 
@@ -791,15 +789,18 @@ def getBatchReactions(batchid: int) -> QuerySet[Reaction]:
         methodqueryset = getMethods(target_ids=targetqueryset)
         if methodqueryset:
             reactionqueryset = getReactions(method_ids=methodqueryset)
-    # if targetqueryset:
-    #     allreactionquerysets = []
-    #     for target in targetqueryset:
-    #         methodqueryset = getMethods(targetid=target)
-    #         if methodqueryset:
-    #             for method in methodqueryset:
-    #                 reactionqueryset = getReactions(methodid=method.id)
-    #                 allreactionquerysets.append(reactionqueryset)
-        return reactionqueryset
+            if reactionqueryset:
+                return reactionqueryset
+        # if targetqueryset:
+        #     allreactionquerysets = []
+        #     for target in targetqueryset:
+        #         methodqueryset = getMethods(targetid=target)
+        #         if methodqueryset:
+        #             for method in methodqueryset:
+        #                 reactionqueryset = getReactions(methodid=method.id)
+        #                 allreactionquerysets.append(reactionqueryset)
+        # return reactionqueryset
+
 
 def getMaxReactionNumber(reactionqueryset: QuerySet[Reaction]) -> int:
     """Get the maximum number of reaction steps in a reaction queryset
@@ -819,6 +820,7 @@ def getMaxReactionNumber(reactionqueryset: QuerySet[Reaction]) -> int:
     maxreactionnumber = reactionqueryset.aggregate(Max("number"))["number__max"]
     return maxreactionnumber
 
+
 # def findmaxlist(allreactionquerysets: list):
 #     maxlength = max([len(i) for i in allreactionquerysets])
 #     return maxlength
@@ -830,9 +832,12 @@ def groupReactions(reactionqueryset: QuerySet[Reaction], maxreactionnumber: int)
     """
 
     groupedreactionquerysets = []
-    for i in range(maxreactionnumber):
-        reactionnumberqueryset = reactionqueryset.filter(number=i).distinct().order_by("id")
-        groupedreactionquerysets.append(reactionnumberqueryset)
+    for i in range(1, maxreactionnumber + 1):
+        reactionnumberqueryset = (
+            reactionqueryset.filter(number=i).distinct().order_by("id")
+        )
+        if reactionnumberqueryset:
+            groupedreactionquerysets.append(reactionnumberqueryset)
     # for i in range(maxsteps):
     #     reactiongroup = [
     #         reactionqueryset[i]
@@ -856,13 +861,13 @@ class ZipOTBatchProtocol(object):
             otbatchprotocolobj (Django object): OT batch protocol object created for a batch
             batchtag (str): Batch tag for naming zip file
         """
+        self.errors = {"function": [], "errorwarning": []}
         self.otbatchprotocolobj = otbatchprotocolobj
         self.mediaroot = settings.MEDIA_ROOT
         self.otsessionqueryset = self.getOTSessionQuerySet()
         self.zipfn = "batch-{}-protocol.zip".format(batchtag)
         self.ziptmpfp = os.path.join(settings.MEDIA_ROOT, "tmp", "batchprotocoltmp.zip")
         self.ziparchive = ZipFile(self.ziptmpfp, "w")
-        self.errors = {"function": [], "errorwarning": []}
 
         for otsession_obj in self.otsessionqueryset:
             solventprepqueryset = self.getSolventPrepQuerySet(

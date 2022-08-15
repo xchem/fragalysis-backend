@@ -99,7 +99,8 @@ from .serializers import (
 
 from django.core.files.storage import default_storage
 
-def getOTBatchProductSmiles(batch_obj: Batch)->list:
+
+def getOTBatchProductSmiles(batch_obj: Batch) -> list:
     """Gets the product SMILES for a batch
 
     Parameters
@@ -111,15 +112,20 @@ def getOTBatchProductSmiles(batch_obj: Batch)->list:
     -------
     productsmiles: list
         The list of product SMILES in execution order, this will also follow
-        an increasing well index pattern 
+        an increasing well index pattern
     """
-                                                                                                                         
-    targetqs = Batch.objects.get(id=batch_obj).targets.all()                                                                                              
-    methodqs = Method.objects.filter(target_id__in=targetqs)                                                                                       
-    wellsqs = Well.objects.filter(method_id__in=methodqs, type="reaction").order_by("index").distinct()                                                       
+
+    targetqs = Batch.objects.get(id=batch_obj).targets.all()
+    methodqs = Method.objects.filter(target_id__in=targetqs)
+    wellsqs = (
+        Well.objects.filter(method_id__in=methodqs, type="reaction")
+        .order_by("index")
+        .distinct()
+    )
     productsmiles = wellsqs.values_list("smiles", flat=True)
 
     return productsmiles
+
 
 def cloneTarget(target_obj: Target, batch_obj: Batch) -> Target:
     """Clone a target
