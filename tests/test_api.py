@@ -2,6 +2,7 @@ import json
 import zipfile
 import shutil
 
+from deepdiff import DeepDiff
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import RequestFactory
 from django.core.management.color import no_style
@@ -713,10 +714,9 @@ class APIUrlsTestCase(APITestCase):
                 self.client.force_authenticate(user)
             response = self.client.get(self.url_base + "/" + get_type + "/")
             self.assertEqual(response.status_code, 200)
-            self.assertDictEqual(
-                json.loads(json.dumps(response.json(), sort_keys=True)),
-                json.loads(json.dumps(test_data_set[get_type], sort_keys=True)),
-            )
+            a = json.loads(json.dumps(response.json()))
+            b = json.loads(json.dumps(test_data_set[get_type]))
+            self.assertFalse(DeepDiff(a, b, ignore_order=True))
 
     def test_secure(self):
         # Test the login user  can access secure data
