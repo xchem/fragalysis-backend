@@ -1,2 +1,14 @@
-trigger-travis.py
-trigger-travis-requirements.txt
+.github/
+venv/
+docs/
+doc_templates/
+design_docs/
+logs/
+media/
+static/
+
+dump.rdb
+django_app.sock
+.readthedocs.yml
+.pylintrc
+/pre-commit-config.yaml

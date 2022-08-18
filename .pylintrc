@@ -1,0 +1,10 @@
+[messages control]
+
+# Disable some distracting checks.
+# See http://pylint.pycqa.org/en/latest/user_guide/message-control.html
+#
+# C : Convention warnings
+# R : Refactoring warnings
+disable = C, R,
+          import-error,
+          django-not-configured

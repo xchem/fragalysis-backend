@@ -18,10 +18,23 @@ logger = logging.getLogger(__name__)
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
-from viewer.models import *
 from rdkit import Chem
 from rdkit.Chem import Crippen, Descriptors
 import uuid
+
+from viewer.models import (
+    Compound,
+    ComputedMolecule,
+    ComputedSet,
+    ComputedSetSubmitter,
+    Molecule,
+    NumericalScoreValues,
+    Protein,
+    ScoreDescription,
+    Target,
+    TextScoreValues,
+    User,
+)
 
 
 def dataType(str):
@@ -47,6 +60,7 @@ def dataType(str):
                 return 'FLOAT'
         else:
             return 'TEXT'
+
 
 class PdbOps:
     def save_pdb_zip(self, pdb_file):
@@ -91,9 +105,11 @@ class PdbOps:
 
         return zfile, zfile_hashval
 
+
 class MolOps:
 
-    def __init__(self, sdf_filename, submitter_name, submitter_method, target, version, zfile, zfile_hashvals):
+    def __init__(self, user_id, sdf_filename, submitter_name, submitter_method, target, version, zfile, zfile_hashvals):
+        self.user_id = user_id
         self.sdf_filename = sdf_filename
         self.submitter_name = submitter_name
         self.submitter_method = submitter_method
@@ -349,6 +365,7 @@ class MolOps:
         return mols
 
     def task(self):
+        user = User.objects.get(id=self.user_id)
         sdf_filename = str(self.sdf_filename)
 
         # create a new compound set
@@ -377,6 +394,7 @@ class MolOps:
         ver = float(self.version.strip('ver_'))
         compound_set.spec_version = ver
         compound_set.unique_name = "".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split())
+        compound_set.owner_user = user
         compound_set.save()
 
         # set descriptions and get all other mols back
@@ -408,7 +426,6 @@ class MolOps:
         [c.delete() for c in old_mols]
 
         return compound_set
-
 
 
 def blank_mol_vals(sdf_file):

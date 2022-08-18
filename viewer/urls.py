@@ -5,8 +5,6 @@ from . import views
 urlpatterns = [
     url(r"^react/*", views.react, name="react"),
     url(r"^upload_cset/", views.UploadCSet.as_view(), name="upload_cset"),
-    url(r"^update_cset/", views.UpdateCSet.as_view(), name="update_cset"),
-    url(r"^cset_key/", views.cset_key, name="cset_key"),
     url(r"^upload_tset/", views.UploadTSet.as_view(), name="upload_tset"),
     url(r"^validate_task/(?P<validate_task_id>.+)/$", views.ValidateTaskView.as_view(), name='validate_task'),
     url(r"^upload_task/(?P<upload_task_id>.+)/$", views.UploadTaskView.as_view(), name='upload_task'),

@@ -716,7 +716,7 @@ class JobFileTransferWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobFileTransfer
         fields = ("snapshot", "target", "squonk_project",
-                  "proteins")
+                  "proteins", "compounds")
 
 
 # (GET)
@@ -734,8 +734,22 @@ class JobRequestWriteSerializer(serializers.ModelSerializer):
                   "squonk_job_spec")
 
 
-class JobCallBackSerializer(serializers.ModelSerializer):
+# Contains output fields from Fragalysis
+class JobCallBackReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobRequest
-        fields = ("job_status", "squonk_job_info")
+        fields = ("job_status", "job_status_datetime",
+                  "squonk_job_name", "squonk_job_spec", "upload_status")
+
+
+# Contains the input fields from Squonk
+class JobCallBackWriteSerializer(serializers.ModelSerializer):
+    SQUONK_STATUS = ['PENDING', 'STARTED', 'SUCCESS', 'FAILURE', 'RETRY', 'REVOKED']
+    job_status = serializers.ChoiceField(choices=SQUONK_STATUS, default="PENDING")
+    state_transition_time = serializers.DateTimeField(source='job_status_datetime')
+
+    class Meta:
+        model = JobRequest
+        fields = ("job_status", "state_transition_time")
+
 # End of Serializers for Squonk Jobs

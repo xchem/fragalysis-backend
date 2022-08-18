@@ -146,8 +146,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_proposals_for_user(self):
         user = self.request.user
-        get_from_ispyb = os.environ.get("ISPYB_FLAG", True)
-        if get_from_ispyb:
+        ispyb_user = os.environ.get("ISPYB_USER")
+        if ispyb_user:
             if user.is_authenticated:
                 return self.get_proposals_for_user_from_ispyb(user)
             else:

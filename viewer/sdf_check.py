@@ -67,16 +67,29 @@ def check_sdf(sdf_file, validate_dict):
 
 def check_refmol(mol, validate_dict, target=None):
     if target:
-        refmols = mol.GetProp('ref_mols').split(',')
+        try:
+            refmols = mol.GetProp('ref_mols').split(',')
+        except KeyError:
+            validate_dict = add_warning(
+                molecule_name=mol.GetProp('_Name'),
+                field='ref_mols',
+                warning_string="molecule has no 'ref_mols' property",
+                validate_dict=validate_dict)
+            return validate_dict
+
         for ref in refmols:
-            query = Protein.objects.filter(code__contains=target + '-' + ref.strip().split(':')[0].split('_')[0])
+            query = Protein.objects\
+                .filter(code__contains=target + '-' + ref.strip().split(':')[0].split('_')[0])
             if len(query) == 0:
-                query = Protein.objects.filter(code__contains=target + '-' + ref.strip().split(':')[0].split('_')[0])
-            if len(query)==0:
-                validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-                                            field='ref_mol',
-                                            warning_string="molecule for " + str(ref.strip()) + " does not exist in fragalysis (make sure the code is exactly as it appears in fragalysis - e.g. x0123_0)",
-                                            validate_dict=validate_dict)
+                query = Protein.objects\
+                    .filter(code__contains=target + '-' + ref.strip().split(':')[0].split('_')[0])
+            if len(query) == 0:
+                validate_dict = add_warning(
+                    molecule_name=mol.GetProp('_Name'),
+                    field='ref_mol',
+                    warning_string="molecule for " + str(ref.strip()) + " does not exist in fragalysis (make sure the code is exactly as it appears in fragalysis - e.g. x0123_0)",
+                    validate_dict=validate_dict)
+
     return validate_dict
     
 
@@ -126,7 +139,15 @@ def check_SMILES(mol, validate_dict):
     :return: Updates validate dictionary with pass/fail message
     """
     # Check SMILES
-    smi_check = mol.GetProp('original SMILES')
+    try:
+        smi_check = mol.GetProp('original SMILES')
+    except KeyError:
+        validate_dict = add_warning(
+            molecule_name=mol.GetProp('_Name'),
+            field='original SMILES',
+            warning_string="molecule has no 'original SMILES' property",
+            validate_dict=validate_dict)
+        return validate_dict
 
     m = Chem.MolFromSmiles(smi_check, sanitize=False)
     if m is None:
@@ -187,7 +208,7 @@ def check_blank_prop(blank_mol, validate_dict):
                                         field=key,
                                         warning_string='description for %s missing' % (key,),
                                         validate_dict=validate_dict)
-        if key == 'ref_url' and check_url(value) == False:
+        if key == 'ref_url' and check_url(value) is False:
             validate_dict = add_warning(molecule_name=blank_mol.GetProp('_Name'),
                                         field=key,
                                         warning_string='illegal URL %s provided' % (value,),
@@ -233,7 +254,7 @@ def check_url(value):
     """
 
     valid = validators.url(value)
-    if valid != True:
+    if valid is not True:
         return False
 
 

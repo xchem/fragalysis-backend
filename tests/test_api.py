@@ -39,6 +39,11 @@ from viewer.target_set_upload import (
     process_target
 )
 
+# Compound set upload functions
+from viewer.tasks import (
+    validate_compound_set,
+    process_compound_set
+)
 
 # Test all these functions
 
@@ -856,3 +861,27 @@ class APIUrlsTestCase(APITestCase):
 
         # Tidy up data
         shutil.rmtree(new_data_folder)
+
+
+    # def test_computed_set(self):
+    #     # NOTE THIS IS COMMENTED OUT BECAUSE compund-set_test.sdf DOES NOT YET HAVE CORRECT
+    #     # REF_MOLS. I TOOK IT FROM AN MPRO BASED SOURCE FILE (RATHER THAN THE CD44-BASED STUFF
+    #     # IN THE TESTTARGET) AND SO SOME CHANGES NEED TO BE MADE). IT MAY ALSO BE THAT
+    #     # TESTTARGET.zip HAS TO BE MODIFIED TO HAVE PROTEIN CODE CONSISTENT WITH THE TARGET NAME.
+    #
+    #     sdf_file = \
+    #         '/code/tests/test_data/compund-set_test.sdf'
+    #     target = 'TESTTARGET'
+    #
+    #     # Check validate step
+    #     validate_output = validate_compound_set(self.user.id, sdf_file, target=target)
+    #
+    #     # Check if SDF validated
+    #     print(validate_output)
+    #     self.assertEqual(validate_output[3], True)
+    #     self.assertEqual(validate_output[0], 'validate')
+    #     self.assertEqual(validate_output[1], 'cset')
+    #
+    #     # Check process step -
+    #     process_output = process_compound_set(validate_output)
+    #     print(process_output)
