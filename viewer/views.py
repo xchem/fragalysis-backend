@@ -3109,6 +3109,9 @@ class JobFileTransferView(viewsets.ModelViewSet):
         logger.info('+ transfer_root=%s', transfer_root)
 
         if job_transfer:
+
+            # A pre-existing transfer...
+            transfer_target = job_transfer.target.title
             if (job_transfer.transfer_status == 'PENDING' or
                     job_transfer.transfer_status == 'STARTED'):
 
