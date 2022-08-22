@@ -3108,7 +3108,6 @@ class JobFileTransferView(viewsets.ModelViewSet):
         logger.info('+ squonk_project=%s', squonk_project)
         logger.info('+ transfer_root=%s', transfer_root)
 
-        transfer_target = None
         if job_transfer:
 
             # A pre-existing transfer...
