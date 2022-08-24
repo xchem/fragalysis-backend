@@ -79,7 +79,7 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
     # Compound set reference URL.
     # What's the https-prefixed URL to the instance?
     # The record's URL is relative to the API.
-    ref_url = settings.SQUONK_UI_URL
+    ref_url = settings.SQUONK2_UI_URL
     if ref_url.endswith('/'):
         ref_url += job_request.squonk_url_ext
     else:
