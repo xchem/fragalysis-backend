@@ -3460,7 +3460,7 @@ class JobCallBackView(viewsets.ModelViewSet):
 
         # If it's not suitably named, leave
         expected_squonk_filename = 'merged.sdf'
-        if not job_output_filename != expected_squonk_filename:
+        if job_output_filename != expected_squonk_filename:
             # Incorrectly named file - nothing to get/upload.
             logger.info('SUCCESS but not uploading.'
                         ' Expected "%s" as job_output_filename.'
