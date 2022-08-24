@@ -173,16 +173,23 @@ def prot_file(field, trans_dir, protein_code, target):
         # 'targets/CD44MMA/aligned/CD44MMA-x0017_0A' where 'CD44MMA' is the
         # transfer target and 'CD44MMA-x0017_0A' is the protein code.
         # We do this to cater for DB migration discrepancies that have evolved.
+        #
+        # We handle some protein code differently (Mpro for example has code like
+        # "Mpro-P0045_0A:TRY-UNI-2eddb1ff-7" but the files are located in
+        # directories named "Mpro-P0045_0A".
+        # So, split the name and take the left-hand portion...
+        lean_protein_code: str = protein_code.split(':')[0]
         anticipated_path = os.path.join(
             settings.MEDIA_ROOT,
             f"targets/{target.title}/aligned",
-            f"{protein_code}/{protein_code}_apo-desolv.pdb"
+            f"{lean_protein_code}/{lean_protein_code}_apo-desolv.pdb"
         )
         if os.path.isfile(anticipated_path):
             logger.info('%s has no value but found %s', field, anticipated_path)
             in_path = anticipated_path
         else:
-            logger.info('%s has no value and %s does not exist', field, anticipated_path)
+            logger.warning('%s has no value and %s does not exist',
+                           field, anticipated_path)
 
     # Have we got an input file (via DB or 'guessing')?
     if in_path:
@@ -191,11 +198,7 @@ def prot_file(field, trans_dir, protein_code, target):
         logger.info('Generated transfer file "%s"', out_path)
         return out_path
 
-    # No input file!
-    # Log and leave with nothing
-    logger.warning(
-        'No file (field=%s trans_dir=%s protein_code=%s)',
-        field, trans_dir, protein_code)
+    # Tried our best - but no input file found!
     return None
 
 
