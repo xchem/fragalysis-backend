@@ -119,7 +119,7 @@ def sdf_file(field, trans_dir, protein_code, target):
     mol = Molecule.objects.get(prot_id=protein.id)
     file = getattr(mol, field)
     if not file:
-        logger.warning(
+        logger.error(
             'No file (field=%s trans_dir=%s protein_code=%s target=%s)',
             field, trans_dir, protein_code, target)
         return None
@@ -185,11 +185,11 @@ def prot_file(field, trans_dir, protein_code, target):
             f"{lean_protein_code}/{lean_protein_code}_apo-desolv.pdb"
         )
         if os.path.isfile(anticipated_path):
-            logger.info('%s has no value but found %s', field, anticipated_path)
+            logger.warning('%s has no value but found %s', field, anticipated_path)
             in_path = anticipated_path
         else:
-            logger.warning('%s has no value and %s does not exist',
-                           field, anticipated_path)
+            logger.error('%s has no value and %s does not exist',
+                         field, anticipated_path)
 
     # Have we got an input file (via DB or 'guessing')?
     if in_path:

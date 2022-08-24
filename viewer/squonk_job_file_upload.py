@@ -60,8 +60,9 @@ Diamond Light Source
 $$$$
 """
 
-# Expected Job parameter file suffix
-_JOB_PARAM_FILE_SUFFIX = '_params.json'
+# Expected Job parameter file suffix.
+# Jobs are acceptable candidates if they produce a file with this extension.
+_JOB_PARAM_FILE_SUFFIX = '.meta.json'
 
 
 def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
@@ -78,7 +79,7 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
     # Compound set reference URL.
     # What's the https-prefixed URL to the instance?
     # The record's URL is relative to the API.
-    ref_url = settings.SQUONK_UI_URL
+    ref_url = settings.SQUONK2_UI_URL
     if ref_url.endswith('/'):
         ref_url += job_request.squonk_url_ext
     else:
@@ -146,7 +147,7 @@ def process_compound_set_file(jr_id,
 
     # The temporary files we plan to upload to...
     tmp_sdf_filename = os.path.join(upload_dir, 'job.sdf')
-    tmp_param_filename = os.path.join(upload_dir, 'job_params.json')
+    tmp_param_filename = os.path.join(upload_dir, 'job.meta.json')
 
     # The actual file we expect to create (after processing the temporary files)...
     sdf_filename = os.path.join(upload_dir, job_output_filename)
@@ -163,12 +164,14 @@ def process_compound_set_file(jr_id,
     logger.info("Squonk API token=%s", token)
     logger.info("Squonk API instance_id=%s", instance_id)
 
+    logger.info("Expecting Squonk path='%s'", job_output_path)
+
     # Get the parameter file...
     #         --------------
     job_output_param_filename = os.path\
         .splitext(job_output_filename)[0] + _JOB_PARAM_FILE_SUFFIX
-    logger.info("Trying to get parameter file (path=%s filename=%s)...",
-                job_output_path, job_output_param_filename)
+    logger.info("Expecting Squonk job_output_param_filename='%s'...",
+                job_output_param_filename)
     result = DmApi.get_unmanaged_project_file_with_token(
         token=token,
         project_id=jr.squonk_project,
@@ -182,8 +185,8 @@ def process_compound_set_file(jr_id,
     else:
         # Got the parameter file so now get the SDF...
         #                               -----------
-        logger.warning('Trying to get SDF (path=%s filename=%s)...',
-                       job_output_path, job_output_filename)
+        logger.info("Expecting Squonk job_output_filename='%s'...",
+                    job_output_filename)
         result = DmApi.get_unmanaged_project_file_with_token(
             token=token,
             project_id=jr.squonk_project,
@@ -204,26 +207,76 @@ def process_compound_set_file(jr_id,
 #                instance_id=instance_id,
 #                token=token)
 
-    if got_all_files:
-        # If we have an SDF and parameter file
-        # apply the blank molecule to the uploaded file
-        # and then insert new parameters as we write to the actual SDF file.
-        # i.e. we put a blank molecule in tmp.sdf and then apply parameters
-        # as we re-write to {outfile}.
-        logger.info('Uploaded parameters to %s', tmp_param_filename)
-        logger.info('Uploaded SDF to %s', tmp_sdf_filename)
-        logger.info('Generating %s', sdf_filename)
-
-        # Insert our 'blank molecule' into the uploaded file...
-        _insert_sdf_blank_mol(jr, transition_time, tmp_sdf_filename)
-        with open(tmp_param_filename, 'r') as param_file:
-            params = json.loads(param_file.read())
-            add_prop_to_sdf(tmp_sdf_filename, sdf_filename, params)
-
-        logger.info('Done job compound file (%s)', jr_id)
-    else:
+    if not got_all_files:
         logger.warning('Not processing. Either %s or %s is missing',
                        tmp_sdf_filename, tmp_param_filename)
+        return sdf_filename
 
-    # Return the name of the file (which will exist if we pulled two files).
+    param_size = os.path.getsize(tmp_param_filename)
+    sdf_size = os.path.getsize(tmp_sdf_filename)
+    logger.info('Uploaded parameters to %s [%s bytes]', tmp_param_filename, param_size)
+    logger.info('Uploaded SDF to %s [%s bytes]', tmp_sdf_filename, sdf_size)
+
+    # Uploaded files cannot be empty.
+    if param_size == 0 or sdf_size == 0:
+        logger.warning('Not processing. Either the param file or SDF is empty')
+        return sdf_filename
+
+    # Got both files (non-empty) if we get gere...
+
+    # Apply the blank molecule to the uploaded file
+    # and then insert new parameters as we write to the actual SDF file.
+    # i.e. we put a blank molecule in tmp.sdf and then apply parameters
+    # as we re-write to {outfile}.
+
+    logger.info('Generating %s...', sdf_filename)
+
+    # Insert our 'blank molecule' into the uploaded file...
+    _insert_sdf_blank_mol(jr, transition_time, tmp_sdf_filename)
+
+    # Insert annotations...
+    # The param file is a Squonk ".meta.json" file.
+    # It should have an 'annotations' list with a 'fields' map in the list.
+    #
+    #   {'annotation_version':
+    #           '0.0.1',
+    #           'created': '2022-08-24T09:03:36.973340',
+    #           'description': 'Fragmenstein combine',
+    #           'fields': {'DDG': {'active': True,
+    #                              'description': 'Delta deta G',
+    #                              'required': True,
+    #                              'type': 'number'},
+    #                      'smiles': {'active': True,
+    #                                 'description': 'Molecule SMILES',
+    #                                 'required': False,
+    #                                 'type': 'string'}},
+    #
+    # We take every field as the key and the description as the value.
+    # If anything goes wrong we erase the SD file and return
+    params = {}
+    with open(tmp_param_filename, 'r') as param_file:
+        meta = json.loads(param_file.read())
+        if 'annotations' not in meta or len(meta['annotations']) == 0:
+            logger.warning('Not processing. No annotations in %s',
+                           tmp_param_filename)
+            return sdf_filename
+        for annotation in meta['annotations']:
+            if 'fields' in annotation:
+                for key, value in annotation['fields'].items():
+                    if 'description' not in value:
+                        logger.warning('Annotation field %s in %s has no "description"',
+                                       key, tmp_param_filename)
+                    else:
+                        params[key] = value['description']
+
+    if params:
+        logger.info('Extracted %s from %s - adding to %s...',
+                    params, tmp_param_filename, tmp_sdf_filename)
+        add_prop_to_sdf(tmp_sdf_filename, sdf_filename, params)
+        logger.info('Generated job compound file %s (%s)', sdf_filename, jr_id)
+    else:
+        logger.info('Found no suitable fields in %s', tmp_param_filename)
+
+    # Return the name of the file
+    # (which will exist if we pulled two files and all went well).
     return sdf_filename
