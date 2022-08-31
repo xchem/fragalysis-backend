@@ -119,7 +119,7 @@ def sdf_file(field, trans_dir, protein_code, target):
     mol = Molecule.objects.get(prot_id=protein.id)
     file = getattr(mol, field)
     if not file:
-        logger.warning(
+        logger.error(
             'No file (field=%s trans_dir=%s protein_code=%s target=%s)',
             field, trans_dir, protein_code, target)
         return None
@@ -147,24 +147,59 @@ def prot_file(field, trans_dir, protein_code, target):
         filepath
     """
 
-    logger.info('Generating filepath from field=%s trans_dir=%s protein_code=%s target=%s',
-                field, trans_dir, protein_code, target)
+    logger.info('Generating filepath from field=%s'
+                ' trans_dir=%s protein_code=%s target.title=%s...',
+                field, trans_dir, protein_code, target.title)
 
     protein = Protein.objects.get(code=protein_code)
+
+    # The source file (if found)
+    in_path = None
+
+    # Inspect the DB record...
     file = getattr(protein, field)
-    if not file:
-        logger.warning(
-            'No file (field=%s trans_dir=%s protein_code=%s target=%s)',
-            field, trans_dir, protein_code, target)
-        return None
+    if file:
+        logger.info('%s has a value (%s)', field, file.name)
+        in_path = os.path.join(settings.MEDIA_ROOT, file.name)
+    else:
+        # The chosen field has no value.
+        # For example 'Project.apo_desolve_info' for protein code 'CD44MMA-x0017_0A'.
+        # In this case it indicates there's no file link for the corresponding
+        # '_apo-desolv.pdb' file.
+        #
+        # For issue 954 (m2ms/fragalysis-frontend) we hack our way out of this
+        # (specifically for '_apo-desolv.pdb' files - i.e. we inspect the
+        # directory we suspect the file might be in, i.e. in the directory
+        # 'targets/CD44MMA/aligned/CD44MMA-x0017_0A' where 'CD44MMA' is the
+        # transfer target and 'CD44MMA-x0017_0A' is the protein code.
+        # We do this to cater for DB migration discrepancies that have evolved.
+        #
+        # We handle some protein code differently (Mpro for example has code like
+        # "Mpro-P0045_0A:TRY-UNI-2eddb1ff-7" but the files are located in
+        # directories named "Mpro-P0045_0A".
+        # So, split the name and take the left-hand portion...
+        lean_protein_code: str = protein_code.split(':')[0]
+        anticipated_path = os.path.join(
+            settings.MEDIA_ROOT,
+            f"targets/{target.title}/aligned",
+            f"{lean_protein_code}/{lean_protein_code}_apo-desolv.pdb"
+        )
+        if os.path.isfile(anticipated_path):
+            logger.warning('%s has no value but found %s', field, anticipated_path)
+            in_path = anticipated_path
+        else:
+            logger.error('%s has no value and %s does not exist',
+                         field, anticipated_path)
 
-    inpath = os.path.join(settings.MEDIA_ROOT, file.name)
-    filepath = os.path.join(trans_dir, clean_filename(inpath))
-    shutil.copyfile(inpath, filepath)
+    # Have we got an input file (via DB or 'guessing')?
+    if in_path:
+        out_path = os.path.join(trans_dir, clean_filename(in_path))
+        shutil.copyfile(in_path, out_path)
+        logger.info('Generated transfer file "%s"', out_path)
+        return out_path
 
-    logger.info('Generated filepath "%s"', filepath)
-
-    return filepath
+    # Tried our best - but no input file found!
+    return None
 
 
 def comp_mol_file(field, trans_dir, name, target):

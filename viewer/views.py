@@ -3109,6 +3109,9 @@ class JobFileTransferView(viewsets.ModelViewSet):
         logger.info('+ transfer_root=%s', transfer_root)
 
         if job_transfer:
+
+            # A pre-existing transfer...
+            transfer_target = job_transfer.target.title
             if (job_transfer.transfer_status == 'PENDING' or
                     job_transfer.transfer_status == 'STARTED'):
 
@@ -3431,7 +3434,7 @@ class JobCallBackView(viewsets.ModelViewSet):
 
         # SUCCESS ... automatic upload?
         #
-        # Only continue if the target file begins 'results_' and ends '.sdf'.
+        # Only continue if the target file is 'merged.sdf'.
         # For now there must be an '--outfile' in the job info's 'command'.
         # Here we have hard-coded the expectations because the logic to identify the
         # command's outputs is not fully understood.
@@ -3455,13 +3458,13 @@ class JobCallBackView(viewsets.ModelViewSet):
         logging.info('job_output_path="%s"', job_output_path)
         logging.info('job_output_filename="%s"', job_output_filename)
 
-        # If it's not a suitably named SD-File, leave
-        if not job_output_filename.lower().startswith('results_')\
-                or not job_output_filename.lower().endswith('.sdf'):
+        # If it's not suitably named, leave
+        expected_squonk_filename = 'merged.sdf'
+        if job_output_filename != expected_squonk_filename:
             # Incorrectly named file - nothing to get/upload.
             logger.info('SUCCESS but not uploading.'
-                        ' Unsupported job_output_filename'
-                        ' (%s)"', job_output_filename)
+                        ' Expected "%s" as job_output_filename.'
+                        ' Found "%s"', expected_squonk_filename, job_output_filename)
             return HttpResponse(status=204)
 
         if jr.upload_status != 'PENDING':
