@@ -219,8 +219,13 @@ def validate_compound_set(task_params):
         'pdb_zip': zfile
     }
 
-    # Protect ourselves form a missing SD file.
-    if not os.path.isfile(sdf_file):
+    # Protect ourselves from an empty, blank or missing SD file.
+    if sdf_file is None or len(sdf_file) == 0:
+        validated = False
+        logger.info('validate_compound_set() EXIT (no file) validated=%s outbound_params=%s',
+                    validated, outbound_params)
+        return 'validate', 'cset', validate_dict, validated, outbound_params
+    elif not os.path.isfile(sdf_file):
         validated = False
         logger.info('validate_compound_set() EXIT (missing file) validated=%s outbound_params=%s',
                     validated, outbound_params)

@@ -132,7 +132,8 @@ def process_compound_set_file(jr_id,
         The Job's output file path (prefixed with '/' and relative to the project root)
         The Job's filename (pathless, and an SD-File)
 
-    Returns the fully-qualified path to the SDF file (which may not exist as a file).
+    Returns the fully-qualified path to the SDF file (sdf_filename).
+    The file will not exist as a file if the upload processing fails.
     """
 
     logger.info('Processing job compound file (%s)...', jr_id)
@@ -145,12 +146,16 @@ def process_compound_set_file(jr_id,
     upload_sub_dir = get_upload_sub_directory(jr)
     upload_dir = create_media_sub_directory(upload_sub_dir)
 
-    # The temporary files we plan to upload to...
+    # The temporary files we plan to upload to
+    # (from the expected job_output_path and job_output_filename).
     tmp_sdf_filename = os.path.join(upload_dir, 'job.sdf')
     tmp_param_filename = os.path.join(upload_dir, 'job.meta.json')
 
-    # The actual file we expect to create (after processing the temporary files)...
-    sdf_filename = os.path.join(upload_dir, job_output_filename)
+    # The actual file we expect to create (after processing the temporary files).
+    # Made unique with the JobRequest code (a uuid4 string).
+    # The filename needs to be unique as it will be used
+    # to form the ComputedSet 'name'
+    sdf_filename = os.path.join(upload_dir, f'job-{jr.code}.sdf')
 
     # We expect an outfile (".sdf")
     # and an "{outfile}_params.json" file.
