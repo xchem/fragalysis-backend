@@ -655,12 +655,21 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
     #
     # Task linking is a bit of a mess atm,
     # if something went wrong we'll get a tuple, not a dictionary.
-    if isinstance(task_params, dict) and task_params['process_stage'] == 'process':
-        logger.warning('Upload successful (%d)', job_request_id)
+    if isinstance(task_params, dict) \
+            and task_params['process_stage'] == 'process' \
+            and task_params['compound_set_name']:
+        logger.info('Upload successful (%d) CompoundSet.name="%s"',
+                    job_request_id, task_params['compound_set_name'])
         job_request.upload_status = 'SUCCESS'
-        job_request.computed_set = task_params['compound_set_name']
+        # We're given a compound set name.
+        # Get its record and put that into the JobRequest...
+        cs = ComputedSet.objects.get(name=task_params['compound_set_name'])
+        assert cs
+        job_request.computed_set = cs
     else:
         # Failed validation?
+        logger.info('Upload failed (%d) - task_params=%s',
+                       job_request_id, task_params)
         logger.warning('Upload failed (%d) - process_stage value not satisfied',
                        job_request_id)
         job_request.upload_status = 'FAILURE'
