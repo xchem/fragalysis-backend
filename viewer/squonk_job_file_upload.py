@@ -132,29 +132,13 @@ def process_compound_set_file(jr_id,
         The Job's output file path (prefixed with '/' and relative to the project root)
         The Job's filename (pathless, and an SD-File)
 
-    Returns the fully-qualified path to the SDF file (which may not exist as a file).
+    Returns the fully-qualified path to the SDF file (sdf_filename).
+    The file will not exist as a file if the upload processing fails.
     """
 
     logger.info('Processing job compound file (%s)...', jr_id)
 
     jr = JobRequest.objects.get(id=jr_id)
-
-    # Do we need to create the upload path?
-    # This is used for this 'job' and is removed when the upload is complete
-    # successful or otherwise.
-    upload_sub_dir = get_upload_sub_directory(jr)
-    upload_dir = create_media_sub_directory(upload_sub_dir)
-
-    # The temporary files we plan to upload to...
-    tmp_sdf_filename = os.path.join(upload_dir, 'job.sdf')
-    tmp_param_filename = os.path.join(upload_dir, 'job.meta.json')
-
-    # The actual file we expect to create (after processing the temporary files)...
-    sdf_filename = os.path.join(upload_dir, job_output_filename)
-
-    # We expect an outfile (".sdf")
-    # and an "{outfile}_params.json" file.
-    got_all_files = False
 
     # The callback token (required to make Squonk API calls from the callback)
     # and instance ID are in JobRequest.
@@ -165,6 +149,31 @@ def process_compound_set_file(jr_id,
     logger.info("Squonk API instance_id=%s", instance_id)
 
     logger.info("Expecting Squonk path='%s'", job_output_path)
+
+    # Do we need to create the upload path?
+    # This is used for this 'job' and is removed when the upload is complete
+    # successful or otherwise.
+    upload_sub_dir = get_upload_sub_directory(jr)
+    upload_dir = create_media_sub_directory(upload_sub_dir)
+
+    # The temporary files we plan to upload to
+    # (from the expected job_output_path and job_output_filename).
+    tmp_sdf_filename = os.path.join(upload_dir, 'job.sdf')
+    tmp_param_filename = os.path.join(upload_dir, 'job.meta.json')
+
+    # The ultimate file we expect to create (after processing the temporary files).
+    # Made unique with the JobRequest Squonk Instance ID.
+    # This has to have the form '<upload_dir>/<prefix>_<cs_name>.sdf' and the
+    # 'cs_name' must be unique as it will be used as the name of the CompoundSet
+    # that will be created. We'll set this to '<path>/job_job-<job.code>.sdf'.
+    #
+    # The 'cs_name' must be no longer than 50 characters,
+    # 'job-<uuid4>' should be 40 characters long.
+    sdf_filename = os.path.join(upload_dir, f'job_job-{jr.code}.sdf')
+
+    # We expect an outfile (".sdf")
+    # and an "{outfile}_params.json" file.
+    got_all_files = False
 
     # Get the parameter file...
     #         --------------

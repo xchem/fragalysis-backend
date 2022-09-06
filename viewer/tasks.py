@@ -131,7 +131,7 @@ def process_compound_set(validate_output):
                        zfile_hashvals=zfile_hashvals)
     compound_set = save_mols.task()
 
-    logger.info('process_compound_set() EXIT (%s)', compound_set.name)
+    logger.info('process_compound_set() EXIT (CompoundSet.name="%s")', compound_set.name)
     return {'process_stage': 'process',
             'process_type': 'cset',
             'compound_set_name': compound_set.name}
@@ -219,8 +219,13 @@ def validate_compound_set(task_params):
         'pdb_zip': zfile
     }
 
-    # Protect ourselves form a missing SD file.
-    if not os.path.isfile(sdf_file):
+    # Protect ourselves from an empty, blank or missing SD file.
+    if sdf_file is None or len(sdf_file) == 0:
+        validated = False
+        logger.info('validate_compound_set() EXIT (no file) validated=%s outbound_params=%s',
+                    validated, outbound_params)
+        return 'validate', 'cset', validate_dict, validated, outbound_params
+    elif not os.path.isfile(sdf_file):
         validated = False
         logger.info('validate_compound_set() EXIT (missing file) validated=%s outbound_params=%s',
                     validated, outbound_params)
@@ -650,12 +655,21 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
     #
     # Task linking is a bit of a mess atm,
     # if something went wrong we'll get a tuple, not a dictionary.
-    if isinstance(task_params, dict) and task_params['process_stage'] == 'process':
-        logger.warning('Upload successful (%d)', job_request_id)
+    if isinstance(task_params, dict) \
+            and task_params['process_stage'] == 'process' \
+            and task_params['compound_set_name']:
+        logger.info('Upload successful (%d) CompoundSet.name="%s"',
+                    job_request_id, task_params['compound_set_name'])
         job_request.upload_status = 'SUCCESS'
-        job_request.computed_set = task_params['compound_set_name']
+        # We're given a compound set name.
+        # Get its record and put that into the JobRequest...
+        cs = ComputedSet.objects.get(name=task_params['compound_set_name'])
+        assert cs
+        job_request.computed_set = cs
     else:
         # Failed validation?
+        logger.info('Upload failed (%d) - task_params=%s',
+                       job_request_id, task_params)
         logger.warning('Upload failed (%d) - process_stage value not satisfied',
                        job_request_id)
         job_request.upload_status = 'FAILURE'
