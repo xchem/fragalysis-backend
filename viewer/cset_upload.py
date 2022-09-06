@@ -395,7 +395,7 @@ class MolOps:
             compound_set = existing[0]
         elif len_existing > 1:
             raise Exception('Too many ComputedSet instances exist'
-                            f' (unique_name={unique_name} {len_existing})')
+                            f' (unique_name="{unique_name}" len_existing={len_existing})')
         else:
             compound_set = ComputedSet()
 
