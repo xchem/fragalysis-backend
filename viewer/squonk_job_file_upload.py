@@ -169,7 +169,7 @@ def process_compound_set_file(jr_id,
     #
     # The 'cs_name' must be no longer than 50 characters,
     # 'job-<uuid4>' should be 40 characters long.
-    sdf_filename = os.path.join(upload_dir, f'job_job-{job.code}.sdf')
+    sdf_filename = os.path.join(upload_dir, f'job_job-{jr.code}.sdf')
 
     # We expect an outfile (".sdf")
     # and an "{outfile}_params.json" file.
