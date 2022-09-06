@@ -170,7 +170,7 @@ class MolOps:
                 prot_obj = Protein.objects.get(code__contains=name)
             except:
                 # Protein lookup failed.
-                logger.warning('Failed to Protein object (target=%s name=%s)',
+                logger.warning('Failed to get Protein object (target=%s name=%s)',
                                compound_set.target.title, name)
                 # Try an alternative.
                 # If all else fails then the prot_obj will be 'None'
@@ -181,8 +181,8 @@ class MolOps:
                     prot_obj = prot_objs[0]
 
         if not prot_obj:
-            logger.waring('No Protein object (target=%s pdb_fn=%s)',
-                          compound_set.target.title, pdb_fn)
+            logger.warning('No Protein object (target=%s pdb_fn=%s)',
+                           compound_set.target.title, pdb_fn)
 
         return prot_obj
 
