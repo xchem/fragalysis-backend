@@ -383,15 +383,20 @@ class MolOps:
 
         # create a new compound set
         set_name = ''.join(sdf_filename.split('/')[-1].replace('.sdf', '').split('_')[1:])
+        unique_name = "".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split())
 
-        existing = ComputedSet.objects.filter(
-            unique_name="".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split()))
+        existing = ComputedSet.objects.filter(unique_name=unique_name)
+        len_existing = len(existing)
+        logger.info('Existing ComputedSet.unique_name=%s len(existing)=%s',
+                    unique_name, len_existing)
 
-        if len(existing) == 1:
+        if len_existing == 1:
+            logger.info('Using existing ComputedSet')
             compound_set = existing[0]
-        if len(existing) > 1:
-            raise Exception('Too many csets exist!')
-        if len(existing) == 0:
+        elif len_existing > 1:
+            raise Exception('Too many ComputedSet instances exist'
+                            f' (unique_name={unique_name} {len_existing})')
+        else:
             compound_set = ComputedSet()
 
         text_scores = TextScoreValues.objects.filter(score__computed_set=compound_set)
