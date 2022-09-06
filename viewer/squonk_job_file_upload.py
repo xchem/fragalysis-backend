@@ -140,6 +140,16 @@ def process_compound_set_file(jr_id,
 
     jr = JobRequest.objects.get(id=jr_id)
 
+    # The callback token (required to make Squonk API calls from the callback)
+    # and instance ID are in JobRequest.
+    jr_job_info_msg = jr.squonk_job_info[1]
+    token = jr_job_info_msg.get('callback_token')
+    instance_id = jr_job_info_msg.get('instance_id')
+    logger.info("Squonk API token=%s", token)
+    logger.info("Squonk API instance_id=%s", instance_id)
+
+    logger.info("Expecting Squonk path='%s'", job_output_path)
+
     # Do we need to create the upload path?
     # This is used for this 'job' and is removed when the upload is complete
     # successful or otherwise.
@@ -151,25 +161,16 @@ def process_compound_set_file(jr_id,
     tmp_sdf_filename = os.path.join(upload_dir, 'job.sdf')
     tmp_param_filename = os.path.join(upload_dir, 'job.meta.json')
 
-    # The actual file we expect to create (after processing the temporary files).
-    # Made unique with the JobRequest code (a uuid4 string).
-    # The filename needs to be unique as it will be used
-    # to form the ComputedSet 'name'
-    sdf_filename = os.path.join(upload_dir, f'job-{jr.code}.sdf')
+    # The ultimate file we expect to create (after processing the temporary files).
+    # Made unique with the JobRequest Squonk Instance ID.
+    # This has to have the form '<upload_dir>/<prefix>_<cs_name>.sdf' and the
+    # 'cs_name' must be unique as it will be used as the name of the CompoundSet
+    # that wil be created. We'll set this to '<path>/job_squonk-<instance-id>.sdf'.
+    sdf_filename = os.path.join(upload_dir, f'job_squonk-{instance_id}.sdf')
 
     # We expect an outfile (".sdf")
     # and an "{outfile}_params.json" file.
     got_all_files = False
-
-    # The callback token (required to make Squonk API calls from the callback)
-    # and instance ID are in JobRequest.
-    jr_job_info_msg = jr.squonk_job_info[1]
-    token = jr_job_info_msg.get('callback_token')
-    instance_id = jr_job_info_msg.get('instance_id')
-    logger.info("Squonk API token=%s", token)
-    logger.info("Squonk API instance_id=%s", instance_id)
-
-    logger.info("Expecting Squonk path='%s'", job_output_path)
 
     # Get the parameter file...
     #         --------------

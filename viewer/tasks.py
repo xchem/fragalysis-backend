@@ -131,7 +131,7 @@ def process_compound_set(validate_output):
                        zfile_hashvals=zfile_hashvals)
     compound_set = save_mols.task()
 
-    logger.info('process_compound_set() EXIT (%s)', compound_set.name)
+    logger.info('process_compound_set() EXIT (CompoundSet.name="%s")', compound_set.name)
     return {'process_stage': 'process',
             'process_type': 'cset',
             'compound_set_name': compound_set.name}
