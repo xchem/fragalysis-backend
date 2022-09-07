@@ -115,172 +115,202 @@ def uploadManifoldReaction(validate_output):
                 project_id=project_id,
                 batchtag=batchtag,
             )
-            smiles = list(group["targets"])
-            retrosynthesis_results = getManifoldRetrosynthesisBatch(smiles=smiles)
-            if "results" in retrosynthesis_results:
-                batchrouteresults = retrosynthesis_results["results"]
+            target_smiles = list(group["targets"])
+            target_amounts = list(group["amount-required-mg"])
+            for i in range(
+                0, len(target_smiles), 10
+            ):  # Manifold can do 10 smiles in one batch query
+                smiles = target_smiles[i : i + 10]
+                amounts = target_amounts[i : i + 10]
+                retrosynthesis_results = getManifoldRetrosynthesisBatch(smiles=smiles)
+                if "results" in retrosynthesis_results:
+                    batchrouteresults = retrosynthesis_results["results"]
 
-                for smiles, mass, routeresult in zip(
-                    smiles, group["amount-required-mg"], batchrouteresults
-                ):
-                    if "routes" in routeresult:
-                        routes = routeresult["routes"]
-                        target_id = createTargetModel(
-                            batch_id=batch_id,
-                            smiles=smiles,
-                            mass=mass,
-                        )
-                        first_route = routes[0]
-
-                        if first_route["molecules"][0]["isBuildingBlock"]:
-                            catalog_entries = first_route["molecules"][0][
-                                "catalogEntries"
-                            ]
-                            for catalog_entry in catalog_entries:
-                                createCatalogEntryModel(
-                                    catalog_entry=catalog_entry, target_id=target_id
+                    for smiles, mass, routeresult in zip(
+                        smiles, amounts, batchrouteresults
+                    ):
+                        if "routes" in routeresult:
+                            routes = routeresult["routes"]
+                            if routes:
+                                target_id = createTargetModel(
+                                    batch_id=batch_id,
+                                    smiles=smiles,
+                                    mass=mass,
                                 )
+                                first_route = routes[0]
 
-                        for route in routes[1:]:
-                            no_steps = len(route["reactions"])
-                            reactions = route["reactions"]
-                            encoded_reactions_found = [
-                                reaction
-                                for reaction in reactions
-                                if reaction["name"] in encoded_recipes
-                            ]
-
-                            if len(encoded_reactions_found) != no_steps:
-                                method_id = createMethodModel(
-                                    target_id=target_id, nosteps=no_steps, otchem=False
-                                )
-
-                                for index, reaction in enumerate(reversed(reactions)):
-                                    reaction_name = reaction["name"]
-                                    reactant_smiles = reaction["reactantSmiles"]
-                                    product_smiles = reaction["productSmiles"]
-                                    reaction_smarts = AllChem.ReactionFromSmarts(
-                                        "{}>>{}".format(
-                                            ".".join(reactant_smiles), product_smiles
-                                        ),
-                                        useSmiles=True,
-                                    )
-                                    if len(reactant_smiles) == 1:
-                                        intramolecular = True
-                                    if len(reactant_smiles) == 2:
-                                        intramolecular = False
-
-                                    reaction_id = createReactionModel(
-                                        method_id=method_id,
-                                        reaction_class=reaction_name,
-                                        reaction_number=index + 1,
-                                        intramolecular=intramolecular,
-                                        reaction_smarts=reaction_smarts,
-                                    )
-
-                                    createProductModel(
-                                        reaction_id=reaction_id,
-                                        product_smiles=product_smiles,
-                                    )
-
-                                    for reactant_smi in reactant_smiles:
-                                        reactant_id = createReactantModel(
-                                            reaction_id=reaction_id,
-                                            reactant_smiles=reactant_smi,
+                                if first_route["molecules"][0]["isBuildingBlock"]:
+                                    catalog_entries = first_route["molecules"][0][
+                                        "catalogEntries"
+                                    ]
+                                    for catalog_entry in catalog_entries:
+                                        createCatalogEntryModel(
+                                            catalog_entry=catalog_entry,
+                                            target_id=target_id,
                                         )
-                                        catalog_entries = [
-                                            molecule["catalogEntries"]
-                                            for molecule in route["molecules"]
-                                            if molecule["smiles"] == reactant_smi
-                                        ][0]
-                                        for catalog_entry in catalog_entries:
-                                            createCatalogEntryModel(
-                                                catalog_entry=catalog_entry,
-                                                reactant_id=reactant_id,
-                                            )
 
-                            if len(encoded_reactions_found) == no_steps:
-                                method_id = createMethodModel(
-                                    target_id=target_id, nosteps=no_steps, otchem=True
-                                )
-
-                                for index, reaction in enumerate(reversed(reactions)):
-                                    reaction_name = reaction["name"]
-                                    reactant_smiles = reaction["reactantSmiles"]
-                                    product_smiles = reaction["productSmiles"]
-
-                                    reaction_temperature = [
-                                        actionsession["actions"][0]["content"][
-                                            "temperature"
-                                        ]["value"]
-                                        for actionsession in encoded_recipes[
-                                            reaction_name
-                                        ]["recipes"]["standard"]["actionsessions"]
-                                        if actionsession["type"] == "stir"
-                                    ][0]
-                                    intramolecular_possible = encoded_recipes[
-                                        reaction_name
-                                    ]["intramolecular"]
-
-                                    recipe_rxn_smarts = encoded_recipes[reaction_name][
-                                        "reactionSMARTS"
+                                for route in routes[1:]:
+                                    no_steps = len(route["reactions"])
+                                    reactions = route["reactions"]
+                                    encoded_reactions_found = [
+                                        reaction
+                                        for reaction in reactions
+                                        if reaction["name"] in encoded_recipes
                                     ]
 
-                                    if (
-                                        len(reactant_smiles) == 1
-                                        and intramolecular_possible
-                                    ):
-                                        reactant_smiles_ordered = reactant_smiles
-                                        intramolecular = True
-                                    else:
-                                        reactant_smiles_ordered = getAddtionOrder(
-                                            product_smi=product_smiles,
-                                            reactant_SMILES=reactant_smiles,
-                                            reaction_SMARTS=recipe_rxn_smarts,
-                                        )
-                                        intramolecular = False
-                                        if not reactant_smiles_ordered:
-                                            continue
-
-                                    reaction_smarts = AllChem.ReactionFromSmarts(
-                                        "{}>>{}".format(
-                                            ".".join(reactant_smiles_ordered),
-                                            product_smiles,
-                                        ),
-                                        useSmiles=True,
-                                    )
-
-                                    reaction_id = createReactionModel(
-                                        method_id=method_id,
-                                        reaction_class=reaction_name,
-                                        reaction_number=index + 1,
-                                        intramolecular=intramolecular,
-                                        recipe_type="standard",  # Need to change when we get multiple recipes runnning!
-                                        reaction_temperature=reaction_temperature,
-                                        reaction_smarts=reaction_smarts,
-                                    )
-
-                                    createProductModel(
-                                        reaction_id=reaction_id,
-                                        product_smiles=product_smiles,
-                                    )
-
-                                    for reactant_smi in reactant_smiles_ordered:
-                                        reactant_id = createReactantModel(
-                                            reaction_id=reaction_id,
-                                            reactant_smiles=reactant_smi,
+                                    if len(encoded_reactions_found) != no_steps:
+                                        method_id = createMethodModel(
+                                            target_id=target_id,
+                                            nosteps=no_steps,
+                                            otchem=False,
                                         )
 
-                                        catalog_entries = [
-                                            molecule["catalogEntries"]
-                                            for molecule in route["molecules"]
-                                            if molecule["smiles"] == reactant_smi
-                                        ][0]
-                                        for catalog_entry in catalog_entries:
-                                            createCatalogEntryModel(
-                                                catalog_entry=catalog_entry,
-                                                reactant_id=reactant_id,
+                                        for index, reaction in enumerate(
+                                            reversed(reactions)
+                                        ):
+                                            reaction_name = reaction["name"]
+                                            reactant_smiles = reaction["reactantSmiles"]
+                                            product_smiles = reaction["productSmiles"]
+                                            reaction_smarts = (
+                                                AllChem.ReactionFromSmarts(
+                                                    "{}>>{}".format(
+                                                        ".".join(reactant_smiles),
+                                                        product_smiles,
+                                                    ),
+                                                    useSmiles=True,
+                                                )
                                             )
+                                            if len(reactant_smiles) == 1:
+                                                intramolecular = True
+                                            if len(reactant_smiles) == 2:
+                                                intramolecular = False
+
+                                            reaction_id = createReactionModel(
+                                                method_id=method_id,
+                                                reaction_class=reaction_name,
+                                                reaction_number=index + 1,
+                                                intramolecular=intramolecular,
+                                                reaction_smarts=reaction_smarts,
+                                            )
+
+                                            createProductModel(
+                                                reaction_id=reaction_id,
+                                                product_smiles=product_smiles,
+                                            )
+
+                                            for reactant_smi in reactant_smiles:
+                                                reactant_id = createReactantModel(
+                                                    reaction_id=reaction_id,
+                                                    reactant_smiles=reactant_smi,
+                                                )
+                                                catalog_entries = [
+                                                    molecule["catalogEntries"]
+                                                    for molecule in route["molecules"]
+                                                    if molecule["smiles"]
+                                                    == reactant_smi
+                                                ][0]
+                                                for catalog_entry in catalog_entries:
+                                                    createCatalogEntryModel(
+                                                        catalog_entry=catalog_entry,
+                                                        reactant_id=reactant_id,
+                                                    )
+
+                                    if len(encoded_reactions_found) == no_steps:
+                                        method_id = createMethodModel(
+                                            target_id=target_id,
+                                            nosteps=no_steps,
+                                            otchem=True,
+                                        )
+
+                                        for index, reaction in enumerate(
+                                            reversed(reactions)
+                                        ):
+                                            reaction_name = reaction["name"]
+                                            reactant_smiles = reaction["reactantSmiles"]
+                                            product_smiles = reaction["productSmiles"]
+                                            print(reaction_name)
+
+                                            reaction_temperature = [
+                                                actionsession["actions"][0]["content"][
+                                                    "temperature"
+                                                ]["value"]
+                                                for actionsession in encoded_recipes[
+                                                    reaction_name
+                                                ]["recipes"]["standard"][
+                                                    "actionsessions"
+                                                ]
+                                                if actionsession["type"] == "stir"
+                                            ][0]
+                                            intramolecular_possible = encoded_recipes[
+                                                reaction_name
+                                            ]["intramolecular"]
+
+                                            recipe_rxn_smarts = encoded_recipes[
+                                                reaction_name
+                                            ]["reactionSMARTS"]
+
+                                            if (
+                                                len(reactant_smiles) == 1
+                                                and intramolecular_possible
+                                            ):
+                                                reactant_smiles_ordered = (
+                                                    reactant_smiles
+                                                )
+                                                intramolecular = True
+                                            else:
+                                                reactant_smiles_ordered = getAddtionOrder(
+                                                    product_smi=product_smiles,
+                                                    reactant_SMILES=reactant_smiles,
+                                                    reaction_SMARTS=recipe_rxn_smarts,
+                                                )
+                                                intramolecular = False
+                                                if not reactant_smiles_ordered:
+                                                    continue
+
+                                            reaction_smarts = (
+                                                AllChem.ReactionFromSmarts(
+                                                    "{}>>{}".format(
+                                                        ".".join(
+                                                            reactant_smiles_ordered
+                                                        ),
+                                                        product_smiles,
+                                                    ),
+                                                    useSmiles=True,
+                                                )
+                                            )
+
+                                            reaction_id = createReactionModel(
+                                                method_id=method_id,
+                                                reaction_class=reaction_name,
+                                                reaction_number=index + 1,
+                                                intramolecular=intramolecular,
+                                                recipe_type="standard",  # Need to change when we get multiple recipes runnning!
+                                                reaction_temperature=reaction_temperature,
+                                                reaction_smarts=reaction_smarts,
+                                            )
+
+                                            createProductModel(
+                                                reaction_id=reaction_id,
+                                                product_smiles=product_smiles,
+                                            )
+
+                                            for reactant_smi in reactant_smiles_ordered:
+                                                reactant_id = createReactantModel(
+                                                    reaction_id=reaction_id,
+                                                    reactant_smiles=reactant_smi,
+                                                )
+
+                                                catalog_entries = [
+                                                    molecule["catalogEntries"]
+                                                    for molecule in route["molecules"]
+                                                    if molecule["smiles"]
+                                                    == reactant_smi
+                                                ][0]
+                                                for catalog_entry in catalog_entries:
+                                                    createCatalogEntryModel(
+                                                        catalog_entry=catalog_entry,
+                                                        reactant_id=reactant_id,
+                                                    )
 
         delete_tmp_file(csv_fp)
 

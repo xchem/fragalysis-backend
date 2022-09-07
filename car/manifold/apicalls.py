@@ -118,7 +118,7 @@ def getExactSearch(smiles: str):
 
 @sleep_and_retry
 @limits(calls=100, period=60)
-def getExactSearchBatch(smiles: list):
+def getExactSearchBatch(smilesList: list):
     """Searches for exact compound match for catalogue info
 
     Parameters
@@ -133,8 +133,9 @@ def getExactSearchBatch(smiles: list):
         The catalogue matches for the list of SMILES
     """
     data = {
-        "smiles": smiles,
+        "smilesList": smilesList,
         "maxLeadTimeWeeks": 12,
+        "vendors": ["enamine_bb", "enamine_bb_EU-US", "enamine_real"],
         "patentDatabases": [],
     }
 

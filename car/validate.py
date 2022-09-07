@@ -93,7 +93,11 @@ class ValidateFile(object):
                     self.checkIsString()
 
     def validateCustomCombiChem(self):
-        self.expected_no_columns = 5
+        max_no_steps = max(self.df["no-steps"])
+        self.expected_no_columns = (max_no_steps * 3) + 2
+        reactant_1_column_names = []  # Must finish column naming!
+        reactant_2_column_names = []
+
         self.expected_column_names = [
             "reactant-1",
             "reactant-2",
@@ -102,59 +106,72 @@ class ValidateFile(object):
             "batch-tag",
         ]
         self.checkNumberColumns()
-        if self.validated:
-            self.checkColumnNames()
+        # if self.validated:
+        #     self.checkColumnNames()
+
         if self.validated:
             self.reactant_pair_smiles = []
             self.reaction_names = []
             self.batchtags = []
-            grouped = self.df.groupby(["reaction-name", "batch-tag"])
-            for name, group in grouped:
-                group = group.reset_index()
-                reactant_1_SMILES = set(
-                    [
-                        reactant
-                        for reactant in group["reactant-1"]
-                        if str(reactant) != "nan"
-                    ]
-                )
-                reactant_2_SMILES = set(
-                    [
-                        reactant
-                        for reactant in group["reactant-2"]
-                        if str(reactant) != "nan"
-                    ]
-                )
-                reactant_pair_smiles = combiChem(
-                    reactant_1_SMILES=reactant_1_SMILES,
-                    reactant_2_SMILES=reactant_2_SMILES,
-                )
-                reaction_names = [name[0]] * len(reactant_pair_smiles)
-                batchtags = [group.at[0, "batch-tag"]] * len(reactant_pair_smiles)
-                self.reactant_pair_smiles = (
-                    self.reactant_pair_smiles + reactant_pair_smiles
-                )
-                self.reaction_names = self.reaction_names + reaction_names
-                self.batchtags = self.batchtags + batchtags
 
-            self.checkReactantSMILES()
-            if self.validated:
-                self.reactant_pair_smiles = [
-                    (canonSmiles(smi[0]), canonSmiles(smi[1]))
-                    for smi in self.reactant_pair_smiles
-                ]
-                self.checkReaction()
-                if self.validated:
-                    amount_required_mg = self.df.at[0, "amount-required-mg"]
-                    self.df = pd.DataFrame()
-                    self.df["reactant-pair-smiles"] = self.reactant_pair_smiles_ordered
-                    self.df["target-smiles"] = self.product_smiles
-                    self.df["reaction-name"] = self.reaction_names
-                    self.df["amount-required-mg"] = [amount_required_mg] * len(
-                        self.reactant_pair_smiles
+            combi_grouped = self.df.groupby(["combi-group"])
+            for combi_group in combi_grouped:
+                max_no_steps_combi_group = max(combi_group["no-steps"])
+                for i in range(max_no_steps_combi_group):
+                    reaction_step_df = combi_group.filter(regex="-{}$".format(i))
+                    reaction_tag_grouped = reaction_step_df.groupby(
+                        ["reaction-name-{}".format(i), "batch-tag"]
                     )
-                    self.df["batch-tag"] = self.batchtags
-                    self.checkIsNumber()
+                    for name, group in reaction_tag_grouped:
+                        group = group.reset_index()
+                        reactant_1_SMILES = set(
+                            [
+                                reactant
+                                for reactant in group["reactant-1-{}".format(i)]
+                                if str(reactant) != "nan"
+                            ]
+                        )
+                        reactant_2_SMILES = set(
+                            [
+                                reactant
+                                for reactant in group["reactant-2-{}".format(i)]
+                                if str(reactant) != "nan"
+                            ]
+                        )
+                        reactant_pair_smiles = combiChem(
+                            reactant_1_SMILES=reactant_1_SMILES,
+                            reactant_2_SMILES=reactant_2_SMILES,
+                        )
+                        reaction_names = [name[0]] * len(reactant_pair_smiles)
+                        batchtags = [group.at[0, "batch-tag"]] * len(
+                            reactant_pair_smiles
+                        )
+                        self.reactant_pair_smiles = (
+                            self.reactant_pair_smiles + reactant_pair_smiles
+                        )
+                        self.reaction_names = self.reaction_names + reaction_names
+                        self.batchtags = self.batchtags + batchtags
+
+                    self.checkReactantSMILES()
+                    if self.validated:
+                        self.reactant_pair_smiles = [
+                            (canonSmiles(smi[0]), canonSmiles(smi[1]))
+                            for smi in self.reactant_pair_smiles
+                        ]
+                        self.checkReaction()
+                        if self.validated:
+                            amount_required_mg = self.df.at[0, "amount-required-mg"]
+                            self.df = pd.DataFrame()
+                            self.df[
+                                "reactant-pair-smiles"
+                            ] = self.reactant_pair_smiles_ordered
+                            self.df["target-smiles"] = self.product_smiles
+                            self.df["reaction-name"] = self.reaction_names
+                            self.df["amount-required-mg"] = [amount_required_mg] * len(
+                                self.reactant_pair_smiles
+                            )
+                            self.df["batch-tag"] = self.batchtags
+                            self.checkIsNumber()
 
     def add_warning(self, field, warning_string):
         self.validate_dict["field"].append(field)
