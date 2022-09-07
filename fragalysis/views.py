@@ -1,5 +1,8 @@
 # Classes/Methods to override default OIDC Views (Keycloak authentication)
+from pathlib import Path
+
 from mozilla_django_oidc.views import OIDCLogoutView
+from django.http import JsonResponse
 from django.conf import settings
 
 
@@ -16,3 +19,13 @@ class LogoutView(OIDCLogoutView):
 
     def get(self, request):
         return self.post(request)
+
+
+def version(request):
+    """A simple endpoint that returns the content of the /code/VERSION file.
+    The VERSION file is adjusted during the CI process and should contain
+    the TAG used to create an official build. For unofficial builds
+    the version is likely to contain a CI reference.
+    """
+    version = Path('/code/VERSION').read_text(encoding='utf-8').strip()
+    return JsonResponse({'version': version})
