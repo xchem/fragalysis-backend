@@ -55,7 +55,11 @@ def version(request):
     if not fe_branch:
         fe_branch = undefined_value
 
-    version_response = {'version': {'backend': f'{be_namespace}.{be_image_tag}',
-                                    'frontend': f'{fe_namespace}.{fe_branch}',
-                                    'stack': stack_version}}
+    stack_namespace = os.environ.get('STACK_NAMESPACE')
+    if not stack_namespace:
+        stack_namespace = undefined_value
+
+    version_response = {'version': {'backend': f'{be_namespace}:{be_image_tag}',
+                                    'frontend': f'{fe_namespace}:{fe_branch}',
+                                    'stack': f'{stack_namespace}:{stack_version}'}}
     return JsonResponse(version_response)
