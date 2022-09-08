@@ -39,19 +39,19 @@ def version(request):
     #
     # We also need to deal with empty or unset strings
     # so the get() default does not help
-    be_namespace = os.envrion.get('BE_NAMESPACE')
+    be_namespace = os.environ.get('BE_NAMESPACE')
     if not be_namespace:
         be_namespace = undefined_value
 
-    be_image_tag = os.envrion.get('BE_IMAGE_TAG')
+    be_image_tag = os.environ.get('BE_IMAGE_TAG')
     if not be_image_tag:
         be_image_tag = undefined_value
 
-    fe_namespace = os.envrion.get('FE_NAMESPACE')
+    fe_namespace = os.environ.get('FE_NAMESPACE')
     if not fe_namespace:
         fe_namespace = undefined_value
 
-    fe_branch = os.envrion.get('FE_BRANCH')
+    fe_branch = os.environ.get('FE_BRANCH')
     if not fe_branch:
         fe_branch = undefined_value
 
