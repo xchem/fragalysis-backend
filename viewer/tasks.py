@@ -61,13 +61,22 @@ def check_services():
 
     """
     services = [p.name() for p in psutil.process_iter()]
-    if 'redis-server' not in services:
+    redis_service = 'redis-server'
+    if redis_service not in services:
+        logger.info('Service "%s" not present ... starting it', redis_service)
         os.system('redis-server &')
-    if 'celery' not in services:
+    celery_service = 'celery'
+    if celery_service not in services:
+        logger.info('Service "%s" not present ... starting it', celery_service)
         os.system('celery -A fragalysis worker -l info &')
+
+    # Check again...
     services = [p.name() for p in psutil.process_iter()]
-    if 'redis-server' not in services or 'celery' not in services:
+    if redis_service not in services or celery_service not in services:
+        logger.error('Redis or Celery is not running as a service')
         return False
+
+    # OK if we get here
     return True
 
 
