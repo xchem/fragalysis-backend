@@ -800,7 +800,9 @@ class UploadCSet(View):
                   ' - please navigate to landing page and Login'
             return render(request, 'viewer/upload-cset.html', context)
 
-        check_services()
+        # Celery/Redis must be running.
+        # This call checks and trys to start them if they're not.
+        assert check_services()
 
         form = CSetForm(request.POST, request.FILES)
 
@@ -977,8 +979,10 @@ class UploadTSet(View):
             logger.info('- UploadTSet.post - authentication error')
             return render(request, 'viewer/upload-tset.html', context)
 
-        # Check celery/rdis is up and running
-        check_services()
+        # Celery/Redis must be running.
+        # This call checks and trys to start them if they're not.
+        assert check_services()
+
         form = TSetForm(request.POST, request.FILES)
         if form.is_valid():
             # get all of the variables needed from the form
@@ -3162,8 +3166,10 @@ class JobFileTransferView(viewsets.ModelViewSet):
         job_transfer.transfer_progress = None
         job_transfer.save()
 
-        # Check celery/rdis is up and running
-        check_services()
+        # Celery/Redis must be running.
+        # This call checks and trys to start them if they're not.
+        assert check_services()
+
         logger.info('oidc_access_token')
         logger.info(request.session['oidc_access_token'])
 
@@ -3297,6 +3303,10 @@ class JobRequestView(viewsets.ModelViewSet):
     def create(self, request):
         """Method to handle POST request
         """
+        # Celery/Redis must be running.
+        # This call checks and trys to start them if they're not.
+        assert check_services()
+
         logger.info('+ JobRequest.post')
         # Only authenticated users can create squonk job requests.
         user = self.request.user
