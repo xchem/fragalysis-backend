@@ -22,6 +22,7 @@ from graphene_django.views import GraphQLView
 
 
 urlpatterns = [
+    url(r"^version/", fragalysis.views.version, name="version"),
     url(r"^admin/", admin.site.urls),
     url(r"^viewer/", include("viewer.urls")),
     url(r"^network/", include("network.urls")),
