@@ -1,6 +1,5 @@
 # Classes/Methods to override default OIDC Views (Keycloak authentication)
 import os
-from pathlib import Path
 
 from mozilla_django_oidc.views import OIDCLogoutView
 from django.http import JsonResponse
@@ -23,9 +22,8 @@ class LogoutView(OIDCLogoutView):
 
 
 def version(request):
-    """A simple endpoint that returns the content of the /code/VERSION file
-    for the stack version and container environment variables for the frontend
-    and backend.
+    """A simple endpoint that returns the content of various environment variables
+    used to define the origin of the code during build-time.
 
     The VERSION file is adjusted during the CI process and should contain
     the TAG used to create an official build. For unofficial builds
@@ -33,9 +31,7 @@ def version(request):
     """
     undefined_value = "undefined"
 
-    stack_version = Path('/code/VERSION').read_text(encoding='utf-8').strip()
-
-    # b/e and f/e origin comes form container environment variables.
+    # b/e, f/e and stack origin comes form container environment variables.
     #
     # We also need to deal with empty or unset strings
     # so the get() default does not help
@@ -58,6 +54,10 @@ def version(request):
     stack_namespace = os.environ.get('STACK_NAMESPACE')
     if not stack_namespace:
         stack_namespace = undefined_value
+
+    stack_version = os.environ.get('STACK_VERSION')
+    if not stack_version:
+        stack_version = undefined_value
 
     version_response = {'version': {'backend': f'{be_namespace}:{be_image_tag}',
                                     'frontend': f'{fe_namespace}:{fe_branch}',
