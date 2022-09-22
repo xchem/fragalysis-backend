@@ -2898,7 +2898,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
                               'post response'}
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-
     def create(self, request):
         """Method to handle POST request
         """
@@ -2915,6 +2914,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
             # This is a static link - the contents are stored in the database
             # if required.
             file_url = request.data['file_url']
+            logger.info('Given file_url "%s"', file_url)
             existing_link = DownloadLinks.objects.filter(file_url=file_url)
 
             if existing_link and existing_link[0].static_link:
@@ -2922,47 +2922,60 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 # Note that don't depend 100% on the zip_file flag as the
                 # file might have been deleted from the media server.
                 if (existing_link[0].zip_file and
-                    os.path.isfile(existing_link[0].file_url)):
+                        os.path.isfile(existing_link[0].file_url)):
+                    logger.info('Download is Ready!')
                     return Response({"file_url": existing_link[0].file_url},
                                     status=status.HTTP_200_OK)
                 elif os.path.isfile(existing_link[0].file_url):
                     # If the file is there but zip_file is false, then it is
                     # probably being rebuilt by a parallel process.
+                    logger.info('Download is under construction')
                     content = {'message': 'Zip being rebuilt - '
                                           'please try later'}
                     return Response(content,
                                     status=status.HTTP_208_ALREADY_REPORTED)
                 else:
                     # Otherwise re-create the file.
+                    logger.info('Recreating download...')
                     recreate_static_file (existing_link[0], request.get_host())
                     return Response({"file_url": existing_link[0].file_url},
                                     status=status.HTTP_200_OK)
 
-            content = {
-                'message': 'file_url should only be filled in for static files'}
+            msg = 'file_url should only be provided for static files'
+            logger.warning(msg)
+            content = {'message': msg}
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         # Dynamic files
+
+        if 'target_name' not in request.data:
+            content = {'message': 'If no file_url, a target_name (title) must be provided'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
         target_name = request.data['target_name']
         target = None
+        logger.info('Given target_name "%s"', target_name)
 
-        # Check target is valid
+        # Check target_name is valid
+        # (it should natch the title of an existing target)
         for targ in self.queryset:
-            logger.info(targ.title)
             if targ.title == target_name:
                 target = targ
                 break
 
         if not target:
-            content = {
-                'message': 'Please enter a permitted target name'}
+            msg = f'No target found with title "{target_name}"'
+            logger.warning(msg)
+            content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         if request.data['proteins']:
             # Get first part of protein code
             proteins_list = [p.strip().split(":")[0]
                              for p in request.data['proteins'].split(',')]
+            logger.info('Given %s proteins', len(proteins_list))
         else:
+            logger.info('No proteins supplied')
             proteins_list = []
 
         if len(proteins_list) > 0:
@@ -2975,6 +2988,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
         else:
             # If no protein codes supplied then return the complete list
             proteins = Protein.objects.filter(target_id=target.id).values()
+        logger.info('Collected %s proteins', len(proteins))
 
         if len(proteins) == 0:
             content = {'message': 'Please enter list of valid protein codes '
