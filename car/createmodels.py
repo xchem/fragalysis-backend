@@ -1,5 +1,6 @@
 """Create Django models from Manifold API/custom chemistry outputs"""
 from __future__ import annotations
+import math
 from typing import Tuple
 import inspect
 from rdkit import Chem
@@ -33,11 +34,13 @@ from .models import (
 )
 
 from .utils import (
+    checkProceedingReactions,
     calculateProductMols,
     createSVGString,
     createReactionSVGString,
     getPubChemCAS,
     getPubChemCompound,
+    getReactionYields,
 )
 
 import logging
@@ -606,6 +609,7 @@ class CreateEncodedActionModels(object):
         conc_reagents: float = None,
         reactant_density: float = None,
         reactant_MW: float = None,
+        reactionyields: list = None,
     ) -> float:
         """Calculates the reactant volume (ul) required for an add action step
 
@@ -623,6 +627,8 @@ class CreateEncodedActionModels(object):
             The optional density (g/ml) of the reactant
         reactant_MW: float
             The optional molecular weight (g/mol) of the reactant
+        reactionyields: list = None
+            The list of reacion yields including current and all proceeding reactions
 
         Returns
         -------
@@ -634,7 +640,8 @@ class CreateEncodedActionModels(object):
             vol_material = float(calcvalue) * self.target_obj.mass
             return vol_material
         if calcunit == "moleq":
-            mol_material = float(calcvalue) * self.target_obj.mols
+            yieldcorrection = math.prod(reactionyields)
+            mol_material = (float(calcvalue) * self.target_obj.mols) / yieldcorrection
             if reactant_density:
                 vol_material = ((mol_material * reactant_MW) / reactant_density) * 1e3
             else:
@@ -708,9 +715,25 @@ class CreateEncodedActionModels(object):
                 add.volume = calcvalue
                 add.solvent = solvent
             if calcunit == "masseq":
+                proceedingreactionqueryset = checkProceedingReactions(
+                    reaction_id=self.reaction_obj.id
+                )
+                if proceedingreactionqueryset:
+                    reactionclasslist = [
+                        reactionobj.reactionclass
+                        for reactionobj in proceedingreactionqueryset
+                    ] + self.reaction_name
+                    reactionyields = getReactionYields(
+                        reactionclasslist=reactionclasslist
+                    )
+                if not proceedingreactionqueryset:
+                    reactionyields = getReactionYields(
+                        reactionclasslist=[self.reaction_name]
+                    )
                 add.volume = self.calculateVolume(
                     calcunit=calcunit,
                     calcvalue=calcvalue,
+                    reactionyields=reactionyields,
                 )
                 add.solvent = solvent
             if calcunit == "moleq":
