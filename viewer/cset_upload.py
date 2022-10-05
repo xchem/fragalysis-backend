@@ -18,10 +18,23 @@ logger = logging.getLogger(__name__)
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
-from viewer.models import *
 from rdkit import Chem
 from rdkit.Chem import Crippen, Descriptors
 import uuid
+
+from viewer.models import (
+    Compound,
+    ComputedMolecule,
+    ComputedSet,
+    ComputedSetSubmitter,
+    Molecule,
+    NumericalScoreValues,
+    Protein,
+    ScoreDescription,
+    Target,
+    TextScoreValues,
+    User,
+)
 
 
 def dataType(str):
@@ -47,6 +60,7 @@ def dataType(str):
                 return 'FLOAT'
         else:
             return 'TEXT'
+
 
 class PdbOps:
     def save_pdb_zip(self, pdb_file):
@@ -91,9 +105,11 @@ class PdbOps:
 
         return zfile, zfile_hashval
 
+
 class MolOps:
 
-    def __init__(self, sdf_filename, submitter_name, submitter_method, target, version, zfile, zfile_hashvals):
+    def __init__(self, user_id, sdf_filename, submitter_name, submitter_method, target, version, zfile, zfile_hashvals):
+        self.user_id = user_id
         self.sdf_filename = sdf_filename
         self.submitter_name = submitter_name
         self.submitter_method = submitter_method
@@ -137,13 +153,14 @@ class MolOps:
 
     # use zfile object for pdb files uploaded in zip
     def get_prot(self, mol, target, compound_set, zfile, zfile_hashvals):
+        # The returned protein object may be None
+
         pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
+        prot_obj = None
 
         if zfile:
             pdb_code = pdb_fn.replace('.pdb', '')
             prot_obj = self.process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
-            field = prot_obj.pdb_info
-
         else:
             name = compound_set.target.title + '-' + pdb_fn
 
@@ -151,13 +168,21 @@ class MolOps:
             # name.split(':')[0].split('_')[0]
             try:
                 prot_obj = Protein.objects.get(code__contains=name)
-
             except:
+                # Protein lookup failed.
+                logger.warning('Failed to get Protein object (target=%s name=%s)',
+                               compound_set.target.title, name)
+                # Try an alternative.
+                # If all else fails then the prot_obj will be 'None'
                 prot_objs = Protein.objects.filter(code__contains=name)
-                if len(prot_objs)==0:
+                if len(prot_objs) == 0:
                     prot_objs = Protein.objects.filter(code__contains=name.split(':')[0].split('_')[0])
-                prot_obj = prot_objs[0]
-                field = prot_obj.pdb_info
+                if len(prot_objs) > 0:
+                    prot_obj = prot_objs[0]
+
+        if not prot_obj:
+            logger.warning('No Protein object (target=%s pdb_fn=%s)',
+                           compound_set.target.title, pdb_fn)
 
         return prot_obj
 
@@ -267,7 +292,11 @@ class MolOps:
 
         orig = mol.GetProp('original SMILES')
 
+        # Try to get the protein object.
+        # This may fail.
         prot = self.get_prot(mol, target, compound_set, zfile, zfile_hashvals=zfile_hashvals)
+        if not prot:
+            logger.warning('get_prot() failed to return a Protein object')
 
         #  need to add Compound before saving
         # see if anything exists already
@@ -349,19 +378,25 @@ class MolOps:
         return mols
 
     def task(self):
+        user = User.objects.get(id=self.user_id)
         sdf_filename = str(self.sdf_filename)
 
         # create a new compound set
         set_name = ''.join(sdf_filename.split('/')[-1].replace('.sdf', '').split('_')[1:])
+        unique_name = "".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split())
 
-        existing = ComputedSet.objects.filter(
-            unique_name="".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split()))
+        existing = ComputedSet.objects.filter(unique_name=unique_name)
+        len_existing = len(existing)
+        logger.info('Existing ComputedSet.unique_name=%s len(existing)=%s',
+                    unique_name, len_existing)
 
-        if len(existing) == 1:
+        if len_existing == 1:
+            logger.info('Using existing ComputedSet')
             compound_set = existing[0]
-        if len(existing) > 1:
-            raise Exception('Too many csets exist!')
-        if len(existing) == 0:
+        elif len_existing > 1:
+            raise Exception('Too many ComputedSet instances exist'
+                            f' (unique_name="{unique_name}" len_existing={len_existing})')
+        else:
             compound_set = ComputedSet()
 
         text_scores = TextScoreValues.objects.filter(score__computed_set=compound_set)
@@ -377,6 +412,7 @@ class MolOps:
         ver = float(self.version.strip('ver_'))
         compound_set.spec_version = ver
         compound_set.unique_name = "".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split())
+        compound_set.owner_user = user
         compound_set.save()
 
         # set descriptions and get all other mols back
@@ -408,7 +444,6 @@ class MolOps:
         [c.delete() for c in old_mols]
 
         return compound_set
-
 
 
 def blank_mol_vals(sdf_file):

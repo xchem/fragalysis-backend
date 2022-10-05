@@ -55,6 +55,9 @@ PROPOSAL_REQUIRED = True
 # Should always be True on production.
 AUTHENTICATE_UPLOAD = True
 
+# AnonymousUser should be the first record inserted into the auth_user table.
+ANONYMOUS_USER = 1
+
 # This is set on AWX when the fragalysis-stack is rebuilt.
 SENTRY_DNS = os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS")
 if SENTRY_DNS:
@@ -98,6 +101,7 @@ REST_FRAMEWORK = {
 CELERY_BROKER_URL = 'redis://localhost:6379'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False').lower() in ['true', 'yes']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 # This is to stop Celery overwriting the Django logging defaults.
@@ -356,40 +360,55 @@ DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
-# Squonk settings for API calls to Squonk Platform
-SQUONK_API_URL = os.environ.get('SQUONK_API_URL')
-SQUONK_UI_URL = os.environ.get('SQUONK_UI_URL')
+# Squonk settings for API calls to Squonk Platform.
+# The environment variable SQUONK2_DMAPI_URL
+# is expected by the squonk2-client package.
+SQUONK2_DMAPI_URL = os.environ.get('SQUONK2_DMAPI_URL')
+SQUONK2_UI_URL = os.environ.get('SQUONK2_UI_URL')
 
-SQUONK_MEDIA_DIRECTORY = "/fragalysis-files"
-SQUONK_INSTANCE_API = "data-manager-ui/results/instance/"
+SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
+SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 
-# This is set up for logging in development probably good to switch off in staging/prod as sentry should deal with
-# errors. Hence connection to DEBUG flag.
-# Note that in development you have to jump on to docker and then look for logs/logfile.
-if DEBUG is True:
+# Configure django logging.
+# We provide a standard formatter that emits a timestamp, the module issuing the log
+# and the level name, a little like this...
+#
+#   2022-05-16T09:04:29 django.request ERROR # Internal Server Error: /viewer/react/landing
+#
+# We provide a console and rotating file handler
+# (50Mi of logging in 10 files of 5M each),
+# with the rotating file handler typically used for everything.
+DISABLE_LOGGING_FRAMEWORK = True if os.environ.get("DISABLE_LOGGING_FRAMEWORK", "no").lower() in ["yes"] else False
+LOGGING_FRAMEWORK_ROOT_LEVEL = os.environ.get("LOGGING_FRAMEWORK_ROOT_LEVEL", "INFO")
+if not DISABLE_LOGGING_FRAMEWORK:
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,
+        'formatters': {
+            'simple': {
+                'format': '%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s',
+                'datefmt': '%Y-%m-%dT%H:%M:%S'}},
         'handlers': {
             'console': {
                 'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
-            },
-            'logfile': {
+                'formatter': 'simple'},
+            'rotating': {
                 'level': 'DEBUG',
-                'class': 'logging.FileHandler',
-                'filename': BASE_DIR + "/logs/logfile.log",
-            },
-        },
-        # 'loggers': {
-        #     'celery': {
-        #         'handlers': ['celery'],
-        #         'level': 'INFO',
-        #         'propagate': False
-        #     },
-        #},
+                'class': 'logging.handlers.RotatingFileHandler',
+                'maxBytes': 5_000_000,
+                'backupCount': 10,
+                'filename': os.path.join(BASE_DIR, 'logs/backend.log'),
+                'formatter': 'simple'}},
+        'loggers': {
+            'asyncio': {
+                'level': 'WARNING'},
+            'django': {
+                'level': 'WARNING'},
+            'mozilla_django_oidc': {
+                'level': 'WARNING'},
+            'urllib3': {
+                'level': 'WARNING'}},
         'root': {
-            'level': 'INFO',
-            'handlers': ['console', 'logfile']
-        },
-    }
+            'level': LOGGING_FRAMEWORK_ROOT_LEVEL,
+            'handlers': ['rotating']}}

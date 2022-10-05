@@ -129,3 +129,6 @@ ENV/
 # ignore test output
 /tests/output/
 .pytest_cache/
+
+# macOS stuff
+**/.DS_Store

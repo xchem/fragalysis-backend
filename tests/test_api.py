@@ -2,6 +2,7 @@ import json
 import zipfile
 import shutil
 
+from deepdiff import DeepDiff
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import RequestFactory
 from django.core.management.color import no_style
@@ -38,6 +39,11 @@ from viewer.target_set_upload import (
     process_target
 )
 
+# Compound set upload functions
+from viewer.tasks import (
+    validate_compound_set,
+    process_compound_set
+)
 
 # Test all these functions
 
@@ -276,24 +282,24 @@ class APIUrlsTestCase(APITestCase):
                 "previous": None,
                 "results": [
                     {
-                        "id": 1,
-                        "title": "DUMMY_TARGET",
-                        "project_id": [1],
-                        "protein_set": [1],
-                        "default_squonk_project": None,
-                        "template_protein": "/media/my_pdb.pdb",
-                        "metadata": None,
-                        "upload_status": None,
-                        "zip_archive": None,
-                        "sequences": [{'chain': '', 'sequence': ''}]
-                    },
-                    {
                         "id": 2,
                         "title": "SECRET_TARGET",
                         "project_id": [2],
                         "protein_set": [2],
                         "default_squonk_project": None,
                         "template_protein": "/media/secret_pdb.pdb",
+                        "metadata": None,
+                        "upload_status": None,
+                        "zip_archive": None,
+                        "sequences": [{'chain': '', 'sequence': ''}]
+                    },
+                    {
+                        "id": 1,
+                        "title": "DUMMY_TARGET",
+                        "project_id": [1],
+                        "protein_set": [1],
+                        "default_squonk_project": None,
+                        "template_protein": "/media/my_pdb.pdb",
                         "metadata": None,
                         "upload_status": None,
                         "zip_archive": None,
@@ -713,10 +719,9 @@ class APIUrlsTestCase(APITestCase):
                 self.client.force_authenticate(user)
             response = self.client.get(self.url_base + "/" + get_type + "/")
             self.assertEqual(response.status_code, 200)
-            self.assertDictEqual(
-                json.loads(json.dumps(response.json(), sort_keys=True)),
-                json.loads(json.dumps(test_data_set[get_type], sort_keys=True)),
-            )
+            a = json.loads(json.dumps(response.json()))
+            b = json.loads(json.dumps(test_data_set[get_type]))
+            self.assertFalse(DeepDiff(a, b, ignore_order=True))
 
     def test_secure(self):
         # Test the login user  can access secure data
@@ -856,3 +861,27 @@ class APIUrlsTestCase(APITestCase):
 
         # Tidy up data
         shutil.rmtree(new_data_folder)
+
+
+    # def test_computed_set(self):
+    #     # NOTE THIS IS COMMENTED OUT BECAUSE compund-set_test.sdf DOES NOT YET HAVE CORRECT
+    #     # REF_MOLS. I TOOK IT FROM AN MPRO BASED SOURCE FILE (RATHER THAN THE CD44-BASED STUFF
+    #     # IN THE TESTTARGET) AND SO SOME CHANGES NEED TO BE MADE). IT MAY ALSO BE THAT
+    #     # TESTTARGET.zip HAS TO BE MODIFIED TO HAVE PROTEIN CODE CONSISTENT WITH THE TARGET NAME.
+    #
+    #     sdf_file = \
+    #         '/code/tests/test_data/compund-set_test.sdf'
+    #     target = 'TESTTARGET'
+    #
+    #     # Check validate step
+    #     validate_output = validate_compound_set(self.user.id, sdf_file, target=target)
+    #
+    #     # Check if SDF validated
+    #     print(validate_output)
+    #     self.assertEqual(validate_output[3], True)
+    #     self.assertEqual(validate_output[0], 'validate')
+    #     self.assertEqual(validate_output[1], 'cset')
+    #
+    #     # Check process step -
+    #     process_output = process_compound_set(validate_output)
+    #     print(process_output)

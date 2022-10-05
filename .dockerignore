@@ -7,3 +7,16 @@ frontend/
 media/
 logs/
 django_app.sock
+.github/
+venv/
+docs/
+doc_templates/
+design_docs/
+logs/
+media/
+static/
+dump.rdb
+django_app.sock
+.readthedocs.yml
+.pylintrc
+/pre-commit-config.yaml

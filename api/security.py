@@ -31,23 +31,30 @@ connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 
 
 def get_remote_conn():
+
     ispyb_credentials = {
-        "user": os.environ["ISPYB_USER"],
-        "pw": os.environ["ISPYB_PASSWORD"],
-        "host": os.environ["ISPYB_HOST"],
-        "port": os.environ["ISPYB_PORT"],
+        "user": os.environ.get("ISPYB_USER"),
+        "pw": os.environ.get("ISPYB_PASSWORD"),
+        "host": os.environ.get("ISPYB_HOST"),
+        "port": os.environ.get("ISPYB_PORT"),
         "db": "ispyb",
         "conn_inactivity": 360,
     }
 
     ssh_credentials = {
-        'ssh_host': os.environ["SSH_HOST"],
-        'ssh_user': os.environ["SSH_USER"],
-        'ssh_password': os.environ["SSH_PASSWORD"],
+        'ssh_host': os.environ.get("SSH_HOST"),
+        'ssh_user': os.environ.get("SSH_USER"),
+        'ssh_password': os.environ.get("SSH_PASSWORD"),
         'remote': True
     }
 
     ispyb_credentials.update(**ssh_credentials)
+
+    # Caution: Credentials may not be set in the environment.
+    #          Assume the credentials are invalid if there is no host.
+    #          If a host is not defined other properties are useless.
+    if not ispyb_credentials["host"]:
+        return None
 
     conn = SSHConnector(**ispyb_credentials)
     return conn
@@ -55,13 +62,20 @@ def get_remote_conn():
 
 def get_conn():
     credentials = {
-        "user": os.environ["ISPYB_USER"],
-        "pw": os.environ["ISPYB_PASSWORD"],
-        "host": os.environ["ISPYB_HOST"],
-        "port": os.environ["ISPYB_PORT"],
+        "user": os.environ.get("ISPYB_USER"),
+        "pw": os.environ.get("ISPYB_PASSWORD"),
+        "host": os.environ.get("ISPYB_HOST"),
+        "port": os.environ.get("ISPYB_PORT"),
         "db": "ispyb",
         "conn_inactivity": 360,
     }
+
+    # Caution: Credentials may not be set in the environment.
+    #          Assume the credentials are invalid if there is no password
+    #          If a host is not defined other properties are useless.
+    if not credentials["host"]:
+        return None
+
     conn = Connector(**credentials)
     return conn
 
@@ -88,7 +102,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         if os.environ.get("TEST_SECURITY_FLAG", False):
             return ["OPEN", "private_dummy_project"]
         else:
-            return ["OPEN"]
+            return ["OPEN", "lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
@@ -126,11 +140,16 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # First check if it's updated in the past 1 hour
         global USER_LIST_DICT
         if self.needs_updating(user):
-            conn = ''
-            if connector=='ispyb':
+            conn = None
+            if connector == 'ispyb':
                 conn = get_conn()
-            if connector=='ssh_ispyb':
+            if connector == 'ssh_ispyb':
                 conn = get_remote_conn()
+
+            # If there is no connection (ISpyB credentials may be missing)
+            # then there's nothing we can do except return an empty list.
+            if conn is None:
+                return []
 
             rs = self.run_query_with_connector(conn=conn, user=user)
 
@@ -146,8 +165,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_proposals_for_user(self):
         user = self.request.user
-        get_from_ispyb = os.environ.get("ISPYB_FLAG", True)
-        if get_from_ispyb:
+        ispyb_user = os.environ.get("ISPYB_USER")
+        if ispyb_user:
             if user.is_authenticated:
                 return self.get_proposals_for_user_from_ispyb(user)
             else:

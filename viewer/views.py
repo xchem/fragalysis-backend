@@ -3,8 +3,12 @@ import os
 import zipfile
 from io import StringIO
 import uuid
+import shlex
 import shutil
+from datetime import datetime
 from wsgiref.util import FileWrapper
+from dateutil.parser import parse
+import pytz
 
 # import the logging library
 import logging
@@ -12,7 +16,7 @@ import pandas as pd
 
 from django.db import connections
 from django.http import HttpResponse, FileResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
@@ -50,6 +54,7 @@ from viewer.models import (
     ScoreDescription,
     File,
     TagCategory,
+    TextScoreValues,
     MoleculeTag,
     SessionProjectTag,
     DownloadLinks,
@@ -57,9 +62,18 @@ from viewer.models import (
     JobFileTransfer
 )
 from viewer import filters
-from .forms import CSetForm, UploadKeyForm, CSetUpdateForm, TSetForm
-
-from .tasks import *
+from .forms import CSetForm, CSetUpdateForm, TSetForm
+from .tasks import (
+    check_services,
+    erase_compound_set_job_material,
+    process_compound_set,
+    process_design_sets,
+    process_job_file_transfer,
+    process_compound_set_job_file,
+    process_target_set,
+    validate_compound_set,
+    validate_target_set,
+)
 from .discourse import create_discourse_post, list_discourse_posts_for_topic, check_discourse_user
 from .download_structures import (
     check_download_links,
@@ -67,9 +81,14 @@ from .download_structures import (
     maintain_download_links
 )
 
+from .squonk_job_file_transfer import (
+    check_file_transfer
+)
+
 from .squonk_job_request import (
     check_squonk_active,
-    create_squonk_job
+    get_squonk_job_config,
+    create_squonk_job,
 )
 
 from viewer.serializers import (
@@ -109,10 +128,19 @@ from viewer.serializers import (
     JobFileTransferWriteSerializer,
     JobRequestReadSerializer,
     JobRequestWriteSerializer,
-    JobCallBackSerializer
+    JobCallBackReadSerializer,
+    JobCallBackWriteSerializer
 )
 
 logger = logging.getLogger(__name__)
+
+# Fields injected in a session object to pass
+# messages between views. This is used by UploadCSet
+# to pass errors and other messages back to the user
+# via the upload-cset.html template.
+_SESSION_ERROR = 'session_error'
+_SESSION_MESSAGE = 'session_message'
+
 
 class VectorsView(ISpyBSafeQuerySet):
     """ DjagnoRF view for vectors
@@ -613,8 +641,8 @@ def react(request):
     """
 
     discourse_api_key = settings.DISCOURSE_API_KEY
-    squonk_api_url = settings.SQUONK_API_URL
-    squonk_ui_url = settings.SQUONK_UI_URL
+    squonk_api_url = settings.SQUONK2_DMAPI_URL
+    squonk_ui_url = settings.SQUONK2_UI_URL
 
     context = {}
     context['discourse_available'] = 'false'
@@ -641,55 +669,11 @@ def react(request):
         # so the Frontend can navigate to it
         context['squonk_ui_url'] = ''
         if squonk_api_url and check_squonk_active(request):
-            context['squonk_ui_url'] = settings.SQUONK_UI_URL
+            context['squonk_ui_url'] = settings.SQUONK2_UI_URL
 
     return render(request, "viewer/react_temp.html", context)
 
 # Upload Compound set functions
-
-
-# email cset upload key
-def cset_key(request):
-    """ View to render and control viewer/generate-key.html - a page allowing an upload key to be generated for a user
-    allowing upload of computed sets
-
-    Methods
-    -------
-    allowed requests:
-        - GET: renders form
-        - POST: generates an upload key, emails it to the user, and informs the user that this will happen
-    url:
-       viewer/cset_key
-    template:
-        viewer/generate-key.html
-    request params:
-        - contact_email (django.forms.FormField): user contact email
-    context:
-        - form (`django.Forms.form`): instance of `viewer.forms.UploadKeyForm`
-        - message (str): A message rendered in the template. Informs the user that their upload key will be emailed
-
-    """
-
-    form = UploadKeyForm()
-    if request.method == 'POST':
-        form = UploadKeyForm(request.POST)
-        email = request.POST['contact_email']
-        new_key = CSetKeys()
-        new_key.user = email
-        new_key.save()
-        key_value = new_key.uuid
-
-        subject = 'Fragalysis: upload compound set key'
-        message = 'Your upload key is: ' + str(
-            key_value) + ' store it somewhere safe. Only one key will be issued per user'
-        email_from = settings.EMAIL_HOST_USER
-        recipient_list = [email, ]
-        send_mail(subject, message, email_from, recipient_list)
-
-        msg = 'Your key will be emailed to: <b>' + email + '</b>'
-
-        return render(request, 'viewer/generate-key.html', {'form': form, 'message': msg})
-    return render(request, 'viewer/generate-key.html', {'form': form, 'message': ''})
 
 
 def save_pdb_zip(pdb_file):
@@ -744,76 +728,6 @@ def save_tmp_file(myfile):
     return tmp_file
 
 
-class UpdateCSet(View):
-    """ View to allow addition of new molecules/pdb files to an existing Computed Set
-
-    Methods
-    -------
-    allowed requests:
-        - GET: renders form
-        - POST: validates and optionally uploads the computed set that the user provides via the template form
-    url:
-        viewer/upload_cset
-    template:
-        viewer/upload-cset.html
-    request params:
-        - target_name (`django.forms.CharField`): Name of the existing fragalysis target to add the computed set to
-        - sdf_file (`django.forms.FileField`): SDF file of all computed molecules to upload for the computed set
-        - pdb_zip (`django.forms.FileField`): zip file of apo pdb files referenced in the ref_pdb field for molecules in sdf_file (optional)
-        - submit_choice (`django.forms.CharField`): 0 to validate, 1 to validate and upload
-        - upload_key (`django.forms.CharField`): users unique upload key, generated by `viewer.views.cset_key`
-    context:
-        - form (`django.Forms.form`): instance of `viewer.forms.CSetForm`
-        - validate_task_id (str): celery task id for validation step
-        - validate_task_status (str): celery task status for validation step
-        - upload_task_id (str): celery task id for upload step
-        - upload_task_status (str): celery task status for upload step
-
-    """
-    def get(self, request):
-        form = CSetUpdateForm()
-        existing_sets = ComputedSet.objects.all()
-        return render(request, 'viewer/update-cset.html', {'form': form, 'sets': existing_sets})
-
-    def post(self, request):
-        check_services()
-        zfile = None
-        form = CSetUpdateForm(request.POST, request.FILES)
-        context = {}
-        if form.is_valid():
-
-            # get all of the variables needed from the form
-            myfile = request.FILES['sdf_file']
-            target = request.POST['target_name']
-
-            # get update choice
-            update_set = request.POST['update_set']
-
-            if 'pdb_zip' in list(request.FILES.keys()):
-                pdb_file = request.FILES['pdb_zip']
-            else:
-                pdb_file = None
-
-            # if there is a zip file of pdbs, check it for .pdb files, and ignore others
-            if pdb_file:
-                zfile, zfile_hashvals = save_pdb_zip(pdb_file)
-
-            # save uploaded sdf to tmp storage
-            tmp_file = save_tmp_file(myfile)
-
-            task_update = add_cset_mols.s(cset=update_set, target=target, sdf_file=tmp_file, zfile=zfile).apply_async()
-
-            context = {}
-            context['update_task_id'] = task_update.id
-            context['update_task_status'] = task_update.status
-
-            # Update client side with task id and status
-            return render(request, 'viewer/update-cset.html', context)
-
-        context['form'] = form
-        return render(request, 'viewer/update-cset.html', context)
-
-
 class UploadCSet(View):
     """ View to render and control viewer/upload-cset.html  - a page allowing upload of computed sets. Validation and
     upload tasks are defined in `viewer.compound_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
@@ -823,7 +737,8 @@ class UploadCSet(View):
     -------
     allowed requests:
         - GET: renders form
-        - POST: validates and optionally uploads the computed set that the user provides via the template form
+        - POST: validates, deletes or optionally uploads the computed set that the user
+                provides via the template form
     url:
         viewer/upload_cset
     template:
@@ -832,92 +747,176 @@ class UploadCSet(View):
         - target_name (`django.forms.CharField`): Name of the existing fragalysis target to add the computed set to
         - sdf_file (`django.forms.FileField`): SDF file of all computed molecules to upload for the computed set
         - pdb_zip (`django.forms.FileField`): zip file of apo pdb files referenced in the ref_pdb field for molecules in sdf_file (optional)
-        - submit_choice (`django.forms.CharField`): 0 to validate, 1 to validate and upload
-        - upload_key (`django.forms.CharField`): users unique upload key, generated by `viewer.views.cset_key`
+        - submit_choice (`django.forms.CharField`): validate, validate and upload, delete
     context:
         - form (`django.Forms.form`): instance of `viewer.forms.CSetForm`
         - validate_task_id (str): celery task id for validation step
         - validate_task_status (str): celery task status for validation step
         - upload_task_id (str): celery task id for upload step
         - upload_task_status (str): celery task status for upload step
-
     """
 
     def get(self, request):
 
-        # test = TargetView().get_queryset(request=request)
-        # targets = request.get('/api/targets/')
-        # int(targets)
+        # Any messages passed to us via the session?
+        # Maybe from a redirect?
+        # It so take them and remove them.
+        session_error = None
+        if _SESSION_ERROR in request.session:
+            session_error = request.session[_SESSION_ERROR]
+            del request.session[_SESSION_ERROR]
+        session_message = None
+        if _SESSION_MESSAGE in request.session:
+            session_message = request.session[_SESSION_MESSAGE]
+            del request.session[_SESSION_MESSAGE]
+
+        # Only authenticated users can upload files
+        # - this can be switched off in settings.py.
+        user = self.request.user
+        if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+            context = {}
+            context['error_message'] \
+                = 'Only authenticated users can upload files' \
+                  ' - please navigate to landing page and Login'
+            return render(request, 'viewer/upload-cset.html', context)
+
         form = CSetForm()
         existing_sets = ComputedSet.objects.all()
-        return render(request, 'viewer/upload-cset.html', {'form': form, 'sets': existing_sets})
+        context = {'form': form,
+                   'sets': existing_sets,
+                   _SESSION_ERROR: session_error,
+                   _SESSION_MESSAGE: session_message}
+        return render(request, 'viewer/upload-cset.html', context)
 
     def post(self, request):
 
-        check_services()
-        zfile = None
-        zfile_hashvals = None
-        zf = None
-        cset = None
-        form = CSetForm(request.POST, request.FILES)
-        context = {}
-        if form.is_valid():
-            # get the upload key
-            # key = request.POST['upload_key']
-            # all_keys = CSetKeys.objects.all()
-            # if it's not valid, return a message
-            # if key not in [str(key.uuid) for key in all_keys]:
-            #     html = "<br><p>You either didn't provide an upload key, or it wasn't valid. Please try again
-            #     (email rachael.skyner@diamond.ac.uk to obtain an upload key)</p>"
-            #     return render(request, 'viewer/upload-cset.html', {'form': form, 'table': html})
+        # Only authenticated users can upload files
+        # - this can be switched off in settings.py.
+        user = self.request.user
+        if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+            context = {}
+            context['error_message'] \
+                = 'Only authenticated users can upload files' \
+                  ' - please navigate to landing page and Login'
+            return render(request, 'viewer/upload-cset.html', context)
 
-            # get all of the variables needed from the form
-            myfile = request.FILES['sdf_file']
-            target = request.POST['target_name']
+        # Celery/Redis must be running.
+        # This call checks and trys to start them if they're not.
+        assert check_services()
+
+        form = CSetForm(request.POST, request.FILES)
+
+        if form.is_valid():
+
+            # Get all the variables needed from the form.
+            # The fields we use will be based on the 'submit_choice',
+            # expected to be one of V (validate), U (upload) or D delete
             choice = request.POST['submit_choice']
 
-            # get update choice
+            # Generate run-time error if the required form fields
+            # are not set based on the choice made...
+
+            # The 'sdf_file' anf 'target_name' are only required for upload/update
+            sdf_file = request.FILES.get('sdf_file')
+            target = request.POST.get('target_name')
             update_set = request.POST['update_set']
 
+            # If a set is named the ComputedSet cannot be 'Anonymous'
+            # and the user has to be the owner.
+            selected_set = None
+            if update_set != 'None':
+                computed_set_query = ComputedSet.objects.filter(unique_name=update_set)
+                if computed_set_query:
+                    selected_set = computed_set_query[0]
+                else:
+                    request.session[_SESSION_ERROR] = \
+                        'The set could not be found'
+                    return redirect('upload_cset')
+
+            # If validating or uploading we need a Target and SDF file.
+            # If updating or deleting we need an update set (that's not 'None')
+            if choice in ['V', 'U']:
+                if sdf_file is None or target is None:
+                    request.session[_SESSION_ERROR] = \
+                        'To Validate or Upload' \
+                        ' you must provide a Target and SDF file'
+                    return redirect('upload_cset')
+            elif choice in ['D']:
+                if update_set == 'None':
+                    request.session[_SESSION_ERROR] = \
+                        'To Delete you must select an existing set'
+                    return redirect('upload_cset')
+
+            # If uploading (updating) or deleting
+            # the set owner cannot be anonymous
+            # and the user needs to be the owner
+            if choice in ['U', 'D'] and selected_set:
+                if selected_set.owner_user.id == settings.ANONYMOUS_USER:
+                    request.session[_SESSION_ERROR] = \
+                        'You cannot Update or Delete Anonymous sets'
+                elif selected_set.owner_user != user:
+                    request.session[_SESSION_ERROR] = \
+                        'You can only Update or Delete sets you own'
+                # Something wrong?
+                # If so redirect...
+                if _SESSION_ERROR in request.session:
+                    return redirect('upload_cset')
+
+            # Save uploaded sdf and zip to tmp storage
+            tmp_pdb_file = None
+            tmp_sdf_file = None
             if 'pdb_zip' in list(request.FILES.keys()):
                 pdb_file = request.FILES['pdb_zip']
-            else:
-                pdb_file = None
-
-            # save uploaded sdf and zip to tmp storage
-            tmp_sdf_file = save_tmp_file(myfile)
-            if pdb_file:
                 tmp_pdb_file = save_tmp_file(pdb_file)
-            else:
-                tmp_pdb_file = None
+            if sdf_file:
+                tmp_sdf_file = save_tmp_file(sdf_file)
 
-            # Settings for if validate option selected
-            if str(choice) == '0':
+            if choice == 'V':
+                # Validate
                 # Start celery task
-                task_validate = validate_compound_set.delay(tmp_sdf_file, target=target, zfile=tmp_pdb_file, update=update_set)
-
-                context = {}
-                context['validate_task_id'] = task_validate.id
-                context['validate_task_status'] = task_validate.status
+                task_params = {'user_id': user.id,
+                               'sdf_file': tmp_sdf_file,
+                               'target': target}
+                if tmp_pdb_file:
+                    task_params['zfile'] = tmp_pdb_file
+                if update_set:
+                    task_params['update'] = update_set
+                task_validate = validate_compound_set.delay(task_params)
 
                 # Update client side with task id and status
+                context = {'validate_task_id': task_validate.id,
+                           'validate_task_status': task_validate.status}
                 return render(request, 'viewer/upload-cset.html', context)
 
-            # if it's an upload, run the compound set task
-            if str(choice) == '1':
+            elif choice == 'U':
+                # Upload
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
+                task_params = {'user_id': user.id,
+                               'sdf_file': tmp_sdf_file,
+                               'target': target}
+                if tmp_pdb_file:
+                    task_params['zfile'] = tmp_pdb_file
+                if update_set:
+                    task_params['update'] = update_set
                 task_upload = (
-                            validate_compound_set.s(tmp_sdf_file, target=target, zfile=tmp_pdb_file, update=update_set) | process_compound_set.s()).apply_async()
-
-                context = {}
-                context['upload_task_id'] = task_upload.id
-                context['upload_task_status'] = task_upload.status
+                        validate_compound_set.s(task_params) |
+                        process_compound_set.s()).apply_async()
 
                 # Update client side with task id and status
+                context = {'upload_task_id': task_upload.id,
+                           'upload_task_status': task_upload.status}
                 return render(request, 'viewer/upload-cset.html', context)
 
-        context['form'] = form
+            elif choice == 'D':
+                # Delete
+                selected_set.delete()
+
+                request.session[_SESSION_MESSAGE] = \
+                    f'Compound set "{selected_set.unique_name}" deleted'
+                return redirect('upload_cset')
+
+        context = {'form': form}
         return render(request, 'viewer/upload-cset.html', context)
 # End Upload Compound set functions
 
@@ -940,7 +939,7 @@ class UploadTSet(View):
     request params:
         - target_name (`django.forms.CharField`): Name of the existing fragalysis target to add the computed set to
         - target_zip (`django.forms.FileField`): zip file of the target dataset
-        - submit_choice (`django.forms.CharField`): 0 to validate, 1 to validate and upload
+        - submit_choice (`django.forms.CharField`): validate, validate and upload
     context:
         - form (`django.Forms.form`): instance of `viewer.forms.TSetForm`
         - validate_task_id (str): celery task id for validation step
@@ -958,7 +957,6 @@ class UploadTSet(View):
             context = {}
             context['error_message'] \
                 = 'Only authenticated users can upload files - please navigate to landing page and Login'
-            logger.info('- UploadTSet.get - authentication error')
             return render(request, 'viewer/upload-tset.html', context)
 
         contact_email = ''
@@ -981,8 +979,10 @@ class UploadTSet(View):
             logger.info('- UploadTSet.post - authentication error')
             return render(request, 'viewer/upload-tset.html', context)
 
-        # Check celery/rdis is up and running
-        check_services()
+        # Celery/Redis must be running.
+        # This call checks and trys to start them if they're not.
+        assert check_services()
+
         form = TSetForm(request.POST, request.FILES)
         if form.is_valid():
             # get all of the variables needed from the form
@@ -1002,43 +1002,35 @@ class UploadTSet(View):
             new_data_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
             # Settings for if validate option selected
-            if str(choice) == '0':
+            if choice == 'V':
                 # Start celery task
                 task_validate = validate_target_set.delay(new_data_file, target=target_name, proposal=proposal_ref,
                                                           email=contact_email)
 
-                context = {}
-                context['validate_task_id'] = task_validate.id
-                context['validate_task_status'] = task_validate.status
-
                 # Update client side with task id and status
-                logger.info('- UploadTSet.post.choice == 0')
+                context = {'validate_task_id': task_validate.id,
+                           'validate_task_status': task_validate.status}
                 return render(request, 'viewer/upload-tset.html', context)
 
             # if it's an upload, run the validate followed by the upload target set task
-            if str(choice) == '1':
+            if choice == 'U':
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
                 task_upload = (validate_target_set.s(new_data_file, target=target_name, proposal=proposal_ref,
                                                      email=contact_email) | process_target_set.s()).apply_async()
 
-                context = {}
-                context['upload_task_id'] = task_upload.id
-                context['upload_task_status'] = task_upload.status
-
                 # Update client side with task id and status
-                logger.info('- UploadTSet.post.choice == 1')
+                context = {'upload_task_id': task_upload.id,
+                           'upload_task_status': task_upload.status}
                 return render(request, 'viewer/upload-tset.html', context)
 
-        context['form'] = form
-
-        logger.info('- UploadTSet.post')
+        context = {'form': form}
         return render(request, 'viewer/upload-tset.html', context)
 
 
 # End Upload Target datasets functions
 def email_task_completion(contact_email, message_type, target_name, target_path=None, task_id=None):
-    """ Notifiy user of upload completion
+    """Notify user of upload completion
     """
 
     logger.info('+ email_notify_task_completion: ' + message_type + ' ' + target_name)
@@ -1242,7 +1234,7 @@ class UploadTaskView(View):
                         - html (str): message to tell the user their data was not processed
 
         """
-        logger.info('+ UploadTaskView.get')
+        logger.debug('+ UploadTaskView.get')
         task = AsyncResult(upload_task_id)
         response_data = {'upload_task_status': task.status,
                          'upload_task_id': task.id}
@@ -1254,7 +1246,7 @@ class UploadTaskView(View):
             return JsonResponse(response_data)
 
         if task.status == 'SUCCESS':
-            logger.info('+ UploadTaskView.get.success')
+            logger.debug('+ UploadTaskView.get.success')
 
             results = task.get()
 
@@ -1931,17 +1923,16 @@ class DSetUploadView(APIView):
         return HttpResponse(json.dumps(string))
 
 
-class ComputedSetView(viewsets.ReadOnlyModelViewSet):
-    """ DjagnoRF view to retrieve information about computed sets
+class ComputedSetView(viewsets.ModelViewSet):
+    """DjagnoRF view to retrieve information about and delete computed sets
 
     Methods
     -------
+    allowed requests:
+        - GET: retrieve all the sets or one based on its name
+        - DELETE: delete a set based on name
     url:
         api/compound-sets
-    queryset:
-        `viewer.models.ComputedSet.objects.filter()`
-    filter fields:
-        - `viewer.models.ComputedSet.target` - ?target=<int>
     returns: JSON
         - name: name of the computed set
         - submitted_sdf: link to the uploaded sdf file
@@ -1962,8 +1953,13 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
                     "spec_version": 1.2,
                     "method_url": "https://github.com/Waztom/xchem-xCOS",
                     "unique_name": "WT-xCOS2-ThreeHop",
-                    "target": 62,
-                    "submitter": 13
+                    "upload_task_id": null,
+                    "upload_status": null,
+                    "upload_progress": null,
+                    "upload_datetime": null,
+                    "target": 1,
+                    "submitter": 1,
+                    "owner_user": 3
                 },]
 
     """
@@ -1971,6 +1967,16 @@ class ComputedSetView(viewsets.ReadOnlyModelViewSet):
     serializer_class = ComputedSetSerializer
     filter_permissions = "project_id"
     filterset_fields = ('target', 'target__title')
+
+    http_method_names = ['get', 'head', 'delete']
+
+    def destroy(self, request, pk=None):
+        """User provides the name of the ComputedSet (that's its primary key).
+        We simply look it up and delete it, returning a standard 204 on success.
+        """
+        computed_set = get_object_or_404(ComputedSet, pk=pk)
+        computed_set.delete()
+        return HttpResponse(status=204)
 
 
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
@@ -2892,7 +2898,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
                               'post response'}
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-
     def create(self, request):
         """Method to handle POST request
         """
@@ -2909,6 +2914,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
             # This is a static link - the contents are stored in the database
             # if required.
             file_url = request.data['file_url']
+            logger.info('Given file_url "%s"', file_url)
             existing_link = DownloadLinks.objects.filter(file_url=file_url)
 
             if existing_link and existing_link[0].static_link:
@@ -2916,47 +2922,60 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 # Note that don't depend 100% on the zip_file flag as the
                 # file might have been deleted from the media server.
                 if (existing_link[0].zip_file and
-                    os.path.isfile(existing_link[0].file_url)):
+                        os.path.isfile(existing_link[0].file_url)):
+                    logger.info('Download is Ready!')
                     return Response({"file_url": existing_link[0].file_url},
                                     status=status.HTTP_200_OK)
                 elif os.path.isfile(existing_link[0].file_url):
                     # If the file is there but zip_file is false, then it is
                     # probably being rebuilt by a parallel process.
+                    logger.info('Download is under construction')
                     content = {'message': 'Zip being rebuilt - '
                                           'please try later'}
                     return Response(content,
                                     status=status.HTTP_208_ALREADY_REPORTED)
                 else:
                     # Otherwise re-create the file.
+                    logger.info('Recreating download...')
                     recreate_static_file (existing_link[0], request.get_host())
                     return Response({"file_url": existing_link[0].file_url},
                                     status=status.HTTP_200_OK)
 
-            content = {
-                'message': 'file_url should only be filled in for static files'}
+            msg = 'file_url should only be provided for static files'
+            logger.warning(msg)
+            content = {'message': msg}
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         # Dynamic files
+
+        if 'target_name' not in request.data:
+            content = {'message': 'If no file_url, a target_name (title) must be provided'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
         target_name = request.data['target_name']
         target = None
+        logger.info('Given target_name "%s"', target_name)
 
-        # Check target is valid
+        # Check target_name is valid
+        # (it should natch the title of an existing target)
         for targ in self.queryset:
-            logger.info(targ.title)
             if targ.title == target_name:
                 target = targ
                 break
 
         if not target:
-            content = {
-                'message': 'Please enter a permitted target name'}
+            msg = f'No target found with title "{target_name}"'
+            logger.warning(msg)
+            content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         if request.data['proteins']:
             # Get first part of protein code
             proteins_list = [p.strip().split(":")[0]
                              for p in request.data['proteins'].split(',')]
+            logger.info('Given %s proteins', len(proteins_list))
         else:
+            logger.info('No proteins supplied')
             proteins_list = []
 
         if len(proteins_list) > 0:
@@ -2969,6 +2988,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
         else:
             # If no protein codes supplied then return the complete list
             proteins = Protein.objects.filter(target_id=target.id).values()
+        logger.info('Collected %s proteins', len(proteins))
 
         if len(proteins) == 0:
             content = {'message': 'Please enter list of valid protein codes '
@@ -3015,6 +3035,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
                 "target": 5,
                 "squonk_project": "project-e1ce441e-c4d1-4ad1-9057-1a11dbdccebe",
                 "proteins": "CD44MMA-x0022_0A, CD44MMA-x0017_0A"
+                "compounds": "PAU-WEI-b9b69149-9"
             }
 
 
@@ -3060,6 +3081,11 @@ class JobFileTransferView(viewsets.ModelViewSet):
             content = {'Only authenticated users can transfer files'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
+        # Can't use this method if the squonk variables are not set!
+        if not settings.SQUONK2_DMAPI_URL:
+            content = {'SQUONK2_DMAPI_URL is not set'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
         target_id = request.data['target']
         target = Target.objects.get(id=target_id)
         snapshot_id = request.data['snapshot']
@@ -3071,30 +3097,9 @@ class JobFileTransferView(viewsets.ModelViewSet):
                 'message': 'A squonk project must be entered'}
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
-        if request.data['proteins']:
-            # Get first part of protein code
-            proteins_list = [p.strip().split(":")[0]
-                             for p in request.data['proteins'].split(',')]
-        else:
-            proteins_list = []
-
-        if len(proteins_list) > 0:
-            proteins = []
-            # Filter by protein codes
-            for code_first_part in proteins_list:
-                prot = Protein.objects.filter(code__contains=code_first_part).values()
-                if prot.exists():
-                    proteins.append(prot.first())
-        else:
-            content = {
-                'message': 'A list of protein codes to transfer must be entered'}
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
-
-        if len(proteins) == 0:
-            content = {'message': 'Please enter list of valid protein codes '
-                                  'for' + " proteins: {} "
-                .format(proteins_list) }
-            return Response(content, status=status.HTTP_404_NOT_FOUND)
+        error, proteins, compounds = check_file_transfer(request)
+        if error:
+            return Response(error['message'], status=error['status'])
 
         # If transfer has already happened find the latest
         job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
@@ -3102,49 +3107,147 @@ class JobFileTransferView(viewsets.ModelViewSet):
             job_transfer = job_transfers.latest('id')
         else:
             job_transfer = None
+        if job_transfer and not job_transfer.target:
+            msg = f'JobTransfer record ({job_transfer.id})' \
+                  f' for snapshot {snapshot_id} has no target.' \
+                  ' Cannot continue'
+            content = {'message': msg}
+            logger.error(msg)
+            return Response(content,
+                            status=status.HTTP_404_NOT_FOUND)
+
+        # The root (in the Squonk project) where files will be written.
+        # This is "understood" by the celery task (which uses this constant).
+        # e.g. 'fragalysis-files'
+        transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
+
+        logger.info('+ target_id=%s', target_id)
+        logger.info('+ snapshot_id=%s', snapshot_id)
+        logger.info('+ squonk_project=%s', squonk_project)
+        logger.info('+ transfer_root=%s', transfer_root)
 
         if job_transfer:
+
+            # A pre-existing transfer...
+            transfer_target = job_transfer.target.title
             if (job_transfer.transfer_status == 'PENDING' or
-                job_transfer.transfer_status == 'STARTED'):
-                content = {'message': 'Files currently being transferred'}
+                    job_transfer.transfer_status == 'STARTED'):
+
+                logger.info('+ Existing transfer_status=%s', job_transfer.transfer_status)
+                content = {'transfer_root': transfer_root,
+                           'transfer_target': transfer_target,
+                           'message': 'Files currently being transferred'}
                 return Response(content,
                                 status=status.HTTP_208_ALREADY_REPORTED)
 
             if (target.upload_datetime and job_transfer.transfer_datetime) \
                     and target.upload_datetime < job_transfer.transfer_datetime:
+
                 # The target data has already been transferred for the snapshot.
-                content = {'message': 'Files already transferred for this job'}
+                logger.info('+ Existing transfer finished (transfer_status=%s)',
+                            job_transfer.transfer_status)
+                content = {'transfer_root': transfer_root,
+                           'transfer_target': transfer_target,
+                           'message': 'Files already transferred for this job'}
                 return Response(content,
                                 status=status.HTTP_200_OK)
+
             # Restart existing transfer - it must have failed or be outdated
             job_transfer.user = request.user
+
         else:
+
             # Create new file transfer job
             job_transfer = JobFileTransfer()
             job_transfer.user = request.user
             job_transfer.proteins = [p['code'] for p in proteins]
+            job_transfer.compounds = [c['name'] for c in compounds]
             job_transfer.squonk_project = squonk_project
             job_transfer.target = Target.objects.get(id=target_id)
             job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
+
+        # The 'transfer target' (a sub-directory of the transfer root)
+        # For example the root might be 'fragalysis-files'
+        # and the target may be `CD44MMA` so the targets will be written to the
+        # Squonk project at fragalysis-files/CD44MMA
+        assert job_transfer.target
+        assert job_transfer.target.title
+        transfer_target = job_transfer.target.title
+        logger.info('+ transfer_target=%s', transfer_target)
 
         job_transfer.transfer_status = 'PENDING'
         job_transfer.transfer_datetime = None
         job_transfer.transfer_progress = None
         job_transfer.save()
 
-        # Check celery/rdis is up and running
-        check_services()
+        # Celery/Redis must be running.
+        # This call checks and trys to start them if they're not.
+        assert check_services()
+
         logger.info('oidc_access_token')
         logger.info(request.session['oidc_access_token'])
 
+        logger.info('+ Starting transfer (celery) (job_transfer.id=%s)...',
+                    job_transfer.id)
         job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
                                                             job_transfer.id)
 
         content = {'id' : job_transfer.id,
+                   'transfer_root': transfer_root,
+                   'transfer_target': transfer_target,
                    'transfer_status': job_transfer.transfer_status,
                    'transfer_task_id': str(job_transfer_task)}
         return Response(content,
                         status=status.HTTP_200_OK)
+
+
+class JobConfigView(viewsets.ReadOnlyModelViewSet):
+    """Django view that calls Squonk to get a requested job configuration
+
+    Methods
+    -------
+    allowed requests:
+        - GET: Get job config
+
+    url:
+       api/job_config
+    get params:
+       - squonk_job: name of the squonk job requested
+
+       Returns: job details.
+
+    example input for get
+
+        .. code-block::
+
+            /api/job_config/?squonk_job_name=run_smina
+    """
+    def list(self, request):
+        """Method to handle GET request
+        """
+        query_params = request.query_params
+        logger.info('+ JobConfigView.get: %s', json.dumps(query_params))
+
+        # Only authenticated users can have squonk jobs
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can access squonk jobs'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        # Can't use this method if the squonk variables are not set!
+        if not settings.SQUONK2_DMAPI_URL:
+            content = {'SQUONK2_DMAPI_URL is not set'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        job_collection = request.query_params.get('job_collection', None)
+        job_name = request.query_params.get('job_name', None)
+        job_version = request.query_params.get('job_version', None)
+        content = get_squonk_job_config(request,
+                                        job_collection=job_collection,
+                                        job_name=job_name,
+                                        job_version=job_version)
+
+        return Response(content)
 
 
 class JobRequestView(viewsets.ModelViewSet):
@@ -3214,6 +3317,10 @@ class JobRequestView(viewsets.ModelViewSet):
     def create(self, request):
         """Method to handle POST request
         """
+        # Celery/Redis must be running.
+        # This call checks and trys to start them if they're not.
+        assert check_services()
+
         logger.info('+ JobRequest.post')
         # Only authenticated users can create squonk job requests.
         user = self.request.user
@@ -3221,14 +3328,20 @@ class JobRequestView(viewsets.ModelViewSet):
             content = {'Only authenticated users can run jobs'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
+        # Can't use this method if the squonk variables are not set!
+        if not settings.SQUONK2_DMAPI_URL:
+            content = {'SQUONK2_DMAPI_URL is not set'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
         try:
             job_id, squonk_url_ext = create_squonk_job(request)
         except ValueError as error:
-            logger.info('Job Request failed: ')
-            logger.info(error)
+            logger.info('Job Request failed: %s', error)
             content = {'error': str(error)}
             return Response(content,
                             status=status.HTTP_400_BAD_REQUEST)
+
+        logger.info('SUCCESS (job_id=%s squonk_url_ext=%s)', job_id, squonk_url_ext)
 
         content = {'id': job_id, 'squonk_url_ext': squonk_url_ext}
         return Response(content,
@@ -3263,7 +3376,147 @@ class JobCallBackView(viewsets.ModelViewSet):
 
     """
 
-    serializer_class = JobCallBackSerializer
     queryset = JobRequest.objects.all()
     lookup_field = "code"
     http_method_names = ['get', 'head', 'put']
+
+    def get_serializer_class(self):
+        """Determine which serializer to use based on whether the request is a GET or a PUT
+
+        Returns
+        -------
+        Serializer (rest_framework.serializers.ModelSerializer):
+            - if GET: `viewer.serializers.JobCallBackWriteSerializer`
+            - if other: `viewer.serializers.JobCallBackWriteSerializer`
+        """
+        if self.request.method in ['GET']:
+            # GET
+            return JobCallBackReadSerializer
+        # PUT
+        return JobCallBackWriteSerializer
+
+    def update(self, request, code=None):
+        """Response to a PUT on the Job-Callback.
+        We're given a 'code' which we use to lookup the corresponding JobRequest
+        (there'll only be one).
+        """
+
+        jr = JobRequest.objects.get(code=code)
+        logger.info('+ JobCallBackView.update(code=%s) jr=%s', code, jr)
+
+        # request.data is rendered as a dictionary
+        if not request.data:
+            return HttpResponse(status=204)
+
+        status = request.data['job_status']
+        # Get the appropriate SQUONK_STATUS...
+        status_changed = False
+        for squonk_status in JobRequest.SQUONK_STATUS:
+            if squonk_status[0] == status and jr.job_status != status:
+                jr.job_status = squonk_status[1]
+                status_changed = True
+                break
+
+        if not status_changed:
+            logger.info('code=%s status=%s ignoring (no status change)',
+                        code, status)
+            return HttpResponse(status=204)
+
+        # Update the state transition time,
+        # assuming UTC.
+        transition_time = request.data.get('state_transition_time')
+        if not transition_time:
+            transition_time = str(datetime.utcnow())
+            logger.warning("Callback is missing state_transition_time"
+                           " (using '%s')", transition_time)
+        transition_time_utc = parse(transition_time).replace(tzinfo=pytz.UTC)
+        jr.job_status_datetime = transition_time_utc
+
+        logger.info('code=%s status=%s transition_time=%s (new status)',
+                    code, status, transition_time)
+
+        # If the Job's start-time is not set, set it.
+        if not jr.job_start_datetime:
+            logger.info('Setting job START datetime (%s)', transition_time)
+            jr.job_start_datetime = transition_time_utc
+
+        # Set the Job's finish time (once) if it looks lie the Job's finished.
+        # We can assume the Job's finished if the status is one of a number
+        # of values...
+        if not jr.job_finish_datetime and status in ('SUCCESS', 'FAILURE', 'REVOKED'):
+            logger.info('Setting job FINISH datetime (%s)', transition_time)
+            jr.job_finish_datetime = transition_time_utc
+
+        # Save - before going further.
+        jr.save()
+
+        if status != 'SUCCESS':
+            # Go no further unless SUCCESS
+            return HttpResponse(status=204)
+
+        logger.info('Job finished (SUCCESS). Can we upload the results..?')
+
+        # SUCCESS ... automatic upload?
+        #
+        # Only continue if the target file is 'merged.sdf'.
+        # For now there must be an '--outfile' in the job info's 'command'.
+        # Here we have hard-coded the expectations because the logic to identify the
+        # command's outputs is not fully understood.
+        # The command is a string that we split and search.
+        job_output = ''
+        jr_job_info_msg = jr.squonk_job_info[1]
+        command = jr_job_info_msg.get('command')
+        command_parts = shlex.split(command)
+        outfile_index = 0
+        while outfile_index < len(command_parts)\
+                and command_parts[outfile_index] != '--outfile':
+            outfile_index += 1
+        # Found '--command'?
+        if command_parts[outfile_index] == '--outfile'\
+                and outfile_index < len(command_parts) - 1:
+            # Yes ... the filename is the next item in the list
+            job_output = command_parts[outfile_index + 1]
+        job_output_path = '/' + os.path.dirname(job_output)
+        job_output_filename = os.path.basename(job_output)
+
+        logging.info('job_output_path="%s"', job_output_path)
+        logging.info('job_output_filename="%s"', job_output_filename)
+
+        # If it's not suitably named, leave
+        expected_squonk_filename = 'merged.sdf'
+        if job_output_filename != expected_squonk_filename:
+            # Incorrectly named file - nothing to get/upload.
+            logger.info('SUCCESS but not uploading.'
+                        ' Expected "%s" as job_output_filename.'
+                        ' Found "%s"', expected_squonk_filename, job_output_filename)
+            return HttpResponse(status=204)
+
+        if jr.upload_status != 'PENDING':
+            logger.warning('SUCCESS but ignoring.'
+                           ' upload_status=%s (already uploading?)', jr.upload_status)
+            return HttpResponse(status=204)
+
+        # Change of status and SUCCESS
+        # - mark the job upload as 'started'
+        jr.upload_status = "STARTED"
+        jr.save()
+
+        # Initiate an upload (and removal) of files from Squonk.
+        # Which requires the linking of several tasks.
+        # We star the process with 'process_compound_set_job_file'
+        # with the path and filename already discoverd...
+        task_params = {'jr_id': jr.id,
+                       'transition_time': transition_time,
+                       'job_output_path': job_output_path,
+                       'job_output_filename': job_output_filename}
+        task_upload = (
+             process_compound_set_job_file.s(task_params) |
+             validate_compound_set.s() |
+             process_compound_set.s() |
+             erase_compound_set_job_material.s(job_request_id=jr.id)
+        ).apply_async()
+
+        logger.info('Started process_job_file_upload(%s) task_upload=%s',
+                    jr.id, task_upload)
+
+        return HttpResponse(status=204)

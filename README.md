@@ -18,7 +18,6 @@ The stack consists of three services, running as containers: -
 - a Postgres database (note: this used to be MySQL)
 - a neo4j graph database
 - the fraglaysis stack
-- a transient data loader container
 
 The stack is formed from code resident in a number of repositories.
 Begin by forking repositories you anticipate editing (although you really want
@@ -31,7 +30,6 @@ The repositories are:
 - [xchem/fragalysis-frontend](https://github.com/xchem/fragalysis-frontend)
 - [xchem/fragalysis-backend](https://github.com/xchem/fragalysis-backend)
 - [xchem/fragalysis-stack](https://github.com/xchem/fragalysis-stack)
-- [xchem/fragalysis-loader](https://github.com/xchem/fragalysis-loader)
 
 ### Prerequisites
 
@@ -87,6 +85,39 @@ If not exists file `fragalysis/data/input/django_data/EXAMPLE/TARGET_LIST` creat
 ```
 Mpro, NUDT7A,...
 ```
+
+## Making database migrations
+The best approach is to spin-up the development stack (locally) using
+`docker-compose` and then shell into the Django (stack). For example,
+to make new migrations called "add_job_request_start_and_finish_times"
+for the viewer's models run the following: -
+
+    docker-compose up -d
+    docker-compose exec stack bash
+
+Then from within the stack...
+
+    python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
+
+Exit the container and tear-down the deployemnt: -
+
+    docker-compose down
+
+## Pre-commit hooks
+The project uses [pre-commit] to enforce linting of files prior to committing
+them to the upstream repository.
+
+To get started review the pre-commit utility and then set-up your local clone
+by following the **Installation** and **Quick Start** sections of the
+pre-commit documentation.
+
+Ideally from a Python environment...
+
+    pip install --upgrade pip
+    pip install -r build-requirements.txt
+    pre-commit install -t commit-msg -t pre-commit
+
+Now the project's rules will run on every commit.
 
 ## Start
 Start `Fragalysis stack` (All infrastructure - databases + populating data)
@@ -184,6 +215,6 @@ The documents will be stored in the /design_docs folder in the repo. Current doc
 - [Fragalysis Tags Design V1.0](design_docs/Fragalysis_Tags_Design_V1.0.pdf)
 - [Fragalysis Design #651 Fix Data Download V2.0](design_docs/Fragalysis_Design_651_Fix_Data_Download_V2.0.pdf)
 - [Fragalysis Job Launcher V1.0](design_docs/Fragalysis_Job_Launcher_V1.0.pdf)
+- [Fragalysis Job Launcher V2.0](design_docs/Fragalysis_Job_Launcher_Phase2_V1.0.pdf)
 
-
-
+[pre-commit]: https://pre-commit.com

@@ -13,7 +13,6 @@
 # 3. Enter the backend container and create new migrations
 # $ docker exec -it fragalysis-backend_edit_1 bash
 # # python manage.py makemigrations
-# # python manage.py makemigrations (optional)
 #
 # 4. Commit new migrations!
 #
@@ -21,7 +20,7 @@
 # - To try out a migration here:
 # # python manage.py migrate
 #
-# - To rerun a migration you need to --fake beack to the last good one:
+# - To rerun a migration you need to --fake back to the last good one:
 # # python manage.py migrate --fake viewer 0016_auto_20211005_1420
 # # python manage.py migrate
 #
