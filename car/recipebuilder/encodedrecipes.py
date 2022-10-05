@@ -8,6 +8,7 @@ encoded_recipes = {
         "intramolecular": True,
         "recipes": {
             "standard": {
+                "yield": 85,
                 "reactionSMARTS": "[#6:1](=[#8:2])-[#8].[#7;H3,H2,H1:3]>>[#6:1](=[#8:2])-[#7:3]",
                 "references": None,
                 "actionsessions": [
@@ -460,6 +461,7 @@ encoded_recipes = {
         "intramolecular": True,
         "recipes": {
             "standard": {
+                "yield": 85,
                 "reactionSMARTS": "[#7;H2,H1:3].[#6:1](=[#8:2])-[#17]>>[#6:1](=[#8:2])-[#7:3]",
                 "referencess": None,
                 "actionsessions": [
@@ -692,6 +694,7 @@ encoded_recipes = {
         "intramolecular": False,
         "recipes": {
             "standard": {
+                "yield": 75,
                 "reactionSMARTS": "[c:1]-[F,Cl,Br,I].[#6:2]-[#7;H2,H1:3]>>[c:1]-[#7:3]-[#6:2]",
                 "referencess": [
                     "https://pubs.acs.org/doi/pdf/10.1021/acscatal.9b00981"
@@ -898,6 +901,7 @@ encoded_recipes = {
                     },
                 ],
                 "NMP": {
+                    "yield": 75,
                     "reactionSMARTS": "[c:1]-[F,Cl,Br,I].[#6:2]-[#7;H2,H1:3]>>[c:1]-[#7:3]-[#6:2]",
                     "references": [
                         "https://pubs.acs.org/doi/pdf/10.1021/acscatal.9b00981"
@@ -1123,6 +1127,7 @@ encoded_recipes = {
         "intramolecular": True,
         "recipes": {
             "standard": {
+                "yield": 80,
                 "reactionSMARTS": "[#6:1](=[#8:2])-[#8].[#7;H3,H2,H1:3]>>[#6:1](=[#8:2])-[#7:3]",
                 "references": ["https://doi.org/10.3390/molecules25051040"],
                 "actionsessions": [
@@ -1359,6 +1364,7 @@ encoded_recipes = {
         "intramolecular": False,
         "recipes": {
             "standard": {
+                "yield": 70,
                 "reactionSMARTS": "[#6:3]-[#7;H3,H2,H1:2].[c:1]-[F,Cl,Br,I]>>[#6:3]-[#7:2]-[c:1]",
                 "references": None,
                 "actionsessions": [
@@ -1787,6 +1793,7 @@ encoded_recipes = {
         "intramolecular": True,
         "recipes": {
             "standard": {
+                "yield": 70,
                 "reactionSMARTS": "[#6:2](=[#8])(-[#6:1]).[#7;H3,H2,H1:3]>>[#6:2](-[#6:1])-[#7:3]",
                 "references": None,
                 "actionsessions": [
@@ -2051,6 +2058,7 @@ encoded_recipes = {
         "intramolecular": False,
         "recipes": {
             "standard": {
+                "yield": 70,
                 "reactionSMARTS": "[CH:1].[c:2]-[Cl,Br,I]>>[C:1]-[c:2]",
                 "references": [
                     "https://pubs.rsc.org/en/content/articlelanding/2008/cc/b810928a#!",
@@ -2276,6 +2284,7 @@ encoded_recipes = {
                     },
                 ],
                 "NMP": {
+                    "yield": 70,
                     "reactionSMARTS": "[CH:1].[c:2]-[Cl,Br,I]>>[C:1]-[c:2]",
                     "references": [
                         "https://pubs.rsc.org/en/content/articlelanding/2008/cc/b810928a#!",
@@ -2523,6 +2532,7 @@ encoded_recipes = {
         "intramolecular": False,
         "recipes": {
             "standard": {
+                "yield": 75,
                 "reactionSMARTS": "[c:1]-[F,Cl,Br,I].[#6:2]-[B]>>[c:1]-[#6:2]",
                 "references": None,
                 "actionsessions": [
@@ -2738,6 +2748,7 @@ encoded_recipes = {
         "intramolecular": True,
         "recipes": {
             "standard": {
+                "yield": 75,
                 "reactionSMARTS": "[#16:5](=[#8])(=[#8:7])-[#17].[#6]-[#7;H2,H1:2]>>[#16:5](=[#8])(=[#8:7])-[#7:2]",
                 "references": None,
                 "actionsessions": [
@@ -3134,6 +3145,7 @@ encoded_recipes = {
         "intramolecular": False,
         "recipes": {
             "standard": {
+                "yield": 85,
                 "reactionSMARTS": "[#7:2].[#8:3]-[#6:1](=[#8:4])-[#8:5]>>[#7:2]-[#6:1](=[#8])-[#8]-[#6](-[#6])(-[#6])(-[#6])",
                 "references": None,
                 "actionsessions": [
@@ -3331,6 +3343,7 @@ encoded_recipes = {
         "intramolecular": False,
         "recipes": {
             "standard": {
+                "yield": 85,
                 "reactionSMARTS": "[#6:9]-[#6:8]-[#7:2]-[#6](=[#8])-[#8]-[#6](-[#6])(-[#6])(-[#6]).[#1]-[#17]>>[#6:9]-[#6:8]-[#7:2]",
                 "references": None,
                 "actionsessions": [
@@ -3508,6 +3521,7 @@ encoded_recipes = {
         "intramolecular": False,
         "recipes": {
             "standard": {
+                "yield": 70,
                 "reactionSMARTS": "[c:2]-[F,Cl,Br,I].[#6:1]-[#16;H1]>>[c:2]-[#16:3]-[#6:1]",
                 "references": ["https://doi.org/10.1002/ejoc.201001393"],
                 "actionsessions": [
@@ -3719,6 +3733,7 @@ encoded_recipes = {
         "intramolecular": False,
         "recipes": {
             "standard": {
+                "yield": 70,
                 "reactionSMARTS": "[c:2]-[F,Cl,Br,I].[CX3;H2:1]>>[c:2]-[CX3;H1:1]",  # SMARTS for terminal alkenes only
                 "references": ["Platinum Metals Rev., 1999, 43, (4), 138"],
                 "actionsessions": [

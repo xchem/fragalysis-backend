@@ -12,6 +12,8 @@ import logging
 
 from car.models import Batch, Method, Product, Reaction
 
+from car.recipebuilder.encodedrecipes import encoded_recipes
+
 logger = logging.getLogger(__name__)
 
 
@@ -140,6 +142,47 @@ def getReactionQuerySet(
     if method_id:
         reactionqueryset = Reaction.objects.filter(method_id=method_id).order_by("id")
     return reactionqueryset
+
+
+def checkProceedingReactions(reaction_id: int) -> QuerySet[Reaction]:
+    """Checks if there are any reactions that proceed the reaction
+
+    Parameters
+    ----------
+    reaction_id: int
+        The reaction id of the Django model object to search for
+        all relative proceeding reactions objects
+
+    Returns
+    -------
+    proceedingreactionqueryset: QuerySet[Reaction]
+        Returns the reactions that proceed the reaction
+    """
+    reactionobj = getReaction(reaction_id=reaction_id)
+    proceedingreactionqueryset = Method.objects.get(
+        id=reactionobj.method_id.id
+    ).reactions.filter(id__gt=reaction_id)
+    return proceedingreactionqueryset
+
+
+def getReactionYields(reactionclasslist: list) -> list[int]:
+    """Gets the reaction yields
+
+    Parameters
+    ----------
+    reactionclasslist: list
+        The reaction classes to find yields for
+
+    Returns
+    -------
+    reactionyields: list[float]
+        Returns the reaction yields eg. 0.80
+    """
+    reactionyields = [
+        (encoded_recipes[reactionclass]["recipes"]["standard"]["yield"] / 100)
+        for reactionclass in reactionclasslist
+    ]
+    return reactionyields
 
 
 def checkPreviousReactionProducts(reaction_id: int, smiles: str) -> QuerySet[Reaction]:
