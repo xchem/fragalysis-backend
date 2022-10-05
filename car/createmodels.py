@@ -1,10 +1,11 @@
-"""Create Django models from IBM API output"""
+"""Create Django models from Manifold API/custom chemistry outputs"""
 from __future__ import annotations
+from typing import Tuple
+import inspect
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-from statistics import mean
 
 from .mcule.apicalls import MCuleAPI
 
@@ -13,135 +14,296 @@ from .models import (
     Project,
     Batch,
     PubChemInfo,
+    ActionSession,
     Target,
     Method,
     Reaction,
     Product,
     Reactant,
     CatalogEntry,
-    MculeQuote,
 )
 
 # Import action models
 from .models import (
+    ActionSession,
     AddAction,
-    AnalyseAction,
     ExtractAction,
-    FilterAction,
-    QuenchAction,
-    SetTemperatureAction,
+    MixAction,
     StirAction,
 )
 
 from .utils import (
-    calculateproductmols,
+    calculateProductMols,
     createSVGString,
     createReactionSVGString,
     getPubChemCAS,
     getPubChemCompound,
 )
 
+import logging
 
-def createProjectModel(project_info):
+logger = logging.getLogger(__name__)
+
+
+# def checkPreviousReactionProduct(
+#     reaction_id: int, smiles: str, returnqueryset: bool = False
+# ):
+#     """Checks if reactant is the product from a previous reaction
+
+#     Parameters
+#     ----------
+#     reaction_id: int
+#         The reactant's reaction, all previous reactions will be found
+#         using the method related with this reaction
+#     smiles: str
+#         The SMILES of the reactant to see search for if it was a product of a previous reaction
+#     returnqueryset: bool
+#         Optional paramater to return product queryset
+
+#     Returns
+#     -------
+#     previous_product_queryset: QuerySet[Product]
+#         Retuens the queryset if the returnqueryset exists and the retrunqueryset parameters
+#         is set to True.
+#     """
+
+#     reaction_obj = Reaction.objects.get(id=reaction_id)
+#     previous_product_queryset = (
+#         Method.objects.get(method_id=reaction_obj.method_id)
+#         .reactions.all()
+#         .filter(products__smiles=smiles)
+#     )
+#     if returnqueryset:
+#         if previous_product_queryset:
+#             return previous_product_queryset
+#         else:
+#             return False
+#     if not returnqueryset:
+#         if previous_product_queryset:
+#             return True
+#         else:
+#             return False
+
+
+def createProjectModel(project_info: dict) -> Tuple[int, str]:
+    """Creates a Django project object - a project model entry
+
+    Parameters
+    ----------
+    project_info: dict
+        The project info captured from the frontend project upload page
+
+    Returns
+    -------
+    project.id: int
+        The id of the project model object created
+    project.name: str
+        The name of the project model object created
+    """
     project = Project()
     project.name = project_info["projectname"]
     project.submittername = project_info["submittername"]
     project.submitterorganisation = project_info["submitterorganisation"]
     project.proteintarget = project_info["proteintarget"]
     project.save()
-    return project.id, project.name
+    return project.id
 
 
-def createBatchModel(project_id, batch_tag, batch_id=None):
+def createBatchModel(project_id: int, batchtag: str, batch_id: int = None) -> int:
+    """Creates a Django batch object - a batch of target compounds model entry
+
+    Parameters
+    ----------
+    project_id: int
+        The project model object id
+    batchtag: str
+        The tag or name used to create a batch
+    batch_id: int
+        Optional batch id, batch id included if batch is created from a previous parent batch.
+        New parent batches will not have a batch id.
+
+    Returns
+    -------
+    batch.id: int
+        The id of the batch model object created
+    """
     batch = Batch()
     project_obj = Project.objects.get(id=project_id)
     batch.project_id = project_obj
     if batch_id:
         fk_batch_obj = Batch.objects.get(pk=batch_id)
         batch.batch_id = fk_batch_obj
-    batch.batch_tag = batch_tag
+    batch.batchtag = batchtag
     batch.save()
     return batch.id
 
 
-def createTargetModel(batch_id, smiles, target_mass):
-    """
-    Function that creates a Target object
-    if the csv file uploaded is validated and
-    the user wants to upload the data
+def createTargetModel(batch_id: int, smiles: str, mass: float) -> int:
+    """Creates a Django target object - a target compound model entry
 
-    project_id: string id of project created for upload
-    smiles: string a valid smiles
+    Parameters
+    ----------
+    batch_id: int
+        The batch model object id that the target is linked to
+    smiles: str
+        The SMILES of the target compound
+    mass: float
+        The mass to be made (mg) for the target compound
+
+    Returns
+    -------
+    target.id: int
+        The id of the target model object created
     """
     target = Target()
     batch_obj = Batch.objects.get(id=batch_id)
-    batch_tag = batch_obj.batch_tag
+    batchtag = batch_obj.batchtag
     target.batch_id = batch_obj
     target.smiles = smiles
-    target.targetmols = calculateproductmols(target_mass, smiles)
-    target.name = batch_tag
+    target.mols = calculateProductMols(mass, smiles)
+    target.name = batchtag
     target_svg_string = createSVGString(smiles)
     target_svg_fn = default_storage.save(
         "targetimages/" + target.name + ".svg", ContentFile(target_svg_string)
     )
     target.image = target_svg_fn
-    target.targetmass = target_mass
-    target.unit = "mg"
+    target.mass = mass
     target.save()
     return target.id
 
 
-def createMethodModel(target_id, nosteps, otchem):
+def createMethodModel(target_id: int, nosteps: int, otchem: bool) -> int:
+    """Creates a Django method object - a method is a collection of reactions
+       for a target compound
+
+    Parameters
+    ----------
+    target_id: int
+        The target model object id the method is linked to
+    nosteps: str
+        The number of reaction steps in a method
+    otchem: bool
+        Set to True if all the reactions in a method can be executed on the
+        OpenTrons
+
+    Returns
+    -------
+    method.id: int
+        The id of the method model object created
+    """
     method = Method()
     target_obj = Target.objects.get(id=target_id)
     method.target_id = target_obj
     method.nosteps = nosteps
     method.otchem = otchem
     method.save()
-
     return method.id
 
 
 def createReactionModel(
-    method_id, reaction_class, reaction_smarts, reaction_temperature=None
-):
+    method_id: int,
+    reaction_class: str,
+    reaction_number: int,
+    intramolecular: bool,
+    reaction_smarts: str,
+    reaction_temperature: float = None,
+    recipe_type: str = None,
+) -> int:
+    """Creates a Django reaction object - a chemical reaction
+
+    Parameters
+    ----------
+    method_id: int
+        The method model object id the reaction is linked to
+    reaction_class: str
+        The name of the reaction eg. Buchwald-Hartwig amination
+    reaction_number: int
+        The number of the reaction
+    intramolecular: bool
+        Set to True if the reaction is intramolecular
+    reaction_SMARTS: str
+        The SMARTS for the reaction
+    reaction_temperature: float
+        The reaction temperature
+    recipe_type: str
+        The optional (if found in encoded recipes) type of encoded recipe used to execute the reaction
+
+    Returns
+    -------
+    reaction.id: int
+        The id of the reaction model object created
+    """
     reaction = Reaction()
     method_obj = Method.objects.get(id=method_id)
     reaction.method_id = method_obj
     reaction.reactionclass = reaction_class
+    reaction.number = reaction_number
+    reaction.intramolecular = intramolecular
     if reaction_temperature:
-        reaction.reactiontemperature = reaction_temperature
+        reaction.temperature = reaction_temperature
+    if recipe_type:
+        reaction.recipetype = recipe_type
     reaction_svg_string = createReactionSVGString(reaction_smarts)
     reaction_svg_fn = default_storage.save(
         "reactionimages/" + reaction_class + ".svg", ContentFile(reaction_svg_string)
     )
-    reaction.reactionimage = reaction_svg_fn
+    reaction.image = reaction_svg_fn
     reaction.save()
 
     return reaction.id
 
 
-def createPubChemInfoModel(compoundid: int, smiles: str, cas=None):
-    """Create PubChemInfo model"""
+def createPubChemInfoModel(compoundid: int, smiles: str, cas: str = None) -> object:
+    """Creates a Django pubcheminfo object - the PubChem info captured for a
+    compound
+
+    Parameters
+    ----------
+    compoundid: str
+        The PubChem DB compound id
+    smiles: str
+        The SMILES of the compound
+    cas: str
+        The optional CAS number for the compound
+
+    Returns
+    -------
+    pubcheminfo: object
+        The PubChem model object created
+    """
     pubcheminfo = PubChemInfo()
     pubcheminfo.smiles = smiles
     if cas:
         pubcheminfo.cas = cas
     pubcheminfo.compoundid = compoundid
-    pubcheminfo.compoundsummarylink = (
-        "https://pubchem.ncbi.nlm.nih.gov/compound/{}".format(compoundid)
+    pubcheminfo.summaryurl = "https://pubchem.ncbi.nlm.nih.gov/compound/{}".format(
+        compoundid
     )
-    pubcheminfo.lcsslink = (
+    pubcheminfo.lcssurl = (
         "https://pubchem.ncbi.nlm.nih.gov/compound/{}#datasheet=LCSS".format(compoundid)
     )
     pubcheminfo.save()
     return pubcheminfo
 
 
-def getPubChemInfo(smiles: str):
-    """Searches if PubChemInfo object exists for smiles. If not checks if
-    an entry exists on PuBChem and creates a PubChemInfo DjangoObjectInstance
+def getPubChemInfo(smiles: str) -> object:
+    """Searches if Django PubChemInfo object exists for smiles. If not checks if
+    an entry exists on PuBChem and if it does, creates a PubChemInfo model object
+
+    Parameters
+    ----------
+    smiles: str
+        The SMILES of the compound
+
+    Returns
+    -------
+    pubcheminfo: object
+        The PubChem model object found or created
+    status: bool
+        Returns False if no Django PubChemInfo model instance found or
+        PubChem DB entry found for the compound
     """
+
     pubcheminfoqueryset = PubChemInfo.objects.filter(smiles=smiles)
     if pubcheminfoqueryset:
         pubcheminfo = pubcheminfoqueryset[0]
@@ -164,36 +326,84 @@ def getPubChemInfo(smiles: str):
             return False
 
 
-def createProductModel(reaction_id, project_name, batch_tag, product_smiles):
-    pubcheminfoobj = getPubChemInfo(smiles=product_smiles)
+def createProductModel(reaction_id: int, product_smiles: str):
+    """Creates a Django product object - the product of a reaction
+
+    Parameters
+    ----------
+    reaction_id: int
+        The reaction id the product is linked to
+    product_smiles: str
+        The SMILES of the product
+    """
+    # pubcheminfoobj = getPubChemInfo(smiles=product_smiles)
     product = Product()
-    product.name = "{}-{}".format(project_name, batch_tag)
     reaction_obj = Reaction.objects.get(id=reaction_id)
     product.reaction_id = reaction_obj
     product.smiles = product_smiles
-    if pubcheminfoobj:
-        product.pubcheminfo_id = pubcheminfoobj
+    # if pubcheminfoobj:
+    #     product.pubcheminfo_id = pubcheminfoobj
     product_svg_string = createSVGString(product_smiles)
     product_svg_fn = default_storage.save(
-        "productimages/" + product.name + ".svg", ContentFile(product_svg_string)
+        "productimages/.svg", ContentFile(product_svg_string)
     )
     product.image = product_svg_fn
     product.save()
 
 
-def createReactantModel(reaction_id, reactant_smiles):
-    pubcheminfoobj = getPubChemInfo(smiles=reactant_smiles)
+def createReactantModel(
+    reaction_id: int, reactant_smiles: str, previous_reaction_product: bool
+) -> int:
+    """Creates a Django reactant object - the reactant in a reaction
+
+    Parameters
+    ----------
+    reaction_id: int
+        The PubChem DB compound id
+    reactant_smiles: str
+        The SMILES of the reactant
+    previous_reaction_product: bool
+        If the reactant is the product from a previous reaction in the method. Used
+        for later determining if reactant needs to be purchased vs is made in the
+        synthesis
+
+    Returns
+    -------
+    reactant_id: int
+        The id of the reactant model object created
+    """
+    # pubcheminfoobj = getPubChemInfo(smiles=reactant_smiles)
     reactant = Reactant()
     reaction_obj = Reaction.objects.get(id=reaction_id)
     reactant.reaction_id = reaction_obj
     reactant.smiles = reactant_smiles
-    if pubcheminfoobj:
-        reactant.pubcheminfo_id = pubcheminfoobj
+    # if pubcheminfoobj:
+    #     reactant.pubcheminfo_id = pubcheminfoobj
+    reactant.previousreactionproduct = previous_reaction_product
     reactant.save()
     return reactant.id
 
 
-def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
+def createCatalogEntryModel(
+    catalog_entry: dict = None,
+    target_id: int = None,
+    reactant_id: int = None,
+    previous_reaction_product: bool = False,
+):
+    """Creates a Django catalogentry object - the catalog details
+       for a reactant or target
+
+    Parameters
+    ----------
+    catalog_entry: dict
+        The optional Manifold catalog entry information
+    target_id: int
+        The id of the Django target model object
+    reactant_id: int
+        The optional id of the Django reactant model object
+    previous_reaction_product: bool
+        If the reactant is a previous product from a reaction, therfor does not need to be purchased
+    """
     catalogentry = CatalogEntry()
     if target_id:
         target_obj = Target.objects.get(id=target_id)
@@ -202,70 +412,78 @@ def createCatalogEntryModel(catalog_entry, target_id=None, reactant_id=None):
         reactant_obj = Reactant.objects.get(id=reactant_id)
         catalogentry.reactant_id = reactant_obj
 
-    catalogentry.vendor = catalog_entry["catalogName"]
-    catalogentry.catalogid = catalog_entry["catalogId"]
-
-    if catalog_entry["catalogName"] == "generic":
-        catalogentry.price = 0
+    if previous_reaction_product:
+        catalogentry.vendor = "reaction product"
+        catalogentry.catalogid = "NA"
+        catalogentry.priceinfo = "< $100 / g"
+        catalogentry.upperprice = 0
         catalogentry.leadtime = 0
 
-    if catalog_entry["purchaseInfo"]["isScreening"]:
-        if catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"] != "unknown":
-            catalogentry.leadtime = catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"]
-        else:
-            catalogentry.leadtime = None
-        if catalog_entry["purchaseInfo"]["scrPriceRange"] != "unknown":
-            priceinfo = catalog_entry["purchaseInfo"]["scrPriceRange"]
-            catalogentry.priceinfo = priceinfo
-            priceinfo = priceinfo.replace(" ", "")
-            # Check type of range is less than or given range
-            if priceinfo[0] == "<" or priceinfo[0] == ">":
-                if "k" in priceinfo:
-                    upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
-                else:
-                    upperprice = int("".join(filter(str.isdigit, priceinfo)))
-            if priceinfo[0] == "$":
-                if "k" in priceinfo:
-                    upperprice = (
-                        int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
-                        * 1000
-                    )
-                else:
-                    upperprice = int(
-                        "".join(filter(str.isdigit, priceinfo.split("-")[1]))
-                    )
-            catalogentry.upperprice = upperprice
-        else:
-            catalogentry.price = None
+    if not previous_reaction_product:
+        catalogentry.vendor = catalog_entry["catalogName"]
+        catalogentry.catalogid = catalog_entry["catalogId"]
 
-    if not catalog_entry["purchaseInfo"]["isScreening"]:
-        if catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"] != "unknown":
-            catalogentry.leadtime = catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"]
-        else:
+        if catalog_entry["catalogName"] == "generic":
+            catalogentry.upperprice = None
             catalogentry.leadtime = None
-        if catalog_entry["purchaseInfo"]["bbPriceRange"] != "unknown":
-            priceinfo = catalog_entry["purchaseInfo"]["bbPriceRange"]
-            catalogentry.priceinfo = priceinfo
-            priceinfo = priceinfo.replace(" ", "")
-            # Check type of range is less than or given range
-            if priceinfo[0] == "<" or priceinfo[0] == ">":
-                if "k" in priceinfo:
-                    upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
-                else:
-                    upperprice = int("".join(filter(str.isdigit, priceinfo)))
-            if priceinfo[0] == "$":
-                if "k" in priceinfo:
-                    upperprice = (
-                        int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
-                        * 1000
-                    )
-                else:
-                    upperprice = int(
-                        "".join(filter(str.isdigit, priceinfo.split("-")[1]))
-                    )
-            catalogentry.upperprice = upperprice
-        else:
-            catalogentry.price = None
+
+        if catalog_entry["purchaseInfo"]["isScreening"]:
+            if catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"] != "unknown":
+                catalogentry.leadtime = catalog_entry["purchaseInfo"][
+                    "scrLeadTimeWeeks"
+                ]
+            else:
+                catalogentry.leadtime = None
+            if catalog_entry["purchaseInfo"]["scrPriceRange"] != "unknown":
+                priceinfo = catalog_entry["purchaseInfo"]["scrPriceRange"]
+                catalogentry.priceinfo = priceinfo
+                priceinfo = priceinfo.replace(" ", "")
+                if priceinfo[0] == "<" or priceinfo[0] == ">":
+                    if "k" in priceinfo:
+                        upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
+                    else:
+                        upperprice = int("".join(filter(str.isdigit, priceinfo)))
+                if priceinfo[0] == "$":
+                    if "k" in priceinfo:
+                        upperprice = (
+                            int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
+                            * 1000
+                        )
+                    else:
+                        upperprice = int(
+                            "".join(filter(str.isdigit, priceinfo.split("-")[1]))
+                        )
+                catalogentry.upperprice = upperprice
+            else:
+                catalogentry.upperprice = None
+
+        if not catalog_entry["purchaseInfo"]["isScreening"]:
+            if catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"] != "unknown":
+                catalogentry.leadtime = catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"]
+            else:
+                catalogentry.leadtime = None
+            if catalog_entry["purchaseInfo"]["bbPriceRange"] != "unknown":
+                priceinfo = catalog_entry["purchaseInfo"]["bbPriceRange"]
+                catalogentry.priceinfo = priceinfo
+                priceinfo = priceinfo.replace(" ", "")
+                if priceinfo[0] == "<" or priceinfo[0] == ">":
+                    if "k" in priceinfo:
+                        upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
+                    else:
+                        upperprice = int("".join(filter(str.isdigit, priceinfo)))
+                if priceinfo[0] == "$":
+                    if "k" in priceinfo:
+                        upperprice = (
+                            int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
+                            * 1000
+                        )
+                    else:
+                        upperprice = int(
+                            "".join(filter(str.isdigit, priceinfo.split("-")[1]))
+                        )
+                catalogentry.upperprice = upperprice
+            else:
+                catalogentry.upperprice = None
     catalogentry.save()
 
 
@@ -277,293 +495,367 @@ class CreateEncodedActionModels(object):
 
     def __init__(
         self,
-        actions: list,
+        intramolecular: bool,
+        actionsessions: dict,
         target_id: int,
         reaction_id: int,
         reactant_pair_smiles: list,
         reaction_name: str,
     ):
         """
-        ValidateFile constructor
-        Args:
-            actions (list): List of actions
-            project_id (int): Project model id
-            reaction_id (int): Reaction model id for actions
-            target_id (int): Target model id for reaction
-            reactant_pair_smiles (list): List of reactant smiles
-            reaction_name (str): Reaction name
+        CreateEncodedActionModels
+
+        Parameters
+        ----------
+        intramolecular: bool
+            Set to true if the reaction is intramolecular
+        actionsessions: dict
+            The action (add, stir, analyse) actionsessions  for the execution of a synthesis
+        project_id: int
+            The Django project model object id
+        reaction_id: int
+            The Django reaction model object id
+        target_id: int
+            The Django target model object id that the reaction is related
+            to
+        reactant_pair_smiles: list
+            The reactant smiles used in the reatcion
+        reaction_name: str
+            The name of the reaction type
         """
+        self.intramolecular = intramolecular
         self.mculeapi = MCuleAPI()
-        self.actions = actions
+        self.actionsessions = actionsessions
         self.reaction_id = reaction_id
         self.reaction_obj = Reaction.objects.get(id=reaction_id)
         self.reactant_pair_smiles = reactant_pair_smiles
         self.reaction_name = reaction_name
-        self.target_mols = Target.objects.get(id=target_id).targetmols
+        self.target_obj = Target.objects.get(id=target_id)
         self.mculeidlist = []
         self.amountslist = []
 
-        for action in self.actions:
-            self.createEncodedActionModel(action)
+        for actionsession in actionsessions:
+            actionsessiontype = actionsession["type"]
+            actionsession_obj = self.createActionSessionModel(
+                actionsessiontype=actionsessiontype,
+                driver=actionsession["driver"],
+                sessionnumber=actionsession["sessionnumber"],
+            )
+            if actionsessiontype == "reaction" and self.intramolecular:
+                reaction_actions = actionsession["intramolecular"]["actions"]
+                [
+                    self.createEncodedActionModel(
+                        actionsession_obj=actionsession_obj, action=action
+                    )
+                    for action in reaction_actions
+                ]
+            if actionsessiontype == "reaction" and not self.intramolecular:
+                reaction_actions = actionsession["intermolecular"]["actions"]
+                [
+                    self.createEncodedActionModel(
+                        actionsession_obj=actionsession_obj, action=action
+                    )
+                    for action in reaction_actions
+                ]
+            if actionsessiontype != "reaction":
+                actions = actionsession["actions"]
+                [
+                    self.createEncodedActionModel(
+                        actionsession_obj=actionsession_obj, action=action
+                    )
+                    for action in actions
+                ]
 
-    def createEncodedActionModel(self, action):
+    def createEncodedActionModel(self, actionsession_obj: ActionSession, action: dict):
+        """Calls the functions to create the appropriate Django action
+           model object for the action
+
+        Parameters
+        ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
+        action: dict
+            The action that needs to be executed
+        """
         actionMethods = {
             "add": self.createAddActionModel,
-            "analyse": self.createAnalyseActionModel,
             "extract": self.createExtractActionModel,
-            "filter": self.createFilterActionModel,
-            "quench": self.createQuenchActionModel,
-            "set-temperature": self.createSetTemperatureActionModel,
+            "mix": self.createMixActionModel,
             "stir": self.createStirActionModel,
         }
 
-        action_type = action["name"]
+        action_type = action["type"]
 
         if action_type in actionMethods:
-            actionMethods[action_type](action)
+            actionMethods[action_type](
+                actionsession_obj=actionsession_obj, action=action
+            )
             return True
         else:
             logger.info(action_type)
-            print(action)
+
+    def getProductSmiles(self):
+        """Gets the product SMILES for the reaction"""
+        product = Product.objects.get(reaction_id=self.reaction_id)
+        return product.smiles
 
     def calculateVolume(
-        self, molar_eqv, conc_reagents=None, reactant_density=None, reactant_MW=None
-    ):
-        # NB need addition_order added to ncoded recipes - can we rather use SA score?
-        mol_material = molar_eqv * self.target_mols
+        self,
+        calcunit: str,
+        calcvalue: float,
+        conc_reagents: float = None,
+        reactant_density: float = None,
+        reactant_MW: float = None,
+    ) -> float:
+        """Calculates the reactant volume (ul) required for an add action step
 
-        if reactant_density:
-            vol_material = ((mol_material * reactant_MW) / reactant_density) * 1e3
-        else:
-            vol_material = (mol_material / conc_reagents) * 1e6  # in uL
-        return vol_material
+        Parameters
+        ----------
+        calcunit: str
+            The unit used for the calculation eg. mass equivalents
+        calcvalue: int
+            The the quivalents to use in the calculation
+        molar_eqv: float
+            The optional molar equivalents required for the add action
+        conc_reagents: float
+            The optional concentration of the reactant
+        reactant_density: float
+            The optional density (g/ml) of the reactant
+        reactant_MW: float
+            The optional molecular weight (g/mol) of the reactant
 
-    def calculateAmount(self, molar_eqv: float, reactant_MW: float):
-        """ "
-        Calculates amount of compound needed in mg
-
-        Args:
-            molar_eq (float): Molar equivalents required
-            reactant_MW (float): Molecular weight of compound
-        Returns:
-            amount (float): Amount required in mg
+        Returns
+        -------
+        vol_material: float
+            The volume (ul) of the material required for the add action step
         """
-        mol_material = molar_eqv * self.target_mols
-        mass_material = (mol_material / reactant_MW) * 1e6
-        return mass_material
 
-    def createAnalyseActionModel(self, action):
-        action_type = action["name"]
-        action_no = action["content"]["action_no"]
-        method = action["content"]["method"]
-        sampleamount = action["content"]["sampleamount"]["value"]
-        sampleamountunit = action["content"]["sampleamount"]["unit"]
-        solvent = action["content"]["solvent"]
-        solventamount = action["content"]["solventamount"]["value"]
-        solventamountunit = action["content"]["solventamount"]["unit"]
-        analyse = AnalyseAction()
-        analyse.reaction_id = self.reaction_obj
-        analyse.actiontype = action_type
-        analyse.actionno = action_no
-        analyse.method = method
-        analyse.sampleamount = sampleamount
-        analyse.sampleamountunit = sampleamountunit
-        analyse.solvent = solvent
-        analyse.solventamount = solventamount
-        analyse.solventmountunit = solventamountunit
-        analyse.save()
+        if calcunit == "masseq":
+            vol_material = float(calcvalue) * self.target_obj.mass
+            return vol_material
+        if calcunit == "moleq":
+            mol_material = float(calcvalue) * self.target_obj.mols
+            if reactant_density:
+                vol_material = ((mol_material * reactant_MW) / reactant_density) * 1e3
+            else:
+                vol_material = (mol_material / conc_reagents) * 1e6  # in uL
+            return vol_material
 
-    def createAddActionModel(self, action):
+    def createActionSessionModel(
+        self, actionsessiontype: str, driver: str, sessionnumber: int
+    ):
+        """Creates a Django action session object - a session are colelctions of
+           actions that can be collectively exceuted. Eg. a reaction will
+           inlcude a series of add actions
+
+        Parameters
+        ----------
+        type: str
+            The session type eg. reaction, stir etc
+        driver: str
+            The main driver operating the session. If any operations can be
+            automated then the driver is a robot else human
+        sessionnumber: int
+            The session sequence number eg. reaction session one happens first
+        """
         try:
-            action_type = action["name"]
-            action_no = action["content"]["action_no"]
+            actionsession = ActionSession()
+            actionsession.reaction_id = self.reaction_obj
+            actionsession.type = actionsessiontype
+            actionsession.driver = driver
+            actionsession.sessionnumber = sessionnumber
+            actionsession.save()
+            return actionsession
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
+    def createAddActionModel(self, actionsession_obj: ActionSession, action: dict):
+        """Creates a Django add action object - an add action
+
+        Parameters
+        ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
+        action: dict
+            The analyse action that needs to be executed
+        """
+        try:
+            actionnumber = action["actionnumber"]
+            fromplatetype = action["content"]["plates"]["fromplatetype"]
+            toplatetype = action["content"]["plates"]["toplatetype"]
             if action["content"]["material"]["SMARTS"]:
-                reactant_SMILES = self.reactant_pair_smiles[0]
+                smiles = self.reactant_pair_smiles[0]
                 del self.reactant_pair_smiles[0]
             if action["content"]["material"]["SMILES"]:
-                reactant_SMILES = action["content"]["material"]["SMILES"]
-            molar_eqv = action["content"]["material"]["quantity"]["value"]
+                smiles = action["content"]["material"]["SMILES"]
+            calcvalue = action["content"]["material"]["quantity"]["value"]
+            calcunit = action["content"]["material"]["quantity"]["unit"]
             concentration = action["content"]["material"]["concentration"]
             if not concentration:
                 concentration = 0
             solvent = action["content"]["material"]["solvent"]
-            mol = Chem.MolFromSmiles(reactant_SMILES)
-            reactant_MW = Descriptors.ExactMolWt(mol)
-            amount = self.calculateAmount(molar_eqv=molar_eqv, reactant_MW=reactant_MW)
-
+            mol = Chem.MolFromSmiles(smiles)
+            molecular_weight = Descriptors.ExactMolWt(mol)
             add = AddAction()
             add.reaction_id = self.reaction_obj
-            add.actiontype = action_type
-            add.actionno = action_no
-            # material = getChemicalName(reactant_SMILES)
-            material = reactant_SMILES
-            add.material = material
-            # if not material:
-            #     add.material = str(self.reaction_id) + str(action_no) + "-" + reactant_SMILES
-            # else:
-            #     add.material = material
-            mol = Chem.MolFromSmiles(reactant_SMILES)
-            molecular_weight = Descriptors.ExactMolWt(mol)
-            add.materialsmiles = reactant_SMILES
-            # mculeinfo = self.mculeapi.getMCuleInfo(smiles=reactant_SMILES)
-            # if mculeinfo:
-            #     mculeid = mculeinfo[0]
-            #     self.mculeidlist.append(mculeid)
-            #     self.amountslist.append(amount)
-            #     add.mculeid = mculeid
-            #     add.mculeurl = mculeinfo[1]
-            #     priceinfo = self.mculeapi.getMCulePrice(mculeid=mculeid, amount=amount)
-            #     if priceinfo:
-            #         add.mculeprice = priceinfo[0]
-            #         add.mculedeliverytime = priceinfo[1]
+            add.actionsession_id = actionsession_obj
+            add.number = actionnumber
+            add.fromplatetype = fromplatetype
+            add.toplatetype = toplatetype
+            add.smiles = smiles
             add.molecularweight = molecular_weight
-            add_svg_string = createSVGString(reactant_SMILES)
-            add_svg_fn = default_storage.save(
-                "addactionimages/{}-{}-{}.svg".format(
-                    self.reaction_id, action_no, material
-                ),
-                ContentFile(add_svg_string),
-            )
-            add.materialimage = add_svg_fn  # need material (common name)
-            add.atmosphere = "air"
-
-            if not solvent:
-                reactant_density = action["content"]["material"]["density"]
-                add.materialquantity = self.calculateVolume(
-                    molar_eqv=molar_eqv,
-                    reactant_density=reactant_density,
-                    reactant_MW=reactant_MW,
-                )
-
-            if solvent:
-                add.materialquantity = self.calculateVolume(
-                    molar_eqv=molar_eqv,
-                    conc_reagents=concentration,
+            if calcunit == "ul":
+                add.volume = calcvalue
+                add.solvent = solvent
+            if calcunit == "masseq":
+                add.volume = self.calculateVolume(
+                    calcunit=calcunit,
+                    calcvalue=calcvalue,
                 )
                 add.solvent = solvent
+            if calcunit == "moleq":
+                if not solvent:
+                    reactant_density = action["content"]["material"]["density"]
+                    add.volume = self.calculateVolume(
+                        calcunit=calcunit,
+                        calcvalue=calcvalue,
+                        reactant_density=reactant_density,
+                        reactant_MW=molecular_weight,
+                    )
+                if solvent:
+                    add.volume = self.calculateVolume(
+                        calcunit=calcunit,
+                        calcvalue=calcvalue,
+                        conc_reagents=concentration,
+                    )
+                    add.solvent = solvent
             add.concentration = concentration
             add.save()
 
-        except Exception as error:
-            print(error)
-            print(action)
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
-    def createExtractActionModel(self, action):
+    def createExtractActionModel(self, actionsession_obj: ActionSession, action: dict):
+        """Creates a Django extract action object - an add action
+
+        Parameters
+        ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
+        action: dict
+            The analyse action that needs to be executed
+        """
         try:
-            action_type = action["name"]
-            solvent = action["content"]["solvent"]["value"]
-            quantity = action["content"]["solvent"]["quantity"]["value"]
-            unit = action["content"]["solvent"]["quantity"]["unit"]
-            repetitions = action["content"]["repetitions"]["value"]
-
+            actionnumber = action["actionnumber"]
+            fromplatetype = action["content"]["plates"]["fromplatetype"]
+            toplatetype = action["content"]["plates"]["toplatetype"]
+            calcvalue = action["content"]["material"]["quantity"]["value"]
+            calcunit = action["content"]["material"]["quantity"]["unit"]
+            concentration = action["content"]["material"]["concentration"]
+            if not concentration:
+                concentration = 0
+            solvent = action["content"]["material"]["solvent"]
+            smiles = self.getProductSmiles()
+            mol = Chem.MolFromSmiles(smiles)
+            molecular_weight = Descriptors.ExactMolWt(mol)
             extract = ExtractAction()
             extract.reaction_id = self.reaction_obj
-            extract.actiontype = action_type
-            extract.actionno = self.action_no
-            extract.solvent = solvent
-            extract.solventquantity = quantity
-            extract.solventquantityunit = unit
-            extract.numberofrepetitions = repetitions
+            extract.actionsession_id = actionsession_obj
+            extract.number = actionnumber
+            extract.fromplatetype = fromplatetype
+            extract.toplatetype = toplatetype
+            extract.smiles = smiles
+            extract.molecularweight = molecular_weight
+            if calcunit == "ul":
+                extract.volume = calcvalue
+                extract.solvent = solvent
+            if calcunit == "masseq":
+                extract.volume = self.calculateVolume(
+                    calcunit=calcunit,
+                    calcvalue=calcvalue,
+                )
+                extract.solvent = solvent
+            if calcunit == "moleq":
+                if not solvent:
+                    reactant_density = action["content"]["material"]["density"]
+                    extract.volume = self.calculateVolume(
+                        calcunit=calcunit,
+                        calcvalue=calcvalue,
+                        reactant_density=reactant_density,
+                        reactant_MW=molecular_weight,
+                    )
+                if solvent:
+                    extract.volume = self.calculateVolume(
+                        calcunit=calcunit,
+                        calcvalue=calcvalue,
+                        conc_reagents=concentration,
+                    )
+                    extract.solvent = solvent
+            if "bottomlayerquantity" in action["content"]["material"]:
+                bottomlayercalcvalue = action["content"]["material"][
+                    "bottomlayerquantity"
+                ]["value"]
+                bottomlayercalcunit = action["content"]["material"][
+                    "bottomlayerquantity"
+                ]["unit"]
+                extract.bottomlayervolume = self.calculateVolume(
+                    calcunit=bottomlayercalcunit,
+                    calcvalue=bottomlayercalcvalue,
+                )
+            extract.concentration = concentration
             extract.save()
 
-        except Exception as error:
-            print(action_type)
-            print(error)
-            print(action)
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
-    def createFilterActionModel(self, action):
+    def createMixActionModel(self, actionsession_obj: ActionSession, action: dict):
+        """Creates a Django mix action object - a mix action
+
+        Parameters
+        ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
+        action: dict
+            The analyse action that needs to be executed
+        """
         try:
-            action_type = action["name"]
-            phasetokeep = action["content"]["phase_to_keep"]["value"]
-            rinsingsolvent = action["content"]["rinsing_solvent"]["value"]
-            rinsingsolventquantity = action["content"]["rinsing_solvent"]["quantity"][
-                "value"
-            ]
-            rinsingsolventquantityunit = action["content"]["rinsing_solvent"][
-                "quantity"
-            ]["unit"]
-            extractionforprecipitatesolvent = action["content"]["extraction_solvent"][
-                "value"
-            ]
-            extractionforprecipitatesolventquantity = action["content"][
-                "extraction_solvent"
-            ]["quantity"]["value"]
-            extractionforprecipitatesolventquantityunit = action["content"][
-                "extraction_solvent"
-            ]["quantity"]["unit"]
+            actionnumber = action["actionnumber"]
+            platetype = action["content"]["platetype"]
+            repetitions = action["content"]["repetitions"]["value"]
+            calcvalue = action["content"]["quantity"]["value"]
+            calcunit = action["content"]["quantity"]["unit"]
 
-            filteraction = FilterAction()
-            filteraction.reaction_id = self.reaction_obj
-            filteraction.actiontype = action_type
-            filteraction.actionno = self.action_no
-            filteraction.phasetokeep = phasetokeep
-            filteraction.rinsingsolvent = rinsingsolvent
-            filteraction.rinsingsolventquantity = rinsingsolventquantity
-            filteraction.rinsingsolventquantityunit = rinsingsolventquantityunit
-            filteraction.extractionforprecipitatesolvent = (
-                extractionforprecipitatesolvent
-            )
-            filteraction.extractionforprecipitatesolventquantity = (
-                extractionforprecipitatesolventquantity
-            )
-            filteraction.extractionforprecipitatesolventquantityunit = (
-                extractionforprecipitatesolventquantityunit
-            )
-            filteraction.save()
+            mix = MixAction()
+            mix.reaction_id = self.reaction_obj
+            mix.actionsession_id = actionsession_obj
+            mix.number = actionnumber
+            mix.platetype = platetype
+            mix.repetitions = repetitions
+            if calcunit == "ul":
+                mix.volume = calcvalue
+            if calcunit == "masseq":
+                mix.volume = self.calculateVolume(
+                    calcunit=calcunit,
+                    calcvalue=calcvalue,
+                )
+            mix.save()
 
-        except Exception as error:
-            print(action_type)
-            print(error)
-            print(action)
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
-    def createQuenchActionModel(self, action):
+    def createStirActionModel(self, actionsession_obj: ActionSession, action: dict):
+        """Creates a Django stir action object - a stir action
+
+        Parameters
+        ----------
+        actionsession_obj: ActionSession
+            The type of action session being excuted
+        action: dict
+            The analyse action that needs to be executed
+        """
         try:
-            action_type = action["name"]
-            material = action["content"]["material"]["value"]
-            materialquantity = action["content"]["material"]["quantity"]["value"]
-            materialquantityunit = action["content"]["material"]["quantity"]["unit"]
-            dropwise = action["content"]["dropwise"]["value"]
-            temperature = action["content"]["temperature"]
-
-            quench = QuenchAction()
-            quench.reaction_id = self.reaction_obj
-            quench.actiontype = action_type
-            quench.actionno = self.action_no
-            quench.material = material
-            quench.materialquantity = materialquantity
-            quench.materialquantityunit = materialquantityunit
-            if temperature:
-                quench.temperature = temperature["value"]
-            quench.dropwise = dropwise
-            quench.save()
-
-        except Exception as error:
-            print(action_type)
-            print(error)
-            print(action)
-
-    def createSetTemperatureActionModel(self, action):
-        try:
-            action_type = action["name"]
-            temperature = action["content"]["temperature"]["value"]
-
-            temp = SetTemperatureAction()
-            temp.reaction_id = self.reaction_obj
-            temp.actiontype = action_type
-            temp.actionno = self.action_no
-            temp.temperature = temperature
-            temp.save()
-
-        except Exception as error:
-            print(action_type)
-            print(error)
-            print(action)
-
-    def createStirActionModel(self, action):
-        try:
-            action_type = action["name"]
-            action_no = action["content"]["action_no"]
+            actionnumber = action["actionnumber"]
+            platetype = action["content"]["platetype"]
             duration = action["content"]["duration"]["value"]
             durationunit = action["content"]["duration"]["unit"]
             temperature = action["content"]["temperature"]["value"]
@@ -571,68 +863,14 @@ class CreateEncodedActionModels(object):
 
             stir = StirAction()
             stir.reaction_id = self.reaction_obj
-            stir.actiontype = action_type
-            stir.actionno = action_no
+            stir.actionsession_id = actionsession_obj
+            stir.number = actionnumber
+            stir.platetype = platetype
             stir.duration = duration
             stir.durationunit = durationunit
             stir.temperature = temperature
             stir.temperatureunit = temperatureunit
             stir.save()
 
-        except Exception as error:
-            print(action_type)
-            print(error)
-            print(action)
-
-
-class CreateMculeQuoteModel(object):
-    """
-    Creates a CreateMculeQuoteModel object for creating a Mcule quote
-    for a project
-    """
-
-    def __init__(
-        self,
-        mculeids: list,
-        amounts: list,
-        project_id: int,
-    ):
-        """
-        ValidateFile constructor
-        Args:
-            mculeids (list): List of mcule ids
-            project_id (int): Project model id
-        """
-        self.mculeidlist = [item for sublist in mculeids for item in sublist]
-        self.amounts = amounts
-        self.amountaverage = self.getAmountAverage()
-        self.project_obj = Project.objects.get(id=project_id)
-        self.mculeapi = MCuleAPI()
-        self.createMculeQuoteModel()
-
-    def getAmountAverage(self):
-        if len(self.amounts) == 0:
-            return 0
-        if len(self.amounts) == 1:
-            return self.amounts[0]
-        else:
-            mean([item for sublist in self.amounts for item in sublist])
-            return mean
-
-    def createMculeQuoteModel(self):
-        quote_info = self.mculeapi.getTotalQuote(
-            mculeids=self.mculeidlist, amount=self.amountaverage
-        )
-
-        if quote_info:
-            try:
-                quote = MculeQuote()
-                quote.project_id = self.project_obj
-                quote.quoteid = quote_info["quoteid"]
-                quote.quoteurl = quote_info["quoteurl"]
-                quote.quotecost = quote_info["quotecost"]
-                quote.quotevaliduntil = quote_info["quotevaliduntil"]
-                quote.save()
-
-            except Exception as error:
-                print(error)
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
