@@ -1,3 +1,4 @@
+from django.db.models import QuerySet
 from rdkit.Chem import Descriptors
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -9,7 +10,160 @@ import inspect
 
 import logging
 
+from car.models import Batch, Method, Product, Reaction
+
 logger = logging.getLogger(__name__)
+
+
+# def getReactionInfo(batch_ids: list[int]) -> list:
+#     """Get the reaction info for a batch as list of targets,reactant SMILES,
+#     reaction class (Amidation, Suzuki etc)
+#     """
+#     reaction_info = {}
+#     for batch_id in batch_ids:
+#         batchobj = Batch.objects.get(id=batch_id)
+#         targetqueryset = batchobj.targets.all()
+#         target_smiles = [target_obj.smiles for target_obj in targetqueryset]
+#         for targetobj in targetqueryset:
+#             reaction_info["target_smiles"] = targetobj.smiles
+
+#         methods = [target.methods.all() for target in targetqueryset]
+#         method_sublist = [item for sublist in methods for item in sublist]
+#         reactions = [method.reactions.all() for method in method_sublist]
+#         reaction_sublist = [item for sublist in reactions for item in sublist]
+#         reactants = [reaction.reactants.all() for reaction in reaction_sublist]
+#         reactants_sublist = [item for sublist in reactants for item in sublist]
+#         reactants_batch_to_buy = list(
+#             set(
+#                 [
+#                     reactant.smiles
+#                     for reactant in reactants_sublist
+#                     if reactant.previousreactionproduct == False
+#                 ]
+#             )
+#         )
+#         reactants_to_buy = reactants_to_buy + reactants_batch_to_buy
+
+
+# Need to convert into function to retrieve all reactants that need to be purchased plus API endpoint!
+def getReactantsToBuy(batch_ids: list[int]) -> list:
+    """Finds the reactnats that need to be bought to execute a batch/batches
+    synthesis. Finds recatants that are not made in previous method's reactions
+
+    Parameters
+    ----------
+    batch_ids: list[int]
+        The batch ids to search for reactants to buy to complete the synthesis
+
+    Returns
+    -------
+    reactants_to_buy: list
+        The SMILES of the reactants that need to be bought. Excludes reactants
+        made in previous reaction steps
+    """
+    reactants_to_buy = []
+    for batch_id in batch_ids:
+        batchobj = Batch.objects.get(id=batch_id)
+        targetqueryset = batchobj.targets.all()
+        methods = [target.methods.all() for target in targetqueryset]
+        method_sublist = [item for sublist in methods for item in sublist]
+        reactions = [method.reactions.all() for method in method_sublist]
+        reaction_sublist = [item for sublist in reactions for item in sublist]
+        reactants = [reaction.reactants.all() for reaction in reaction_sublist]
+        reactants_sublist = [item for sublist in reactants for item in sublist]
+        reactants_batch_to_buy = list(
+            set(
+                [
+                    reactant.smiles
+                    for reactant in reactants_sublist
+                    if reactant.previousreactionproduct == False
+                ]
+            )
+        )
+        reactants_to_buy = reactants_to_buy + reactants_batch_to_buy
+    return list(set(reactants_to_buy))
+
+
+def getProduct(reaction_id: int) -> Product:
+    """Get product object
+
+    Parameters
+    ----------
+    reaction_id: int
+        The reaction id to search for a matching product
+
+    Returns
+    -------
+    productobj: Product
+        The product Django model object
+    """
+    productobj = Product.objects.get(reaction_id=reaction_id)
+    return productobj
+
+
+def getReaction(reaction_id: int) -> Reaction:
+    """Get reaction object
+
+    Parameters
+    ----------
+    reaction_id: int
+        The reaction id to search for a reaction
+
+    Returns
+    -------
+    reactionobj: Reaction
+        The reaction Django model object
+    """
+    reactionobj = Reaction.objects.get(id=reaction_id)
+    return reactionobj
+
+
+def getReactionQuerySet(
+    reaction_ids: list = None, method_id: int = None
+) -> QuerySet[Reaction]:
+    """Get a  synthesis methods reactions
+
+    Parameters
+    ----------
+    reaction_id: int or Reaction
+        The reaction ids to find reactions for
+    method_id: int
+        The optional synthesis method's id to get reactions for
+
+    Returns
+    -------
+    reactionqueryset: QuerySet[Reaction]
+        The reactions of a synthesis method
+    """
+    if reaction_ids:
+        reactionqueryset = Reaction.objects.filter(id__in=reaction_ids).order_by("id")
+    if method_id:
+        reactionqueryset = Reaction.objects.filter(method_id=method_id).order_by("id")
+    return reactionqueryset
+
+
+def checkPreviousReactionProducts(reaction_id: int, smiles: str) -> QuerySet[Reaction]:
+    """Checks if any previous reactions had a product matching the smiles
+
+    Parameters
+    ----------
+    reaction_id: int
+        The reaction id of the Django model object to search for
+        all relative previous reactions objects. The previosu reactions may
+        have products that are this reaction's reactant input
+    smiles: str
+        The SMILES of the reaction's reactant and previous reaction products
+
+    Returns
+    -------
+    previousreactionqueryset: QuerySet[Reaction]
+        Returns the reactions that yiled products that match the SMILES searched
+    """
+    reactionobj = getReaction(reaction_id=reaction_id)
+    previousreactionqueryset = Method.objects.get(
+        id=reactionobj.method_id.id
+    ).reactions.filter(id__lt=reaction_id, products__smiles=smiles)
+    return previousreactionqueryset
 
 
 def getMWs(smiles: list[str]) -> list[float]:

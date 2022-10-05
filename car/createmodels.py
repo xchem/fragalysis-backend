@@ -2,7 +2,6 @@
 from __future__ import annotations
 from typing import Tuple
 import inspect
-from numpy import product
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from django.core.files.storage import default_storage
@@ -44,6 +43,46 @@ from .utils import (
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+# def checkPreviousReactionProduct(
+#     reaction_id: int, smiles: str, returnqueryset: bool = False
+# ):
+#     """Checks if reactant is the product from a previous reaction
+
+#     Parameters
+#     ----------
+#     reaction_id: int
+#         The reactant's reaction, all previous reactions will be found
+#         using the method related with this reaction
+#     smiles: str
+#         The SMILES of the reactant to see search for if it was a product of a previous reaction
+#     returnqueryset: bool
+#         Optional paramater to return product queryset
+
+#     Returns
+#     -------
+#     previous_product_queryset: QuerySet[Product]
+#         Retuens the queryset if the returnqueryset exists and the retrunqueryset parameters
+#         is set to True.
+#     """
+
+#     reaction_obj = Reaction.objects.get(id=reaction_id)
+#     previous_product_queryset = (
+#         Method.objects.get(method_id=reaction_obj.method_id)
+#         .reactions.all()
+#         .filter(products__smiles=smiles)
+#     )
+#     if returnqueryset:
+#         if previous_product_queryset:
+#             return previous_product_queryset
+#         else:
+#             return False
+#     if not returnqueryset:
+#         if previous_product_queryset:
+#             return True
+#         else:
+#             return False
 
 
 def createProjectModel(project_info: dict) -> Tuple[int, str]:
@@ -312,7 +351,9 @@ def createProductModel(reaction_id: int, product_smiles: str):
     product.save()
 
 
-def createReactantModel(reaction_id: int, reactant_smiles: str) -> int:
+def createReactantModel(
+    reaction_id: int, reactant_smiles: str, previous_reaction_product: bool
+) -> int:
     """Creates a Django reactant object - the reactant in a reaction
 
     Parameters
@@ -321,6 +362,10 @@ def createReactantModel(reaction_id: int, reactant_smiles: str) -> int:
         The PubChem DB compound id
     reactant_smiles: str
         The SMILES of the reactant
+    previous_reaction_product: bool
+        If the reactant is the product from a previous reaction in the method. Used
+        for later determining if reactant needs to be purchased vs is made in the
+        synthesis
 
     Returns
     -------
@@ -334,24 +379,30 @@ def createReactantModel(reaction_id: int, reactant_smiles: str) -> int:
     reactant.smiles = reactant_smiles
     # if pubcheminfoobj:
     #     reactant.pubcheminfo_id = pubcheminfoobj
+    reactant.previousreactionproduct = previous_reaction_product
     reactant.save()
     return reactant.id
 
 
 def createCatalogEntryModel(
-    catalog_entry: dict, target_id: int = None, reactant_id: int = None
-) -> float:
+    catalog_entry: dict = None,
+    target_id: int = None,
+    reactant_id: int = None,
+    previous_reaction_product: bool = False,
+):
     """Creates a Django catalogentry object - the catalog details
        for a reactant or target
 
     Parameters
     ----------
     catalog_entry: dict
-        The Manifold catalog entry information
+        The optional Manifold catalog entry information
     target_id: int
         The id of the Django target model object
     reactant_id: int
         The optional id of the Django reactant model object
+    previous_reaction_product: bool
+        If the reactant is a previous product from a reaction, therfor does not need to be purchased
     """
     catalogentry = CatalogEntry()
     if target_id:
@@ -361,68 +412,78 @@ def createCatalogEntryModel(
         reactant_obj = Reactant.objects.get(id=reactant_id)
         catalogentry.reactant_id = reactant_obj
 
-    catalogentry.vendor = catalog_entry["catalogName"]
-    catalogentry.catalogid = catalog_entry["catalogId"]
+    if previous_reaction_product:
+        catalogentry.vendor = "reaction product"
+        catalogentry.catalogid = "NA"
+        catalogentry.priceinfo = "< $100 / g"
+        catalogentry.upperprice = 0
+        catalogentry.leadtime = 0
 
-    if catalog_entry["catalogName"] == "generic":
-        catalogentry.upperprice = None
-        catalogentry.leadtime = None
+    if not previous_reaction_product:
+        catalogentry.vendor = catalog_entry["catalogName"]
+        catalogentry.catalogid = catalog_entry["catalogId"]
 
-    if catalog_entry["purchaseInfo"]["isScreening"]:
-        if catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"] != "unknown":
-            catalogentry.leadtime = catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"]
-        else:
-            catalogentry.leadtime = None
-        if catalog_entry["purchaseInfo"]["scrPriceRange"] != "unknown":
-            priceinfo = catalog_entry["purchaseInfo"]["scrPriceRange"]
-            catalogentry.priceinfo = priceinfo
-            priceinfo = priceinfo.replace(" ", "")
-            if priceinfo[0] == "<" or priceinfo[0] == ">":
-                if "k" in priceinfo:
-                    upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
-                else:
-                    upperprice = int("".join(filter(str.isdigit, priceinfo)))
-            if priceinfo[0] == "$":
-                if "k" in priceinfo:
-                    upperprice = (
-                        int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
-                        * 1000
-                    )
-                else:
-                    upperprice = int(
-                        "".join(filter(str.isdigit, priceinfo.split("-")[1]))
-                    )
-            catalogentry.upperprice = upperprice
-        else:
+        if catalog_entry["catalogName"] == "generic":
             catalogentry.upperprice = None
-
-    if not catalog_entry["purchaseInfo"]["isScreening"]:
-        if catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"] != "unknown":
-            catalogentry.leadtime = catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"]
-        else:
             catalogentry.leadtime = None
-        if catalog_entry["purchaseInfo"]["bbPriceRange"] != "unknown":
-            priceinfo = catalog_entry["purchaseInfo"]["bbPriceRange"]
-            catalogentry.priceinfo = priceinfo
-            priceinfo = priceinfo.replace(" ", "")
-            if priceinfo[0] == "<" or priceinfo[0] == ">":
-                if "k" in priceinfo:
-                    upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
-                else:
-                    upperprice = int("".join(filter(str.isdigit, priceinfo)))
-            if priceinfo[0] == "$":
-                if "k" in priceinfo:
-                    upperprice = (
-                        int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
-                        * 1000
-                    )
-                else:
-                    upperprice = int(
-                        "".join(filter(str.isdigit, priceinfo.split("-")[1]))
-                    )
-            catalogentry.upperprice = upperprice
-        else:
-            catalogentry.upperprice = None
+
+        if catalog_entry["purchaseInfo"]["isScreening"]:
+            if catalog_entry["purchaseInfo"]["scrLeadTimeWeeks"] != "unknown":
+                catalogentry.leadtime = catalog_entry["purchaseInfo"][
+                    "scrLeadTimeWeeks"
+                ]
+            else:
+                catalogentry.leadtime = None
+            if catalog_entry["purchaseInfo"]["scrPriceRange"] != "unknown":
+                priceinfo = catalog_entry["purchaseInfo"]["scrPriceRange"]
+                catalogentry.priceinfo = priceinfo
+                priceinfo = priceinfo.replace(" ", "")
+                if priceinfo[0] == "<" or priceinfo[0] == ">":
+                    if "k" in priceinfo:
+                        upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
+                    else:
+                        upperprice = int("".join(filter(str.isdigit, priceinfo)))
+                if priceinfo[0] == "$":
+                    if "k" in priceinfo:
+                        upperprice = (
+                            int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
+                            * 1000
+                        )
+                    else:
+                        upperprice = int(
+                            "".join(filter(str.isdigit, priceinfo.split("-")[1]))
+                        )
+                catalogentry.upperprice = upperprice
+            else:
+                catalogentry.upperprice = None
+
+        if not catalog_entry["purchaseInfo"]["isScreening"]:
+            if catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"] != "unknown":
+                catalogentry.leadtime = catalog_entry["purchaseInfo"]["bbLeadTimeWeeks"]
+            else:
+                catalogentry.leadtime = None
+            if catalog_entry["purchaseInfo"]["bbPriceRange"] != "unknown":
+                priceinfo = catalog_entry["purchaseInfo"]["bbPriceRange"]
+                catalogentry.priceinfo = priceinfo
+                priceinfo = priceinfo.replace(" ", "")
+                if priceinfo[0] == "<" or priceinfo[0] == ">":
+                    if "k" in priceinfo:
+                        upperprice = int("".join(filter(str.isdigit, priceinfo))) * 1000
+                    else:
+                        upperprice = int("".join(filter(str.isdigit, priceinfo)))
+                if priceinfo[0] == "$":
+                    if "k" in priceinfo:
+                        upperprice = (
+                            int("".join(filter(str.isdigit, priceinfo.split("-")[1])))
+                            * 1000
+                        )
+                    else:
+                        upperprice = int(
+                            "".join(filter(str.isdigit, priceinfo.split("-")[1]))
+                        )
+                catalogentry.upperprice = upperprice
+            else:
+                catalogentry.upperprice = None
     catalogentry.save()
 
 

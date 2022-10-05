@@ -11,7 +11,6 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 import os
 
-
 from car.models import (
     ActionSession,
     Batch,
@@ -44,7 +43,7 @@ from .manifold.apicalls import (
     getManifoldRetrosynthesisBatch,
 )
 from .recipebuilder.encodedrecipes import encoded_recipes
-from .utils import getAddtionOrder, canonSmiles
+from .utils import checkPreviousReactionProducts, getAddtionOrder, canonSmiles
 
 from .opentrons.otsession import CreateOTSession
 from .opentrons.otwrite import OTWrite
@@ -91,13 +90,20 @@ def validateFileUpload(
     validated = validation.validated
     validate_dict = validation.validate_dict
 
-    return (validate_dict, validated, project_info, csv_fp, uploaded_dict)
+    return (
+        validate_type,
+        validate_dict,
+        validated,
+        project_info,
+        csv_fp,
+        uploaded_dict,
+    )
 
 
 @shared_task
 def uploadManifoldReaction(validate_output):
 
-    validate_dict, validated, project_info, csv_fp, uploaded_dict = validate_output
+    _, validate_dict, validated, project_info, csv_fp, uploaded_dict = validate_output
     uploaded_df = pd.DataFrame(uploaded_dict)
 
     if not validated:
@@ -199,21 +205,46 @@ def uploadManifoldReaction(validate_output):
                                             )
 
                                             for reactant_smi in reactant_smiles:
-                                                reactant_id = createReactantModel(
-                                                    reaction_id=reaction_id,
-                                                    reactant_smiles=reactant_smi,
-                                                )
-                                                catalog_entries = [
-                                                    molecule["catalogEntries"]
-                                                    for molecule in route["molecules"]
-                                                    if molecule["smiles"]
-                                                    == reactant_smi
-                                                ][0]
-                                                for catalog_entry in catalog_entries:
-                                                    createCatalogEntryModel(
-                                                        catalog_entry=catalog_entry,
-                                                        reactant_id=reactant_id,
+                                                previousreactionqueryset = (
+                                                    checkPreviousReactionProducts(
+                                                        reaction_id=reaction_id,
+                                                        smiles=reactant_smi,
                                                     )
+                                                )
+                                                if previousreactionqueryset:
+                                                    previous_reaction_product = True
+                                                    reactant_id = createReactantModel(
+                                                        reaction_id=reaction_id,
+                                                        reactant_smiles=reactant_smi,
+                                                        previous_reaction_product=previous_reaction_product,
+                                                    )
+                                                    createCatalogEntryModel(
+                                                        reactant_id=reactant_id,
+                                                        previous_reaction_product=True,
+                                                    )
+
+                                                if not previousreactionqueryset:
+                                                    previous_reaction_product = False
+                                                    reactant_id = createReactantModel(
+                                                        reaction_id=reaction_id,
+                                                        reactant_smiles=reactant_smi,
+                                                        previous_reaction_product=previous_reaction_product,
+                                                    )
+                                                    catalog_entries = [
+                                                        molecule["catalogEntries"]
+                                                        for molecule in route[
+                                                            "molecules"
+                                                        ]
+                                                        if molecule["smiles"]
+                                                        == reactant_smi
+                                                    ][0]
+                                                    for (
+                                                        catalog_entry
+                                                    ) in catalog_entries:
+                                                        createCatalogEntryModel(
+                                                            catalog_entry=catalog_entry,
+                                                            reactant_id=reactant_id,
+                                                        )
 
                                     if len(encoded_reactions_found) == no_steps:
                                         method_id = createMethodModel(
@@ -228,8 +259,6 @@ def uploadManifoldReaction(validate_output):
                                             reaction_name = reaction["name"]
                                             reactant_smiles = reaction["reactantSmiles"]
                                             product_smiles = reaction["productSmiles"]
-                                            print(reaction_name)
-
                                             reaction_temperature = [
                                                 actionsession["actions"][0]["content"][
                                                     "temperature"
@@ -247,7 +276,7 @@ def uploadManifoldReaction(validate_output):
 
                                             recipe_rxn_smarts = encoded_recipes[
                                                 reaction_name
-                                            ]["reactionSMARTS"]
+                                            ]["recipes"]["standard"]["reactionSMARTS"]
 
                                             if (
                                                 len(reactant_smiles) == 1
@@ -295,22 +324,46 @@ def uploadManifoldReaction(validate_output):
                                             )
 
                                             for reactant_smi in reactant_smiles_ordered:
-                                                reactant_id = createReactantModel(
-                                                    reaction_id=reaction_id,
-                                                    reactant_smiles=reactant_smi,
-                                                )
-
-                                                catalog_entries = [
-                                                    molecule["catalogEntries"]
-                                                    for molecule in route["molecules"]
-                                                    if molecule["smiles"]
-                                                    == reactant_smi
-                                                ][0]
-                                                for catalog_entry in catalog_entries:
-                                                    createCatalogEntryModel(
-                                                        catalog_entry=catalog_entry,
-                                                        reactant_id=reactant_id,
+                                                previousreactionqueryset = (
+                                                    checkPreviousReactionProducts(
+                                                        reaction_id=reaction_id,
+                                                        smiles=reactant_smi,
                                                     )
+                                                )
+                                                if previousreactionqueryset:
+                                                    previous_reaction_product = True
+                                                    reactant_id = createReactantModel(
+                                                        reaction_id=reaction_id,
+                                                        reactant_smiles=reactant_smi,
+                                                        previous_reaction_product=previous_reaction_product,
+                                                    )
+                                                    createCatalogEntryModel(
+                                                        reactant_id=reactant_id,
+                                                        previous_reaction_product=True,
+                                                    )
+
+                                                if not previousreactionqueryset:
+                                                    previous_reaction_product = False
+                                                    reactant_id = createReactantModel(
+                                                        reaction_id=reaction_id,
+                                                        reactant_smiles=reactant_smi,
+                                                        previous_reaction_product=previous_reaction_product,
+                                                    )
+                                                    catalog_entries = [
+                                                        molecule["catalogEntries"]
+                                                        for molecule in route[
+                                                            "molecules"
+                                                        ]
+                                                        if molecule["smiles"]
+                                                        == reactant_smi
+                                                    ][0]
+                                                    for (
+                                                        catalog_entry
+                                                    ) in catalog_entries:
+                                                        createCatalogEntryModel(
+                                                            catalog_entry=catalog_entry,
+                                                            reactant_id=reactant_id,
+                                                        )
 
         delete_tmp_file(csv_fp)
 
@@ -320,7 +373,14 @@ def uploadManifoldReaction(validate_output):
 @shared_task
 def uploadCustomReaction(validate_output):
 
-    validate_dict, validated, project_info, csv_fp, uploaded_dict = validate_output
+    (
+        _,
+        validate_dict,
+        validated,
+        project_info,
+        csv_fp,
+        uploaded_dict,
+    ) = validate_output
     uploaded_df = pd.DataFrame(uploaded_dict)
 
     if not validated:
@@ -332,72 +392,102 @@ def uploadCustomReaction(validate_output):
         project_info["project_id"] = project_id
 
         grouped_targets = uploaded_df.groupby("batch-tag")
-
         for batchtag, group in grouped_targets:
             batch_id = createBatchModel(
                 project_id=project_id,
                 batchtag=batchtag,
             )
 
-            for reactant_pair_smiles, reaction_name, product_smiles, mass in zip(
-                group["reactant-pair-smiles"],
-                group["reaction-name"],
+            for (
+                target_smiles,
+                amount_required,
+                no_steps,
+                reactant_pair_smiles_tuples,
+                reaction_name_tuples,
+                reaction_product_smiles_tuples,
+            ) in zip(
                 group["target-smiles"],
                 group["amount-required-mg"],
+                group["no-steps"],
+                group["reactant-pair-smiles"],
+                group["reaction-name"],
+                group["product-smiles"],
             ):
-
-                reaction_smarts = AllChem.ReactionFromSmarts(
-                    "{}>>{}".format(".".join(reactant_pair_smiles), product_smiles),
-                    useSmiles=True,
-                )
-
                 target_id = createTargetModel(
                     batch_id=batch_id,
-                    smiles=product_smiles,
-                    mass=mass,
+                    smiles=target_smiles,
+                    mass=amount_required,
                 )
-
-                reaction_temperature = [
-                    actionsession["actions"][0]["content"]["temperature"]["value"]
-                    for actionsession in encoded_recipes[reaction_name]["recipes"][
-                        "standard"
-                    ]["actionsessions"]
-                    if actionsession["type"] == "stir"
-                ][0]
-
                 method_id = createMethodModel(
                     target_id=target_id,
-                    nosteps=1,
+                    nosteps=no_steps,
                     otchem=True,
                 )
 
-                reaction_id = createReactionModel(
-                    method_id=method_id,
-                    reaction_class=reaction_name,
-                    reaction_number=1,
-                    intramolecular=False,
-                    recipe_type="standard",
-                    reaction_temperature=reaction_temperature,
-                    reaction_smarts=reaction_smarts,
-                )
-
-                createProductModel(
-                    reaction_id=reaction_id,
-                    product_smiles=product_smiles,
-                )
-
-                for reactant_smi in reactant_pair_smiles:
-                    reactant_id = createReactantModel(
-                        reaction_id=reaction_id,
-                        reactant_smiles=reactant_smi,
+                for reactant_pair_smiles, reaction_name, reaction_product_smiles in zip(
+                    reactant_pair_smiles_tuples,
+                    reaction_name_tuples,
+                    reaction_product_smiles_tuples,
+                ):
+                    reaction_smarts = AllChem.ReactionFromSmarts(
+                        "{}>>{}".format(
+                            ".".join(reactant_pair_smiles), reaction_product_smiles
+                        ),
+                        useSmiles=True,
                     )
-                    catalog_entries = getExactSearch(smiles=reactant_smi)
-                    if "results" in catalog_entries:
-                        for catalog_entry in catalog_entries["results"]:
-                            createCatalogEntryModel(
-                                catalog_entry=catalog_entry,
-                                reactant_id=reactant_id,
+                    reaction_temperature = [
+                        actionsession["actions"][0]["content"]["temperature"]["value"]
+                        for actionsession in encoded_recipes[reaction_name]["recipes"][
+                            "standard"
+                        ]["actionsessions"]
+                        if actionsession["type"] == "stir"
+                    ][0]
+
+                    reaction_id = createReactionModel(
+                        method_id=method_id,
+                        reaction_class=reaction_name,
+                        reaction_number=1,
+                        intramolecular=False,
+                        recipe_type="standard",
+                        reaction_temperature=reaction_temperature,
+                        reaction_smarts=reaction_smarts,
+                    )
+
+                    createProductModel(
+                        reaction_id=reaction_id,
+                        product_smiles=reaction_product_smiles,
+                    )
+
+                    for reactant_smi in reactant_pair_smiles:
+                        previousreactionqueryset = checkPreviousReactionProducts(
+                            reaction_id=reaction_id,
+                            smiles=reactant_smi,
+                        )
+                        if previousreactionqueryset:
+                            reactant_id = createReactantModel(
+                                reaction_id=reaction_id,
+                                reactant_smiles=reactant_smi,
+                                previous_reaction_product=True,
                             )
+                            createCatalogEntryModel(
+                                reactant_id=reactant_id,
+                                previous_reaction_product=True,
+                            )
+
+                        if not previousreactionqueryset:
+                            reactant_id = createReactantModel(
+                                reaction_id=reaction_id,
+                                reactant_smiles=reactant_smi,
+                                previous_reaction_product=False,
+                            )
+                            catalog_entries = getExactSearch(smiles=reactant_smi)
+                            if "results" in catalog_entries:
+                                for catalog_entry in catalog_entries["results"]:
+                                    createCatalogEntryModel(
+                                        catalog_entry=catalog_entry,
+                                        reactant_id=reactant_id,
+                                        previous_reaction_product=False,
+                                    )
 
     delete_tmp_file(csv_fp)
 
@@ -628,7 +718,6 @@ def getActionSessionSequenceNumbers(
         The set of session numbers in an action session
         queryset eg. [1,2,3,4....n]
     """
-    maxsessionnumber = actionsessionqueryset.aggregate(Max("sessionnumber"))
     maxsessionnumber = actionsessionqueryset.aggregate(Max("sessionnumber"))[
         "sessionnumber__max"
     ]
@@ -821,15 +910,6 @@ def getBatchReactions(batchid: int) -> QuerySet[Reaction]:
             reactionqueryset = getReactions(method_ids=methodqueryset)
             if reactionqueryset:
                 return reactionqueryset
-        # if targetqueryset:
-        #     allreactionquerysets = []
-        #     for target in targetqueryset:
-        #         methodqueryset = getMethods(targetid=target)
-        #         if methodqueryset:
-        #             for method in methodqueryset:
-        #                 reactionqueryset = getReactions(methodid=method.id)
-        #                 allreactionquerysets.append(reactionqueryset)
-        # return reactionqueryset
 
 
 def getMaxReactionNumber(reactionqueryset: QuerySet[Reaction]) -> int:
@@ -851,11 +931,6 @@ def getMaxReactionNumber(reactionqueryset: QuerySet[Reaction]) -> int:
     return maxreactionnumber
 
 
-# def findmaxlist(allreactionquerysets: list):
-#     maxlength = max([len(i) for i in allreactionquerysets])
-#     return maxlength
-
-
 def groupReactions(reactionqueryset: QuerySet[Reaction], maxreactionnumber: int):
     """
     Groups reactionqueries into first reactions, second reactions and so on
@@ -868,13 +943,6 @@ def groupReactions(reactionqueryset: QuerySet[Reaction], maxreactionnumber: int)
         )
         if reactionnumberqueryset:
             groupedreactionquerysets.append(reactionnumberqueryset)
-    # for i in range(maxsteps):
-    #     reactiongroup = [
-    #         reactionqueryset[i]
-    #         for reactionqueryset in allreactionquerysets
-    #         if i <= len(reactionqueryset) - 1
-    #     ]
-    #     groupedreactionquerysets.append(reactiongroup)
     return groupedreactionquerysets
 
 

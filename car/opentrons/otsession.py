@@ -1,18 +1,22 @@
 """Create OT session"""
 from __future__ import annotations
-from cgi import test
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.db.models import QuerySet, Q
 
 from statistics import median
-from graphene_django import DjangoObjectType
 
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 import pandas as pd
 from pandas.core.frame import DataFrame
 
+from car.utils import (
+    checkPreviousReactionProducts,
+    getReactionQuerySet,
+    getProduct,
+    getReaction,
+)
 
 from car.models import (
     ActionSession,
@@ -400,100 +404,100 @@ class CreateOTSession(object):
 
         return inputplatesneeded
 
-    def getPreviousObjEntries(
-        self, queryset: QuerySet, obj: DjangoObjectType
-    ) -> QuerySet:
-        """Finds all previous Django model object relative to the Django model
-           object in a queryset
+    # def getPreviousObjEntries(
+    #     self, queryset: QuerySet, obj: DjangoObjectType
+    # ) -> QuerySet:
+    #     """Finds all previous Django model object relative to the Django model
+    #        object in a queryset
 
-        Parameters
-        ----------
-        queryset: QuerySet
-            The queryset to search for previous entries
-        obj: DjangoObjectType
-            The object that you want to find all previous object entries relative to
+    #     Parameters
+    #     ----------
+    #     queryset: QuerySet
+    #         The queryset to search for previous entries
+    #     obj: DjangoObjectType
+    #         The object that you want to find all previous object entries relative to
 
-        Returns
-        -------
-        previousqueryset: QuerySet
-            The previous Django model objects as a queryset
-        """
-        previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
-        return previousqueryset
+    #     Returns
+    #     -------
+    #     previousqueryset: QuerySet
+    #         The previous Django model objects as a queryset
+    #     """
+    #     previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
+    #     return previousqueryset
 
-    def checkPreviousReactionProducts(self, reaction_id: int, smiles: str) -> bool:
-        """Checks if any previous reactions had a product matching the smiles
+    # def checkPreviousReactionProducts(self, reaction_id: int, smiles: str) -> bool:
+    #     """Checks if any previous reactions had a product matching the smiles
 
-        Parameters
-        ----------
-        reaction_id: int
-            The reaction id of the Django model object to search for
-            all relative previous reactions objects. The previosu reactions may
-            have products that are this reaction's reactant input
-        smiles: str
-            The SMILES of the reaction's reactant and previous reaction products
+    #     Parameters
+    #     ----------
+    #     reaction_id: int
+    #         The reaction id of the Django model object to search for
+    #         all relative previous reactions objects. The previosu reactions may
+    #         have products that are this reaction's reactant input
+    #     smiles: str
+    #         The SMILES of the reaction's reactant and previous reaction products
 
-        Returns
-        -------
-        status: bool
-            The status is True if a match is found
-        """
-        reactionobj = self.getReaction(reaction_id=reaction_id)
-        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
-        prevreactionqueryset = self.getPreviousObjEntries(
-            queryset=reactionqueryset, obj=reactionobj
-        )
-        productmatches = []
-        if prevreactionqueryset:
-            for reactionobj in prevreactionqueryset:
-                productobj = self.getProduct(reaction_id=reactionobj)
-                if productobj.smiles == smiles:
-                    productmatches.append(productobj)
-            if productmatches:
-                return True
-            else:
-                return False
-        else:
-            return False
+    #     Returns
+    #     -------
+    #     status: bool
+    #         The status is True if a match is found
+    #     """
+    #     reactionobj = self.getReaction(reaction_id=reaction_id)
+    #     reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
+    #     prevreactionqueryset = self.getPreviousObjEntries(
+    #         queryset=reactionqueryset, obj=reactionobj
+    #     )
+    #     productmatches = []
+    #     if prevreactionqueryset:
+    #         for reactionobj in prevreactionqueryset:
+    #             productobj = self.getProduct(reaction_id=reactionobj)
+    #             if productobj.smiles == smiles:
+    #                 productmatches.append(productobj)
+    #         if productmatches:
+    #             return True
+    #         else:
+    #             return False
+    #     else:
+    #         return False
 
-    def getReaction(self, reaction_id: int) -> Reaction:
-        """Get reaction object
+    # def getReaction(self, reaction_id: int) -> Reaction:
+    #     """Get reaction object
 
-        Parameters
-        ----------
-        reaction_id: int
-            The reaction id to search for a reaction
+    #     Parameters
+    #     ----------
+    #     reaction_id: int
+    #         The reaction id to search for a reaction
 
-        Returns
-        -------
-        reactionobj: Reaction
-            The reaction Django model object
-        """
-        reactionobj = Reaction.objects.get(id=reaction_id)
-        return reactionobj
+    #     Returns
+    #     -------
+    #     reactionobj: Reaction
+    #         The reaction Django model object
+    #     """
+    #     reactionobj = Reaction.objects.get(id=reaction_id)
+    #     return reactionobj
 
-    def getReactionQuerySet(
-        self, reaction_ids: list = None, method_id: int = None
-    ) -> QuerySet[Reaction]:
-        """Get a  synthesis methods reactions
+    # def getReactionQuerySet(
+    #     self, reaction_ids: list = None, method_id: int = None
+    # ) -> QuerySet[Reaction]:
+    #     """Get a  synthesis methods reactions
 
-        Parameters
-        ----------
-        reaction_id: int or Reaction
-            The reaction ids to find reactions for
-        method_id: int
-            The optional synthesis method's id to get reactions for
+    #     Parameters
+    #     ----------
+    #     reaction_id: int or Reaction
+    #         The reaction ids to find reactions for
+    #     method_id: int
+    #         The optional synthesis method's id to get reactions for
 
-        Returns
-        -------
-        reactionqueryset: QuerySet[Reaction]
-            The reactions of a synthesis method
-        """
-        if reaction_ids:
-            reactionqueryset = Reaction.objects.filter(id__in=reaction_ids)
-        if method_id:
-            reactionqueryset = Reaction.objects.filter(method_id=method_id)
-        return reactionqueryset
+    #     Returns
+    #     -------
+    #     reactionqueryset: QuerySet[Reaction]
+    #         The reactions of a synthesis method
+    #     """
+    #     if reaction_ids:
+    #         reactionqueryset = Reaction.objects.filter(id__in=reaction_ids)
+    #     if method_id:
+    #         reactionqueryset = Reaction.objects.filter(method_id=method_id)
+    #     return reactionqueryset
 
     def getProductQuerySet(self, reaction_ids: list) -> QuerySet[Product]:
         """Get product queryset for reaction ids
@@ -511,21 +515,21 @@ class CreateOTSession(object):
         productqueryset = Product.objects.filter(reaction_id__in=reaction_ids)
         return productqueryset
 
-    def getProduct(self, reaction_id: int) -> Product:
-        """Get product object
+    # def getProduct(self, reaction_id: int) -> Product:
+    #     """Get product object
 
-        Parameters
-        ----------
-        reaction_id: int
-            The reaction id to search for a matching product
+    #     Parameters
+    #     ----------
+    #     reaction_id: int
+    #         The reaction id to search for a matching product
 
-        Returns
-        -------
-        productobj: Product
-            The product Django model object
-        """
-        productobj = Product.objects.get(reaction_id=reaction_id)
-        return productobj
+    #     Returns
+    #     -------
+    #     productobj: Product
+    #         The product Django model object
+    #     """
+    #     productobj = Product.objects.get(reaction_id=reaction_id)
+    #     return productobj
 
     def getAddActionQuerySet(
         self,
@@ -1150,7 +1154,7 @@ class CreateOTSession(object):
             }
         )
         materialsdf["productexists"] = materialsdf.apply(
-            lambda row: self.checkPreviousReactionProducts(
+            lambda row: checkPreviousReactionProducts(
                 reaction_id=row["reaction_id_id"], smiles=row["smiles"]
             ),
             axis=1,
@@ -1634,7 +1638,7 @@ class CreateOTSession(object):
 
                     wellobj = self.createWellModel(
                         plateobj=plateobj,
-                        reactionobj=self.getReaction(
+                        reactionobj=getReaction(
                             reaction_id=startingmaterialsdf.at[i, "reaction_id_id"]
                         ),
                         welltype="startingmaterial",
@@ -1675,7 +1679,7 @@ class CreateOTSession(object):
 
                 wellobj = self.createWellModel(
                     plateobj=plateobj,
-                    reactionobj=self.getReaction(
+                    reactionobj=getReaction(
                         reaction_id=startingmaterialsdf.at[i, "reaction_id_id"]
                     ),
                     welltype="startingmaterial",
@@ -1792,7 +1796,7 @@ class CreateOTSession(object):
                         columntype=platetype,
                         reactionclass=reactionclass,
                     )
-                productobj = self.getProduct(reaction_id=reactionobj.id)
+                productobj = getProduct(reaction_id=reactionobj.id)
                 indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
                 if not indexwellavailable:
                     plateobj = self.createPlateModel(
@@ -1866,7 +1870,7 @@ class CreateOTSession(object):
         reaction_ids = actionsessionqueryset.values_list(
             "reaction_id", flat=True
         ).order_by("reaction_id")
-        reactionqueryset = self.getReactionQuerySet(reaction_ids=reaction_ids)
+        reactionqueryset = getReactionQuerySet(reaction_ids=reaction_ids)
         self.createPlateByReactionClass(
             reactionqueryset=reactionqueryset,
             labwareplatetype=labwareplatetype,
@@ -1902,7 +1906,7 @@ class CreateOTSession(object):
         reaction_ids = actionsessionqueryset.values_list(
             "reaction_id", flat=True
         ).order_by("reaction_id")
-        reactionqueryset = self.getReactionQuerySet(reaction_ids=reaction_ids)
+        reactionqueryset = getReactionQuerySet(reaction_ids=reaction_ids)
         self.createPlateByReactionClass(
             reactionqueryset=reactionqueryset,
             labwareplatetype=labwareplatetype,

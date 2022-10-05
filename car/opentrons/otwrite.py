@@ -10,6 +10,7 @@ from django.db.models import QuerySet, Q
 import os
 from graphene_django import DjangoObjectType
 
+from car.utils import checkPreviousReactionProducts, getReactionQuerySet
 from car.recipebuilder.encodedrecipes import encoded_recipes
 from car.models import (
     ActionSession,
@@ -287,37 +288,37 @@ class OTWrite(object):
         productobj = Product.objects.get(reaction_id=reaction_id)
         return productobj
 
-    def getProduct(self, reaction_id: int) -> Product:
-        """Gets the product for a reaction
+    # def getProduct(self, reaction_id: int) -> Product:
+    #     """Gets the product for a reaction
 
-        Parameters
-        ----------
-        reaction_id: int
-            The reaction objects id to search for a product
+    #     Parameters
+    #     ----------
+    #     reaction_id: int
+    #         The reaction objects id to search for a product
 
-        Returns
-        -------
-        productobj: Product
-            The reaction's product
-        """
-        productobj = Product.objects.get(reaction_id=reaction_id)
-        return productobj
+    #     Returns
+    #     -------
+    #     productobj: Product
+    #         The reaction's product
+    #     """
+    #     productobj = Product.objects.get(reaction_id=reaction_id)
+    #     return productobj
 
-    def getReaction(self, reaction_id: int) -> Reaction:
-        """Gets the reaction object
+    # def getReaction(self, reaction_id: int) -> Reaction:
+    #     """Gets the reaction object
 
-        Parameters
-        ----------
-        reaction_id: int
-            The reaction objects id
+    #     Parameters
+    #     ----------
+    #     reaction_id: int
+    #         The reaction objects id
 
-        Returns
-        -------
-        reactionobj: Reaction
-            The reaction object
-        """
-        reactionobj = Reaction.objects.get(id=reaction_id)
-        return reactionobj
+    #     Returns
+    #     -------
+    #     reactionobj: Reaction
+    #         The reaction object
+    #     """
+    #     reactionobj = Reaction.objects.get(id=reaction_id)
+    #     return reactionobj
 
     def getPlates(self) -> QuerySet[Plate]:
         """Gets plates for an OT session
@@ -388,49 +389,49 @@ class OTWrite(object):
         productobj = Product.objects.filter(reaction_id=reaction_id)[0]
         return productobj.smiles
 
-    def getPreviousObjEntries(
-        self, queryset: QuerySet, obj: DjangoObjectType
-    ) -> QuerySet:
-        """Finds all previous Django model object relative to the Django model
-           object in a queryset
+    # def getPreviousObjEntries(
+    #     self, queryset: QuerySet, obj: DjangoObjectType
+    # ) -> QuerySet:
+    #     """Finds all previous Django model object relative to the Django model
+    #        object in a queryset
 
-        Parameters
-        ----------
-        queryset: QuerySet
-            The queryset to search for previous entries
-        obj: DjangoObjectType
-            The object that you want to find all previous object entries relative to
+    #     Parameters
+    #     ----------
+    #     queryset: QuerySet
+    #         The queryset to search for previous entries
+    #     obj: DjangoObjectType
+    #         The object that you want to find all previous object entries relative to
 
-        Returns
-        -------
-        previousqueryset: QuerySet
-            The previous Django model objects as a queryset
-        """
-        previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
-        return previousqueryset
+    #     Returns
+    #     -------
+    #     previousqueryset: QuerySet
+    #         The previous Django model objects as a queryset
+    #     """
+    #     previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
+    #     return previousqueryset
 
-    def getReactionQuerySet(
-        self, reaction_ids: list = None, method_id: int = None
-    ) -> QuerySet[Reaction]:
-        """Get a  synthesis methods reactions
+    # def getReactionQuerySet(
+    #     self, reaction_ids: list = None, method_id: int = None
+    # ) -> QuerySet[Reaction]:
+    #     """Get a  synthesis methods reactions
 
-        Parameters
-        ----------
-        reaction_id: int or Reaction
-            The reaction ids to find reactions for
-        method_id: int
-            The optional synthesis method's id to get reactions for
+    #     Parameters
+    #     ----------
+    #     reaction_id: int or Reaction
+    #         The reaction ids to find reactions for
+    #     method_id: int
+    #         The optional synthesis method's id to get reactions for
 
-        Returns
-        -------
-        reactionqueryset: QuerySet[Reaction]
-            The reactions of a synthesis method
-        """
-        if reaction_ids:
-            reactionqueryset = Reaction.objects.filter(id__in=reaction_ids)
-        if method_id:
-            reactionqueryset = Reaction.objects.filter(method_id=method_id)
-        return reactionqueryset
+    #     Returns
+    #     -------
+    #     reactionqueryset: QuerySet[Reaction]
+    #         The reactions of a synthesis method
+    #     """
+    #     if reaction_ids:
+    #         reactionqueryset = Reaction.objects.filter(id__in=reaction_ids)
+    #     if method_id:
+    #         reactionqueryset = Reaction.objects.filter(method_id=method_id)
+    #     return reactionqueryset
 
     def getColumnQuerySet(
         self,
@@ -460,38 +461,38 @@ class OTWrite(object):
         ).order_by("id")
         return columnqueryset
 
-    def checkPreviousReactionProduct(
-        self, reaction_id: int, smiles: str
-    ) -> list[Reaction]:
-        """Checks if any previous reactions had a product matching the smiles
+    # def checkPreviousReactionProduct(
+    #     self, reaction_id: int, smiles: str
+    # ) -> list[Reaction]:
+    #     """Checks if any previous reactions had a product matching the smiles
 
-        Parameters
-        ----------
-        reaction_id: int
-            The reaction id of the Django model object to search for
-            all relative previous reactions objects. The previous reactions may
-            have products that are this reaction's reactant input
-        smiles: str
-            The SMILES of the reaction's reactant and previous reaction products
+    #     Parameters
+    #     ----------
+    #     reaction_id: int
+    #         The reaction id of the Django model object to search for
+    #         all relative previous reactions objects. The previous reactions may
+    #         have products that are this reaction's reactant input
+    #     smiles: str
+    #         The SMILES of the reaction's reactant and previous reaction products
 
-        Returns
-        -------
-        previousproductmatches: list[Reactant]
-            The list of reactions whose product matches the query SMILES
-        """
+    #     Returns
+    #     -------
+    #     previousproductmatches: list[Reactant]
+    #         The list of reactions whose product matches the query SMILES
+    #     """
 
-        reactionobj = self.getReaction(reaction_id=reaction_id)
-        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
-        prevreactionqueryset = self.getPreviousObjEntries(
-            queryset=reactionqueryset, obj=reactionobj
-        )
-        previousproductmatches = []
-        if prevreactionqueryset:
-            for reactionobj in prevreactionqueryset:
-                productobj = self.getProduct(reaction_id=reactionobj)
-                if productobj.smiles == smiles:
-                    previousproductmatches.append(reactionobj)
-        return previousproductmatches
+    #     reactionobj = self.getReaction(reaction_id=reaction_id)
+    #     reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
+    #     prevreactionqueryset = self.getPreviousObjEntries(
+    #         queryset=reactionqueryset, obj=reactionobj
+    #     )
+    #     previousproductmatches = []
+    #     if prevreactionqueryset:
+    #         for reactionobj in prevreactionqueryset:
+    #             productobj = self.getProduct(reaction_id=reactionobj)
+    #             if productobj.smiles == smiles:
+    #                 previousproductmatches.append(reactionobj)
+    #     return previousproductmatches
 
     def createFilePath(self):
         """Creates the OT protcol script filepath"""
@@ -599,13 +600,13 @@ class OTWrite(object):
             The list of wells found along with volume to transfer from the
             well
         """
-        previousreactionobjs = self.checkPreviousReactionProduct(
+        previousreactionqueryset = checkPreviousReactionProducts(
             reaction_id=reaction_id, smiles=smiles
         )
         wellinfo = []
-        if previousreactionobjs:
+        if previousreactionqueryset:
             criterion1 = Q(otsession_id=self.otsession_id)
-            criterion2 = Q(reaction_id=previousreactionobjs[0])
+            criterion2 = Q(reaction_id=previousreactionqueryset[0])
             criterion3 = Q(smiles=smiles)
             criterion4 = Q(type="reaction")
             criterion5 = Q(type="workup1")
@@ -618,12 +619,12 @@ class OTWrite(object):
                     & criterion3
                     & (criterion5 | criterion6 | criterion7)
                 )
-                wellinfo.append([previousreactionobjs, wellobj, transfervolume])
+                wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
             except:
                 wellobj = Well.objects.get(
                     criterion1 & criterion2 & criterion3 & criterion4
                 )
-                wellinfo.append([previousreactionobjs, wellobj, transfervolume])
+                wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
         else:
             try:
                 wellobjects = Well.objects.filter(
@@ -647,7 +648,7 @@ class OTWrite(object):
                                 wellobj=wellobj, transfervolume=transfervolume
                             )
                             wellinfo.append(
-                                [previousreactionobjs, wellobj, transfervolume]
+                                [previousreactionqueryset, wellobj, transfervolume]
                             )
                             transfervolume = 0.00
                         if wellvolumeavailable < transfervolume:
@@ -655,7 +656,7 @@ class OTWrite(object):
                                 wellobj=wellobj, transfervolume=wellvolumeavailable
                             )
                             wellinfo.append(
-                                [previousreactionobjs, wellobj, wellvolumeavailable]
+                                [previousreactionqueryset, wellobj, wellvolumeavailable]
                             )
                             transfervolume = transfervolume - wellvolumeavailable
             except Exception as e:
@@ -695,7 +696,7 @@ class OTWrite(object):
             The Django add action model objects that require the reaction product
             as an input reactant
         """
-        reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
+        reactionqueryset = getReactionQuerySet(method_id=reactionobj.method_id.id)
         nextreactionqueryset = self.getNextObjEntries(
             queryset=reactionqueryset, obj=reactionobj
         )
@@ -1375,7 +1376,7 @@ class OTWrite(object):
         reaction_ids = actionsessionqueryset.values_list(
             "reaction_id", flat=True
         ).order_by("reaction_id")
-        reactionqueryset = self.getReactionQuerySet(reaction_ids=reaction_ids)
+        reactionqueryset = getReactionQuerySet(reaction_ids=reaction_ids)
         groupedreactionclassquerysets = self.getGroupedReactionByClass(
             reactionqueryset=reactionqueryset
         )
@@ -1551,7 +1552,7 @@ class OTWrite(object):
         reaction_ids = actionsessionqueryset.values_list(
             "reaction_id", flat=True
         ).order_by("reaction_id")
-        reactionqueryset = self.getReactionQuerySet(reaction_ids=reaction_ids)
+        reactionqueryset = getReactionQuerySet(reaction_ids=reaction_ids)
         groupedreactionclassquerysets = self.getGroupedReactionByClass(
             reactionqueryset=reactionqueryset
         )

@@ -1,11 +1,17 @@
 """Checks validation of file for uploading to CAR"""
+import math
 from typing import BinaryIO
 import inspect
 import pandas as pd
 from rdkit import Chem
 
 from .recipebuilder.encodedrecipes import encoded_recipes
-from .utils import canonSmiles, getAddtionOrder, checkReactantSMARTS, combiChem
+from .utils import (
+    canonSmiles,
+    getAddtionOrder,
+    checkReactantSMARTS,
+    combiChem,
+)
 
 import logging
 
@@ -40,150 +46,398 @@ class ValidateFile(object):
             self.validateCustomCombiChem()
 
         if self.upload_type == "retro-API":
-            self.expected_no_columns = 3
-            self.expected_column_names = ["targets", "amount-required-mg", "batch-tag"]
-            self.checkNumberColumns()
+            expected_no_columns = 3
+            expected_column_names = ["targets", "amount-required-mg", "batch-tag"]
+            self.checkNumberColumns(
+                expected_no_columns=expected_no_columns,
+                expected_column_names=expected_column_names,
+            )
             if self.validated:
-                self.checkColumnNames()
+                self.checkColumnNames(expected_column_names=expected_column_names)
             if self.validated:
                 self.target_smiles = [
                     canonSmiles(smi.strip()) for smi in self.df["targets"]
                 ]
                 self.df["targets"] = self.target_smiles
-                self.checkTargetSMILES()
+                self.checkSMILES(
+                    df_rows_index=self.index_df_rows,
+                    smiles=self.target_smiles,
+                    smiles_type="target",
+                )
+                # self.checkTargetSMILES()
                 if self.validated:
                     self.checkIsNumber()
                 if self.validated:
                     self.checkIsString()
 
+    # def validateCustomChem(self):
+    #     """Validates the csv file if the custom chemistry
+    #     option selected
+    #     """
+    #     expected_no_columns = 5
+    #     expected_column_names = [
+    #         "reactant-1",
+    #         "reactant-2",
+    #         "reaction-name",
+    #         "amount-required-mg",
+    #         "batch-tag",
+    #     ]
+    #     self.checkNumberColumns(
+    #         expected_no_columns=expected_no_columns,
+    #         expected_column_names=expected_column_names,
+    #     )
+    #     if self.validated:
+    #         self.checkColumnNames()
+    #     if self.validated:
+    #         reactant_pair_smiles = [
+    #             reactants
+    #             for reactants in zip(self.df["reactant-1"], self.df["reactant-2"])
+    #         ]
+    #         self.df["reactant-pair-smiles"] = reactant_pair_smiles
+    #         self.checkSMILES(
+    #             df_rows_index=self.index_df_rows,
+    #             smiles=reactant_pair_smiles,
+    #             smiles_type="reactant pair",
+    #         )
+    #         # self.checkReactantSMILES(reactant_pair_smiles=self.reactant_pair_smiles)
+    #         if self.validated:
+    #             reactant_pair_smiles = [
+    #                 (canonSmiles(smi[0]), canonSmiles(smi[1]))
+    #                 for smi in self.reactant_pair_smiles
+    #             ]
+    #             reaction_names = self.df["reaction-name"]
+    #             reactant_pair_smiles_ordered, product_smiles = self.checkReaction(
+    #                 reactant_pair_smiles=reactant_pair_smiles,
+    #                 reaction_names=reaction_names,
+    #             )
+    #             if self.validated:
+    #                 self.df["reactant-pair-smiles"] = reactant_pair_smiles_ordered
+    #                 self.df["targets"] = product_smiles
+    #                 self.checkIsNumber()
+    #             if self.validated:
+    #                 self.checkIsString()
+
     def validateCustomChem(self):
-        """Validates the csv file if the custom chemistry
-        option selected
-        """
-        self.expected_no_columns = 5
-        self.expected_column_names = [
-            "reactant-1",
-            "reactant-2",
-            "reaction-name",
-            "amount-required-mg",
-            "batch-tag",
+        max_no_steps = max(self.df["no-steps"])
+        reaction_numbers = list(range(1, max_no_steps + 1))
+        expected_no_columns = (max_no_steps * 4) + 3
+        expected_reactant_1_column_names = [
+            "reactant-1-{}".format(reaction_number)
+            for reaction_number in reaction_numbers
         ]
-        self.checkNumberColumns()
-        if self.validated:
-            self.checkColumnNames()
-        if self.validated:
-            self.reactant_pair_smiles = [
-                reactants
-                for reactants in zip(self.df["reactant-1"], self.df["reactant-2"])
+        expected_reactant_2_column_names = [
+            "reactant-2-{}".format(reaction_number)
+            for reaction_number in reaction_numbers
+        ]
+        expected_reaction_name_column_names = [
+            "reaction-name-{}".format(reaction_number)
+            for reaction_number in reaction_numbers
+        ]
+        expected_product_column_names = [
+            "reaction-product-smiles-{}".format(reaction_number)
+            for reaction_number in reaction_numbers
+        ]
+        expected_column_names = (
+            [
+                "no-steps",
+                "amount-required-mg",
+                "batch-tag",
             ]
-            self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
-            self.checkReactantSMILES()
+            + expected_reactant_1_column_names
+            + expected_reactant_2_column_names
+            + expected_product_column_names
+            + expected_reaction_name_column_names
+        )
+        self.checkNumberColumns(
+            expected_no_columns=expected_no_columns,
+            expected_column_names=expected_column_names,
+        )
+        if self.validated:
+            self.checkColumnNames(expected_column_names=expected_column_names)
+        if self.validated:
+            self.batchtags = self.df["batch-tag"]
+            self.amounts = self.df["amount-required-mg"]
+            self.nosteps = self.df["no-steps"]
+            self.target_smiles = []
+            self.products = []
+            self.reactant_pair_smiles = []
+            self.reaction_names = []
+            for index, row in self.df.iterrows():
+                no_reaction_steps = row["no-steps"]
+                reaction_numbers_group = list(range(1, no_reaction_steps + 1))
+                for reaction_number in reaction_numbers_group:
+                    reactant_1_SMILES = [
+                        reactant
+                        for reactant in row["reactant-1-{}".format(reaction_number)]
+                        if str(reactant) != "nan"
+                    ]
+
+                    reactant_2_SMILES = [
+                        reactant
+                        for reactant in row["reactant-2-{}".format(reaction_number)]
+                        if str(reactant) != "nan"
+                    ]
+
+                    reactant_pair_smiles = [reactant_1_SMILES, reactant_2_SMILES]
+                    self.checkSMILES(
+                        df_rows_index=index,
+                        smiles=reactant_pair_smiles,
+                        smiles_type="reactant_pair",
+                    )
+                    if self.validated:
+                        (
+                            reactant_pair_smiles_ordered,
+                            product_smiles,
+                        ) = self.checkReaction(
+                            reactant_pair_smiles=reactant_pair_smiles,
+                            reaction_names=row[
+                                "reaction-name-{}".format(reaction_number)
+                            ],
+                            product_smiles=row[
+                                "reaction-product-smiles-{}".format(reaction_number)
+                            ],
+                        )
+                    reactant_pair_smiles_ordered = [
+                        (canonSmiles(smi[0]), canonSmiles(smi[1]))
+                        for smi in reactant_pair_smiles_ordered
+                    ]
+
+                    row[
+                        "reaction-reactant-pair-smiles-{}".format(reaction_number)
+                    ] = reactant_pair_smiles_ordered
+                    if reaction_number == no_reaction_steps:
+                        self.target_smiles = self.target_smiles + product_smiles
+
+                reaction_names = list(
+                    zip(
+                        *[
+                            row["reaction-name-{}".format(reactionnumber)]
+                            for reactionnumber in reaction_numbers_group
+                        ]
+                    )
+                )
+                reactant_pair_smiles = list(
+                    zip(
+                        *[
+                            row[
+                                "reaction-reactant-pair-smiles-{}".format(
+                                    reactionnumber
+                                )
+                            ]
+                            for reactionnumber in reaction_numbers_group
+                        ]
+                    )
+                )
+                products = list(
+                    zip(
+                        *[
+                            row["reaction-product-smiles-{}".format(reactionnumber)]
+                            for reactionnumber in reaction_numbers_group
+                        ]
+                    )
+                )
+                self.products = self.products + products
+                self.reactant_pair_smiles = (
+                    self.reactant_pair_smiles + reactant_pair_smiles
+                )
+                self.reaction_names = self.reaction_names + reaction_names
+
             if self.validated:
-                self.reactant_pair_smiles = [
-                    (canonSmiles(smi[0]), canonSmiles(smi[1]))
-                    for smi in self.reactant_pair_smiles
-                ]
-                self.reaction_names = self.df["reaction-name"]
-                self.checkReaction()
-                if self.validated:
-                    self.df["reactant-pair-smiles"] = self.reactant_pair_smiles_ordered
-                    self.df["target-smiles"] = self.product_smiles
-                    self.checkIsNumber()
-                if self.validated:
-                    self.checkIsString()
+                self.df = pd.DataFrame()
+                self.df["batch-tag"] = self.batchtags
+                self.df["target-smiles"] = self.target_smiles
+                self.df["amount-required-mg"] = self.amounts
+                self.df["no-steps"] = self.nosteps
+                self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
+                self.df["reaction-name"] = self.reaction_names
+                self.df["product-smiles"] = self.products
+                self.checkIsNumber()
 
     def validateCustomCombiChem(self):
         max_no_steps = max(self.df["no-steps"])
-        self.expected_no_columns = (max_no_steps * 3) + 2
-        reactant_1_column_names = []  # Must finish column naming!
-        reactant_2_column_names = []
-
-        self.expected_column_names = [
-            "reactant-1",
-            "reactant-2",
-            "reaction-name",
-            "amount-required-mg",
-            "batch-tag",
+        reaction_numbers = list(range(1, max_no_steps + 1))
+        expected_no_columns = (max_no_steps * 2) + 5
+        expected_reactant_1_column_names = [
+            "reactant-1-{}".format(reaction_number)
+            for reaction_number in reaction_numbers
         ]
-        self.checkNumberColumns()
-        # if self.validated:
-        #     self.checkColumnNames()
+        expected_reaction_name_column_names = [
+            "reaction-name-{}".format(reaction_number)
+            for reaction_number in reaction_numbers
+        ]
+        expected_column_names = (
+            [
+                "combi-group",
+                "no-steps",
+                "amount-required-mg",
+                "batch-tag",
+                "reactant-2-1",
+            ]
+            + expected_reactant_1_column_names
+            + expected_reaction_name_column_names
+        )
+        self.checkNumberColumns(
+            expected_no_columns=expected_no_columns,
+            expected_column_names=expected_column_names,
+        )
+        if self.validated:
+            self.checkColumnNames(expected_column_names=expected_column_names)
 
         if self.validated:
+            self.target_smiles = []
+            self.nosteps = []
+            self.products = []
             self.reactant_pair_smiles = []
             self.reaction_names = []
             self.batchtags = []
-
+            self.amounts = []
             combi_grouped = self.df.groupby(["combi-group"])
-            for combi_group in combi_grouped:
+            for _, combi_group in combi_grouped:
+                combi_group_info = {}
+                combi_group = combi_group.reset_index()
                 max_no_steps_combi_group = max(combi_group["no-steps"])
-                for i in range(max_no_steps_combi_group):
-                    reaction_step_df = combi_group.filter(regex="-{}$".format(i))
-                    reaction_tag_grouped = reaction_step_df.groupby(
-                        ["reaction-name-{}".format(i), "batch-tag"]
-                    )
-                    for name, group in reaction_tag_grouped:
-                        group = group.reset_index()
-                        reactant_1_SMILES = set(
-                            [
-                                reactant
-                                for reactant in group["reactant-1-{}".format(i)]
-                                if str(reactant) != "nan"
+                reaction_numbers_group = list(range(1, max_no_steps_combi_group + 1))
+                columns_count = combi_group.nunique(
+                    axis="rows", dropna=True
+                )  # NB "nan" values (empty row values) not counted
+                number_reactant_1s = [
+                    columns_count["reactant-1-{}".format(reaction_number)]
+                    for reaction_number in reaction_numbers_group
+                    if "reactant-1-{}".format(reaction_number) in columns_count
+                ]
+                number_reactant_2s = [
+                    columns_count["reactant-2-{}".format(reaction_number)]
+                    for reaction_number in reaction_numbers_group
+                    if "reactant-2-{}".format(reaction_number) in columns_count
+                ]
+                no_targets = math.prod(number_reactant_1s + number_reactant_2s)
+                batch_tags = [combi_group.at[0, "batch-tag"]] * no_targets
+                amounts = [combi_group.at[0, "amount-required-mg"]] * no_targets
+                no_steps = [combi_group.at[0, "no-steps"]] * no_targets
+                self.batchtags = self.batchtags + batch_tags
+                self.amounts = self.amounts + amounts
+                self.nosteps = self.nosteps + no_steps
+                for reaction_number in reaction_numbers_group:
+                    reaction_combi_group_info = {}
+                    reaction_combi_group_info[
+                        "reaction-name-{}".format(reaction_number)
+                    ] = [combi_group.at[0, "reaction-name-{}".format(1)]] * no_targets
+                    if reaction_number == 1:
+                        reactant_1_SMILES = [
+                            reactant
+                            for reactant in combi_group[
+                                "reactant-1-{}".format(reaction_number)
                             ]
-                        )
-                        reactant_2_SMILES = set(
-                            [
-                                reactant
-                                for reactant in group["reactant-2-{}".format(i)]
-                                if str(reactant) != "nan"
-                            ]
-                        )
-                        reactant_pair_smiles = combiChem(
-                            reactant_1_SMILES=reactant_1_SMILES,
-                            reactant_2_SMILES=reactant_2_SMILES,
-                        )
-                        reaction_names = [name[0]] * len(reactant_pair_smiles)
-                        batchtags = [group.at[0, "batch-tag"]] * len(
-                            reactant_pair_smiles
-                        )
-                        self.reactant_pair_smiles = (
-                            self.reactant_pair_smiles + reactant_pair_smiles
-                        )
-                        self.reaction_names = self.reaction_names + reaction_names
-                        self.batchtags = self.batchtags + batchtags
-
-                    self.checkReactantSMILES()
-                    if self.validated:
-                        self.reactant_pair_smiles = [
-                            (canonSmiles(smi[0]), canonSmiles(smi[1]))
-                            for smi in self.reactant_pair_smiles
+                            if str(reactant) != "nan"
                         ]
-                        self.checkReaction()
-                        if self.validated:
-                            amount_required_mg = self.df.at[0, "amount-required-mg"]
-                            self.df = pd.DataFrame()
-                            self.df[
-                                "reactant-pair-smiles"
-                            ] = self.reactant_pair_smiles_ordered
-                            self.df["target-smiles"] = self.product_smiles
-                            self.df["reaction-name"] = self.reaction_names
-                            self.df["amount-required-mg"] = [amount_required_mg] * len(
-                                self.reactant_pair_smiles
-                            )
-                            self.df["batch-tag"] = self.batchtags
-                            self.checkIsNumber()
+
+                        reactant_2_SMILES = [
+                            reactant
+                            for reactant in combi_group[
+                                "reactant-2-{}".format(reaction_number)
+                            ]
+                            if str(reactant) != "nan"
+                        ]
+
+                    if reaction_number > 1:
+                        reactant_1_SMILES = [
+                            reactant
+                            for reactant in combi_group[
+                                "reactant-1-{}".format(reaction_number)
+                            ]
+                            if str(reactant) != "nan"
+                        ]
+                        reactant_2_SMILES = product_smiles
+
+                    reactant_pair_smiles = combiChem(
+                        reactant_1_SMILES=reactant_1_SMILES,
+                        reactant_2_SMILES=reactant_2_SMILES,
+                    )
+                    if len(reactant_pair_smiles) != no_targets:
+                        reactant_pair_smiles = reactant_pair_smiles * (
+                            no_targets // len(reactant_pair_smiles)
+                        )
+
+                    reaction_names = [
+                        combi_group.at[0, "reaction-name-{}".format(reaction_number)]
+                    ] * no_targets
+
+                    reactant_pair_smiles_ordered, product_smiles = self.checkReaction(
+                        reactant_pair_smiles=reactant_pair_smiles,
+                        reaction_names=reaction_names,
+                    )
+                    reactant_pair_smiles_ordered = [
+                        (canonSmiles(smi[0]), canonSmiles(smi[1]))
+                        for smi in reactant_pair_smiles_ordered
+                    ]
+                    if reaction_number == max_no_steps_combi_group:
+                        self.target_smiles = self.target_smiles + product_smiles
+                    reaction_combi_group_info[
+                        "reaction-reactant-pair-smiles-{}".format(reaction_number)
+                    ] = reactant_pair_smiles_ordered
+                    reaction_combi_group_info[
+                        "reaction-product-smiles-{}".format(reaction_number)
+                    ] = product_smiles
+                    combi_group_info.update(reaction_combi_group_info)
+
+                products = list(
+                    zip(
+                        *[
+                            combi_group_info[
+                                "reaction-product-smiles-{}".format(reactionnumber)
+                            ]
+                            for reactionnumber in reaction_numbers_group
+                        ]
+                    )
+                )
+                reactant_pair_smiles = list(
+                    zip(
+                        *[
+                            combi_group_info[
+                                "reaction-reactant-pair-smiles-{}".format(
+                                    reactionnumber
+                                )
+                            ]
+                            for reactionnumber in reaction_numbers_group
+                        ]
+                    )
+                )
+                reaction_names = list(
+                    zip(
+                        *[
+                            combi_group_info["reaction-name-{}".format(reactionnumber)]
+                            for reactionnumber in reaction_numbers_group
+                        ]
+                    )
+                )
+                self.products = self.products + products
+                self.reactant_pair_smiles = (
+                    self.reactant_pair_smiles + reactant_pair_smiles
+                )
+                self.reaction_names = self.reaction_names + reaction_names
+
+            if self.validated:
+                self.df = pd.DataFrame()
+                self.df["batch-tag"] = self.batchtags
+                self.df["target-smiles"] = self.target_smiles
+                self.df["amount-required-mg"] = self.amounts
+                self.df["no-steps"] = self.nosteps
+                self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
+                self.df["reaction-name"] = self.reaction_names
+                self.df["product-smiles"] = self.products
+                self.checkIsNumber()
 
     def add_warning(self, field, warning_string):
         self.validate_dict["field"].append(field)
         self.validate_dict["warning_string"].append(warning_string)
 
-    def checkColumnNames(self):
+    def checkColumnNames(self, expected_column_names):
         try:
-            if not all(self.df_columns == self.expected_column_names):
+            if not set(self.df_columns) == set(expected_column_names):
                 self.add_warning(
                     field="name_columns",
                     warning_string="Column names should be set to: {}".format(
-                        self.expected_column_names
+                        expected_column_names
                     ),
                 )
                 self.validated = False
@@ -195,15 +449,15 @@ class ValidateFile(object):
             )
             self.validated = False
 
-    def checkNumberColumns(self):
+    def checkNumberColumns(self, expected_no_columns, expected_column_names):
         try:
-            if self.no_df_columns != self.expected_no_columns:
+            if self.no_df_columns != expected_no_columns:
                 self.add_warning(
                     field="number_columns",
                     warning_string="Found {} columns. Expected {} columns. Set and name columns to {} only".format(
                         self.no_df_columns,
-                        self.expected_no_columns,
-                        self.expected_column_names,
+                        expected_no_columns,
+                        expected_column_names,
                     ),
                 )
                 self.validated = False
@@ -215,14 +469,32 @@ class ValidateFile(object):
             )
             self.validated = False
 
-    def checkTargetSMILES(self):
+    def checkSMILES(
+        self, df_rows_index: list[int], smiles: list[str], smiles_type: str
+    ):
+        """Checks if input SMILES from df is valid
+
+        Parameters
+        ----------
+        df_rows_index: list[int]
+            The index of the df rows being tested - for error reporting
+        smiles: list[str]
+            The SMILES being tested eg. Target or reactant pair SMILES
+        smiles_type: str
+            The type of SMILES being tested eg. target or reactant_pair
+
+        """
         try:
-            for index, smi in zip(self.index_df_rows, self.target_smiles):
-                canonsmiles = canonSmiles(smi)
-                if not canonsmiles:
+            for index, smi in zip(df_rows_index, smiles):
+                if all(isinstance(item, tuple) for item in smi):
+                    mol_test = [Chem.MolFromSmiles(smi) for smi in smi]
+                else:
+                    mol_test = [Chem.MolFromSmiles(smi)]
+                if None in mol_test:
                     self.add_warning(
                         field="check_smiles",
-                        warning_string="Input target smiles: '{}' at index {} is not a valid smiles".format(
+                        warning_string="Input {} smiles: '{}' at index {} is not a valid smiles".format(
+                            smiles_type,
                             smi,
                             index,
                         ),
@@ -232,37 +504,8 @@ class ValidateFile(object):
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             self.add_warning(
                 field="check_smiles",
-                warning_string="Input target smiles check failed with error: {}".format(
-                    e
-                ),
-            )
-            self.validated = False
-
-    def checkReactantSMILES(self):
-        try:
-            for index, smi_pair in zip(self.index_df_rows, self.reactant_pair_smiles):
-                mols = [Chem.MolFromSmiles(smi) for smi in smi_pair]
-                if None in mols:
-                    none_test_indices = [
-                        index for index, mol in enumerate(mols) if mol is None
-                    ]
-                    invalid_smiles = [smi_pair[index] for index in none_test_indices]
-                    self.add_warning(
-                        field="check_smiles",
-                        warning_string="Input reactant smiles: ".join(
-                            "{} ".format(*smi) for smi in invalid_smiles
-                        )
-                        + "at index {} is not a valid smiles".format(
-                            index,
-                        ),
-                    )
-                    self.validated = False
-        except Exception as e:
-            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
-            self.add_warning(
-                field="check_smiles",
-                warning_string="Input reactant smiles check failed with error: {}".format(
-                    e
+                warning_string="Input {} smiles check failed with error: {}".format(
+                    smiles_type, e
                 ),
             )
             self.validated = False
@@ -307,17 +550,22 @@ class ValidateFile(object):
             )
             self.validated = False
 
-    def checkReaction(self):
+    def checkReaction(
+        self,
+        reactant_pair_smiles: list,
+        reaction_names: list[str],
+        product_smiles: str = None,
+    ):
         try:
-            self.product_smiles = []
-            self.reactant_pair_smiles_ordered = []
-            no_reaction_tests = len(self.reaction_names)
-
-            for index, reactant_pair, reaction_name in zip(
-                range(no_reaction_tests), self.reactant_pair_smiles, self.reaction_names
+            product_created_smiles = []
+            reactant_pair_smiles_ordered = []
+            for reactant_pair, reaction_name in zip(
+                reactant_pair_smiles, reaction_names
             ):
 
-                smarts = encoded_recipes[reaction_name]["reactionSMARTS"]
+                smarts = encoded_recipes[reaction_name]["recipes"]["standard"][
+                    "reactionSMARTS"
+                ]
                 product_mols = checkReactantSMARTS(
                     reactant_SMILES=reactant_pair, reaction_SMARTS=smarts
                 )
@@ -332,15 +580,20 @@ class ValidateFile(object):
                     self.validated = False
 
                 if product_mols:
-                    product_mol = product_mols[0]
+                    if product_smiles:
+                        product_mol = Chem.MolFromSmiles(product_smiles)
+                    else:
+                        product_mol = product_mols[0]
                     product_smi = Chem.MolToSmiles(product_mol)
                     reactant_smis = getAddtionOrder(
                         product_smi=product_smi,
                         reactant_SMILES=reactant_pair,
                         reaction_SMARTS=smarts,
                     )
-                    self.product_smiles.append(product_smi)
-                    self.reactant_pair_smiles_ordered.append(reactant_smis)
+                    product_created_smiles.append(product_smi)
+                    reactant_pair_smiles_ordered.append(reactant_smis)
+            return reactant_pair_smiles_ordered, product_created_smiles
+
         except Exception as e:
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             self.add_warning(

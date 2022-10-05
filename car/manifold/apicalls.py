@@ -47,12 +47,13 @@ def getManifoldRetrosynthesis(smiles: str):
 @sleep_and_retry
 @limits(calls=100, period=60)
 def getManifoldRetrosynthesisBatch(smiles: list):
-    """Call Manifold API to search for a retrosynthesis for a given smiles
+    """Call Manifold API to search for a retrosynthesis for a given list
+    of target compound SMILES
 
     Parameters
     ----------
     smiles: list
-        The list of SMILES for Manifold retrosynthesis search
+        The list of SMILES for the Manifold retrosynthesis search
 
     Returns
     -------

@@ -187,6 +187,7 @@ class Reactant(models.Model):
         null=True,
     )
     smiles = models.CharField(max_length=255)
+    previousreactionproduct = models.BooleanField(default=False)
 
 
 class Product(models.Model):
