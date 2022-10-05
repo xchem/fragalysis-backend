@@ -1,4 +1,5 @@
 from django.db.models import QuerySet
+from django.db.models import Q, Max
 from rdkit.Chem import Descriptors
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -7,10 +8,18 @@ import pubchempy as pcp
 import itertools
 import re
 import inspect
-
 import logging
 
-from car.models import Batch, Method, Product, Reaction
+
+from car.models import (
+    ActionSession,
+    Batch,
+    Method,
+    OTBatchProtocol,
+    Product,
+    Reaction,
+    Target,
+)
 
 from car.recipebuilder.encodedrecipes import encoded_recipes
 
@@ -48,6 +57,263 @@ logger = logging.getLogger(__name__)
 
 
 # Need to convert into function to retrieve all reactants that need to be purchased plus API endpoint!
+
+
+def getOTBatchProtocolQuerySet(batch_id: int) -> QuerySet[OTBatchProtocol]:
+    """Gets the OT batch protocol queryset
+
+    Parameters
+    ----------
+    batch_id: int
+        The batch id to saerch for an associated OT protocol
+
+    Returns
+    -------
+        The OT Batch protocol queryset
+    """
+    otbatchprotocolqueryset = OTBatchProtocol.objects.filter(batch_id=batch_id)
+    return otbatchprotocolqueryset
+
+
+def getActionSessionSequenceNumbers(
+    actionsessionqueryset: QuerySet[ActionSession],
+) -> list:
+    """Set of action session sequence numbers
+
+    Returns
+    ------
+    sessionnumbers: list
+        The set of session numbers in an action session
+        queryset eg. [1,2,3,4....n]
+    """
+    maxsessionnumber = actionsessionqueryset.aggregate(Max("sessionnumber"))[
+        "sessionnumber__max"
+    ]
+    sessionnumbers = list(range(1, maxsessionnumber + 1))
+    return sessionnumbers
+
+
+def getActionSessionTypes(actionsessionqueryset: QuerySet[ActionSession]) -> QuerySet:
+    """Set of action session types
+
+    Returns
+    ------
+    actionsessiontypes: QuerySet
+        The set of action session types in a queryset
+        eg. ["reaction", "workup", "stir"]
+    """
+    actionsessiontypes = set(list(actionsessionqueryset.values_list("type", flat=True)))
+    return actionsessiontypes
+
+
+def getGroupedActionSessionSequences(
+    sessionnumbers: list, actionsessionqueryset: QuerySet[ActionSession]
+) -> list:
+    """Group action sessions by sequence number
+
+    Parameters
+    ----------
+    sessionnumbers: list
+        The list of action session sequence numbers
+    actionsessionqueryset: QuerySet[ActionSession]
+        The action session queryset to group by sequence number
+
+    Returns
+    -------
+    groupedactionsessionsequences: list
+        List of sublists of action sessions grouped by sequence number
+    """
+    groupedactionsessionsequences = []
+    for sessionnumber in sessionnumbers:
+        actionsessiongroup = actionsessionqueryset.filter(
+            sessionnumber=sessionnumber
+        ).order_by("-pk")
+        groupedactionsessionsequences.append(actionsessiongroup)
+    return groupedactionsessionsequences
+
+
+def getGroupedActionSessionTypes(
+    actionsessiontypes: QuerySet, actionsessionqueryset: QuerySet[ActionSession]
+) -> list:
+    """Group action sessions by type
+
+    Parameters
+    ----------
+    actionsessiontypes: QuerySet
+        The list of action session sequence numbers
+    actionsessionqueryset: QuerySet[ActionSession]
+        The action session queryset to group by sequence number
+
+    Returns
+    -------
+    groupedactionsessionquerysettypes: list
+        List of sublists of action sessions grouped by types
+    """
+    groupedactionsessiontypes = []
+    for actionsessiontype in actionsessiontypes:
+        actionsessiongrouptype = actionsessionqueryset.filter(
+            type=actionsessiontype
+        ).order_by("-pk")
+        if actionsessiongrouptype:
+            groupedactionsessiontypes.append(actionsessiongrouptype)
+    return groupedactionsessiontypes
+
+
+def getActionSessionQuerySet(
+    reaction_ids: QuerySet[Reaction],
+    driver: str = None,
+) -> QuerySet[ActionSession]:
+    """Returns the action session wueryset for a type of driver
+       (human or robot)
+
+    Parameters
+    ----------
+    reactions_ids: QuerySet[Reaction]
+        The reactions that the action session will excecute
+    driver: str
+        The optional main driver of the action session
+
+    Returns
+    -------
+    actionsessionqueryset: QuerySet[ActionSession]
+        The action session queryset for a given driver
+    """
+    if driver:
+        criterion1 = Q(reaction_id__in=reaction_ids)
+        criterion2 = Q(driver=driver)
+        actionsessionqueryset = ActionSession.objects.filter(criterion1 & criterion2)
+        if actionsessionqueryset:
+            return actionsessionqueryset
+    if not driver:
+        criterion1 = Q(reaction_id__in=reaction_ids)
+        actionsessionqueryset = ActionSession.objects.filter(criterion1)
+        if actionsessionqueryset:
+            return actionsessionqueryset
+
+
+def getPreviousObjEntries(queryset: list, obj: object) -> QuerySet:
+    """Finds all previous objects relative to obj of queryset"""
+    previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
+    return previousqueryset
+
+
+def checkPreviousReactionFailures(reactionobj: Reaction) -> bool:
+    """Check if any previous reaction failures for a method"""
+    reactionqueryset = getReactions(methodid=reactionobj.method_id.id)
+    previousreactionqueryset = getPreviousObjEntries(
+        queryset=reactionqueryset, obj=reactionobj
+    )
+    failedreactions = previousreactionqueryset.filter(success=False)
+    if failedreactions.exists():
+        return True
+    else:
+        return False
+
+
+def checkNoMethodSteps(reactionobj: Reaction) -> bool:
+    """Check no reaction steps in method is > 1"""
+    methodobj = reactionobj.method_id
+    noreactionsteps = methodobj.nosteps
+    if noreactionsteps > 1:
+        return True
+    else:
+        return False
+
+
+def getReactionsToDo(groupreactionqueryset: QuerySet[Reaction]) -> QuerySet[Reaction]:
+    """Get reactions that need to be done. Exclude those in methods that had
+    failed previous reaction step
+
+    Parameters
+    ---------
+    groupreactionqueryset: QuerySet[Reaction]
+        The group of reactions to find to do based on if the previous reaction was successful
+
+    Returns
+    -------
+    groupreactiontodoqueryset: QuerySet[Reaction]
+        The reactions that need to be done
+    """
+    reactionstodo = []
+    for reactionobj in groupreactionqueryset:
+        if checkNoMethodSteps(reactionobj=reactionobj):
+            if not checkPreviousReactionFailures(reactionobj=reactionobj):
+                reactionstodo.append(reactionobj)
+    groupreactiontodoqueryset = groupreactionqueryset.filter(
+        reaction_id__in=reactionstodo
+    )
+    return groupreactiontodoqueryset
+
+
+def getTargets(batch_ids: QuerySet[Batch]) -> QuerySet[Target]:
+    targetqueryset = Target.objects.filter(batch_id__in=batch_ids).order_by("id")
+    return targetqueryset
+
+
+def getMethods(target_ids: QuerySet[Target]) -> QuerySet[Method]:
+    methodqueryset = (
+        Method.objects.filter(target_id__in=target_ids)
+        .filter(otchem=True)
+        .order_by("id")
+    )
+    return methodqueryset
+
+
+def getReactions(method_ids: QuerySet[Method]) -> QuerySet[Reaction]:
+    reactionqueryset = Reaction.objects.filter(method_id__in=method_ids).order_by("id")
+    return reactionqueryset
+
+
+def getBatchTag(batchid):
+    batch_obj = Batch.objects.get(id=batchid)
+    batchtag = batch_obj.batchtag
+    return batchtag
+
+
+def getBatchReactions(batchid: int) -> QuerySet[Reaction]:
+    targetqueryset = getTargets(batch_ids=[batchid])
+    if targetqueryset:
+        methodqueryset = getMethods(target_ids=targetqueryset)
+        if methodqueryset:
+            reactionqueryset = getReactions(method_ids=methodqueryset)
+            if reactionqueryset:
+                return reactionqueryset
+
+
+def getMaxReactionNumber(reactionqueryset: QuerySet[Reaction]) -> int:
+    """Get the maximum number of reaction steps in a reaction queryset
+
+    Parameters
+    ----------
+    reactionqueryset: QuerySet[Reaction]
+        The reaction queryset to get the max number of reaction steps for
+
+    Returns
+    -------
+    maxreactionnumber: int
+        The maximum reaction number in a set of reactions
+
+    """
+
+    maxreactionnumber = reactionqueryset.aggregate(Max("number"))["number__max"]
+    return maxreactionnumber
+
+
+def groupReactions(reactionqueryset: QuerySet[Reaction], maxreactionnumber: int):
+    """
+    Groups reactionqueries into first reactions, second reactions and so on
+    """
+
+    groupedreactionquerysets = []
+    for i in range(1, maxreactionnumber + 1):
+        reactionnumberqueryset = (
+            reactionqueryset.filter(number=i).distinct().order_by("id")
+        )
+        if reactionnumberqueryset:
+            groupedreactionquerysets.append(reactionnumberqueryset)
+    return groupedreactionquerysets
+
+
 def getReactantsToBuy(batch_ids: list[int]) -> list:
     """Finds the reactnats that need to be bought to execute a batch/batches
     synthesis. Finds recatants that are not made in previous method's reactions
