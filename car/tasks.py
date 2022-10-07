@@ -526,6 +526,7 @@ def createOTScript(batchids: list, protocol_name: str):
         #     ]
         # reaction_ids = [reactionobj.id for reactionobj in reactionqueryset]
         actionsessionqueryset = getActionSessionQuerySet(reaction_ids=reactionqueryset)
+        print(batchid)
         if not actionsessionqueryset:
             for reactionobj in reactionqueryset:
                 reaction_id = reactionobj.id

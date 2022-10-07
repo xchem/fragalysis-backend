@@ -450,8 +450,42 @@ def getReactionYields(reactionclasslist: list) -> list[int]:
     ]
     return reactionyields
 
+def checkPreviousReactionProducts(reaction_id: int, smiles: str) -> bool:
+    """Checks if any previous reactions had a product matching the smiles
 
-def checkPreviousReactionProducts(reaction_id: int, smiles: str) -> QuerySet[Reaction]:
+    Parameters
+    ----------
+    reaction_id: int
+        The reaction id of the Django model object to search for
+        all relative previous reactions objects. The previosu reactions may
+        have products that are this reaction's reactant input
+    smiles: str
+        The SMILES of the reaction's reactant and previous reaction products
+
+    Returns
+    -------
+    status: bool
+        The status is True if a match is found
+    """
+    reactionobj = getReaction(reaction_id=reaction_id)
+    reactionqueryset = getReactionQuerySet(method_id=reactionobj.method_id.id)
+    prevreactionqueryset = getPreviousObjEntries(
+        queryset=reactionqueryset, obj=reactionobj
+    )
+    productmatches = []
+    if prevreactionqueryset:
+        for reactionobj in prevreactionqueryset:
+            productobj = getProduct(reaction_id=reactionobj)
+            if productobj.smiles == smiles:
+                productmatches.append(productobj)
+        if productmatches:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def getPreviousReactionProducts(reaction_id: int, smiles: str) -> QuerySet[Reaction]:
     """Checks if any previous reactions had a product matching the smiles
 
     Parameters

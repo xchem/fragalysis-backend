@@ -1128,7 +1128,7 @@ class CreateOTSession(object):
         return labwareplatetypes[0]
 
     def getAddActionsMaterialDataFrame(self, productexists: bool) -> DataFrame:
-        """Aggegates all adda actions materials and sums up volume requires using solvent type and
+        """Aggegates all add actions materials and sums up volume requires using solvent type and
         concentration
 
         Parameters
@@ -1159,7 +1159,6 @@ class CreateOTSession(object):
             ),
             axis=1,
         )
-
         if productexists:
             materialsdf = materialsdf[materialsdf["productexists"]]
 
@@ -1220,6 +1219,7 @@ class CreateOTSession(object):
         indexslot = self.checkDeckSlotAvailable()
         if indexslot:
             plateindex = indexslot
+            numberwellsincolumn = labware_plates[labwaretype]["no_wells_in_column"] 
             maxwellvolume = labware_plates[labwaretype]["volume_well"]
             numberwells = labware_plates[labwaretype]["no_wells"]
             numbercolumns = labware_plates[labwaretype]["no_columns"]
@@ -1234,6 +1234,7 @@ class CreateOTSession(object):
             plateobj.type = platetype
             plateobj.maxwellvolume = maxwellvolume
             plateobj.numberwells = numberwells
+            plateobj.numberwellsincolumn = numberwellsincolumn
             plateobj.numbercolumns = numbercolumns
             plateobj.save()
             return plateobj
@@ -1439,7 +1440,7 @@ class CreateOTSession(object):
             return False
 
     def checkPlateColumnsAvailable(self, plateobj: Plate) -> int:
-        """Check if any coollumns available on a plate
+        """Check if any columns available on a plate
 
         Parameters
         ----------
@@ -1453,12 +1454,12 @@ class CreateOTSession(object):
         status: False
             Returns false if no column is available
         """
-        columnavailable = plateobj.indexcolumnavailable + 1
+        columnavailable = plateobj.indexcolumnavailable
         numbercolumns = plateobj.numbercolumns
         if columnavailable <= numbercolumns:
-            plateobj.indexswellavailable = columnavailable
+            plateobj.indexswellavailable = columnavailable + 1
             plateobj.save()
-            return plateobj.indexcolumnavailable
+            return columnavailable
         else:
             plateobj.wellavailable = False
             plateobj.save()
@@ -1477,12 +1478,12 @@ class CreateOTSession(object):
         status: False
             Returns false if no well is available
         """
-        wellavailable = plateobj.indexswellavailable + 1
-        numberwells = plateobj.numberwells
+        wellavailable = plateobj.indexswellavailable
+        numberwells = plateobj.numberwells - 1
         if wellavailable <= numberwells:
-            plateobj.indexswellavailable = wellavailable
+            plateobj.indexswellavailable = wellavailable + 1
             plateobj.save()
-            return plateobj.indexswellavailable
+            return wellavailable
         else:
             plateobj.wellavailable = False
             plateobj.save()
@@ -1504,15 +1505,16 @@ class CreateOTSession(object):
             Returns false if no column is available
         """
         testcolumnavailable = plateobj.indexcolumnavailable
-        numbercolumns = plateobj.numbercolumns
-        if testcolumnavailable > numbercolumns:
-            plateobj.columnavailable = False
-            plateobj.save()
-            return False
-        else:
+        numbercolumns = plateobj.numbercolumns - 1
+        if testcolumnavailable <= numbercolumns:
             plateobj.indexcolumnavailable = testcolumnavailable + 1
             plateobj.save()
             return testcolumnavailable
+        else:
+            plateobj.columnavailable = False
+            plateobj.save()
+            return False
+          
 
     def combinestrings(self, row):
         return (
@@ -1710,26 +1712,20 @@ class CreateOTSession(object):
 
     def updateStartingWellIndexFromColumnIndex(self, plateobj: Plate):
         """Updates the plate well index based on the column index
-           Only works for 96 well plates!
-           eg. Plate column index = 2 then starting well index available
+           eg. Plate column index = 1 then starting well index available
                is 8 or A1
 
         Parameters
         ----------
         plateobj: Plate
             The plate to search for a column available
-
-        Returns
-        -------
-        plateobj.indexwellavailable: int
-            The index of the well available on a plate
-
         """
-
+        wellindexcorrection = plateobj.numberwellsincolumn
         indexcolumnavailable = plateobj.indexcolumnavailable
-        columstartingwellindex = indexcolumnavailable * 8
+        columstartingwellindex = indexcolumnavailable * wellindexcorrection
         plateobj.indexswellavailable = columstartingwellindex
         plateobj.save()
+
 
     def createPlateByReactionClass(
         self,
@@ -1758,11 +1754,18 @@ class CreateOTSession(object):
             platename=platename,
             labwaretype=labwareplatetype,
         )
+        print(plateobj.indexswellavailable)
         for groupreactionclassqueryset in groupedreactionclassquerysets:
             reactionclass = groupreactionclassqueryset.values_list(
                 "reactionclass", flat=True
             ).distinct()[0]
             indexcolumavailable = self.checkPlateColumnsAvailable(plateobj=plateobj)
+            if indexcolumavailable:
+                indexwellavailable = self.checkPlateWellsAvailable(plateobj=plateobj)
+                print(indexwellavailable)
+                if (indexwellavailable % indexcolumavailable) != 0:
+                    self.updateStartingWellIndexFromColumnIndex(plateobj=plateobj)
+                    print(plateobj.indexswellavailable)
             if not indexcolumavailable:
                 plateobj = self.createPlateModel(
                     platetype=platetype,
@@ -1771,11 +1774,11 @@ class CreateOTSession(object):
                 )
             columnobj = self.createColumnModel(
                 plateobj=plateobj,
-                columnindex=indexcolumavailable - 1,
+                columnindex=indexcolumavailable,
                 columntype=platetype,
                 reactionclass=reactionclass,
             )
-            self.updateStartingWellIndexFromColumnIndex(plateobj=plateobj)
+            
             for index, reactionobj in enumerate(groupreactionclassqueryset):
                 if (index + 1) % 8 == 0:
                     indexcolumavailable = self.checkPlateColumnsAvailable(
@@ -1792,7 +1795,7 @@ class CreateOTSession(object):
                         )
                     columnobj = self.createColumnModel(
                         plateobj=plateobj,
-                        columnindex=indexcolumavailable - 1,
+                        columnindex=indexcolumavailable,
                         columntype=platetype,
                         reactionclass=reactionclass,
                     )
@@ -1809,7 +1812,7 @@ class CreateOTSession(object):
                     )
                     columnobj = self.createColumnModel(
                         plateobj=plateobj,
-                        columnindex=indexcolumavailable - 1,
+                        columnindex=indexcolumavailable,
                         columntype=platetype,
                         reactionclass=reactionclass,
                     )
@@ -1822,7 +1825,7 @@ class CreateOTSession(object):
                     reactionobj=reactionobj,
                     columnobj=columnobj,
                     welltype=platetype,
-                    wellindex=indexwellavailable - 1,
+                    wellindex=indexwellavailable,
                     smiles=productobj.smiles,
                 )
 
@@ -1959,7 +1962,7 @@ class CreateOTSession(object):
                         wellobj = self.createWellModel(
                             plateobj=plateobj,
                             welltype="solvent",
-                            wellindex=indexwellavailable - 1,
+                            wellindex=indexwellavailable,
                             volume=volumetoadd,
                             solvent=solventgroup,
                         )
@@ -1993,7 +1996,7 @@ class CreateOTSession(object):
                     wellobj = self.createWellModel(
                         plateobj=plateobj,
                         welltype="solvent",
-                        wellindex=indexwellavailable - 1,
+                        wellindex=indexwellavailable,
                         volume=volumetoadd,
                         solvent=solventgroup,
                     )

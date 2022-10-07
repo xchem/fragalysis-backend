@@ -10,7 +10,7 @@ from django.db.models import QuerySet, Q
 import os
 from graphene_django import DjangoObjectType
 
-from car.utils import checkPreviousReactionProducts, getReactionQuerySet
+from car.utils import checkPreviousReactionProducts, getPreviousReactionProducts, getReactionQuerySet
 from car.recipebuilder.encodedrecipes import encoded_recipes
 from car.models import (
     ActionSession,
@@ -452,7 +452,7 @@ class OTWrite(object):
         columnqueryset: QuerySet[Column]
             The columns related to the column type and reaction class
         """
-        print(self.otsession_id, columntype, reactionclass)
+        # print(self.otsession_id, columntype, reactionclass)
         criterion1 = Q(otsession_id=self.otsession_id)
         criterion2 = Q(type=columntype)
         criterion3 = Q(reactionclass=reactionclass)
@@ -600,7 +600,7 @@ class OTWrite(object):
             The list of wells found along with volume to transfer from the
             well
         """
-        previousreactionqueryset = checkPreviousReactionProducts(
+        previousreactionqueryset = getPreviousReactionProducts(
             reaction_id=reaction_id, smiles=smiles
         )
         wellinfo = []
@@ -1195,7 +1195,7 @@ class OTWrite(object):
         newtip:
             Set to "never" to deal with pick up and drop tips built into protocol
         """
-        print("Transferring multi")
+        # print("Transferring multi")
 
         humanread = f"transfertype - {transfertype} - transfer - {transvolume:.1f}ul from {aspiratecolumnindex} column to {dispensecolumnindex} column"
         instruction = [
@@ -1595,9 +1595,9 @@ class OTWrite(object):
                     )
 
                     if fromplatetype == "solvent":
-                        print("Adding solvent")
+                        # print("Adding solvent")
                         self.pickUpTip()
-                        print("The to column queryset is: {}".format(tocolumnqueryset))
+                        # print("The to column queryset is: {}".format(tocolumnqueryset))
                         for topcolumnobj in tocolumnqueryset:
                             toplateobj = topcolumnobj.plate_id
                             dispenseplatename = toplateobj.name
@@ -1607,11 +1607,11 @@ class OTWrite(object):
                                 solvent=solvent,
                                 transfervolume=transfervolume,
                             )
-                            print(
-                                "The from solvent well info is: {}".format(
-                                    fromsolventwellinfo
-                                )
-                            )
+                            # print(
+                            #     "The from solvent well info is: {}".format(
+                            #         fromsolventwellinfo
+                            #     )
+                            # )
                             for solventwellinfo in fromsolventwellinfo:
                                 fromsolventwellobj = solventwellinfo[0]
                                 transfervolume = solventwellinfo[1]

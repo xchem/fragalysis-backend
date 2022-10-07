@@ -1,3 +1,4 @@
+from email.policy import default
 from pyexpat import model
 from django.db import models
 
@@ -725,6 +726,8 @@ class Plate(models.Model):
         The number of plate wells
     wellavailable: BooleanField
         If a well is available on a plate
+    numberwellsincolumn: IntegerField
+        The number of wells in a column default is set to 8 for a 96 well plate
     indexswellavailable: IntegerField
         The index of the well available. Wells are occupied in increasing
         index starting from indices: A1, B1, C1 or 1, 2, 3 etc.
@@ -759,10 +762,11 @@ class Plate(models.Model):
     maxwellvolume = models.FloatField()
     numberwells = models.IntegerField()
     wellavailable = models.BooleanField(default=True)
-    indexswellavailable = models.IntegerField(default=1)
+    numberwellsincolumn = models.IntegerField(default=8)
+    indexswellavailable = models.IntegerField(default=0)
     numbercolumns = models.IntegerField()
     columnavailable = models.BooleanField(default=True)
-    indexcolumnavailable = models.IntegerField(default=1)
+    indexcolumnavailable = models.IntegerField(default=0)
 
 
 class Column(models.Model):
