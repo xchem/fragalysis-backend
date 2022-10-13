@@ -47,6 +47,7 @@ from .models import (
     Pipette,
     TipRack,
     Plate,
+    Column,
     Well,
     OTProject,
     OTBatchProtocol,
@@ -92,6 +93,7 @@ from .serializers import (
     PipetteSerializer,
     TipRackSerializer,
     PlateSerializer,
+    ColumnSerializer,
     WellSerializer,
     CompoundOrderSerializer,
     OTScriptSerializer,
@@ -663,6 +665,12 @@ class TipRackViewSet(viewsets.ModelViewSet):
 class PlateViewSet(viewsets.ModelViewSet):
     queryset = Plate.objects.all()
     serializer_class = PlateSerializer
+    filterset_fields = ["otsession_id"]
+
+
+class ColumnViewSet(viewsets.ModelViewSet):
+    queryset = Column.objects.all()
+    serializer_class = ColumnSerializer
     filterset_fields = ["otsession_id"]
 
 

@@ -450,6 +450,7 @@ def getReactionYields(reactionclasslist: list) -> list[int]:
     ]
     return reactionyields
 
+
 def checkPreviousReactionProducts(reaction_id: int, smiles: str) -> bool:
     """Checks if any previous reactions had a product matching the smiles
 
@@ -484,6 +485,7 @@ def checkPreviousReactionProducts(reaction_id: int, smiles: str) -> bool:
             return False
     else:
         return False
+
 
 def getPreviousReactionProducts(reaction_id: int, smiles: str) -> QuerySet[Reaction]:
     """Checks if any previous reactions had a product matching the smiles

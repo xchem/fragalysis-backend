@@ -1790,7 +1790,7 @@ encoded_recipes = {
         },
     },
     "Nucleophilic substitution with amine": {
-        "intramolecular": False, 
+        "intramolecular": False,
         "recipes": {
             "standard": {
                 "yield": 70,
@@ -1871,7 +1871,7 @@ encoded_recipes = {
                                     "temperature": {
                                         "value": 90,
                                         "unit": "degC",
-                                    },  
+                                    },
                                     "duration": {"value": 4, "unit": "hours"},
                                 },
                             },
@@ -1892,7 +1892,7 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "layer": "bottom",
-                                        "SMILES": None, 
+                                        "SMILES": None,
                                         "quantity": {"value": 10, "unit": "ul"},
                                         "solvent": None,
                                         "density": 1.0,
@@ -1914,7 +1914,7 @@ encoded_recipes = {
                                         "quantity": {
                                             "value": 100,
                                             "unit": "ul",
-                                        },  
+                                        },
                                         "solvent": "ACN/H2O",
                                         "density": 1.00,
                                         "concentration": None,
@@ -2145,7 +2145,6 @@ encoded_recipes = {
                                     },
                                 },
                             },
-                           
                         ],
                     },
                 ],

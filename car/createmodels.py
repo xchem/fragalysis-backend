@@ -641,9 +641,13 @@ class CreateEncodedActionModels(object):
                 return vol_material
             if calcunit == "moleq":
                 yieldcorrection = math.prod(reactionyields)
-                mol_material = (float(calcvalue) * self.target_obj.mols) / yieldcorrection
+                mol_material = (
+                    float(calcvalue) * self.target_obj.mols
+                ) / yieldcorrection
                 if reactant_density:
-                    vol_material = ((mol_material * reactant_MW) / reactant_density) * 1e3
+                    vol_material = (
+                        (mol_material * reactant_MW) / reactant_density
+                    ) * 1e3
                 if not reactant_density:
                     vol_material = (mol_material / conc_reagents) * 1e6  # in uL
                 return vol_material

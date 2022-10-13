@@ -10,7 +10,11 @@ from django.db.models import QuerySet, Q
 import os
 from graphene_django import DjangoObjectType
 
-from car.utils import checkPreviousReactionProducts, getPreviousReactionProducts, getReactionQuerySet
+from car.utils import (
+    checkPreviousReactionProducts,
+    getPreviousReactionProducts,
+    getReactionQuerySet,
+)
 from car.recipebuilder.encodedrecipes import encoded_recipes
 from car.models import (
     ActionSession,
