@@ -10,7 +10,10 @@ from django.db.models import QuerySet, Q
 import os
 from graphene_django import DjangoObjectType
 
-from car.utils import checkPreviousReactionProducts, getReactionQuerySet
+from car.utils import (
+    getPreviousReactionProducts,
+    getReactionQuerySet,
+)
 from car.recipebuilder.encodedrecipes import encoded_recipes
 from car.models import (
     ActionSession,
@@ -47,7 +50,7 @@ class OTWrite(object):
 
     def __init__(
         self,
-        protocolname: str,
+        batchtag: str,
         otsessionobj: OTSession,
         reaction_ids: list,
         actionsession_ids: list,
@@ -57,8 +60,8 @@ class OTWrite(object):
 
         Parameters
         ----------
-        protocolname: str
-            The name of the OT protcol
+        batchtag: str
+            The name of the batch from CAR
         otsessionobj: OTSession
             The OT session the protocol is related to
         apiLevel: str = "2.9"
@@ -72,10 +75,18 @@ class OTWrite(object):
         self.otsessionobj = otsessionobj
         self.otsession_id = otsessionobj.id
         self.otsessiontype = otsessionobj.sessiontype
-        self.protocolname = protocolname
+        self.batchtag = batchtag
         self.apiLevel = apiLevel
         self.reaction_ids = reaction_ids
         self.actionsession_ids = actionsession_ids
+        self.protocolname = (
+            "{}-session-ot-script-batch-{}-reactionstep{}-sessionid-{}".format(
+                self.otsessiontype,
+                self.batchtag,
+                self.reactionstep,
+                self.otsession_id,
+            )
+        )
 
         self.tiprackqueryset = self.getTipRacks()
         self.platequeryset = self.getPlates()
@@ -128,7 +139,6 @@ class OTWrite(object):
     def getAddActionQuerySet(
         self,
         reaction_ids: list,
-        actionsession_ids: list = None,
         actionsessiontype: str = None,
         actionnumber: int = None,
     ) -> QuerySet[AddAction]:
@@ -138,8 +148,6 @@ class OTWrite(object):
         ----------
         reaction_ids: list
             The reactions to search for related add actions
-        actionsession_ids: list
-            Optional action session ids to match add actions with
         actionsessiontype: str
             The optional action session type to look for add actions for
         actionnumber: int
@@ -150,22 +158,14 @@ class OTWrite(object):
         addactionqueryset: QuerySet[AddAction]
             The add actions related to the reaction
         """
-
-        if actionsession_ids:
-            criterion1 = Q(reaction_id__in=reaction_ids)
-            criterion2 = Q(actionsession_id__in=actionsession_ids)
-            addactionqueryset = AddAction.objects.filter(
-                criterion1 & criterion2
-            ).order_by("id")
-            return addactionqueryset
-        if actionsessiontype:
+        if actionsessiontype and not actionnumber:
             criterion1 = Q(reaction_id__in=reaction_ids)
             criterion2 = Q(actionsession_id__type=actionsessiontype)
             addactionqueryset = AddAction.objects.filter(
                 criterion1 & criterion2
             ).order_by("id")
             return addactionqueryset
-        if actionnumber:
+        if actionnumber and actionsessiontype:
             criterion1 = Q(reaction_id__in=reaction_ids)
             criterion2 = Q(actionsession_id__type=actionsessiontype)
             criterion3 = Q(number=actionnumber)
@@ -177,7 +177,6 @@ class OTWrite(object):
     def getExtractActionQuerySet(
         self,
         reaction_ids: list,
-        actionsession_ids: list = None,
         actionsessiontype: str = None,
         actionnumber: int = None,
     ) -> QuerySet[ExtractAction]:
@@ -187,8 +186,6 @@ class OTWrite(object):
         ----------
         reaction_ids: list
             The reactions to search for related extract actions
-        actionsession_ids: list
-            Optional action session ids to match extract actions with
         actionsessiontype: str
             The optional action session type to look for extract actions for
         actionnumber: int
@@ -200,21 +197,14 @@ class OTWrite(object):
             The extract actions related to the reaction
         """
 
-        if actionsession_ids:
-            criterion1 = Q(reaction_id__in=reaction_ids)
-            criterion2 = Q(actionsession_id__in=actionsession_ids)
-            extractactionqueryset = ExtractAction.objects.filter(
-                criterion1 & criterion2
-            ).order_by("id")
-            return extractactionqueryset
-        if actionsessiontype:
+        if actionsessiontype and not actionnumber:
             criterion1 = Q(reaction_id__in=reaction_ids)
             criterion2 = Q(actionsession_id__type=actionsessiontype)
             extractactionqueryset = ExtractAction.objects.filter(
                 criterion1 & criterion2
             ).order_by("id")
             return extractactionqueryset
-        if actionnumber:
+        if actionnumber and actionsessiontype:
             criterion1 = Q(reaction_id__in=reaction_ids)
             criterion2 = Q(actionsession_id__type=actionsessiontype)
             criterion3 = Q(number=actionnumber)
@@ -288,38 +278,6 @@ class OTWrite(object):
         productobj = Product.objects.get(reaction_id=reaction_id)
         return productobj
 
-    # def getProduct(self, reaction_id: int) -> Product:
-    #     """Gets the product for a reaction
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int
-    #         The reaction objects id to search for a product
-
-    #     Returns
-    #     -------
-    #     productobj: Product
-    #         The reaction's product
-    #     """
-    #     productobj = Product.objects.get(reaction_id=reaction_id)
-    #     return productobj
-
-    # def getReaction(self, reaction_id: int) -> Reaction:
-    #     """Gets the reaction object
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int
-    #         The reaction objects id
-
-    #     Returns
-    #     -------
-    #     reactionobj: Reaction
-    #         The reaction object
-    #     """
-    #     reactionobj = Reaction.objects.get(id=reaction_id)
-    #     return reactionobj
-
     def getPlates(self) -> QuerySet[Plate]:
         """Gets plates for an OT session
 
@@ -389,50 +347,6 @@ class OTWrite(object):
         productobj = Product.objects.filter(reaction_id=reaction_id)[0]
         return productobj.smiles
 
-    # def getPreviousObjEntries(
-    #     self, queryset: QuerySet, obj: DjangoObjectType
-    # ) -> QuerySet:
-    #     """Finds all previous Django model object relative to the Django model
-    #        object in a queryset
-
-    #     Parameters
-    #     ----------
-    #     queryset: QuerySet
-    #         The queryset to search for previous entries
-    #     obj: DjangoObjectType
-    #         The object that you want to find all previous object entries relative to
-
-    #     Returns
-    #     -------
-    #     previousqueryset: QuerySet
-    #         The previous Django model objects as a queryset
-    #     """
-    #     previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
-    #     return previousqueryset
-
-    # def getReactionQuerySet(
-    #     self, reaction_ids: list = None, method_id: int = None
-    # ) -> QuerySet[Reaction]:
-    #     """Get a  synthesis methods reactions
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int or Reaction
-    #         The reaction ids to find reactions for
-    #     method_id: int
-    #         The optional synthesis method's id to get reactions for
-
-    #     Returns
-    #     -------
-    #     reactionqueryset: QuerySet[Reaction]
-    #         The reactions of a synthesis method
-    #     """
-    #     if reaction_ids:
-    #         reactionqueryset = Reaction.objects.filter(id__in=reaction_ids)
-    #     if method_id:
-    #         reactionqueryset = Reaction.objects.filter(method_id=method_id)
-    #     return reactionqueryset
-
     def getColumnQuerySet(
         self,
         columntype: str,
@@ -452,7 +366,6 @@ class OTWrite(object):
         columnqueryset: QuerySet[Column]
             The columns related to the column type and reaction class
         """
-        print(self.otsession_id, columntype, reactionclass)
         criterion1 = Q(otsession_id=self.otsession_id)
         criterion2 = Q(type=columntype)
         criterion3 = Q(reactionclass=reactionclass)
@@ -461,49 +374,9 @@ class OTWrite(object):
         ).order_by("id")
         return columnqueryset
 
-    # def checkPreviousReactionProduct(
-    #     self, reaction_id: int, smiles: str
-    # ) -> list[Reaction]:
-    #     """Checks if any previous reactions had a product matching the smiles
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int
-    #         The reaction id of the Django model object to search for
-    #         all relative previous reactions objects. The previous reactions may
-    #         have products that are this reaction's reactant input
-    #     smiles: str
-    #         The SMILES of the reaction's reactant and previous reaction products
-
-    #     Returns
-    #     -------
-    #     previousproductmatches: list[Reactant]
-    #         The list of reactions whose product matches the query SMILES
-    #     """
-
-    #     reactionobj = self.getReaction(reaction_id=reaction_id)
-    #     reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
-    #     prevreactionqueryset = self.getPreviousObjEntries(
-    #         queryset=reactionqueryset, obj=reactionobj
-    #     )
-    #     previousproductmatches = []
-    #     if prevreactionqueryset:
-    #         for reactionobj in prevreactionqueryset:
-    #             productobj = self.getProduct(reaction_id=reactionobj)
-    #             if productobj.smiles == smiles:
-    #                 previousproductmatches.append(reactionobj)
-    #     return previousproductmatches
-
     def createFilePath(self):
         """Creates the OT protcol script filepath"""
-        filename = (
-            "{}-session-ot-script-batch-{}-reactionstep{}-sessionid-{}.txt".format(
-                self.otsessiontype,
-                self.protocolname,
-                self.reactionstep,
-                self.otsession_id,
-            )
-        )
+        filename = "{}.txt".format(self.protocolname)
         path = "tmp/" + filename
         filepath = str(os.path.join(settings.MEDIA_ROOT, path))
         return filepath, filename
@@ -600,7 +473,7 @@ class OTWrite(object):
             The list of wells found along with volume to transfer from the
             well
         """
-        previousreactionqueryset = checkPreviousReactionProducts(
+        previousreactionqueryset = getPreviousReactionProducts(
             reaction_id=reaction_id, smiles=smiles
         )
         wellinfo = []
@@ -727,8 +600,6 @@ class OTWrite(object):
             The well used in the reaction
         """
         productsmiles = self.getProductSmiles(reaction_id=reaction_id)
-        # print(productsmiles, reaction_id, self.otsession_id, welltype)
-
         wellobj = Well.objects.get(
             otsession_id=self.otsession_id,
             reaction_id=reaction_id,
@@ -1057,7 +928,7 @@ class OTWrite(object):
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".mix({nomixes}, {volumetomix}, {plate}[{columnindex}])",
+            + f".mix({nomixes}, {volumetomix}, {plate}.columns()[{columnindex}][0])",
         ]
 
         self.writeCommand(instruction)
@@ -1195,13 +1066,11 @@ class OTWrite(object):
         newtip:
             Set to "never" to deal with pick up and drop tips built into protocol
         """
-        print("Transferring multi")
-
         humanread = f"transfertype - {transfertype} - transfer - {transvolume:.1f}ul from {aspiratecolumnindex} column to {dispensecolumnindex} column"
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".transfer({transvolume}, {aspirateplatename}[{aspiratecolumnindex}].bottom({aspirateheight}), {dispenseplatename}[{dispensecolumnindex}].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
+            + f".transfer({transvolume}, {aspirateplatename}.columns()[{aspiratecolumnindex}][0].bottom({aspirateheight}), {dispenseplatename}.columns()[{dispensecolumnindex}][0].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
         ]
         self.writeCommand(instruction)
 
@@ -1556,7 +1425,6 @@ class OTWrite(object):
         groupedreactionclassquerysets = self.getGroupedReactionByClass(
             reactionqueryset=reactionqueryset
         )
-
         for groupreactionclassqueryset in groupedreactionclassquerysets:
             actionsessiontype = "analyse"
             reactionclass = groupreactionclassqueryset.values_list(
@@ -1572,7 +1440,6 @@ class OTWrite(object):
                 if actionsession["type"] == "analyse"
                 and actionsession["sessionnumber"] == sessionnumber
             ][0]
-
             for index, analyseaction in enumerate(analyseactions):
                 actiontype = analyseaction["type"]
                 actionnumber = analyseaction["actionnumber"]
@@ -1584,6 +1451,7 @@ class OTWrite(object):
                         actionsessiontype=actionsessiontype,
                         actionnumber=actionnumber,
                     )
+                    print(addactionqueryset.values_list("volume", flat=True).distinct())
                     transfervolume = addactionqueryset.values_list(
                         "volume", flat=True
                     ).distinct()[0]
@@ -1595,9 +1463,7 @@ class OTWrite(object):
                     )
 
                     if fromplatetype == "solvent":
-                        print("Adding solvent")
                         self.pickUpTip()
-                        print("The to column queryset is: {}".format(tocolumnqueryset))
                         for topcolumnobj in tocolumnqueryset:
                             toplateobj = topcolumnobj.plate_id
                             dispenseplatename = toplateobj.name
@@ -1606,11 +1472,6 @@ class OTWrite(object):
                             fromsolventwellinfo = self.findSolventPlateWellObj(
                                 solvent=solvent,
                                 transfervolume=transfervolume,
-                            )
-                            print(
-                                "The from solvent well info is: {}".format(
-                                    fromsolventwellinfo
-                                )
                             )
                             for solventwellinfo in fromsolventwellinfo:
                                 fromsolventwellobj = solventwellinfo[0]

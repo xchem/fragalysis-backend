@@ -518,13 +518,6 @@ def createOTScript(batchids: list, protocol_name: str):
 
     for batchid in batchids:
         reactionqueryset = getBatchReactions(batchid=batchid)
-        # if reactionqueryset:
-        #     allreactionobjs = [
-        #         reactionobj
-        #         for sublist in allreactionquerysets
-        #         for reactionobj in sublist
-        #     ]
-        # reaction_ids = [reactionobj.id for reactionobj in reactionqueryset]
         actionsessionqueryset = getActionSessionQuerySet(reaction_ids=reactionqueryset)
         if not actionsessionqueryset:
             for reactionobj in reactionqueryset:
@@ -572,7 +565,6 @@ def createOTScript(batchids: list, protocol_name: str):
             otbatchprotocolobj.otproject_id = otprojectobj
             otbatchprotocolobj.celery_taskid = current_task.request.id
             otbatchprotocolobj.save()
-            # maxsteps = findmaxlist(reactionqueryset=reactionqueryset)
             maxreactionnumber = getMaxReactionNumber(reactionqueryset=reactionqueryset)
             groupedreactionquerysets = groupReactions(
                 reactionqueryset=reactionqueryset, maxreactionnumber=maxreactionnumber
@@ -622,7 +614,7 @@ def createOTScript(batchids: list, protocol_name: str):
                                 )
 
                                 OTWrite(
-                                    protocolname=batchtag,
+                                    batchtag=batchtag,
                                     otsessionobj=session.otsessionobj,
                                     reaction_ids=reaction_ids,
                                     actionsession_ids=actionsession_ids,
@@ -681,7 +673,7 @@ def createOTScript(batchids: list, protocol_name: str):
                                     )
 
                                     OTWrite(
-                                        protocolname=batchtag,
+                                        batchtag=batchtag,
                                         otsessionobj=session.otsessionobj,
                                         reaction_ids=reaction_ids,
                                         actionsession_ids=actionsession_ids,

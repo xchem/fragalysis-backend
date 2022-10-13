@@ -29,6 +29,7 @@ from .models import (
     Pipette,
     TipRack,
     Plate,
+    Column,
     Well,
     OTProject,
     OTBatchProtocol,
@@ -213,6 +214,12 @@ class TipRackSerializer(serializers.ModelSerializer):
 class PlateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Plate
+        fields = "__all__"
+
+
+class ColumnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Column
         fields = "__all__"
 
 

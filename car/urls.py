@@ -31,6 +31,7 @@ from .api import (
     PipetteViewSet,
     TipRackViewSet,
     PlateViewSet,
+    ColumnViewSet,
     WellViewSet,
     CompoundOrderViewSet,
     OTScriptViewSet,
@@ -63,6 +64,7 @@ router.register("api/decks", DeckViewSet, "decks")
 router.register("api/pipettes", PipetteViewSet, "pipettes")
 router.register("api/tipracks", TipRackViewSet, "tipracks")
 router.register("api/plates", PlateViewSet, "plates")
+router.register("api/columns", ColumnViewSet, "columns")
 router.register("api/wells", WellViewSet, "wells")
 router.register("api/compoundorders", CompoundOrderViewSet, "compoundorders")
 router.register("api/otscripts", OTScriptViewSet, "otscripts")

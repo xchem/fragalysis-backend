@@ -635,18 +635,24 @@ class CreateEncodedActionModels(object):
         vol_material: float
             The volume (ul) of the material required for the add action step
         """
-
-        if calcunit == "masseq":
-            vol_material = float(calcvalue) * self.target_obj.mass
-            return vol_material
-        if calcunit == "moleq":
-            yieldcorrection = math.prod(reactionyields)
-            mol_material = (float(calcvalue) * self.target_obj.mols) / yieldcorrection
-            if reactant_density:
-                vol_material = ((mol_material * reactant_MW) / reactant_density) * 1e3
-            else:
-                vol_material = (mol_material / conc_reagents) * 1e6  # in uL
-            return vol_material
+        try:
+            if calcunit == "masseq":
+                vol_material = float(calcvalue) * self.target_obj.mass
+                return vol_material
+            if calcunit == "moleq":
+                yieldcorrection = math.prod(reactionyields)
+                mol_material = (
+                    float(calcvalue) * self.target_obj.mols
+                ) / yieldcorrection
+                if reactant_density:
+                    vol_material = (
+                        (mol_material * reactant_MW) / reactant_density
+                    ) * 1e3
+                if not reactant_density:
+                    vol_material = (mol_material / conc_reagents) * 1e6  # in uL
+                return vol_material
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
     def createActionSessionModel(
         self, actionsessiontype: str, driver: str, sessionnumber: int
@@ -695,6 +701,11 @@ class CreateEncodedActionModels(object):
                 del self.reactant_pair_smiles[0]
             if action["content"]["material"]["SMILES"]:
                 smiles = action["content"]["material"]["SMILES"]
+            if (
+                not action["content"]["material"]["SMILES"]
+                and not action["content"]["material"]["SMARTS"]
+            ):
+                smiles = self.getProductSmiles()
             calcvalue = action["content"]["material"]["quantity"]["value"]
             calcunit = action["content"]["material"]["quantity"]["unit"]
             concentration = action["content"]["material"]["concentration"]
@@ -715,6 +726,12 @@ class CreateEncodedActionModels(object):
                 add.volume = calcvalue
                 add.solvent = solvent
             if calcunit == "masseq":
+                add.volume = self.calculateVolume(
+                    calcunit=calcunit,
+                    calcvalue=calcvalue,
+                )
+                add.solvent = solvent
+            if calcunit == "moleq":
                 proceedingreactionqueryset = checkProceedingReactions(
                     reaction_id=self.reaction_obj.id
                 )
@@ -730,13 +747,6 @@ class CreateEncodedActionModels(object):
                     reactionyields = getReactionYields(
                         reactionclasslist=[self.reaction_name]
                     )
-                add.volume = self.calculateVolume(
-                    calcunit=calcunit,
-                    calcvalue=calcvalue,
-                    reactionyields=reactionyields,
-                )
-                add.solvent = solvent
-            if calcunit == "moleq":
                 if not solvent:
                     reactant_density = action["content"]["material"]["density"]
                     add.volume = self.calculateVolume(
@@ -744,12 +754,14 @@ class CreateEncodedActionModels(object):
                         calcvalue=calcvalue,
                         reactant_density=reactant_density,
                         reactant_MW=molecular_weight,
+                        reactionyields=reactionyields,
                     )
                 if solvent:
                     add.volume = self.calculateVolume(
                         calcunit=calcunit,
                         calcvalue=calcvalue,
                         conc_reagents=concentration,
+                        reactionyields=reactionyields,
                     )
                     add.solvent = solvent
             add.concentration = concentration
