@@ -50,7 +50,7 @@ class OTWrite(object):
 
     def __init__(
         self,
-        protocolname: str,
+        batchtag: str,
         otsessionobj: OTSession,
         reaction_ids: list,
         actionsession_ids: list,
@@ -60,8 +60,8 @@ class OTWrite(object):
 
         Parameters
         ----------
-        protocolname: str
-            The name of the OT protcol
+        batchtag: str
+            The name of the batch from CAR
         otsessionobj: OTSession
             The OT session the protocol is related to
         apiLevel: str = "2.9"
@@ -75,10 +75,18 @@ class OTWrite(object):
         self.otsessionobj = otsessionobj
         self.otsession_id = otsessionobj.id
         self.otsessiontype = otsessionobj.sessiontype
-        self.protocolname = protocolname
+        self.batchtag = batchtag
         self.apiLevel = apiLevel
         self.reaction_ids = reaction_ids
         self.actionsession_ids = actionsession_ids
+        self.protocolname = (
+            "{}-session-ot-script-batch-{}-reactionstep{}-sessionid-{}".format(
+                self.otsessiontype,
+                self.batchtag,
+                self.reactionstep,
+                self.otsession_id,
+            )
+        )
 
         self.tiprackqueryset = self.getTipRacks()
         self.platequeryset = self.getPlates()
@@ -131,7 +139,6 @@ class OTWrite(object):
     def getAddActionQuerySet(
         self,
         reaction_ids: list,
-        actionsession_ids: list = None,
         actionsessiontype: str = None,
         actionnumber: int = None,
     ) -> QuerySet[AddAction]:
@@ -141,8 +148,6 @@ class OTWrite(object):
         ----------
         reaction_ids: list
             The reactions to search for related add actions
-        actionsession_ids: list
-            Optional action session ids to match add actions with
         actionsessiontype: str
             The optional action session type to look for add actions for
         actionnumber: int
@@ -153,22 +158,14 @@ class OTWrite(object):
         addactionqueryset: QuerySet[AddAction]
             The add actions related to the reaction
         """
-
-        if actionsession_ids:
-            criterion1 = Q(reaction_id__in=reaction_ids)
-            criterion2 = Q(actionsession_id__in=actionsession_ids)
-            addactionqueryset = AddAction.objects.filter(
-                criterion1 & criterion2
-            ).order_by("id")
-            return addactionqueryset
-        if actionsessiontype:
+        if actionsessiontype and not actionnumber:
             criterion1 = Q(reaction_id__in=reaction_ids)
             criterion2 = Q(actionsession_id__type=actionsessiontype)
             addactionqueryset = AddAction.objects.filter(
                 criterion1 & criterion2
             ).order_by("id")
             return addactionqueryset
-        if actionnumber:
+        if actionnumber and actionsessiontype:
             criterion1 = Q(reaction_id__in=reaction_ids)
             criterion2 = Q(actionsession_id__type=actionsessiontype)
             criterion3 = Q(number=actionnumber)
@@ -180,7 +177,6 @@ class OTWrite(object):
     def getExtractActionQuerySet(
         self,
         reaction_ids: list,
-        actionsession_ids: list = None,
         actionsessiontype: str = None,
         actionnumber: int = None,
     ) -> QuerySet[ExtractAction]:
@@ -190,8 +186,6 @@ class OTWrite(object):
         ----------
         reaction_ids: list
             The reactions to search for related extract actions
-        actionsession_ids: list
-            Optional action session ids to match extract actions with
         actionsessiontype: str
             The optional action session type to look for extract actions for
         actionnumber: int
@@ -203,21 +197,14 @@ class OTWrite(object):
             The extract actions related to the reaction
         """
 
-        if actionsession_ids:
-            criterion1 = Q(reaction_id__in=reaction_ids)
-            criterion2 = Q(actionsession_id__in=actionsession_ids)
-            extractactionqueryset = ExtractAction.objects.filter(
-                criterion1 & criterion2
-            ).order_by("id")
-            return extractactionqueryset
-        if actionsessiontype:
+        if actionsessiontype and not actionnumber:
             criterion1 = Q(reaction_id__in=reaction_ids)
             criterion2 = Q(actionsession_id__type=actionsessiontype)
             extractactionqueryset = ExtractAction.objects.filter(
                 criterion1 & criterion2
             ).order_by("id")
             return extractactionqueryset
-        if actionnumber:
+        if actionnumber and actionsessiontype:
             criterion1 = Q(reaction_id__in=reaction_ids)
             criterion2 = Q(actionsession_id__type=actionsessiontype)
             criterion3 = Q(number=actionnumber)
@@ -389,14 +376,7 @@ class OTWrite(object):
 
     def createFilePath(self):
         """Creates the OT protcol script filepath"""
-        filename = (
-            "{}-session-ot-script-batch-{}-reactionstep{}-sessionid-{}.txt".format(
-                self.otsessiontype,
-                self.protocolname,
-                self.reactionstep,
-                self.otsession_id,
-            )
-        )
+        filename = "{}.txt".format(self.protocolname)
         path = "tmp/" + filename
         filepath = str(os.path.join(settings.MEDIA_ROOT, path))
         return filepath, filename
@@ -948,7 +928,7 @@ class OTWrite(object):
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".mix({nomixes}, {volumetomix}, {plate}[{columnindex}])",
+            + f".mix({nomixes}, {volumetomix}, {plate}.columns()[{columnindex}][0])",
         ]
 
         self.writeCommand(instruction)
@@ -1090,7 +1070,7 @@ class OTWrite(object):
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".transfer({transvolume}, {aspirateplatename}[{aspiratecolumnindex}].bottom({aspirateheight}), {dispenseplatename}[{dispensecolumnindex}].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
+            + f".transfer({transvolume}, {aspirateplatename}.columns()[{aspiratecolumnindex}][0].bottom({aspirateheight}), {dispenseplatename}.columns()[{dispensecolumnindex}][0].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
         ]
         self.writeCommand(instruction)
 
@@ -1445,7 +1425,6 @@ class OTWrite(object):
         groupedreactionclassquerysets = self.getGroupedReactionByClass(
             reactionqueryset=reactionqueryset
         )
-
         for groupreactionclassqueryset in groupedreactionclassquerysets:
             actionsessiontype = "analyse"
             reactionclass = groupreactionclassqueryset.values_list(
@@ -1461,7 +1440,6 @@ class OTWrite(object):
                 if actionsession["type"] == "analyse"
                 and actionsession["sessionnumber"] == sessionnumber
             ][0]
-
             for index, analyseaction in enumerate(analyseactions):
                 actiontype = analyseaction["type"]
                 actionnumber = analyseaction["actionnumber"]
@@ -1473,6 +1451,7 @@ class OTWrite(object):
                         actionsessiontype=actionsessiontype,
                         actionnumber=actionnumber,
                     )
+                    print(addactionqueryset.values_list("volume", flat=True).distinct())
                     transfervolume = addactionqueryset.values_list(
                         "volume", flat=True
                     ).distinct()[0]

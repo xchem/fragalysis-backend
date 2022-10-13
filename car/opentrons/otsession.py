@@ -1489,7 +1489,6 @@ class CreateOTSession(object):
             platename="Startingplate",
             labwaretype=startinglabwareplatetype,
         )
-        print("Created starter plate: {}".format(plateobj.name))
         maxwellvolume = self.getMaxWellVolume(plateobj=plateobj)
         deadvolume = self.getDeadVolume(maxwellvolume=maxwellvolume)
         orderdictslist = []
@@ -1778,7 +1777,6 @@ class CreateOTSession(object):
                     wellindexisnewcolumn = self.checkIndexWellIsNewColumn(
                         plateobj=plateobj
                     )
-                    print(wellindexisnewcolumn)
                     if wellindexisnewcolumn:
                         indexcurrentcolumn = self.getPlateCurrentColumnIndex(
                             plateobj=plateobj

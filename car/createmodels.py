@@ -701,6 +701,11 @@ class CreateEncodedActionModels(object):
                 del self.reactant_pair_smiles[0]
             if action["content"]["material"]["SMILES"]:
                 smiles = action["content"]["material"]["SMILES"]
+            if (
+                not action["content"]["material"]["SMILES"]
+                and not action["content"]["material"]["SMARTS"]
+            ):
+                smiles = self.getProductSmiles()
             calcvalue = action["content"]["material"]["quantity"]["value"]
             calcunit = action["content"]["material"]["quantity"]["unit"]
             concentration = action["content"]["material"]["concentration"]

@@ -1883,7 +1883,7 @@ encoded_recipes = {
                         "sessionnumber": 3,
                         "actions": [
                             {
-                                "type": "extract",
+                                "type": "add",
                                 "actionnumber": 5,
                                 "content": {
                                     "plates": {
@@ -1891,7 +1891,7 @@ encoded_recipes = {
                                         "toplatetype": "lcms",
                                     },
                                     "material": {
-                                        "layer": "bottom",
+                                        "SMARTS": None,
                                         "SMILES": None,
                                         "quantity": {"value": 10, "unit": "ul"},
                                         "solvent": None,
@@ -2110,7 +2110,7 @@ encoded_recipes = {
                         "sessionnumber": 9,
                         "actions": [
                             {
-                                "type": "extract",
+                                "type": "add",
                                 "actionnumber": 16,
                                 "content": {
                                     "plates": {
@@ -2118,7 +2118,7 @@ encoded_recipes = {
                                         "toplatetype": "lcms",
                                     },
                                     "material": {
-                                        "layer": "bottom",
+                                        "SMARTS": None,
                                         "SMILES": None,  # Product of reaction
                                         "quantity": {"value": 10, "unit": "ul"},
                                         "solvent": None,
