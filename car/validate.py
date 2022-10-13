@@ -64,58 +64,10 @@ class ValidateFile(object):
                     smiles=self.target_smiles,
                     smiles_type="target",
                 )
-                # self.checkTargetSMILES()
                 if self.validated:
                     self.checkIsNumber()
                 if self.validated:
                     self.checkIsString()
-
-    # def validateCustomChem(self):
-    #     """Validates the csv file if the custom chemistry
-    #     option selected
-    #     """
-    #     expected_no_columns = 5
-    #     expected_column_names = [
-    #         "reactant-1",
-    #         "reactant-2",
-    #         "reaction-name",
-    #         "amount-required-mg",
-    #         "batch-tag",
-    #     ]
-    #     self.checkNumberColumns(
-    #         expected_no_columns=expected_no_columns,
-    #         expected_column_names=expected_column_names,
-    #     )
-    #     if self.validated:
-    #         self.checkColumnNames()
-    #     if self.validated:
-    #         reactant_pair_smiles = [
-    #             reactants
-    #             for reactants in zip(self.df["reactant-1"], self.df["reactant-2"])
-    #         ]
-    #         self.df["reactant-pair-smiles"] = reactant_pair_smiles
-    #         self.checkSMILES(
-    #             df_rows_index=self.index_df_rows,
-    #             smiles=reactant_pair_smiles,
-    #             smiles_type="reactant pair",
-    #         )
-    #         # self.checkReactantSMILES(reactant_pair_smiles=self.reactant_pair_smiles)
-    #         if self.validated:
-    #             reactant_pair_smiles = [
-    #                 (canonSmiles(smi[0]), canonSmiles(smi[1]))
-    #                 for smi in self.reactant_pair_smiles
-    #             ]
-    #             reaction_names = self.df["reaction-name"]
-    #             reactant_pair_smiles_ordered, product_smiles = self.checkReaction(
-    #                 reactant_pair_smiles=reactant_pair_smiles,
-    #                 reaction_names=reaction_names,
-    #             )
-    #             if self.validated:
-    #                 self.df["reactant-pair-smiles"] = reactant_pair_smiles_ordered
-    #                 self.df["targets"] = product_smiles
-    #                 self.checkIsNumber()
-    #             if self.validated:
-    #                 self.checkIsString()
 
     def validateCustomChem(self):
         max_no_steps = max(self.df["no-steps"])

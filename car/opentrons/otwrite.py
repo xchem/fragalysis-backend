@@ -11,7 +11,6 @@ import os
 from graphene_django import DjangoObjectType
 
 from car.utils import (
-    checkPreviousReactionProducts,
     getPreviousReactionProducts,
     getReactionQuerySet,
 )
@@ -292,38 +291,6 @@ class OTWrite(object):
         productobj = Product.objects.get(reaction_id=reaction_id)
         return productobj
 
-    # def getProduct(self, reaction_id: int) -> Product:
-    #     """Gets the product for a reaction
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int
-    #         The reaction objects id to search for a product
-
-    #     Returns
-    #     -------
-    #     productobj: Product
-    #         The reaction's product
-    #     """
-    #     productobj = Product.objects.get(reaction_id=reaction_id)
-    #     return productobj
-
-    # def getReaction(self, reaction_id: int) -> Reaction:
-    #     """Gets the reaction object
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int
-    #         The reaction objects id
-
-    #     Returns
-    #     -------
-    #     reactionobj: Reaction
-    #         The reaction object
-    #     """
-    #     reactionobj = Reaction.objects.get(id=reaction_id)
-    #     return reactionobj
-
     def getPlates(self) -> QuerySet[Plate]:
         """Gets plates for an OT session
 
@@ -393,50 +360,6 @@ class OTWrite(object):
         productobj = Product.objects.filter(reaction_id=reaction_id)[0]
         return productobj.smiles
 
-    # def getPreviousObjEntries(
-    #     self, queryset: QuerySet, obj: DjangoObjectType
-    # ) -> QuerySet:
-    #     """Finds all previous Django model object relative to the Django model
-    #        object in a queryset
-
-    #     Parameters
-    #     ----------
-    #     queryset: QuerySet
-    #         The queryset to search for previous entries
-    #     obj: DjangoObjectType
-    #         The object that you want to find all previous object entries relative to
-
-    #     Returns
-    #     -------
-    #     previousqueryset: QuerySet
-    #         The previous Django model objects as a queryset
-    #     """
-    #     previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
-    #     return previousqueryset
-
-    # def getReactionQuerySet(
-    #     self, reaction_ids: list = None, method_id: int = None
-    # ) -> QuerySet[Reaction]:
-    #     """Get a  synthesis methods reactions
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int or Reaction
-    #         The reaction ids to find reactions for
-    #     method_id: int
-    #         The optional synthesis method's id to get reactions for
-
-    #     Returns
-    #     -------
-    #     reactionqueryset: QuerySet[Reaction]
-    #         The reactions of a synthesis method
-    #     """
-    #     if reaction_ids:
-    #         reactionqueryset = Reaction.objects.filter(id__in=reaction_ids)
-    #     if method_id:
-    #         reactionqueryset = Reaction.objects.filter(method_id=method_id)
-    #     return reactionqueryset
-
     def getColumnQuerySet(
         self,
         columntype: str,
@@ -456,7 +379,6 @@ class OTWrite(object):
         columnqueryset: QuerySet[Column]
             The columns related to the column type and reaction class
         """
-        # print(self.otsession_id, columntype, reactionclass)
         criterion1 = Q(otsession_id=self.otsession_id)
         criterion2 = Q(type=columntype)
         criterion3 = Q(reactionclass=reactionclass)
@@ -464,39 +386,6 @@ class OTWrite(object):
             criterion1 & criterion2 & criterion3
         ).order_by("id")
         return columnqueryset
-
-    # def checkPreviousReactionProduct(
-    #     self, reaction_id: int, smiles: str
-    # ) -> list[Reaction]:
-    #     """Checks if any previous reactions had a product matching the smiles
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int
-    #         The reaction id of the Django model object to search for
-    #         all relative previous reactions objects. The previous reactions may
-    #         have products that are this reaction's reactant input
-    #     smiles: str
-    #         The SMILES of the reaction's reactant and previous reaction products
-
-    #     Returns
-    #     -------
-    #     previousproductmatches: list[Reactant]
-    #         The list of reactions whose product matches the query SMILES
-    #     """
-
-    #     reactionobj = self.getReaction(reaction_id=reaction_id)
-    #     reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
-    #     prevreactionqueryset = self.getPreviousObjEntries(
-    #         queryset=reactionqueryset, obj=reactionobj
-    #     )
-    #     previousproductmatches = []
-    #     if prevreactionqueryset:
-    #         for reactionobj in prevreactionqueryset:
-    #             productobj = self.getProduct(reaction_id=reactionobj)
-    #             if productobj.smiles == smiles:
-    #                 previousproductmatches.append(reactionobj)
-    #     return previousproductmatches
 
     def createFilePath(self):
         """Creates the OT protcol script filepath"""
@@ -731,8 +620,6 @@ class OTWrite(object):
             The well used in the reaction
         """
         productsmiles = self.getProductSmiles(reaction_id=reaction_id)
-        # print(productsmiles, reaction_id, self.otsession_id, welltype)
-
         wellobj = Well.objects.get(
             otsession_id=self.otsession_id,
             reaction_id=reaction_id,
@@ -1199,8 +1086,6 @@ class OTWrite(object):
         newtip:
             Set to "never" to deal with pick up and drop tips built into protocol
         """
-        # print("Transferring multi")
-
         humanread = f"transfertype - {transfertype} - transfer - {transvolume:.1f}ul from {aspiratecolumnindex} column to {dispensecolumnindex} column"
         instruction = [
             "\n\t# " + str(humanread),
@@ -1599,9 +1484,7 @@ class OTWrite(object):
                     )
 
                     if fromplatetype == "solvent":
-                        # print("Adding solvent")
                         self.pickUpTip()
-                        # print("The to column queryset is: {}".format(tocolumnqueryset))
                         for topcolumnobj in tocolumnqueryset:
                             toplateobj = topcolumnobj.plate_id
                             dispenseplatename = toplateobj.name
@@ -1611,11 +1494,6 @@ class OTWrite(object):
                                 solvent=solvent,
                                 transfervolume=transfervolume,
                             )
-                            # print(
-                            #     "The from solvent well info is: {}".format(
-                            #         fromsolventwellinfo
-                            #     )
-                            # )
                             for solventwellinfo in fromsolventwellinfo:
                                 fromsolventwellobj = solventwellinfo[0]
                                 transfervolume = solventwellinfo[1]

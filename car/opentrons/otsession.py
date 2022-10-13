@@ -406,101 +406,6 @@ class CreateOTSession(object):
 
         return inputplatesneeded
 
-    # def getPreviousObjEntries(
-    #     self, queryset: QuerySet, obj: DjangoObjectType
-    # ) -> QuerySet:
-    #     """Finds all previous Django model object relative to the Django model
-    #        object in a queryset
-
-    #     Parameters
-    #     ----------
-    #     queryset: QuerySet
-    #         The queryset to search for previous entries
-    #     obj: DjangoObjectType
-    #         The object that you want to find all previous object entries relative to
-
-    #     Returns
-    #     -------
-    #     previousqueryset: QuerySet
-    #         The previous Django model objects as a queryset
-    #     """
-    #     previousqueryset = queryset.filter(pk__lt=obj.pk).order_by("-pk")
-    #     return previousqueryset
-
-    # def checkPreviousReactionProducts(self, reaction_id: int, smiles: str) -> bool:
-    #     """Checks if any previous reactions had a product matching the smiles
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int
-    #         The reaction id of the Django model object to search for
-    #         all relative previous reactions objects. The previosu reactions may
-    #         have products that are this reaction's reactant input
-    #     smiles: str
-    #         The SMILES of the reaction's reactant and previous reaction products
-
-    #     Returns
-    #     -------
-    #     status: bool
-    #         The status is True if a match is found
-    #     """
-    #     reactionobj = self.getReaction(reaction_id=reaction_id)
-    #     reactionqueryset = self.getReactionQuerySet(method_id=reactionobj.method_id.id)
-    #     prevreactionqueryset = self.getPreviousObjEntries(
-    #         queryset=reactionqueryset, obj=reactionobj
-    #     )
-    #     productmatches = []
-    #     if prevreactionqueryset:
-    #         for reactionobj in prevreactionqueryset:
-    #             productobj = self.getProduct(reaction_id=reactionobj)
-    #             if productobj.smiles == smiles:
-    #                 productmatches.append(productobj)
-    #         if productmatches:
-    #             return True
-    #         else:
-    #             return False
-    #     else:
-    #         return False
-
-    # def getReaction(self, reaction_id: int) -> Reaction:
-    #     """Get reaction object
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int
-    #         The reaction id to search for a reaction
-
-    #     Returns
-    #     -------
-    #     reactionobj: Reaction
-    #         The reaction Django model object
-    #     """
-    #     reactionobj = Reaction.objects.get(id=reaction_id)
-    #     return reactionobj
-
-    # def getReactionQuerySet(
-    #     self, reaction_ids: list = None, method_id: int = None
-    # ) -> QuerySet[Reaction]:
-    #     """Get a  synthesis methods reactions
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int or Reaction
-    #         The reaction ids to find reactions for
-    #     method_id: int
-    #         The optional synthesis method's id to get reactions for
-
-    #     Returns
-    #     -------
-    #     reactionqueryset: QuerySet[Reaction]
-    #         The reactions of a synthesis method
-    #     """
-    #     if reaction_ids:
-    #         reactionqueryset = Reaction.objects.filter(id__in=reaction_ids)
-    #     if method_id:
-    #         reactionqueryset = Reaction.objects.filter(method_id=method_id)
-    #     return reactionqueryset
-
     def getProductQuerySet(self, reaction_ids: list) -> QuerySet[Product]:
         """Get product queryset for reaction ids
 
@@ -516,22 +421,6 @@ class CreateOTSession(object):
         """
         productqueryset = Product.objects.filter(reaction_id__in=reaction_ids)
         return productqueryset
-
-    # def getProduct(self, reaction_id: int) -> Product:
-    #     """Get product object
-
-    #     Parameters
-    #     ----------
-    #     reaction_id: int
-    #         The reaction id to search for a matching product
-
-    #     Returns
-    #     -------
-    #     productobj: Product
-    #         The product Django model object
-    #     """
-    #     productobj = Product.objects.get(reaction_id=reaction_id)
-    #     return productobj
 
     def getAddActionQuerySet(
         self,
@@ -1459,12 +1348,8 @@ class CreateOTSession(object):
         indexcolumnavailable = plateobj.indexcolumnavailable
         numbercolumns = plateobj.numbercolumns
         if indexcolumnavailable + 1 <= numbercolumns:
-            # plateobj.indexcolumnavailable = columnavailable + 1
-            # plateobj.save()
             return indexcolumnavailable
         else:
-            # plateobj.columnavailable = False
-            # plateobj.save()
             return False
 
     def getPlateWellIndexAvailable(self, plateobj: Plate) -> int:
@@ -1483,39 +1368,9 @@ class CreateOTSession(object):
         indexwellavailable = plateobj.indexswellavailable
         numberwells = plateobj.numberwells
         if indexwellavailable + 1 <= numberwells:
-            # plateobj.indexswellavailable = wellavailable + 1
-            # plateobj.save()
             return indexwellavailable
         else:
-            # plateobj.wellavailable = False
-            # plateobj.save()
             return False
-
-    # def getPlateCurrentColumnIndex(self, plateobj: Plate) -> int:
-    #     """Check if any columns available on a plate
-
-    #     Parameters
-    #     ----------
-    #     plateobj: Plate
-    #         The plate to search for a column available
-
-    #     Returns
-    #     -------
-    #     plateobj.indexcolumnavailable: int
-    #         The index of the column available on a plate
-    #     status: False
-    #         Returns false if no column is available
-    #     """
-    #     testcolumnavailable = plateobj.indexcolumnavailable
-    #     numbercolumns = plateobj.numbercolumns - 1
-    #     if testcolumnavailable <= numbercolumns:
-    #         # plateobj.indexcolumnavailable = testcolumnavailable + 1
-    #         # plateobj.save()
-    #         return testcolumnavailable
-    #     else:
-    #         # plateobj.columnavailable = False
-    #         # plateobj.save()
-    #         return False
 
     def updatePlateWellIndex(self, plateobj: Plate, wellindexupdate: int):
         """Updates the plates well index used
@@ -1765,14 +1620,8 @@ class CreateOTSession(object):
         newcolumnindex = indexcolumnavailable + 1
         if newcolumnindex + 1 < plateobj.numbercolumns:
             newwellindex = newcolumnindex * wellindexcorrection
-            # plateobj.indexswellavailable = newwellindex
-            # plateobj.indexcolumnavailable = newcolumnindex
-            # plateobj.save()
             return (newcolumnindex, newwellindex)
         else:
-            # plateobj.columnavailable = False
-            # plateobj.wellavailable = False
-            # plateobj.save()
             return False
 
     def checkIndexWellIsNewColumn(self, plateobj: Plate):
@@ -1791,15 +1640,9 @@ class CreateOTSession(object):
         """
         indexwellavailable = plateobj.indexswellavailable
         numberwellsincolumn = plateobj.numberwellsincolumn
-        # numberwells = plateobj.numberwells
-
-        # if indexwellavailable + 1 == numberwells:
-        #     return False
-        print(indexwellavailable, numberwellsincolumn)
         if indexwellavailable == 0:
             return True
         if indexwellavailable != 0:
-            print(indexwellavailable % numberwellsincolumn)
             if (indexwellavailable % numberwellsincolumn) == 0:
                 return True
             if (indexwellavailable % numberwellsincolumn) != 0:
