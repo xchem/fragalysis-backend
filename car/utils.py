@@ -352,6 +352,28 @@ def getReactantsToBuy(batch_ids: list[int]) -> list:
     return list(set(reactants_to_buy))
 
 
+def getBatchTargetMWs(batch_id: int) -> list[float]:
+    """Gets the molecular weights of the final target compounds
+    for batches
+
+    Parameters
+    ----------
+    batch_id: int
+        The batch id to get the target molecular weights for
+
+    Returns
+    -------
+    target_MWs: list
+        The molecular weights of the targets for a batch
+    """
+
+    batchobj = Batch.objects.get(id=batch_id)
+    targetqueryset = batchobj.targets.all()
+    smiles = [targetobj.smiles for targetobj in targetqueryset]
+    target_MWs = [Descriptors.ExactMolWt(Chem.MolFromSmiles(smi)) for smi in smiles]
+    return target_MWs
+
+
 def getProduct(reaction_id: int) -> Product:
     """Get product object
 

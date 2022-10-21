@@ -120,9 +120,6 @@ class CreateOTSession(object):
         )
         self.roundedvolumes = self.roundedaddvolumes + self.roundedextractvolumes
         self.deckobj = self.createDeckModel()
-        self.numbertips = self.getNumberTips(
-            queryset=self.addactionqueryset
-        ) + self.getNumberTips(queryset=self.extractactionqueryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
@@ -142,9 +139,7 @@ class CreateOTSession(object):
             for actionsessionobj in self.actionsessionqueryset
         ]
         self.roundedvolumes = []
-        self.numbertips = 0
         self.searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
-
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
@@ -157,7 +152,6 @@ class CreateOTSession(object):
                 "smiles", flat=True
             )
             self.roundedvolumes = self.roundedvolumes + self.roundedaddvolumes
-            self.numbertips += self.getNumberTips(queryset=self.addactionqueryset)
             self.searchsmiles = self.searchsmiles + list(self.addactionsmiles)
         self.extractactionqueryset = self.getExtractActionQuerySet(
             reaction_ids=self.reaction_ids,
@@ -171,7 +165,6 @@ class CreateOTSession(object):
                 "smiles", flat=True
             )
             self.roundedvolumes = self.roundedvolumes + self.roundedextractvolumes
-            self.numbertips += self.getNumberTips(queryset=self.extractactionqueryset)
             self.searchsmiles = self.searchsmiles + list(self.extractactionsmiles)
         self.searchsmiles = set(self.searchsmiles)
 
@@ -209,7 +202,6 @@ class CreateOTSession(object):
             for actionsessionobj in self.actionsessionqueryset
         ]
         self.roundedvolumes = []
-        self.numbertips = 0
         self.searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
 
         self.addactionqueryset = self.getAddActionQuerySet(
@@ -224,7 +216,6 @@ class CreateOTSession(object):
                 "smiles", flat=True
             )
             self.roundedvolumes = self.roundedvolumes + self.roundedaddvolumes
-            self.numbertips += self.getNumberTips(queryset=self.addactionqueryset)
             self.searchsmiles = self.searchsmiles + list(self.addactionsmiles)
         self.extractactionqueryset = self.getExtractActionQuerySet(
             reaction_ids=self.reaction_ids,
@@ -238,7 +229,6 @@ class CreateOTSession(object):
                 "smiles", flat=True
             )
             self.roundedvolumes = self.roundedvolumes + self.roundedextractvolumes
-            self.numbertips += self.getNumberTips(queryset=self.extractactionqueryset)
             self.searchsmiles = self.searchsmiles + list(self.extractactionsmiles)
         self.searchsmiles = set(self.searchsmiles)
 
@@ -1277,16 +1267,18 @@ class CreateOTSession(object):
         solventprepobj.solventprepcsv = ordercsv
         solventprepobj.save()
 
-    def createTipRacks(self, tipracktype: str):
-        """Create the tipracks needed
+    def createTipRacks(self, tipracktype: str, numbertipracks: int = 3):
+        """Creates three tipracks
 
         Parameters
         ----------
         tipracktype: str
             The type of tiprack needed
+
+        numbertipracks: int
+            The number of tip racks to create. Default is three.
         """
-        numberacks = int(-(-self.numbertips // 96))
-        for rack in range(numberacks):
+        for rack in range(numbertipracks):
             self.createTiprackModel(name=tipracktype)
 
     def calcMass(self, row) -> float:
