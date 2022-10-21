@@ -129,5 +129,6 @@ pymysql~=0.10.1
 sphinx
 # Car packages
 pubchempy==1.0.4
-pycule==0.2.1b0 
+pycule==0.2.1b0
+mscheck==0.1.9b0 
 ratelimit==2.2.1
