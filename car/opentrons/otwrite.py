@@ -97,6 +97,9 @@ class OTWrite(object):
         self.setupTipRacks()
         self.setupPlates()
         self.setupPipettes()
+        self.setupNumberTipsAvailable()
+        self.setupPickUpTipFunction()
+        self.setupDropTipFunction()
 
         if self.otsessiontype == "reaction":
             self.writeReactionSession()
@@ -846,17 +849,26 @@ class OTWrite(object):
     def setupTipRacks(self):
         """Writes the tipracks setup instructions for an OT script"""
         script = open(self.filepath, "a")
+        script.write("\n\t# tipracks")
         for tiprackobj in self.tiprackqueryset:
             name = tiprackobj.name
             labware = tiprackobj.labware
             index = tiprackobj.index
             script.write(f"\n\t{name} = protocol.load_labware('{labware}', '{index}')")
+        script.write("\n")
+        script.close()
 
+    def setupNumberTipsAvailable(self):
+        """Captures number of tips available in tipracks"""
+        script = open(self.filepath, "a")
+        numbertipsavailable = len(self.tiprackqueryset) * 96
+        script.write(
+            f'\n\ttipstate = {{"maxnumbertips": {numbertipsavailable}, "notipsavailable": {numbertipsavailable}}} \n'
+        )
         script.close()
 
     def setupPipettes(self):
         """Writes the pipette setup instructions for an OT script"""
-
         script = open(self.filepath, "a")
         script.write("\n\n\t# pipettes\n")
         script.write(
@@ -869,6 +881,36 @@ class OTWrite(object):
             + "', tip_racks=["
             + ",".join([tiprackobj.name for tiprackobj in self.tiprackqueryset])
             + "])\n"
+        )
+
+        script.close()
+
+    def setupPickUpTipFunction(self):
+        """Function for picking up a tip"""
+        script = open(self.filepath, "a")
+        script.write(
+            "\n\n\t"
+            + "def pickUpTip():\n"
+            + '\t\tif tipstate["notipsavailable"] == 0:\n'
+            + '\t\t\tprotocol.pause("Please replace tips")\n'
+            + "\t\t\t{}.reset_tipracks()\n".format(self.pipettename)
+            + '\t\t\ttipstate["notipsavailable"] = tipstate["maxnumbertips"]\n'
+            + "\t\telse:\n"
+            + "\t\t\tif not {}.has_tip:\n".format(self.pipettename)
+            + "\t\t\t\t{}.pick_up_tip()\n".format(self.pipettename)
+            + '\t\t\t\ttipstate["notipsavailable"] = tipstate["notipsavailable"] - 1\n'
+        )
+
+        script.close()
+
+    def setupDropTipFunction(self):
+        """Function for dropping a tip"""
+        script = open(self.filepath, "a")
+        script.write(
+            "\n\n\t"
+            + "def dropTip():\n"
+            + "\t\tif {}.has_tip:\n".format(self.pipettename)
+            + "\t\t\t{}.drop_tip()\n".format(self.pipettename)
         )
 
         script.close()
@@ -937,11 +979,7 @@ class OTWrite(object):
         """Prepares a pick up tip action"""
         humanread = f"Picking up a new tip"
 
-        instruction = [
-            "\n\t# " + str(humanread),
-            "if not {}.has_tip:\n".format(self.pipettename),
-            "\t{}.pick_up_tip()".format(self.pipettename),
-        ]
+        instruction = ["\n\t# " + str(humanread), "pickUpTip()"]
 
         self.writeCommand(instruction)
 
@@ -951,8 +989,7 @@ class OTWrite(object):
 
         instruction = [
             "\n\t# " + str(humanread),
-            "if {}.has_tip:\n".format(self.pipettename),
-            "\t{}.drop_tip()".format(self.pipettename),
+            "dropTip()",
         ]
 
         self.writeCommand(instruction)
