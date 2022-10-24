@@ -110,18 +110,21 @@ class OTWrite(object):
 
     def writeReactionSession(self):
         actionsessionqueryset = self.getActionSessionQuerySet()
-        self.writeReactionActions(actionsessionqueryset=actionsessionqueryset)
-        self.createOTScriptModel()
+        if actionsessionqueryset.exists():
+            self.writeReactionActions(actionsessionqueryset=actionsessionqueryset)
+            self.createOTScriptModel()
 
     def writeWorkUpSession(self):
         actionsessionqueryset = self.getActionSessionQuerySet()
-        self.writeWorkUpActions(actionsessionqueryset=actionsessionqueryset)
-        self.createOTScriptModel()
+        if actionsessionqueryset.exists():
+            self.writeWorkUpActions(actionsessionqueryset=actionsessionqueryset)
+            self.createOTScriptModel()
 
     def writeAnalyseSession(self):
         actionsessionqueryset = self.getActionSessionQuerySet()
-        self.writeAnalyseActions(actionsessionqueryset=actionsessionqueryset)
-        self.createOTScriptModel()
+        if actionsessionqueryset.exists():
+            self.writeAnalyseActions(actionsessionqueryset=actionsessionqueryset)
+            self.createOTScriptModel()
 
     def getActionSessionQuerySet(self) -> QuerySet[ActionSession]:
         """Get action session queryset for reaction_ids and actionsession_ids
