@@ -895,10 +895,9 @@ class OTWrite(object):
             + '\t\t\tprotocol.pause("Please replace tips")\n'
             + "\t\t\t{}.reset_tipracks()\n".format(self.pipettename)
             + '\t\t\ttipstate["notipsavailable"] = tipstate["maxnumbertips"]\n'
-            + "\t\telse:\n"
-            + "\t\t\tif not {}.has_tip:\n".format(self.pipettename)
-            + "\t\t\t\t{}.pick_up_tip()\n".format(self.pipettename)
-            + '\t\t\t\ttipstate["notipsavailable"] = tipstate["notipsavailable"] - 1\n'
+            + "\t\tif not {}.has_tip:\n".format(self.pipettename)
+            + "\t\t\t{}.pick_up_tip()\n".format(self.pipettename)
+            + '\t\t\ttipstate["notipsavailable"] = tipstate["notipsavailable"] - 1\n'
         )
 
         script.close()

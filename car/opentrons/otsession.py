@@ -1278,7 +1278,7 @@ class CreateOTSession(object):
         numbertipracks: int
             The number of tip racks to create. Default is three.
         """
-        for rack in range(numbertipracks):
+        for _ in range(numbertipracks):
             self.createTiprackModel(name=tipracktype)
 
     def calcMass(self, row) -> float:
