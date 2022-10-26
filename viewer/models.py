@@ -1201,6 +1201,75 @@ class JobRequest(models.Model):
 
     class Meta:
         db_table = 'viewer_jobrequest'
+
+
+class Squonk2Org(models.Model):
+    """Django model to store Squonk2 Organisations (UUIDs) and the Account Servers
+    they belong to. Managed by the Squonk2Agent class.
+
+       Parameters
+       ----------
+       uuid: TextField (40)
+           A Squonk2 Account Server (AS) Organisation UUID. A fixed length string
+           consisting of 'org-' followed by a uuid4 value,
+           e.g. 'org-54260047-183b-42e8-9658-385a1e1bd236'
+       name: TextField (80)
+           The name of the Squonk2 Organisation UUID (obtained form the AS).
+       as_url: URLField (200)
+           The URL of the Squonk2 Account Server that owns the organisation.
+           e.g. 'https://example.com/account-server-api'
+       as_version: TextField
+           The version of the AS that was first seen to own the Organisation
+       """
+    uuid = models.TextField(max_length=40, null=False)
+    name = models.TextField(max_length=80, null=False)
+    as_url = models.URLField(null=False)
+    as_version = models.TextField(null=False)
+
+class Squonk2Unit(models.Model):
+    """Django model to store Squonk2 Unit (UUIDs). Managed by the Squonk2Agent class.
+
+       Parameters
+       ----------
+       uuid: TextField (41)
+           A Squonk2 Account Server (AS) Unit UUID. A fixed length string
+           consisting of 'unit-' followed by a uuid4 value,
+           e.g. 'unit-54260047-183b-42e8-9658-385a1e1bd236'
+       name: TextField (80)
+           The name of the Squonk2 Unit UUID (obtained form the AS).
+       project: ForeignKey
+           A Foreign Key to the Project (Proposal) the Unit belongs to.
+       organisation: ForeignKey
+           A Foreign Key to the Organisation the Unit belongs to.
+       """
+    uuid = models.TextField(max_length=41, null=False)
+    name = models.TextField(max_length=80, null=False)
+
+    project = models.ForeignKey(Project, null=False, on_delete=models.CASCADE)
+    organisation = models.ForeignKey(Squonk2Org, null=False, on_delete=models.CASCADE)
+
+class Squonk2Project(models.Model):
+    """Django model to store Squonk2 Project (UUIDs). Managed by the Squonk2Agent class.
+
+       Parameters
+       ----------
+       uuid: TextField (44)
+           A Squonk2 Data Manager (DM) Project UUID. A fixed length string
+           consisting of 'project-' followed by a uuid4 value,
+           e.g. 'project-54260047-183b-42e8-9658-385a1e1bd236'
+       name: TextField (80)
+           The name of the Squonk2 Unit UUID (obtained form the AS).
+       product_uuid: TextField (44)
+           A Squonk2 Account Server (AS) Product UUID. A fixed length string
+           consisting of 'product-' followed by a uuid4 value,
+           e.g. 'product-54260047-183b-42e8-9658-385a1e1bd236'
+       """
+    uuid = models.TextField(max_length=44, null=False)
+    name = models.TextField(max_length=80, null=False)
+    product_uuid = models.TextField(max_length=44, null=False)
+
+    unit = models.ForeignKey(Squonk2Unit, null=False, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=False, on_delete=models.CASCADE)
+    target = models.ForeignKey(Target, null=False, on_delete=models.CASCADE)
+
 # End of Squonk Job Tables
-
-
