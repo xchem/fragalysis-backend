@@ -98,7 +98,9 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Push
       if: steps.vars.outputs.push == 'true'
-      run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+      run: |
+        docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+        docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:stable
 
     # Trigger the stack build for every tagged (production) build.
     - name: Trigger stack
