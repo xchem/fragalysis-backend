@@ -3,6 +3,7 @@ name: build production
 
 # Actions that take place on the 'production' branch.
 # Here we only respond to production-grade tags (i.e. "2022.1" or "1.0.0").
+# We build two images - one usign the tag and one using 'stable'
 #
 # If a DOCKERHUB_USERNAME secret is defined the image is pushed.
 
@@ -77,7 +78,9 @@ jobs:
     - name: Build
       uses: docker/build-push-action@v2
       with:
-        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+        tags:
+        - ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+        - ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:stable
     - name: Test
       run: >
         docker-compose -f docker-compose.test.yml up
@@ -96,3 +99,23 @@ jobs:
     - name: Push
       if: steps.vars.outputs.push == 'true'
       run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+
+    # Trigger the stack build for every tagged (production) build.
+    - name: Trigger stack
+      if: |
+        steps.vars.outputs.trigger == 'true' &&
+        github.event_name != 'schedule'
+      uses: informaticsmatters/trigger-ci-action@v1
+      with:
+        ci-owner: ${{ steps.vars.outputs.STACK_GITHUB_NAMESPACE }}
+        ci-repository: fragalysis-stack
+        ci-name: build main
+        ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
+        ci-inputs: >-
+          be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
+          be_image_tag=${{ steps.vars.outputs.tag }}
+          fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
+          fe_branch=${{ steps.vars.outputs.FE_BRANCH }}
+          stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
+        ci-user: ${{ secrets.STACK_USER }}
+        ci-user-token: ${{ secrets.STACK_USER_TOKEN }}
