@@ -163,9 +163,6 @@ jobs:
       run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
 
     # Trigger the stack build for every non-scheduled (staging) build.
-    # The stack branch that is built is (normally) 'master'.
-    # The stack contains no code - it's simply an 'assembly' repo
-    # that builds a container image from a given b/e and f/e combination.
     - name: Trigger stack
       if: |
         steps.vars.outputs.trigger == 'true' &&
@@ -178,7 +175,7 @@ jobs:
         ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
         ci-inputs: >-
           be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
-          be_image_tag=${{ steps.vars.outputs.BE_IMAGE_TAG }}
+          be_image_tag=${{ steps.vars.outputs.TAG }}
           fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
           fe_branch=${{ steps.vars.outputs.FE_BRANCH }}
           stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
