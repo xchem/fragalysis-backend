@@ -1,13 +1,11 @@
 ---
-name: build main
+name: build staging
 
-# Actions that take place after every commit the master/main branch.
-# Here every commit is built, tagged as 'latest' and tested.
-# If a DOCKERHUB_USERNAME secret is defined the image is pushed.
+# Actions that take place after every commit the 'staging' branch.
+# Here every commit is built, tagged (as 'latest' or with the tag) and tested.
+# We ignore any production-like tags in this workflow.
 #
-# Actions also run if the repository is tagged.
-# Every tag is deployed to staging and every production-grade tag
-# (of the form N.N.N) is deployed to production.defaults:
+# If a DOCKERHUB_USERNAME secret is defined the image is pushed.
 #
 # Actions also run on a schedule - the container is built, tested,
 # pushed and deployed (if the relevant secrets are set) based on
@@ -22,7 +20,7 @@ name: build main
 # (i.e. via 'Settings -> Secrets'): -
 #
 # BE_NAMESPACE            optional - default xchem
-# FE_BRANCH               optional - default master
+# FE_BRANCH               optional - default production
 # FE_NAMESPACE            optional - default xchem
 # STACK_BRANCH            optional - default master
 # STACK_GITHUB_NAMESPACE  optional - default xchem
@@ -46,10 +44,13 @@ name: build main
 on:
   push:
     branches:
-    - 'master'
-    - 'main'
-    tags:
-    - '**'
+    - 'staging'
+    tags-ignore:
+    # Ignore any production-grade tags (i.e. "2022.1" or "1.0.0"),
+    # they're reserved for the production branch. Here
+    # we expect a non-production tag, i.e. "2022.1-rc.1" or "1.0.0-rc.1"
+    - '[0-9]+.[0-9]+'
+    - '[0-9]+.[0-9]+.[0-9]+'
   schedule:
   # Build every Sunday (0) at 4:30pm
   - cron: '30 16 * * 0'
@@ -63,7 +64,7 @@ env:
   #   For Jobs conditional on the presence of a secret see this Gist...
   #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
   BE_NAMESPACE: xchem
-  FE_BRANCH: master
+  FE_BRANCH: production
   FE_NAMESPACE: xchem
   STACK_BRANCH: master
   STACK_GITHUB_NAMESPACE: xchem
@@ -161,13 +162,19 @@ jobs:
       if: steps.vars.outputs.push == 'true'
       run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
 
+    # Trigger the stack build for every non-scheduled (staging) build.
+    # The stack branch that is built is (normally) 'master'.
+    # The stack contains no code - it's simply an 'assembly' repo
+    # that builds a container image from a given b/e and f/e combination.
     - name: Trigger stack
-      if: steps.vars.outputs.trigger == 'true'
+      if: |
+        steps.vars.outputs.trigger == 'true' &&
+        github.event_name != 'schedule'
       uses: informaticsmatters/trigger-ci-action@v1
       with:
         ci-owner: ${{ steps.vars.outputs.STACK_GITHUB_NAMESPACE }}
         ci-repository: fragalysis-stack
-        ci-name: build main
+        ci-name: build latest
         ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
         ci-inputs: >-
           be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}

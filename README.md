@@ -1,4 +1,6 @@
-[![build main](https://github.com/xchem/fragalysis-backend/actions/workflows/build-main.yaml/badge.svg)](https://github.com/xchem/fragalysis-backend/actions/workflows/build-main.yaml)
+[![build dev](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-dev.yaml/badge.svg)](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-dev.yaml)
+[![build staging](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-staging.yaml/badge.svg)](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-staging.yaml)
+[![build production](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-production.yaml/badge.svg)](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-production.yaml)
 
 [![stable](http://badges.github.io/stability-badges/dist/stable.svg)](http://github.com/badges/stability-badges)
 [![Version](http://img.shields.io/badge/version-0.0.1-blue.svg?style=flat)](https://github.com/xchem/fragalysis-backend)

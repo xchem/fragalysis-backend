@@ -1,0 +1,98 @@
+---
+name: build production
+
+# Actions that take place on the 'production' branch.
+# Here we only respond to production-grade tags (i.e. "2022.1" or "1.0.0").
+#
+# If a DOCKERHUB_USERNAME secret is defined the image is pushed.
+
+# ---------------
+# Control secrets
+# ---------------
+#
+# At the GitHub 'organisation' or 'project' level you are expected to
+# have the following GitHub 'Repository Secrets' defined
+# (i.e. via 'Settings -> Secrets'): -
+#
+# BE_NAMESPACE            optional - default xchem
+#
+# DOCKERHUB_USERNAME      optional
+# DOCKERHUB_TOKEN         optional - required if DOCKERHUB_USERNAME
+#
+# -----------
+# Environment (GitHub Environments)
+# -----------
+#
+# (none)
+
+on:
+  push:
+    tags:
+    # Only handle production-grade tags (i.e. "2022.1" or "1.0.0")
+    - '[0-9]+.[0-9]+'
+    - '[0-9]+.[0-9]+.[0-9]+'
+
+env:
+  # The following 'defaults' are used in the 'Initialise workflow variables' step,
+  # which creates 'outputs' for use in steps and jobs that follow it.
+  # The values set here are used unless a matching secret is found.
+  # Secrets are the way users dynamically control the behaviour of this Action.
+  #
+  #   For Jobs conditional on the presence of a secret see this Gist...
+  #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
+  BE_NAMESPACE: xchem
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      push: ${{ steps.vars.outputs.push }}
+      tag: ${{ steps.vars.outputs.tag }}
+    steps:
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v3.x
+    - name: Initialise workflow variables
+      id: vars
+      env:
+        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        TRIGGER_DOWNSTREAM: ${{ secrets.TRIGGER_DOWNSTREAM }}
+      run: |
+        # BE_NAMESPACE
+        BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
+        if [ -n "${{ secrets.BE_NAMESPACE }}" ]; then BE_NAMESPACE="${{ secrets.BE_NAMESPACE }}"; fi
+        echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
+        echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
+
+        # What image tag are we using? 'latest' (if not tagged) or a GitHub tag?
+        TAG="latest"
+        if [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then TAG="${{ env.GITHUB_REF_SLUG }}"; fi
+        echo set-output name=tag::${TAG}
+        echo ::set-output name=tag::${TAG}
+
+        # Do we push, i.e. is DOCKERHUB_USERNAME defined?
+        echo set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
+        echo ::set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Build
+      uses: docker/build-push-action@v2
+      with:
+        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+    - name: Test
+      run: >
+        docker-compose -f docker-compose.test.yml up
+        --build
+        --exit-code-from tests
+        --abort-on-container-exit
+      env:
+        BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
+        BE_TAG: ${{ steps.vars.outputs.tag }}
+    - name: Login to DockerHub
+      if: steps.vars.outputs.push == 'true'
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Push
+      if: steps.vars.outputs.push == 'true'
+      run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
