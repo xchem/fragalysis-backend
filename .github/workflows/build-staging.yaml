@@ -174,7 +174,7 @@ jobs:
       with:
         ci-owner: ${{ steps.vars.outputs.STACK_GITHUB_NAMESPACE }}
         ci-repository: fragalysis-stack
-        ci-name: build latest
+        ci-name: build main
         ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
         ci-inputs: >-
           be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
