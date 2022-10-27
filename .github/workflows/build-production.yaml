@@ -64,8 +64,10 @@ jobs:
         echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
         echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
 
-        # What image tag are we using? 'latest' (if not tagged) or a GitHub tag?
-        TAG="latest"
+        # What image tag are we using?
+        # It's a production-branch build so at the very least it's 'stable'
+        # or a GitHub tag.
+        TAG="stable"
         if [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then TAG="${{ env.GITHUB_REF_SLUG }}"; fi
         echo set-output name=tag::${TAG}
         echo ::set-output name=tag::${TAG}
