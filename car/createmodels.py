@@ -141,13 +141,15 @@ def createBatchModel(project_id: int, batchtag: str, batch_id: int = None) -> in
     return batch.id
 
 
-def createTargetModel(batch_id: int, smiles: str, mass: float) -> int:
+def createTargetModel(batch_id: int, name: str, smiles: str, mass: float) -> int:
     """Creates a Django target object - a target compound model entry
 
     Parameters
     ----------
     batch_id: int
         The batch model object id that the target is linked to
+    name: str
+        The name of the Target compound
     smiles: str
         The SMILES of the target compound
     mass: float
@@ -160,11 +162,10 @@ def createTargetModel(batch_id: int, smiles: str, mass: float) -> int:
     """
     target = Target()
     batch_obj = Batch.objects.get(id=batch_id)
-    batchtag = batch_obj.batchtag
     target.batch_id = batch_obj
     target.smiles = smiles
     target.mols = calculateProductMols(mass, smiles)
-    target.name = batchtag
+    target.name = name
     target_svg_string = createSVGString(smiles)
     target_svg_fn = default_storage.save(
         "targetimages/" + target.name + ".svg", ContentFile(target_svg_string)

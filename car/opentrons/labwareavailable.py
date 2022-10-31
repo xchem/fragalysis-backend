@@ -27,7 +27,7 @@ labware_plates = {
         "reflux": False,
     },
     "fluidx_24_vials_2500ul": {
-        "type": ["startingmaterial", "solvent"],
+        "type": ["startingmaterial"],
         "no_wells_in_column": 4,
         "no_wells": 24,
         "no_columns": 6,
@@ -54,7 +54,7 @@ labware_plates = {
         "reflux": False,
     },
     "plateone_96_wellplate_2500ul": {
-        "type": ["solvent", "reaction", "workup1", "workup2", "workup3"],
+        "type": ["reaction", "workup1", "workup2", "workup3"],
         "no_wells_in_column": 8,
         "no_wells": 96,
         "no_columns": 12,
@@ -64,12 +64,21 @@ labware_plates = {
         "aspirateheightconversion-m": 0.01806,
         "aspirateheightconversion-c": 0.6015,
     },
-    "qmx_96_aluminumblock_962ul": {
+    "biotage_96_wellplate_2500ul": {
+        "type": ["spefilter"],
+        "no_wells_in_column": 8,
+        "no_wells": 96,
+        "no_columns": 12,
+        "volume_well": 2500,
+        "max_temp": 110,
+        "reflux": False,
+    },
+    "paradox_96_wellplate_961ul": {
         "type": ["reaction"],
         "no_wells_in_column": 8,
         "no_wells": 96,
         "no_columns": 12,
-        "volume_well": 962,
+        "volume_well": 961,
         "max_temp": 250,
         "reflux": True,
         "aspirateheightconversion-m": 0.02865,

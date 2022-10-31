@@ -131,26 +131,29 @@ def uploadManifoldReaction(validate_output):
                 project_id=project_id,
                 batchtag=batchtag,
             )
-            target_smiles = list(group["targets"])
+            target_names = list(group["target-names"])
+            target_smiles = list(group["target-SMILES"])
             target_amounts = list(group["amount-required-mg"])
             for i in range(
                 0, len(target_smiles), 10
             ):  # Manifold can do 10 smiles in one batch query
-                smiles = target_smiles[i : i + 10]
-                amounts = target_amounts[i : i + 10]
-                retrosynthesis_results = getManifoldRetrosynthesisBatch(smiles=smiles)
+                target_names_10 = target_names[i : i + 10]
+                target_smiles_10 = target_smiles[i : i + 10]
+                amounts_10 = target_amounts[i : i + 10]
+                retrosynthesis_results = getManifoldRetrosynthesisBatch(smiles=target_smiles_10)
                 if "results" in retrosynthesis_results:
                     batchrouteresults = retrosynthesis_results["results"]
 
-                    for smiles, mass, routeresult in zip(
-                        smiles, amounts, batchrouteresults
+                    for target_name, target_smi, mass, routeresult in zip(
+                        target_names_10, target_smiles_10, amounts_10, batchrouteresults
                     ):
                         if "routes" in routeresult:
                             routes = routeresult["routes"]
                             if routes:
                                 target_id = createTargetModel(
                                     batch_id=batch_id,
-                                    smiles=smiles,
+                                    name=target_name,
+                                    smiles=target_smi,
                                     mass=mass,
                                 )
                                 first_route = routes[0]
@@ -409,6 +412,7 @@ def uploadCustomReaction(validate_output):
             )
 
             for (
+                target_name,
                 target_smiles,
                 amount_required,
                 no_steps,
@@ -416,7 +420,8 @@ def uploadCustomReaction(validate_output):
                 reaction_name_tuples,
                 reaction_product_smiles_tuples,
             ) in zip(
-                group["target-smiles"],
+                group["target-names"],
+                group["target-SMILES"],
                 group["amount-required-mg"],
                 group["no-steps"],
                 group["reactant-pair-smiles"],
@@ -425,6 +430,7 @@ def uploadCustomReaction(validate_output):
             ):
                 target_id = createTargetModel(
                     batch_id=batch_id,
+                    name=target_name,
                     smiles=target_smiles,
                     mass=amount_required,
                 )

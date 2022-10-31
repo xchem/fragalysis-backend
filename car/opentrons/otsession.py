@@ -1,7 +1,5 @@
 """Create OT session"""
 from __future__ import annotations
-from operator import index
-from sys import path_importer_cache
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.db.models import QuerySet, Q
@@ -190,7 +188,7 @@ class CreateOTSession(object):
         self.createSolventPlate(materialsdf=self.solventmaterialsdf)
         self.workupplatesneeded = self.getUniqueToPlates(
             actionsessionqueryset=self.actionsessionqueryset,
-            platetypes=["workup1", "workup2", "workup3"],
+            platetypes=["workup1", "workup2", "workup3", "spefilter"],
         )
         for workuplateneeded in self.workupplatesneeded:
             self.createWorkUpPlate(platetype=workuplateneeded)
@@ -217,6 +215,7 @@ class CreateOTSession(object):
             )
             self.roundedvolumes = self.roundedvolumes + self.roundedaddvolumes
             self.searchsmiles = self.searchsmiles + list(self.addactionsmiles)
+
         self.extractactionqueryset = self.getExtractActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
@@ -613,14 +612,24 @@ class CreateOTSession(object):
                 "maxvolume": 300,
             },
             {
-                "labware": "p300_multi",
+                "labware": "p300_multi_gen2",
                 "position": "left",
                 "type": "multi",
                 "maxvolume": 300,
             },
+            {
+                "labware": "p10_multi",
+                "position": "left",
+                "type": "multi",
+                "maxvolume": 10,
+            },
         ]
         pipettetype = min(
-            pipettesavailable,
+            [
+                pipette
+                for pipette in pipettesavailable
+                if pipette["type"] == channeltype
+            ],
             key=lambda x: self.getNumberTransfers(
                 pipettevolume=x["maxvolume"], roundedvolumes=roundedvolumes
             ),
@@ -1278,7 +1287,7 @@ class CreateOTSession(object):
         numbertipracks: int
             The number of tip racks to create. Default is three.
         """
-        for rack in range(numbertipracks):
+        for _ in range(numbertipracks):
             self.createTiprackModel(name=tipracktype)
 
     def calcMass(self, row) -> float:
@@ -1414,10 +1423,13 @@ class CreateOTSession(object):
                 clonecolumnqueryset = self.getCloneColumns(plateobj=plateobj)
                 plateindex = indexslot
                 previousname = plateobj.name
+                previoustype = plateobj.type
                 platename = "Startingplate"
                 plateobj.pk = None
                 plateobj.deck_id = self.deckobj
                 plateobj.otsession_id = self.otsessionobj
+                if previoustype == "spefilter":
+                    plateobj.labware = "plateone_96_wellplate_2500ul"
                 plateobj.index = plateindex
                 plateobj.name = "{}_{}_from_{}".format(
                     platename, indexslot, previousname
