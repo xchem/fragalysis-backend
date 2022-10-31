@@ -46,8 +46,8 @@ class ValidateFile(object):
             self.validateCustomCombiChem()
 
         if self.upload_type == "retro-API":
-            expected_no_columns = 3
-            expected_column_names = ["targets", "amount-required-mg", "batch-tag"]
+            expected_no_columns = 4
+            expected_column_names = ["target-SMILES", "target-names","amount-required-mg", "batch-tag"]
             self.checkNumberColumns(
                 expected_no_columns=expected_no_columns,
                 expected_column_names=expected_column_names,
@@ -56,9 +56,9 @@ class ValidateFile(object):
                 self.checkColumnNames(expected_column_names=expected_column_names)
             if self.validated:
                 self.target_smiles = [
-                    canonSmiles(smi.strip()) for smi in self.df["targets"]
+                    canonSmiles(smi.strip()) for smi in self.df["target-SMILES"]
                 ]
-                self.df["targets"] = self.target_smiles
+                self.df["target-SMILES"] = self.target_smiles
                 self.checkSMILES(
                     df_rows_index=self.index_df_rows,
                     smiles=self.target_smiles,
@@ -72,7 +72,7 @@ class ValidateFile(object):
     def validateCustomChem(self):
         max_no_steps = max(self.df["no-steps"])
         reaction_numbers = list(range(1, max_no_steps + 1))
-        expected_no_columns = (max_no_steps * 4) + 3
+        expected_no_columns = (max_no_steps * 4) + 4
         expected_reactant_1_column_names = [
             "reactant-1-{}".format(reaction_number)
             for reaction_number in reaction_numbers
@@ -91,6 +91,7 @@ class ValidateFile(object):
         ]
         expected_column_names = (
             [
+                "target-names",
                 "no-steps",
                 "amount-required-mg",
                 "batch-tag",
@@ -107,6 +108,7 @@ class ValidateFile(object):
         if self.validated:
             self.checkColumnNames(expected_column_names=expected_column_names)
         if self.validated:
+            self.target_names = self.df["target-names"]
             self.batchtags = self.df["batch-tag"]
             self.amounts = self.df["amount-required-mg"]
             self.nosteps = self.df["no-steps"]
@@ -197,7 +199,8 @@ class ValidateFile(object):
             if self.validated:
                 self.df = pd.DataFrame()
                 self.df["batch-tag"] = self.batchtags
-                self.df["target-smiles"] = self.target_smiles
+                self.df["target-names"] = self.target_names
+                self.df["target-SMILES"] = self.target_smiles
                 self.df["amount-required-mg"] = self.amounts
                 self.df["no-steps"] = self.nosteps
                 self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
@@ -236,6 +239,7 @@ class ValidateFile(object):
             self.checkColumnNames(expected_column_names=expected_column_names)
 
         if self.validated:
+            self.target_names = []
             self.target_smiles = []
             self.nosteps = []
             self.products = []
@@ -244,7 +248,7 @@ class ValidateFile(object):
             self.batchtags = []
             self.amounts = []
             combi_grouped = self.df.groupby(["combi-group"])
-            for _, combi_group in combi_grouped:
+            for combi_group_name, combi_group in combi_grouped:
                 combi_group_info = {}
                 combi_group = combi_group.reset_index()
                 max_no_steps_combi_group = max(combi_group["no-steps"])
@@ -263,9 +267,11 @@ class ValidateFile(object):
                     if "reactant-2-{}".format(reaction_number) in columns_count
                 ]
                 no_targets = math.prod(number_reactant_1s + number_reactant_2s)
+                target_names = ["{}-{}".format(combi_group_name, i) for i in range(no_targets)]
                 batch_tags = [combi_group.at[0, "batch-tag"]] * no_targets
                 amounts = [combi_group.at[0, "amount-required-mg"]] * no_targets
                 no_steps = [combi_group.at[0, "no-steps"]] * no_targets
+                self.target_names = self.target_names + target_names
                 self.batchtags = self.batchtags + batch_tags
                 self.amounts = self.amounts + amounts
                 self.nosteps = self.nosteps + no_steps
@@ -371,7 +377,8 @@ class ValidateFile(object):
             if self.validated:
                 self.df = pd.DataFrame()
                 self.df["batch-tag"] = self.batchtags
-                self.df["target-smiles"] = self.target_smiles
+                self.df["target-names"] = self.target_names
+                self.df["target-SMILES"] = self.target_smiles
                 self.df["amount-required-mg"] = self.amounts
                 self.df["no-steps"] = self.nosteps
                 self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
