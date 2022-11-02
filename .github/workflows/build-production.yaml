@@ -42,6 +42,11 @@ env:
   #   For Jobs conditional on the presence of a secret see this Gist...
   #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
   BE_NAMESPACE: xchem
+  FE_BRANCH: production
+  FE_NAMESPACE: xchem
+  STACK_BRANCH: master
+  STACK_GITHUB_NAMESPACE: xchem
+  STACK_NAMESPACE: xchem
 
 jobs:
   build:
@@ -49,6 +54,7 @@ jobs:
     outputs:
       push: ${{ steps.vars.outputs.push }}
       tag: ${{ steps.vars.outputs.tag }}
+      trigger: ${{ steps.vars.outputs.trigger }}
     steps:
     - name: Inject slug/short variables
       uses: rlespinasse/github-slug-action@v3.x
@@ -64,10 +70,38 @@ jobs:
         echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
         echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
 
-        # What image tag are we using?
-        # It's a production-branch build so at the very least it's 'stable'
-        # or a GitHub tag.
-        TAG="stable"
+        # FE_BRANCH
+        FE_BRANCH="${{ env.FE_BRANCH }}"
+        if [ -n "${{ secrets.FE_BRANCH }}" ]; then FE_BRANCH="${{ secrets.FE_BRANCH }}"; fi
+        echo set-output name=FE_BRANCH::${FE_BRANCH}
+        echo ::set-output name=FE_BRANCH::${FE_BRANCH}
+
+        # FE_NAMESPACE
+        FE_NAMESPACE="${{ env.FE_NAMESPACE }}"
+        if [ -n "${{ secrets.FE_NAMESPACE }}" ]; then FE_NAMESPACE="${{ secrets.FE_NAMESPACE }}"; fi
+        echo set-output name=FE_NAMESPACE::${FE_NAMESPACE}
+        echo ::set-output name=FE_NAMESPACE::${FE_NAMESPACE}
+
+        # STACK_BRANCH
+        STACK_BRANCH="${{ env.STACK_BRANCH }}"
+        if [ -n "${{ secrets.STACK_BRANCH }}" ]; then STACK_BRANCH="${{ secrets.STACK_BRANCH }}"; fi
+        echo set-output name=STACK_BRANCH::${STACK_BRANCH}
+        echo ::set-output name=STACK_BRANCH::${STACK_BRANCH}
+
+        # STACK_GITHUB_NAMESPACE
+        STACK_GITHUB_NAMESPACE="${{ env.STACK_GITHUB_NAMESPACE }}"
+        if [ -n "${{ secrets.STACK_GITHUB_NAMESPACE }}" ]; then STACK_GITHUB_NAMESPACE="${{ secrets.STACK_GITHUB_NAMESPACE }}"; fi
+        echo set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
+        echo ::set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
+
+        # STACK_NAMESPACE
+        STACK_NAMESPACE="${{ env.STACK_NAMESPACE }}"
+        if [ -n "${{ secrets.STACK_NAMESPACE }}" ]; then STACK_NAMESPACE="${{ secrets.STACK_NAMESPACE }}"; fi
+        echo set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
+        echo ::set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
+
+        # What image tag are we using? 'latest' (if not tagged) or a GitHub tag?
+        TAG="latest"
         if [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then TAG="${{ env.GITHUB_REF_SLUG }}"; fi
         echo set-output name=tag::${TAG}
         echo ::set-output name=tag::${TAG}
@@ -75,6 +109,11 @@ jobs:
         # Do we push, i.e. is DOCKERHUB_USERNAME defined?
         echo set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
         echo ::set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
+
+        # Do we trigger downstream, i.e. is TRIGGER_DOWNSTREAM 'yes'?
+        echo set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
+        echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
+
     - name: Checkout
       uses: actions/checkout@v2
     - name: Build
@@ -104,11 +143,9 @@ jobs:
         docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
         docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:stable
 
-    # Trigger the stack build for every tagged (production) build.
+    # Trigger the stack build (expected for every tagged production branch).
     - name: Trigger stack
-      if: |
-        steps.vars.outputs.trigger == 'true' &&
-        github.event_name != 'schedule'
+      if: steps.vars.outputs.trigger == 'true'
       uses: informaticsmatters/trigger-ci-action@v1
       with:
         ci-owner: ${{ steps.vars.outputs.STACK_GITHUB_NAMESPACE }}
