@@ -405,7 +405,7 @@ class OTWrite(object):
     def findSolventPlateWellObj(self, solvent: str, transfervolume: float) -> list:
         """Finds solvent well for diluting a previous reaction steps product. If
         solvent available in well, updates well volume by removing transfer volume from
-        available volume 
+        available volume
 
         Parameters
         ----------
@@ -905,8 +905,9 @@ class OTWrite(object):
             + "\t\t\t{}.pick_up_tip()\n".format(self.pipettename)
             + '\t\t\tif tipstate["channeltype"] == "multi":\n'
             + '\t\t\t\ttipstate["notipsavailable"] = tipstate["notipsavailable"] - 8\n'
-			+ '\t\t\tif tipstate["channeltype"] == "single":\n'
-            + '\t\t\t\ttipstate["notipsavailable"] = tipstate["notipsavailable"] - 1\n'        )
+            + '\t\t\tif tipstate["channeltype"] == "single":\n'
+            + '\t\t\t\ttipstate["notipsavailable"] = tipstate["notipsavailable"] - 1\n'
+        )
 
         script.close()
 
@@ -1283,6 +1284,7 @@ class OTWrite(object):
                     self.dropTip()
 
     def writeWorkUpActions(self, actionsessionqueryset: QuerySet[ActionSession]):
+        print("Working up")
         sessionnumber = actionsessionqueryset.values_list(
             "sessionnumber", flat=True
         ).distinct()[0]
@@ -1322,7 +1324,7 @@ class OTWrite(object):
                     transfervolume = addactionqueryset.values_list(
                         "volume", flat=True
                     ).distinct()[0]
-                    multichanneltransfervolume = transfervolume * 8 
+                    multichanneltransfervolume = transfervolume * 8
                     solvent = addactionqueryset.values_list(
                         "solvent", flat=True
                     ).distinct()[0]
@@ -1389,10 +1391,10 @@ class OTWrite(object):
                                 transfertype="workup",
                             )
                             self.dropTip()
-                            self.updateColumnReactantsForNextStep(columnobj=tocolumnobj)
-                            self.updateColumnReactantsIsNotForNextStep(
-                                columnobj=fromcolumnobj
-                            )
+                            # self.updateColumnReactantsForNextStep(columnobj=tocolumnobj)
+                            # self.updateColumnReactantsIsNotForNextStep(
+                            #     columnobj=fromcolumnobj
+                            # )
 
                     if index + 1 == len(workupactions):
                         self.dropTip()
@@ -1537,7 +1539,7 @@ class OTWrite(object):
                     transfervolume = addactionqueryset.values_list(
                         "volume", flat=True
                     ).distinct()[0]
-                    multichanneltransfervolume = transfervolume * 8 
+                    multichanneltransfervolume = transfervolume * 8
                     solvent = addactionqueryset.values_list(
                         "solvent", flat=True
                     ).distinct()[0]

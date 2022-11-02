@@ -273,6 +273,8 @@ class ActionSession(models.Model):
     driver = models.CharField(
         choices=Driver.choices, default=Driver.robot, max_length=10
     )
+    continuation = models.BooleanField(default=False)
+
 
 
 class AddAction(models.Model):

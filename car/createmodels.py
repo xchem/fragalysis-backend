@@ -393,6 +393,7 @@ def createCatalogEntryModel(
     target_id: int = None,
     reactant_id: int = None,
     previous_reaction_product: bool = False,
+    lab_inventory: bool = False,
 ):
     """Creates a Django catalogentry object - the catalog details
        for a reactant or target
@@ -407,6 +408,8 @@ def createCatalogEntryModel(
         The optional id of the Django reactant model object
     previous_reaction_product: bool
         If the reactant is a previous product from a reaction, therfor does not need to be purchased
+    lab_inventory: bool
+        Set to True if the compound is in the lab inventory
     """
     catalogentry = CatalogEntry()
     if target_id:
@@ -416,14 +419,14 @@ def createCatalogEntryModel(
         reactant_obj = Reactant.objects.get(id=reactant_id)
         catalogentry.reactant_id = reactant_obj
 
-    if previous_reaction_product:
+    if previous_reaction_product or lab_inventory:
         catalogentry.vendor = "reaction product"
         catalogentry.catalogid = "NA"
         catalogentry.priceinfo = "< $100 / g"
         catalogentry.upperprice = 0
         catalogentry.leadtime = 0
 
-    if not previous_reaction_product:
+    if not previous_reaction_product and not lab_inventory:
         catalogentry.vendor = catalog_entry["catalogName"]
         catalogentry.catalogid = catalog_entry["catalogId"]
 
@@ -540,10 +543,15 @@ class CreateEncodedActionModels(object):
 
         for actionsession in actionsessions:
             actionsessiontype = actionsession["type"]
+            if "continuation" in actionsession:
+                continuation = actionsession["continuation"]
+            else:
+                continuation = False
             actionsession_obj = self.createActionSessionModel(
                 actionsessiontype=actionsessiontype,
                 driver=actionsession["driver"],
                 sessionnumber=actionsession["sessionnumber"],
+                continuation=continuation,
             )
             if actionsessiontype == "reaction" and self.intramolecular:
                 reaction_actions = actionsession["intramolecular"]["actions"]
@@ -656,7 +664,7 @@ class CreateEncodedActionModels(object):
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
     def createActionSessionModel(
-        self, actionsessiontype: str, driver: str, sessionnumber: int
+        self, actionsessiontype: str, driver: str, sessionnumber: int, continuation: bool 
     ):
         """Creates a Django action session object - a session are colelctions of
            actions that can be collectively exceuted. Eg. a reaction will
@@ -671,6 +679,9 @@ class CreateEncodedActionModels(object):
             automated then the driver is a robot else human
         sessionnumber: int
             The session sequence number eg. reaction session one happens first
+        continuation: bool
+            Does the session continue from a previous session eg. reaction sessions broken
+            up by stir action session where another reagent/reactant is added after stirring
         """
         try:
             actionsession = ActionSession()
@@ -678,6 +689,7 @@ class CreateEncodedActionModels(object):
             actionsession.type = actionsessiontype
             actionsession.driver = driver
             actionsession.sessionnumber = sessionnumber
+            actionsession.continuation = continuation
             actionsession.save()
             return actionsession
         except Exception as e:
@@ -740,7 +752,7 @@ class CreateEncodedActionModels(object):
                     reactionclasslist = [
                         reactionobj.reactionclass
                         for reactionobj in proceedingreactionqueryset
-                    ] + self.reaction_name
+                    ] + [self.reaction_name]
                     reactionyields = getReactionYields(
                         reactionclasslist=reactionclasslist
                     )

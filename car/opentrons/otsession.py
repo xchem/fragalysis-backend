@@ -72,6 +72,7 @@ class CreateOTSession(object):
         self.reactionstep = reactionstep
         self.otbatchprotocolobj = otbatchprotocolobj
         self.actionsessionqueryset = actionsessionqueryset
+        self.actionsessionnumber = actionsessionqueryset.values_list("sessionnumber", flat=True)[0]
         self.actionsession_ids = actionsessionqueryset.values_list("id", flat=True)
         self.groupreactionqueryset = groupreactionqueryset
         self.otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
@@ -128,7 +129,16 @@ class CreateOTSession(object):
             self.cloneInputPlate(platesforcloning=inputplatequeryset)
         self.createPipetteModel()
         self.createReactionStartingPlate()
-        self.createReactionPlate(platetype="reaction")
+        self.continuationactionsessions = self.actionsessionqueryset.filter(continuation=True)
+        if self.continuationactionsessions:
+            productsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
+            continuationplatequeryset = self.getInputPlatesNeeded(
+            smiles=productsmiles,
+        )
+            if continuationplatequeryset:
+                self.cloneInputPlate(platesforcloning=continuationplatequeryset)
+        else:
+            self.createReactionPlate(platetype="reaction")
 
     def createWorkUpSession(self):
         """Creates a workup OT session"""
@@ -243,7 +253,6 @@ class CreateOTSession(object):
         inputplatequeryset = self.getInputPlatesNeeded(
             smiles=self.searchsmiles, reaction_ids=self.reaction_ids
         )
-
         if inputplatequeryset:
             self.cloneInputPlate(platesforcloning=inputplatequeryset)
         self.createPipetteModel()
@@ -351,8 +360,7 @@ class CreateOTSession(object):
         return platequeryset
 
     def getInputPlatesNeeded(
-        self, smiles: list, reaction_ids: list = None
-    ) -> list[Plate]:
+        self, smiles: list, reaction_ids: list = None) -> list[Plate]:
         """Gets plates, created in previous reaction and workup
         sessions with reaction products that are required as
         reactants in current reaction session
