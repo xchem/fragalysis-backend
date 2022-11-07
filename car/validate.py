@@ -309,12 +309,13 @@ class ValidateFile(object):
                             ]
                             if str(reactant) != "nan"
                         ]
-                        reactant_2_SMILES = set(product_smiles)
+                        reactant_2_SMILES = product_smiles[:number_reactant_pair_smiles]
                     reactant_pair_smiles = combiChem(
                         reactant_1_SMILES=reactant_1_SMILES,
                         reactant_2_SMILES=reactant_2_SMILES,
                     )
-                    if len(reactant_pair_smiles) != no_targets:
+                    number_reactant_pair_smiles = len(reactant_pair_smiles)
+                    if number_reactant_pair_smiles != no_targets:
                         reactant_pair_smiles = reactant_pair_smiles * (
                             no_targets // len(reactant_pair_smiles)
                         )

@@ -1066,7 +1066,7 @@ class OTWrite(object):
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
+            + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = {airgap}, touch_tip=True, new_tip='never', blow_out=True, blowout_location='destination well')",
         ]
         self.writeCommand(instruction)
 
@@ -1115,7 +1115,7 @@ class OTWrite(object):
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".transfer({transvolume}, {aspirateplatename}.columns()[{aspiratecolumnindex}][0].bottom({aspirateheight}), {dispenseplatename}.columns()[{dispensecolumnindex}][0].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
+            + f".transfer({transvolume}, {aspirateplatename}.columns()[{aspiratecolumnindex}][0].bottom({aspirateheight}), {dispenseplatename}.columns()[{dispensecolumnindex}][0].top({dispenseheight}), air_gap = {airgap}, touch_tip=True, new_tip='never', blow_out=True, blowout_location='destination well')",
         ]
         self.writeCommand(instruction)
 
@@ -1284,7 +1284,6 @@ class OTWrite(object):
                     self.dropTip()
 
     def writeWorkUpActions(self, actionsessionqueryset: QuerySet[ActionSession]):
-        print("Working up")
         sessionnumber = actionsessionqueryset.values_list(
             "sessionnumber", flat=True
         ).distinct()[0]
@@ -1391,10 +1390,10 @@ class OTWrite(object):
                                 transfertype="workup",
                             )
                             self.dropTip()
-                            # self.updateColumnReactantsForNextStep(columnobj=tocolumnobj)
-                            # self.updateColumnReactantsIsNotForNextStep(
-                            #     columnobj=fromcolumnobj
-                            # )
+                            self.updateColumnReactantsForNextStep(columnobj=tocolumnobj)
+                            self.updateColumnReactantsIsNotForNextStep(
+                                columnobj=fromcolumnobj
+                            )
 
                     if index + 1 == len(workupactions):
                         self.dropTip()
@@ -1647,3 +1646,4 @@ class OTWrite(object):
                             volumetomix=mixvolume,
                         )
                         self.dropTip()
+

@@ -642,7 +642,6 @@ def createOTScript(batchids: list, protocol_name: str):
                     if len(groupreactiontodoqueryset) == 0:
                         break
                     else:
-                        print(groupreactiontodoqueryset)
                         reaction_ids = [
                             reaction.id for reaction in groupreactiontodoqueryset
                         ]
