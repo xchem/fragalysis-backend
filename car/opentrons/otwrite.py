@@ -405,7 +405,7 @@ class OTWrite(object):
     def findSolventPlateWellObj(self, solvent: str, transfervolume: float) -> list:
         """Finds solvent well for diluting a previous reaction steps product. If
         solvent available in well, updates well volume by removing transfer volume from
-        available volume 
+        available volume
 
         Parameters
         ----------
@@ -905,8 +905,9 @@ class OTWrite(object):
             + "\t\t\t{}.pick_up_tip()\n".format(self.pipettename)
             + '\t\t\tif tipstate["channeltype"] == "multi":\n'
             + '\t\t\t\ttipstate["notipsavailable"] = tipstate["notipsavailable"] - 8\n'
-			+ '\t\t\tif tipstate["channeltype"] == "single":\n'
-            + '\t\t\t\ttipstate["notipsavailable"] = tipstate["notipsavailable"] - 1\n'        )
+            + '\t\t\tif tipstate["channeltype"] == "single":\n'
+            + '\t\t\t\ttipstate["notipsavailable"] = tipstate["notipsavailable"] - 1\n'
+        )
 
         script.close()
 
@@ -1065,7 +1066,7 @@ class OTWrite(object):
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
+            + f".transfer({transvolume}, {aspirateplatename}.wells()[{aspiratewellindex}].bottom({aspirateheight}), {dispenseplatename}.wells()[{dispensewellindex}].top({dispenseheight}), air_gap = {airgap}, touch_tip=True, new_tip='never', blow_out=True, blowout_location='destination well')",
         ]
         self.writeCommand(instruction)
 
@@ -1114,7 +1115,7 @@ class OTWrite(object):
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".transfer({transvolume}, {aspirateplatename}.columns()[{aspiratecolumnindex}][0].bottom({aspirateheight}), {dispenseplatename}.columns()[{dispensecolumnindex}][0].top({dispenseheight}), air_gap = {airgap}, new_tip='never', blow_out=True, blowout_location='destination well')",
+            + f".transfer({transvolume}, {aspirateplatename}.columns()[{aspiratecolumnindex}][0].bottom({aspirateheight}), {dispenseplatename}.columns()[{dispensecolumnindex}][0].top({dispenseheight}), air_gap = {airgap}, touch_tip=True, new_tip='never', blow_out=True, blowout_location='destination well')",
         ]
         self.writeCommand(instruction)
 
@@ -1322,7 +1323,7 @@ class OTWrite(object):
                     transfervolume = addactionqueryset.values_list(
                         "volume", flat=True
                     ).distinct()[0]
-                    multichanneltransfervolume = transfervolume * 8 
+                    multichanneltransfervolume = transfervolume * 8
                     solvent = addactionqueryset.values_list(
                         "solvent", flat=True
                     ).distinct()[0]
@@ -1537,7 +1538,7 @@ class OTWrite(object):
                     transfervolume = addactionqueryset.values_list(
                         "volume", flat=True
                     ).distinct()[0]
-                    multichanneltransfervolume = transfervolume * 8 
+                    multichanneltransfervolume = transfervolume * 8
                     solvent = addactionqueryset.values_list(
                         "solvent", flat=True
                     ).distinct()[0]
@@ -1645,3 +1646,4 @@ class OTWrite(object):
                             volumetomix=mixvolume,
                         )
                         self.dropTip()
+

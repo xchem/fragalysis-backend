@@ -13,9 +13,11 @@ from pandas.core.frame import DataFrame
 
 from car.utils import (
     checkPreviousReactionProducts,
+    getPreviousObjEntries,
     getReactionQuerySet,
     getProduct,
     getReaction,
+    getChemicalName,
 )
 
 from car.models import (
@@ -72,6 +74,7 @@ class CreateOTSession(object):
         self.reactionstep = reactionstep
         self.otbatchprotocolobj = otbatchprotocolobj
         self.actionsessionqueryset = actionsessionqueryset
+        self.actionsessionnumber = actionsessionqueryset.values_list("sessionnumber", flat=True)[0]
         self.actionsession_ids = actionsessionqueryset.values_list("id", flat=True)
         self.groupreactionqueryset = groupreactionqueryset
         self.otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
@@ -79,6 +82,8 @@ class CreateOTSession(object):
         self.actionsessiontype = self.getActionSessionType()
         self.otsessionobj = self.createOTSessionModel()
         self.createActionSession()
+        print("The action session type is: {}".format(self.actionsessiontype))
+
 
     def createActionSession(self):
         """Calls the functions to create the appropriate action session"""
@@ -124,11 +129,21 @@ class CreateOTSession(object):
         inputplatequeryset = self.getInputPlatesNeeded(
             smiles=self.addactionqueryset.values_list("smiles", flat=True)
         )
+        print("The input queryset is: {}".format(inputplatequeryset))
         if inputplatequeryset:
             self.cloneInputPlate(platesforcloning=inputplatequeryset)
         self.createPipetteModel()
         self.createReactionStartingPlate()
-        self.createReactionPlate(platetype="reaction")
+        self.continuationactionsessions = self.actionsessionqueryset.filter(continuation=True)
+        if self.continuationactionsessions:
+            productsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
+            continuationplatequeryset = self.getInputPlatesNeeded(
+            smiles=productsmiles,
+        )
+            if continuationplatequeryset:
+                self.cloneInputPlate(platesforcloning=continuationplatequeryset)
+        else:
+            self.createReactionPlate(platetype="reaction")
 
     def createWorkUpSession(self):
         """Creates a workup OT session"""
@@ -146,11 +161,11 @@ class CreateOTSession(object):
             self.roundedaddvolumes = self.getRoundedAddActionVolumes(
                 addactionqueryset=self.addactionqueryset
             )
-            self.addactionsmiles = self.addactionqueryset.values_list(
-                "smiles", flat=True
-            )
+            # self.addactionsmiles = self.addactionqueryset.values_list(
+            #     "smiles", flat=True
+            # )
             self.roundedvolumes = self.roundedvolumes + self.roundedaddvolumes
-            self.searchsmiles = self.searchsmiles + list(self.addactionsmiles)
+            # self.searchsmiles = self.searchsmiles + list(self.addactionsmiles)
         self.extractactionqueryset = self.getExtractActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
@@ -159,14 +174,20 @@ class CreateOTSession(object):
             self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
                 extractactionqueryset=self.extractactionqueryset
             )
-            self.extractactionsmiles = self.extractactionqueryset.values_list(
-                "smiles", flat=True
-            )
+            # self.extractactionsmiles = self.extractactionqueryset.values_list(
+            #     "smiles", flat=True
+            # )
             self.roundedvolumes = self.roundedvolumes + self.roundedextractvolumes
-            self.searchsmiles = self.searchsmiles + list(self.extractactionsmiles)
-        self.searchsmiles = set(self.searchsmiles)
+            # self.searchsmiles = self.searchsmiles + list(self.extractactionsmiles)
+        # self.searchsmiles = set(self.searchsmiles)
 
         self.deckobj = self.createDeckModel()
+        inputplatequeryset = self.getInputPlatesNeeded(
+            smiles=self.searchsmiles, reaction_ids=self.reaction_ids
+        )
+        print("The input queryset is: {}".format(inputplatequeryset))
+        if inputplatequeryset:
+            self.cloneInputPlate(platesforcloning=inputplatequeryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(
@@ -175,12 +196,7 @@ class CreateOTSession(object):
         self.addactionsdf = self.getAddActionsDataFrame(
             addactionqueryset=self.addactionqueryset
         )
-        inputplatequeryset = self.getInputPlatesNeeded(
-            smiles=self.searchsmiles, reaction_ids=self.reaction_ids
-        )
-
-        if inputplatequeryset:
-            self.cloneInputPlate(platesforcloning=inputplatequeryset)
+    
         self.createPipetteModel()
         self.solventmaterialsdf = self.getAddActionsMaterialDataFrame(
             productexists=False
@@ -210,11 +226,11 @@ class CreateOTSession(object):
             self.roundedaddvolumes = self.getRoundedAddActionVolumes(
                 addactionqueryset=self.addactionqueryset
             )
-            self.addactionsmiles = self.addactionqueryset.values_list(
-                "smiles", flat=True
-            )
+            # self.addactionsmiles = self.addactionqueryset.values_list(
+            #     "smiles", flat=True
+            # )
             self.roundedvolumes = self.roundedvolumes + self.roundedaddvolumes
-            self.searchsmiles = self.searchsmiles + list(self.addactionsmiles)
+            # self.searchsmiles = self.searchsmiles + list(self.addactionsmiles)
 
         self.extractactionqueryset = self.getExtractActionQuerySet(
             reaction_ids=self.reaction_ids,
@@ -224,12 +240,12 @@ class CreateOTSession(object):
             self.roundedextractvolumes = self.getRoundedExtractActionVolumes(
                 extractactionqueryset=self.extractactionqueryset
             )
-            self.extractactionsmiles = self.extractactionqueryset.values_list(
-                "smiles", flat=True
-            )
+            # self.extractactionsmiles = self.extractactionqueryset.values_list(
+            #     "smiles", flat=True
+            # )
             self.roundedvolumes = self.roundedvolumes + self.roundedextractvolumes
-            self.searchsmiles = self.searchsmiles + list(self.extractactionsmiles)
-        self.searchsmiles = set(self.searchsmiles)
+            # self.searchsmiles = self.searchsmiles + list(self.extractactionsmiles)
+        # self.searchsmiles = set(self.searchsmiles)
 
         self.deckobj = self.createDeckModel()
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
@@ -243,6 +259,7 @@ class CreateOTSession(object):
         inputplatequeryset = self.getInputPlatesNeeded(
             smiles=self.searchsmiles, reaction_ids=self.reaction_ids
         )
+        print("The input queryset is: {}".format(inputplatequeryset))
 
         if inputplatequeryset:
             self.cloneInputPlate(platesforcloning=inputplatequeryset)
@@ -337,22 +354,22 @@ class CreateOTSession(object):
         status: False
             The status if no plates were found
         """
-        if self.otsessionqueryset:
-            criterion1 = Q(otsession_id__in=self.otsessionqueryset)
-            criterion2 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
+        # if self.otsessionqueryset:
+        previousotsessionqueryset = getPreviousObjEntries(queryset=self.otsessionqueryset,obj=self.otsessionobj)
+        criterion1 = Q(otsession_id__in=previousotsessionqueryset)
+        criterion2 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
 
-            allinputplatesqueryset = Plate.objects.filter(criterion1 & criterion2)
-            return allinputplatesqueryset
-        else:
-            return False
+        allinputplatesqueryset = Plate.objects.filter(criterion1 & criterion2)
+        return allinputplatesqueryset
+        # else:
+        #     return False
 
     def getPlateQuerySet(self, otsession_id: int) -> QuerySet[Plate]:
         platequeryset = Plate.objects.filter(otsession_id=otsession_id)
         return platequeryset
 
     def getInputPlatesNeeded(
-        self, smiles: list, reaction_ids: list = None
-    ) -> list[Plate]:
+        self, smiles: list, reaction_ids: list = None) -> list[Plate]:
         """Gets plates, created in previous reaction and workup
         sessions with reaction products that are required as
         reactants in current reaction session
@@ -384,13 +401,14 @@ class CreateOTSession(object):
         criterion2 = Q(reactantfornextstep=True)
         criterion3 = Q(smiles__in=smiles)
         criterion4 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
-
         if allinputplatequerset:
+            # print("The all previous input plates are: {}".format(allinputplatequerset))
             for inputplateobj in allinputplatequerset:
                 wellmatchqueryset = inputplateobj.well_set.all().filter(
                     criterion1 & criterion2 & criterion3 & criterion4
                 )
                 if wellmatchqueryset:
+                    # print("The matching plate is: {}".format(inputplateobj))
                     inputplatesneeded.append(inputplateobj)
 
         return inputplatesneeded
@@ -1129,6 +1147,7 @@ class CreateOTSession(object):
             plateobj.save()
             return plateobj
         else:
+            print(Plate.objects.filter(otsession_id=self.otsessionobj))
             print("CreatePlateModel")
             print("No more deck slots available")
 
@@ -1594,7 +1613,8 @@ class CreateOTSession(object):
 
         orderdf = pd.DataFrame(orderdictslist)
         orderdf["mass-mg"] = orderdf.apply(lambda row: self.calcMass(row), axis=1)
-
+        compoundnames = orderdf.apply(lambda row: getChemicalName(row["SMILES"]), axis=1)
+        orderdf.insert(1, column="name", value=compoundnames)
         self.createCompoundOrderModel(orderdf=orderdf)
 
     def getNewColumnAndWellIndexAvailable(self, plateobj: Plate) -> tuple:

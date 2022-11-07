@@ -6,7 +6,7 @@ api_key = os.environ["MANIFOLD_API_KEY"]
 
 
 @sleep_and_retry
-@limits(calls=100, period=60)
+@limits(calls=1000, period=60)
 def getManifoldRetrosynthesis(smiles: str):
     """Call Manifold API to search for a retrosynthesis for a given smiles
 
@@ -45,7 +45,7 @@ def getManifoldRetrosynthesis(smiles: str):
 
 
 @sleep_and_retry
-@limits(calls=100, period=60)
+@limits(calls=1000, period=60)
 def getManifoldRetrosynthesisBatch(smiles: list):
     """Call Manifold API to search for a retrosynthesis for a given list
     of target compound SMILES
@@ -85,7 +85,7 @@ def getManifoldRetrosynthesisBatch(smiles: list):
 
 
 @sleep_and_retry
-@limits(calls=100, period=60)
+@limits(calls=1000, period=60)
 def getExactSearch(smiles: str):
     """Searches for exact compound match for catalogue info
 
@@ -118,7 +118,7 @@ def getExactSearch(smiles: str):
 
 
 @sleep_and_retry
-@limits(calls=100, period=60)
+@limits(calls=1000, period=60)
 def getExactSearchBatch(smilesList: list):
     """Searches for exact compound match for catalogue info
 

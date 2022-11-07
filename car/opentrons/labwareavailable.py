@@ -5,7 +5,7 @@ labware_plates = {
         "no_wells": 4,
         "no_columns": 4,
         "volume_well": 60000,
-        "max_temp": 110,
+        "max_temp": 25,
         "reflux": False,
     },
     "8welltrough_8_reservoir_25000ul": {
@@ -14,7 +14,7 @@ labware_plates = {
         "no_wells": 8,
         "no_columns": 8,
         "volume_well": 25000,
-        "max_temp": 110,
+        "max_temp": 25,
         "reflux": False,
     },
     "12welltrough_12_reservoir_18000ul": {
@@ -23,7 +23,7 @@ labware_plates = {
         "no_wells": 12,
         "no_columns": 12,
         "volume_well": 18000,
-        "max_temp": 110,
+        "max_temp": 25,
         "reflux": False,
     },
     "fluidx_24_vials_2500ul": {
@@ -32,7 +32,7 @@ labware_plates = {
         "no_wells": 24,
         "no_columns": 6,
         "volume_well": 2500,
-        "max_temp": 110,
+        "max_temp": 25,
         "reflux": False,
     },
     "labcyte_384_wellplate_100ul": {
@@ -41,7 +41,7 @@ labware_plates = {
         "no_wells": 384,
         "no_columns": 24,
         "volume_well": 100,
-        "max_temp": 110,
+        "max_temp": 25,
         "reflux": False,
     },
     "plateone_96_wellplate_500ul": {
@@ -50,7 +50,7 @@ labware_plates = {
         "no_wells": 96,
         "no_columns": 12,
         "volume_well": 500,
-        "max_temp": 110,
+        "max_temp": 25,
         "reflux": False,
     },
     "plateone_96_wellplate_2500ul": {
@@ -59,7 +59,7 @@ labware_plates = {
         "no_wells": 96,
         "no_columns": 12,
         "volume_well": 2500,
-        "max_temp": 110,
+        "max_temp": 25,
         "reflux": False,
         "aspirateheightconversion-m": 0.01806,
         "aspirateheightconversion-c": 0.6015,
@@ -70,7 +70,7 @@ labware_plates = {
         "no_wells": 96,
         "no_columns": 12,
         "volume_well": 2500,
-        "max_temp": 110,
+        "max_temp": 25,
         "reflux": False,
     },
     "paradox_96_wellplate_961ul": {

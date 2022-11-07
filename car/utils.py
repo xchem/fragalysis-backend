@@ -199,7 +199,7 @@ def getPreviousObjEntries(queryset: list, obj: object) -> QuerySet:
 
 def checkPreviousReactionFailures(reactionobj: Reaction) -> bool:
     """Check if any previous reaction failures for a method"""
-    reactionqueryset = getReactions(methodid=reactionobj.method_id.id)
+    reactionqueryset = getReactions(method_ids=[reactionobj.method_id.id])
     previousreactionqueryset = getPreviousObjEntries(
         queryset=reactionqueryset, obj=reactionobj
     )
@@ -238,9 +238,9 @@ def getReactionsToDo(groupreactionqueryset: QuerySet[Reaction]) -> QuerySet[Reac
     for reactionobj in groupreactionqueryset:
         if checkNoMethodSteps(reactionobj=reactionobj):
             if not checkPreviousReactionFailures(reactionobj=reactionobj):
-                reactionstodo.append(reactionobj)
+                reactionstodo.append(reactionobj.id)
     groupreactiontodoqueryset = groupreactionqueryset.filter(
-        reaction_id__in=reactionstodo
+        id__in=reactionstodo
     )
     return groupreactiontodoqueryset
 
@@ -737,6 +737,8 @@ def checkReactantSMARTS(reactant_SMILES: tuple, reaction_SMARTS: str) -> list:
             products = rxn.RunReactants(reactant_permutation)
             product_mols = [product[0] for product in products]
             if product_mols:
+                product_smiles = set([Chem.MolToSmiles(mol) for mol in product_mols])
+                product_mols = [Chem.MolFromSmiles(smi) for smi in product_smiles]
                 break
             if not product_mols:
                 continue  # reactants were in wrong order so no product

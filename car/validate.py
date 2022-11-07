@@ -47,7 +47,12 @@ class ValidateFile(object):
 
         if self.upload_type == "retro-API":
             expected_no_columns = 4
-            expected_column_names = ["target-SMILES", "target-names","amount-required-mg", "batch-tag"]
+            expected_column_names = [
+                "target-SMILES",
+                "target-names",
+                "amount-required-mg",
+                "batch-tag",
+            ]
             self.checkNumberColumns(
                 expected_no_columns=expected_no_columns,
                 expected_column_names=expected_column_names,
@@ -121,13 +126,13 @@ class ValidateFile(object):
                 reaction_numbers_group = list(range(1, no_reaction_steps + 1))
                 for reaction_number in reaction_numbers_group:
                     reactant_1_SMILES = [
-                        reactant
+                        reactant.strip()
                         for reactant in row["reactant-1-{}".format(reaction_number)]
                         if str(reactant) != "nan"
                     ]
 
                     reactant_2_SMILES = [
-                        reactant
+                        reactant.strip()
                         for reactant in row["reactant-2-{}".format(reaction_number)]
                         if str(reactant) != "nan"
                     ]
@@ -209,7 +214,7 @@ class ValidateFile(object):
                 self.checkIsNumber()
 
     def validateCustomCombiChem(self):
-        max_no_steps = max(self.df["no-steps"])
+        max_no_steps = int(max(self.df["no-steps"]))
         reaction_numbers = list(range(1, max_no_steps + 1))
         expected_no_columns = (max_no_steps * 2) + 5
         expected_reactant_1_column_names = [
@@ -251,7 +256,7 @@ class ValidateFile(object):
             for combi_group_name, combi_group in combi_grouped:
                 combi_group_info = {}
                 combi_group = combi_group.reset_index()
-                max_no_steps_combi_group = max(combi_group["no-steps"])
+                max_no_steps_combi_group = int(max(combi_group["no-steps"]))
                 reaction_numbers_group = list(range(1, max_no_steps_combi_group + 1))
                 columns_count = combi_group.nunique(
                     axis="rows", dropna=True
@@ -266,8 +271,10 @@ class ValidateFile(object):
                     for reaction_number in reaction_numbers_group
                     if "reactant-2-{}".format(reaction_number) in columns_count
                 ]
-                no_targets = math.prod(number_reactant_1s + number_reactant_2s)
-                target_names = ["{}-{}".format(combi_group_name, i) for i in range(no_targets)]
+                no_targets = int(math.prod(number_reactant_1s + number_reactant_2s))
+                target_names = [
+                    "{}-{}".format(combi_group_name, i) for i in range(no_targets)
+                ]
                 batch_tags = [combi_group.at[0, "batch-tag"]] * no_targets
                 amounts = [combi_group.at[0, "amount-required-mg"]] * no_targets
                 no_steps = [combi_group.at[0, "no-steps"]] * no_targets
@@ -277,12 +284,9 @@ class ValidateFile(object):
                 self.nosteps = self.nosteps + no_steps
                 for reaction_number in reaction_numbers_group:
                     reaction_combi_group_info = {}
-                    reaction_combi_group_info[
-                        "reaction-name-{}".format(reaction_number)
-                    ] = [combi_group.at[0, "reaction-name-{}".format(1)]] * no_targets
                     if reaction_number == 1:
                         reactant_1_SMILES = [
-                            reactant
+                            reactant.strip()
                             for reactant in combi_group[
                                 "reactant-1-{}".format(reaction_number)
                             ]
@@ -290,7 +294,7 @@ class ValidateFile(object):
                         ]
 
                         reactant_2_SMILES = [
-                            reactant
+                            reactant.strip()
                             for reactant in combi_group[
                                 "reactant-2-{}".format(reaction_number)
                             ]
@@ -299,19 +303,19 @@ class ValidateFile(object):
 
                     if reaction_number > 1:
                         reactant_1_SMILES = [
-                            reactant
+                            reactant.strip()
                             for reactant in combi_group[
                                 "reactant-1-{}".format(reaction_number)
                             ]
                             if str(reactant) != "nan"
                         ]
-                        reactant_2_SMILES = product_smiles
-
+                        reactant_2_SMILES = product_smiles[:number_reactant_pair_smiles]
                     reactant_pair_smiles = combiChem(
                         reactant_1_SMILES=reactant_1_SMILES,
                         reactant_2_SMILES=reactant_2_SMILES,
                     )
-                    if len(reactant_pair_smiles) != no_targets:
+                    number_reactant_pair_smiles = len(reactant_pair_smiles)
+                    if number_reactant_pair_smiles != no_targets:
                         reactant_pair_smiles = reactant_pair_smiles * (
                             no_targets // len(reactant_pair_smiles)
                         )
@@ -319,7 +323,6 @@ class ValidateFile(object):
                     reaction_names = [
                         combi_group.at[0, "reaction-name-{}".format(reaction_number)]
                     ] * no_targets
-
                     reactant_pair_smiles_ordered, product_smiles = self.checkReaction(
                         reactant_pair_smiles=reactant_pair_smiles,
                         reaction_names=reaction_names,
@@ -330,6 +333,9 @@ class ValidateFile(object):
                     ]
                     if reaction_number == max_no_steps_combi_group:
                         self.target_smiles = self.target_smiles + product_smiles
+                    reaction_combi_group_info[
+                        "reaction-name-{}".format(reaction_number)
+                    ] = reaction_names
                     reaction_combi_group_info[
                         "reaction-reactant-pair-smiles-{}".format(reaction_number)
                     ] = reactant_pair_smiles_ordered

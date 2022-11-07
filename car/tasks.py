@@ -8,6 +8,7 @@ from zipfile import ZipFile
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from itertools import count
 import os
 
 from car.models import (
@@ -140,7 +141,9 @@ def uploadManifoldReaction(validate_output):
                 target_names_10 = target_names[i : i + 10]
                 target_smiles_10 = target_smiles[i : i + 10]
                 amounts_10 = target_amounts[i : i + 10]
-                retrosynthesis_results = getManifoldRetrosynthesisBatch(smiles=target_smiles_10)
+                retrosynthesis_results = getManifoldRetrosynthesisBatch(
+                    smiles=target_smiles_10
+                )
                 if "results" in retrosynthesis_results:
                     batchrouteresults = retrosynthesis_results["results"]
 
@@ -440,8 +443,8 @@ def uploadCustomReaction(validate_output):
                     otchem=True,
                 )
 
-                for reactant_pair_smiles, reaction_name, reaction_product_smiles in zip(
-                    reactant_pair_smiles_tuples,
+                for index, reactant_pair_smiles, reaction_name, reaction_product_smiles in zip(
+                    count(),reactant_pair_smiles_tuples,
                     reaction_name_tuples,
                     reaction_product_smiles_tuples,
                 ):
@@ -462,7 +465,7 @@ def uploadCustomReaction(validate_output):
                     reaction_id = createReactionModel(
                         method_id=method_id,
                         reaction_class=reaction_name,
-                        reaction_number=1,
+                        reaction_number=index + 1,
                         intramolecular=False,
                         recipe_type="standard",
                         reaction_temperature=reaction_temperature,
@@ -485,10 +488,10 @@ def uploadCustomReaction(validate_output):
                                 reactant_smiles=reactant_smi,
                                 previous_reaction_product=True,
                             )
-                            createCatalogEntryModel(
-                                reactant_id=reactant_id,
-                                previous_reaction_product=True,
-                            )
+                            # createCatalogEntryModel(
+                            #     reactant_id=reactant_id,
+                            #     previous_reaction_product=True,
+                            # )
 
                         if not previousreactionqueryset:
                             reactant_id = createReactantModel(
@@ -496,14 +499,20 @@ def uploadCustomReaction(validate_output):
                                 reactant_smiles=reactant_smi,
                                 previous_reaction_product=False,
                             )
-                            catalog_entries = getExactSearch(smiles=reactant_smi)
-                            if "results" in catalog_entries:
-                                for catalog_entry in catalog_entries["results"]:
-                                    createCatalogEntryModel(
-                                        catalog_entry=catalog_entry,
-                                        reactant_id=reactant_id,
-                                        previous_reaction_product=False,
-                                    )
+                            #### Creating catalog entries takes very long!
+                            # createCatalogEntryModel(
+                            #     reactant_id=reactant_id,
+                            #     previous_reaction_product=False,
+                            #     lab_inventory=True,
+                            # )
+                            # catalog_entries = getExactSearch(smiles=reactant_smi)
+                            # if "results" in catalog_entries:
+                            #     for catalog_entry in catalog_entries["results"]:
+                            #         createCatalogEntryModel(
+                            #             catalog_entry=catalog_entry,
+                            #             reactant_id=reactant_id,
+                            #             previous_reaction_product=False,
+                            #         )
 
     delete_tmp_file(csv_fp)
 
