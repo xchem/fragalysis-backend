@@ -276,7 +276,6 @@ class ActionSession(models.Model):
     continuation = models.BooleanField(default=False)
 
 
-
 class AddAction(models.Model):
     """Django model to define a AddAction - the add action details
 
@@ -714,8 +713,8 @@ class Plate(models.Model):
 
     Parameters
     ----------
-    otsession_id: ForeignKey
-        Foreign key linking a plate to an OT session
+    otbatchprotocol_id: ForeignKey
+        Foreign key linking a plate to an OT batch protocol
     deck_id: ForeignKey
         Foreign key linking a plate to an OT deck
     labware: CharField
@@ -758,13 +757,18 @@ class Plate(models.Model):
         startingmaterial = "startingmaterial"
         solvent = "solvent"
 
+    otbatchprotocol_id = models.ForeignKey(
+        OTBatchProtocol, related_name="otplates", on_delete=models.CASCADE
+    )
     otsession_id = models.ForeignKey(
-        OTSession, related_name="otplates", on_delete=models.CASCADE
+        OTSession,
+        on_delete=models.CASCADE,
+        null=True,
     )
     deck_id = models.ForeignKey(Deck, on_delete=models.CASCADE)
     labware = models.CharField(max_length=255)
     index = models.IntegerField()
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, null=True)
     type = models.CharField(choices=PlateType.choices, max_length=55, null=True)
     maxwellvolume = models.FloatField()
     numberwells = models.IntegerField()
@@ -781,8 +785,8 @@ class Column(models.Model):
 
     Parameters
     ----------
-    otsession_id: ForeignKey
-        Foreign key linking a plate to an OT session
+    otbatchprotocol_id: ForeignKey
+        Foreign key linking a plate to an OT batch protocol
     plate_id: ForeignKey
         Foreign key linking a well to a plate
     index: IntegerField
@@ -805,9 +809,12 @@ class Column(models.Model):
         startingmaterial = "startingmaterial"
         solvent = "solvent"
 
-    otsession_id = models.ForeignKey(
-        OTSession, related_name="otcolumns", on_delete=models.CASCADE
+    otbatchprotocol_id = models.ForeignKey(
+        OTBatchProtocol, related_name="otcolumns", on_delete=models.CASCADE
     )
+    # otsession_id = models.ForeignKey(
+    #     OTSession, related_name="otcolumns", on_delete=models.CASCADE
+    # )
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     index = models.IntegerField()
     type = models.CharField(choices=ColumnType.choices, max_length=55)
@@ -819,8 +826,8 @@ class Well(models.Model):
 
     Parameters
     ----------
-    otsession_id: ForeignKey
-        Foreign key linking a plate to an OT session
+    otbatchprotocol_id: ForeignKey
+        Foreign key linking a plate to an OT batch protocol
     plate_id: ForeignKey
         Foreign key linking a well to a plate
     method_id: ForeignKey
@@ -858,9 +865,12 @@ class Well(models.Model):
         startingmaterial = "startingmaterial"
         solvent = "solvent"
 
-    otsession_id = models.ForeignKey(
-        OTSession, related_name="otwells", on_delete=models.CASCADE
+    otbatchprotocol_id = models.ForeignKey(
+        OTBatchProtocol, related_name="otwells", on_delete=models.CASCADE
     )
+    # otsession_id = models.ForeignKey(
+    #     OTSession, related_name="otwells", on_delete=models.CASCADE
+    # )
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)

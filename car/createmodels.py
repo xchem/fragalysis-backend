@@ -664,7 +664,11 @@ class CreateEncodedActionModels(object):
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
     def createActionSessionModel(
-        self, actionsessiontype: str, driver: str, sessionnumber: int, continuation: bool 
+        self,
+        actionsessiontype: str,
+        driver: str,
+        sessionnumber: int,
+        continuation: bool,
     ):
         """Creates a Django action session object - a session are colelctions of
            actions that can be collectively exceuted. Eg. a reaction will

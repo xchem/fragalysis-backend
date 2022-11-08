@@ -443,8 +443,14 @@ def uploadCustomReaction(validate_output):
                     otchem=True,
                 )
 
-                for index, reactant_pair_smiles, reaction_name, reaction_product_smiles in zip(
-                    count(),reactant_pair_smiles_tuples,
+                for (
+                    index,
+                    reactant_pair_smiles,
+                    reaction_name,
+                    reaction_product_smiles,
+                ) in zip(
+                    count(),
+                    reactant_pair_smiles_tuples,
                     reaction_name_tuples,
                     reaction_product_smiles_tuples,
                 ):
@@ -633,6 +639,7 @@ def createOTScript(batchids: list, protocol_name: str):
                                     otsessionobj=session.otsessionobj,
                                     reaction_ids=reaction_ids,
                                     actionsession_ids=actionsession_ids,
+                                    groupreactionqueryset=groupreactionqueryset,
                                 )
 
                 if index > 0:
@@ -692,6 +699,7 @@ def createOTScript(batchids: list, protocol_name: str):
                                         otsessionobj=session.otsessionobj,
                                         reaction_ids=reaction_ids,
                                         actionsession_ids=actionsession_ids,
+                                        groupreactionqueryset=groupreactiontodoqueryset,
                                     )
 
             createZipOTBatchProtocol = ZipOTBatchProtocol(

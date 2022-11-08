@@ -665,19 +665,19 @@ class TipRackViewSet(viewsets.ModelViewSet):
 class PlateViewSet(viewsets.ModelViewSet):
     queryset = Plate.objects.all()
     serializer_class = PlateSerializer
-    filterset_fields = ["otsession_id"]
+    filterset_fields = ["otbatchprotocol_id"]
 
 
 class ColumnViewSet(viewsets.ModelViewSet):
     queryset = Column.objects.all()
     serializer_class = ColumnSerializer
-    filterset_fields = ["otsession_id"]
+    filterset_fields = ["reaction_id"]
 
 
 class WellViewSet(viewsets.ModelViewSet):
     queryset = Well.objects.all()
     serializer_class = WellSerializer
-    filterset_fields = ["otsession_id"]
+    filterset_fields = ["reaction_id"]
 
 
 class CompoundOrderViewSet(viewsets.ModelViewSet):

@@ -137,10 +137,12 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "rest_framework_swagger",
     "webpack_loader",
-    "django_cleanup",
+    # "django_cleanup",
     "simple_history",
     # Fragalysis evolution
     "car",
+    "django_unused_media",
+    'django_cleanup.apps.CleanupConfig',
 ]
 
 MIDDLEWARE = [
