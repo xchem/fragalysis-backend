@@ -76,7 +76,7 @@ class OTWrite(object):
         actionsession_ids: list
             The action session ids that the protocol is being written for
         """
-        self.otbatchprotocolobj = otsessionobj.otbatchprotocol_id
+        # self.otbatchprotocolobj = otsessionobj.otbatchprotocol_id
         self.reactionstep = otsessionobj.reactionstep
         self.otsessionobj = otsessionobj
         self.otsession_id = otsessionobj.id
@@ -98,19 +98,20 @@ class OTWrite(object):
         )
 
         self.tiprackqueryset = self.getTipRacks()
-        if self.otsessiontype == "reaction":
-            addactionqueyset = getAddActionQuerySet(
-                reaction_ids=self.reaction_ids, actionsession_ids=self.actionsession_ids
-            )
-            searchsmiles = addactionqueyset.values_list("smiles", flat=True).distinct()
-            self.platequeryset = self.getInputPlatesNeeded(searchsmiles=searchsmiles)
-            # print(self.platequeryset)
-        if self.otsessiontype == "workup" or self.otsessiontype == "analyse":
-            searchsmiles = getProductSmiles(reaction_ids=self.reaction_ids)
-            self.platequeryset = self.getInputPlatesNeeded(
-                searchsmiles=searchsmiles, reaction_ids=self.reaction_ids
-            )
+        # if self.otsessiontype == "reaction":
+        #     addactionqueyset = getAddActionQuerySet(
+        #         reaction_ids=self.reaction_ids, actionsession_ids=self.actionsession_ids
+        #     )
+        #     searchsmiles = addactionqueyset.values_list("smiles", flat=True).distinct()
+        #     self.platequeryset = self.getInputPlatesNeeded(searchsmiles=searchsmiles)
+        #     # print(self.platequeryset)
+        # if self.otsessiontype == "workup" or self.otsessiontype == "analyse":
+        #     searchsmiles = getProductSmiles(reaction_ids=self.reaction_ids)
+        #     self.platequeryset = self.getInputPlatesNeeded(
+        #         searchsmiles=searchsmiles, reaction_ids=self.reaction_ids
+        #     )
         self.pipetteobj = self.getPipette()
+        self.platequeryset = self.getPlates()
         self.pipettename = self.pipetteobj.name
         self.filepath, self.filename = self.createFilePath()
         self.setupScript()
@@ -303,115 +304,115 @@ class OTWrite(object):
         productobj = Product.objects.get(reaction_id=reaction_id)
         return productobj
 
-    def getInputPlatesNeeded(
-        self, searchsmiles: list, reaction_ids: list = None
-    ) -> list[Plate]:
-        """Gets plates, created in previous reaction and workup
-        sessions with reaction products that are required as
-        reactants in current reaction session
+    # def getInputPlatesNeeded(
+    #     self, searchsmiles: list, reaction_ids: list = None
+    # ) -> list[Plate]:
+    #     """Gets plates, created in previous reaction and workup
+    #     sessions with reaction products that are required as
+    #     reactants in current reaction session
 
-        Parameters
-        ----------
-        searchsmiles: list
-            The list of SMILES that are required from previous
-            reaction plate wells
-        reaction_ids: list
-            The optional reaction ids to match wells and plates with.
-
-        Returns
-        -------
-        inputplatesneeded: list
-            The list of previous OT session reaction plates in
-            an OT batch protocol that have products needed as
-            reactants for current reaction OT session
-        """
-        inputplatesneeded = []
-        continuationactionsessions = self.actionsessionqueryset.filter(
-            continuation=True
-        )
-        if continuationactionsessions:
-            searchsmiles = getProductSmiles(reaction_ids=self.reaction_ids)
-        otsessionplatequeryset = self.getAllOTSessionPlates(
-            otsession_id=self.otsessionobj
-        )
-        if otsessionplatequeryset:
-            for otsessionplateobj in otsessionplatequeryset:
-                inputplatesneeded.append(otsessionplateobj)
-        otbatchprotocolplatequeryset = self.getAllOTBatchProtocolPlates(
-            otbatchprotocol_id=self.otbatchprotocolobj
-        )
-        if not reaction_ids:
-            methodids = [
-                reactionobj.method_id for reactionobj in self.groupreactionqueryset
-            ]
-            criterion1 = Q(method_id__in=methodids)
-        if reaction_ids:
-            criterion1 = Q(reaction_id__in=reaction_ids)
-        criterion2 = Q(reactantfornextstep=True)
-        criterion3 = Q(smiles__in=searchsmiles)
-        criterion4 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
-        if otbatchprotocolplatequeryset:
-            for inputplateobj in otbatchprotocolplatequeryset:
-                wellmatchqueryset = inputplateobj.well_set.all().filter(
-                    criterion1 & criterion2 & criterion3 & criterion4
-                )
-                if wellmatchqueryset:
-                    inputplatesneeded.append(inputplateobj)
-        return inputplatesneeded
-
-    def getAllOTBatchProtocolPlates(
-        self, otbatchprotocol_id: OTBatchProtocol
-    ) -> QuerySet[Plate]:
-        """Get all input reaction plates used for an OT batch protocol
-
-        Parameters
-        ----------
-        otbatchprotocol_id: OTBatchProtocol
-            All OT batch protocol to find all matching plates for
-        Returns
-        -------
-        otbatchprotocolplatequeryset: QuerySet[Plate]
-            The plates used for all previous reaction and workup
-            sessions
-        status: False
-            The status if no plates were found
-        """
-        criterion1 = Q(otbatchprotocol_id=otbatchprotocol_id)
-        criterion2 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
-
-        otbatchprotocolplatequeryset = Plate.objects.filter(criterion1 & criterion2)
-        return otbatchprotocolplatequeryset
-
-    def getAllOTSessionPlates(self, otsession_id: OTSession) -> QuerySet[Plate]:
-        """Get all input reaction plates used for an OT session
-
-        Parameters
-        ----------
-        otsession_id: OTSession
-            All OT session to find all matching plates for
-        Returns
-        -------
-        otbatchprotocolplatequeryset: QuerySet[Plate]
-            The plates used for all previous reaction and workup
-            sessions
-        status: False
-            The status if no plates were found
-        """
-        otsessionplatequeryset = Plate.objects.filter(otsession_id=otsession_id)
-        return otsessionplatequeryset
-
-    # def getPlates(self) -> QuerySet[Plate]:
-    #     """Gets plates for an OT session
+    #     Parameters
+    #     ----------
+    #     searchsmiles: list
+    #         The list of SMILES that are required from previous
+    #         reaction plate wells
+    #     reaction_ids: list
+    #         The optional reaction ids to match wells and plates with.
 
     #     Returns
     #     -------
-    #     platequeryset: QuerySet[Plate]
-    #         The plates linked to the OT session
+    #     inputplatesneeded: list
+    #         The list of previous OT session reaction plates in
+    #         an OT batch protocol that have products needed as
+    #         reactants for current reaction OT session
     #     """
-    #     platequeryset = Plate.objects.filter(otsession_id=self.otsession_id).order_by(
-    #         "id"
+    #     inputplatesneeded = []
+    #     continuationactionsessions = self.actionsessionqueryset.filter(
+    #         continuation=True
     #     )
-    #     return platequeryset
+    #     if continuationactionsessions:
+    #         searchsmiles = getProductSmiles(reaction_ids=self.reaction_ids)
+    #     otsessionplatequeryset = self.getAllOTSessionPlates(
+    #         otsession_id=self.otsessionobj
+    #     )
+    #     if otsessionplatequeryset:
+    #         for otsessionplateobj in otsessionplatequeryset:
+    #             inputplatesneeded.append(otsessionplateobj)
+    #     otbatchprotocolplatequeryset = self.getAllOTBatchProtocolPlates(
+    #         otbatchprotocol_id=self.otbatchprotocolobj
+    #     )
+    #     if not reaction_ids:
+    #         methodids = [
+    #             reactionobj.method_id for reactionobj in self.groupreactionqueryset
+    #         ]
+    #         criterion1 = Q(method_id__in=methodids)
+    #     if reaction_ids:
+    #         criterion1 = Q(reaction_id__in=reaction_ids)
+    #     criterion2 = Q(reactantfornextstep=True)
+    #     criterion3 = Q(smiles__in=searchsmiles)
+    #     criterion4 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
+    #     if otbatchprotocolplatequeryset:
+    #         for inputplateobj in otbatchprotocolplatequeryset:
+    #             wellmatchqueryset = inputplateobj.well_set.all().filter(
+    #                 criterion1 & criterion2 & criterion3 & criterion4
+    #             )
+    #             if wellmatchqueryset:
+    #                 inputplatesneeded.append(inputplateobj)
+    #     return inputplatesneeded
+
+    # def getAllOTBatchProtocolPlates(
+    #     self, otbatchprotocol_id: OTBatchProtocol
+    # ) -> QuerySet[Plate]:
+    #     """Get all input reaction plates used for an OT batch protocol
+
+    #     Parameters
+    #     ----------
+    #     otbatchprotocol_id: OTBatchProtocol
+    #         All OT batch protocol to find all matching plates for
+    #     Returns
+    #     -------
+    #     otbatchprotocolplatequeryset: QuerySet[Plate]
+    #         The plates used for all previous reaction and workup
+    #         sessions
+    #     status: False
+    #         The status if no plates were found
+    #     """
+    #     criterion1 = Q(otbatchprotocol_id=otbatchprotocol_id)
+    #     criterion2 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
+
+    #     otbatchprotocolplatequeryset = Plate.objects.filter(criterion1 & criterion2)
+    #     return otbatchprotocolplatequeryset
+
+    # def getAllOTSessionPlates(self, otsession_id: OTSession) -> QuerySet[Plate]:
+    #     """Get all input reaction plates used for an OT session
+
+    #     Parameters
+    #     ----------
+    #     otsession_id: OTSession
+    #         All OT session to find all matching plates for
+    #     Returns
+    #     -------
+    #     otbatchprotocolplatequeryset: QuerySet[Plate]
+    #         The plates used for all previous reaction and workup
+    #         sessions
+    #     status: False
+    #         The status if no plates were found
+    #     """
+    #     otsessionplatequeryset = Plate.objects.filter(otsession_id=otsession_id)
+    #     return otsessionplatequeryset
+
+    def getPlates(self) -> QuerySet[Plate]:
+        """Gets plates for an OT session
+
+        Returns
+        -------
+        platequeryset: QuerySet[Plate]
+            The plates linked to the OT session
+        """
+        platequeryset = Plate.objects.filter(otsession_id=self.otsession_id).order_by(
+            "id"
+        )
+        return platequeryset
 
     def getPlateObj(self, plateid: int) -> Plate:
         """Gets the plate object
@@ -472,7 +473,7 @@ class OTWrite(object):
         columnqueryset: QuerySet[Column]
             The columns related to the column type and reaction class
         """
-        criterion1 = Q(otbatchprotocol_id=self.otbatchprotocolobj)
+        criterion1 = Q(otsession_id=self.otsession_id)
         criterion2 = Q(type=columntype)
         criterion3 = Q(reactionclass=reactionclass)
         columnqueryset = Column.objects.filter(
@@ -602,25 +603,38 @@ class OTWrite(object):
         )
         wellinfo = []
         if previousreactionqueryset:
-            # criterion1 = Q(otsession_id=self.otsession_id)
+            criterion1 = Q(otsession_id=self.otsession_id)
             criterion2 = Q(reaction_id=previousreactionqueryset[0])
             criterion3 = Q(smiles=smiles)
             criterion4 = Q(type="reaction")
             criterion5 = Q(type="workup1")
             criterion6 = Q(type="workup2")
             criterion7 = Q(type="workup3")
+            criterion8 = Q(type="spefilter")
+            criterion9 = Q(reactantfornextstep=True)
             try:
                 wellobj = Well.objects.get(
-                    criterion2 & criterion3 & (criterion5 | criterion6 | criterion7)
+                    criterion1
+                    & criterion2
+                    & criterion3
+                    & (criterion4 | criterion5 | criterion6 | criterion7 | criterion8)
                 )
                 wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
-            except:
-                wellobj = Well.objects.get(criterion2 & criterion3 & criterion4)
+            except Exception as e:
+                # logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+                # print(e)
+                # print(reaction_id, smiles, concentration)
+                wellobj = Well.objects.get(
+                    criterion2
+                    & criterion3
+                    & (criterion4 | criterion5 | criterion6 | criterion7 | criterion8)
+                    & criterion9
+                )
                 wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
         else:
             try:
                 wellobjects = Well.objects.filter(
-                    # otsession_id=self.otsession_id,
+                    otsession_id=self.otsession_id,
                     reaction_id=reaction_id,
                     smiles=smiles,
                     solvent=solvent,
@@ -721,7 +735,7 @@ class OTWrite(object):
         """
         productsmiles = getProductSmiles(reaction_ids=[reaction_id])[0]
         wellobj = Well.objects.get(
-            otbatchprotocol_id=self.otbatchprotocolobj,
+            otsession_id=self.otsession_id,
             reaction_id=reaction_id,
             type=welltype,
             smiles=productsmiles,
@@ -798,11 +812,11 @@ class OTWrite(object):
         """Updates well object to have reactant for next step
         set to True
         """
-        clonewellqueryset = Well.objects.filter(id=wellobj.clonewellid)
-        if clonewellqueryset:
-            clonewellobj = clonewellqueryset[0]
-            clonewellobj.reactantfornextstep = False
-            clonewellobj.save()
+        # clonewellqueryset = Well.objects.filter(id=wellobj.clonewellid)
+        # if clonewellqueryset:
+        #     clonewellobj = clonewellqueryset[0]
+        #     clonewellobj.reactantfornextstep = False
+        #     clonewellobj.save()
         wellobj.reactantfornextstep = True
         wellobj.save()
 
@@ -810,11 +824,11 @@ class OTWrite(object):
         """Updates well object to have reactant for next step
         set to False
         """
-        clonewellqueryset = Well.objects.filter(id=wellobj.clonewellid)
-        if clonewellqueryset:
-            clonewellobj = clonewellqueryset[0]
-            clonewellobj.reactantfornextstep = False
-            clonewellobj.save()
+        # clonewellqueryset = Well.objects.filter(id=wellobj.clonewellid)
+        # if clonewellqueryset:
+        #     clonewellobj = clonewellqueryset[0]
+        #     clonewellobj.reactantfornextstep = False
+        #     clonewellobj.save()
         wellobj.reactantfornextstep = False
         wellobj.save()
 

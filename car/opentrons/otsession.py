@@ -128,12 +128,15 @@ class CreateOTSession(object):
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
-        # inputplatequeryset = self.getInputPlatesNeeded(
-        #     smiles=self.addactionqueryset.values_list("smiles", flat=True)
-        # )
-        # print("The input queryset is: {}".format(inputplatequeryset))
-        # if inputplatequeryset:
-        #     self.cloneInputPlate(platesforcloning=inputplatequeryset)
+        continuationactionsessions = self.actionsessionqueryset.filter(
+            continuation=True
+        )
+        if continuationactionsessions:
+            searchsmiles = getProductSmiles(reaction_ids=self.reaction_ids)
+        if not continuationactionsessions:
+            searchsmiles = self.addactionqueryset.values_list("smiles", flat=True)
+        inputplatequeryset = self.getInputPlatesNeeded(searchsmiles=searchsmiles)
+        self.updatePlateDeckOtSessionIDs(platequeryset=inputplatequeryset)
         self.createPipetteModel()
         self.createReactionStartingPlate()
         self.continuationactionsessions = self.actionsessionqueryset.filter(
@@ -159,7 +162,6 @@ class CreateOTSession(object):
             for actionsessionobj in self.actionsessionqueryset
         ]
         self.roundedvolumes = []
-        # self.searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
@@ -189,6 +191,9 @@ class CreateOTSession(object):
         # self.searchsmiles = set(self.searchsmiles)
 
         self.deckobj = self.createDeckModel()
+        searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
+        inputplatequeryset = self.getInputPlatesNeeded(searchsmiles=searchsmiles)
+        self.updatePlateDeckOtSessionIDs(platequeryset=inputplatequeryset)
         # inputplatequeryset = self.getInputPlatesNeeded(
         #     smiles=self.searchsmiles, reaction_ids=self.reaction_ids
         # )
@@ -223,8 +228,6 @@ class CreateOTSession(object):
             for actionsessionobj in self.actionsessionqueryset
         ]
         self.roundedvolumes = []
-        # self.searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
-
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
@@ -255,6 +258,9 @@ class CreateOTSession(object):
         # self.searchsmiles = set(self.searchsmiles)
 
         self.deckobj = self.createDeckModel()
+        searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
+        inputplatequeryset = self.getInputPlatesNeeded(searchsmiles=searchsmiles)
+        self.updatePlateDeckOtSessionIDs(platequeryset=inputplatequeryset)
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(
@@ -282,6 +288,135 @@ class CreateOTSession(object):
         )
         for analyseplateneeded in self.analyseplatesneeded:
             self.createAnalysePlate(platetype=analyseplateneeded)
+
+    def getInputPlatesNeeded(
+        self, searchsmiles: list, reaction_ids: list = None
+    ) -> list[Plate]:
+        """Gets plates, created in previous reaction and workup
+        sessions with reaction products that are required as
+        reactants in current reaction session
+
+        Parameters
+        ----------
+        searchsmiles: list
+            The list of SMILES that are required from previous
+            reaction plate wells
+        reaction_ids: list
+            The optional reaction ids to match wells and plates with.
+
+        Returns
+        -------
+        inputplatesneeded: list
+            The list of previous OT session reaction plates in
+            an OT batch protocol that have products needed as
+            reactants for current reaction OT session
+        """
+        inputplatesneeded = []
+        # otsessionplatequeryset = self.getAllOTSessionPlates(
+        #     otsession_id=self.otsessionobj
+        # )
+        # if otsessionplatequeryset:
+        #     for otsessionplateobj in otsessionplatequeryset:
+        #         inputplatesneeded.append(otsessionplateobj)
+        otbatchprotocolplatequeryset = self.getAllOTBatchProtocolPlates(
+            otbatchprotocol_id=self.otbatchprotocolobj
+        )
+        if not reaction_ids:
+            methodids = [
+                reactionobj.method_id for reactionobj in self.groupreactionqueryset
+            ]
+            criterion1 = Q(method_id__in=methodids)
+        if reaction_ids:
+            criterion1 = Q(reaction_id__in=reaction_ids)
+        criterion2 = Q(reactantfornextstep=True)
+        criterion3 = Q(smiles__in=searchsmiles)
+        criterion4 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
+        if otbatchprotocolplatequeryset:
+            for plateobj in otbatchprotocolplatequeryset:
+                wellmatchqueryset = plateobj.well_set.all().filter(
+                    criterion1 & criterion2 & criterion3 & criterion4
+                )
+                if wellmatchqueryset:
+                    inputplatesneeded.append(plateobj)
+        return inputplatesneeded
+
+    def getAllOTBatchProtocolPlates(
+        self, otbatchprotocol_id: OTBatchProtocol
+    ) -> QuerySet[Plate]:
+        """Get all input reaction plates used for an OT batch protocol
+
+        Parameters
+        ----------
+        otbatchprotocol_id: OTBatchProtocol
+            All OT batch protocol to find all matching plates for
+        Returns
+        -------
+        otbatchprotocolplatequeryset: QuerySet[Plate]
+            The plates used for all previous reaction and workup
+            sessions
+        status: False
+            The status if no plates were found
+        """
+        criterion1 = Q(otbatchprotocol_id=otbatchprotocol_id)
+        criterion2 = Q(
+            type__in=["reaction", "workup1", "workup2", "workup3", "spefilter"]
+        )
+
+        otbatchprotocolplatequeryset = Plate.objects.filter(criterion1 & criterion2)
+        return otbatchprotocolplatequeryset
+
+    def updatePlateDeckOtSessionIDs(self, platequeryset: QuerySet[Plate]):
+        """Updates the plates to link to the current Deck and
+        OT session
+
+        Parameters
+        ----------
+        platequeryset: QuerySet[Plate]
+            The plates to update
+        """
+        for plateobj in platequeryset:
+            indexslot = self.checkDeckSlotAvailable()
+            if indexslot:
+                wellqueryset = self.getPlateWells(plateobj=plateobj)
+                columnqueryset = self.getPlateColumns(plateobj=plateobj)
+                previoustype = plateobj.type
+                plateobj.deck_id = self.deckobj
+                plateobj.otsession_id = self.otsessionobj
+                if previoustype == "spefilter":
+                    plateobj.labware = "plateone_96_wellplate_2500ul"
+                plateobj.index = indexslot
+                plateobj.save()
+                self.updateColumnOTSessionIDs(
+                    columnqueryset=columnqueryset, plateobj=plateobj
+                )
+                self.updateWellOTSessionIDs(
+                    wellqueryset=wellqueryset, plateobj=plateobj
+                )
+            else:
+                print("cloneInputPlate")
+                print("No more deck slots available")
+        for plateobj in platequeryset:
+            plateobj.deck_id = self.deckobj
+            plateobj.otsession_id = self.otsessionobj
+            plateobj.save()
+
+    # def getAllOTSessionPlates(self, otsession_id: OTSession) -> QuerySet[Plate]:
+    #     """Get all input reaction plates used for an OT session
+
+    #     Parameters
+    #     ----------
+    #     otsession_id: OTSession
+    #         All OT session to find all matching plates for
+    #     Returns
+    #     -------
+    #     otbatchprotocolplatequeryset: QuerySet[Plate]
+    #         The plates used for all previous reaction and workup
+    #         sessions
+    #     status: False
+    #         The status if no plates were found
+    #     """
+    #     otsessionplatequeryset = Plate.objects.filter(otsession_id=otsession_id)
+    #     return otsessionplatequeryset
 
     def getActionSessionByPlateType(self, platetype: str) -> QuerySet[ActionSession]:
 
@@ -770,7 +905,7 @@ class CreateOTSession(object):
         deadvolume = maxwellvolume * 0.05
         return deadvolume
 
-    def getCloneWells(self, plateobj: Plate) -> QuerySet[Well]:
+    def getPlateWells(self, plateobj: Plate) -> QuerySet[Well]:
         """Retrieves the wells for a plate
 
         Parameters
@@ -780,13 +915,13 @@ class CreateOTSession(object):
 
         Returns
         -------
-        clonewellqueryset: QuerySet[Well]
+        wellqueryset: QuerySet[Well]
             The plates wells
         """
-        clonewellqueryset = Well.objects.filter(plate_id=plateobj.id)
-        return clonewellqueryset
+        wellqueryset = Well.objects.filter(plate_id=plateobj.id)
+        return wellqueryset
 
-    def getCloneColumns(self, plateobj: Plate) -> QuerySet[Column]:
+    def getPlateColumns(self, plateobj: Plate) -> QuerySet[Column]:
         """Retrieves the columns for a plate
 
         Parameters
@@ -796,11 +931,11 @@ class CreateOTSession(object):
 
         Returns
         -------
-        clonecolumnqueryset: QuerySet[Column]
+        columnqueryset: QuerySet[Column]
             The plates columns
         """
-        clonecolumnqueryset = Column.objects.filter(plate_id=plateobj.id)
-        return clonecolumnqueryset
+        columnqueryset = Column.objects.filter(plate_id=plateobj.id)
+        return columnqueryset
 
     def getActionSessionType(self) -> str:
         """Get the action session type
@@ -1185,7 +1320,7 @@ class CreateOTSession(object):
             The column created
         """
         columnobj = Column()
-        columnobj.otbatchprotocol_id = self.otbatchprotocolobj
+        columnobj.otsession_id = self.otsessionobj
         columnobj.plate_id = plateobj
         columnobj.index = columnindex
         columnobj.type = columntype
@@ -1238,7 +1373,7 @@ class CreateOTSession(object):
             The well created
         """
         wellobj = Well()
-        wellobj.otbatchprotocol_id = self.otbatchprotocolobj
+        wellobj.otsession_id = self.otsessionobj
         wellobj.plate_id = plateobj
         if reactionobj:
             wellobj.reaction_id = reactionobj
@@ -1433,77 +1568,88 @@ class CreateOTSession(object):
             + str(row["concentration"])
         )
 
-    def cloneInputPlate(self, platesforcloning: list[Plate]):
-        """Clones plates
+    # def cloneInputPlate(self, platesforcloning: list[Plate]):
+    #     """Clones plates
+
+    #     Parameters
+    #     ----------
+    #     platesforcloning: list[Plate]
+    #         List of plates to be cloned
+    #     """
+    #     for plateobj in platesforcloning:
+    #         indexslot = self.checkDeckSlotAvailable()
+    #         if indexslot:
+    #             clonewellqueryset = self.getCloneWells(plateobj=plateobj)
+    #             clonecolumnqueryset = self.getCloneColumns(plateobj=plateobj)
+    #             plateindex = indexslot
+    #             previousname = plateobj.name
+    #             previoustype = plateobj.type
+    #             platename = "Startingplate"
+    #             plateobj.pk = None
+    #             plateobj.deck_id = self.deckobj
+    #             plateobj.otsession_id = self.otsessionobj
+    #             if previoustype == "spefilter":
+    #                 plateobj.labware = "plateone_96_wellplate_2500ul"
+    #             plateobj.index = plateindex
+    #             plateobj.name = "{}_{}_from_{}".format(
+    #                 platename, indexslot, previousname
+    #             )
+    #             plateobj.save()
+    #             self.cloneInputColumns(
+    #                 clonecolumnqueryset=clonecolumnqueryset, plateobj=plateobj
+    #             )
+    #             self.cloneInputWells(
+    #                 clonewellqueryset=clonewellqueryset, plateobj=plateobj
+    #             )
+    #         else:
+    #             print("cloneInputPlate")
+    #             print("No more deck slots available")
+
+    def updateWellOTSessionIDs(self, wellqueryset: QuerySet[Well], plateobj: Plate):
+        """Updates well to link to current OT session
 
         Parameters
         ----------
-        platesforcloning: list[Plate]
-            List of plates to be cloned
-        """
-        for plateobj in platesforcloning:
-            indexslot = self.checkDeckSlotAvailable()
-            if indexslot:
-                clonewellqueryset = self.getCloneWells(plateobj=plateobj)
-                clonecolumnqueryset = self.getCloneColumns(plateobj=plateobj)
-                plateindex = indexslot
-                previousname = plateobj.name
-                previoustype = plateobj.type
-                platename = "Startingplate"
-                plateobj.pk = None
-                plateobj.deck_id = self.deckobj
-                plateobj.otsession_id = self.otsessionobj
-                if previoustype == "spefilter":
-                    plateobj.labware = "plateone_96_wellplate_2500ul"
-                plateobj.index = plateindex
-                plateobj.name = "{}_{}_from_{}".format(
-                    platename, indexslot, previousname
-                )
-                plateobj.save()
-                self.cloneInputColumns(
-                    clonecolumnqueryset=clonecolumnqueryset, plateobj=plateobj
-                )
-                self.cloneInputWells(
-                    clonewellqueryset=clonewellqueryset, plateobj=plateobj
-                )
-            else:
-                print("cloneInputPlate")
-                print("No more deck slots available")
-
-    def cloneInputWells(self, clonewellqueryset: QuerySet[Well], plateobj: Plate):
-        """Clones wells
-
-        Parameters
-        ----------
-        clonewellqueryset: QuerySet[Well]
-            The wells to be cloned
+        wellqueryset: QuerySet[Well]
+            The wells to be updated
         plateobj: Plate
-            The plate object (Usually previously cloned) related to the cloned well
+            The plate object related to the cloned well
         """
-        for clonewellobj in clonewellqueryset:
-            clonewellid = clonewellobj.id
-            clonewellobj.pk = None
-            clonewellobj.reactantfornextstep = False
-            clonewellobj.clonewellid = clonewellid
-            clonewellobj.plate_id = plateobj
-            clonewellobj.otsession_id = self.otsessionobj
-            clonewellobj.save()
+        for wellobj in wellqueryset:
+            wellobj.plate_id = plateobj
+            wellobj.otsession_id = self.otsessionobj
+            wellobj.save()
 
-    def cloneInputColumns(self, clonecolumnqueryset: QuerySet[Column], plateobj: Plate):
-        """Clones columns
+    def updateColumnOTSessionIDs(self, columnqueryset: QuerySet[Well], plateobj: Plate):
+        """Updates column to link to current OT session
 
         Parameters
         ----------
-        clonecolumnqueryset: QuerySet[column]
-            The columns to be cloned
+        columnqueryset: QuerySet[Column]
+            The columns to be updated
         plateobj: Plate
-            The plate object (Usually previously cloned) related to the cloned column
+            The plate object related to the updated column
         """
-        for clonecolumnobj in clonecolumnqueryset:
-            clonecolumnobj.pk = None
-            clonecolumnobj.otsession_id = self.otsessionobj
-            clonecolumnobj.plate_id = plateobj
-            clonecolumnobj.save()
+        for columnobj in columnqueryset:
+            columnobj.plate_id = plateobj
+            columnobj.otsession_id = self.otsessionobj
+            columnobj.save()
+
+    # def cloneInputColumns(self, clonecolumnqueryset: QuerySet[Column], plateobj: Plate):
+    #     """Clones columns
+
+    #     Parameters
+    #     ----------
+    #     clonecolumnqueryset: QuerySet[column]
+    #         The columns to be cloned
+    #     plateobj: Plate
+    #         The plate object (Usually previously cloned) related to the cloned column
+    #     """
+    #     for clonecolumnobj in clonecolumnqueryset:
+    #         clonecolumnobj.pk = None
+    #         clonecolumnobj.otsession_id = self.otsessionobj
+    #         clonecolumnobj.plate_id = plateobj
+    #         clonecolumnobj.save()
 
     def createReactionStartingPlate(self):
         """Creates the starting material plate/s for executing a reaction's add actions"""
@@ -1826,6 +1972,10 @@ class CreateOTSession(object):
                             plateobj=plateobj, columnindexupdate=indexcurrentcolumn + 1
                         )
                 indexwellavailable = self.getPlateWellIndexAvailable(plateobj=plateobj)
+                if platetype == "reaction":
+                    reactantfornextstep = True
+                else:
+                    reactantfornextstep = False
                 self.createWellModel(
                     plateobj=plateobj,
                     reactionobj=reactionobj,
@@ -1833,6 +1983,7 @@ class CreateOTSession(object):
                     welltype=platetype,
                     wellindex=indexwellavailable,
                     smiles=productobj.smiles,
+                    reactantfornextstep=reactantfornextstep,
                 )
                 self.updatePlateWellIndex(
                     plateobj=plateobj, wellindexupdate=indexwellavailable + 1

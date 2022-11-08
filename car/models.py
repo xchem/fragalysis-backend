@@ -809,12 +809,12 @@ class Column(models.Model):
         startingmaterial = "startingmaterial"
         solvent = "solvent"
 
-    otbatchprotocol_id = models.ForeignKey(
-        OTBatchProtocol, related_name="otcolumns", on_delete=models.CASCADE
-    )
-    # otsession_id = models.ForeignKey(
-    #     OTSession, related_name="otcolumns", on_delete=models.CASCADE
+    # otbatchprotocol_id = models.ForeignKey(
+    #     OTBatchProtocol, related_name="otcolumns", on_delete=models.CASCADE
     # )
+    otsession_id = models.ForeignKey(
+        OTSession, related_name="otcolumns", on_delete=models.CASCADE, null=True
+    )
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     index = models.IntegerField()
     type = models.CharField(choices=ColumnType.choices, max_length=55)
@@ -865,17 +865,20 @@ class Well(models.Model):
         startingmaterial = "startingmaterial"
         solvent = "solvent"
 
-    otbatchprotocol_id = models.ForeignKey(
-        OTBatchProtocol, related_name="otwells", on_delete=models.CASCADE
-    )
-    # otsession_id = models.ForeignKey(
-    #     OTSession, related_name="otwells", on_delete=models.CASCADE
+    # otbatchprotocol_id = models.ForeignKey(
+    #     OTBatchProtocol, related_name="otwells", on_delete=models.CASCADE
     # )
+    otsession_id = models.ForeignKey(
+        OTSession,
+        related_name="otwells",
+        on_delete=models.CASCADE,
+        null=True,
+    )
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)
     column_id = models.ForeignKey(Column, on_delete=models.CASCADE, null=True)
-    clonewellid = models.IntegerField(null=True)
+    # clonewellid = models.IntegerField(null=True)
     index = models.IntegerField()
     type = models.CharField(choices=WellType.choices, max_length=55)
     volume = models.FloatField(null=True)

@@ -671,13 +671,13 @@ class PlateViewSet(viewsets.ModelViewSet):
 class ColumnViewSet(viewsets.ModelViewSet):
     queryset = Column.objects.all()
     serializer_class = ColumnSerializer
-    filterset_fields = ["reaction_id"]
+    filterset_fields = ["otsession_id"]
 
 
 class WellViewSet(viewsets.ModelViewSet):
     queryset = Well.objects.all()
     serializer_class = WellSerializer
-    filterset_fields = ["reaction_id"]
+    filterset_fields = ["otsession_id"]
 
 
 class CompoundOrderViewSet(viewsets.ModelViewSet):
