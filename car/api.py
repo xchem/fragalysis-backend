@@ -665,7 +665,7 @@ class TipRackViewSet(viewsets.ModelViewSet):
 class PlateViewSet(viewsets.ModelViewSet):
     queryset = Plate.objects.all()
     serializer_class = PlateSerializer
-    filterset_fields = ["otsession_id"]
+    filterset_fields = ["otbatchprotocol_id"]
 
 
 class ColumnViewSet(viewsets.ModelViewSet):
