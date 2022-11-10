@@ -21,44 +21,12 @@ from car.models import (
     Product,
     Reaction,
     Target,
+    Plate,
 )
 
 from car.recipebuilder.encodedrecipes import encoded_recipes
 
 logger = logging.getLogger(__name__)
-
-
-# def getReactionInfo(batch_ids: list[int]) -> list:
-#     """Get the reaction info for a batch as list of targets,reactant SMILES,
-#     reaction class (Amidation, Suzuki etc)
-#     """
-#     reaction_info = {}
-#     for batch_id in batch_ids:
-#         batchobj = Batch.objects.get(id=batch_id)
-#         targetqueryset = batchobj.targets.all()
-#         target_smiles = [target_obj.smiles for target_obj in targetqueryset]
-#         for targetobj in targetqueryset:
-#             reaction_info["target_smiles"] = targetobj.smiles
-
-#         methods = [target.methods.all() for target in targetqueryset]
-#         method_sublist = [item for sublist in methods for item in sublist]
-#         reactions = [method.reactions.all() for method in method_sublist]
-#         reaction_sublist = [item for sublist in reactions for item in sublist]
-#         reactants = [reaction.reactants.all() for reaction in reaction_sublist]
-#         reactants_sublist = [item for sublist in reactants for item in sublist]
-#         reactants_batch_to_buy = list(
-#             set(
-#                 [
-#                     reactant.smiles
-#                     for reactant in reactants_sublist
-#                     if reactant.previousreactionproduct == False
-#                 ]
-#             )
-#         )
-#         reactants_to_buy = reactants_to_buy + reactants_batch_to_buy
-
-
-# Need to convert into function to retrieve all reactants that need to be purchased plus API endpoint!
 
 
 def getAddActionQuerySet(
@@ -537,6 +505,28 @@ def getBatchReactionProductMWs(batch_id: int, reaction_number: int) -> list[floa
         Descriptors.ExactMolWt(Chem.MolFromSmiles(smi)) for smi in product_SMILES
     ]
     return product_MWs
+
+
+def getPlateQuerySet(otsession_id: int) -> QuerySet[Plate]:
+    platequeryset = Plate.objects.filter(otsession_id=otsession_id)
+    return platequeryset
+
+
+def getProductQuerySet(reaction_ids: list) -> QuerySet[Product]:
+    """Get product queryset for reaction ids
+
+    Parameters
+    ----------
+    reaction_ids: list
+        The reaction ids to search for related products
+
+    Returns
+    -------
+    productqueryset: QuerySet[Product]
+        The product queryset related to the reaction ids
+    """
+    productqueryset = Product.objects.filter(reaction_id__in=reaction_ids)
+    return productqueryset
 
 
 def getProduct(reaction_id: int) -> Product:
