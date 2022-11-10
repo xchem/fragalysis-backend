@@ -635,7 +635,7 @@ class OTWrite(object):
             try:
                 wellobjects = Well.objects.filter(
                     otsession_id=self.otsession_id,
-                    reaction_id=reaction_id,
+                    # reaction_id=reaction_id,
                     smiles=smiles,
                     solvent=solvent,
                     concentration=concentration,
@@ -1280,11 +1280,15 @@ class OTWrite(object):
         sessionnumber = actionsessionqueryset.values_list(
             "sessionnumber", flat=True
         ).distinct()[0]
+        print("The reaction step is: {}".format(self.reactionstep))
+        print("the number of actionsession is: {}".format(len(actionsessionqueryset)))
         if self.reactionstep > 1:
+            # print("Doing dilutions")
             reactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
             groupedreactionclassquerysets = self.getGroupedReactionByClass(
                 reactionqueryset=reactionqueryset
             )
+            # print("the grouped reaction sets are: {}".format(groupedreactionclassquerysets))
             self.pickUpTip()
             for groupreactionclassqueryset in groupedreactionclassquerysets:
                 actionsessiontype = "reaction"
@@ -1313,6 +1317,7 @@ class OTWrite(object):
                     for action in reactionactions
                     if action["content"]["material"]["SMARTS"] != None
                 ]
+                # print("The reaction actions are: {}".format(reactionaddactions))
                 for reactionaddaction in reactionaddactions:
                     toplatetype = reactionaddaction["content"]["plates"]["toplatetype"]
                     actionnumber = reactionaddaction["actionnumber"]
@@ -1335,18 +1340,18 @@ class OTWrite(object):
                             concentration=concentration,
                             transfervolume=transfervolume,
                         )
-
+                        # print("The from well info is: {}".format(fromwellinfo))
                         for wellinfo in fromwellinfo:
                             previousreactionobjs = wellinfo[0]
                             fromwellobj = wellinfo[1]
                             transfervolume = wellinfo[2]
-
+                            # print("the previous reaction objects are: {}".format(previousreactionobjs))
                             if previousreactionobjs:
                                 fromsolventwellinfo = self.findSolventPlateWellObj(
                                     solvent=solvent,
                                     transfervolume=transfervolume,
                                 )
-
+                                # print("The from solvent info is: {}".format(fromsolventwellinfo))
                                 for solventwellinfo in fromsolventwellinfo:
                                     fromsolventwellobj = solventwellinfo[0]
                                     transfervolume = solventwellinfo[1]
@@ -1377,7 +1382,7 @@ class OTWrite(object):
                 message="Addtion of dilution solvent complete. Confimr dilution complete to restart protocol."
             )
 
-        for actionsessionobj in actionsessionqueryset:
+        for index, actionsessionobj in enumerate(actionsessionqueryset):
             reactionobj = getReaction(reaction_id=actionsessionobj.reaction_id.id)
             reaction_id = reactionobj.id
             reactionclass = reactionobj.reactionclass
@@ -1397,7 +1402,8 @@ class OTWrite(object):
                 if actionsession["type"] == "reaction"
                 and actionsession["sessionnumber"] == sessionnumber
             ][0]
-
+            # if self.reactionstep == 1:
+            #     print("reaction number: {} has reaction actions: {}".format((index+1), len(reactionactions)))
             for index, reactionaction in enumerate(reactionactions):
                 actiontype = reactionaction["type"]
                 actionnumber = reactionaction["actionnumber"]
@@ -1408,6 +1414,9 @@ class OTWrite(object):
                         reaction_id=reactionobj,
                         number=actionnumber,
                     )
+                    # if self.reactionstep == 1:
+                    #     print("reaction number: {} has addaction: {} addaction".format((index+1), addactionobj))
+
                     smiles = addactionobj.smiles
                     solvent = addactionobj.solvent
                     transfervolume = addactionobj.volume
@@ -1420,6 +1429,8 @@ class OTWrite(object):
                         concentration=concentration,
                         transfervolume=transfervolume,
                     )
+                    # if self.reactionstep == 1 and not fromwellinfo:
+                    #     print("{} {} {} {} has no well info".format(reaction_id, smiles, solvent, concentration))
 
                     for wellinfo in fromwellinfo:
                         fromwellobj = wellinfo[1]

@@ -128,6 +128,11 @@ class CreateOTSession(object):
         self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
         self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(roundedvolumes=self.roundedvolumes)
+        
+        self.solventmaterialsdf = self.getAddActionsMaterialDataFrame(
+            productexists=False
+        )
+        self.createSolventPlate(materialsdf=self.solventmaterialsdf)
         continuationactionsessions = self.actionsessionqueryset.filter(
             continuation=True
         )
@@ -1654,7 +1659,7 @@ class CreateOTSession(object):
     def createReactionStartingPlate(self):
         """Creates the starting material plate/s for executing a reaction's add actions"""
         startingmaterialsdf = self.getAddActionsMaterialDataFrame(productexists=False)
-
+        print(self.reactionstep, len(startingmaterialsdf.index))
         startinglabwareplatetype = self.getPlateType(
             platetype="startingmaterial", volumes=startingmaterialsdf["volume"]
         )
@@ -1693,9 +1698,9 @@ class CreateOTSession(object):
 
                     wellobj = self.createWellModel(
                         plateobj=plateobj,
-                        reactionobj=getReaction(
-                            reaction_id=startingmaterialsdf.at[i, "reaction_id_id"]
-                        ),
+                        # reactionobj=getReaction(
+                        #     reaction_id=startingmaterialsdf.at[i, "reaction_id_id"]
+                        # ),
                         welltype="startingmaterial",
                         wellindex=indexwellavailable,
                         volume=volumetoadd,

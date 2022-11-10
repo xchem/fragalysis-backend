@@ -982,13 +982,13 @@ def getPubChemCAS(compound: object) -> str:
                 return cas
 
 
-def getPubChemCompound(smiles: str) -> object:
-    """Searches PubChem for compound using SMILES
+def getPubChemCompound(inchikey: str) -> object:
+    """Searches PubChem for compound using inchi key
 
     Parameters
     ----------
-    smiles: str
-        The SMILES of the compound to search the PubChem DB for
+    inchikey: str
+        The inchikey of the compound to search the PubChem DB for
 
     Returns
     -------
@@ -998,7 +998,7 @@ def getPubChemCompound(smiles: str) -> object:
         Returns None if no compound is found or an error occurs
     """
     try:
-        compound = pcp.get_compounds(smiles, "smiles")[0]
+        compound = pcp.get_compounds(inchikey, "inchikey")[0]
         if not compound.cid:
             return None
         else:
@@ -1006,8 +1006,8 @@ def getPubChemCompound(smiles: str) -> object:
     except Exception as e:
         logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
         print(
-            "Pubchempy could not retrieve compound entry for input SMILES: {} with error {}".format(
-                smiles, e
+            "Pubchempy could not retrieve compound entry for input inchikey: {} with error {}".format(
+                inchikey, e
             )
         )
         return None
