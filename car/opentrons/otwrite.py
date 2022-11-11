@@ -74,7 +74,6 @@ class OTWrite(object):
         actionsession_ids: list
             The action session ids that the protocol is being written for
         """
-        # self.otbatchprotocolobj = otsessionobj.otbatchprotocol_id
         self.reactionstep = otsessionobj.reactionstep
         self.otsessionobj = otsessionobj
         self.otsession_id = otsessionobj.id

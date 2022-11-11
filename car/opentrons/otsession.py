@@ -173,11 +173,11 @@ class CreateOTSession(object):
             self.roundedvolumes = self.roundedvolumes + self.roundedextractvolumes
 
         self.deckobj = self.createDeckModel()
+        self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
+        self.createTipRacks(tipracktype=self.tipracktype)
         searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
         inputplatequeryset = self.getInputPlatesNeeded(searchsmiles=searchsmiles)
         self.updatePlateDeckOTSessionIDs(platequeryset=inputplatequeryset)
-        self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
-        self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(
             roundedvolumes=self.roundedvolumes, channeltype="multi"
         )
@@ -213,7 +213,6 @@ class CreateOTSession(object):
                 addactionqueryset=self.addactionqueryset
             )
             self.roundedvolumes = self.roundedvolumes + self.roundedaddvolumes
-
         self.extractactionqueryset = self.getExtractActionQuerySet(
             reaction_ids=self.reaction_ids,
             actionsession_ids=self.actionsession_ids,
@@ -225,11 +224,11 @@ class CreateOTSession(object):
             self.roundedvolumes = self.roundedvolumes + self.roundedextractvolumes
 
         self.deckobj = self.createDeckModel()
+        self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
+        self.createTipRacks(tipracktype=self.tipracktype)
         searchsmiles = self.getProductSmiles(reaction_ids=self.reaction_ids)
         inputplatequeryset = self.getInputPlatesNeeded(searchsmiles=searchsmiles)
         self.updatePlateDeckOTSessionIDs(platequeryset=inputplatequeryset)
-        self.tipracktype = self.getTipRackType(roundedvolumes=self.roundedvolumes)
-        self.createTipRacks(tipracktype=self.tipracktype)
         self.pipettetype = self.getPipetteType(
             roundedvolumes=self.roundedvolumes, channeltype="multi"
         )
