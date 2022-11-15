@@ -67,8 +67,10 @@ class Target(models.Model):
         File link to a stored version of the image file of the target compound
     name: Charfield
         The name of the compound (Must complete how this is made)
-    mass: FloatField
-        The target synthesis mass (mg) for a target compound
+    concentration: FloatField
+        The target synthesis concnetration (mM) for a target compound
+    volume: FloatField
+        The target synthesis volume (uL) for a target compound
     mols: FloatField
         The target mols of the compound to be synthesised
     """
@@ -79,6 +81,8 @@ class Target(models.Model):
     smiles = models.CharField(max_length=255, db_index=True)
     image = models.FileField(upload_to="targetimages/", max_length=255)
     name = models.CharField(max_length=255, db_index=True)
+    concentration = models.FloatField()
+    volume = models.FloatField()
     mass = models.FloatField()
     mols = models.FloatField()
 

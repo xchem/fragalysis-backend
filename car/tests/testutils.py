@@ -5,7 +5,7 @@ from rdkit.Chem import AllChem
 from car.recipebuilder.encodedrecipes import encoded_recipes
 
 from car.utils import (
-    calculateProductMols,
+    calculateMols,
     canonSmiles,
     combiChem,
     createSVGString,
@@ -58,7 +58,7 @@ class ChemistryFunctionsTestCase(TestCase):
 
     def test_calculate_product_mols(self):
         target_mass = 10
-        test_product_mols = calculateProductMols(
+        test_product_mols = calculateMols(
             target_mass=target_mass, target_SMILES=self.smiles
         )
 
