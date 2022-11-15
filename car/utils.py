@@ -761,10 +761,7 @@ def calculateMols(target_concentration: float, target_volume: float) -> object:
     product_moles: rdkit mol object
         The product mols
     """
-    # target_MW = Descriptors.ExactMolWt(Chem.MolFromSmiles(target_SMILES))
     target_mols = (target_volume / 1e6) * (target_concentration / 1e3)
-    # target_mass = target_mass / 1e3
-    # product_mols = target_mass / target_MW
     return target_mols
 
 
