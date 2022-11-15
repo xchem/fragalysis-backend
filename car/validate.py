@@ -46,13 +46,14 @@ class ValidateFile(object):
             self.validateCustomCombiChem()
 
         if self.upload_type == "retro-API":
-            expected_no_columns = 4
             expected_column_names = [
                 "target-SMILES",
                 "target-names",
-                "amount-required-mg",
+                "concentration-required-mM",
+                "amount-required-uL",
                 "batch-tag",
             ]
+            expected_no_columns = len(expected_column_names)
             self.checkNumberColumns(
                 expected_no_columns=expected_no_columns,
                 expected_column_names=expected_column_names,
@@ -70,14 +71,13 @@ class ValidateFile(object):
                     smiles_type="target",
                 )
                 if self.validated:
-                    self.checkIsNumber()
+                    self.checkIsNumber(values=self.amounts)
                 if self.validated:
                     self.checkIsString()
 
     def validateCustomChem(self):
         max_no_steps = max(self.df["no-steps"])
         reaction_numbers = list(range(1, max_no_steps + 1))
-        expected_no_columns = (max_no_steps * 4) + 4
         expected_reactant_1_column_names = [
             "reactant-1-{}".format(reaction_number)
             for reaction_number in reaction_numbers
@@ -98,7 +98,8 @@ class ValidateFile(object):
             [
                 "target-names",
                 "no-steps",
-                "amount-required-mg",
+                "concentration-required-mM",
+                "amount-required-uL",
                 "batch-tag",
             ]
             + expected_reactant_1_column_names
@@ -106,6 +107,8 @@ class ValidateFile(object):
             + expected_product_column_names
             + expected_reaction_name_column_names
         )
+        # expected_no_columns = (max_no_steps * 4) + 5
+        expected_no_columns = len(expected_column_names)
         self.checkNumberColumns(
             expected_no_columns=expected_no_columns,
             expected_column_names=expected_column_names,
@@ -115,7 +118,8 @@ class ValidateFile(object):
         if self.validated:
             self.target_names = self.df["target-names"]
             self.batchtags = self.df["batch-tag"]
-            self.amounts = self.df["amount-required-mg"]
+            self.concentrations = self.df["concentration-required-mM"]
+            self.amounts = self.df["amount-required-uL"]
             self.nosteps = self.df["no-steps"]
             self.target_smiles = []
             self.products = []
@@ -206,17 +210,18 @@ class ValidateFile(object):
                 self.df["batch-tag"] = self.batchtags
                 self.df["target-names"] = self.target_names
                 self.df["target-SMILES"] = self.target_smiles
-                self.df["amount-required-mg"] = self.amounts
+                self.df["concentration-required-mM"] = self.concentrations
+                self.df["amount-required-uL"] = self.amounts
                 self.df["no-steps"] = self.nosteps
                 self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
                 self.df["reaction-name"] = self.reaction_names
                 self.df["product-smiles"] = self.products
-                self.checkIsNumber()
+                self.checkIsNumber(values=self.concentrations)
+                self.checkIsNumber(values=self.amounts)
 
     def validateCustomCombiChem(self):
         max_no_steps = int(max(self.df["no-steps"]))
         reaction_numbers = list(range(1, max_no_steps + 1))
-        expected_no_columns = (max_no_steps * 2) + 5
         expected_reactant_1_column_names = [
             "reactant-1-{}".format(reaction_number)
             for reaction_number in reaction_numbers
@@ -229,13 +234,16 @@ class ValidateFile(object):
             [
                 "combi-group",
                 "no-steps",
-                "amount-required-mg",
+                "concentration-required-mM",
+                "amount-required-uL",
                 "batch-tag",
                 "reactant-2-1",
             ]
             + expected_reactant_1_column_names
             + expected_reaction_name_column_names
         )
+        # expected_no_columns = (max_no_steps * 2) + 5
+        expected_no_columns = len(expected_column_names)
         self.checkNumberColumns(
             expected_no_columns=expected_no_columns,
             expected_column_names=expected_column_names,
@@ -251,6 +259,7 @@ class ValidateFile(object):
             self.reactant_pair_smiles = []
             self.reaction_names = []
             self.batchtags = []
+            self.concentrations = []
             self.amounts = []
             combi_grouped = self.df.groupby(["combi-group"])
             for combi_group_name, combi_group in combi_grouped:
@@ -276,10 +285,14 @@ class ValidateFile(object):
                     "{}-{}".format(combi_group_name, i) for i in range(no_targets)
                 ]
                 batch_tags = [combi_group.at[0, "batch-tag"]] * no_targets
-                amounts = [combi_group.at[0, "amount-required-mg"]] * no_targets
+                concentrations = [
+                    combi_group.at[0, "concentration-required-mM"]
+                ] * no_targets
+                amounts = [combi_group.at[0, "amount-required-uL"]] * no_targets
                 no_steps = [combi_group.at[0, "no-steps"]] * no_targets
                 self.target_names = self.target_names + target_names
                 self.batchtags = self.batchtags + batch_tags
+                self.concentrations = self.concentrations + concentrations
                 self.amounts = self.amounts + amounts
                 self.nosteps = self.nosteps + no_steps
                 for reaction_number in reaction_numbers_group:
@@ -385,12 +398,14 @@ class ValidateFile(object):
                 self.df["batch-tag"] = self.batchtags
                 self.df["target-names"] = self.target_names
                 self.df["target-SMILES"] = self.target_smiles
-                self.df["amount-required-mg"] = self.amounts
+                self.df["concentration-required-mM"] = self.concentrations
+                self.df["amount-required-uL"] = self.amounts
                 self.df["no-steps"] = self.nosteps
                 self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
                 self.df["reaction-name"] = self.reaction_names
                 self.df["product-smiles"] = self.products
-                self.checkIsNumber()
+                self.checkIsNumber(values=self.concentrations)
+                self.checkIsNumber(values=self.amounts)
 
     def add_warning(self, field, warning_string):
         self.validate_dict["field"].append(field)
@@ -475,15 +490,15 @@ class ValidateFile(object):
             )
             self.validated = False
 
-    def checkIsNumber(self):
+    def checkIsNumber(self, values):
         try:
-            self.target_amounts = [amount for amount in self.df["amount-required-mg"]]
-            for index, amount in zip(self.index_df_rows, self.target_amounts):
-                if not isinstance(amount, (int, float)):
+            # self.target_amounts = [amount for amount in self.df["volume-required-uL"]]
+            for index, value in zip(self.index_df_rows, values):
+                if not isinstance(value, (int, float)):
                     self.add_warning(
                         field="check_number",
-                        warning_string="Target mass {} at index {} is not a valid number".format(
-                            amount, index
+                        warning_string="Value {} at index {} is not a valid number".format(
+                            value, index
                         ),
                     )
                     self.validated = False

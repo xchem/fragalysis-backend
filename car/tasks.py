@@ -134,21 +134,34 @@ def uploadManifoldReaction(validate_output):
             )
             target_names = list(group["target-names"])
             target_smiles = list(group["target-SMILES"])
-            target_amounts = list(group["amount-required-mg"])
+            target_concentrations = list(group["concentration-required-mM"])
+            target_volumes = list(group["amount-required-uL"])
             for i in range(
                 0, len(target_smiles), 10
             ):  # Manifold can do 10 smiles in one batch query
                 target_names_10 = target_names[i : i + 10]
                 target_smiles_10 = target_smiles[i : i + 10]
-                amounts_10 = target_amounts[i : i + 10]
+                target_cocentrations_10 = target_concentrations[i : i + 10]
+                target_volumes_10 = target_volumes[i : i + 10]
+
                 retrosynthesis_results = getManifoldRetrosynthesisBatch(
                     smiles=target_smiles_10
                 )
                 if "results" in retrosynthesis_results:
                     batchrouteresults = retrosynthesis_results["results"]
 
-                    for target_name, target_smi, mass, routeresult in zip(
-                        target_names_10, target_smiles_10, amounts_10, batchrouteresults
+                    for (
+                        target_name,
+                        target_smi,
+                        target_concentration,
+                        target_volume,
+                        routeresult,
+                    ) in zip(
+                        target_names_10,
+                        target_smiles_10,
+                        target_cocentrations_10,
+                        target_volumes_10,
+                        batchrouteresults,
                     ):
                         if "routes" in routeresult:
                             routes = routeresult["routes"]
@@ -157,7 +170,8 @@ def uploadManifoldReaction(validate_output):
                                     batch_id=batch_id,
                                     name=target_name,
                                     smiles=target_smi,
-                                    mass=mass,
+                                    concentration=target_concentration,
+                                    volume=target_volume,
                                 )
                                 first_route = routes[0]
 
@@ -417,7 +431,8 @@ def uploadCustomReaction(validate_output):
             for (
                 target_name,
                 target_smiles,
-                amount_required,
+                target_concentration,
+                target_volume,
                 no_steps,
                 reactant_pair_smiles_tuples,
                 reaction_name_tuples,
@@ -425,7 +440,8 @@ def uploadCustomReaction(validate_output):
             ) in zip(
                 group["target-names"],
                 group["target-SMILES"],
-                group["amount-required-mg"],
+                group["concentration-required-mM"],
+                group["amount-required-uL"],
                 group["no-steps"],
                 group["reactant-pair-smiles"],
                 group["reaction-name"],
@@ -435,7 +451,8 @@ def uploadCustomReaction(validate_output):
                     batch_id=batch_id,
                     name=target_name,
                     smiles=target_smiles,
-                    mass=amount_required,
+                    concentration=target_concentration,
+                    volume=target_volume,
                 )
                 method_id = createMethodModel(
                     target_id=target_id,

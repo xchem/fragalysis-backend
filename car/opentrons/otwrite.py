@@ -6,7 +6,7 @@
 from __future__ import annotations
 from django.core.files.storage import default_storage
 from django.conf import settings
-from django.db.models import QuerySet, Q
+from django.db.models import QuerySet, Q, Max
 import os
 from graphene_django import DjangoObjectType
 
@@ -1490,10 +1490,10 @@ class OTWrite(object):
                         actionsessiontype=actionsessiontype,
                         actionnumber=actionnumber,
                     )
-                    transfervolume = addactionqueryset.values_list(
-                        "volume", flat=True
-                    ).distinct()[0]
-                    multichanneltransfervolume = transfervolume * 8
+                    maxtransfervolume = addactionqueryset.aggregate(Max("volume"))[
+                        "volume__max"
+                    ]
+                    multichanneltransfervolume = maxtransfervolume * 8
                     solvent = addactionqueryset.values_list(
                         "solvent", flat=True
                     ).distinct()[0]
@@ -1513,7 +1513,7 @@ class OTWrite(object):
                             )
                             for solventwellinfo in fromsolventwellinfo:
                                 fromsolventwellobj = solventwellinfo[0]
-                                transfervolume = solventwellinfo[1]
+                                # transfervolume = solventwellinfo[1]
 
                                 fromplateobj = self.getPlateObj(
                                     plateid=fromsolventwellobj.plate_id.id
@@ -1526,7 +1526,7 @@ class OTWrite(object):
                                     dispenseplatename=dispenseplatename,
                                     aspiratecolumnindex=aspiratecolumnindex,
                                     dispensecolumnindex=dispensecolumnindex,
-                                    transvolume=transfervolume,
+                                    transvolume=maxtransfervolume,
                                     transfertype="workup",
                                 )
                         self.dropTip()
@@ -1556,7 +1556,7 @@ class OTWrite(object):
                                 dispenseplatename=dispenseplatename,
                                 aspiratecolumnindex=aspiratecolumnindex,
                                 dispensecolumnindex=dispensecolumnindex,
-                                transvolume=transfervolume,
+                                transvolume=maxtransfervolume,
                                 transfertype="workup",
                             )
                             self.dropTip()
@@ -1579,15 +1579,21 @@ class OTWrite(object):
                         actionsessiontype=actionsessiontype,
                         actionnumber=actionnumber,
                     )
-                    transfervolume = extractactionqueyset.values_list(
-                        "volume", flat=True
-                    ).distinct()[0]
+                    maxtransfervolume = extractactionqueyset.aggregate(Max("volume"))[
+                        "volume__max"
+                    ]
+                    # transfervolume = extractactionqueyset.values_list(
+                    #     "volume", flat=True
+                    # ).distinct()[0]
                     solvent = extractactionqueyset.values_list(
                         "solvent", flat=True
                     ).distinct()[0]
-                    bottomlayervolume = extractactionqueyset.values_list(
-                        "bottomlayervolume", flat=True
-                    ).distinct()[0]
+                    maxbottomlayervolume = extractactionqueyset.aggregate(
+                        Max("bottomlayervolume")
+                    )["bottomlayervolume__max"]
+                    # bottomlayervolume = extractactionqueyset.values_list(
+                    #     "bottomlayervolume", flat=True
+                    # ).distinct()[0]
                     fromcolumnqueryset = self.getColumnQuerySet(
                         columntype=fromplatetype, reactionclass=reactionclass
                     )
@@ -1605,21 +1611,21 @@ class OTWrite(object):
                         dispenseplatename = toplateobj.name
                         dispensecolumnindex = tocolumnobj.index
                         if not aspirateheight:
-                            if bottomlayervolume:
+                            if maxbottomlayervolume:
                                 aspirateheight = self.calculateAspirateHeight(
                                     labware=fromplateobj.labware,
-                                    bottomlayervolume=bottomlayervolume,
+                                    bottomlayervolume=maxbottomlayervolume,
                                 )
                             else:
                                 aspirateheight = 0.1
-                        self.delayProtocol(delay=5)
+                        # self.delayProtocol(delay=5)
                         self.pickUpTip()
                         self.transferFluidMulti(
                             aspirateplatename=aspirateplatename,
                             dispenseplatename=dispenseplatename,
                             aspiratecolumnindex=aspiratecolumnindex,
                             dispensecolumnindex=dispensecolumnindex,
-                            transvolume=transfervolume,
+                            transvolume=maxtransfervolume,
                             transfertype="workup",
                             aspirateheight=aspirateheight,
                         )
@@ -1647,9 +1653,12 @@ class OTWrite(object):
                     repetitions = mixactionqueyset.values_list(
                         "repetitions", flat=True
                     ).distinct()[0]
-                    mixvolume = mixactionqueyset.values_list(
-                        "volume", flat=True
-                    ).distinct()[0]
+                    maxmixvolume = addactionqueryset.aggregate(Max("volume"))[
+                        "volume__max"
+                    ]
+                    # mixvolume = mixactionqueyset.values_list(
+                    #     "volume", flat=True
+                    # ).distinct()[0]
 
                     mixcolumnqueryset = self.getColumnQuerySet(
                         columntype=platetype, reactionclass=reactionclass
@@ -1664,7 +1673,7 @@ class OTWrite(object):
                             columnindex=mixcolumnindex,
                             nomixes=repetitions,
                             plate=mixplatename,
-                            volumetomix=mixvolume,
+                            volumetomix=maxmixvolume,
                         )
                         self.dropTip()
 

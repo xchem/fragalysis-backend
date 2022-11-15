@@ -746,25 +746,46 @@ def getInchiKey(smiles: str) -> str:
     return inchikey
 
 
-def calculateProductMols(target_mass: float, target_SMILES: str) -> object:
+def calculateMols(target_concentration: float, target_volume: float) -> object:
     """Function to calculate product mols of reaction using a target mass
 
     Parameters
     ----------
-    target_mass: float
-        The target mass (mg) of the product
-    target_SMILES: str
-        The SMILES of the product
+    target_concentration: float
+        The target concentration (mM) of the product
+    target_volume: float
+        The target volume (uL) of the product
 
     Returns
     -------
     product_moles: rdkit mol object
         The product mols
     """
-    target_MW = Descriptors.ExactMolWt(Chem.MolFromSmiles(target_SMILES))
-    target_mass = target_mass / 1e3
-    product_mols = target_mass / target_MW
-    return product_mols
+    # target_MW = Descriptors.ExactMolWt(Chem.MolFromSmiles(target_SMILES))
+    target_mols = (target_volume / 1e6) * (target_concentration / 1e3)
+    # target_mass = target_mass / 1e3
+    # product_mols = target_mass / target_MW
+    return target_mols
+
+
+def calculateMassFromMols(mols: float, SMILES: str) -> object:
+    """Function to calculate mass from mols
+
+    Parameters
+    ----------
+    mols: float
+        The mols of the compound
+    SMILES: str
+        The SMILES of the compound
+
+    Returns
+    -------
+    mass: float
+        The mass (mg) of the compound
+    """
+    MW = Descriptors.ExactMolWt(Chem.MolFromSmiles(SMILES))
+    mass = (mols * MW) * 1e3
+    return mass
 
 
 def canonSmiles(smiles: str) -> str:
