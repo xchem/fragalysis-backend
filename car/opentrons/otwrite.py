@@ -54,9 +54,9 @@ class OTWrite(object):
         self,
         batchtag: str,
         otsessionobj: OTSession,
-        reaction_ids: list,
+        # reaction_ids: list,
         actionsession_ids: list,
-        groupreactionqueryset: QuerySet[Reaction],
+        # groupreactionqueryset: QuerySet[Reaction],
         apiLevel: str = "2.9",
     ):
         """Initiates an otWrite object
@@ -80,11 +80,15 @@ class OTWrite(object):
         self.otsessiontype = otsessionobj.sessiontype
         self.batchtag = batchtag
         self.apiLevel = apiLevel
-        self.reaction_ids = reaction_ids
+        # self.reaction_ids = [
+        #     reactionobj.id for reactionobj in groupreactionqueryset
+        # ]
         self.actionsession_ids = actionsession_ids
         self.actionsessionqueryset = self.getActionSessionQuerySet()
+        self.reaction_ids = [actionsession_obj.reaction_id.id for actionsession_obj in self.actionsessionqueryset]
+        self.groupreactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
 
-        self.groupreactionqueryset = groupreactionqueryset
+        # self.groupreactionqueryset = groupreactionqueryset
         self.protocolname = (
             "{}-session-ot-script-batch-{}-reactionstep{}-sessionid-{}".format(
                 self.otsessiontype,
@@ -137,11 +141,11 @@ class OTWrite(object):
         addactionqueryset: QuerySet[AddAction]
             The add actions related to the reaction and action sessions
         """
-        criterion1 = Q(reaction_id__in=self.reaction_ids)
+        # criterion1 = Q(reaction_id__in=self.reaction_ids)
         criterion2 = Q(id__in=self.actionsession_ids)
 
         actionsessionqueryset = ActionSession.objects.filter(
-            criterion1 & criterion2
+            criterion2
         ).order_by("id")
         return actionsessionqueryset
 
@@ -1138,98 +1142,104 @@ class OTWrite(object):
             "sessionnumber", flat=True
         ).distinct()[0]
         if self.reactionstep > 1:
-            reactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
-            groupedreactionclassquerysets = self.getGroupedReactionByClass(
-                reactionqueryset=reactionqueryset
-            )
-            self.pickUpTip()
-            for groupreactionclassqueryset in groupedreactionclassquerysets:
-                actionsessiontype = "reaction"
-                reactionclass = groupreactionclassqueryset.values_list(
-                    "reactionclass", flat=True
-                ).distinct()[0]
-                recipetype = "standard"
-                intramolecular = groupreactionclassqueryset.values_list(
-                    "intramolecular", flat=True
-                ).distinct()[0]
-                if intramolecular:
-                    reactionactionsearch = "intramolecular"
-                if not intramolecular:
-                    reactionactionsearch = "intermolecular"
-                actionsessions = encoded_recipes[reactionclass]["recipes"][recipetype][
-                    "actionsessions"
-                ]
-                print("Reactions greater than 1")
-                print(actionsessionqueryset.values_list("type", flat=True).distinct())
-                print(reactionclass,sessionnumber)
-                reactionactions = [
-                    actionsession[reactionactionsearch]["actions"]
-                    for actionsession in actionsessions
-                    if actionsession["type"] == actionsessiontype
-                    and actionsession["sessionnumber"] == sessionnumber
-                ][0]
-                reactionaddactions = [
-                    action
-                    for action in reactionactions
-                    if action["content"]["material"]["SMARTS"] != None
-                ]
-                for reactionaddaction in reactionaddactions:
-                    toplatetype = reactionaddaction["content"]["plates"]["toplatetype"]
-                    actionnumber = reactionaddaction["actionnumber"]
-                    addactionqueryset = self.getAddActionQuerySet(
-                        reaction_ids=groupreactionclassqueryset,
-                        actionsessiontype=actionsessiontype,
-                        actionnumber=actionnumber,
-                    )
-                    for addactionobj in addactionqueryset:
-                        reactionobj = addactionobj.reaction_id
-                        smiles = addactionobj.smiles
-                        solvent = addactionobj.solvent
-                        transfervolume = addactionobj.volume
-                        concentration = addactionobj.concentration
-
-                        fromwellinfo = self.findStartingPlateWellObj(
-                            reaction_id=reactionobj.id,
-                            smiles=smiles,
-                            solvent=solvent,
-                            concentration=concentration,
-                            transfervolume=transfervolume,
+            try:
+                reactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
+                groupedreactionclassquerysets = self.getGroupedReactionByClass(
+                    reactionqueryset=reactionqueryset
+                )
+                self.pickUpTip()
+                for groupreactionclassqueryset in groupedreactionclassquerysets:
+                    print(groupreactionclassqueryset)
+                    actionsessiontype = "reaction"
+                    reactionclass = groupreactionclassqueryset.values_list(
+                        "reactionclass", flat=True
+                    ).distinct()[0]
+                    recipetype = "standard"
+                    intramolecular = groupreactionclassqueryset.values_list(
+                        "intramolecular", flat=True
+                    ).distinct()[0]
+                    if intramolecular:
+                        reactionactionsearch = "intramolecular"
+                    if not intramolecular:
+                        reactionactionsearch = "intermolecular"
+                    actionsessions = encoded_recipes[reactionclass]["recipes"][recipetype][
+                        "actionsessions"
+                    ]
+                    # print("Reactions greater than 1")
+                    # print(actionsessionqueryset.values_list("type", flat=True).distinct())
+                    # print(actionsessionqueryset.values_list("sessionnumber", flat=True).distinct())
+                    # print(reactionclass,sessionnumber)
+                    reactionactions = [
+                        actionsession[reactionactionsearch]["actions"]
+                        for actionsession in actionsessions
+                        if actionsession["type"] == actionsessiontype
+                        and actionsession["sessionnumber"] == sessionnumber
+                    ][0]
+                    reactionaddactions = [
+                        action
+                        for action in reactionactions
+                        if action["content"]["material"]["SMARTS"] != None
+                    ]
+                    for reactionaddaction in reactionaddactions:
+                        toplatetype = reactionaddaction["content"]["plates"]["toplatetype"]
+                        actionnumber = reactionaddaction["actionnumber"]
+                        addactionqueryset = self.getAddActionQuerySet(
+                            reaction_ids=groupreactionclassqueryset,
+                            actionsessiontype=actionsessiontype,
+                            actionnumber=actionnumber,
                         )
-                        for wellinfo in fromwellinfo:
-                            previousreactionobjs = wellinfo[0]
-                            fromwellobj = wellinfo[1]
-                            transfervolume = wellinfo[2]
-                            if previousreactionobjs:
-                                fromsolventwellinfo = self.findSolventPlateWellObj(
-                                    solvent=solvent,
-                                    transfervolume=transfervolume,
-                                )
-                                for solventwellinfo in fromsolventwellinfo:
-                                    fromsolventwellobj = solventwellinfo[0]
-                                    transfervolume = solventwellinfo[1]
-                                    towellobj = fromwellobj
-                                    fromplateobj = self.getPlateObj(
-                                        plateid=fromsolventwellobj.plate_id.id
-                                    )
-                                    toplateobj = self.getPlateObj(
-                                        plateid=towellobj.plate_id.id
-                                    )
+                        for addactionobj in addactionqueryset:
+                            reactionobj = addactionobj.reaction_id
+                            smiles = addactionobj.smiles
+                            solvent = addactionobj.solvent
+                            transfervolume = addactionobj.volume
+                            concentration = addactionobj.concentration
 
-                                    aspirateplatename = fromplateobj.name
-                                    dispenseplatename = toplateobj.name
-                                    aspiratewellindex = fromsolventwellobj.index
-                                    dispensewellindex = towellobj.index
-
-                                    self.transferFluidSingle(
-                                        aspirateplatename=aspirateplatename,
-                                        dispenseplatename=dispenseplatename,
-                                        aspiratewellindex=aspiratewellindex,
-                                        dispensewellindex=dispensewellindex,
-                                        transvolume=transfervolume,
-                                        transfertype="dilution",
+                            fromwellinfo = self.findStartingPlateWellObj(
+                                reaction_id=reactionobj.id,
+                                smiles=smiles,
+                                solvent=solvent,
+                                concentration=concentration,
+                                transfervolume=transfervolume,
+                            )
+                            for wellinfo in fromwellinfo:
+                                previousreactionobjs = wellinfo[0]
+                                fromwellobj = wellinfo[1]
+                                transfervolume = wellinfo[2]
+                                if previousreactionobjs:
+                                    fromsolventwellinfo = self.findSolventPlateWellObj(
+                                        solvent=solvent,
+                                        transfervolume=transfervolume,
                                     )
-                self.dropTip()
+                                    for solventwellinfo in fromsolventwellinfo:
+                                        fromsolventwellobj = solventwellinfo[0]
+                                        transfervolume = solventwellinfo[1]
+                                        towellobj = fromwellobj
+                                        fromplateobj = self.getPlateObj(
+                                            plateid=fromsolventwellobj.plate_id.id
+                                        )
+                                        toplateobj = self.getPlateObj(
+                                            plateid=towellobj.plate_id.id
+                                        )
 
+                                        aspirateplatename = fromplateobj.name
+                                        dispenseplatename = toplateobj.name
+                                        aspiratewellindex = fromsolventwellobj.index
+                                        dispensewellindex = towellobj.index
+
+                                        self.transferFluidSingle(
+                                            aspirateplatename=aspirateplatename,
+                                            dispenseplatename=dispenseplatename,
+                                            aspiratewellindex=aspiratewellindex,
+                                            dispensewellindex=dispensewellindex,
+                                            transvolume=transfervolume,
+                                            transfertype="dilution",
+                                        )
+                    self.dropTip()
+            except Exception as e:
+                logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+                print(e)
+                print(reactionqueryset)
             self.PauseProtocol(
                 message="Addtion of dilution solvent complete. Confimr dilution complete to restart protocol."
             )

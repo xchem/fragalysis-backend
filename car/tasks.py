@@ -647,15 +647,15 @@ def createOTScript(batchids: list, protocol_name: str):
                                     reactionstep=index + 1,
                                     otbatchprotocolobj=otbatchprotocolobj,
                                     actionsessionqueryset=robot_actionsessionqueryset,
-                                    groupreactionqueryset=groupreactionqueryset,
+                                    # groupreactionqueryset=groupreactionqueryset,
                                 )
 
                                 OTWrite(
                                     batchtag=batchtag,
                                     otsessionobj=session.otsessionobj,
-                                    reaction_ids=reaction_ids,
+                                    # reaction_ids=reaction_ids,
                                     actionsession_ids=actionsession_ids,
-                                    groupreactionqueryset=groupreactionqueryset,
+                                    # groupreactionqueryset=groupreactionqueryset,
                                 )
 
                 if index > 0:
@@ -707,15 +707,15 @@ def createOTScript(batchids: list, protocol_name: str):
                                         reactionstep=index + 1,
                                         otbatchprotocolobj=otbatchprotocolobj,
                                         actionsessionqueryset=robot_actionsessionqueryset,
-                                        groupreactionqueryset=groupreactiontodoqueryset,
+                                        # groupreactionqueryset=groupreactiontodoqueryset,
                                     )
 
                                     OTWrite(
                                         batchtag=batchtag,
                                         otsessionobj=session.otsessionobj,
-                                        reaction_ids=reaction_ids,
+                                        # reaction_ids=reaction_ids,
                                         actionsession_ids=actionsession_ids,
-                                        groupreactionqueryset=groupreactiontodoqueryset,
+                                        # groupreactionqueryset=groupreactiontodoqueryset,
                                     )
 
             createZipOTBatchProtocol = ZipOTBatchProtocol(

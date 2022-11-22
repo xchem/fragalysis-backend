@@ -2166,7 +2166,7 @@ encoded_recipes = {
             "standard": {
                 "yield": 70,
                 "reactionSMARTS": "[c:1]-[#7:2].[#6]-[#8:3]>>[c:1]-[#7:2]-[#6:3]",
-                "references": "To do",
+                "references": None,
                 "actionsessions": [
                     {
                         "type": "reaction",
