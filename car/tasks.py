@@ -647,15 +647,12 @@ def createOTScript(batchids: list, protocol_name: str):
                                     reactionstep=index + 1,
                                     otbatchprotocolobj=otbatchprotocolobj,
                                     actionsessionqueryset=robot_actionsessionqueryset,
-                                    # groupreactionqueryset=groupreactionqueryset,
                                 )
 
                                 OTWrite(
                                     batchtag=batchtag,
                                     otsessionobj=session.otsessionobj,
-                                    # reaction_ids=reaction_ids,
                                     actionsession_ids=actionsession_ids,
-                                    # groupreactionqueryset=groupreactionqueryset,
                                 )
 
                 if index > 0:
@@ -707,15 +704,12 @@ def createOTScript(batchids: list, protocol_name: str):
                                         reactionstep=index + 1,
                                         otbatchprotocolobj=otbatchprotocolobj,
                                         actionsessionqueryset=robot_actionsessionqueryset,
-                                        # groupreactionqueryset=groupreactiontodoqueryset,
                                     )
 
                                     OTWrite(
                                         batchtag=batchtag,
                                         otsessionobj=session.otsessionobj,
-                                        # reaction_ids=reaction_ids,
                                         actionsession_ids=actionsession_ids,
-                                        # groupreactionqueryset=groupreactiontodoqueryset,
                                     )
 
             createZipOTBatchProtocol = ZipOTBatchProtocol(

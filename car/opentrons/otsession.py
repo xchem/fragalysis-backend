@@ -55,7 +55,6 @@ class CreateOTSession(object):
         reactionstep: int,
         otbatchprotocolobj: OTBatchProtocol,
         actionsessionqueryset: QuerySet[ActionSession],
-        # groupreactionqueryset: QuerySet[Reaction],
     ):
         """Initiates a CreateOTSession
 
@@ -79,7 +78,6 @@ class CreateOTSession(object):
             "sessionnumber", flat=True
         )[0]
         self.actionsession_ids = actionsessionqueryset.values_list("id", flat=True)
-        # self.groupreactionqueryset = groupreactionqueryset
         self.reaction_ids = [actionsession_obj.reaction_id.id for actionsession_obj in self.actionsessionqueryset]
         self.groupreactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
         self.otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
@@ -101,10 +99,6 @@ class CreateOTSession(object):
 
     def createReactionSession(self):
         """Creates a reaction OT session"""
-        # self.reaction_ids = [
-        #     reactionobj.id for reactionobj in self.groupreactionqueryset
-        # ]
-
         self.groupedreactiontemperaturequerysets = self.getGroupedTemperatureReactions(
             reactionqueryset=self.groupreactionqueryset
         )
@@ -135,6 +129,7 @@ class CreateOTSession(object):
         )
         if continuationactionsessions.exists():
             searchsmiles = getProductSmiles(reaction_ids=self.reaction_ids)
+            searchsmiles += list(self.addactionqueryset.values_list("smiles", flat=True))
         if not continuationactionsessions.exists():
             searchsmiles = self.addactionqueryset.values_list("smiles", flat=True)
         inputplatequeryset = self.getInputPlatesNeeded(searchsmiles=searchsmiles)
@@ -151,10 +146,6 @@ class CreateOTSession(object):
 
     def createWorkUpSession(self):
         """Creates a workup OT session"""
-        # self.reaction_ids = [
-        #     actionsessionobj.reaction_id.id
-        #     for actionsessionobj in self.actionsessionqueryset
-        # ]
         self.roundedvolumes = []
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
@@ -202,10 +193,6 @@ class CreateOTSession(object):
 
     def createAnalyseSession(self):
         """Creates an analyse OT session"""
-        # self.reaction_ids = [
-        #     actionsessionobj.reaction_id.id
-        #     for actionsessionobj in self.actionsessionqueryset
-        # ]
         self.roundedvolumes = []
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
@@ -285,7 +272,7 @@ class CreateOTSession(object):
             criterion1 = Q(reaction_id__in=reaction_ids)
         criterion2 = Q(reactantfornextstep=True)
         criterion3 = Q(smiles__in=searchsmiles)
-        criterion4 = Q(type__in=["reaction", "workup1", "workup2", "workup3"])
+        criterion4 = Q(type__in=["reaction", "workup1", "workup2", "workup3", "spefilter"])
         if otbatchprotocolplatequeryset:
             for plateobj in otbatchprotocolplatequeryset:
                 wellmatchqueryset = plateobj.well_set.all().filter(
@@ -1560,10 +1547,9 @@ class CreateOTSession(object):
         """
         wellindexcorrection = plateobj.numberwellsincolumn
         indexcolumnavailable = plateobj.indexcolumnavailable
-        newcolumnindex = indexcolumnavailable + 1
-        if newcolumnindex + 1 < plateobj.numbercolumns:
-            newwellindex = newcolumnindex * wellindexcorrection
-            return (newcolumnindex, newwellindex)
+        if indexcolumnavailable + 1 <= plateobj.numbercolumns:
+            newwellindex = indexcolumnavailable * wellindexcorrection
+            return (indexcolumnavailable, newwellindex)
         else:
             return False
 
@@ -1622,9 +1608,7 @@ class CreateOTSession(object):
             reactionclass = groupreactionclassqueryset.values_list(
                 "reactionclass", flat=True
             ).distinct()[0]
-
             indexwellavailable = self.getPlateWellIndexAvailable(plateobj=plateobj)
-
             if type(indexwellavailable) == bool:
                 plateobj = self.createPlateModel(
                     platetype=platetype,

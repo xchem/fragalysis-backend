@@ -54,9 +54,7 @@ class OTWrite(object):
         self,
         batchtag: str,
         otsessionobj: OTSession,
-        # reaction_ids: list,
         actionsession_ids: list,
-        # groupreactionqueryset: QuerySet[Reaction],
         apiLevel: str = "2.9",
     ):
         """Initiates an otWrite object
@@ -80,15 +78,10 @@ class OTWrite(object):
         self.otsessiontype = otsessionobj.sessiontype
         self.batchtag = batchtag
         self.apiLevel = apiLevel
-        # self.reaction_ids = [
-        #     reactionobj.id for reactionobj in groupreactionqueryset
-        # ]
         self.actionsession_ids = actionsession_ids
         self.actionsessionqueryset = self.getActionSessionQuerySet()
         self.reaction_ids = [actionsession_obj.reaction_id.id for actionsession_obj in self.actionsessionqueryset]
         self.groupreactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
-
-        # self.groupreactionqueryset = groupreactionqueryset
         self.protocolname = (
             "{}-session-ot-script-batch-{}-reactionstep{}-sessionid-{}".format(
                 self.otsessiontype,
@@ -141,7 +134,6 @@ class OTWrite(object):
         addactionqueryset: QuerySet[AddAction]
             The add actions related to the reaction and action sessions
         """
-        # criterion1 = Q(reaction_id__in=self.reaction_ids)
         criterion2 = Q(id__in=self.actionsession_ids)
 
         actionsessionqueryset = ActionSession.objects.filter(
@@ -1137,7 +1129,6 @@ class OTWrite(object):
         return aspirateheight
 
     def writeReactionActions(self, actionsessionqueryset: QuerySet[ActionSession]):
-        # print(actionsessionqueryset.values_list("sessionnumber", flat=True))
         sessionnumber = actionsessionqueryset.values_list(
             "sessionnumber", flat=True
         ).distinct()[0]
@@ -1149,7 +1140,6 @@ class OTWrite(object):
                 )
                 self.pickUpTip()
                 for groupreactionclassqueryset in groupedreactionclassquerysets:
-                    print(groupreactionclassqueryset)
                     actionsessiontype = "reaction"
                     reactionclass = groupreactionclassqueryset.values_list(
                         "reactionclass", flat=True
@@ -1165,10 +1155,6 @@ class OTWrite(object):
                     actionsessions = encoded_recipes[reactionclass]["recipes"][recipetype][
                         "actionsessions"
                     ]
-                    # print("Reactions greater than 1")
-                    # print(actionsessionqueryset.values_list("type", flat=True).distinct())
-                    # print(actionsessionqueryset.values_list("sessionnumber", flat=True).distinct())
-                    # print(reactionclass,sessionnumber)
                     reactionactions = [
                         actionsession[reactionactionsearch]["actions"]
                         for actionsession in actionsessions
@@ -1402,8 +1388,6 @@ class OTWrite(object):
                             )
                             for solventwellinfo in fromsolventwellinfo:
                                 fromsolventwellobj = solventwellinfo[0]
-                                # transfervolume = solventwellinfo[1]
-
                                 fromplateobj = self.getPlateObj(
                                     plateid=fromsolventwellobj.plate_id.id
                                 )
