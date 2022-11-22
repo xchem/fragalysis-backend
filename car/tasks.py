@@ -638,7 +638,6 @@ def createOTScript(batchids: list, protocol_name: str):
                             if human_actionsessionqueryset:
                                 pass
                             if robot_actionsessionqueryset:
-
                                 actionsession_ids = (
                                     robot_actionsessionqueryset.values_list(
                                         "id", flat=True

@@ -323,6 +323,10 @@ class AddAction(models.Model):
         ul = "ul"
         ml = "ml"
 
+    class MassUnit(models.TextChoices):
+        mg = "mg"
+        g = "g"
+
     class PlateType(models.TextChoices):
         reaction = "reaction"
         workup1 = "workup1"
@@ -346,10 +350,13 @@ class AddAction(models.Model):
     calcunit = models.CharField(
         choices=CalcUnit.choices, default="moleq", max_length=10
     )
-    volume = models.FloatField()
+    volume = models.FloatField(null=True)
     volumeunit = models.CharField(
         choices=VolumeUnit.choices, default="ul", max_length=2
     )
+    mass = models.FloatField(null=True)
+    massunit = models.CharField(choices=MassUnit.choices, default="mg", max_length=2)
+
     molecularweight = models.FloatField()
     solvent = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)

@@ -557,7 +557,6 @@ class CreateEncodedActionModels(object):
         self.productmass = calculateMassFromMols(
             mols=self.productmols, SMILES=self.product_obj.smiles
         )
-        print(self.reaction_name, self.productmass)
         self.productsmiles = getProductSmiles(reaction_ids=[reaction_id])[0]
         self.mculeidlist = []
         self.amountslist = []
@@ -659,6 +658,36 @@ class CreateEncodedActionModels(object):
     #     product = Product.objects.get(reaction_id=self.reaction_id)
     #     return product.smiles
 
+    def calculateMass(
+        self,
+        calcunit: str,
+        calcvalue: float,
+        reactant_MW: float,
+    ) -> float:
+        """Calculates the reactant mass (mg) required for an add action step
+
+        Parameters
+        ----------
+        calcunit: str
+            The unit used for the calculation eg. mass equivalents
+        calcvalue: int
+            The the quivalents to use in the calculation
+        reactant_MW: float
+            The molecular weight (g/mol) of the reactant
+
+        Returns
+        -------
+        mass_material: float
+            The mass (mg) of the material required for the add action step
+        """
+        try:
+            if calcunit == "moleq":
+                mol_material = float(calcvalue) * self.productmols
+                mass_material = mol_material * reactant_MW * 1000
+                return mass_material
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+
     def calculateVolume(
         self,
         calcunit: str,
@@ -675,8 +704,6 @@ class CreateEncodedActionModels(object):
             The unit used for the calculation eg. mass equivalents
         calcvalue: int
             The the quivalents to use in the calculation
-        molar_eqv: float
-            The optional molar equivalents required for the add action
         conc_reagents: float
             The optional concentration of the reactant
         reactant_density: float
@@ -692,10 +719,8 @@ class CreateEncodedActionModels(object):
         try:
             if calcunit == "masseq":
                 vol_material = float(calcvalue) * self.productmass
-                print("The mass equivalent volume is: {}".format(vol_material))
                 return vol_material
             if calcunit == "moleq":
-                # yieldcorrection = math.prod(reactionyields)
                 mol_material = float(calcvalue) * self.productmols
                 if reactant_density:
                     vol_material = (
@@ -770,8 +795,8 @@ class CreateEncodedActionModels(object):
             calcvalue = action["content"]["material"]["quantity"]["value"]
             calcunit = action["content"]["material"]["quantity"]["unit"]
             concentration = action["content"]["material"]["concentration"]
-            if not concentration:
-                concentration = 0
+            # if not concentration:
+            #     concentration = 0
             solvent = action["content"]["material"]["solvent"]
             mol = Chem.MolFromSmiles(smiles)
             molecular_weight = Descriptors.ExactMolWt(mol)
@@ -793,22 +818,13 @@ class CreateEncodedActionModels(object):
                 )
                 add.solvent = solvent
             if calcunit == "moleq":
-                # proceedingreactionqueryset = checkProceedingReactions(
-                #     reaction_id=self.reaction_obj.id
-                # )
-                # if proceedingreactionqueryset:
-                #     reactionclasslist = [
-                #         reactionobj.reactionclass
-                #         for reactionobj in proceedingreactionqueryset
-                #     ] + [self.reaction_name]
-                #     reactionyields = getReactionYields(
-                #         reactionclasslist=reactionclasslist
-                #     )
-                # if not proceedingreactionqueryset:
-                #     reactionyields = getReactionYields(
-                #         reactionclasslist=[self.reaction_name]
-                #     )
-                if not solvent:
+                if not solvent and not concentration:
+                    add.mass = self.calculateMass(
+                        calcunit=calcunit,
+                        calcvalue=calcvalue,
+                        reactant_MW=molecular_weight,
+                    )
+                if "density" in action["content"]["material"]:
                     reactant_density = action["content"]["material"]["density"]
                     add.volume = self.calculateVolume(
                         calcunit=calcunit,
@@ -823,7 +839,8 @@ class CreateEncodedActionModels(object):
                         conc_reagents=concentration,
                     )
                     add.solvent = solvent
-            add.concentration = concentration
+            if concentration:
+                add.concentration = concentration
             add.save()
 
         except Exception as e:

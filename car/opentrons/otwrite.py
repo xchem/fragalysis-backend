@@ -1133,6 +1133,7 @@ class OTWrite(object):
         return aspirateheight
 
     def writeReactionActions(self, actionsessionqueryset: QuerySet[ActionSession]):
+        # print(actionsessionqueryset.values_list("sessionnumber", flat=True))
         sessionnumber = actionsessionqueryset.values_list(
             "sessionnumber", flat=True
         ).distinct()[0]
@@ -1158,6 +1159,9 @@ class OTWrite(object):
                 actionsessions = encoded_recipes[reactionclass]["recipes"][recipetype][
                     "actionsessions"
                 ]
+                print("Reactions greater than 1")
+                print(actionsessionqueryset.values_list("type", flat=True).distinct())
+                print(reactionclass,sessionnumber)
                 reactionactions = [
                     actionsession[reactionactionsearch]["actions"]
                     for actionsession in actionsessions
