@@ -55,7 +55,7 @@ class CreateOTSession(object):
         reactionstep: int,
         otbatchprotocolobj: OTBatchProtocol,
         actionsessionqueryset: QuerySet[ActionSession],
-        groupreactionqueryset: QuerySet[Reaction],
+        # groupreactionqueryset: QuerySet[Reaction],
     ):
         """Initiates a CreateOTSession
 
@@ -79,7 +79,9 @@ class CreateOTSession(object):
             "sessionnumber", flat=True
         )[0]
         self.actionsession_ids = actionsessionqueryset.values_list("id", flat=True)
-        self.groupreactionqueryset = groupreactionqueryset
+        # self.groupreactionqueryset = groupreactionqueryset
+        self.reaction_ids = [actionsession_obj.reaction_id.id for actionsession_obj in self.actionsessionqueryset]
+        self.groupreactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
         self.otsessionqueryset = self.otbatchprotocolobj.otsessions.all()
         self.batchobj = Batch.objects.get(id=otbatchprotocolobj.batch_id_id)
         self.actionsessiontype = self.getActionSessionType()
@@ -99,9 +101,10 @@ class CreateOTSession(object):
 
     def createReactionSession(self):
         """Creates a reaction OT session"""
-        self.reaction_ids = [
-            reactionobj.id for reactionobj in self.groupreactionqueryset
-        ]
+        # self.reaction_ids = [
+        #     reactionobj.id for reactionobj in self.groupreactionqueryset
+        # ]
+
         self.groupedreactiontemperaturequerysets = self.getGroupedTemperatureReactions(
             reactionqueryset=self.groupreactionqueryset
         )
@@ -148,10 +151,10 @@ class CreateOTSession(object):
 
     def createWorkUpSession(self):
         """Creates a workup OT session"""
-        self.reaction_ids = [
-            actionsessionobj.reaction_id.id
-            for actionsessionobj in self.actionsessionqueryset
-        ]
+        # self.reaction_ids = [
+        #     actionsessionobj.reaction_id.id
+        #     for actionsessionobj in self.actionsessionqueryset
+        # ]
         self.roundedvolumes = []
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,
@@ -199,10 +202,10 @@ class CreateOTSession(object):
 
     def createAnalyseSession(self):
         """Creates an analyse OT session"""
-        self.reaction_ids = [
-            actionsessionobj.reaction_id.id
-            for actionsessionobj in self.actionsessionqueryset
-        ]
+        # self.reaction_ids = [
+        #     actionsessionobj.reaction_id.id
+        #     for actionsessionobj in self.actionsessionqueryset
+        # ]
         self.roundedvolumes = []
         self.addactionqueryset = self.getAddActionQuerySet(
             reaction_ids=self.reaction_ids,

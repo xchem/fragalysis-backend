@@ -438,6 +438,65 @@ def getBatchTargetSmiles(batch_id: int) -> list[float]:
     return target_SMILES
 
 
+def getBatchReactionIDs(batch_id: int, reaction_number: int) -> list[float]:
+    """Gets the reaction ids for a reaction number in
+       a batch
+
+    Parameters
+    ----------
+    batch_id: int
+        The batch id to get the target molecular weights for
+    reaction_number: int
+        The reactions to find product SMILES for
+
+    Returns
+    -------
+    reaction_IDs: list
+        The reaction IDs for a reaction step in a batch
+    """
+    reaction_IDs = []
+    batchobj = Batch.objects.get(id=batch_id)
+    targetqueryset = batchobj.targets.all().order_by("id")
+    for targetobj in targetqueryset:
+        methodqueryset = targetobj.methods.all().order_by("id")
+        for methodobj in methodqueryset:
+            reactionqueryset = (
+                methodobj.reactions.all().filter(number=reaction_number).order_by("id")
+            )
+            for reactionobj in reactionqueryset:
+                reaction_IDs.append(reactionobj.id)
+    return reaction_IDs
+
+
+def updateReactionSuccessToFail(reaction_ids: list[int]):
+    """Updates reactions to be failures
+
+    Parameters
+    ----------
+    reactions_ids: list[int]
+        The reactions to update as synthetic failures
+    """
+    if Reaction.objects.filter(id__in=reaction_ids).exists():
+        Reaction.objects.filter(id__in=reaction_ids).update(success=False)
+
+
+def updateBatchMethodOTFriendly(batch_id: int):
+    """Updates a batch of methods to all be OT friendly
+
+    Parameters
+    ----------
+    batch_id: int
+        The batch id to get the target molecular weights for
+    """
+    batchobj = Batch.objects.get(id=batch_id)
+    targetqueryset = batchobj.targets.all().order_by("id")
+    for targetobj in targetqueryset:
+        methodqueryset = targetobj.methods.all().order_by("id")
+        for methodobj in methodqueryset:
+            methodobj.otchem = True
+            methodobj.save()
+
+
 def getBatchReactionProductSmiles(batch_id: int, reaction_number: int) -> list[float]:
     """Gets the MWs of the products for a reaction in
        a batch
