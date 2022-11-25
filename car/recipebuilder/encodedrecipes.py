@@ -64,9 +64,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
                                             "quantity": {"value": 3.5, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -137,9 +136,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
                                             "quantity": {"value": 3.5, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -272,7 +270,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -321,7 +318,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "workup1",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -517,9 +513,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
                                             "quantity": {"value": 3.5, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -556,9 +551,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
                                             "quantity": {"value": 3.5, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -771,7 +765,6 @@ encoded_recipes = {
                                             "SMILES": "C1CCN2CCCN=C2CC1",
                                             "quantity": {"value": 2, "unit": "moleq"},
                                             "solvent": "DMA",
-                                            "density": 1.02,
                                             "concentration": 10,
                                         },
                                     },
@@ -790,7 +783,7 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "temperature": {
-                                        "value": 100,
+                                        "value": 120,
                                         "unit": "degC",
                                     },
                                     "duration": {"value": 18, "unit": "hours"},
@@ -798,7 +791,7 @@ encoded_recipes = {
                             },
                         ],
                     },
-                    {
+                                  {
                         "type": "workup",
                         "driver": "robot",
                         "sessionnumber": 3,
@@ -845,7 +838,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -859,7 +851,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -890,7 +882,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -904,7 +895,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -935,7 +926,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -949,7 +939,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -1086,7 +1076,6 @@ encoded_recipes = {
                                             "SMILES": "C1CCN2CCCN=C2CC1",
                                             "quantity": {"value": 2, "unit": "moleq"},
                                             "solvent": "DMA",
-                                            "density": 1.02,
                                             "concentration": 10,
                                         },
                                     },
@@ -1113,7 +1102,7 @@ encoded_recipes = {
                             },
                         ],
                     },
-                    {
+                                      {
                         "type": "workup",
                         "driver": "robot",
                         "sessionnumber": 3,
@@ -1160,7 +1149,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -1174,7 +1162,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -1205,7 +1193,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -1219,7 +1206,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -1250,7 +1237,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -1264,7 +1250,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -1401,7 +1387,6 @@ encoded_recipes = {
                                             "SMILES": "C1CCN2CCCN=C2CC1",
                                             "quantity": {"value": 2, "unit": "moleq"},
                                             "solvent": "DMA",
-                                            "density": 1.02,
                                             "concentration": 10,
                                         },
                                     },
@@ -1428,7 +1413,7 @@ encoded_recipes = {
                             },
                         ],
                     },
-                    {
+                                      {
                         "type": "workup",
                         "driver": "robot",
                         "sessionnumber": 3,
@@ -1475,7 +1460,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -1489,7 +1473,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -1520,7 +1504,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -1534,7 +1517,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -1565,7 +1548,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -1579,7 +1561,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -1930,7 +1912,7 @@ encoded_recipes = {
                                         },
                                         "material": {
                                             "SMARTS": None,
-                                            "SMILES": "C1CCCCC1P(C2CCCCC2)C3CCCCC3",
+                                            "SMILES": "C1=CC=C(C=C1)P(C2=CC=CC=C2)C3=CC=CC=C3",
                                             "quantity": {"value": 2.0, "unit": "moleq"},
                                             "solvent": "DMA",
                                             "concentration": 0.5,
@@ -1992,7 +1974,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "CCOC(C)=O",
-                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "EtOAc",
                                         "density": None,
                                         "concentration": None,
@@ -2010,7 +1992,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "O",
-                                        "quantity": {"value": 25, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "H2O",
                                         "density": None,
                                         "concentration": None,
@@ -2050,7 +2032,7 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "bottomlayerquantity": {
-                                            "value": 25,
+                                            "value": 20,
                                             "unit": "masseq",
                                         },
                                         "layer": "top",
@@ -2073,7 +2055,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "CCOC(C)=O",
-                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "EtOAc",
                                         "density": None,
                                         "concentration": None,
@@ -2086,7 +2068,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -2099,7 +2080,7 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "bottomlayerquantity": {
-                                            "value": 25,
+                                            "value": 20,
                                             "unit": "masseq",
                                         },
                                         "layer": "top",
@@ -2129,7 +2110,7 @@ encoded_recipes = {
                     #                 "material": {
                     #                     "SMARTS": None,
                     #                     "SMILES": None,  # Product of reaction
-                    #                     "quantity": {"value": 10, "unit": "ul"},
+                    #                     "quantity": {"value": 5, "unit": "ul"},
                     #                     "solvent": None,
                     #                     "density": None,
                     #                     "concentration": None,
@@ -2147,7 +2128,7 @@ encoded_recipes = {
                     #                 "material": {
                     #                     "SMARTS": None,
                     #                     "SMILES": "CC#N",
-                    #                     "quantity": {"value": 80, "unit": "ul"},
+                    #                     "quantity": {"value": 100, "unit": "ul"},
                     #                     "solvent": "ACN",
                     #                     "density": None,
                     #                     "concentration": None,
@@ -2280,7 +2261,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "CCOC(C)=O",
-                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "EtOAc",
                                         "density": None,
                                         "concentration": None,
@@ -2298,7 +2279,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "O",
-                                        "quantity": {"value": 25, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "H2O",
                                         "density": None,
                                         "concentration": None,
@@ -2338,7 +2319,7 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "bottomlayerquantity": {
-                                            "value": 25,
+                                            "value": 20,
                                             "unit": "masseq",
                                         },
                                         "layer": "top",
@@ -2361,7 +2342,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "CCOC(C)=O",
-                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "EtOAc",
                                         "density": None,
                                         "concentration": None,
@@ -2374,7 +2355,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -2387,7 +2367,7 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "bottomlayerquantity": {
-                                            "value": 25,
+                                            "value": 20,
                                             "unit": "masseq",
                                         },
                                         "layer": "top",
@@ -2508,9 +2488,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
                                             "quantity": {"value": 2, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -2646,7 +2625,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -2695,7 +2673,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "workup1",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -2829,9 +2806,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
                                             "quantity": {"value": 2, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -2849,7 +2825,7 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "temperature": {
-                                        "value": 90,
+                                        "value": 120,
                                         "unit": "degC",
                                     },
                                     "duration": {"value": 4, "unit": "hours"},
@@ -2873,7 +2849,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "CCOC(C)=O",
-                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "EtOAc",
                                         "density": None,
                                         "concentration": None,
@@ -2891,7 +2867,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "O",
-                                        "quantity": {"value": 25, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "H2O",
                                         "density": None,
                                         "concentration": None,
@@ -2931,7 +2907,7 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "bottomlayerquantity": {
-                                            "value": 25,
+                                            "value": 20,
                                             "unit": "masseq",
                                         },
                                         "layer": "top",
@@ -2954,7 +2930,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "CCOC(C)=O",
-                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "EtOAc",
                                         "density": None,
                                         "concentration": None,
@@ -2967,7 +2943,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -2980,7 +2955,7 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "bottomlayerquantity": {
-                                            "value": 25,
+                                            "value": 20,
                                             "unit": "masseq",
                                         },
                                         "layer": "top",
@@ -3084,9 +3059,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "CCN(CC)CC",
                                             "quantity": {"value": 1.0, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.726,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -3338,7 +3312,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -3381,7 +3354,7 @@ encoded_recipes = {
                     #                 "material": {
                     #                     "SMARTS": None,
                     #                     "SMILES": None,  # Product of reaction
-                    #                     "quantity": {"value": 10, "unit": "ul"},
+                    #                     "quantity": {"value": 5, "unit": "ul"},
                     #                     "solvent": None,
                     #                     "density": None,
                     #                     "concentration": None,
@@ -3399,7 +3372,7 @@ encoded_recipes = {
                     #                 "material": {
                     #                     "SMARTS": None,
                     #                     "SMILES": "CC#N",
-                    #                     "quantity": {"value": 80, "unit": "ul"},
+                    #                     "quantity": {"value": 100, "unit": "ul"},
                     #                     "solvent": "ACN",
                     #                     "density": None,
                     #                     "concentration": None,
@@ -3510,9 +3483,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
                                             "quantity": {"value": 2, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -3751,9 +3723,8 @@ encoded_recipes = {
                                                     "value": 2,
                                                     "unit": "moleq",
                                                 },
-                                                "solvent": None,
-                                                "density": 0.74,
-                                                "concentration": None,
+                                                "solvent": "DMA",
+                                                "concentration": 10,
                                             },
                                         },
                                     },
@@ -3967,9 +3938,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "CCN(C(C)C)C(C)C",
                                             "quantity": {"value": 2, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 0.74,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -4039,7 +4009,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -4053,7 +4022,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -4084,7 +4053,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -4098,7 +4066,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -4129,7 +4097,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -4143,7 +4110,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": None,
-                                        "quantity": {"value": 20, "unit": "masseq"},
+                                        "quantity": {"value": 30, "unit": "masseq"},
                                         "solvent": None,
                                         "density": None,
                                         "concentration": None,
@@ -4721,7 +4688,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "CCOC(C)=O",
-                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "EtOAc",
                                         "density": None,
                                         "concentration": None,
@@ -4739,7 +4706,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "O",
-                                        "quantity": {"value": 25, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "H2O",
                                         "density": None,
                                         "concentration": None,
@@ -4779,7 +4746,7 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "bottomlayerquantity": {
-                                            "value": 25,
+                                            "value": 20,
                                             "unit": "masseq",
                                         },
                                         "layer": "top",
@@ -4802,7 +4769,7 @@ encoded_recipes = {
                                     "material": {
                                         "SMARTS": None,
                                         "SMILES": "CCOC(C)=O",
-                                        "quantity": {"value": 40, "unit": "masseq"},
+                                        "quantity": {"value": 20, "unit": "masseq"},
                                         "solvent": "EtOAc",
                                         "density": None,
                                         "concentration": None,
@@ -4815,7 +4782,6 @@ encoded_recipes = {
                                 "content": {
                                     "platetype": "reaction",
                                     "repetitions": {"value": 3},
-                                    "quantity": {"value": 20, "unit": "masseq"},
                                 },
                             },
                             {
@@ -4828,7 +4794,7 @@ encoded_recipes = {
                                     },
                                     "material": {
                                         "bottomlayerquantity": {
-                                            "value": 25,
+                                            "value": 20,
                                             "unit": "masseq",
                                         },
                                         "layer": "top",
@@ -4842,49 +4808,49 @@ encoded_recipes = {
                             },
                         ],
                     },
-                    {
-                        "type": "analyse",
-                        "driver": "robot",
-                        "sessionnumber": 8,
-                        "actions": [
-                            {
-                                "type": "add",
-                                "actionnumber": 12,
-                                "content": {
-                                    "plates": {
-                                        "fromplatetype": "workup1",
-                                        "toplatetype": "lcms",
-                                    },
-                                    "material": {
-                                        "SMARTS": None,
-                                        "SMILES": None,  # Product of reaction
-                                        "quantity": {"value": 10, "unit": "ul"},
-                                        "solvent": None,
-                                        "density": None,
-                                        "concentration": None,
-                                    },
-                                },
-                            },
-                            {
-                                "type": "add",
-                                "actionnumber": 13,
-                                "content": {
-                                    "plates": {
-                                        "fromplatetype": "solvent",
-                                        "toplatetype": "lcms",
-                                    },
-                                    "material": {
-                                        "SMARTS": None,
-                                        "SMILES": "CC#N",
-                                        "quantity": {"value": 80, "unit": "ul"},
-                                        "solvent": "ACN",
-                                        "density": None,
-                                        "concentration": None,
-                                    },
-                                },
-                            },
-                        ],
-                    },
+                    # {
+                    #     "type": "analyse",
+                    #     "driver": "robot",
+                    #     "sessionnumber": 8,
+                    #     "actions": [
+                    #         {
+                    #             "type": "add",
+                    #             "actionnumber": 12,
+                    #             "content": {
+                    #                 "plates": {
+                    #                     "fromplatetype": "workup1",
+                    #                     "toplatetype": "lcms",
+                    #                 },
+                    #                 "material": {
+                    #                     "SMARTS": None,
+                    #                     "SMILES": None,  # Product of reaction
+                    #                     "quantity": {"value": 5, "unit": "ul"},
+                    #                     "solvent": None,
+                    #                     "density": None,
+                    #                     "concentration": None,
+                    #                 },
+                    #             },
+                    #         },
+                    #         {
+                    #             "type": "add",
+                    #             "actionnumber": 13,
+                    #             "content": {
+                    #                 "plates": {
+                    #                     "fromplatetype": "solvent",
+                    #                     "toplatetype": "lcms",
+                    #                 },
+                    #                 "material": {
+                    #                     "SMARTS": None,
+                    #                     "SMILES": "CC#N",
+                    #                     "quantity": {"value": 100, "unit": "ul"},
+                    #                     "solvent": "ACN",
+                    #                     "density": None,
+                    #                     "concentration": None,
+                    #                 },
+                    #             },
+                    #         },
+                    #     ],
+                    # },
                 ],
             },
         },
@@ -5559,9 +5525,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "C1CCN2CCCN=C2CC1",
                                             "quantity": {"value": 2, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 1.02,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -5772,9 +5737,8 @@ encoded_recipes = {
                                             "SMARTS": None,
                                             "SMILES": "C1CCN2CCCN=C2CC1",
                                             "quantity": {"value": 2, "unit": "moleq"},
-                                            "solvent": None,
-                                            "density": 1.02,
-                                            "concentration": None,
+                                            "solvent": "DMA",
+                                            "concentration": 10,
                                         },
                                     },
                                 },
@@ -5991,9 +5955,8 @@ encoded_recipes = {
                                                     "value": 2,
                                                     "unit": "moleq",
                                                 },
-                                                "solvent": None,
-                                                "density": 1.02,
-                                                "concentration": None,
+                                                "solvent": "DMA",
+                                                "concentration": 10,
                                             },
                                         },
                                     },

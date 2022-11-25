@@ -653,11 +653,6 @@ class CreateEncodedActionModels(object):
         else:
             logger.info(action_type)
 
-    # def getProductSmiles(self):
-    #     """Gets the product SMILES for the reaction"""
-    #     product = Product.objects.get(reaction_id=self.reaction_id)
-    #     return product.smiles
-
     def calculateMass(
         self,
         calcunit: str,
@@ -933,8 +928,6 @@ class CreateEncodedActionModels(object):
             actionnumber = action["actionnumber"]
             platetype = action["content"]["platetype"]
             repetitions = action["content"]["repetitions"]["value"]
-            calcvalue = action["content"]["quantity"]["value"]
-            calcunit = action["content"]["quantity"]["unit"]
 
             mix = MixAction()
             mix.reaction_id = self.reaction_obj
@@ -942,13 +935,6 @@ class CreateEncodedActionModels(object):
             mix.number = actionnumber
             mix.platetype = platetype
             mix.repetitions = repetitions
-            if calcunit == "ul":
-                mix.volume = calcvalue
-            if calcunit == "masseq":
-                mix.volume = self.calculateVolume(
-                    calcunit=calcunit,
-                    calcvalue=calcvalue,
-                )
             mix.save()
 
         except Exception as e:

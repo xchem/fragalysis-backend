@@ -896,7 +896,7 @@ class OTWrite(object):
 
         script.close()
 
-    def mixWell(self, wellindex: int, nomixes: int, plate: str, volumetomix: float):
+    def mixWell(self, wellindex: int, nomixes: int, plate: str):
         """Prepares mixing commmand instruction for a mixing action
 
         Parameters
@@ -907,22 +907,21 @@ class OTWrite(object):
             The number of mixes needed
         plate: str
             The plate linked to the well being mixed
-        volumetomix: float
-            The volume (ul) to be aspirated/dipsensed for the mxing action
         """
         humanread = f"Mixing contents of plate: {plate} at well index: {wellindex}"
 
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".mix({nomixes}, {volumetomix}, {plate}.wells()[{wellindex}])",
+            + f".mix({nomixes}, ({self.pipettename}.max_volume * 0.7), {plate}.wells()[{wellindex}])",
         ]
 
         self.writeCommand(instruction)
 
-    def mixColumn(self, columnindex: int, nomixes: int, plate: str, volumetomix: float):
+    def mixColumn(self, columnindex: int, nomixes: int, plate: str):
         """Prepares mixing commmand instruction for a mixing action
-        on a column in a plate
+        on a column in a plate. 0.7% of the max volume of the pipette 
+        is mixed.
 
         Parameters
         ----------
@@ -932,15 +931,13 @@ class OTWrite(object):
             The number of mixes needed
         plate: str
             The plate linked to the column being mixed
-        volumetomix: float
-            The volume (ul) to be aspirated/dipsensed for the mxing action
         """
         humanread = f"Mixing contents of plate: {plate} at column index: {columnindex}"
 
         instruction = [
             "\n\t# " + str(humanread),
             self.pipettename
-            + f".mix({nomixes}, {volumetomix}, {plate}.columns()[{columnindex}][0])",
+            + f".mix({nomixes}, ({self.pipettename}.max_volume * 0.7), {plate}.columns()[{columnindex}][0])",
         ]
 
         self.writeCommand(instruction)
@@ -1324,7 +1321,6 @@ class OTWrite(object):
                         wellindex=mixwellindex,
                         nomixes=repetitions,
                         plate=mixplatename,
-                        volumetomix=transfervolume,
                     )
                     self.dropTip()
 
@@ -1519,9 +1515,6 @@ class OTWrite(object):
                     repetitions = mixactionqueyset.values_list(
                         "repetitions", flat=True
                     ).distinct()[0]
-                    maxmixvolume = addactionqueryset.aggregate(Max("volume"))[
-                        "volume__max"
-                    ]
                     mixcolumnqueryset = self.getColumnQuerySet(
                         columntype=platetype, reactionclass=reactionclass
                     )
@@ -1535,7 +1528,6 @@ class OTWrite(object):
                             columnindex=mixcolumnindex,
                             nomixes=repetitions,
                             plate=mixplatename,
-                            volumetomix=maxmixvolume,
                         )
                         self.dropTip()
 
@@ -1667,10 +1659,6 @@ class OTWrite(object):
                     repetitions = mixactionqueyset.values_list(
                         "repetitions", flat=True
                     ).distinct()[0]
-                    mixvolume = mixactionqueyset.values_list(
-                        "volume", flat=True
-                    ).distinct()[0]
-
                     mixcolumnqueryset = self.getColumnQuerySet(
                         columntype=platetype, reactionclass=reactionclass
                     )
@@ -1684,6 +1672,5 @@ class OTWrite(object):
                             columnindex=mixcolumnindex,
                             nomixes=repetitions,
                             plate=mixplatename,
-                            volumetomix=mixvolume,
                         )
                         self.dropTip()

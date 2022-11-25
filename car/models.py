@@ -450,17 +450,7 @@ class MixAction(models.Model):
         The number of mixes
     volume: FloatField
         The volume to mix
-    volumeunit: CharField
-        The unit of the volume being mixed (default=ul)
     """
-
-    class CalcUnit(models.TextChoices):
-        masseq = "masseq"
-        ul = "ul"
-
-    class VolumeUnit(models.TextChoices):
-        ul = "ul"
-        ml = "ml"
 
     class PlateType(models.TextChoices):
         reaction = "reaction"
@@ -481,14 +471,6 @@ class MixAction(models.Model):
     number = models.IntegerField()
     platetype = models.CharField(choices=PlateType.choices, max_length=20)
     repetitions = models.IntegerField()
-    calcunit = models.CharField(
-        choices=CalcUnit.choices, default="moleq", max_length=10
-    )
-    volume = models.FloatField()
-    volumeunit = models.CharField(
-        choices=VolumeUnit.choices, default="ul", max_length=2
-    )
-
 
 class StirAction(models.Model):
     """Django model to define a StirAction - the stir action details
@@ -820,9 +802,6 @@ class Column(models.Model):
         startingmaterial = "startingmaterial"
         solvent = "solvent"
 
-    # otbatchprotocol_id = models.ForeignKey(
-    #     OTBatchProtocol, related_name="otcolumns", on_delete=models.CASCADE
-    # )
     otsession_id = models.ForeignKey(
         OTSession, related_name="otcolumns", on_delete=models.CASCADE, null=True
     )
@@ -876,9 +855,6 @@ class Well(models.Model):
         startingmaterial = "startingmaterial"
         solvent = "solvent"
 
-    # otbatchprotocol_id = models.ForeignKey(
-    #     OTBatchProtocol, related_name="otwells", on_delete=models.CASCADE
-    # )
     otsession_id = models.ForeignKey(
         OTSession,
         related_name="otwells",
@@ -889,7 +865,6 @@ class Well(models.Model):
     method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)
     column_id = models.ForeignKey(Column, on_delete=models.CASCADE, null=True)
-    # clonewellid = models.IntegerField(null=True)
     index = models.IntegerField()
     type = models.CharField(choices=WellType.choices, max_length=55)
     volume = models.FloatField(null=True)
