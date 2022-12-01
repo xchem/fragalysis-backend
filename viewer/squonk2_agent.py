@@ -151,7 +151,7 @@ class Squonk2Agent:
             password=self.__CFG_SQUONK2_ORG_OWNER_PASSWORD,
         )
         if not self.__owner_token:
-            _LOGGER.warning('Failed to get access token for Squonk2 org owner')
+            _LOGGER.warning('Failed to get access token for AS Organisation owner')
             return None
         # OK if we get here
         return self.__owner_token
@@ -160,16 +160,12 @@ class Squonk2Agent:
         """Execute pre-flight checks,
         can be called multiple times, it acts only once.
         """
-        # Been here before, and successful?
-        # If not try the pre-flight check again.
-        if self.__pre_flight_check_status:
-            return Squonk2AgentRv(success=True, msg=None)
 
         # If a Squonk2Org record exists its UUID cannot have changed.
         # We cannot change the organisation once deployed. The corresponding Units,
         # Products and Projects are organisation-specific. The Squonk2Org table
         # records the organisation ID and the Account Server URL where the ID
-        # is valid. Neither of these values can change once deployed.
+        # is valid. None of these values can change once deployed.
 
         squonk2_org: Optional[Squonk2Org] = Squonk2Org.objects.all().first()
         if squonk2_org and squonk2_org.uuid != self.__CFG_SQUONK2_ORG_UUID:
@@ -186,27 +182,25 @@ class Squonk2Agent:
         # Get the ORG from the AS API.
         # If it knows the org the response will be successful,
         # and we'll also have the Org's name.
-        as_rv = AsApi.get_organisation(self.__owner_token,
-                                       org_id=self.__CFG_SQUONK2_ORG_UUID)
-        if not as_rv.success:
-            msg = 'Failed to get Organisation from Account Server'
-            print(msg)
-            return quonk2AgentRv(success=False, msg=msg)
+        as_o_rv = AsApi.get_organisation(self.__owner_token,
+                                         org_id=self.__CFG_SQUONK2_ORG_UUID)
+        if not as_o_rv.success:
+            msg = 'Failed checking AS Organisation'
+            return Squonk2AgentRv(success=False, msg=msg)
 
         # The org is known to the AS.
         # Get the AS API version (for reference)
-        as_rv: AsApiRv = AsApi.get_version()
-        if not as_rv.success:
-            msg = 'Failed to get version from Account Server'
-            print(msg)
-            return quonk2AgentRv(success=False, msg=msg)
-        as_version: str = as_rv.msg['version']
+        as_v_rv: AsApiRv = AsApi.get_version()
+        if not as_v_rv.success:
+            msg = 'Failed to get version from AS'
+            return Squonk2AgentRv(success=False, msg=msg)
+        as_version: str = as_v_rv.msg['version']
 
         # If there's no Squonk2Org record, create one,
         # recording the ORG ID and the AS we used to verify it exists.
         if not squonk2_org:
             squonk2_org = Squonk2Org(uuid=self.__CFG_SQUONK2_ORG_UUID,
-                                     name=as_rv.msg['name'],
+                                     name=as_o_rv.msg['name'],
                                      as_url=self.__CFG_SQUONK2_ASAPI_URL,
                                      as_version=as_version)
             squonk2_org.save()
