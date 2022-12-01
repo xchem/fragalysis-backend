@@ -389,7 +389,6 @@ class Squonk2Agent:
             _LOGGER.warning('Exception checking UI at %s', url)
         if resp is None or resp.status_code != 200:
             msg = f'UI is not responding from {url}'
-            print(msg)
             _LOGGER.debug(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -398,11 +397,9 @@ class Squonk2Agent:
         try:
             resp = requests.head(url, verify=self.__verify_certificates)
         except Exception as ex:
-            print(ex)
             _LOGGER.warning('Exception checking DM at %s', url)
         if resp is None or resp.status_code != 308:
             msg = f'Data Manager is not responding from {url}'
-            print(msg)
             _LOGGER.debug(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -414,7 +411,6 @@ class Squonk2Agent:
             _LOGGER.warning('Exception checking AS at %s', url)
         if resp is None or resp.status_code != 308:
             msg = f'Account Manager is not responding from {url}'
-            print(msg)
             _LOGGER.debug(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
