@@ -1,0 +1,73 @@
+@startuml
+' hide the spot
+hide circle
+
+' avoid problems with angled crows feet
+skinparam linetype ortho
+
+entity Squonk2Org #yellowgreen {
+  *uuid : string[40]
+  *name : string[80]
+  *as_url : url
+  *as_version : string
+  --
+  id : number <<generated>>
+}
+
+entity Squonk2Unit #yellowgreen {
+  *uuid : string[41]
+  *name : string[80]
+  --
+  id : number <<generated>>
+  project : number <<FK>>
+  organisation : number <<FK>>
+}
+
+entity Squonk2Project #yellowgreen {
+  *uuid : string[44]
+  *name : string[80]
+  *product_uuid : string[44]
+  --
+  id : number <<generated>>
+  squonk2_unit_id : number <<FK>>
+  user_id : number <<FK>>
+  target_id : number <<FK>>
+}
+
+note right of Squonk2Org
+  New tables in green
+end note
+
+entity Project {
+  title : string
+  --
+  id : number <<generated>>
+}
+
+note left of Project
+  The project title
+  (a hyphenated Proposal/Session string)
+  is used to create a unit.
+  Each proposal has its own unit.
+end note
+
+entity User {
+  --
+  *id : number <<generated>>
+}
+
+entity SessionProject {
+  *title : string[200]
+  *target : number <<FK>>
+  --
+  id : number <<generated>>
+}
+
+Squonk2Org      ||..|{     Squonk2Unit
+Squonk2Unit     ||..|{     Squonk2Project
+Squonk2Unit     ||..||     Project
+Squonk2Project  ||..||     User
+Project         }o..o{     User
+Squonk2Project  ||..||     SessionProject
+
+@enduml

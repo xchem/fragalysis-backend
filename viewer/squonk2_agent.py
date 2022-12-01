@@ -26,7 +26,7 @@ _LOGGER: logging.Logger = logging.getLogger(__name__)
 
 # Response value for the agent methods
 Squonk2AgentRv: namedtuple = namedtuple('Squonk2AgentRv', ['success', 'msg'])
-SuccessRv: Squonk2AgentRv = Squonk2AgentRv(succes=True, msg=None)
+SuccessRv: Squonk2AgentRv = Squonk2AgentRv(success=True, msg=None)
 
 # Named tuples are used to pass parameters to the agent methods.
 # RunJob, used in run_job()
@@ -47,8 +47,17 @@ Send: namedtuple = namedtuple("Send", ["access_token",
 
 _SUPPORTED_PRODUCT_FLAVOURS: List[str] = ["BRONZE", "SILVER", "GOLD"]
 
+_MAX_SQ2_NAME_LENGTH: int = 80
 _MAX_SLUG_LENGTH: int = 10
+_SQ2_NAME_PREFIX: str = "Fragalysis"
 
+# How long are auxiliary parts of Squonk2 names allowed to be?
+# This is the maximum name length (assumed to be 80) minus the
+# name prefix, minus the slug and minus 2 (for spaces)
+_MAX_AUX_STRING_LENGTH: int = _MAX_SQ2_NAME_LENGTH \
+                              - len(_SQ2_NAME_PREFIX) \
+                              - _MAX_SLUG_LENGTH \
+                              - 2
 
 class Squonk2Agent:
     """Helper class that simplifies access to the Squonk2 Python client.
@@ -66,7 +75,12 @@ class Squonk2Agent:
         # Primary configuration of the module is via the container environment.
         # We need to recognise that some or all of these may not be defined.
         # All run-time config that's required is given a __CFG prefix to
-        # simplify checkign whether all that's required has been defined.
+        # simplify checking whether all that's required has been defined.
+        #
+        # The SQUONK2_SLUG is limited to 10 characters, when combined with
+        # "Fragalysis {SLUG} ", this leaves (80-22) 58 characters for the
+        # use with the target-access-string and session project strings
+        # to form Squonk2 Unit and Project names.
         self.__CFG_SQUONK2_ASAPI_URL: Optional[str] =\
             os.environ.get('SQUONK2_ASAPI_URL')
         self.__CFG_SQUONK2_DMAPI_URL: Optional[str] =\
@@ -80,7 +94,7 @@ class Squonk2Agent:
         self.__CFG_SQUONK2_PRODUCT_FLAVOUR: Optional[str] =\
             os.environ.get('SQUONK2_PRODUCT_FLAVOUR')
         self.__CFG_SQUONK2_SLUG: Optional[str] =\
-            os.environ.get('SQUONK2_SLUG')
+            os.environ.get('SQUONK2_SLUG')[:_MAX_SLUG_LENGTH]
         self.__CFG_SQUONK2_ORG_OWNER: Optional[str] =\
             os.environ.get('SQUONK2_ORG_OWNER')
         self.__CFG_SQUONK2_ORG_OWNER_PASSWORD: Optional[str] =\
@@ -121,6 +135,8 @@ class Squonk2Agent:
         self.__org_record: Optional[Squonk2Org] = None
 
         self.__owner_token: str = ''
+        self.__keycloak_hostname: str = ''
+        self.__keycloak_realm: str = ''
 
     def _get_org_owner_token(self) -> Optional[str]:
         """Gets an access token for the Squonk2 organisation owner.
@@ -201,17 +217,23 @@ class Squonk2Agent:
         # Organisation is known to AS, and it hasn't changed.
         return SuccessRv
 
-    def _ensure_unit(self, proposal: str) -> Squonk2AgentRv:
-        """Gets or creates a Squonk2 Unit.
+    def _ensure_unit(self, target_access_string: str) -> Squonk2AgentRv:
+        """Gets or creates a Squonk2 Unit based on a customer's "target access string"
+        (TAS). If a Unit is created its name will begin with the text "Fragalysis "
+        followed by the configured 'SQUONK2_SLUG' (chosen to be unique between all
+        Fragalysis instances that share the same Squonk2 service) and then the
+        TAS. In DLS the TAS is essentially the "proposal".
 
         On success the returned message is used to carry the Squonk2 project UUID.
         """
-        assert proposal
+        assert project
         assert self.__org_record
 
-        unit: Optional[Squonk2Unit] = Squonk2Unit.objects.filter(proposal=proposal).first()
+        unit: Optional[Squonk2Unit] = Squonk2Unit.objects.filter(proposal=project).first()
         if not unit:
-            unit_name: styr = f'Fragalysis {self.__CFG_SQUONK2_SLUG} {proposal}'
+            unit_name: styr = 'Fragalysis' \
+                              f' {self.__CFG_SQUONK2_SLUG}' \
+                              f' {target_access_string[:_MAX_AUX_STRING_LENGTH]}'
             rv: AsApiRv = AsApi.create_unit(unit_name=unit_name,
                                             org_id=self.__org_record.uuid,
                                             billing_day=self.__unit_billing_day)
@@ -281,7 +303,6 @@ class Squonk2Agent:
 
         return Squonk2AgentRv(success=True, msg=project.uuid)
 
-    @property
     def configured(self) -> Squonk2AgentRv:
         """Returns True if the module appears to be configured,
         i.e. all the environment variables appear to be set.
@@ -290,7 +311,7 @@ class Squonk2Agent:
         # static (environment) variables, if we've been here before
         # just return our previous result.
         if self.__configuration_checked:
-            return self.__configured, None
+            return Squonk2AgentRv(success=self.__configured, msg=None)
 
         self.__configuration_checked = True
         for name, value in self.__dict__.items():
@@ -325,7 +346,7 @@ class Squonk2Agent:
                   ' but the value is not a number'\
                   f' ({ self.__CFG_SQUONK2_UNIT_BILLING_DAY})'
             _LOGGER.error(msg)
-            return False, msg
+            return Squonk2AgentRv(success=False, msg=msg)
         self.__unit_billing_day = int(self.__CFG_SQUONK2_UNIT_BILLING_DAY)
         if self.__unit_billing_day < 1:
             msg = 'SQUONK2_UNIT_BILLING_DAY cannot be less than 1'
@@ -334,7 +355,8 @@ class Squonk2Agent:
 
         # Product tier to upper-case
         if not self.__CFG_SQUONK2_PRODUCT_FLAVOUR in _SUPPORTED_PRODUCT_FLAVOURS:
-            msg = 'SQUONK2_PRODUCT_FLAVOUR is not supported'
+            msg = f'SQUONK2_PRODUCT_FLAVOUR ({self.__CFG_SQUONK2_PRODUCT_FLAVOUR})' \
+                  ' is not supported'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
         self.__product_flavour = self.__CFG_SQUONK2_PRODUCT_FLAVOUR.upper()
@@ -350,7 +372,6 @@ class Squonk2Agent:
 
         return SuccessRv
 
-    @property
     def ping(self) -> Squonk2AgentRv:
         """Returns True if all the Squonk2 installations
         referred to by the URLs respond.
@@ -359,7 +380,7 @@ class Squonk2Agent:
         by calling on '_pre_flight_checks()'. If the org is known a Squonk2Org record
         is created, if not the ping fails.
         """
-        if not self.configured:
+        if not self.configured():
             msg: str = 'Not configured'
             _LOGGER.debug(msg)
             return Squonk2AgentRv(success=False, msg=msg)
@@ -382,7 +403,8 @@ class Squonk2Agent:
         url = f'{self.__CFG_SQUONK2_DMAPI_URL}/api'
         try:
             resp = requests.head(url, verify=self.__verify_certificates)
-        except:
+        except Exception as ex:
+            print(ex)
             _LOGGER.warning('Exception checking DM at %s', url)
         if resp is None or resp.status_code != 308:
             msg = f'Data Manager is not responding from {url}'
@@ -427,7 +449,7 @@ class Squonk2Agent:
         return SuccessRv
 
     def send(self, params: Send) -> Squonk2AgentRv:
-        """A blocking method that takes care of send a set of files to
+        """A blocking method that takes care of sending a set of files to
         the configured Squonk2 installation.
         """
         assert params
