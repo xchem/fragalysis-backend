@@ -1,13 +1,11 @@
 ---
-name: build main
+name: build staging
 
-# Actions that take place after every commit the master/main branch.
-# Here every commit is built, tagged as 'latest' and tested.
-# If a DOCKERHUB_USERNAME secret is defined the image is pushed.
+# Actions that take place after every commit the 'staging' branch.
+# Here every commit is built, tagged (as 'latest' or with the tag) and tested.
+# We ignore any production-like tags in this workflow.
 #
-# Actions also run if the repository is tagged.
-# Every tag is deployed to staging and every production-grade tag
-# (of the form N.N.N) is deployed to production.defaults:
+# If a DOCKERHUB_USERNAME secret is defined the image is pushed.
 #
 # Actions also run on a schedule - the container is built, tested,
 # pushed and deployed (if the relevant secrets are set) based on
@@ -22,7 +20,7 @@ name: build main
 # (i.e. via 'Settings -> Secrets'): -
 #
 # BE_NAMESPACE            optional - default xchem
-# FE_BRANCH               optional - default master
+# FE_BRANCH               optional - default production
 # FE_NAMESPACE            optional - default xchem
 # STACK_BRANCH            optional - default master
 # STACK_GITHUB_NAMESPACE  optional - default xchem
