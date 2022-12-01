@@ -143,11 +143,18 @@ class Squonk2Agent:
         This sets the __keycloak_hostname member and also returns the token.
         """
         assert self.__keycloak_hostname
+
+        _LOGGER.info('__keycloak_hostname="%s" __keycloak_realm="%s" client=%s org_owner=%s',
+                     self.__keycloak_hostname,
+                     self.__keycloak_realm,
+                     self.__CFG_OIDC_AS_CLIENT_ID,
+                     self.__CFG_OIDC_AS_CLIENT_ID)
+
         self.__owner_token = Auth.get_access_token(
             keycloak_url="https://" + self.__keycloak_hostname + "/auth",
             keycloak_realm=self.__keycloak_realm,
             keycloak_client_id=self.__CFG_OIDC_AS_CLIENT_ID,
-            username=self.__CFG_SQUONK2_ORG_OWNER,
+            username=self.self.__CFG_OIDC_AS_CLIENT_ID,
             password=self.__CFG_SQUONK2_ORG_OWNER_PASSWORD,
         )
         if not self.__owner_token:
@@ -182,6 +189,7 @@ class Squonk2Agent:
         # Get the ORG from the AS API.
         # If it knows the org the response will be successful,
         # and we'll also have the Org's name.
+        _LOGGER.info('Checking organisation (%s)', self.__CFG_SQUONK2_ORG_UUID)
         as_o_rv = AsApi.get_organisation(self.__owner_token,
                                          org_id=self.__CFG_SQUONK2_ORG_UUID)
         if not as_o_rv.success:
@@ -431,7 +439,7 @@ class Squonk2Agent:
         assert isinstance(params, RunJob)
 
         # Protect against lack of config or connection/setup issues...
-        if not self.ping:
+        if not self.ping():
             msg: str = 'Squonk2 ping failed.'\
                        ' Are we configured properly and is Squonk alive?'
             return Squonk2AgentRv(success=False, msg=msg)
@@ -446,7 +454,7 @@ class Squonk2Agent:
         assert isinstance(params, Send)
 
         # Protect against lack of config or connection/setup issues...
-        if not self.ping:
+        if not self.ping():
             msg: str = 'Squonk2 ping failed.'\
                        ' Are we configured properly and is Squonk alive?'
             return Squonk2AgentRv(success=False, msg=msg)
