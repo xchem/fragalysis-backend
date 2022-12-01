@@ -139,7 +139,7 @@ def cloneTarget(target_obj: Target, batch_obj: Batch) -> Target:
     batch_obj: Batch
         The batch of targets the target is related to
     """
-    related_catalogentry_queryset = target_obj.catalogentries.all()
+    related_catalogentry_queryset = target_obj.catalogentries.all().order_by("id")
     target_obj.image = ContentFile(target_obj.image.read(), name=target_obj.image.name)
     target_obj.pk = None
     target_obj.batch_id = batch_obj
@@ -163,14 +163,14 @@ def cloneMethod(method_obj: Method, target_obj: Target):
     target_obj: Target
         The target the synthesis method is related to
     """
-    related_reaction_queryset = method_obj.reactions.all()
+    related_reaction_queryset = method_obj.reactions.all().order_by("id")
     method_obj.pk = None
     method_obj.target_id = target_obj
     method_obj.save()
 
     for reaction_obj in related_reaction_queryset:
         product_obj = reaction_obj.products.all()[0]
-        related_reactant_objs = reaction_obj.reactants.all()
+        related_reactant_objs = reaction_obj.reactants.all().order_by("id")
 
         reaction_obj.image = ContentFile(
             reaction_obj.image.read(), name=reaction_obj.image.name
@@ -187,7 +187,7 @@ def cloneMethod(method_obj: Method, target_obj: Target):
         product_obj.save()
 
         for reactant_obj in related_reactant_objs:
-            related_catalogentry_objs = reactant_obj.catalogentries.all()
+            related_catalogentry_objs = reactant_obj.catalogentries.all().order_by("id")
             reactant_obj.pk = None
             reactant_obj.reaction_id = reaction_obj
             reactant_obj.save()
@@ -403,18 +403,22 @@ class BatchViewSet(viewsets.ModelViewSet):
         method_ids = request.data["methodids"]
         batchtag = request.data["batchtag"]
         try:
-            target_query_set = Target.objects.filter(
-                methods__id__in=method_ids
-            ).distinct()
+            target_query_set = (
+                Target.objects.filter(methods__id__in=method_ids)
+                .distinct()
+                .order_by("id")
+            )
             batch_obj = target_query_set[0].batch_id
             project_obj = batch_obj.project_id
             batch_obj_new = self.createBatch(
                 project_obj=project_obj, batch_node_obj=batch_obj, batchtag=batchtag
             )
             for target_obj in target_query_set:
-                method_query_set_to_clone = Method.objects.filter(
-                    target_id=target_obj
-                ).filter(pk__in=method_ids)
+                method_query_set_to_clone = (
+                    Method.objects.filter(target_id=target_obj)
+                    .filter(pk__in=method_ids)
+                    .order_by("id")
+                )
                 target_obj_clone = cloneTarget(
                     target_obj=target_obj, batch_obj=batch_obj_new
                 )
@@ -665,7 +669,7 @@ class TipRackViewSet(viewsets.ModelViewSet):
 class PlateViewSet(viewsets.ModelViewSet):
     queryset = Plate.objects.all()
     serializer_class = PlateSerializer
-    filterset_fields = ["otsession_id"]
+    filterset_fields = ["otbatchprotocol_id"]
 
 
 class ColumnViewSet(viewsets.ModelViewSet):

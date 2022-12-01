@@ -8,6 +8,7 @@ from zipfile import ZipFile
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from itertools import count
 import os
 
 from car.models import (
@@ -131,27 +132,46 @@ def uploadManifoldReaction(validate_output):
                 project_id=project_id,
                 batchtag=batchtag,
             )
-            target_smiles = list(group["targets"])
-            target_amounts = list(group["amount-required-mg"])
+            target_names = list(group["target-names"])
+            target_smiles = list(group["target-SMILES"])
+            target_concentrations = list(group["concentration-required-mM"])
+            target_volumes = list(group["amount-required-uL"])
             for i in range(
                 0, len(target_smiles), 10
             ):  # Manifold can do 10 smiles in one batch query
-                smiles = target_smiles[i : i + 10]
-                amounts = target_amounts[i : i + 10]
-                retrosynthesis_results = getManifoldRetrosynthesisBatch(smiles=smiles)
+                target_names_10 = target_names[i : i + 10]
+                target_smiles_10 = target_smiles[i : i + 10]
+                target_cocentrations_10 = target_concentrations[i : i + 10]
+                target_volumes_10 = target_volumes[i : i + 10]
+
+                retrosynthesis_results = getManifoldRetrosynthesisBatch(
+                    smiles=target_smiles_10
+                )
                 if "results" in retrosynthesis_results:
                     batchrouteresults = retrosynthesis_results["results"]
 
-                    for smiles, mass, routeresult in zip(
-                        smiles, amounts, batchrouteresults
+                    for (
+                        target_name,
+                        target_smi,
+                        target_concentration,
+                        target_volume,
+                        routeresult,
+                    ) in zip(
+                        target_names_10,
+                        target_smiles_10,
+                        target_cocentrations_10,
+                        target_volumes_10,
+                        batchrouteresults,
                     ):
                         if "routes" in routeresult:
                             routes = routeresult["routes"]
                             if routes:
                                 target_id = createTargetModel(
                                     batch_id=batch_id,
-                                    smiles=smiles,
-                                    mass=mass,
+                                    name=target_name,
+                                    smiles=target_smi,
+                                    concentration=target_concentration,
+                                    volume=target_volume,
                                 )
                                 first_route = routes[0]
 
@@ -409,15 +429,19 @@ def uploadCustomReaction(validate_output):
             )
 
             for (
+                target_name,
                 target_smiles,
-                amount_required,
+                target_concentration,
+                target_volume,
                 no_steps,
                 reactant_pair_smiles_tuples,
                 reaction_name_tuples,
                 reaction_product_smiles_tuples,
             ) in zip(
-                group["target-smiles"],
-                group["amount-required-mg"],
+                group["target-names"],
+                group["target-SMILES"],
+                group["concentration-required-mM"],
+                group["amount-required-uL"],
                 group["no-steps"],
                 group["reactant-pair-smiles"],
                 group["reaction-name"],
@@ -425,8 +449,10 @@ def uploadCustomReaction(validate_output):
             ):
                 target_id = createTargetModel(
                     batch_id=batch_id,
+                    name=target_name,
                     smiles=target_smiles,
-                    mass=amount_required,
+                    concentration=target_concentration,
+                    volume=target_volume,
                 )
                 method_id = createMethodModel(
                     target_id=target_id,
@@ -434,7 +460,13 @@ def uploadCustomReaction(validate_output):
                     otchem=True,
                 )
 
-                for reactant_pair_smiles, reaction_name, reaction_product_smiles in zip(
+                for (
+                    index,
+                    reactant_pair_smiles,
+                    reaction_name,
+                    reaction_product_smiles,
+                ) in zip(
+                    count(),
                     reactant_pair_smiles_tuples,
                     reaction_name_tuples,
                     reaction_product_smiles_tuples,
@@ -456,7 +488,7 @@ def uploadCustomReaction(validate_output):
                     reaction_id = createReactionModel(
                         method_id=method_id,
                         reaction_class=reaction_name,
-                        reaction_number=1,
+                        reaction_number=index + 1,
                         intramolecular=False,
                         recipe_type="standard",
                         reaction_temperature=reaction_temperature,
@@ -489,6 +521,12 @@ def uploadCustomReaction(validate_output):
                                 reaction_id=reaction_id,
                                 reactant_smiles=reactant_smi,
                                 previous_reaction_product=False,
+                            )
+                            #### Creating catalog entries takes very long!
+                            createCatalogEntryModel(
+                                reactant_id=reactant_id,
+                                previous_reaction_product=False,
+                                lab_inventory=True,
                             )
                             catalog_entries = getExactSearch(smiles=reactant_smi)
                             if "results" in catalog_entries:
@@ -600,7 +638,6 @@ def createOTScript(batchids: list, protocol_name: str):
                             if human_actionsessionqueryset:
                                 pass
                             if robot_actionsessionqueryset:
-
                                 actionsession_ids = (
                                     robot_actionsessionqueryset.values_list(
                                         "id", flat=True
@@ -610,13 +647,11 @@ def createOTScript(batchids: list, protocol_name: str):
                                     reactionstep=index + 1,
                                     otbatchprotocolobj=otbatchprotocolobj,
                                     actionsessionqueryset=robot_actionsessionqueryset,
-                                    groupreactionqueryset=groupreactionqueryset,
                                 )
 
                                 OTWrite(
                                     batchtag=batchtag,
                                     otsessionobj=session.otsessionobj,
-                                    reaction_ids=reaction_ids,
                                     actionsession_ids=actionsession_ids,
                                 )
 
@@ -669,13 +704,11 @@ def createOTScript(batchids: list, protocol_name: str):
                                         reactionstep=index + 1,
                                         otbatchprotocolobj=otbatchprotocolobj,
                                         actionsessionqueryset=robot_actionsessionqueryset,
-                                        groupreactionqueryset=groupreactiontodoqueryset,
                                     )
 
                                     OTWrite(
                                         batchtag=batchtag,
                                         otsessionobj=session.otsessionobj,
-                                        reaction_ids=reaction_ids,
                                         actionsession_ids=actionsession_ids,
                                     )
 

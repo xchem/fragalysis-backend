@@ -67,8 +67,10 @@ class Target(models.Model):
         File link to a stored version of the image file of the target compound
     name: Charfield
         The name of the compound (Must complete how this is made)
-    mass: FloatField
-        The target synthesis mass (mg) for a target compound
+    concentration: FloatField
+        The target synthesis concnetration (mM) for a target compound
+    volume: FloatField
+        The target synthesis volume (uL) for a target compound
     mols: FloatField
         The target mols of the compound to be synthesised
     """
@@ -79,6 +81,8 @@ class Target(models.Model):
     smiles = models.CharField(max_length=255, db_index=True)
     image = models.FileField(upload_to="targetimages/", max_length=255)
     name = models.CharField(max_length=255, db_index=True)
+    concentration = models.FloatField()
+    volume = models.FloatField()
     mass = models.FloatField()
     mols = models.FloatField()
 
@@ -273,6 +277,7 @@ class ActionSession(models.Model):
     driver = models.CharField(
         choices=Driver.choices, default=Driver.robot, max_length=10
     )
+    continuation = models.BooleanField(default=False)
 
 
 class AddAction(models.Model):
@@ -318,11 +323,16 @@ class AddAction(models.Model):
         ul = "ul"
         ml = "ml"
 
+    class MassUnit(models.TextChoices):
+        mg = "mg"
+        g = "g"
+
     class PlateType(models.TextChoices):
         reaction = "reaction"
         workup1 = "workup1"
         workup2 = "workup2"
         workup3 = "workup3"
+        spefilter = "spefilter"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -340,10 +350,13 @@ class AddAction(models.Model):
     calcunit = models.CharField(
         choices=CalcUnit.choices, default="moleq", max_length=10
     )
-    volume = models.FloatField()
+    volume = models.FloatField(null=True)
     volumeunit = models.CharField(
         choices=VolumeUnit.choices, default="ul", max_length=2
     )
+    mass = models.FloatField(null=True)
+    massunit = models.CharField(choices=MassUnit.choices, default="mg", max_length=2)
+
     molecularweight = models.FloatField()
     solvent = models.CharField(max_length=255, null=True)
     concentration = models.FloatField(null=True)
@@ -393,6 +406,7 @@ class ExtractAction(models.Model):
         workup1 = "workup1"
         workup2 = "workup2"
         workup3 = "workup3"
+        spefilter = "spefilter"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -436,23 +450,14 @@ class MixAction(models.Model):
         The number of mixes
     volume: FloatField
         The volume to mix
-    volumeunit: CharField
-        The unit of the volume being mixed (default=ul)
     """
-
-    class CalcUnit(models.TextChoices):
-        masseq = "masseq"
-        ul = "ul"
-
-    class VolumeUnit(models.TextChoices):
-        ul = "ul"
-        ml = "ml"
 
     class PlateType(models.TextChoices):
         reaction = "reaction"
         workup1 = "workup1"
         workup2 = "workup2"
         workup3 = "workup3"
+        spefilter = "spefilter"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -466,14 +471,6 @@ class MixAction(models.Model):
     number = models.IntegerField()
     platetype = models.CharField(choices=PlateType.choices, max_length=20)
     repetitions = models.IntegerField()
-    calcunit = models.CharField(
-        choices=CalcUnit.choices, default="moleq", max_length=10
-    )
-    volume = models.FloatField()
-    volumeunit = models.CharField(
-        choices=VolumeUnit.choices, default="ul", max_length=2
-    )
-
 
 class StirAction(models.Model):
     """Django model to define a StirAction - the stir action details
@@ -507,6 +504,7 @@ class StirAction(models.Model):
         workup1 = "workup1"
         workup2 = "workup2"
         workup3 = "workup3"
+        spefilter = "spefilter"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -708,8 +706,8 @@ class Plate(models.Model):
 
     Parameters
     ----------
-    otsession_id: ForeignKey
-        Foreign key linking a plate to an OT session
+    otbatchprotocol_id: ForeignKey
+        Foreign key linking a plate to an OT batch protocol
     deck_id: ForeignKey
         Foreign key linking a plate to an OT deck
     labware: CharField
@@ -745,19 +743,25 @@ class Plate(models.Model):
         workup1 = "workup1"
         workup2 = "workup2"
         workup3 = "workup3"
+        spefilter = "spefilter"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
         startingmaterial = "startingmaterial"
         solvent = "solvent"
 
+    otbatchprotocol_id = models.ForeignKey(
+        OTBatchProtocol, related_name="otplates", on_delete=models.CASCADE
+    )
     otsession_id = models.ForeignKey(
-        OTSession, related_name="otplates", on_delete=models.CASCADE
+        OTSession,
+        on_delete=models.CASCADE,
+        null=True,
     )
     deck_id = models.ForeignKey(Deck, on_delete=models.CASCADE)
     labware = models.CharField(max_length=255)
     index = models.IntegerField()
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, null=True)
     type = models.CharField(choices=PlateType.choices, max_length=55, null=True)
     maxwellvolume = models.FloatField()
     numberwells = models.IntegerField()
@@ -774,8 +778,8 @@ class Column(models.Model):
 
     Parameters
     ----------
-    otsession_id: ForeignKey
-        Foreign key linking a plate to an OT session
+    otbatchprotocol_id: ForeignKey
+        Foreign key linking a plate to an OT batch protocol
     plate_id: ForeignKey
         Foreign key linking a well to a plate
     index: IntegerField
@@ -791,6 +795,7 @@ class Column(models.Model):
         workup1 = "workup1"
         workup2 = "workup2"
         workup3 = "workup3"
+        spefilter = "spefilter"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -798,7 +803,7 @@ class Column(models.Model):
         solvent = "solvent"
 
     otsession_id = models.ForeignKey(
-        OTSession, related_name="otcolumns", on_delete=models.CASCADE
+        OTSession, related_name="otcolumns", on_delete=models.CASCADE, null=True
     )
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     index = models.IntegerField()
@@ -811,8 +816,8 @@ class Well(models.Model):
 
     Parameters
     ----------
-    otsession_id: ForeignKey
-        Foreign key linking a plate to an OT session
+    otbatchprotocol_id: ForeignKey
+        Foreign key linking a plate to an OT batch protocol
     plate_id: ForeignKey
         Foreign key linking a well to a plate
     method_id: ForeignKey
@@ -843,6 +848,7 @@ class Well(models.Model):
         workup1 = "workup1"
         workup2 = "workup2"
         workup3 = "workup3"
+        spefilter = "spefilter"
         lcms = "lcms"
         xchem = "xchem"
         nmr = "nmr"
@@ -850,13 +856,15 @@ class Well(models.Model):
         solvent = "solvent"
 
     otsession_id = models.ForeignKey(
-        OTSession, related_name="otwells", on_delete=models.CASCADE
+        OTSession,
+        related_name="otwells",
+        on_delete=models.CASCADE,
+        null=True,
     )
     plate_id = models.ForeignKey(Plate, on_delete=models.CASCADE)
     method_id = models.ForeignKey(Method, on_delete=models.CASCADE, null=True)
     reaction_id = models.ForeignKey(Reaction, on_delete=models.CASCADE, null=True)
     column_id = models.ForeignKey(Column, on_delete=models.CASCADE, null=True)
-    clonewellid = models.IntegerField(null=True)
     index = models.IntegerField()
     type = models.CharField(choices=WellType.choices, max_length=55)
     volume = models.FloatField(null=True)

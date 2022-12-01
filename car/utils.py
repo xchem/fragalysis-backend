@@ -15,10 +15,13 @@ from car.models import (
     ActionSession,
     Batch,
     Method,
+    AddAction,
+    ExtractAction,
     OTBatchProtocol,
     Product,
     Reaction,
     Target,
+    Plate,
 )
 
 from car.recipebuilder.encodedrecipes import encoded_recipes
@@ -26,37 +29,79 @@ from car.recipebuilder.encodedrecipes import encoded_recipes
 logger = logging.getLogger(__name__)
 
 
-# def getReactionInfo(batch_ids: list[int]) -> list:
-#     """Get the reaction info for a batch as list of targets,reactant SMILES,
-#     reaction class (Amidation, Suzuki etc)
-#     """
-#     reaction_info = {}
-#     for batch_id in batch_ids:
-#         batchobj = Batch.objects.get(id=batch_id)
-#         targetqueryset = batchobj.targets.all()
-#         target_smiles = [target_obj.smiles for target_obj in targetqueryset]
-#         for targetobj in targetqueryset:
-#             reaction_info["target_smiles"] = targetobj.smiles
+def getAddActionQuerySet(
+    reaction_ids: list,
+    actionsession_ids: list = None,
+    actionsessiontype: str = None,
+) -> QuerySet[AddAction]:
+    """Get add actions queryset for reaction_id
 
-#         methods = [target.methods.all() for target in targetqueryset]
-#         method_sublist = [item for sublist in methods for item in sublist]
-#         reactions = [method.reactions.all() for method in method_sublist]
-#         reaction_sublist = [item for sublist in reactions for item in sublist]
-#         reactants = [reaction.reactants.all() for reaction in reaction_sublist]
-#         reactants_sublist = [item for sublist in reactants for item in sublist]
-#         reactants_batch_to_buy = list(
-#             set(
-#                 [
-#                     reactant.smiles
-#                     for reactant in reactants_sublist
-#                     if reactant.previousreactionproduct == False
-#                 ]
-#             )
-#         )
-#         reactants_to_buy = reactants_to_buy + reactants_batch_to_buy
+    Parameters
+    ----------
+    reaction_ids: list
+        The reactions to search for related add actions
+    actionsession_ids: list
+        Optional action session ids to match add actions with
+    actionsessiontype: str
+        The optional action session type to look for add actions for
+
+    Returns
+    -------
+    addactionqueryset: QuerySet[AddAction]
+        The add actions related to the reaction
+    """
+
+    if actionsession_ids:
+        criterion1 = Q(reaction_id__in=reaction_ids)
+        criterion2 = Q(actionsession_id__in=actionsession_ids)
+        addactionqueryset = AddAction.objects.filter(criterion1 & criterion2).order_by(
+            "id"
+        )
+        return addactionqueryset
+    if actionsessiontype:
+        criterion1 = Q(reaction_id__in=reaction_ids)
+        criterion2 = Q(actionsession_id__type=actionsessiontype)
+        addactionqueryset = AddAction.objects.filter(criterion1 & criterion2).order_by(
+            "id"
+        )
+        return addactionqueryset
 
 
-# Need to convert into function to retrieve all reactants that need to be purchased plus API endpoint!
+def getExtractActionQuerySet(
+    reaction_ids: list,
+    actionsession_ids: list = None,
+    actionsessiontype: str = None,
+) -> QuerySet[ExtractAction]:
+    """Get extract actions queryset for reaction_id
+
+    Parameters
+    ----------
+    reaction_ids: list
+        The reactions to search for related add actions
+    actionsession_ids: list
+        Optional action session ids to match add actions with
+    actionsessiontype: str
+        The optional action session type to look for add actions for
+
+    Returns
+    -------
+    extractactionqueryset: QuerySet[ExtractAction]
+        The extract actions related to the reaction
+    """
+
+    if actionsession_ids:
+        criterion1 = Q(reaction_id__in=reaction_ids)
+        criterion2 = Q(actionsession_id__in=actionsession_ids)
+        extractactionqueryset = ExtractAction.objects.filter(
+            criterion1 & criterion2
+        ).order_by("id")
+        return extractactionqueryset
+    if actionsessiontype:
+        criterion1 = Q(reaction_id__in=reaction_ids)
+        extractactionqueryset = ExtractAction.objects.filter(
+            criterion1, actionsession_id__type=actionsessiontype
+        ).order_by("id")
+        return extractactionqueryset
 
 
 def getOTBatchProtocolQuerySet(batch_id: int) -> QuerySet[OTBatchProtocol]:
@@ -199,7 +244,7 @@ def getPreviousObjEntries(queryset: list, obj: object) -> QuerySet:
 
 def checkPreviousReactionFailures(reactionobj: Reaction) -> bool:
     """Check if any previous reaction failures for a method"""
-    reactionqueryset = getReactions(methodid=reactionobj.method_id.id)
+    reactionqueryset = getReactions(method_ids=[reactionobj.method_id.id])
     previousreactionqueryset = getPreviousObjEntries(
         queryset=reactionqueryset, obj=reactionobj
     )
@@ -238,10 +283,8 @@ def getReactionsToDo(groupreactionqueryset: QuerySet[Reaction]) -> QuerySet[Reac
     for reactionobj in groupreactionqueryset:
         if checkNoMethodSteps(reactionobj=reactionobj):
             if not checkPreviousReactionFailures(reactionobj=reactionobj):
-                reactionstodo.append(reactionobj)
-    groupreactiontodoqueryset = groupreactionqueryset.filter(
-        reaction_id__in=reactionstodo
-    )
+                reactionstodo.append(reactionobj.id)
+    groupreactiontodoqueryset = groupreactionqueryset.filter(id__in=reactionstodo)
     return groupreactiontodoqueryset
 
 
@@ -374,6 +417,177 @@ def getBatchTargetMWs(batch_id: int) -> list[float]:
     return target_MWs
 
 
+def getBatchTargetSmiles(batch_id: int) -> list[float]:
+    """Gets the SMILES of the final target compounds
+    for a batch
+
+    Parameters
+    ----------
+    batch_id: int
+        The batch id to get the target molecular weights for
+
+    Returns
+    -------
+    target_SMILES: list
+        The target SMILES for a batch
+    """
+
+    batchobj = Batch.objects.get(id=batch_id)
+    targetqueryset = batchobj.targets.all()
+    target_SMILES = [targetobj.smiles for targetobj in targetqueryset]
+    return target_SMILES
+
+
+def getBatchReactionIDs(batch_id: int, reaction_number: int) -> list[float]:
+    """Gets the reaction ids for a reaction number in
+       a batch
+
+    Parameters
+    ----------
+    batch_id: int
+        The batch id to get the target molecular weights for
+    reaction_number: int
+        The reactions to find product SMILES for
+
+    Returns
+    -------
+    reaction_IDs: list
+        The reaction IDs for a reaction step in a batch
+    """
+    reaction_IDs = []
+    batchobj = Batch.objects.get(id=batch_id)
+    targetqueryset = batchobj.targets.all().order_by("id")
+    for targetobj in targetqueryset:
+        methodqueryset = targetobj.methods.all().order_by("id")
+        for methodobj in methodqueryset:
+            reactionqueryset = (
+                methodobj.reactions.all().filter(number=reaction_number).order_by("id")
+            )
+            for reactionobj in reactionqueryset:
+                reaction_IDs.append(reactionobj.id)
+    return reaction_IDs
+
+
+def updateReactionSuccessToFail(reaction_ids: list[int]):
+    """Updates reactions to be failures
+
+    Parameters
+    ----------
+    reactions_ids: list[int]
+        The reactions to update as synthetic failures
+    """
+    if Reaction.objects.filter(id__in=reaction_ids).exists():
+        Reaction.objects.filter(id__in=reaction_ids).update(success=False)
+
+
+def updateBatchMethodOTFriendly(batch_id: int):
+    """Updates a batch of methods to all be OT friendly
+
+    Parameters
+    ----------
+    batch_id: int
+        The batch id to get the target molecular weights for
+    """
+    batchobj = Batch.objects.get(id=batch_id)
+    targetqueryset = batchobj.targets.all().order_by("id")
+    for targetobj in targetqueryset:
+        methodqueryset = targetobj.methods.all().order_by("id")
+        for methodobj in methodqueryset:
+            methodobj.otchem = True
+            methodobj.save()
+
+
+def getBatchReactionProductSmiles(batch_id: int, reaction_number: int) -> list[float]:
+    """Gets the MWs of the products for a reaction in
+       a batch
+
+    Parameters
+    ----------
+    batch_id: int
+        The batch id to get the target molecular weights for
+    reaction_number: int
+        The reactions to find product SMILES for
+
+    Returns
+    -------
+    product_MWs: list
+        The product MWs for a reaction step in a batch
+    """
+    product_SMILES = []
+    batchobj = Batch.objects.get(id=batch_id)
+    targetqueryset = batchobj.targets.all().order_by("id")
+    for targetobj in targetqueryset:
+        methodqueryset = targetobj.methods.all().order_by("id")
+        for methodobj in methodqueryset:
+            reactionqueryset = (
+                methodobj.reactions.all().filter(number=reaction_number).order_by("id")
+            )
+            for reactionobj in reactionqueryset:
+                product_SMILES = product_SMILES + list(
+                    reactionobj.products.all().values_list("smiles", flat=True)
+                )
+    return product_SMILES
+
+
+def getBatchReactionProductMWs(batch_id: int, reaction_number: int) -> list[float]:
+    """Gets the SMILES of the products for a list of reactions
+       for a batch
+
+    Parameters
+    ----------
+    batch_id: int
+        The batch id to get the target molecular weights for
+    reaction_number: int
+        The reactions to find product SMILES for
+
+    Returns
+    -------
+    product_SMILES: list
+        The product SMILES for a batch of reactions
+    """
+    product_SMILES = []
+    batchobj = Batch.objects.get(id=batch_id)
+    targetqueryset = batchobj.targets.all().order_by("id")
+    for targetobj in targetqueryset:
+        methodqueryset = targetobj.methods.all().order_by("id")
+        for methodobj in methodqueryset:
+            reactionqueryset = (
+                methodobj.reactions.all().filter(number=reaction_number).order_by("id")
+            )
+            for reactionobj in reactionqueryset:
+                product_SMILES = product_SMILES + list(
+                    reactionobj.products.all()
+                    .order_by("id")
+                    .values_list("smiles", flat=True)
+                )
+    product_MWs = [
+        Descriptors.ExactMolWt(Chem.MolFromSmiles(smi)) for smi in product_SMILES
+    ]
+    return product_MWs
+
+
+def getPlateQuerySet(otsession_id: int) -> QuerySet[Plate]:
+    platequeryset = Plate.objects.filter(otsession_id=otsession_id)
+    return platequeryset
+
+
+def getProductQuerySet(reaction_ids: list) -> QuerySet[Product]:
+    """Get product queryset for reaction ids
+
+    Parameters
+    ----------
+    reaction_ids: list
+        The reaction ids to search for related products
+
+    Returns
+    -------
+    productqueryset: QuerySet[Product]
+        The product queryset related to the reaction ids
+    """
+    productqueryset = Product.objects.filter(reaction_id__in=reaction_ids)
+    return productqueryset
+
+
 def getProduct(reaction_id: int) -> Product:
     """Get product object
 
@@ -389,6 +603,29 @@ def getProduct(reaction_id: int) -> Product:
     """
     productobj = Product.objects.get(reaction_id=reaction_id)
     return productobj
+
+
+def getProductSmiles(reaction_ids: list) -> list:
+    """Get product smiles of reactions
+
+    Parameters
+    ----------
+    reaction_ids: list
+        The reactions to get product smiles for
+
+    Returns
+    -------
+    productsmiles: list
+        The list of product smiles
+    """
+
+    productsmiles = Product.objects.filter(reaction_id__in=reaction_ids).values_list(
+        "smiles", flat=True
+    )
+    if productsmiles:
+        return list(productsmiles)
+    else:
+        return None
 
 
 def getReaction(reaction_id: int) -> Reaction:
@@ -551,25 +788,60 @@ def getMWs(smiles: list[str]) -> list[float]:
     return MWs
 
 
-def calculateProductMols(target_mass: float, target_SMILES: str) -> object:
+def getInchiKey(smiles: str) -> str:
+    """Gets the inchikeys of a list of compounds SMILES
+
+    Parameters
+    ----------
+    smiles: str
+        The SMILES to convert to an inchikey
+
+    Returns
+    -------
+    inchikeys: str
+        The inchikeys
+    """
+    inchikey = Chem.MolToInchiKey(Chem.MolFromSmiles(smiles))
+    return inchikey
+
+
+def calculateMols(target_concentration: float, target_volume: float) -> object:
     """Function to calculate product mols of reaction using a target mass
 
     Parameters
     ----------
-    target_mass: float
-        The target mass (mg) of the product
-    target_SMILES: str
-        The SMILES of the product
+    target_concentration: float
+        The target concentration (mM) of the product
+    target_volume: float
+        The target volume (uL) of the product
 
     Returns
     -------
     product_moles: rdkit mol object
         The product mols
     """
-    target_MW = Descriptors.ExactMolWt(Chem.MolFromSmiles(target_SMILES))
-    target_mass = target_mass / 1e3
-    product_mols = target_mass / target_MW
-    return product_mols
+    target_mols = (target_volume / 1e6) * (target_concentration / 1e3)
+    return target_mols
+
+
+def calculateMassFromMols(mols: float, SMILES: str) -> object:
+    """Function to calculate mass from mols
+
+    Parameters
+    ----------
+    mols: float
+        The mols of the compound
+    SMILES: str
+        The SMILES of the compound
+
+    Returns
+    -------
+    mass: float
+        The mass (mg) of the compound
+    """
+    MW = Descriptors.ExactMolWt(Chem.MolFromSmiles(SMILES))
+    mass = (mols * MW) * 1e3
+    return mass
 
 
 def canonSmiles(smiles: str) -> str:
@@ -737,6 +1009,8 @@ def checkReactantSMARTS(reactant_SMILES: tuple, reaction_SMARTS: str) -> list:
             products = rxn.RunReactants(reactant_permutation)
             product_mols = [product[0] for product in products]
             if product_mols:
+                product_smiles = set([Chem.MolToSmiles(mol) for mol in product_mols])
+                product_mols = [Chem.MolFromSmiles(smi) for smi in product_smiles]
                 break
             if not product_mols:
                 continue  # reactants were in wrong order so no product
@@ -775,13 +1049,13 @@ def getPubChemCAS(compound: object) -> str:
                 return cas
 
 
-def getPubChemCompound(smiles: str) -> object:
-    """Searches PubChem for compound using SMILES
+def getPubChemCompound(inchikey: str) -> object:
+    """Searches PubChem for compound using inchi key
 
     Parameters
     ----------
-    smiles: str
-        The SMILES of the compound to search the PubChem DB for
+    inchikey: str
+        The inchikey of the compound to search the PubChem DB for
 
     Returns
     -------
@@ -791,7 +1065,7 @@ def getPubChemCompound(smiles: str) -> object:
         Returns None if no compound is found or an error occurs
     """
     try:
-        compound = pcp.get_compounds(smiles, "smiles")[0]
+        compound = pcp.get_compounds(inchikey, "inchikey")[0]
         if not compound.cid:
             return None
         else:
@@ -799,20 +1073,20 @@ def getPubChemCompound(smiles: str) -> object:
     except Exception as e:
         logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
         print(
-            "Pubchempy could not retrieve compound entry for input SMILES: {} with error {}".format(
-                smiles, e
+            "Pubchempy could not retrieve compound entry for input inchikey: {} with error {}".format(
+                inchikey, e
             )
         )
         return None
 
 
-def getChemicalName(smiles: str) -> str:
+def getChemicalName(inchikey: str) -> str:
     """Searches PubChem for compound using SMILES
 
     Parameters
     ----------
-    smiles: str
-        The SMILES of the compound to search the PubChem DB for
+    inchikey: str
+        The inchiley of the compound to search the PubChem DB for
         it's IUPAC name
 
     Returns
@@ -824,7 +1098,7 @@ def getChemicalName(smiles: str) -> str:
         occurs
     """
     try:
-        name = pcp.get_compounds(smiles, "smiles")[0].iupac_name
+        name = pcp.get_compounds(inchikey, "inchikey")[0].iupac_name
         if not name:
             return None
         else:

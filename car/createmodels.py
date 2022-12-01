@@ -34,13 +34,18 @@ from .models import (
 )
 
 from .utils import (
+    getProduct,
+    getProductSmiles,
+    calculateMassFromMols,
     checkProceedingReactions,
-    calculateProductMols,
+    calculateMols,
+    calculateMassFromMols,
     createSVGString,
     createReactionSVGString,
     getPubChemCAS,
     getPubChemCompound,
     getReactionYields,
+    getInchiKey,
 )
 
 import logging
@@ -141,17 +146,23 @@ def createBatchModel(project_id: int, batchtag: str, batch_id: int = None) -> in
     return batch.id
 
 
-def createTargetModel(batch_id: int, smiles: str, mass: float) -> int:
+def createTargetModel(
+    batch_id: int, name: str, smiles: str, concentration: float, volume: float
+) -> int:
     """Creates a Django target object - a target compound model entry
 
     Parameters
     ----------
     batch_id: int
         The batch model object id that the target is linked to
+    name: str
+        The name of the Target compound
     smiles: str
         The SMILES of the target compound
-    mass: float
-        The mass to be made (mg) for the target compound
+    concentration: float
+        The concentration (mM) to be made for the target compound
+    volume: float
+        The volume (uL) to be made for the target compound
 
     Returns
     -------
@@ -160,17 +171,20 @@ def createTargetModel(batch_id: int, smiles: str, mass: float) -> int:
     """
     target = Target()
     batch_obj = Batch.objects.get(id=batch_id)
-    batchtag = batch_obj.batchtag
     target.batch_id = batch_obj
     target.smiles = smiles
-    target.mols = calculateProductMols(mass, smiles)
-    target.name = batchtag
+    mols = calculateMols(target_concentration=concentration, target_volume=volume)
+    mass = calculateMassFromMols(mols=target.mols, SMILES=smiles)
+    target.mols = mols
+    target.concentration = concentration
+    target.volume = volume
+    target.mass = mass
+    target.name = name
     target_svg_string = createSVGString(smiles)
     target_svg_fn = default_storage.save(
         "targetimages/" + target.name + ".svg", ContentFile(target_svg_string)
     )
     target.image = target_svg_fn
-    target.mass = mass
     target.save()
     return target.id
 
@@ -312,7 +326,8 @@ def getPubChemInfo(smiles: str) -> object:
         pubcheminfo = pubcheminfoqueryset[0]
         return pubcheminfo
     else:
-        compound = getPubChemCompound(smiles=smiles)
+        inchikey = getInchiKey(smiles=smiles)
+        compound = getPubChemCompound(inchikey=inchikey)
         if compound:
             compoundid = compound.cid
             cas = getPubChemCAS(compound=compound)
@@ -339,13 +354,13 @@ def createProductModel(reaction_id: int, product_smiles: str):
     product_smiles: str
         The SMILES of the product
     """
-    # pubcheminfoobj = getPubChemInfo(smiles=product_smiles)
+    pubcheminfoobj = getPubChemInfo(smiles=product_smiles)
     product = Product()
     reaction_obj = Reaction.objects.get(id=reaction_id)
     product.reaction_id = reaction_obj
     product.smiles = product_smiles
-    # if pubcheminfoobj:
-    #     product.pubcheminfo_id = pubcheminfoobj
+    if pubcheminfoobj:
+        product.pubcheminfo_id = pubcheminfoobj
     product_svg_string = createSVGString(product_smiles)
     product_svg_fn = default_storage.save(
         "productimages/.svg", ContentFile(product_svg_string)
@@ -375,13 +390,13 @@ def createReactantModel(
     reactant_id: int
         The id of the reactant model object created
     """
-    # pubcheminfoobj = getPubChemInfo(smiles=reactant_smiles)
+    pubcheminfoobj = getPubChemInfo(smiles=reactant_smiles)
     reactant = Reactant()
     reaction_obj = Reaction.objects.get(id=reaction_id)
     reactant.reaction_id = reaction_obj
     reactant.smiles = reactant_smiles
-    # if pubcheminfoobj:
-    #     reactant.pubcheminfo_id = pubcheminfoobj
+    if pubcheminfoobj:
+        reactant.pubcheminfo_id = pubcheminfoobj
     reactant.previousreactionproduct = previous_reaction_product
     reactant.save()
     return reactant.id
@@ -392,6 +407,7 @@ def createCatalogEntryModel(
     target_id: int = None,
     reactant_id: int = None,
     previous_reaction_product: bool = False,
+    lab_inventory: bool = False,
 ):
     """Creates a Django catalogentry object - the catalog details
        for a reactant or target
@@ -406,6 +422,8 @@ def createCatalogEntryModel(
         The optional id of the Django reactant model object
     previous_reaction_product: bool
         If the reactant is a previous product from a reaction, therfor does not need to be purchased
+    lab_inventory: bool
+        Set to True if the compound is in the lab inventory
     """
     catalogentry = CatalogEntry()
     if target_id:
@@ -415,14 +433,14 @@ def createCatalogEntryModel(
         reactant_obj = Reactant.objects.get(id=reactant_id)
         catalogentry.reactant_id = reactant_obj
 
-    if previous_reaction_product:
+    if previous_reaction_product or lab_inventory:
         catalogentry.vendor = "reaction product"
         catalogentry.catalogid = "NA"
         catalogentry.priceinfo = "< $100 / g"
         catalogentry.upperprice = 0
         catalogentry.leadtime = 0
 
-    if not previous_reaction_product:
+    if not previous_reaction_product and not lab_inventory:
         catalogentry.vendor = catalog_entry["catalogName"]
         catalogentry.catalogid = catalog_entry["catalogId"]
 
@@ -533,16 +551,27 @@ class CreateEncodedActionModels(object):
         self.reaction_obj = Reaction.objects.get(id=reaction_id)
         self.reactant_pair_smiles = reactant_pair_smiles
         self.reaction_name = reaction_name
+        self.product_obj = getProduct(reaction_id=reaction_id)
         self.target_obj = Target.objects.get(id=target_id)
+        self.productmols = self.getProductMols()
+        self.productmass = calculateMassFromMols(
+            mols=self.productmols, SMILES=self.product_obj.smiles
+        )
+        self.productsmiles = getProductSmiles(reaction_ids=[reaction_id])[0]
         self.mculeidlist = []
         self.amountslist = []
 
         for actionsession in actionsessions:
             actionsessiontype = actionsession["type"]
+            if "continuation" in actionsession:
+                continuation = actionsession["continuation"]
+            else:
+                continuation = False
             actionsession_obj = self.createActionSessionModel(
                 actionsessiontype=actionsessiontype,
                 driver=actionsession["driver"],
                 sessionnumber=actionsession["sessionnumber"],
+                continuation=continuation,
             )
             if actionsessiontype == "reaction" and self.intramolecular:
                 reaction_actions = actionsession["intramolecular"]["actions"]
@@ -568,6 +597,33 @@ class CreateEncodedActionModels(object):
                     )
                     for action in actions
                 ]
+
+    def getProductMols(self):
+        """Calculates mols fo product required based on reaction
+        success and amount final target required
+
+        Returns
+        -------
+        product_mols: float
+            The product mols required
+        """
+        proceedingreactionqueryset = checkProceedingReactions(
+            reaction_id=self.reaction_obj.id
+        )
+
+        if proceedingreactionqueryset:
+            reactionclasslist = [
+                reactionobj.reactionclass for reactionobj in proceedingreactionqueryset
+            ] + [self.reaction_name]
+            reactionyields = getReactionYields(reactionclasslist=reactionclasslist)
+            yieldcorrection = math.prod(reactionyields)
+
+        if not proceedingreactionqueryset:
+            reactionyields = getReactionYields(reactionclasslist=[self.reaction_name])
+            yieldcorrection = math.prod(reactionyields)
+
+        product_mols = self.target_obj.mols / yieldcorrection
+        return product_mols
 
     def createEncodedActionModel(self, actionsession_obj: ActionSession, action: dict):
         """Calls the functions to create the appropriate Django action
@@ -597,10 +653,35 @@ class CreateEncodedActionModels(object):
         else:
             logger.info(action_type)
 
-    def getProductSmiles(self):
-        """Gets the product SMILES for the reaction"""
-        product = Product.objects.get(reaction_id=self.reaction_id)
-        return product.smiles
+    def calculateMass(
+        self,
+        calcunit: str,
+        calcvalue: float,
+        reactant_MW: float,
+    ) -> float:
+        """Calculates the reactant mass (mg) required for an add action step
+
+        Parameters
+        ----------
+        calcunit: str
+            The unit used for the calculation eg. mass equivalents
+        calcvalue: int
+            The the quivalents to use in the calculation
+        reactant_MW: float
+            The molecular weight (g/mol) of the reactant
+
+        Returns
+        -------
+        mass_material: float
+            The mass (mg) of the material required for the add action step
+        """
+        try:
+            if calcunit == "moleq":
+                mol_material = float(calcvalue) * self.productmols
+                mass_material = mol_material * reactant_MW * 1000
+                return mass_material
+        except Exception as e:
+            logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
     def calculateVolume(
         self,
@@ -609,7 +690,6 @@ class CreateEncodedActionModels(object):
         conc_reagents: float = None,
         reactant_density: float = None,
         reactant_MW: float = None,
-        reactionyields: list = None,
     ) -> float:
         """Calculates the reactant volume (ul) required for an add action step
 
@@ -619,16 +699,12 @@ class CreateEncodedActionModels(object):
             The unit used for the calculation eg. mass equivalents
         calcvalue: int
             The the quivalents to use in the calculation
-        molar_eqv: float
-            The optional molar equivalents required for the add action
         conc_reagents: float
             The optional concentration of the reactant
         reactant_density: float
             The optional density (g/ml) of the reactant
         reactant_MW: float
             The optional molecular weight (g/mol) of the reactant
-        reactionyields: list = None
-            The list of reacion yields including current and all proceeding reactions
 
         Returns
         -------
@@ -637,13 +713,10 @@ class CreateEncodedActionModels(object):
         """
         try:
             if calcunit == "masseq":
-                vol_material = float(calcvalue) * self.target_obj.mass
+                vol_material = float(calcvalue) * self.productmass
                 return vol_material
             if calcunit == "moleq":
-                yieldcorrection = math.prod(reactionyields)
-                mol_material = (
-                    float(calcvalue) * self.target_obj.mols
-                ) / yieldcorrection
+                mol_material = float(calcvalue) * self.productmols
                 if reactant_density:
                     vol_material = (
                         (mol_material * reactant_MW) / reactant_density
@@ -655,7 +728,11 @@ class CreateEncodedActionModels(object):
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
     def createActionSessionModel(
-        self, actionsessiontype: str, driver: str, sessionnumber: int
+        self,
+        actionsessiontype: str,
+        driver: str,
+        sessionnumber: int,
+        continuation: bool,
     ):
         """Creates a Django action session object - a session are colelctions of
            actions that can be collectively exceuted. Eg. a reaction will
@@ -670,6 +747,9 @@ class CreateEncodedActionModels(object):
             automated then the driver is a robot else human
         sessionnumber: int
             The session sequence number eg. reaction session one happens first
+        continuation: bool
+            Does the session continue from a previous session eg. reaction sessions broken
+            up by stir action session where another reagent/reactant is added after stirring
         """
         try:
             actionsession = ActionSession()
@@ -677,6 +757,7 @@ class CreateEncodedActionModels(object):
             actionsession.type = actionsessiontype
             actionsession.driver = driver
             actionsession.sessionnumber = sessionnumber
+            actionsession.continuation = continuation
             actionsession.save()
             return actionsession
         except Exception as e:
@@ -705,12 +786,12 @@ class CreateEncodedActionModels(object):
                 not action["content"]["material"]["SMILES"]
                 and not action["content"]["material"]["SMARTS"]
             ):
-                smiles = self.getProductSmiles()
+                smiles = self.productsmiles
             calcvalue = action["content"]["material"]["quantity"]["value"]
             calcunit = action["content"]["material"]["quantity"]["unit"]
             concentration = action["content"]["material"]["concentration"]
-            if not concentration:
-                concentration = 0
+            # if not concentration:
+            #     concentration = 0
             solvent = action["content"]["material"]["solvent"]
             mol = Chem.MolFromSmiles(smiles)
             molecular_weight = Descriptors.ExactMolWt(mol)
@@ -732,39 +813,29 @@ class CreateEncodedActionModels(object):
                 )
                 add.solvent = solvent
             if calcunit == "moleq":
-                proceedingreactionqueryset = checkProceedingReactions(
-                    reaction_id=self.reaction_obj.id
-                )
-                if proceedingreactionqueryset:
-                    reactionclasslist = [
-                        reactionobj.reactionclass
-                        for reactionobj in proceedingreactionqueryset
-                    ] + self.reaction_name
-                    reactionyields = getReactionYields(
-                        reactionclasslist=reactionclasslist
+                if not solvent and not concentration:
+                    add.mass = self.calculateMass(
+                        calcunit=calcunit,
+                        calcvalue=calcvalue,
+                        reactant_MW=molecular_weight,
                     )
-                if not proceedingreactionqueryset:
-                    reactionyields = getReactionYields(
-                        reactionclasslist=[self.reaction_name]
-                    )
-                if not solvent:
+                if "density" in action["content"]["material"]:
                     reactant_density = action["content"]["material"]["density"]
                     add.volume = self.calculateVolume(
                         calcunit=calcunit,
                         calcvalue=calcvalue,
                         reactant_density=reactant_density,
                         reactant_MW=molecular_weight,
-                        reactionyields=reactionyields,
                     )
                 if solvent:
                     add.volume = self.calculateVolume(
                         calcunit=calcunit,
                         calcvalue=calcvalue,
                         conc_reagents=concentration,
-                        reactionyields=reactionyields,
                     )
                     add.solvent = solvent
-            add.concentration = concentration
+            if concentration:
+                add.concentration = concentration
             add.save()
 
         except Exception as e:
@@ -790,7 +861,7 @@ class CreateEncodedActionModels(object):
             if not concentration:
                 concentration = 0
             solvent = action["content"]["material"]["solvent"]
-            smiles = self.getProductSmiles()
+            smiles = self.productsmiles
             mol = Chem.MolFromSmiles(smiles)
             molecular_weight = Descriptors.ExactMolWt(mol)
             extract = ExtractAction()
@@ -857,8 +928,6 @@ class CreateEncodedActionModels(object):
             actionnumber = action["actionnumber"]
             platetype = action["content"]["platetype"]
             repetitions = action["content"]["repetitions"]["value"]
-            calcvalue = action["content"]["quantity"]["value"]
-            calcunit = action["content"]["quantity"]["unit"]
 
             mix = MixAction()
             mix.reaction_id = self.reaction_obj
@@ -866,13 +935,6 @@ class CreateEncodedActionModels(object):
             mix.number = actionnumber
             mix.platetype = platetype
             mix.repetitions = repetitions
-            if calcunit == "ul":
-                mix.volume = calcvalue
-            if calcunit == "masseq":
-                mix.volume = self.calculateVolume(
-                    calcunit=calcunit,
-                    calcvalue=calcvalue,
-                )
             mix.save()
 
         except Exception as e:
