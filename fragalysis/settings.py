@@ -202,8 +202,13 @@ LOGOUT_REDIRECT_URL = "/viewer/react/landing"
 OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_STORE_ACCESS_TOKEN = True
 OIDC_STORE_ID_TOKEN = True
-# Keycloak mozilla_django_oidc - Settings - End
 
+# SessionRefresh configuration.
+# There's only one item - the token expiry period, with a default of 15 minutes.
+# The default is 15 minutes if you don't set this value.
+TOKEN_EXPIRY_MINUTES = os.environ.get("OIDC_RENEW_ID_TOKEN_EXPIRY_MINUTES", "15")
+OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = int(TOKEN_EXPIRY_MINUTES) * 60
+# Keycloak mozilla_django_oidc - Settings - End
 
 ROOT_URLCONF = "fragalysis.urls"
 
@@ -385,7 +390,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'django': {
                 'level': 'WARNING'},
             'mozilla_django_oidc': {
-                'level': 'WARNING'},
+                'level': 'DEBUG'},
             'urllib3': {
                 'level': 'WARNING'}},
         'root': {
