@@ -16,7 +16,7 @@ services:
     image: postgres:12.2
     container_name: database
     volumes:
-    - ../data/postgre/data:/var/lib/postgresql/data
+    - ../data/postgresql/data:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD: fragalysis
       POSTGRES_USER: fragalysis
@@ -82,6 +82,9 @@ services:
       SQUONK2_UI_URL: ${SQUONK2_UI_URL}
       SQUONK2_DMAPI_URL: ${SQUONK2_DMAPI_URL}
       SQUONK2_ASAPI_URL: ${SQUONK2_ASAPI_URL}
+      FALLBACK_TAS: ${FALLBACK_TAS}
+      DUMMY_USER: ${DUMMY_USER}
+      DUMMY_SESSION_TITLE: ${DUMMY_SESSION_TITLE}
     ports:
     - "8080:80"
     depends_on:

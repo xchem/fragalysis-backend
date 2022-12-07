@@ -16,10 +16,12 @@ from urllib3 import disable_warnings
 from django.core.exceptions import ObjectDoesNotExist
 from squonk2.auth import Auth
 from squonk2.as_api import AsApi, AsApiRv
+from squonk2.dm_api import DmApi, DmApiRv
 import requests
 from requests import Response
 from wrapt import synchronized
 
+from viewer.models import User, SessionProject, Project
 from viewer.models import Squonk2Project, Squonk2Org, Squonk2Unit
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
@@ -28,26 +30,27 @@ _LOGGER: logging.Logger = logging.getLogger(__name__)
 Squonk2AgentRv: namedtuple = namedtuple('Squonk2AgentRv', ['success', 'msg'])
 SuccessRv: Squonk2AgentRv = Squonk2AgentRv(success=True, msg=None)
 
+# Parameters common to each named Tuple
+CommonParams: namedtuple = namedtuple("CommonParams",
+                                      ["token",
+                                       "user_id",
+                                       "access_id",
+                                       "target_id",
+                                       "session_id"])
+
 # Named tuples are used to pass parameters to the agent methods.
 # RunJob, used in run_job()
-RunJob: namedtuple = namedtuple("RunJob", ["access_token",
-                                           "proposal",
-                                           "user_id",
-                                           "target_id",
-                                           "job_spec",
-                                           "callback_url"])
+RunJobParams: namedtuple = namedtuple("RunJob", ["common",
+                                                 "job_spec",
+                                                 "callback_url"])
 
 # Send, used in send()
 # Access ID is the Fragalysis Project record ID
 # Session ID is the Fragalysis SessionProject record ID
 # Target ID is the Fragalysis Target record ID
 # Snapshot ID is the Fragalysis Snapshot record ID
-Send: namedtuple = namedtuple("Send", ["token",
-                                       "user_id",
-                                       "access_id",
-                                       "target_id",
-                                       "session_id",
-                                       "snapshot_id"])
+SendParams: namedtuple = namedtuple("Send", ["common",
+                                             "snapshot_id"])
 
 
 _SUPPORTED_PRODUCT_FLAVOURS: List[str] = ["BRONZE", "SILVER", "GOLD"]
@@ -56,13 +59,11 @@ _MAX_SQ2_NAME_LENGTH: int = 80
 _MAX_SLUG_LENGTH: int = 10
 _SQ2_NAME_PREFIX: str = "Fragalysis"
 
-# How long are auxiliary parts of Squonk2 names allowed to be?
-# This is the maximum name length (assumed to be 80) minus the
-# name prefix, minus the slug and minus 2 (for spaces)
-_MAX_AUX_STRING_LENGTH: int = _MAX_SQ2_NAME_LENGTH \
-                              - len(_SQ2_NAME_PREFIX) \
-                              - _MAX_SLUG_LENGTH \
-                              - 2
+_SQ2_PRODUCT_TYPE: str = 'DATA_MANAGER_PROJECT_TIER_SUBSCRIPTION'
+_SQ2_PRODUCT_FLAVOUR: str = 'GOLD'
+
+# How long are Squonk2 'names'?
+_SQ2_MAX_NAME_LENGTH: int = 80
 
 # True if the code's in Test Mode
 _TEST_MODE: bool = True
@@ -116,10 +117,14 @@ class Squonk2Agent:
             os.environ.get('OIDC_KEYCLOAK_REALM')
 
         # Optional config (no '__CFG_' prefix)
-        self.__FALLBACK_PROPOSAL_ID: Optional[str] =\
-            os.environ.get('FALLBACK_PROPOSAL_ID')
-        self.__FORCE_FALLBACK_PROPOSAL_ID: Optional[str] =\
-            os.environ.get('FORCE_FALLBACK_PROPOSAL_ID')
+        self.__DUMMY_SESSION_TITLE: Optional[str] =\
+            os.environ.get('DUMMY_SESSION_TITLE')
+        self.__DUMMY_USER: Optional[str] =\
+            os.environ.get('DUMMY_USER')
+        self.__FALLBACK_TAS: Optional[str] =\
+            os.environ.get('FALLBACK_TAS')
+        self.__FORCE_FALLBACK_TAS: Optional[str] =\
+            os.environ.get('FORCE_FALLBACK_TAS')
         self.__SQUONK2_VERIFY_CERTIFICATES: Optional[str] = \
             os.environ.get('SQUONK2_VERIFY_CERTIFICATES')
 
@@ -145,34 +150,81 @@ class Squonk2Agent:
         # Set on successful 'pre-flight-check'
         self.__org_record: Optional[Squonk2Org] = None
 
-        self.__owner_token: str = ''
+        self.__org_owner_as_token: str = ''
+        self.__org_owner_dm_token: str = ''
         self.__keycloak_hostname: str = ''
         self.__keycloak_realm: str = ''
 
-    def _get_org_owner_token(self) -> Optional[str]:
-        """Gets an access token for the Squonk2 organisation owner.
-        This sets the __keycloak_hostname member and also returns the token.
+    def _build_unit_name(self, target_access_string: str) -> Tuple[str, str]:
+        assert target_access_string
+        # AS Units are named using the Target Access String (TAS)
+        # which, in Diamond will be a "visit" string like "lb00000-1"
+        name: str = f'{_SQ2_NAME_PREFIX} {self.__CFG_SQUONK2_SLUG} /{target_access_string}/'
+        return name[:_SQ2_MAX_NAME_LENGTH], name
+
+    def _build_product_name(self, username: str, session_string: str) -> Tuple[str, str]:
+        """Builds a Product name, returning the truncated and un-truncated form"""
+        assert username
+        assert session_string
+        # AS Products (there's a 1:1 mapping to DM Projects)
+        # are named using the user and the session
+
+        # The Product name characters are not restricted
+        identifier: str = f'{username}::{session_string}'
+        name: str = f'{_SQ2_NAME_PREFIX} {self.__CFG_SQUONK2_SLUG} {identifier}'
+        return name[:_SQ2_MAX_NAME_LENGTH], name
+
+    def _build_project_name(self, user_id: int, session_id: int) -> Tuple[str, str]:
+        assert user_id
+        assert session_id
+        # DM Projects (there's a 1:1 mapping to Products)
+        # are named using the user and the session
+
+        # The Project name characters are RESTRICTED,
+        # and need to be limited to characters that are
+        # valid for use with RFC 1123 Label Names
+        identifier: str = f'{user_id}-{session_id}'
+        name: str = f'{_SQ2_NAME_PREFIX} {self.__CFG_SQUONK2_SLUG} {identifier}'
+        return name[:_SQ2_MAX_NAME_LENGTH], name
+
+    def _get_squonk2_owner_tokens(self) -> Optional[Tuple[str, str]]:
+        """Gets access tokens for the Squonk2 organisation owner.
+        This sets the __keycloak_hostname member and also returns the tokens,
+        getting one for the AS and one for the DM.
         """
         assert self.__keycloak_hostname
 
-        _LOGGER.info('__keycloak_hostname="%s" __keycloak_realm="%s" client=%s org_owner=%s',
+        _LOGGER.info('__keycloak_hostname="%s" __keycloak_realm="%s" dm-client=%s as-client=%s org_owner=%s',
                      self.__keycloak_hostname,
                      self.__keycloak_realm,
+                     self.__CFG_OIDC_DM_CLIENT_ID,
                      self.__CFG_OIDC_AS_CLIENT_ID,
                      self.__CFG_OIDC_AS_CLIENT_ID)
 
-        self.__owner_token = Auth.get_access_token(
+        self.__org_owner_as_token = Auth.get_access_token(
             keycloak_url="https://" + self.__keycloak_hostname + "/auth",
             keycloak_realm=self.__keycloak_realm,
             keycloak_client_id=self.__CFG_OIDC_AS_CLIENT_ID,
             username=self.__CFG_SQUONK2_ORG_OWNER,
             password=self.__CFG_SQUONK2_ORG_OWNER_PASSWORD,
         )
-        if not self.__owner_token:
+        if not self.__org_owner_as_token:
             _LOGGER.warning('Failed to get access token for AS Organisation owner')
             return None
+
+        self.__org_owner_dm_token = Auth.get_access_token(
+            keycloak_url="https://" + self.__keycloak_hostname + "/auth",
+            keycloak_realm=self.__keycloak_realm,
+            keycloak_client_id=self.__CFG_OIDC_DM_CLIENT_ID,
+            username=self.__CFG_SQUONK2_ORG_OWNER,
+            password=self.__CFG_SQUONK2_ORG_OWNER_PASSWORD,
+        )
+        if not self.__org_owner_dm_token:
+            _LOGGER.warning('Failed to get access token for DM as AS Organisation owner')
+            return None
+
         # OK if we get here
-        return self.__owner_token
+        return self.__org_owner_as_token, self.__org_owner_dm_token
 
     def _pre_flight_checks(self) -> Squonk2AgentRv:
         """Execute pre-flight checks,
@@ -193,15 +245,15 @@ class Squonk2Agent:
 
         # OK, so the ORG UUID has not changed.
         # Is it known to the configured AS?
-        if not self._get_org_owner_token():
-            msg = 'Failed to get AS token for organisation owner'
+        if not self._get_squonk2_owner_tokens():
+            msg = 'Failed to get AS or DM token for organisation owner'
             return Squonk2AgentRv(success=False, msg=msg)
 
         # Get the ORG from the AS API.
         # If it knows the org the response will be successful,
         # and we'll also have the Org's name.
         _LOGGER.info('Checking organisation (%s)', self.__CFG_SQUONK2_ORG_UUID)
-        as_o_rv = AsApi.get_organisation(self.__owner_token,
+        as_o_rv = AsApi.get_organisation(self.__org_owner_as_token,
                                          org_id=self.__CFG_SQUONK2_ORG_UUID)
         if not as_o_rv.success:
             msg = 'Failed checking AS Organisation'
@@ -230,6 +282,77 @@ class Squonk2Agent:
         # Organisation is known to AS, and it hasn't changed.
         return SuccessRv
 
+    def _create_product_and_project(self,
+                                    unit: Squonk2Unit,
+                                    user_name: str,
+                                    session_title: str,
+                                    params: CommonParams) -> Squonk2AgentRv:
+        """Called if a Product (and Project) needs to be created.
+        """
+        assert unit
+        assert user_name
+        assert session_title
+        assert params
+
+        # Create an AS Product.
+        name_truncated, name_full = self._build_product_name(user_name, session_title)
+        msg: str = f'Creating AS Product "{name_full}"...'
+        print(msg)
+        _LOGGER.info(msg)
+
+        as_rv: AsApiRv = AsApi.create_product(self.__org_owner_as_token,
+                                              product_name=name_truncated,
+                                              unit_id=unit.uuid,
+                                              product_type=_SQ2_PRODUCT_TYPE,
+                                              flavour=_SQ2_PRODUCT_FLAVOUR)
+        print(as_rv)
+        assert as_rv.success
+        product_uuid: str = as_rv.msg['id']
+        msg = f'Created AS Product "{product_uuid}"...'
+        print(msg)
+        _LOGGER.info(msg)
+
+        # Create a DM Project
+        name_truncated, name_full = self._build_project_name(1, 2)
+        msg = f'Creating DM Project "{name_full}"...'
+        print(msg)
+        _LOGGER.info(msg)
+
+        dm_rv: DmApiRv = DmApi.create_project(self.__org_owner_dm_token,
+                                              project_name=name_truncated,
+                                              as_tier_product_id=product_uuid)
+        print(dm_rv)
+        assert dm_rv.success
+        project_uuid: str = dm_rv.msg["project_id"]
+        msg = f'Created DM Project "{project_uuid}"...'
+        print(msg)
+        _LOGGER.info(msg)
+
+        # Add the user as an Editor to the Project
+        msg = f'Adding "{user_name} to DM Project as Editor...'
+        print(msg)
+        _LOGGER.info(msg)
+        dm_rv = DmApi.add_project_editor(self.__org_owner_dm_token,
+                                         project_id=project_uuid,
+                                         editor=user_name)
+        print(dm_rv)
+        assert dm_rv.success
+        msg = f'Added "{user_name} to DM Project as Editor'
+        print(msg)
+        _LOGGER.info(msg)
+
+        # Now record these remote objects in a new
+        # Squonk2Project record...
+        sq2_project = Squonk2Project(uuid=project_uuid,
+                                     name=name_full,
+                                     product_uuid=product_uuid,
+                                     unit_id=unit.id)
+        sq2_project.save()
+
+        # If the second call fails - delete the object created in the first
+
+        return Squonk2AgentRv(success=True, msg=sq2_project)
+
     def _ensure_unit(self, access_id: int) -> Squonk2AgentRv:
         """Gets or creates a Squonk2 Unit based on a customer's "target access string"
         (TAS). If a Unit is created its name will begin with the text "Fragalysis "
@@ -243,19 +366,27 @@ class Squonk2Agent:
         if not _TEST_MODE:
             assert access_id
 
-        # Get the target access string
-        target_access_string: str = ''
+        # Get the "target access string" (test mode or otherwise)
         if _TEST_MODE:
             _LOGGER.warning('Using FALLBACK_PROPOSAL_ID')
-            target_access_string = self.__FALLBACK_PROPOSAL_ID
+            target_access_string: str = self.__FALLBACK_TAS
+        else:
+            project: Optional[Project] = Project.objects.filter(id=access_id).first()
+            if not project:
+                msg: str = f'Project {access_id} does not exist'
+                _LOGGER.error(msg)
+                print(msg)
+                return Squonk2AgentRv(success=False, msg=msg)
+            target_access_string = project.title
+        assert target_access_string
 
-        unit: Optional[Squonk2Unit] = Squonk2Unit.objects.filter(proposal=target_access_string).first()
-        if not unit:
+        # Now we check and create a Squonk2Unit...
+        unit_name_truncated, unit_name_full = self._build_unit_name(target_access_string)
+        sq2_unit: Optional[Squonk2Unit] = Squonk2Unit.objects.filter(name=unit_name_full).first()
+        if not sq2_unit:
             _LOGGER.info('No existing Unit for this TAS (%s)', target_access_string)
-            unit_name: styr = 'Fragalysis' \
-                              f' {self.__CFG_SQUONK2_SLUG}' \
-                              f' {target_access_string[:_MAX_AUX_STRING_LENGTH]}'
-            rv: AsApiRv = AsApi.create_unit(unit_name=unit_name,
+            rv: AsApiRv = AsApi.create_unit(self.__org_owner_as_token,
+                                            unit_name=unit_name_truncated,
                                             org_id=self.__org_record.uuid,
                                             billing_day=self.__unit_billing_day)
             if not rv.success:
@@ -264,21 +395,20 @@ class Squonk2Agent:
                 return Squonk2AgentRv(success=False, msg=msg)
 
             unit_uuid: str = rv.msg['id']
-            unit: Squonk2Unit = Squonk2Unit(uuid=unit_uuid,
-                                            name=unit_name,
-                                            proposal=target_access_string,
-                                            organisation=self.__org_record.id)
-            unit.save()
+            sq2_unit = Squonk2Unit(uuid=unit_uuid,
+                                   name=unit_name_full,
+                                   organisation_id=self.__org_record.id)
+            sq2_unit.save()
+
+            _LOGGER.info('Created NEW Unit %s for TAS (%s)', unit_uuid, target_access_string)
         else:
             _LOGGER.debug('Unit %s already exists for this TAS (%s)',
-                          unit.uuid,
+                          sq2_unit.uuid,
                           target_access_string)
 
-        return Squonk2AgentRv(success=True, msg=unit.uuid)
+        return Squonk2AgentRv(success=True, msg=sq2_unit)
 
-    def _ensure_project(self,
-                        target_id: int,
-                        user_id: int) -> Squonk2AgentRv:
+    def _ensure_project(self, params: CommonParams) -> Squonk2AgentRv:
         """Gets or creates a Squonk2 Project, used as the destination of files
         and job executions. Each project requires an AS Product
         (tied to the User and Target) and Unit (tied to the proposal).
@@ -291,50 +421,64 @@ class Squonk2Agent:
 
         For testing the target and user IDs are permitted to be 0.
         """
+        assert params
+        assert isinstance(params, CommonParams)
         if not _TEST_MODE:
-            assert target_id > 0
-            assert user_id > 0
+            assert params.target_id > 0
+            assert params.user_id > 0
 
         # A Squonk2Unit must exist for the Target Access String, and there must be
         # a Squonk2Project record for the user/target combination.
         # If not they are created.
 
-        rv: Squonk2AgentRv = self._ensure_unit(target_id)
+        print(f'Checking Unit for access ID {params.access_id}...')
+        rv: Squonk2AgentRv = self._ensure_unit(params.access_id)
         if not rv.success:
             return rv
-        unit_uuid: str = rv.msg
-        print(f'Got or Created Unit {unit_uuid}')
+        unit: Squonk2Unit = rv.msg
+        print(f'Got or Created Unit {unit.uuid}')
 
         # A Squonk2Project record must exist for the unit/user/target combination.
         # If not it is created.
-        project: Optional[Squonk2Project] =\
-            Squonk2Project.objects.filter(user__id=user_id,
-                                          target__id=target_id,
-                                          unit__uuid=unit_uuid)\
-                .first()
-        if not project:
-            # Need to call upon Squonk2 to create a 'Product' and a 'Project'.
-            # The Product is created by the organisation 'owner'
-            # the 'Project' is created on behalf of the 'user'.
-            #
-            # We create a corresponding Squonk2Project when both have been successful.
-            rv = self._create_project()
+        user: Optional[User] = None
+        user_name: str = self.__DUMMY_USER
+        session: Optional[SessionProject] = None
+        session_title: str = self.__DUMMY_SESSION_TITLE
+        if params.user_id:
+            user  = User.objects.filter(id=params.user_id).first()
+            user_name = user.username
+        if params.session_id:
+            session = SessionProject.objects.filter(id=params.session_id).first()
+            session_title = session.title
+        assert user_name
+        assert session_title
+
+        print(f'Checking Project for User/Session {user_name}/{session_title}...')
+        name_truncated, name_full = self._build_product_name(user_name, session_title)
+        sq2_project: Optional[Squonk2Project] = Squonk2Project.objects.filter(name=name_full).first()
+        if not sq2_project:
+            _LOGGER.info('No existing Squonk2 Project ("%s")', name_full)
+            # Need to call upon Squonk2 to create a 'Product'
+            # (and corresponding 'Product').
+            rv = self._create_product_and_project(unit, user_name, session_title, params)
             if not rv.success:
                 return rv
-            project = Squonk2Project(uuid=project_uuid,
-                                     name=project_name,
-                                     product_uuid=product_uuid,
-                                     unit=unit_id,
-                                     user=user_id,
-                                     target=target_id)
-            project.save()
+            sq2_project = rv.msg
+            assert sq2_project
+        else:
+            _LOGGER.debug('Project already exists ("%s")', prod_name_truncated)
 
-        return Squonk2AgentRv(success=True, msg=project.uuid)
+        return Squonk2AgentRv(success=True, msg=sq2_project.uuid)
 
     def configured(self) -> Squonk2AgentRv:
         """Returns True if the module appears to be configured,
         i.e. all the environment variables appear to be set.
         """
+        if _TEST_MODE:
+            msg: str = 'Squonk2Agent is in TEST mode'
+            print(msg)
+            _LOGGER.warning(msg)
+
         # To prevent repeating the checks, all of which are based on
         # static (environment) variables, if we've been here before
         # just return our previous result.
@@ -347,7 +491,7 @@ class Squonk2Agent:
             if name.startswith('_Squonk2Agent__CFG_'):
                 if value is None:
                     cfg_name: str = name.split('_Squonk2Agent__CFG_')[1]
-                    msg: str = f'{cfg_name} is not set'
+                    msg = f'{cfg_name} is not set'
                     _LOGGER.warning(msg)
                     return Squonk2AgentRv(success=False, msg=msg)
 
@@ -356,8 +500,8 @@ class Squonk2Agent:
         # Is the slug too long?
         # Limited to 10 characters
         if len(self.__CFG_SQUONK2_SLUG) > _MAX_SLUG_LENGTH:
-            msg: str = f'Slug is longer than {_MAX_SLUG_LENGTH} characters'\
-                       f' ({self.__CFG_SQUONK2_SLUG})'
+            msg = f'Slug is longer than {_MAX_SLUG_LENGTH} characters'\
+                  f' ({self.__CFG_SQUONK2_SLUG})'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -408,8 +552,13 @@ class Squonk2Agent:
         by calling on '_pre_flight_checks()'. If the org is known a Squonk2Org record
         is created, if not the ping fails.
         """
+        if _TEST_MODE:
+            msg: str = 'Squonk2Agent is in TEST mode'
+            print(msg)
+            _LOGGER.warning(msg)
+
         if not self.configured():
-            msg: str = 'Not configured'
+            msg = 'Not configured'
             _LOGGER.debug(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -458,38 +607,47 @@ class Squonk2Agent:
         # Everything's responding if we get here...
         return SuccessRv
 
-    def run_job(self, params: RunJob) -> Squonk2AgentRv:
+    def run_job(self, params: RunJobParams) -> Squonk2AgentRv:
         """Executes a Job on a Squonk2 installation.
         """
         assert params
-        assert isinstance(params, RunJob)
+        assert isinstance(params, RunJobParams)
+
+        if _TEST_MODE:
+            msg: str = 'Squonk2Agent is in TEST mode'
+            print(msg)
+            _LOGGER.warning(msg)
 
         # Protect against lack of config or connection/setup issues...
         if not self.ping():
-            msg: str = 'Squonk2 ping failed.'\
-                       ' Are we configured properly and is Squonk alive?'
+            msg = 'Squonk2 ping failed.'\
+                  ' Are we configured properly and is Squonk alive?'
             return Squonk2AgentRv(success=False, msg=msg)
 
         return SuccessRv
 
-    def send(self, params: Send) -> Squonk2AgentRv:
+    def send(self, params: SendParams) -> Squonk2AgentRv:
         """A blocking method that takes care of sending a set of files to
         the configured Squonk2 installation.
         """
         assert params
-        assert isinstance(params, Send)
+        assert isinstance(params, SendParams)
 
-        # Protect against lack of config or connection/setup issues...
+        if _TEST_MODE:
+            msg: str = 'Squonk2Agent is in TEST mode'
+            print(msg)
+            _LOGGER.warning(msg)
+
+        # Every public API**MUST**  call ping().
+        # This ensures Squonk2 is available and gets suitable API tokens...
         if not self.ping():
-            msg: str = 'Squonk2 ping failed.'\
-                       ' Are we configured properly and is Squonk alive?'
+            msg = 'Squonk2 ping failed.'\
+                  ' Are we configured properly and is Squonk alive?'
             return Squonk2AgentRv(success=False, msg=msg)
 
-        rv_u: Squonk2AgentRv = self._ensure_project(params.user_id,
-                                                    params.access_id,
-                                                    params.target_id)
-        if not rv_u.succes:
-            msg: str = 'Failed to create corresponding Squonk2 Project'
+        rv_u: Squonk2AgentRv = self._ensure_project(params.common)
+        if not rv_u.success:
+            msg = 'Failed to create corresponding Squonk2 Project'
             return Squonk2AgentRv(success=False, msg=msg)
 
         return SuccessRv

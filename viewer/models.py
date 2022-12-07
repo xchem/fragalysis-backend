@@ -1236,16 +1236,18 @@ class Squonk2Unit(models.Model):
            consisting of 'unit-' followed by a uuid4 value,
            e.g. 'unit-54260047-183b-42e8-9658-385a1e1bd236'
        name: TextField (80)
-           The name of the Squonk2 Unit UUID (obtained form the AS).
-       project: ForeignKey
-           A Foreign Key to the Project (Proposal) the Unit belongs to.
+           The name used to create the Squonk2 Unit UUID
+           This is not limited by the actual name length imposed by the DM
+       target_access: ForeignKey
+           A Foreign Key to the Project (Proposal) the Unit belongs to,
+           a record that contains the "target access string".
        organisation: ForeignKey
            A Foreign Key to the Organisation the Unit belongs to.
        """
     uuid = models.TextField(max_length=41, null=False)
-    name = models.TextField(max_length=80, null=False)
+    name = models.TextField(null=False)
 
-    project = models.ForeignKey(Project, null=False, on_delete=models.CASCADE)
+#    target_access = models.ForeignKey(Project, null=False, on_delete=models.CASCADE)
     organisation = models.ForeignKey(Squonk2Org, null=False, on_delete=models.CASCADE)
 
 class Squonk2Project(models.Model):
@@ -1265,11 +1267,11 @@ class Squonk2Project(models.Model):
            e.g. 'product-54260047-183b-42e8-9658-385a1e1bd236'
        """
     uuid = models.TextField(max_length=44, null=False)
-    name = models.TextField(max_length=80, null=False)
+    name = models.TextField(null=False)
     product_uuid = models.TextField(max_length=44, null=False)
 
     unit = models.ForeignKey(Squonk2Unit, null=False, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, null=False, on_delete=models.CASCADE)
-    target = models.ForeignKey(Target, null=False, on_delete=models.CASCADE)
+#    user = models.ForeignKey(User, null=False, on_delete=models.CASCADE)
+#    session_project = models.ForeignKey(SessionProject, null=False, on_delete=models.CASCADE)
 
 # End of Squonk Job Tables
