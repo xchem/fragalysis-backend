@@ -287,7 +287,7 @@ class Squonk2Agent:
                                      as_version=as_version)
             squonk2_org.save()
         else:
-            _LOGGER.debug('Squonk2Org record already exists for %s',
+            _LOGGER.debug('Squonk2Org already exists for %s - nothing to do',
                           self.__CFG_SQUONK2_ORG_UUID)
 
         # Keep the record ID for future use.
@@ -519,7 +519,7 @@ class Squonk2Agent:
             msg = f'Created NEW Squonk2Project for "{name_full}"'
             _LOGGER.info(msg)
         else:
-            msg = f'Squonk2Project already exists ("{name_full}")'
+            msg = f'Squonk2Project already exists "{name_full}" - nothing to do'
             _LOGGER.debug(msg)
 
         return Squonk2AgentRv(success=True, msg=sq2_project)
