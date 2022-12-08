@@ -746,7 +746,7 @@ def checkPreviousReactionProducts(reaction_id: int, smiles: str) -> bool:
         return False
 
 
-def getPreviousReactionProducts(reaction_id: int, smiles: str) -> QuerySet[Reaction]:
+def getPreviousReactionQuerySets(reaction_id: int, smiles: str) -> QuerySet[Reaction]:
     """Checks if any previous reactions had a product matching the smiles
 
     Parameters

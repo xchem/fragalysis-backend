@@ -516,7 +516,7 @@ class MethodViewSet(viewsets.ModelViewSet):
 
 class ReactionViewSet(viewsets.ModelViewSet):
     queryset = Reaction.objects.all()
-    filterset_fields = {"method_id": ["exact"], "successrate": ["gte", "lte"]}
+    filterset_fields = {"method_id": ["exact"]}
 
     def get_serializer_class(self):
         fetchall = self.request.GET.get("fetchall", None)

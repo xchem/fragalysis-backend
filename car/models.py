@@ -472,6 +472,7 @@ class MixAction(models.Model):
     platetype = models.CharField(choices=PlateType.choices, max_length=20)
     repetitions = models.IntegerField()
 
+
 class StirAction(models.Model):
     """Django model to define a StirAction - the stir action details
 
