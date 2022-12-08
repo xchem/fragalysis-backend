@@ -144,12 +144,6 @@ class CreateOTSession(object):
         self.updatePlateDeckOTSessionIDs(platequeryset=inputplatequeryset)
         self.createPipetteModel()
         self.createReactionStartingPlate()
-        # if not noncontinuationactionsessions.exists() and continuationactionsessions.exists():
-        #     if self.reactionstep > 1:
-        #         self.solventmaterialsdf = self.getAddActionsMaterialDataFrame(
-        #                 productexists=False
-        #             )
-        #         self.createSolventPlate(materialsdf=self.solventmaterialsdf)
         if noncontinuationactionsessions.exists():
             self.createReactionPlate(platetype="reaction")
             if self.reactionstep > 1:
@@ -1845,39 +1839,6 @@ class CreateOTSession(object):
             labwareplatetype=labwareplatetype,
             platetype=platetype,
         )
-        # actionsessionqueryset = self.getActionSessionByPlateType(platetype=platetype)
-        # wellsneeded = len(actionsessionqueryset)
-        # addactionqueryset = AddAction.objects.filter(
-        #     actionsession_id__in=actionsessionqueryset, toplatetype=platetype
-        # )
-        # if addactionqueryset:
-        #     roundedaddvolumes = self.getRoundedAddActionVolumes(
-        #         addactionqueryset=addactionqueryset
-        #     )
-        # if not addactionqueryset:
-        #     extractactionqueryset = ExtractAction.objects.filter(
-        #         actionsession_id__in=actionsessionqueryset, toplatetype=platetype
-        #     )
-        #     if extractactionqueryset:
-        #         roundedaddvolumes = self.getRoundedExtractActionVolumes(
-        #             extractactionqueryset=extractactionqueryset
-        #         )
-
-        # labwareplatetype = self.getPlateType(
-        #     platetype=platetype,
-        #     volumes=roundedaddvolumes,
-        #     wellsneeded=wellsneeded,
-        # )
-
-        # reaction_ids = actionsessionqueryset.values_list(
-        #     "reaction_id", flat=True
-        # ).order_by("reaction_id")
-        # reactionqueryset = getReactionQuerySet(reaction_ids=reaction_ids)
-        # self.createPlateByReactionClass(
-        #     reactionqueryset=reactionqueryset,
-        #     labwareplatetype=labwareplatetype,
-        #     platetype=platetype,
-        # )
 
     def createSolventPlate(self, materialsdf: DataFrame, channel_scale: int = None):
         """Creates solvent plate/s for diluting reactants for reactions or analysis."""
