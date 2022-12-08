@@ -194,7 +194,8 @@ class Squonk2Agent:
         """
         assert self.__keycloak_hostname
 
-        _LOGGER.info('__keycloak_hostname="%s" __keycloak_realm="%s" dm-client=%s as-client=%s org_owner=%s',
+        _LOGGER.debug('__keycloak_hostname="%s" __keycloak_realm="%s"'
+                      ' dm-client=%s as-client=%s org_owner=%s',
                      self.__keycloak_hostname,
                      self.__keycloak_realm,
                      self.__CFG_OIDC_DM_CLIENT_ID,
@@ -241,22 +242,24 @@ class Squonk2Agent:
         if squonk2_org and squonk2_org.uuid != self.__CFG_SQUONK2_ORG_UUID:
             msg: str = f'Configured Squonk2 Organisation ({self.__CFG_SQUONK2_ORG_UUID})'\
                        f' does not match pre-existing record ({squonk2_org.uuid})'
+            _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         # OK, so the ORG UUID has not changed.
         # Is it known to the configured AS?
         if not self._get_squonk2_owner_tokens():
             msg = 'Failed to get AS or DM token for organisation owner'
+            _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         # Get the ORG from the AS API.
         # If it knows the org the response will be successful,
         # and we'll also have the Org's name.
-        _LOGGER.info('Checking organisation (%s)', self.__CFG_SQUONK2_ORG_UUID)
         as_o_rv = AsApi.get_organisation(self.__org_owner_as_token,
                                          org_id=self.__CFG_SQUONK2_ORG_UUID)
         if not as_o_rv.success:
-            msg = 'Failed checking AS Organisation'
+            msg = 'Failed to get AS Organisation'
+            _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         # The org is known to the AS.
@@ -264,23 +267,62 @@ class Squonk2Agent:
         as_v_rv: AsApiRv = AsApi.get_version()
         if not as_v_rv.success:
             msg = 'Failed to get version from AS'
+            _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
+
         as_version: str = as_v_rv.msg['version']
 
         # If there's no Squonk2Org record, create one,
         # recording the ORG ID and the AS we used to verify it exists.
         if not squonk2_org:
+            _LOGGER.info('Creating NEW Squonk2Org record for %s.'
+                         ' as-url=%s as-name="%s" as-version=%s',
+                         self.__CFG_SQUONK2_ORG_UUID,
+                         self.__CFG_SQUONK2_ASAPI_URL,
+                         as_o_rv.msg['name'],
+                         as_version)
             squonk2_org = Squonk2Org(uuid=self.__CFG_SQUONK2_ORG_UUID,
                                      name=as_o_rv.msg['name'],
                                      as_url=self.__CFG_SQUONK2_ASAPI_URL,
                                      as_version=as_version)
             squonk2_org.save()
+        else:
+            _LOGGER.debug('Squonk2Org record already exists for %s',
+                          self.__CFG_SQUONK2_ORG_UUID)
 
         # Keep the record ID for future use.
         self.__org_record = squonk2_org
 
         # Organisation is known to AS, and it hasn't changed.
         return SuccessRv
+
+    def _delete_as_product(self, product_uuid: str) -> None:
+        """Used in error conditions to remove a previously created Product.
+        If this fails there's nothing else we can do so we just return regardless.
+        """
+        _LOGGER.warning('Deleting AS Product %s', product_uuid)
+
+        as_rv: AsApiRv = AsApi.delete_product(self.__org_owner_as_token,
+                                              product_id=product_uuid)
+        if not as_rv.success:
+            _LOGGER.error('Failed to delete AS Product %s', product_uuid)
+            return
+
+        _LOGGER.warning('Deleted AS Product %s', product_uuid)
+
+    def _delete_dm_project(self, project_uuid: str) -> None:
+        """Used in error conditions to remove a previously created Project.
+        If this fails there's nothing else we can do so we just return regardless.
+        """
+        _LOGGER.warning('Deleting DM Project %s', project_uuid)
+
+        dm_rv: DmApiRv = DmApi.delete_project(self.__org_owner_dm_token,
+                                              project_id=project_uuid)
+        if not as_rv.success:
+            _LOGGER.error('Failed to delete DM Project %s', project_uuid)
+            return
+
+        _LOGGER.warning('Deleted DM Project %s', project_uuid)
 
     def _create_product_and_project(self,
                                     unit: Squonk2Unit,
@@ -306,7 +348,11 @@ class Squonk2Agent:
                                               unit_id=unit.uuid,
                                               product_type=_SQ2_PRODUCT_TYPE,
                                               flavour=_SQ2_PRODUCT_FLAVOUR)
-        assert as_rv.success
+        if not as_rv.success:
+            msg = f'Failed to create AS Product ({as_rv.msg})'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+
         product_uuid: str = as_rv.msg['id']
         msg = f'Created AS Product "{product_uuid}"...'
         _LOGGER.info(msg)
@@ -319,19 +365,34 @@ class Squonk2Agent:
         dm_rv: DmApiRv = DmApi.create_project(self.__org_owner_dm_token,
                                               project_name=name_truncated,
                                               as_tier_product_id=product_uuid)
-        assert dm_rv.success
+        if not dm_rv.success:
+            msg = f'Failed to create DM Project ({dm_rv.msg})'
+            _LOGGER.error(msg)
+            # First delete the AS Product it should have been attached to
+            self._delete_as_product(product_uuid)
+            # Then leave...
+            return Squonk2AgentRv(success=False, msg=msg)
+
         project_uuid: str = dm_rv.msg["project_id"]
         msg = f'Created DM Project "{project_uuid}"...'
         _LOGGER.info(msg)
 
         # Add the user as an Editor to the Project
-        msg = f'Adding "{user_name} to DM Project as Editor...'
+        msg = f'Adding "{user_name}" to DM Project {project_uuid} as Editor...'
         _LOGGER.info(msg)
         dm_rv = DmApi.add_project_editor(self.__org_owner_dm_token,
                                          project_id=project_uuid,
                                          editor=user_name)
-        assert dm_rv.success
-        msg = f'Added "{user_name} to DM Project as Editor'
+        if not dm_rv.success:
+            msg = f'Failed to add "{user_name}" to DM Project ({dm_rv.msg})'
+            _LOGGER.error(msg)
+            # First delete the DM Project amd the corresponding AS Product...
+            self._delete_dm_project(project_uuid)
+            self._delete_as_product(product_uuid)
+            # Then leave...
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        msg = f'Added "{user_name} to DM Project {project_uuid} as Editor'
         _LOGGER.info(msg)
 
         # If the second call fails - delete the object created in the first
@@ -370,14 +431,14 @@ class Squonk2Agent:
         unit_name_truncated, unit_name_full = self._build_unit_name(target_access_string)
         sq2_unit: Optional[Squonk2Unit] = Squonk2Unit.objects.filter(name=unit_name_full).first()
         if not sq2_unit:
-            _LOGGER.info('No existing Unit for this TAS (%s)', target_access_string)
+            _LOGGER.info('No existing Unit for "%s"', target_access_string)
             rv: AsApiRv = AsApi.create_unit(self.__org_owner_as_token,
                                             unit_name=unit_name_truncated,
                                             org_id=self.__org_record.uuid,
                                             billing_day=self.__unit_billing_day)
             if not rv.success:
                 msg: str = rv.msg['error']
-                _LOGGER.error('Failed to create Unit for TAS (%s)', target_access_string)
+                _LOGGER.error('Failed to create Unit "%s"', target_access_string)
                 return Squonk2AgentRv(success=False, msg=msg)
 
             unit_uuid: str = rv.msg['id']
@@ -386,9 +447,9 @@ class Squonk2Agent:
                                    organisation_id=self.__org_record.id)
             sq2_unit.save()
 
-            _LOGGER.info('Created NEW Unit %s for TAS (%s)', unit_uuid, target_access_string)
+            _LOGGER.info('Created NEW Unit %s for "%s"', unit_uuid, target_access_string)
         else:
-            _LOGGER.debug('Unit %s already exists for this TAS (%s)',
+            _LOGGER.debug('Unit %s already exists for "%s" - nothing to do',
                           sq2_unit.uuid,
                           target_access_string)
 
@@ -443,7 +504,10 @@ class Squonk2Agent:
             # (and corresponding 'Product').
             rv = self._create_product_and_project(unit, user_name, session_title, params)
             if not rv.success:
+                msg = f'Failed creating AS Product or DM Project ({rv.msg})'
+                _LOGGER.error(msg)
                 return rv
+
             # Now record these new remote objects in a new
             # Squonk2Project record. As it's worked we're given
             # a dictionary with keys "sq2_project_uuid" and "sq2_product_uuid"
@@ -460,13 +524,11 @@ class Squonk2Agent:
 
         return Squonk2AgentRv(success=True, msg=sq2_project)
 
+    @synchronized
     def configured(self) -> Squonk2AgentRv:
         """Returns True if the module appears to be configured,
         i.e. all the environment variables appear to be set.
         """
-        if _TEST_MODE:
-            msg: str = 'Squonk2Agent is in TEST mode'
-            _LOGGER.warning(msg)
 
         # To prevent repeating the checks, all of which are based on
         # static (environment) variables, if we've been here before
@@ -481,7 +543,7 @@ class Squonk2Agent:
                 if value is None:
                     cfg_name: str = name.split('_Squonk2Agent__CFG_')[1]
                     msg = f'{cfg_name} is not set'
-                    _LOGGER.warning(msg)
+                    _LOGGER.error(msg)
                     return Squonk2AgentRv(success=False, msg=msg)
 
         # If we get here all the required configuration variables are set
@@ -491,7 +553,7 @@ class Squonk2Agent:
         if len(self.__CFG_SQUONK2_SLUG) > _MAX_SLUG_LENGTH:
             msg = f'Slug is longer than {_MAX_SLUG_LENGTH} characters'\
                   f' ({self.__CFG_SQUONK2_SLUG})'
-            _LOGGER.warning(msg)
+            _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         # Extract hostname and realm from the legacy variable
@@ -533,6 +595,7 @@ class Squonk2Agent:
 
         return SuccessRv
 
+    @synchronized
     def ping(self) -> Squonk2AgentRv:
         """Returns True if all the Squonk2 installations
         referred to by the URLs respond.
@@ -547,7 +610,7 @@ class Squonk2Agent:
 
         if not self.configured():
             msg = 'Not configured'
-            _LOGGER.debug(msg)
+            _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         # Check the UI, DM and AS...
@@ -557,10 +620,10 @@ class Squonk2Agent:
         try:
             resp: Response = requests.head(url, verify=self.__verify_certificates)
         except:
-            _LOGGER.warning('Exception checking UI at %s', url)
+            _LOGGER.error('Exception checking UI at %s', url)
         if resp is None or resp.status_code != 200:
-            msg = f'UI is not responding from {url}'
-            _LOGGER.debug(msg)
+            msg = f'Squonk2 UI is not responding from {url}'
+            _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         resp = None
@@ -568,10 +631,10 @@ class Squonk2Agent:
         try:
             resp = requests.head(url, verify=self.__verify_certificates)
         except Exception as ex:
-            _LOGGER.warning('Exception checking DM at %s', url)
+            _LOGGER.error('Exception checking DM at %s', url)
         if resp is None or resp.status_code != 308:
-            msg = f'Data Manager is not responding from {url}'
-            _LOGGER.debug(msg)
+            msg = f'Squonk2 DM is not responding from {url}'
+            _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         resp = None
@@ -579,10 +642,10 @@ class Squonk2Agent:
         try:
             resp = requests.head(url, verify=self.__verify_certificates)
         except:
-            _LOGGER.warning('Exception checking AS at %s', url)
+            _LOGGER.error('Exception checking AS at %s', url)
         if resp is None or resp.status_code != 308:
-            msg = f'Account Manager is not responding from {url}'
-            _LOGGER.debug(msg)
+            msg = f'Squonk2 AS is not responding from {url}'
+            _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         # OK so far.
@@ -590,11 +653,13 @@ class Squonk2Agent:
         status, msg = self._pre_flight_checks()
         if not status:
             msg = f'Failed pre-flight checks ({msg})'
+            _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         # Everything's responding if we get here...
         return SuccessRv
 
+    @synchronized
     def run_job(self, params: RunJobParams) -> Squonk2AgentRv:
         """Executes a Job on a Squonk2 installation.
         """
@@ -609,10 +674,12 @@ class Squonk2Agent:
         if not self.ping():
             msg = 'Squonk2 ping failed.'\
                   ' Are we configured properly and is Squonk alive?'
+            _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         return SuccessRv
 
+    @synchronized
     def send(self, params: SendParams) -> Squonk2AgentRv:
         """A blocking method that takes care of sending a set of files to
         the configured Squonk2 installation.
@@ -629,11 +696,13 @@ class Squonk2Agent:
         if not self.ping():
             msg = 'Squonk2 ping failed.'\
                   ' Are we configured properly and is Squonk alive?'
+            _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         rv_u: Squonk2AgentRv = self._ensure_project(params.common)
         if not rv_u.success:
             msg = 'Failed to create corresponding Squonk2 Project'
+            _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         return SuccessRv
