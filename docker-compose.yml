@@ -62,6 +62,8 @@ services:
       POSTGRESQL_PASSWORD: fragalysis
       POSTGRESQL_HOST: database
       POSTGRESQL_PORT: 5432
+      # Logging level
+      LOGGING_FRAMEWORK_ROOT_LEVEL: ${LOGGING_FRAMEWORK_ROOT_LEVEL:-INFO}
       # Celery tasks run synchronously?
       CELERY_TASK_ALWAYS_EAGER: 'True'
       # Default Debug to true for local development

@@ -287,7 +287,9 @@ class Squonk2Agent:
                                     user_name: str,
                                     session_title: str,
                                     params: CommonParams) -> Squonk2AgentRv:
-        """Called if a Product (and Project) needs to be created.
+        """Called if a Product (and Project) needs to be created. If successful,
+        this call returns a dictionary in the response "msg" that contains values
+        for the keys "sq2_product_uuid" and "sq2_project_uuid".
         """
         assert unit
         assert user_name
@@ -296,8 +298,7 @@ class Squonk2Agent:
 
         # Create an AS Product.
         name_truncated, name_full = self._build_product_name(user_name, session_title)
-        msg: str = f'Creating AS Product "{name_full}"...'
-        print(msg)
+        msg: str = f'Creating AS Product "{name_truncated}"...'
         _LOGGER.info(msg)
 
         as_rv: AsApiRv = AsApi.create_product(self.__org_owner_as_token,
@@ -305,53 +306,39 @@ class Squonk2Agent:
                                               unit_id=unit.uuid,
                                               product_type=_SQ2_PRODUCT_TYPE,
                                               flavour=_SQ2_PRODUCT_FLAVOUR)
-        print(as_rv)
         assert as_rv.success
         product_uuid: str = as_rv.msg['id']
         msg = f'Created AS Product "{product_uuid}"...'
-        print(msg)
         _LOGGER.info(msg)
 
         # Create a DM Project
         name_truncated, name_full = self._build_project_name(1, 2)
-        msg = f'Creating DM Project "{name_full}"...'
-        print(msg)
+        msg = f'Creating DM Project "{name_truncated}"...'
         _LOGGER.info(msg)
 
         dm_rv: DmApiRv = DmApi.create_project(self.__org_owner_dm_token,
                                               project_name=name_truncated,
                                               as_tier_product_id=product_uuid)
-        print(dm_rv)
         assert dm_rv.success
         project_uuid: str = dm_rv.msg["project_id"]
         msg = f'Created DM Project "{project_uuid}"...'
-        print(msg)
         _LOGGER.info(msg)
 
         # Add the user as an Editor to the Project
         msg = f'Adding "{user_name} to DM Project as Editor...'
-        print(msg)
         _LOGGER.info(msg)
         dm_rv = DmApi.add_project_editor(self.__org_owner_dm_token,
                                          project_id=project_uuid,
                                          editor=user_name)
-        print(dm_rv)
         assert dm_rv.success
         msg = f'Added "{user_name} to DM Project as Editor'
-        print(msg)
         _LOGGER.info(msg)
-
-        # Now record these remote objects in a new
-        # Squonk2Project record...
-        sq2_project = Squonk2Project(uuid=project_uuid,
-                                     name=name_full,
-                                     product_uuid=product_uuid,
-                                     unit_id=unit.id)
-        sq2_project.save()
 
         # If the second call fails - delete the object created in the first
 
-        return Squonk2AgentRv(success=True, msg=sq2_project)
+        response_msg: Dict[str, Any] = {"sq2_project_uuid": project_uuid,
+                                        "sq2_product_uuid": product_uuid}
+        return Squonk2AgentRv(success=True, msg=response_msg)
 
     def _ensure_unit(self, access_id: int) -> Squonk2AgentRv:
         """Gets or creates a Squonk2 Unit based on a customer's "target access string"
@@ -375,7 +362,6 @@ class Squonk2Agent:
             if not project:
                 msg: str = f'Project {access_id} does not exist'
                 _LOGGER.error(msg)
-                print(msg)
                 return Squonk2AgentRv(success=False, msg=msg)
             target_access_string = project.title
         assert target_access_string
@@ -417,7 +403,7 @@ class Squonk2Agent:
         check whether the user/proposal combination - it assumes that what's been
         given has been checked.
 
-        On success the returned message is used to carry the Squonk2 project UUID.
+        On success the returned message is used to carry the Squonk2Project record.
 
         For testing the target and user IDs are permitted to be 0.
         """
@@ -427,16 +413,11 @@ class Squonk2Agent:
             assert params.target_id > 0
             assert params.user_id > 0
 
-        # A Squonk2Unit must exist for the Target Access String, and there must be
-        # a Squonk2Project record for the user/target combination.
-        # If not they are created.
-
-        print(f'Checking Unit for access ID {params.access_id}...')
+        # A Squonk2Unit must exist for the Target Access String.
         rv: Squonk2AgentRv = self._ensure_unit(params.access_id)
         if not rv.success:
             return rv
         unit: Squonk2Unit = rv.msg
-        print(f'Got or Created Unit {unit.uuid}')
 
         # A Squonk2Project record must exist for the unit/user/target combination.
         # If not it is created.
@@ -453,22 +434,31 @@ class Squonk2Agent:
         assert user_name
         assert session_title
 
-        print(f'Checking Project for User/Session {user_name}/{session_title}...')
         name_truncated, name_full = self._build_product_name(user_name, session_title)
         sq2_project: Optional[Squonk2Project] = Squonk2Project.objects.filter(name=name_full).first()
         if not sq2_project:
-            _LOGGER.info('No existing Squonk2 Project ("%s")', name_full)
+            msg = f'No existing Squonk2Project for "{name_full}"'
+            _LOGGER.info(msg)
             # Need to call upon Squonk2 to create a 'Product'
             # (and corresponding 'Product').
             rv = self._create_product_and_project(unit, user_name, session_title, params)
             if not rv.success:
                 return rv
-            sq2_project = rv.msg
-            assert sq2_project
+            # Now record these new remote objects in a new
+            # Squonk2Project record. As it's worked we're given
+            # a dictionary with keys "sq2_project_uuid" and "sq2_product_uuid"
+            sq2_project = Squonk2Project(uuid=rv.msg['sq2_project_uuid'],
+                                         name=name_full,
+                                         product_uuid=rv.msg['sq2_product_uuid'],
+                                         unit_id=unit.id)
+            sq2_project.save()
+            msg = f'Created NEW Squonk2Project for "{name_full}"'
+            _LOGGER.info(msg)
         else:
-            _LOGGER.debug('Project already exists ("%s")', prod_name_truncated)
+            msg = f'Squonk2Project already exists ("{name_full}")'
+            _LOGGER.debug(msg)
 
-        return Squonk2AgentRv(success=True, msg=sq2_project.uuid)
+        return Squonk2AgentRv(success=True, msg=sq2_project)
 
     def configured(self) -> Squonk2AgentRv:
         """Returns True if the module appears to be configured,
@@ -476,7 +466,6 @@ class Squonk2Agent:
         """
         if _TEST_MODE:
             msg: str = 'Squonk2Agent is in TEST mode'
-            print(msg)
             _LOGGER.warning(msg)
 
         # To prevent repeating the checks, all of which are based on
@@ -554,7 +543,6 @@ class Squonk2Agent:
         """
         if _TEST_MODE:
             msg: str = 'Squonk2Agent is in TEST mode'
-            print(msg)
             _LOGGER.warning(msg)
 
         if not self.configured():
@@ -615,7 +603,6 @@ class Squonk2Agent:
 
         if _TEST_MODE:
             msg: str = 'Squonk2Agent is in TEST mode'
-            print(msg)
             _LOGGER.warning(msg)
 
         # Protect against lack of config or connection/setup issues...
@@ -635,7 +622,6 @@ class Squonk2Agent:
 
         if _TEST_MODE:
             msg: str = 'Squonk2Agent is in TEST mode'
-            print(msg)
             _LOGGER.warning(msg)
 
         # Every public API**MUST**  call ping().
