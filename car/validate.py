@@ -286,9 +286,9 @@ class ValidateFile(object):
                 ]
                 batch_tags = [combi_group.at[0, "batch-tag"]] * no_targets
                 concentrations = [
-                    combi_group.at[0, "concentration-required-mM"]
+                    float(combi_group.at[0, "concentration-required-mM"])
                 ] * no_targets
-                amounts = [combi_group.at[0, "amount-required-uL"]] * no_targets
+                amounts = [float(combi_group.at[0, "amount-required-uL"])] * no_targets
                 no_steps = [combi_group.at[0, "no-steps"]] * no_targets
                 self.target_names = self.target_names + target_names
                 self.batchtags = self.batchtags + batch_tags

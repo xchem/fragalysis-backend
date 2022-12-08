@@ -174,7 +174,7 @@ def createTargetModel(
     target.batch_id = batch_obj
     target.smiles = smiles
     mols = calculateMols(target_concentration=concentration, target_volume=volume)
-    mass = calculateMassFromMols(mols=target.mols, SMILES=smiles)
+    mass = calculateMassFromMols(mols=mols, SMILES=smiles)
     target.mols = mols
     target.concentration = concentration
     target.volume = volume
