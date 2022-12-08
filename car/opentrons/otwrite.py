@@ -6,14 +6,14 @@
 from __future__ import annotations
 from django.core.files.storage import default_storage
 from django.conf import settings
-from django.db.models import QuerySet, Q, Max
+from django.db.models import QuerySet, Q, Max, Min
 import os
 from graphene_django import DjangoObjectType
 
 from car.utils import (
     getProductSmiles,
     getReaction,
-    getPreviousReactionProducts,
+    getPreviousReactionQuerySets,
     getReactionQuerySet,
 )
 from car.recipebuilder.encodedrecipes import encoded_recipes
@@ -80,7 +80,10 @@ class OTWrite(object):
         self.apiLevel = apiLevel
         self.actionsession_ids = actionsession_ids
         self.actionsessionqueryset = self.getActionSessionQuerySet()
-        self.reaction_ids = [actionsession_obj.reaction_id.id for actionsession_obj in self.actionsessionqueryset]
+        self.reaction_ids = [
+            actionsession_obj.reaction_id.id
+            for actionsession_obj in self.actionsessionqueryset
+        ]
         self.groupreactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
         self.protocolname = (
             "{}-session-ot-script-batch-{}-reactionstep{}-sessionid-{}".format(
@@ -136,9 +139,7 @@ class OTWrite(object):
         """
         criterion2 = Q(id__in=self.actionsession_ids)
 
-        actionsessionqueryset = ActionSession.objects.filter(
-            criterion2
-        ).order_by("id")
+        actionsessionqueryset = ActionSession.objects.filter(criterion2).order_by("id")
         return actionsessionqueryset
 
     def getAddActionQuerySet(
@@ -443,10 +444,13 @@ class OTWrite(object):
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             print(e)
             print(solvent)
+        if not wellinfo:
+            print("No from solvent well info found!")
         return wellinfo
 
     def findStartingPlateWellObj(
         self,
+        reaction_step_no: int,
         reaction_id: int,
         smiles: str,
         solvent: str,
@@ -457,6 +461,8 @@ class OTWrite(object):
 
         Parameters
         ----------
+        reaction_step_no: int
+            The reaction step number eg. Step 2
         reaction_id: int
             The reaction's id used in the transfer
         smiles: str
@@ -467,6 +473,8 @@ class OTWrite(object):
             The concentration of the starting material
         transfervolume: float
             The volume of starting material needed for the transfer
+        platetype: str
+            Optional, the plate type eg. startingmaterial
 
         Returns
         -------
@@ -474,37 +482,11 @@ class OTWrite(object):
             The list of wells found along with volume to transfer from the
             well
         """
-        previousreactionqueryset = getPreviousReactionProducts(
+        previousreactionqueryset = getPreviousReactionQuerySets(
             reaction_id=reaction_id, smiles=smiles
         )
         wellinfo = []
-        if previousreactionqueryset:
-            criterion1 = Q(otsession_id=self.otsession_id)
-            criterion2 = Q(reaction_id=previousreactionqueryset[0])
-            criterion3 = Q(smiles=smiles)
-            criterion4 = Q(type="reaction")
-            criterion5 = Q(type="workup1")
-            criterion6 = Q(type="workup2")
-            criterion7 = Q(type="workup3")
-            criterion8 = Q(type="spefilter")
-            criterion9 = Q(reactantfornextstep=True)
-            try:
-                wellobj = Well.objects.get(
-                    criterion1
-                    & criterion2
-                    & criterion3
-                    & (criterion4 | criterion5 | criterion6 | criterion7 | criterion8)
-                )
-                wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
-            except Exception as e:
-                wellobj = Well.objects.get(
-                    criterion2
-                    & criterion3
-                    & (criterion4 | criterion5 | criterion6 | criterion7 | criterion8)
-                    & criterion9
-                )
-                wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
-        else:
+        if reaction_step_no == 1:
             try:
                 wellobjects = Well.objects.filter(
                     otsession_id=self.otsession_id,
@@ -541,8 +523,233 @@ class OTWrite(object):
             except Exception as e:
                 logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
                 print(e)
-                print(smiles, solvent, concentration)
+                print(
+                    "Finding starting plate well failed", smiles, solvent, concentration
+                )
+        if reaction_step_no > 1:
+            try:
+                wellobjects = Well.objects.filter(
+                    otsession_id=self.otsession_id,
+                    smiles=smiles,
+                    solvent=solvent,
+                    concentration=concentration,
+                    available=True,
+                    type="startingmaterial",
+                ).order_by("id")
+                for wellobj in wellobjects:
+                    areclose = self.checkVolumeClose(
+                        volume1=transfervolume, volume2=0.00
+                    )
+                    if areclose:
+                        break
+                    wellvolumeavailable = self.getWellVolumeAvailable(wellobj=wellobj)
+                    if wellvolumeavailable > 0:
+                        if wellvolumeavailable >= transfervolume:
+                            self.updateWellVolume(
+                                wellobj=wellobj, transfervolume=transfervolume
+                            )
+                            wellinfo.append(
+                                [previousreactionqueryset, wellobj, transfervolume]
+                            )
+                            transfervolume = 0.00
+                        if wellvolumeavailable < transfervolume:
+                            self.updateWellVolume(
+                                wellobj=wellobj, transfervolume=wellvolumeavailable
+                            )
+                            wellinfo.append(
+                                [previousreactionqueryset, wellobj, wellvolumeavailable]
+                            )
+                            transfervolume = transfervolume - wellvolumeavailable
+                if not wellinfo:
+                    try:
+                        plates = [
+                            "reaction",
+                            "workup1",
+                            "workup2",
+                            "workup2",
+                            "workup3",
+                            "spefilter",
+                        ]
+                        criterion1 = Q(otsession_id=self.otsession_id)
+                        criterion1 = Q(reaction_id=reaction_id)
+                        criterion2 = Q(reaction_id__in=previousreactionqueryset)
+                        criterion3 = Q(smiles=smiles)
+                        criterion4 = Q(type__in=plates)
+                        criterion5 = Q(reactantfornextstep=True)
 
+                        wellqueryset = Well.objects.filter(
+                            (criterion1 | criterion2)
+                            & criterion3
+                            & criterion4
+                            & criterion5
+                        )
+                        if wellqueryset.exists:
+                            wellobj = wellqueryset[0]
+                            wellinfo.append(
+                                [previousreactionqueryset, wellobj, transfervolume]
+                            )
+                    except Exception as e:
+                        logger.info(
+                            inspect.stack()[0][3] + " yielded error: {}".format(e)
+                        )
+                        print(e)
+                        print(
+                            "Finding starting plate from reaction and workups plates well failed",
+                            smiles,
+                            solvent,
+                            concentration,
+                        )
+            except Exception as e:
+                logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+                print(e)
+                print(
+                    "Finding starting plate from starting material, reaction and workups plates well failed",
+                    smiles,
+                    solvent,
+                    concentration,
+                )
+            # try:
+            #     plates = ["reaction", "workup1", "workup2", "workup2", "workup3", "spefilter" ]
+            #     criterion1 = Q(otsession_id=self.otsession_id)
+            #     criterion2 = Q(reaction_id__in=previousreactionqueryset)
+            #     criterion3 = Q(smiles=smiles)
+            #     criterion4 = Q(type__in=plates)
+            #     criterion5 = Q(reactantfornextstep=True)
+            #     wellobj = Well.objects.get(
+            #         criterion1
+            #         & criterion2
+            #         & criterion3
+            #         & criterion4
+            #         & criterion5
+            #     )
+            #     wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
+            # except Exception as e:
+            #     logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+            #     print(e)
+            #     print(smiles, solvent, concentration)
+        # if not previousreactionqueryset:
+        #     try:
+        #         plates = ["reaction", "workup1", "workup2", "workup2", "workup3", "spefilter"]
+        #         criterion2 = Q(reaction_id__in=previousreactionqueryset)
+        #         criterion3 = Q(smiles=smiles)
+        #         criterion4 = Q(type__in=plates)
+        #         criterion5 = Q(reactantfornextstep=True)
+        #         wellobj = Well.objects.get(
+        #             criterion2
+        #             & criterion3
+        #             & criterion4
+        #             & criterion5
+        #         )
+        #         wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
+        #     except Exception as e:
+        #         logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+        #         print(e)
+        #         print(smiles, solvent, concentration)
+
+        # if platetype == "startingmaterial":
+        #     print("Doing platetype")
+        #     try:
+        #         wellobjects = Well.objects.filter(
+        #             otsession_id=self.otsession_id,
+        #             smiles=smiles,
+        #             solvent=solvent,
+        #             concentration=concentration,
+        #             available=True,
+        #             type=platetype,
+        #         ).order_by("id")
+        #         for wellobj in wellobjects:
+        #             areclose = self.checkVolumeClose(
+        #                 volume1=transfervolume, volume2=0.00
+        #             )
+        #             if areclose:
+        #                 break
+        #             wellvolumeavailable = self.getWellVolumeAvailable(wellobj=wellobj)
+        #             if wellvolumeavailable > 0:
+        #                 if wellvolumeavailable >= transfervolume:
+        #                     self.updateWellVolume(
+        #                         wellobj=wellobj, transfervolume=transfervolume
+        #                     )
+        #                     wellinfo.append(
+        #                         [previousreactionqueryset, wellobj, transfervolume]
+        #                     )
+        #                     transfervolume = 0.00
+        #                 if wellvolumeavailable < transfervolume:
+        #                     self.updateWellVolume(
+        #                         wellobj=wellobj, transfervolume=wellvolumeavailable
+        #                     )
+        #                     wellinfo.append(
+        #                         [previousreactionqueryset, wellobj, wellvolumeavailable]
+        #                     )
+        #                     transfervolume = transfervolume - wellvolumeavailable
+        #     except Exception as e:
+        #         logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+        #         print(e)
+        #         print(smiles, solvent, concentration)
+        # if previousreactionqueryset:
+        #     plates = ["reaction", "workup1", "workup2", "workup2", "workup3", "spefilter" ]
+        #     criterion1 = Q(otsession_id=self.otsession_id)
+        #     criterion2 = Q(reaction_id=previousreactionqueryset[0])
+        #     criterion3 = Q(smiles=smiles)
+        #     criterion4 = Q(type__in=plates)
+        #     criterion5 = Q(reactantfornextstep=True)
+        #     try:
+        #         wellobj = Well.objects.get(
+        #             criterion1
+        #             & criterion2
+        #             & criterion3
+        #             & criterion4
+        #             & criterion5
+        #         )
+        #         wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
+        #     except Exception as e:
+        #         wellobj = Well.objects.get(
+        #             criterion2
+        #             & criterion3
+        #             & criterion4
+        #             & criterion5
+        #         )
+        #         wellinfo.append([previousreactionqueryset, wellobj, transfervolume])
+        # else:
+        #     try:
+        #         wellobjects = Well.objects.filter(
+        #             otsession_id=self.otsession_id,
+        #             smiles=smiles,
+        #             solvent=solvent,
+        #             concentration=concentration,
+        #             available=True,
+        #             type="startingmaterial",
+        #         ).order_by("id")
+        #         for wellobj in wellobjects:
+        #             areclose = self.checkVolumeClose(
+        #                 volume1=transfervolume, volume2=0.00
+        #             )
+        #             if areclose:
+        #                 break
+        #             wellvolumeavailable = self.getWellVolumeAvailable(wellobj=wellobj)
+        #             if wellvolumeavailable > 0:
+        #                 if wellvolumeavailable >= transfervolume:
+        #                     self.updateWellVolume(
+        #                         wellobj=wellobj, transfervolume=transfervolume
+        #                     )
+        #                     wellinfo.append(
+        #                         [previousreactionqueryset, wellobj, transfervolume]
+        #                     )
+        #                     transfervolume = 0.00
+        #                 if wellvolumeavailable < transfervolume:
+        #                     self.updateWellVolume(
+        #                         wellobj=wellobj, transfervolume=wellvolumeavailable
+        #                     )
+        #                     wellinfo.append(
+        #                         [previousreactionqueryset, wellobj, wellvolumeavailable]
+        #                     )
+        #                     transfervolume = transfervolume - wellvolumeavailable
+        #     except Exception as e:
+        #         logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
+        #         print(e)
+        #         print(smiles, solvent, concentration)
+        if not wellinfo:
+            # print(smiles, transfervolume, concentration)
+            print("No from well info found!")
         return wellinfo
 
     def checkVolumeClose(self, volume1: float, volume2: float) -> bool:
@@ -920,7 +1127,7 @@ class OTWrite(object):
 
     def mixColumn(self, columnindex: int, nomixes: int, plate: str):
         """Prepares mixing commmand instruction for a mixing action
-        on a column in a plate. 0.7% of the max volume of the pipette 
+        on a column in a plate. 0.7% of the max volume of the pipette
         is mixed.
 
         Parameters
@@ -961,7 +1168,7 @@ class OTWrite(object):
 
         self.writeCommand(instruction)
 
-    def PauseProtocol(self, message: str):
+    def pauseProtocol(self, message: str):
         """Delays protocol from executing next operation
 
         Parameters
@@ -995,6 +1202,40 @@ class OTWrite(object):
             "protocol.delay(seconds={})".format(delay),
         ]
 
+        self.writeCommand(instruction)
+
+    def setAspirateSpeed(self, speed: int):
+        """Set the aspirate speed
+
+        Parameters
+        ----------
+        speed: int
+            The aspirate speed (uL/min) to set
+
+        """
+        humanread = f"Setting aspirate speed"
+
+        instruction = [
+            "\n\t# " + str(humanread),
+            f"{self.pipettename}.flow_rate.aspirate={speed}",
+        ]
+        self.writeCommand(instruction)
+
+    def setDispenseSpeed(self, speed: int):
+        """Set the dispense speed
+
+        Parameters
+        ----------
+        speed: int
+            The dispense speed (uL/min) to set
+
+        """
+        humanread = f"Setting dispense speed"
+
+        instruction = [
+            "\n\t# " + str(humanread),
+            f"{self.pipettename}.flow_rate.dispense={speed}",
+        ]
         self.writeCommand(instruction)
 
     def transferFluidSingle(
@@ -1149,9 +1390,9 @@ class OTWrite(object):
                         reactionactionsearch = "intramolecular"
                     if not intramolecular:
                         reactionactionsearch = "intermolecular"
-                    actionsessions = encoded_recipes[reactionclass]["recipes"][recipetype][
-                        "actionsessions"
-                    ]
+                    actionsessions = encoded_recipes[reactionclass]["recipes"][
+                        recipetype
+                    ]["actionsessions"]
                     reactionactions = [
                         actionsession[reactionactionsearch]["actions"]
                         for actionsession in actionsessions
@@ -1164,7 +1405,9 @@ class OTWrite(object):
                         if action["content"]["material"]["SMARTS"] != None
                     ]
                     for reactionaddaction in reactionaddactions:
-                        toplatetype = reactionaddaction["content"]["plates"]["toplatetype"]
+                        toplatetype = reactionaddaction["content"]["plates"][
+                            "toplatetype"
+                        ]
                         actionnumber = reactionaddaction["actionnumber"]
                         addactionqueryset = self.getAddActionQuerySet(
                             reaction_ids=groupreactionclassqueryset,
@@ -1174,56 +1417,62 @@ class OTWrite(object):
                         for addactionobj in addactionqueryset:
                             reactionobj = addactionobj.reaction_id
                             smiles = addactionobj.smiles
-                            solvent = addactionobj.solvent
-                            transfervolume = addactionobj.volume
-                            concentration = addactionobj.concentration
-
-                            fromwellinfo = self.findStartingPlateWellObj(
-                                reaction_id=reactionobj.id,
-                                smiles=smiles,
-                                solvent=solvent,
-                                concentration=concentration,
-                                transfervolume=transfervolume,
+                            previousreactionqueryset = getPreviousReactionQuerySets(
+                                reaction_id=reactionobj.id, smiles=smiles
                             )
-                            for wellinfo in fromwellinfo:
-                                previousreactionobjs = wellinfo[0]
-                                fromwellobj = wellinfo[1]
-                                transfervolume = wellinfo[2]
-                                if previousreactionobjs:
-                                    fromsolventwellinfo = self.findSolventPlateWellObj(
-                                        solvent=solvent,
-                                        transfervolume=transfervolume,
-                                    )
-                                    for solventwellinfo in fromsolventwellinfo:
-                                        fromsolventwellobj = solventwellinfo[0]
-                                        transfervolume = solventwellinfo[1]
-                                        towellobj = fromwellobj
-                                        fromplateobj = self.getPlateObj(
-                                            plateid=fromsolventwellobj.plate_id.id
+                            if previousreactionqueryset:
+                                solvent = addactionobj.solvent
+                                transfervolume = addactionobj.volume
+                                concentration = addactionobj.concentration
+                                fromwellinfo = self.findStartingPlateWellObj(
+                                    reaction_step_no=self.reactionstep,
+                                    reaction_id=reactionobj.id,
+                                    smiles=smiles,
+                                    solvent=solvent,
+                                    concentration=concentration,
+                                    transfervolume=transfervolume,
+                                )
+                                for wellinfo in fromwellinfo:
+                                    previousreactionobjs = wellinfo[0]
+                                    fromwellobj = wellinfo[1]
+                                    transfervolume = wellinfo[2]
+                                    if previousreactionobjs:
+                                        fromsolventwellinfo = (
+                                            self.findSolventPlateWellObj(
+                                                solvent=solvent,
+                                                transfervolume=transfervolume,
+                                            )
                                         )
-                                        toplateobj = self.getPlateObj(
-                                            plateid=towellobj.plate_id.id
-                                        )
+                                        for solventwellinfo in fromsolventwellinfo:
+                                            fromsolventwellobj = solventwellinfo[0]
+                                            transfervolume = solventwellinfo[1]
+                                            towellobj = fromwellobj
+                                            fromplateobj = self.getPlateObj(
+                                                plateid=fromsolventwellobj.plate_id.id
+                                            )
+                                            toplateobj = self.getPlateObj(
+                                                plateid=towellobj.plate_id.id
+                                            )
 
-                                        aspirateplatename = fromplateobj.name
-                                        dispenseplatename = toplateobj.name
-                                        aspiratewellindex = fromsolventwellobj.index
-                                        dispensewellindex = towellobj.index
+                                            aspirateplatename = fromplateobj.name
+                                            dispenseplatename = toplateobj.name
+                                            aspiratewellindex = fromsolventwellobj.index
+                                            dispensewellindex = towellobj.index
 
-                                        self.transferFluidSingle(
-                                            aspirateplatename=aspirateplatename,
-                                            dispenseplatename=dispenseplatename,
-                                            aspiratewellindex=aspiratewellindex,
-                                            dispensewellindex=dispensewellindex,
-                                            transvolume=transfervolume,
-                                            transfertype="dilution",
-                                        )
+                                            self.transferFluidSingle(
+                                                aspirateplatename=aspirateplatename,
+                                                dispenseplatename=dispenseplatename,
+                                                aspiratewellindex=aspiratewellindex,
+                                                dispensewellindex=dispensewellindex,
+                                                transvolume=transfervolume,
+                                                transfertype="dilution",
+                                            )
                     self.dropTip()
             except Exception as e:
                 logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
                 print(e)
                 print(reactionqueryset)
-            self.PauseProtocol(
+            self.pauseProtocol(
                 message="Addtion of dilution solvent complete. Confimr dilution complete to restart protocol."
             )
 
@@ -1252,6 +1501,7 @@ class OTWrite(object):
                 actionnumber = reactionaction["actionnumber"]
                 if actiontype == "add":
                     toplatetype = reactionaction["content"]["plates"]["toplatetype"]
+                    fromplatetype = reactionaction["content"]["plates"]["fromplatetype"]
                     addactionobj = AddAction.objects.get(
                         actionsession_id=actionsessionobj,
                         reaction_id=reactionobj,
@@ -1261,15 +1511,24 @@ class OTWrite(object):
                     solvent = addactionobj.solvent
                     transfervolume = addactionobj.volume
                     concentration = addactionobj.concentration
-
-                    fromwellinfo = self.findStartingPlateWellObj(
-                        reaction_id=reaction_id,
-                        smiles=smiles,
-                        solvent=solvent,
-                        concentration=concentration,
-                        transfervolume=transfervolume,
-                    )
-
+                    if fromplatetype == "startingmaterial":
+                        fromwellinfo = self.findStartingPlateWellObj(
+                            reaction_step_no=self.reactionstep,
+                            reaction_id=reaction_id,
+                            smiles=smiles,
+                            solvent=solvent,
+                            concentration=concentration,
+                            transfervolume=transfervolume,
+                        )
+                    else:
+                        fromwellinfo = self.findStartingPlateWellObj(
+                            reaction_step_no=self.reactionstep,
+                            reaction_id=reaction_id,
+                            smiles=smiles,
+                            solvent=solvent,
+                            concentration=concentration,
+                            transfervolume=transfervolume,
+                        )
                     for wellinfo in fromwellinfo:
                         fromwellobj = wellinfo[1]
                         transfervolume = wellinfo[2]
@@ -1328,10 +1587,7 @@ class OTWrite(object):
         sessionnumber = actionsessionqueryset.values_list(
             "sessionnumber", flat=True
         ).distinct()[0]
-        reaction_ids = actionsessionqueryset.values_list(
-            "reaction_id", flat=True
-        ).order_by("reaction_id")
-        reactionqueryset = getReactionQuerySet(reaction_ids=reaction_ids)
+        reactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
         groupedreactionclassquerysets = self.getGroupedReactionByClass(
             reactionqueryset=reactionqueryset
         )
@@ -1361,8 +1617,8 @@ class OTWrite(object):
                         actionsessiontype=actionsessiontype,
                         actionnumber=actionnumber,
                     )
-                    maxtransfervolume = addactionqueryset.aggregate(Max("volume"))[
-                        "volume__max"
+                    maxtransfervolume = addactionqueryset.aggregate(Min("volume"))[
+                        "volume__min"
                     ]
                     multichanneltransfervolume = maxtransfervolume * 8
                     solvent = addactionqueryset.values_list(
@@ -1377,7 +1633,6 @@ class OTWrite(object):
                             toplateobj = topcolumnobj.plate_id
                             dispenseplatename = toplateobj.name
                             dispensecolumnindex = topcolumnobj.index
-
                             fromsolventwellinfo = self.findSolventPlateWellObj(
                                 solvent=solvent,
                                 transfervolume=multichanneltransfervolume,
@@ -1448,15 +1703,15 @@ class OTWrite(object):
                         actionsessiontype=actionsessiontype,
                         actionnumber=actionnumber,
                     )
-                    maxtransfervolume = extractactionqueyset.aggregate(Max("volume"))[
-                        "volume__max"
+                    maxtransfervolume = extractactionqueyset.aggregate(Min("volume"))[
+                        "volume__min"
                     ]
                     solvent = extractactionqueyset.values_list(
                         "solvent", flat=True
                     ).distinct()[0]
                     maxbottomlayervolume = extractactionqueyset.aggregate(
-                        Max("bottomlayervolume")
-                    )["bottomlayervolume__max"]
+                        Min("bottomlayervolume")
+                    )["bottomlayervolume__min"]
                     fromcolumnqueryset = self.getColumnQuerySet(
                         columntype=fromplatetype, reactionclass=reactionclass
                     )
@@ -1464,6 +1719,7 @@ class OTWrite(object):
                         columntype=toplatetype, reactionclass=reactionclass
                     )
                     aspirateheight = None
+                    self.setAspirateSpeed(speed=50)
                     for fromcolumnobj, tocolumnobj in zip(
                         fromcolumnqueryset, tocolumnqueryset
                     ):
