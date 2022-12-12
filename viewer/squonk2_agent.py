@@ -32,8 +32,7 @@ SuccessRv: Squonk2AgentRv = Squonk2AgentRv(success=True, msg=None)
 
 # Parameters common to each named Tuple
 CommonParams: namedtuple = namedtuple("CommonParams",
-                                      ["token",
-                                       "user_id",
+                                      ["user_id",
                                        "access_id",
                                        "target_id",
                                        "session_id"])
@@ -548,6 +547,12 @@ class Squonk2Agent:
             _LOGGER.debug(msg)
 
         return Squonk2AgentRv(success=True, msg=sq2_project)
+
+    @synchronized
+    def get_ui_url(self):
+        """Returns the UI URL, if configured.
+        """
+        return self.__CFG_SQUONK2_UI_URL
 
     @synchronized
     def configured(self) -> Squonk2AgentRv:

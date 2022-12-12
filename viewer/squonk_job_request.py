@@ -16,23 +16,21 @@ from viewer.models import ( Target,
                             JobRequest,
                             JobFileTransfer )
 from viewer.utils import get_https_host
+from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
 
 logger = logging.getLogger(__name__)
 
+_SQ2A: Squonk2Agent = get_squonk2_agent()
 
 def check_squonk_active(request):
-    """Call a Squonk API to check that Squonk can be reached.
+    """Call the Squonk2 Agent to check that Squonk2 can be reached.
     """
-    logger.info('+ Ping')
-    auth_token = request.session['oidc_access_token']
+    logger.info('+ Squonk2Agent.ping()')
 
-    logger.info('oidc token')
-    logger.info(auth_token)
+    ping_rv = _SQ2A.ping()
+    logger.debug(ping_rv)
 
-    result = DmApi.ping(auth_token)
-    logger.debug(result)
-
-    return result.success
+    return ping_rv.success
 
 
 def get_squonk_job_config(request,
@@ -94,13 +92,16 @@ def create_squonk_job(request):
     squonk_job_name = request.data['squonk_job_name']
     target_id = request.data['target']
     snapshot_id = request.data['snapshot']
-    squonk_project = request.data['squonk_project']
+    session_project_id = request.data['session_project']
+    # The access ID (legacy Project record ID)
+    access_id = request.data['access']
     squonk_job_spec = request.data['squonk_job_spec']
 
     logger.info('+ squonk_job_name=%s', squonk_job_name)
     logger.info('+ target_id=%s', target_id)
     logger.info('+ snapshot_id=%s', snapshot_id)
-    logger.info('+ squonk_project=%s', squonk_project)
+    logger.info('+ session_project_id=%s', session_project_id)
+    logger.info('+ access_id=%s', access_id)
     logger.info('+ squonk_job_spec=%s', squonk_job_spec)
 
     job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
@@ -116,12 +117,35 @@ def create_squonk_job(request):
                        job_transfer.transfer_status)
         raise ValueError('Job Transfer not complete')
 
+    # This requires a Squonk2 Project (created by the Squonk2Agent).
+    # It may be an existing project, or it might be a new project.
+    common_params = CommonParams(user_id=user.id,
+                                 access_id=access_id,
+                                 target_id=target_id,
+                                 session_id=session_project_id)
+    sq2_rv = _SQ2A.ensure_project(common_params)
+    if not sq2_rv.success:
+        msg = f'JobTransfer failed to get a Squonk2 Project' \
+              f' for User {user.username}, Access ID {access_id},' \
+              f' Target ID {target_id}, and SessionProject ID {session_id}.' \
+              f' Returning the message "{ep_rv.msg}".' \
+              ' Cannot continue'
+        content = {'message': msg}
+        logger.error(msg)
+        return Response(content,
+                        status=status.HTTP_404_NOT_FOUND)
+    # The project UUID is in the response msg (a Squonk2Project object)
+    squonk2_project = sq2_rv.msg.uuid
+
     job_request = JobRequest()
     job_request.squonk_job_name = squonk_job_name
     job_request.user = request.user
     job_request.snapshot = Snapshot.objects.get(id=snapshot_id)
     job_request.target = Target.objects.get(id=target_id)
-    job_request.squonk_project = squonk_project
+    # We should use a foreign key,
+    # but to avoid migration issues with the existing code
+    # we continue to use the project UUID string field.
+    job_request.squonk_project = squonk2_project
     job_request.squonk_job_spec = squonk_job_spec
 
     # Saving creates the uuid for the callback

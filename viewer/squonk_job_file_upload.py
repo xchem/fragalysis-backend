@@ -23,8 +23,11 @@ from viewer.utils import (
     add_prop_to_sdf,
     create_media_sub_directory
 )
+from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
 
 logger = get_task_logger(__name__)
+
+_SQ2A: Squonk2Agent = get_squonk2_agent()
 
 # A "Blank" molecule.
 # Inserted at the top of SDF files pulled from Squonk2.
@@ -79,7 +82,7 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
     # Compound set reference URL.
     # What's the https-prefixed URL to the instance?
     # The record's URL is relative to the API.
-    ref_url = settings.SQUONK2_UI_URL
+    ref_url = _SQ2A.get_ui_url()
     if ref_url.endswith('/'):
         ref_url += job_request.squonk_url_ext
     else:

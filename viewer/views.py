@@ -62,6 +62,9 @@ from viewer.models import (
     JobFileTransfer
 )
 from viewer import filters
+from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
+from viewer.squonk2_agent import CommonParams
+
 from .forms import CSetForm, CSetUpdateForm, TSetForm
 from .tasks import (
     check_services,
@@ -141,6 +144,7 @@ logger = logging.getLogger(__name__)
 _SESSION_ERROR = 'session_error'
 _SESSION_MESSAGE = 'session_message'
 
+_SQ2A: Squonk2Agent = get_squonk2_agent()
 
 class VectorsView(ISpyBSafeQuerySet):
     """ DjagnoRF view for vectors
@@ -641,15 +645,16 @@ def react(request):
     """
 
     discourse_api_key = settings.DISCOURSE_API_KEY
-    squonk_api_url = settings.SQUONK2_DMAPI_URL
-    squonk_ui_url = settings.SQUONK2_UI_URL
+
+    # Is the Squonk2 Agent configured?
+    sq2_rv = _SQ2A.configured()
 
     context = {}
     context['discourse_available'] = 'false'
     context['squonk_available'] = 'false'
     if discourse_api_key:
         context['discourse_available'] = 'true'
-    if squonk_api_url and squonk_ui_url:
+    if sq2_rv.success:
         context['squonk_available'] = 'true'
 
     user = request.user
@@ -668,8 +673,8 @@ def react(request):
         # If user is authenticated Squonk can be called then return the Squonk host
         # so the Frontend can navigate to it
         context['squonk_ui_url'] = ''
-        if squonk_api_url and check_squonk_active(request):
-            context['squonk_ui_url'] = settings.SQUONK2_UI_URL
+        if sq2_rv.success and check_squonk_active(request):
+            context['squonk_ui_url'] = _SQ2A.get_ui_url()
 
     return render(request, "viewer/react_temp.html", context)
 
@@ -3081,21 +3086,18 @@ class JobFileTransferView(viewsets.ModelViewSet):
             content = {'Only authenticated users can transfer files'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        # Can't use this method if the squonk variables are not set!
-        if not settings.SQUONK2_DMAPI_URL:
-            content = {'SQUONK2_DMAPI_URL is not set'}
+        # Can't use this method if the Squonk2 agent is not
+        sq2 = get_squonk2_agent()
+        if not sq2.configured():
+            content = {'The Squonk2 Agent is not configured'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         target_id = request.data['target']
         target = Target.objects.get(id=target_id)
         snapshot_id = request.data['snapshot']
-
-        if 'squonk_project' in request.data:
-            squonk_project = request.data['squonk_project']
-        else:
-            content = {
-                'message': 'A squonk project must be entered'}
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        session_project_id = request.data['session_project']
+        # The access ID (legacy Project record ID)
+        access_id = request.data['access']
 
         error, proteins, compounds = check_file_transfer(request)
         if error:
@@ -3123,7 +3125,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
 
         logger.info('+ target_id=%s', target_id)
         logger.info('+ snapshot_id=%s', snapshot_id)
-        logger.info('+ squonk_project=%s', squonk_project)
+        logger.info('+ session_project_id=%s', session_project_id)
+        logger.info('+ access_id=%s', access_id)
         logger.info('+ transfer_root=%s', transfer_root)
 
         if job_transfer:
@@ -3158,11 +3161,35 @@ class JobFileTransferView(viewsets.ModelViewSet):
         else:
 
             # Create new file transfer job
+
+            # This requires a Squonk2 Project (created by the Squonk2Agent).
+            # It may be an existing project, or it might be a new project.
+            common_params = CommonParams(user_id=user.id,
+                                         access_id=access_id,
+                                         target_id=target_id,
+                                         session_id=session_project_id)
+            sq2_rv = _SQ2A.ensure_project(common_params)
+            if not sq2_rv.success:
+                msg = f'JobTransfer failed to get a Squonk2 Project' \
+                      f' for User {user.username}, Access ID {access_id},' \
+                      f' Target ID {target_id}, and SessionProject ID {session_id}.' \
+                      f' Returning the message "{sq2_rv.msg}".' \
+                      ' Cannot continue'
+                content = {'message': msg}
+                logger.error(msg)
+                return Response(content,
+                                status=status.HTTP_404_NOT_FOUND)
+            # The project UUID is in the response msg (a Squonk2Project object)
+            squonk2_project = sq2_rv.msg.uuid
+
             job_transfer = JobFileTransfer()
             job_transfer.user = request.user
             job_transfer.proteins = [p['code'] for p in proteins]
             job_transfer.compounds = [c['name'] for c in compounds]
-            job_transfer.squonk_project = squonk_project
+            # We should use a foreign key,
+            # but to avoid migration issues with the existing code
+            # we continue to use the project UUID string field.
+            job_transfer.squonk_project = squonk2_project
             job_transfer.target = Target.objects.get(id=target_id)
             job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
 
@@ -3235,8 +3262,9 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Can't use this method if the squonk variables are not set!
-        if not settings.SQUONK2_DMAPI_URL:
-            content = {'SQUONK2_DMAPI_URL is not set'}
+        sqa_rv = SQ2A.configured()
+        if sqa_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg}'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         job_collection = request.query_params.get('job_collection', None)
@@ -3329,8 +3357,10 @@ class JobRequestView(viewsets.ModelViewSet):
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Can't use this method if the squonk variables are not set!
-        if not settings.SQUONK2_DMAPI_URL:
-            content = {'SQUONK2_DMAPI_URL is not set'}
+        # Do this for JobRequest and FileTransfer
+        sq2_rv = _SQ2A.configured
+        if not sq2_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         try:
