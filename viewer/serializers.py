@@ -122,6 +122,12 @@ def template_protein(obj):
     return "NOT AVAILABLE"
 
 
+class ProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = '__all__'
+
+
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
     zip_archive = serializers.SerializerMethodField()

@@ -407,6 +407,36 @@ class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
     filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 
+class ProjectView(ISpyBSafeQuerySet):
+    """ DjagnoRF view to retrieve info about projects
+
+       Methods
+       -------
+       url:
+           api/projects
+       queryset:
+           `viewer.models.Project.objects.filter()`
+       returns: JSON
+           - id: id of the target object
+           - title: name of the target
+           - init_date: The date the Project was created
+
+       example output:
+
+           .. code-block:: javascript
+
+               "results": [
+                {
+                    "id": 2,
+                    "title": "Mpro",
+                    "init_date": ""
+                }
+            ]
+
+       """
+    queryset = Project.objects.filter()
+    serializer_class = ProjectSerializer
+
 class TargetView(ISpyBSafeQuerySet):
     """ DjagnoRF view to retrieve info about targets
 
