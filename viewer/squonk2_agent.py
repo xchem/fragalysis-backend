@@ -276,7 +276,7 @@ class Squonk2Agent:
         # recording the ORG ID and the AS we used to verify it exists.
         if not squonk2_org:
             _LOGGER.info('Creating NEW Squonk2Org record for %s.'
-                         ' as-url=%s as-name="%s" as-version=%s',
+                         ' as-url=%s as-org="%s" as-version=%s',
                          self.__CFG_SQUONK2_ORG_UUID,
                          self.__CFG_SQUONK2_ASAPI_URL,
                          as_o_rv.msg['name'],
@@ -673,7 +673,7 @@ class Squonk2Agent:
         # Protect against lack of config or connection/setup issues...
         if not self.ping():
             msg = 'Squonk2 ping failed.'\
-                  ' Are we configured properly and is Squonk alive?'
+                  ' Are we configured properly and is Squonk2 alive?'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -695,7 +695,7 @@ class Squonk2Agent:
         # This ensures Squonk2 is available and gets suitable API tokens...
         if not self.ping():
             msg = 'Squonk2 ping failed.'\
-                  ' Are we configured properly and is Squonk alive?'
+                  ' Are we configured properly and is Squonk2 alive?'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -707,6 +707,37 @@ class Squonk2Agent:
 
         return SuccessRv
 
+    @synchronized
+    def ensure_project(self, params: CommonParams) -> Squonk2AgentRv:
+        """A blocking method that takes care of the provisioning of the
+        required Squonk2 environment. For Fragalysis this entails the
+        creation of a 'Squonk2 Project' (which also requires a 'Unit' and 'Product').
+
+        If successful the Corresponding Squonk2Project record is returned as
+        the response 'msg' value.
+        """
+        assert params
+        assert isinstance(params, CommonParams)
+
+        if _TEST_MODE:
+            msg: str = 'Squonk2Agent is in TEST mode'
+            _LOGGER.warning(msg)
+
+        # Every public API**MUST**  call ping().
+        # This ensures Squonk2 is available and gets suitable API tokens...
+        if not self.ping():
+            msg = 'Squonk2 ping failed.'\
+                  ' Are we configured properly and is Squonk2 alive?'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        rv_u: Squonk2AgentRv = self._ensure_project(params)
+        if not rv_u.success:
+            msg = 'Failed to create corresponding Squonk2 Project'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        return rv_u
 
 # The global (singleton).
 # This acts as out sole singleton,
