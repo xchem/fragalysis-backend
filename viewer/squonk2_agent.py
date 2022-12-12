@@ -55,12 +55,17 @@ SendParams: namedtuple = namedtuple("Send", ["common",
 
 _SUPPORTED_PRODUCT_FLAVOURS: List[str] = ["BRONZE", "SILVER", "GOLD"]
 
+# Squonk2 Have defined limits - assumed here.
+# verify with your Squonk2 installation.
 _MAX_SQ2_NAME_LENGTH: int = 80
+
+# A slug used for names this Fragalysis will create
+# and a prefix string. So Squonk2 objects will be called "Fragalysis {slug}"
 _MAX_SLUG_LENGTH: int = 10
 _SQ2_NAME_PREFIX: str = "Fragalysis"
 
+# Built-in
 _SQ2_PRODUCT_TYPE: str = 'DATA_MANAGER_PROJECT_TIER_SUBSCRIPTION'
-_SQ2_PRODUCT_FLAVOUR: str = 'GOLD'
 
 # How long are Squonk2 'names'?
 _SQ2_MAX_NAME_LENGTH: int = 80
@@ -130,8 +135,6 @@ class Squonk2Agent:
 
         # The integer billing day, valid if greater than zero
         self.__unit_billing_day: int = 0
-        # The product tier, valid if set
-        self.__product_flavour: str = ''
         # True if configured...
         self.__configuration_checked: bool = False
         self.__configured: bool = False
@@ -347,7 +350,7 @@ class Squonk2Agent:
                                               product_name=name_truncated,
                                               unit_id=unit.uuid,
                                               product_type=_SQ2_PRODUCT_TYPE,
-                                              flavour=_SQ2_PRODUCT_FLAVOUR)
+                                              flavour=self.__CFG_SQUONK2_PRODUCT_FLAVOUR)
         if not as_rv.success:
             msg = f'Failed to create AS Product ({as_rv.msg})'
             _LOGGER.error(msg)
@@ -519,7 +522,7 @@ class Squonk2Agent:
             msg = f'Created NEW Squonk2Project for "{name_full}"'
             _LOGGER.info(msg)
         else:
-            msg = f'Squonk2Project already exists "{name_full}" - nothing to do'
+            msg = f'Project {sq2_project.uuid} already exists for "{name_full}" - nothing to do'
             _LOGGER.debug(msg)
 
         return Squonk2AgentRv(success=True, msg=sq2_project)
@@ -576,13 +579,13 @@ class Squonk2Agent:
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
-        # Product tier to upper-case
+        # Product tier flavour must be one of a known value.
+        # It's stored in the object's self.__product_flavour as an upper-case value
         if not self.__CFG_SQUONK2_PRODUCT_FLAVOUR in _SUPPORTED_PRODUCT_FLAVOURS:
             msg = f'SQUONK2_PRODUCT_FLAVOUR ({self.__CFG_SQUONK2_PRODUCT_FLAVOUR})' \
                   ' is not supported'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
-        self.__product_flavour = self.__CFG_SQUONK2_PRODUCT_FLAVOUR.upper()
 
         # Don't verify Squonk2 SSL certificates?
         if self.__SQUONK2_VERIFY_CERTIFICATES and self.__SQUONK2_VERIFY_CERTIFICATES.lower() == 'no':
