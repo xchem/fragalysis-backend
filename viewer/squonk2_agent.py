@@ -126,10 +126,8 @@ class Squonk2Agent:
             os.environ.get('DUMMY_SESSION_TITLE')
         self.__DUMMY_USER: Optional[str] =\
             os.environ.get('DUMMY_USER')
-        self.__FALLBACK_TAS: Optional[str] =\
-            os.environ.get('FALLBACK_TAS')
-        self.__FORCE_FALLBACK_TAS: Optional[str] =\
-            os.environ.get('FORCE_FALLBACK_TAS')
+        self.__DUMMY_TAS: Optional[str] =\
+            os.environ.get('DUMMY_TAS')
         self.__SQUONK2_VERIFY_CERTIFICATES: Optional[str] = \
             os.environ.get('SQUONK2_VERIFY_CERTIFICATES')
 
@@ -157,6 +155,55 @@ class Squonk2Agent:
         self.__org_owner_dm_token: str = ''
         self.__keycloak_hostname: str = ''
         self.__keycloak_realm: str = ''
+
+    def _get_user_name(self, user_id: int) -> str:
+        # Gets the username (if id looks sensible)
+        # or a fixed value (used for testing)
+        if user_id == 0:
+            assert _TEST_MODE
+            _LOGGER.warning('Caution - in TEST mode, using __DUMMY_USER (%s)',
+                            self.__DUMMY_USER)
+
+        user_name: str = self.__DUMMY_USER
+        if user_id:
+            user: User  = User.objects.filter(id=params.user_id).first()
+            assert user
+            user_name = user.username
+        assert user_name
+        return user_name
+
+    def _get_target_access_string(self, access_id: int) -> str:
+        # Gets the Target Access String (if id looks sensible)
+        # or a fixed value (used for testing)
+        if access_id == 0:
+            assert _TEST_MODE
+            _LOGGER.warning('Caution - in TEST mode, using __DUMMY_TAS (%s)',
+                            self.__DUMMY_TAS)
+
+        # Get the "target access string" (test mode or otherwise)
+        target_access_string: str = self.__DUMMY_TAS
+        if access_id:
+            project: Optional[Project] = Project.objects.filter(id=access_id).first()
+            assert project
+            target_access_string = project.title
+        assert target_access_string
+        return target_access_string
+
+    def _get_session_title(self, session_id: int) -> str:
+        # Gets the Session title (if id looks sensible)
+        # or a fixed value (used for testing)
+        if session_id == 0:
+            assert _TEST_MODE
+            _LOGGER.warning('Caution - in TEST mode, using __DUMMY_TAS__DUMMY_SESSION_TITLE (%s)',
+                            self.__DUMMY_SESSION_TITLE)
+
+        session_title: str = self.__DUMMY_SESSION_TITLE
+        if session_id:
+            session_project: SessionProject = SessionProject.objects.filter(id=params.session_id).first()
+            assert session_project
+            session_title = session_project.title
+        assert session_title
+        return session_title
 
     def _build_unit_name(self, target_access_string: str) -> Tuple[str, str]:
         assert target_access_string
@@ -414,20 +461,8 @@ class Squonk2Agent:
         On success the returned message is used to carry the Squonk2 project UUID.
         """
         assert self.__org_record
-        if not _TEST_MODE:
-            assert access_id
 
-        # Get the "target access string" (test mode or otherwise)
-        if _TEST_MODE:
-            _LOGGER.warning('Using FALLBACK_PROPOSAL_ID')
-            target_access_string: str = self.__FALLBACK_TAS
-        else:
-            project: Optional[Project] = Project.objects.filter(id=access_id).first()
-            if not project:
-                msg: str = f'Project {access_id} does not exist'
-                _LOGGER.error(msg)
-                return Squonk2AgentRv(success=False, msg=msg)
-            target_access_string = project.title
+        target_access_string = self._get_target_access_string(access_id)
         assert target_access_string
 
         # Now we check and create a Squonk2Unit...
@@ -461,7 +496,7 @@ class Squonk2Agent:
     def _ensure_project(self, params: CommonParams) -> Squonk2AgentRv:
         """Gets or creates a Squonk2 Project, used as the destination of files
         and job executions. Each project requires an AS Product
-        (tied to the User and Target) and Unit (tied to the proposal).
+        (tied to the User and Session) and Unit (tied to the Proposal/Project).
 
         The proposal is expected to be valid for a given user, this method does not
         check whether the user/proposal combination - it assumes that what's been
@@ -473,9 +508,6 @@ class Squonk2Agent:
         """
         assert params
         assert isinstance(params, CommonParams)
-        if not _TEST_MODE:
-            assert params.target_id > 0
-            assert params.user_id > 0
 
         # A Squonk2Unit must exist for the Target Access String.
         rv: Squonk2AgentRv = self._ensure_unit(params.access_id)
@@ -483,18 +515,8 @@ class Squonk2Agent:
             return rv
         unit: Squonk2Unit = rv.msg
 
-        # A Squonk2Project record must exist for the unit/user/target combination.
-        # If not it is created.
-        user: Optional[User] = None
-        user_name: str = self.__DUMMY_USER
-        session: Optional[SessionProject] = None
-        session_title: str = self.__DUMMY_SESSION_TITLE
-        if params.user_id:
-            user  = User.objects.filter(id=params.user_id).first()
-            user_name = user.username
-        if params.session_id:
-            session = SessionProject.objects.filter(id=params.session_id).first()
-            session_title = session.title
+        user_name: str = self._get_user_name(params.user_id)
+        session_title: str = self._get_session_title(params.session_id)
         assert user_name
         assert session_title
 

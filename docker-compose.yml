@@ -70,7 +70,7 @@ services:
       OIDC_RP_CLIENT_SECRET: 'c6245428-04c7-466f-9c4f-58c340e981c2'
       SQUONK2_VERIFY_CERTIFICATES: 'No'
       SQUONK2_UNIT_BILLING_DAY: 3
-      SQUONK2_PRODUCT_FLAVOUR: GOLD
+      SQUONK2_PRODUCT_FLAVOUR: BRONZE
       SQUONK2_SLUG: fs-local
       # The following are normally populated via a local '.env' file
       # that is not part of the repo, it is a file you create
@@ -84,7 +84,7 @@ services:
       SQUONK2_UI_URL: ${SQUONK2_UI_URL}
       SQUONK2_DMAPI_URL: ${SQUONK2_DMAPI_URL}
       SQUONK2_ASAPI_URL: ${SQUONK2_ASAPI_URL}
-      FALLBACK_TAS: ${FALLBACK_TAS}
+      DUMMY_TAS: ${DUMMY_TAS}
       DUMMY_USER: ${DUMMY_USER}
       DUMMY_SESSION_TITLE: ${DUMMY_SESSION_TITLE}
     ports:
