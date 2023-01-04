@@ -138,17 +138,27 @@ def process_compound_set_file(jr_id,
 
     logger.info('Processing job compound file (%s)...', jr_id)
 
+    logger.info("Squonk transition_time='%s'", transition_time)
+    logger.info("Squonk job_output_path='%s'", job_output_path)
+    logger.info("Squonk job_output_filename='%s'", job_output_filename)
+
     jr = JobRequest.objects.get(id=jr_id)
 
-    # The callback token (required to make Squonk API calls from the callback)
-    # and instance ID are in JobRequest.
+    # The callback token is required to make Squonk API calls from the callback context
     jr_job_info_msg = jr.squonk_job_info[1]
-    token = jr_job_info_msg.get('callback_token')
-    instance_id = jr_job_info_msg.get('instance_id')
-    logger.info("Squonk API token=%s", token)
-    logger.info("Squonk API instance_id=%s", instance_id)
+    callback_token = jr_job_info_msg.get('callback_token')
+    logger.info("Squonk API callback_token=%s", callback_token)
 
-    logger.info("Expecting Squonk path='%s'", job_output_path)
+    # The Squonk instance that ran the Job can be found
+    # at the end of the jr.squonk_url_ext field.
+    instance_id = ''
+    if jr.squonk_url_ext:
+        i_id = jr.squonk_url_ext.split('/')[-1]
+        if i_id.startswith('instance-'):
+            instance_id = i_id
+            logger.info("Squonk instance_id='%s'", instance_id)
+        else:
+            logger.warning("jr.squonk_url_ext does not contain an instance ID")
 
     # Do we need to create the upload path?
     # This is used for this 'job' and is removed when the upload is complete
@@ -182,7 +192,7 @@ def process_compound_set_file(jr_id,
     logger.info("Expecting Squonk job_output_param_filename='%s'...",
                 job_output_param_filename)
     result = DmApi.get_unmanaged_project_file_with_token(
-        token=token,
+        token=callback_token,
         project_id=jr.squonk_project,
         project_path=job_output_path,
         project_file=job_output_param_filename,
@@ -197,7 +207,7 @@ def process_compound_set_file(jr_id,
         logger.info("Expecting Squonk job_output_filename='%s'...",
                     job_output_filename)
         result = DmApi.get_unmanaged_project_file_with_token(
-            token=token,
+            token=callback_token,
             project_id=jr.squonk_project,
             project_path=job_output_path,
             project_file=job_output_filename,
@@ -209,12 +219,13 @@ def process_compound_set_file(jr_id,
         else:
             # Both files pulled back.
             got_all_files = True
-            # Delete the callback token, which is no-longer needed.
-            # Don't care if this fails - the token will expire automatically
-            # after a period of time.
-#            _ = DmApi.delete_instance_token(
-#                instance_id=instance_id,
-#                token=token)
+#            if instance_id:
+#                # Delete the callback token, which is no-longer needed.
+#                # Don't care if this fails - the token will expire automatically
+#                # after a period of time.
+#                _ = DmApi.delete_instance_token(
+#                    instance_id=instance_id,
+#                    token=callback_token)
 
     if not got_all_files:
         logger.warning('Not processing. Either %s or %s is missing',

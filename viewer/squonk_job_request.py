@@ -8,6 +8,8 @@ import json
 import logging
 import datetime
 
+import shortuuid
+
 from django.conf import settings
 from squonk2.dm_api import DmApi
 
@@ -134,14 +136,46 @@ def create_squonk_job(request):
     # Used for identifying the run, set to the username + date.
     job_name = job_request.user.username + '-' + datetime.date.today().strftime('%Y-%m-%d')
 
+    # Create a callback token
+    # that we can use on the job from our callback context.
+    # It is required to be a shortuuid of 22 characters using the default character set
+    callback_token = shortuuid.uuid()
+
     logger.info('+ job_name=%s', job_name)
     logger.info('+ callback_url=%s', callback_url)
+    logger.info('+ callback_token=%s', callback_token)
+    
+    # Dry-run the Job execution (this provides us with the 'command', which is 
+    # placed in the JobRecord's squonk_job_info).
+    logger.info('+ Calling DmApi.dry_run_job_instance(%s)', job_name)
+    result = DmApi.dry_run_job_instance(auth_token,
+                                        project_id=job_request.squonk_project,
+                                        name=job_name,
+                                        callback_url=callback_url,
+                                        callback_token=callback_token,
+                                        specification=json.loads(squonk_job_spec))
+    logger.debug(result)
+
+    if not result.success:
+        logger.warning('+ dry_run_job_instance(%s) result=%s', job_name, result)
+        logger.error('+ FAILED (configuration problem) (%s)', job_name)
+        job_request.delete()
+        raise ValueError(result.msg)
+
+    # We can now commit the JobRequest record so that it's ready
+    # for use by any callbacks. The 'result' will contain the callback token
+    # and the Job's decoded command (that will be interrogated when the Job s complete)
+    job_request.squonk_job_info = result
+    job_request.job_start_datetime = datetime.datetime.utcnow()
+    job_request.save()
+
+    # Now start the job 'for real'...
     logger.info('+ Calling DmApi.start_job_instance(%s)', job_name)
     result = DmApi.start_job_instance(auth_token,
                                       project_id=job_request.squonk_project,
                                       name=job_name,
                                       callback_url=callback_url,
-                                      generate_callback_token=True,
+                                      callback_token=callback_token,
                                       specification=json.loads(squonk_job_spec),
                                       timeout_s=8)
     logger.debug(result)
@@ -151,11 +185,6 @@ def create_squonk_job(request):
         logger.error('+ FAILED (job probably did not start) (%s)', job_name)
         job_request.delete()
         raise ValueError(result.msg)
-
-    job_request.squonk_job_info = result
-    job_request.squonk_url_ext = settings.SQUONK2_INSTANCE_API + str(result.msg['instance_id'])
-    job_request.job_start_datetime = datetime.datetime.utcnow()
-    job_request.save()
 
     job_instance_id = result.msg['instance_id']
     job_task_id = result.msg['task_id']

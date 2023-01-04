@@ -3422,6 +3422,15 @@ class JobCallBackView(viewsets.ModelViewSet):
                         code, status)
             return HttpResponse(status=204)
 
+        # This is now a chance to set the squonk_url_ext using the instance ID
+        # present in the callback (if it's not already set). The instance is
+        # placed at the end of the string, and is expected to be found
+        # by process_compound_set_file() whcih loads the output file back
+        # into Fragalysis
+        if not jr.squonk_url_ext:
+            jr.squonk_url_ext = settings.SQUONK2_INSTANCE_API + str(request.data['instance_id'])
+            logger.info("Setting jr.squonk_url_ext='%s'", jr.squonk_url_ext)
+            
         # Update the state transition time,
         # assuming UTC.
         transition_time = request.data.get('state_transition_time')
@@ -3447,7 +3456,7 @@ class JobCallBackView(viewsets.ModelViewSet):
             logger.info('Setting job FINISH datetime (%s)', transition_time)
             jr.job_finish_datetime = transition_time_utc
 
-        # Save - before going further.
+        # Save the JobRequest record before going further.
         jr.save()
 
         if status != 'SUCCESS':
