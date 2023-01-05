@@ -417,7 +417,7 @@ class ProjectView(ISpyBSafeQuerySet):
        queryset:
            `viewer.models.Project.objects.filter()`
        returns: JSON
-           - id: id of the target object
+           - id: id of the project object
            - title: name of the target
            - init_date: The date the Project was created
 
@@ -434,8 +434,16 @@ class ProjectView(ISpyBSafeQuerySet):
             ]
 
        """
-    queryset = Project.objects.filter()
-    serializer_class = ProjectSerializer
+    def get(self, request):
+        # Get the proposals available to this user.
+        # We return the corresponding Project records
+        user = request.user
+        proposals = self.get_proposals_for_user()
+        logger.info("User %s proposals %s", user.username, proposals)
+
+        response_data = {}
+        return JsonResponse(response_data)
+
 
 class TargetView(ISpyBSafeQuerySet):
     """ DjagnoRF view to retrieve info about targets
@@ -676,19 +684,24 @@ def react(request):
 
     discourse_api_key = settings.DISCOURSE_API_KEY
 
-    # Is the Squonk2 Agent configured?
-    sq2_rv = _SQ2A.configured()
-
     context = {}
-    context['discourse_available'] = 'false'
-    context['squonk_available'] = 'false'
+
+    # Is the Squonk2 Agent configured?
+    logger.info("Checking whether Squonk2 is configured...")
+    sq2_rv = _SQ2A.configured()
+    if sq2_rv.success:
+        logger.info("Squonk2 is configured")
+        context['squonk_available'] = 'true'
+    else:
+        logger.info("Squonk2 is NOT configured")
+        context['squonk_available'] = 'false'
+
     if discourse_api_key:
         context['discourse_available'] = 'true'
-    if sq2_rv.success:
-        context['squonk_available'] = 'true'
+    else:
+        context['discourse_available'] = 'false'
 
     user = request.user
-
     if user.is_authenticated:
         context['discourse_host'] = ''
         context['user_present_on_discourse'] = 'false'
@@ -3117,8 +3130,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Can't use this method if the Squonk2 agent is not
-        sq2 = get_squonk2_agent()
-        if not sq2.configured():
+        if not _SQ2A.configured():
             content = {'The Squonk2 Agent is not configured'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
