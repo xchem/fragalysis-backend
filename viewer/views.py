@@ -427,25 +427,16 @@ class ProjectView(ISpyBSafeQuerySet):
                "results": [
                 {
                     "id": 2,
-                    "title": "Mpro",
-                    "init_date": ""
+                    "title": "lb27156",
+                    "init_date": "2023-01-09T15:00:00Z"
                 }
             ]
 
        """
     queryset = Project.objects.filter()
     serializer_class = ProjectSerializer
-    filter_permissions = "target"
-       
-    def get(self, request):
-        # Get the proposals available to this user.
-        # We return the corresponding Project records
-        user = request.user
-        proposals = self.get_proposals_for_user()
-        logger.info("User %s proposals %s", user.username, proposals)
-
-        response_data = {}
-        return JsonResponse(response_data)
+    # Special case - Project filter permissions is blank.
+    filter_permissions = ""
 
 
 class TargetView(ISpyBSafeQuerySet):
