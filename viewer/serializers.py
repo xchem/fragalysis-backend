@@ -287,7 +287,7 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ("id", "title")
+        fields = ("id", "title", "init_date")
 
 
 class MolImageSerialzier(serializers.ModelSerializer):
