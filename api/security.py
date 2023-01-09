@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from wsgiref.util import FileWrapper
@@ -9,6 +10,8 @@ from rest_framework import viewsets
 from .remote_ispyb_connector import SSHConnector
 
 from viewer.models import Project
+
+logger = logging.getLogger(__name__)
 
 USER_LIST_DICT = {}
 
@@ -86,12 +89,15 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """
         Optionally restricts the returned purchases to a given proposals
         """
+        logger.info("A")
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user()
         # Add in the ones everyone has access to
         proposal_list.extend(self.get_open_proposals())
-        # Must have a directy foreign key (project_id) for it to work
+        logger.info("A proposal_list=%s", proposal_list)
+        # Must have a directly foreign key (project_id) for it to work
         filter_dict = self.get_filter_dict(proposal_list)
+        logger.info("A filter_dict=%s", filter_dict)
         return self.queryset.filter(**filter_dict).distinct()
 
     def get_open_proposals(self):
@@ -99,6 +105,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         Returns the list of proposals anybody can access
         :return:
         """
+        logger.info("B")
         if os.environ.get("TEST_SECURITY_FLAG", False):
             return ["OPEN", "private_dummy_project"]
         else:
@@ -106,6 +113,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
+        logger.info("C")
         if user.pk is None:
             return []
         else:
@@ -115,6 +123,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def needs_updating(self, user):
         global USER_LIST_DICT
+
+        logger.info("D")
         update_window = 3600
         if user.username not in USER_LIST_DICT:
             USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": 0}
@@ -125,6 +135,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return False
 
     def run_query_with_connector(self, conn, user):
+
+        logger.info("E")
         core = conn.core
         try:
             rs = core.retrieve_sessions_for_person_login(user.username)
@@ -139,6 +151,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_proposals_for_user_from_ispyb(self, user):
         # First check if it's updated in the past 1 hour
         global USER_LIST_DICT
+
+        logger.info("F")
         if self.needs_updating(user):
             conn = None
             if connector == 'ispyb':
@@ -164,6 +178,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return USER_LIST_DICT[user.username]["RESULTS"]
 
     def get_proposals_for_user(self):
+
+        logger.info("G")
         user = self.request.user
         ispyb_user = os.environ.get("ISPYB_USER")
         if ispyb_user:
@@ -175,7 +191,13 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return self.get_proposals_for_user_from_django(user)
 
     def get_filter_dict(self, proposal_list):
-        return {self.filter_permissions + "__title__in": proposal_list}
+        if self.filter_permissions:
+            return {self.filter_permissions + "__title__in": proposal_list}
+        else:
+            # No filter permission?
+            # Assume this is QuerySet is used for the Project model.
+            # Added during 937 development (Access Control).
+            return {"title__in": proposal_list}
 
 
 class ISpyBSafeStaticFiles:
