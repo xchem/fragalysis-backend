@@ -6,6 +6,8 @@
 #   docker-compose up -d
 # Then enter the stack container with: -
 #   docker-compose exec stack bash
+# Where you should then find the back end at http://localhost:8080/api/
+# and logs in /code/logs/backend.log
 
 version: '3'
 

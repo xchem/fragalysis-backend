@@ -40,6 +40,7 @@ from api.utils import get_params, get_highlighted_diffs
 from viewer.models import (
     Molecule,
     Protein,
+    Project,
     Compound,
     Target,
     ActionType,
@@ -49,10 +50,8 @@ from viewer.models import (
     SnapshotActions,
     ComputedMolecule,
     ComputedSet,
-    CSetKeys,
     NumericalScoreValues,
     ScoreDescription,
-    File,
     TagCategory,
     TextScoreValues,
     MoleculeTag,
@@ -113,7 +112,6 @@ from viewer.serializers import (
     SnapshotReadSerializer,
     SnapshotWriteSerializer,
     SnapshotActionsSerializer,
-    FileSerializer,
     ComputedSetSerializer,
     ComputedMoleculeSerializer,
     NumericalScoreSerializer,
@@ -132,7 +130,8 @@ from viewer.serializers import (
     JobRequestReadSerializer,
     JobRequestWriteSerializer,
     JobCallBackReadSerializer,
-    JobCallBackWriteSerializer
+    JobCallBackWriteSerializer,
+    ProjectSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -434,6 +433,10 @@ class ProjectView(ISpyBSafeQuerySet):
             ]
 
        """
+    queryset = Project.objects.filter()
+    serializer_class = ProjectSerializer
+    filter_permissions = "target"
+       
     def get(self, request):
         # Get the proposals available to this user.
         # We return the corresponding Project records
