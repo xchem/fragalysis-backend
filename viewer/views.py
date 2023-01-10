@@ -98,11 +98,11 @@ from viewer.serializers import (
     ProteinSerializer,
     CompoundSerializer,
     TargetSerializer,
-    MolImageSerialzier,
-    CmpdImageSerialzier,
-    ProtMapInfoSerialzer,
-    ProtPDBInfoSerialzer,
-    ProtPDBBoundInfoSerialzer,
+    MolImageSerializer,
+    CmpdImageSerializer,
+    ProtMapInfoSerializer,
+    ProtPDBInfoSerializer,
+    ProtPDBBoundInfoSerializer,
     VectorsSerializer,
     GraphSerializer,
     ActionTypeSerializer,
@@ -277,7 +277,7 @@ class MolImageView(ISpyBSafeQuerySet):
                         "mol_image": "<?xml version='1.0' encoding='iso-8859-1'?><svg version='1.1' nk'..."}]
     """
     queryset = Molecule.objects.filter()
-    serializer_class = MolImageSerialzier
+    serializer_class = MolImageSerializer
     filter_permissions = "prot_id__target_id__project_id"
     filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
@@ -306,7 +306,7 @@ class CompoundImageView(ISpyBSafeQuerySet):
 
     """
     queryset = Compound.objects.filter()
-    serializer_class = CmpdImageSerialzier
+    serializer_class = CmpdImageSerializer
     filter_permissions = "project_id"
     filterset_fields = ("smiles",)
 
@@ -329,7 +329,7 @@ class ProteinMapInfoView(ISpyBSafeQuerySet):
 
    """
     queryset = Protein.objects.filter()
-    serializer_class = ProtMapInfoSerialzer
+    serializer_class = ProtMapInfoSerializer
     filter_permissions = "target_id__project_id"
     filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
@@ -365,7 +365,7 @@ class ProteinPDBInfoView(ISpyBSafeQuerySet):
 
    """
     queryset = Protein.objects.filter()
-    serializer_class = ProtPDBInfoSerialzer
+    serializer_class = ProtPDBInfoSerializer
     filter_permissions = "target_id__project_id"
     filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
@@ -401,7 +401,7 @@ class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
 
    """
     queryset = Protein.objects.filter()
-    serializer_class = ProtPDBBoundInfoSerialzer
+    serializer_class = ProtPDBBoundInfoSerializer
     filter_permissions = "target_id__project_id"
     filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
@@ -427,8 +427,9 @@ class ProjectView(ISpyBSafeQuerySet):
                "results": [
                 {
                     "id": 2,
-                    "title": "lb27156",
-                    "init_date": "2023-01-09T15:00:00Z"
+                    "target_access_string": "lb27156-1",
+                    "init_date": "2023-01-09T15:00:00Z",
+                    "authority": "DIAMOND-ISPYB"
                 }
             ]
 

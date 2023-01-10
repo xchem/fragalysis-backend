@@ -21,7 +21,6 @@ import requests
 from requests import Response
 from wrapt import synchronized
 
-from fragalysis.settings import SQUONK2_AGENT_SINGLETON
 from viewer.models import User, SessionProject, Project
 from viewer.models import Squonk2Project, Squonk2Org, Squonk2Unit
 
@@ -770,16 +769,18 @@ class Squonk2Agent:
 
         return rv_u
 
+# A placeholder for the Agent object
+_AGENT_SINGLETON: Optional[Squonk2Agent] = None
 
 def get_squonk2_agent() -> Squonk2Agent:
-    """Returns a 'singleton' (reference stored in settings.py).
+    """Returns a 'singleton'.
     """
-    global SQUONK2_AGENT_SINGLETON  # pylint: disable=global-statement
+    global _AGENT_SINGLETON  # pylint: disable=global-statement
 
-    if SQUONK2_AGENT_SINGLETON:
-        return SQUONK2_AGENT_SINGLETON
+    if _AGENT_SINGLETON:
+        return _AGENT_SINGLETON
     _LOGGER.debug("Creating new Squonk2Agent...")
-    SQUONK2_AGENT_SINGLETON = Squonk2Agent()
+    _AGENT_SINGLETON = Squonk2Agent()
     _LOGGER.debug("Created")
 
-    return SQUONK2_AGENT_SINGLETON
+    return _AGENT_SINGLETON
