@@ -108,7 +108,7 @@ class Squonk2Agent:
         self.__CFG_SQUONK2_PRODUCT_FLAVOUR: Optional[str] =\
             os.environ.get('SQUONK2_PRODUCT_FLAVOUR')
         self.__CFG_SQUONK2_SLUG: Optional[str] =\
-            os.environ.get('SQUONK2_SLUG')[:_MAX_SLUG_LENGTH]
+            os.environ.get('SQUONK2_SLUG', '')[:_MAX_SLUG_LENGTH]
         self.__CFG_SQUONK2_ORG_OWNER: Optional[str] =\
             os.environ.get('SQUONK2_ORG_OWNER')
         self.__CFG_SQUONK2_ORG_OWNER_PASSWORD: Optional[str] =\
