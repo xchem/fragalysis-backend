@@ -1188,7 +1188,7 @@ class JobRequest(models.Model):
     # For us this will contain a 'task_id', 'instance_id' and 'callback_token'.
     # The content will be a list with index '0' that's the value of the DmApiRv
     # 'success' variable and, at index '1', the original response message json().
-    # The Job callback token will be squonk_job_info[0]['callback_token']
+    # The Job callback token will be squonk_job_info[1]['callback_token']
     squonk_job_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # 'squonk_url_ext' is a Squonk UI URL to obtain information about the
     # running instance. It's essentially the Squonk URL with the instance ID appended.
