@@ -17,7 +17,7 @@ from viewer.models import ( Target,
                             Snapshot,
                             JobRequest,
                             JobFileTransfer )
-from viewer.utils import get_https_host
+from viewer.utils import create_squonk_job_request_url, get_https_host
 
 logger = logging.getLogger(__name__)
 
@@ -191,4 +191,9 @@ def create_squonk_job(request):
     logger.info('+ SUCCESS. Job "%s" started (job_instance_id=%s job_task_id=%s)',
                 job_name, job_instance_id, job_task_id)
 
-    return job_request.id, job_request.squonk_url_ext
+    # Manufacture the Squonk URL (actually set in the callback)
+    # so the front-end can use it immediately (we cannot set the JobRequest
+    # `squonk_url_ext` here as it introduces a race-condition with the callback logic).
+    squonk_url_ext = create_squonk_job_request_url(job_instance_id)
+
+    return job_request.id, squonk_url_ext

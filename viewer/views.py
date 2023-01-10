@@ -36,6 +36,7 @@ from celery.result import AsyncResult
 from api.security import ISpyBSafeQuerySet
 
 from api.utils import get_params, get_highlighted_diffs
+from viewer.utils import create_squonk_job_request_url
 
 from viewer.models import (
     Molecule,
@@ -3422,15 +3423,15 @@ class JobCallBackView(viewsets.ModelViewSet):
                         code, status)
             return HttpResponse(status=204)
 
-        # This is now a chance to set the squonk_url_ext using the instance ID
+        # This is now a chance to safely set the squonk_url_ext using the instance ID
         # present in the callback (if it's not already set). The instance is
         # placed at the end of the string, and is expected to be found
-        # by process_compound_set_file() whcih loads the output file back
+        # by process_compound_set_file() which loads the output file back
         # into Fragalysis
         if not jr.squonk_url_ext:
-            jr.squonk_url_ext = settings.SQUONK2_INSTANCE_API + str(request.data['instance_id'])
+            jr.squonk_url_ext = create_squonk_job_request_url(request.data['instance_id'])
             logger.info("Setting jr.squonk_url_ext='%s'", jr.squonk_url_ext)
-            
+
         # Update the state transition time,
         # assuming UTC.
         transition_time = request.data.get('state_transition_time')
