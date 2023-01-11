@@ -51,12 +51,12 @@ RunJobParams: namedtuple = namedtuple("RunJob", ["common",
 SendParams: namedtuple = namedtuple("Send", ["common",
                                              "snapshot_id"])
 
-
 _SUPPORTED_PRODUCT_FLAVOURS: List[str] = ["BRONZE", "SILVER", "GOLD"]
 
 # Squonk2 Have defined limits - assumed here.
 # verify with your Squonk2 installation.
-_MAX_SQ2_NAME_LENGTH: int = 80
+# How long are Squonk2 'names'?
+_SQ2_MAX_NAME_LENGTH: int = 80
 
 # A slug used for names this Fragalysis will create
 # and a prefix string. So Squonk2 objects will be called "Fragalysis {slug}"
@@ -65,9 +65,6 @@ _SQ2_NAME_PREFIX: str = "Fragalysis"
 
 # Built-in
 _SQ2_PRODUCT_TYPE: str = 'DATA_MANAGER_PROJECT_TIER_SUBSCRIPTION'
-
-# How long are Squonk2 'names'?
-_SQ2_MAX_NAME_LENGTH: int = 80
 
 # True if the code's in Test Mode
 _TEST_MODE: bool = True
