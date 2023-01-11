@@ -93,6 +93,14 @@ class Target(models.Model):
     upload_datetime = models.DateTimeField(null=True)
 
 
+class Experiment(models.Model):
+    """Model for holding Crystallographic PDB and relationships with Target
+    (and referenced from the corresponding Protein).
+    """
+    crystallographic_pdb = models.FileField(upload_to="exp_c_pdbs/", null=True, max_length=255)
+    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
+    
+
 class Protein(models.Model):
     """Django model for holding information about a protein. A protein is a protein structure which has a unique set of
     3D coordinates, rather than a target, which is a set of protein objects of the same protein. A Molecule object is
@@ -142,7 +150,11 @@ class Protein(models.Model):
     """
     # code for this protein (e.g. NUDT5A-x0001_1A)
     code = models.CharField(max_length=50, db_index=True)
+    # The corresponding Target (to be replaced by an experiment reference)
     target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
+    # The (new) Experiment reference (to replace the Target reference)
+    # Blank/unset until code supports Experiments.
+    experiment_id = models.ForeignKey(Experiment, null=True, on_delete=models.CASCADE)
     apo_holo = models.NullBooleanField()
     # Set the groups types
     prot_choices, default_prot = get_prot_choices()
@@ -1202,5 +1214,3 @@ class JobRequest(models.Model):
     class Meta:
         db_table = 'viewer_jobrequest'
 # End of Squonk Job Tables
-
-
