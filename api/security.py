@@ -88,9 +88,21 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user()
+        # Add in the ones everyone has access to
+        proposal_list.extend(self.get_open_proposals())
         # Must have a directly foreign key (project_id) for it to work
         filter_dict = self.get_filter_dict(proposal_list)
         return self.queryset.filter(**filter_dict).distinct()
+
+    def get_open_proposals(self):
+        """
+        Returns the list of proposals anybody can access
+        :return:
+        """
+        if os.environ.get("TEST_SECURITY_FLAG", False):
+            return ["OPEN", "private_dummy_project"]
+        else:
+            return ["OPEN", "lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
