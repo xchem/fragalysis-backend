@@ -3,6 +3,7 @@ import time
 from wsgiref.util import FileWrapper
 from django.http import Http404
 from django.http import HttpResponse
+from django.db.models import Q
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from ispyb.connector.mysqlsp.main import ISPyBNoResultException
 from rest_framework import viewsets
@@ -90,19 +91,22 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         proposal_list = self.get_proposals_for_user()
         # Add in the ones everyone has access to
         proposal_list.extend(self.get_open_proposals())
-        # Must have a directly foreign key (project_id) for it to work
-        filter_dict = self.get_filter_dict(proposal_list)
-        return self.queryset.filter(**filter_dict).distinct()
+        # Must have a foreign key to a Project for this filter to work.
+        # get_q_filter() returns a Q expression for filtering
+        q_filter = self.get_q_filter(proposal_list)
+        return self.queryset.filter(q_filter).distinct()
 
     def get_open_proposals(self):
         """
-        Returns the list of proposals anybody can access
-        :return:
+        Returns the list of proposals anybody can access.
+        This function is deprecated, instead we should move to the 'open_to_public'
+        field rather than using a built-in list of Projects.
         """
         if os.environ.get("TEST_SECURITY_FLAG", False):
-            return ["OPEN", "private_dummy_project"]
+            return ["private_dummy_project"]
         else:
-            return ["OPEN", "lb27156"]
+            # A list of well-known (built-in) public Projects (Proposals/Visits)
+            return ["lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
@@ -178,14 +182,23 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         else:
             return self.get_proposals_for_user_from_django(user)
 
-    def get_filter_dict(self, proposal_list):
+    def get_q_filter(self, proposal_list):
+        """Returns a Q expression representing a (potentially complex) table filter.
+        """
         if self.filter_permissions:
-            return {self.filter_permissions + "__title__in": proposal_list}
+            # Q-filter is based on the filter_permissions string
+            # whether the resultant Project title in the proposal list
+            # OR where the Project is 'open_to_public'
+            return Q(**{self.filter_permissions + "__title__in": proposal_list}) |\
+                Q(**{self.filter_permissions + "__open_to_public": True})
         else:
             # No filter permission?
-            # Assume this is QuerySet is used for the Project model.
+            # Assume this QuerySet is used for the Project model.
             # Added during 937 development (Access Control).
-            return {"title__in": proposal_list}
+            #
+            # Q-filter is based on the Project title being in the proposal list
+            # OR where the Project is 'open_to_public'
+            return Q(title__in=proposal_list) | Q(open_to_public=True)
 
 
 class ISpyBSafeStaticFiles:
