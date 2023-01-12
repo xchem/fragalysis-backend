@@ -430,7 +430,8 @@ class ProjectView(ISpyBSafeQuerySet):
                     "id": 2,
                     "target_access_string": "lb27156-1",
                     "init_date": "2023-01-09T15:00:00Z",
-                    "authority": "DIAMOND-ISPYB"
+                    "authority": "DIAMOND-ISPYB",
+                    "open_to_public": false
                 }
             ]
 

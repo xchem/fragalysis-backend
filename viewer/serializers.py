@@ -294,7 +294,7 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ("id", "target_access_string", "init_date", "authority")
+        fields = ("id", "target_access_string", "init_date", "authority", "open_to_public")
 
     def get_tas(self, instance):
         return instance.title

@@ -22,6 +22,8 @@ class Project(models.Model):
         The date the project was initiated (autofield)
     user_id: ManyToManyField
         Links to the User model
+    open_to_public: BooleanField
+        True if open to the Public
     """
     # The title of the project_id -> userdefined
     title = models.CharField(max_length=200, unique=True)
@@ -29,6 +31,7 @@ class Project(models.Model):
     init_date = models.DateTimeField(auto_now_add=True)
     # The users it's related to
     user_id = models.ManyToManyField(User)
+    open_to_public = models.BooleanField(default=False)
 
 
 class Target(models.Model):
