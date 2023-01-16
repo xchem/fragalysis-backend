@@ -107,7 +107,6 @@ class ValidateFile(object):
             + expected_product_column_names
             + expected_reaction_name_column_names
         )
-        # expected_no_columns = (max_no_steps * 4) + 5
         expected_no_columns = len(expected_column_names)
         self.checkNumberColumns(
             expected_no_columns=expected_no_columns,
@@ -160,11 +159,6 @@ class ValidateFile(object):
                                 "reaction-product-smiles-{}".format(reaction_number)
                             ],
                         )
-                    reactant_pair_smiles_ordered = [
-                        (canonSmiles(smi[0]), canonSmiles(smi[1]))
-                        for smi in reactant_pair_smiles_ordered
-                    ]
-
                     row[
                         "reaction-reactant-pair-smiles-{}".format(reaction_number)
                     ] = reactant_pair_smiles_ordered
@@ -242,7 +236,6 @@ class ValidateFile(object):
             + expected_reactant_1_column_names
             + expected_reaction_name_column_names
         )
-        # expected_no_columns = (max_no_steps * 2) + 5
         expected_no_columns = len(expected_column_names)
         self.checkNumberColumns(
             expected_no_columns=expected_no_columns,
@@ -273,12 +266,12 @@ class ValidateFile(object):
                 number_reactant_1s = [
                     columns_count["reactant-1-{}".format(reaction_number)]
                     for reaction_number in reaction_numbers_group
-                    if "reactant-1-{}".format(reaction_number) in columns_count
+                    if "reactant-1-{}".format(reaction_number) in columns_count and columns_count["reactant-1-{}".format(reaction_number)] !=0
                 ]
                 number_reactant_2s = [
                     columns_count["reactant-2-{}".format(reaction_number)]
                     for reaction_number in reaction_numbers_group
-                    if "reactant-2-{}".format(reaction_number) in columns_count
+                    if "reactant-2-{}".format(reaction_number) in columns_count and columns_count["reactant-1-{}".format(reaction_number)] !=0
                 ]
                 no_targets = int(math.prod(number_reactant_1s + number_reactant_2s))
                 target_names = [
@@ -340,10 +333,6 @@ class ValidateFile(object):
                         reactant_pair_smiles=reactant_pair_smiles,
                         reaction_names=reaction_names,
                     )
-                    reactant_pair_smiles_ordered = [
-                        (canonSmiles(smi[0]), canonSmiles(smi[1]))
-                        for smi in reactant_pair_smiles_ordered
-                    ]
                     if reaction_number == max_no_steps_combi_group:
                         self.target_smiles = self.target_smiles + product_smiles
                     reaction_combi_group_info[
@@ -570,6 +559,7 @@ class ValidateFile(object):
                         reactant_SMILES=reactant_pair,
                         reaction_SMARTS=smarts,
                     )
+                    reactant_smis = [canonSmiles(smi) for smi in reactant_smis]
                     product_created_smiles.append(product_smi)
                     reactant_pair_smiles_ordered.append(reactant_smis)
             return reactant_pair_smiles_ordered, product_created_smiles
