@@ -1,5 +1,7 @@
+import logging
 import os
 import time
+
 from wsgiref.util import FileWrapper
 from django.http import Http404
 from django.http import HttpResponse
@@ -10,6 +12,8 @@ from rest_framework import viewsets
 from .remote_ispyb_connector import SSHConnector
 
 from viewer.models import Project
+
+logger = logging.getLogger(__name__)
 
 USER_LIST_DICT = {}
 
@@ -91,6 +95,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         proposal_list = self.get_proposals_for_user()
         # Add in the ones everyone has access to
         proposal_list.extend(self.get_open_proposals())
+
+        logger.debug('is_authenticated=%s, proposal_list=%s',
+                     self.request.user.is_authenticated, proposal_list)
+
         # Must have a foreign key to a Project for this filter to work.
         # get_q_filter() returns a Q expression for filtering
         q_filter = self.get_q_filter(proposal_list)
