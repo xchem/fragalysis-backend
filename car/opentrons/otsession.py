@@ -1471,7 +1471,7 @@ class CreateOTSession(object):
                         orderdictslist.append(
                             {
                                 "SMILES": startingmaterialsdf.at[i, "smiles"],
-                                "name": plateobj.name,
+                                "plate-name": plateobj.name,
                                 "labware": plateobj.labware,
                                 "well": wellobj.index,
                                 "concentration": startingmaterialsdf.at[
