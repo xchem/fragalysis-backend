@@ -156,8 +156,10 @@ def draw_mol(smiles, height=49, width=150, bondWidth=1, scaling=1.0, img_type=No
     # If you want to influence this use the scaling parameter.
     x, y = calc_bounds(conformer)
     dim_x, dim_y = calc_dims(x, y)
-    scale_x = width / dim_x
-    scale_y = height / dim_y
+    # Protect scaling from Div0.
+    # Scale factors are 0 if the corresponding dimension is not +ve, non=zero.
+    scale_x = width / dim_x if dim_x > 0 else 0
+    scale_y = height / dim_y if dim_y > 0 else 0
     scale = min(scale_x, scale_y)
     font = max(round(scale * scaling), 6)
 
