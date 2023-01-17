@@ -323,7 +323,10 @@ def validate_compound_set(task_params):
     for m in other_mols:
         if m:
             validate_dict = check_mol_props(m, validate_dict)
-            validate_dict = check_name_characters(m.GetProp('_Name'), validate_dict)
+            molecule_name = ''
+            if m.HasProp('_Name'):
+                molecule_name = m.GetProp('_Name')
+            validate_dict = check_name_characters(molecule_name, validate_dict)
             # validate_dict = check_pdb(m, validate_dict, target, zfile)
             validate_dict = check_refmol(m, validate_dict, target)
             validate_dict = check_field_populated(m, validate_dict)
