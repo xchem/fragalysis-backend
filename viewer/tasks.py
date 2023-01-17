@@ -244,10 +244,6 @@ def validate_compound_set(task_params):
     # print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
 
-    # Get submitter name/info for passing into upload to get unique name
-    submitter_name = blank_mol.GetProp('submitter_name')
-    submitter_method = blank_mol.GetProp('method')
-
     if blank_mol is None:
         validate_dict = add_warning(molecule_name='Blank Mol',
                                     field='N/A',
@@ -260,6 +256,9 @@ def validate_compound_set(task_params):
         logger.warning('validate_compound_set() EXIT'
                        ' user_id=%s sdf_file=%s validated=False',
                        user_id, sdf_file)
+        # Can't get submitter name or method when there is now mol
+        submitter_name = ''
+        submitter_method = ''
         return (validate_dict, validated, sdf_file, target, zfile,
                 submitter_name, submitter_method)
 
@@ -295,7 +294,10 @@ def validate_compound_set(task_params):
             props = [key for key in list(mol.GetPropsAsDict().keys())]
             diff_list = np.setdiff1d(props, unique_props)
             for diff in diff_list:
-                add_warning(molecule_name=mol.GetProp('_Name'),
+                molecule_name = 'Unknown (no _Name property)'
+                if mol.HasProp('_Name'):
+                    molecule_name = mol.GetProp('_Name')
+                add_warning(molecule_name=molecule_name,
                             field='property (missing)',
                             warning_string=f'{diff} property is missing from this molecule',
                             validate_dict=validate_dict)
