@@ -59,6 +59,7 @@ def get_remote_conn():
     #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
     if not ispyb_credentials["host"]:
+        logger.debug("No ISPyB host - cannot return a connector")
         return None
 
     conn = SSHConnector(**ispyb_credentials)
@@ -120,11 +121,14 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
         if user.pk is None:
+            logger.warning("user.pk is None")
             return []
         else:
-            return list(
+            prop_ids = list(
                 Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
             )
+            logger.debug("Got %s proposals: %s", len(prop_ids), prop_ids)
+            return prop_ids
 
     def needs_updating(self, user):
         global USER_LIST_DICT
@@ -155,6 +159,9 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # First check if it's updated in the past 1 hour
         global USER_LIST_DICT
 
+        needs_updating = self.needs_updating(user)
+        logger.debug("needs_updating=%s", needs_updating)
+        
         if self.needs_updating(user):
             conn = None
             if connector == 'ispyb':
@@ -162,9 +169,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             if connector == 'ssh_ispyb':
                 conn = get_remote_conn()
 
-            # If there is no connection (ISpyB credentials may be missing)
+            # If there is no connection (ISPyB credentials may be missing)
             # then there's nothing we can do except return an empty list.
             if conn is None:
+                logger.warning("Failed to get ISPyB connector")
                 return []
 
             rs = self.run_query_with_connector(conn=conn, user=user)
@@ -175,18 +183,25 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             prop_ids = list(set([str(x["proposalNumber"]) for x in rs]))
             prop_ids.extend(visit_ids)
             USER_LIST_DICT[user.username]["RESULTS"] = prop_ids
+
+            logger.debug("Got %s proposals: %s", len(prop_ids), prop_ids)
             return prop_ids
         else:
-            return USER_LIST_DICT[user.username]["RESULTS"]
+            cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
+            logger.debug("Got %s cached proposals: %s", len(cached_prop_ids), cached_prop_ids)
+            return cached_prop_ids
 
     def get_proposals_for_user(self):
 
         user = self.request.user
         ispyb_user = os.environ.get("ISPYB_USER")
+        logger.debug("ispyb_user=%s", ispyb_user)
         if ispyb_user:
+            logger.debug("user.is_authenticated=%s", user.is_authenticated)
             if user.is_authenticated:
                 return self.get_proposals_for_user_from_ispyb(user)
             else:
+                logger.debug("Got no proposals")
                 return []
         else:
             return self.get_proposals_for_user_from_django(user)
