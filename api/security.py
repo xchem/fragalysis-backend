@@ -95,7 +95,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user()
         # Add in the ones everyone has access to
-        proposal_list.extend(self.get_open_proposals())
+        # (unless we already have it)
+        for open_proposal in self.get_open_proposals():
+            if open_proposal not in proposal_list:
+                proposal_list.append(open_proposal)
 
         logger.debug('is_authenticated=%s, proposal_list=%s',
                      self.request.user.is_authenticated, proposal_list)
@@ -160,9 +163,9 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         global USER_LIST_DICT
 
         needs_updating = self.needs_updating(user)
-        logger.debug("needs_updating=%s", needs_updating)
+        logger.debug("user=%s needs_updating=%s", user.username, needs_updating)
         
-        if self.needs_updating(user):
+        if needs_updating:
             conn = None
             if connector == 'ispyb':
                 conn = get_conn()
