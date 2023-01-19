@@ -365,7 +365,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
         'formatters': {
             'simple': {
                 'format': '%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s',
-                'datefmt': '%Y-%m-%dT%H:%M:%S'}},
+                'datefmt': '%Y-%m-%dT%H:%M:%S%z'}},
         'handlers': {
             'console': {
                 'level': 'DEBUG',

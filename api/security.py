@@ -62,7 +62,14 @@ def get_remote_conn():
         logger.debug("No ISPyB host - cannot return a connector")
         return None
 
-    conn = SSHConnector(**ispyb_credentials)
+    # Try to get an SSH connection (aware that it might fail)
+    conn = None
+    try:
+        conn = SSHConnector(**ispyb_credentials)
+    except ValueError as cex:
+        logger.info("ssh_credentials=%s", ssh_credentials)
+        logger.error("Got ValueError exception getting SSH connection (%s)", cex)
+
     return conn
 
 
