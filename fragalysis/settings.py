@@ -384,7 +384,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'django': {
                 'level': 'WARNING'},
             'mozilla_django_oidc': {
-                'level': 'DEBUG'},
+                'level': 'WARNING'},
             'urllib3': {
                 'level': 'WARNING'}},
         'root': {
