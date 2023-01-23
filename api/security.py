@@ -100,7 +100,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         Optionally restricts the returned purchases to a given proposals
         """
         # The list of proposals this user can have
-        proposal_list = self.get_proposals_for_user()
+        proposal_list = self.get_proposals_for_user(self.request.user)
         # Add in the ones everyone has access to
         # (unless we already have it)
         for open_proposal in self.get_open_proposals():
@@ -201,9 +201,11 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             logger.debug("Got %s cached proposals: %s", len(cached_prop_ids), cached_prop_ids)
             return cached_prop_ids
 
-    def get_proposals_for_user(self):
-
-        user = self.request.user
+    def get_proposals_for_user(self, user):
+        """Returns a list of proposals (public and private) that the user has access to.
+        """
+        assert user
+        
         ispyb_user = os.environ.get("ISPYB_USER")
         logger.debug("ispyb_user=%s", ispyb_user)
         if ispyb_user:

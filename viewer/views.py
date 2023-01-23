@@ -63,7 +63,7 @@ from viewer.models import (
 )
 from viewer import filters
 from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
-from viewer.squonk2_agent import CommonParams
+from viewer.squonk2_agent import CommonParams, SendParams, RunJobParams
 
 from .forms import CSetForm, CSetUpdateForm, TSetForm
 from .tasks import (
@@ -3126,18 +3126,41 @@ class JobFileTransferView(viewsets.ModelViewSet):
             content = {'Only authenticated users can transfer files'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        # Can't use this method if the Squonk2 agent is not
-        if not _SQ2A.configured():
-            content = {'The Squonk2 Agent is not configured'}
+        # Can't use this method if the Squonk2 agent is not configured
+        sq2a_rv = _SQ2A.configured()
+        if not sq2a_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
+        # Collect expected API parameters....
+        access_id = request.data['access']  # The access ID/legacy Project record title
         target_id = request.data['target']
-        target = Target.objects.get(id=target_id)
         snapshot_id = request.data['snapshot']
         session_project_id = request.data['session_project']
-        # The access ID (legacy Project record ID)
-        access_id = request.data['access']
 
+        logger.info('+ user="%s" (id=%s)', user.username, user.id)
+        logger.info('+ access_id=%s', access_id)
+        logger.info('+ target_id=%s', target_id)
+        logger.info('+ snapshot_id=%s', snapshot_id)
+        logger.info('+ session_project_id=%s', session_project_id)
+
+        target = Target.objects.get(id=target_id)
+        assert target
+
+        # Check the user can use this Squonk2 facility.
+        # To do this we need to setup a couple of API parameter objects.
+        sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
+                                                        access_id=access_id,
+                                                        session_id=session_project_id,
+                                                        target_id=target_id)
+        sq2a_send_params: SendParams = SendParams(common=sq2a_common_params,
+                                                  snapshot_id=snapshot_id)
+        sq2a_rv: Squonk2AgentRv = _SQ2A.can_send(sq2a_send_params)
+        if not sq2a_rv.success:
+            content = {f'You cannot do this ({sq2a_rv.msg})'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        # Check the presense of the files expected to be transferred
         error, proteins, compounds = check_file_transfer(request)
         if error:
             return Response(error['message'], status=error['status'])
@@ -3161,11 +3184,6 @@ class JobFileTransferView(viewsets.ModelViewSet):
         # This is "understood" by the celery task (which uses this constant).
         # e.g. 'fragalysis-files'
         transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
-
-        logger.info('+ target_id=%s', target_id)
-        logger.info('+ snapshot_id=%s', snapshot_id)
-        logger.info('+ session_project_id=%s', session_project_id)
-        logger.info('+ access_id=%s', access_id)
         logger.info('+ transfer_root=%s', transfer_root)
 
         if job_transfer:
@@ -3200,6 +3218,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         else:
 
             # Create new file transfer job
+            logger.info('+ Calling ensure_project() to get the Squonk2 Project...')
 
             # This requires a Squonk2 Project (created by the Squonk2Agent).
             # It may be an existing project, or it might be a new project.
@@ -3209,17 +3228,21 @@ class JobFileTransferView(viewsets.ModelViewSet):
                                          session_id=session_project_id)
             sq2_rv = _SQ2A.ensure_project(common_params)
             if not sq2_rv.success:
-                msg = f'JobTransfer failed to get a Squonk2 Project' \
-                      f' for User {user.username}, Access ID {access_id},' \
-                      f' Target ID {target_id}, and SessionProject ID {session_id}.' \
-                      f' Returning the message "{sq2_rv.msg}".' \
+                msg = f'Failed to get/create a Squonk2 Project' \
+                      f' for User "{user.username}", Access ID {access_id},' \
+                      f' Target ID {target_id}, and SessionProject ID {session_project_id}.' \
+                      f' Got "{sq2_rv.msg}".' \
                       ' Cannot continue'
                 content = {'message': msg}
                 logger.error(msg)
-                return Response(content,
-                                status=status.HTTP_404_NOT_FOUND)
-            # The project UUID is in the response msg (a Squonk2Project object)
-            squonk2_project = sq2_rv.msg.uuid
+                return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+            # The Squonk2Project record is in the response msg
+            squonk2_project_uuid = sq2_rv.msg.uuid
+            squonk2_unit_name = sq2_rv.msg.unit.name
+            squonk2_unit_uuid = sq2_rv.msg.unit.uuid
+            logger.info('+ ensure_project() returned Project uuid=%s (unit="%s" unit_uuid=%s)',
+                        squonk2_project_uuid, squonk2_unit_name, squonk2_unit_uuid)
 
             job_transfer = JobFileTransfer()
             job_transfer.user = request.user
@@ -3228,7 +3251,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
             # We should use a foreign key,
             # but to avoid migration issues with the existing code
             # we continue to use the project UUID string field.
-            job_transfer.squonk_project = squonk2_project
+            job_transfer.squonk_project = squonk2_project_uuid
             job_transfer.target = Target.objects.get(id=target_id)
             job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
 
@@ -3395,11 +3418,37 @@ class JobRequestView(viewsets.ModelViewSet):
             content = {'Only authenticated users can run jobs'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        # Can't use this method if the squonk variables are not set!
-        # Do this for JobRequest and FileTransfer
-        sq2_rv = _SQ2A.configured
-        if not sq2_rv.success:
-            content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg})'}
+        # Can't use this method if the Squonk2 agent is not configured
+        sq2a_rv = _SQ2A.configured()
+        if not sq2a_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        # Collect expected API parameters....
+        target_id = request.data['target']
+        snapshot_id = request.data['snapshot']
+        session_project_id = request.data['session_project']
+        access_id = request.data['access']  # The access ID/legacy Project record title
+
+        logger.info('+ user="%s" (id=%s)', user.username, user.id)
+        logger.info('+ access_id=%s', access_id)
+        logger.info('+ target_id=%s', target_id)
+        logger.info('+ snapshot_id=%s', snapshot_id)
+        logger.info('+ session_project_id=%s', session_project_id)
+
+        # Check the user can use this Squonk2 facility.
+        # To do this we need to setup a couple of API parameter objects.
+        # We don't (at this point) care about the Job spec or callback URL.
+        sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
+                                                        access_id=access_id,
+                                                        session_id=session_project_id,
+                                                        target_id=target_id)
+        sq2a_run_job_params: RunJobParams = RunJobParams(common=sq2a_common_params,
+                                                         job_spec=None,
+                                                         callback_url=None)
+        sq2a_rv: Squonk2AgentRv = _SQ2A.can_run_job(sq2a_run_job_params)
+        if not sq2a_rv.success:
+            content = {f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         try:

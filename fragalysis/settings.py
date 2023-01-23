@@ -379,7 +379,11 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 'filename': os.path.join(BASE_DIR, 'logs/backend.log'),
                 'formatter': 'simple'}},
         'loggers': {
+            'api.security': {
+                'level': 'WARNING'},
             'asyncio': {
+                'level': 'WARNING'},
+            'celery': {
                 'level': 'WARNING'},
             'django': {
                 'level': 'WARNING'},

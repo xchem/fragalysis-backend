@@ -21,6 +21,7 @@ import requests
 from requests import Response
 from wrapt import synchronized
 
+from api.security import ISpyBSafeQuerySet
 from viewer.models import User, SessionProject, Project
 from viewer.models import Squonk2Project, Squonk2Org, Squonk2Unit
 
@@ -67,7 +68,7 @@ _SQ2_NAME_PREFIX: str = "Fragalysis"
 _SQ2_PRODUCT_TYPE: str = 'DATA_MANAGER_PROJECT_TIER_SUBSCRIPTION'
 
 # True if the code's in Test Mode
-_TEST_MODE: bool = True
+_TEST_MODE: bool = False
 
 
 class Squonk2Agent:
@@ -152,6 +153,12 @@ class Squonk2Agent:
         self.__keycloak_hostname: str = ''
         self.__keycloak_realm: str = ''
 
+        # The Safe QuerySet from the security module.
+        # Used when we are given an access_id.
+        # It allows us to check that a user is permitted to use the access ID
+        # and relies on ISPyB credentials present in the environment.
+        self.__ispyb_safe_query_set: ISpyBSafeQuerySet = ISpyBSafeQuerySet()
+
     def _get_user_name(self, user_id: int) -> str:
         # Gets the username (if id looks sensible)
         # or a fixed value (used for testing)
@@ -162,7 +169,7 @@ class Squonk2Agent:
 
         user_name: str = self.__DUMMY_USER
         if user_id:
-            user: User  = User.objects.filter(id=params.user_id).first()
+            user: User  = User.objects.filter(id=user_id).first()
             assert user
             user_name = user.username
         assert user_name
@@ -687,7 +694,7 @@ class Squonk2Agent:
         return SuccessRv
 
     @synchronized
-    def run_job(self, params: RunJobParams) -> Squonk2AgentRv:
+    def can_run_job(self, params: RunJobParams) -> Squonk2AgentRv:
         """Executes a Job on a Squonk2 installation.
         """
         assert params
@@ -704,6 +711,49 @@ class Squonk2Agent:
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
+        # Ensure that the user is allowed to use the given access ID
+        user: User  = User.objects.filter(id=params.user_id).first()
+        assert user
+        access_id: str = params.common.access_id
+        assert access_id
+        proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
+        if not access_id in proposal_list:
+            msg = f'The user does not have access to {access_id}'
+            _LOGGER.warning(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+            
+        return SuccessRv
+
+    @synchronized
+    def can_send(self, params: SendParams) -> Squonk2AgentRv:
+        """A blocking method that checks whether a user can send files to Squonk2.
+        """
+        assert params
+        assert isinstance(params, SendParams)
+
+        if _TEST_MODE:
+            msg: str = 'Squonk2Agent is in TEST mode'
+            _LOGGER.warning(msg)
+
+        # Every public API**MUST**  call ping().
+        # This ensures Squonk2 is available and gets suitable API tokens...
+        if not self.ping():
+            msg = 'Squonk2 ping failed.'\
+                  ' Are we configured properly and is Squonk2 alive?'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        # Ensure that the user is allowed to use the access ID
+        user: User  = User.objects.filter(id=params.user_id).first()
+        assert user
+        access_id: str = params.common.access_id
+        assert access_id
+        proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
+        if not access_id in proposal_list:
+            msg = f'You cannot access {access_id}'
+            _LOGGER.warning(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+            
         return SuccessRv
 
     @synchronized
@@ -726,6 +776,16 @@ class Squonk2Agent:
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
+        # Ensure that the user is allowed to use the access ID
+        user = None
+        access_id: str = params.common.access_id
+        assert access_id
+        proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
+        if not access_id in proposal_list:
+            msg = f'The user does not have access to {access_id}'
+            _LOGGER.warning(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+            
         rv_u: Squonk2AgentRv = self._ensure_project(params.common)
         if not rv_u.success:
             msg = 'Failed to create corresponding Squonk2 Project'
