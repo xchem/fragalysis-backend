@@ -188,22 +188,49 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             rs = self.run_query_with_connector(conn=conn, user=user)
             logger.debug("Connector query rs=%s", rs)
             
+            # Typically you'll find the following fields in each item
+            # in the rs response; -
+            #
+            #    'id': 0000000,
+            #    'proposalId': 00000,
+            #    'startDate': datetime.datetime(2022, 12, 1, 15, 56, 30)
+            #    'endDate': datetime.datetime(2022, 12, 3, 18, 34, 9)
+            #    'beamline': 'i00-0'
+            #    'proposalCode': 'lb'
+            #    'proposalNumber': '12345'
+            #    'sessionNumber': 1
+            #    'comments': None
+            #    'personRoleOnSession': 'Data Access'
+            #    'personRemoteOnSession': 1
+            #
             # Iterate through the response and return the 'proposalNumber' (proposals)
             # and one with the 'proposalNumber' and 'sessionNumber' (visits),
             # e.g. ["12345", "12345-1"].
             #
             # These strings would normally correspond to a title value
             # in a Project record.
-            visit_ids = list(set([
-                str(x["proposalNumber"]) + "-" + str(x["sessionNumber"]) for x in rs
-            ]))
-            prop_ids = list(set([str(x["proposalNumber"]) for x in rs]))
-            prop_ids.extend(visit_ids)
-            logger.debug("Got %s proposals: %s", len(prop_ids), prop_ids)
+            #
+            # To maintain backward compatibility we create a list of
+            # raw proposals and visits and a duplicate set with the 'proposalCode'
+            # prefix (converted to upper-case). The proposalCode is 'aa' but 'AA'
+            # will be in the project record.
+            #
+            # e.g. we eventually get this sort of list: -
+            # 
+            # ["12345", "12345-1", "LB12345", "LB12345-1"]
+            prop_id_set = set()
+            for record in rs:
+                proposal_str = f'{record["proposalNumber"]}'
+                visit_str = f'{proposal_str}-{record["sessionNumber"]}'
+                prop_id_set.update([proposal_str, visit_str])
+                if record["proposalCode"]:
+                    proposalCode = str(record["proposalCode"]).upper()
+                    prop_id_set.update([f'{proposalCode}{proposal_str}', f'{proposalCode}{visit_str}'])
+            logger.debug("Got %s proposals: %s", len(prop_id_set), prop_id_set)
 
             # Cache the result and return the result for the user
-            USER_LIST_DICT[user.username]["RESULTS"] = prop_ids
-            return prop_ids
+            USER_LIST_DICT[user.username]["RESULTS"] = list(prop_id_set)
+            return USER_LIST_DICT[user.username]["RESULTS"]
         else:
             # Return the previous query (cached)
             cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
