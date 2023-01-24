@@ -181,22 +181,31 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
             # If there is no connection (ISPyB credentials may be missing)
             # then there's nothing we can do except return an empty list.
+            # Otherwise run a query for the user.
             if conn is None:
                 logger.warning("Failed to get ISPyB connector")
                 return []
-
             rs = self.run_query_with_connector(conn=conn, user=user)
-
+            logger.debug("Connector query rs=%s", rs)
+            
+            # Iterate through the response and return the 'proposalNumber' (proposals)
+            # and one with the 'proposalNumber' and 'sessionNumber' (visits),
+            # e.g. ["12345", "12345-1"].
+            #
+            # These strings would normally correspond to a title value
+            # in a Project record.
             visit_ids = list(set([
                 str(x["proposalNumber"]) + "-" + str(x["sessionNumber"]) for x in rs
             ]))
             prop_ids = list(set([str(x["proposalNumber"]) for x in rs]))
             prop_ids.extend(visit_ids)
-            USER_LIST_DICT[user.username]["RESULTS"] = prop_ids
-
             logger.debug("Got %s proposals: %s", len(prop_ids), prop_ids)
+
+            # Cache the result and return the result for the user
+            USER_LIST_DICT[user.username]["RESULTS"] = prop_ids
             return prop_ids
         else:
+            # Return the previous query (cached)
             cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
             logger.debug("Got %s cached proposals: %s", len(cached_prop_ids), cached_prop_ids)
             return cached_prop_ids
