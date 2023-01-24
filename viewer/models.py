@@ -404,7 +404,8 @@ class ActionType(models.Model):
 
 # Start of Session Project
 class SessionProject(models.Model):
-    """Django model for holding information about a fragalysis user project - a set of sessions saved by a user
+    """Django model for holding information about a fragalysis user Session Project
+    - a set of sessions saved by a user that belong to a Target and Project.
 
     Parameters
     ----------
@@ -415,17 +416,19 @@ class SessionProject(models.Model):
     description: Charfield
         A short user-defined description for the project
     target: ForeignKey
-        Foreign Key link to the relevent project target
+        Foreign Key link to the relevant project target
+    project: ForeignKey
+        Foreign Key link to the relevant project (optional for legacy reasons)
     author: ForeignKey
         A link to the user that created the project
     tags: TextField
         A comma separated list of user-defined tags - for searching and tagging projects
-
     """
     title = models.CharField(max_length=200)
     init_date = models.DateTimeField(default=timezone.now)
     description = models.CharField(max_length=255, default='')
     target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, null=True, on_delete=models.CASCADE)
     author = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     tags = models.TextField(default='[]')
 

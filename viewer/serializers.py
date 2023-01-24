@@ -287,16 +287,12 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     # Field name translation (prior to refactoring the Model)
     # 'tas' is the new name for 'title'
-    target_access_string =  serializers.SerializerMethodField('get_tas')
+    target_access_string =  serializers.SerializerMethodField()
     # 'authority' is the (as yet to be implemented) origin of the TAS
     # For now this is fixed at "DIAMOND-ISPYB"
-    authority =  serializers.SerializerMethodField('get_authority')
+    authority =  serializers.SerializerMethodField()
 
-    class Meta:
-        model = Project
-        fields = ("id", "target_access_string", "init_date", "authority", "open_to_public")
-
-    def get_tas(self, instance):
+    def get_target_access_string(self, instance):
         return instance.title
 
     def get_authority(self, instance):
@@ -304,6 +300,10 @@ class ProjectSerializer(serializers.ModelSerializer):
         # We return a hard-coded string.
         del instance
         return "DIAMOND-ISPYB"
+
+    class Meta:
+        model = Project
+        fields = ("id", "target_access_string", "init_date", "authority", "open_to_public")
 
 
 class MolImageSerializer(serializers.ModelSerializer):
@@ -433,7 +433,8 @@ class ActionTypeSerializer(serializers.ModelSerializer):
 # GET
 class SessionProjectReadSerializer(serializers.ModelSerializer):
     target = TargetSerializer(read_only=True)
-    author = UserSerializer(read_only=True)
+    project = ProjectSerializer(read_only=True)
+    target = TargetSerializer(read_only=True)
     # This is for the new tags functionality. The old tags field is left here for backwards
     # compatibility
     session_project_tags = serializers.SerializerMethodField()
@@ -445,7 +446,7 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = SessionProject
         fields = ('id', 'title', 'init_date', 'description',
-                  'target', 'author', 'tags', 'session_project_tags')
+                  'target', 'project', 'author', 'tags', 'session_project_tags')
 
 
 # (POST, PUT, PATCH)
