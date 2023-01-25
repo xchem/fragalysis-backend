@@ -380,7 +380,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 'formatter': 'simple'}},
         'loggers': {
             'api.security': {
-                'level': 'WARNING'},
+                'level': 'INFO'},
             'asyncio': {
                 'level': 'WARNING'},
             'celery': {

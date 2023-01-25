@@ -141,6 +141,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return prop_ids
 
     def needs_updating(self, user):
+        """Returns true of the data collected for a user is out of date.
+        It's simple, we just record the last collected timestamp and consider it
+        'out of date' (i.e. more than an hour old).
+        """
         global USER_LIST_DICT
 
         update_window = 3600
@@ -226,13 +230,17 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
                 proposal_str = f'{pc_str}{pn_str}'
                 proposal_visit_str = f'{proposal_str}-{sn_str}'
                 prop_id_set.update([proposal_str, proposal_visit_str])
-            logger.debug("Got %s proposals: %s", len(prop_id_set), prop_id_set)
+
+            # Always display the collected results for the user.
+            # These will be cached. 
+            logger.info("Got %s proposals (%s): %s",
+                        len(prop_id_set), user.username, prop_id_set)
 
             # Cache the result and return the result for the user
             USER_LIST_DICT[user.username]["RESULTS"] = list(prop_id_set)
             return USER_LIST_DICT[user.username]["RESULTS"]
         else:
-            # Return the previous query (cached)
+            # Return the previous query (cached for an hour)
             cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
             logger.debug("Got %s cached proposals: %s", len(cached_prop_ids), cached_prop_ids)
             return cached_prop_ids
