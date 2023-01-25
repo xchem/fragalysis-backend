@@ -211,15 +211,17 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             # and one with the 'proposalNumber' and 'sessionNumber' (visits), each
             # prefixed by the `proposalCode` (if present).
             #
-            # These strings should correspond to a title value in a Project record.
+            # Codes are expected to consist of 2 letters.
+            # Typically: lb, mx, nt, nr, bi
             #
-            # We should get this sort of list: -
+            # These strings should correspond to a title value in a Project record.
+            # and should get this sort of list: -
             # 
             # ["lb12345", "lb12345-1"]
             #              --      -
             #              | ----- |
-            #   proposalCode   |   |
-            #   proposalCode 
+            #           Code   |   Session
+            #               Proposal 
             prop_id_set = set()
             for record in rs:
                 pc_str = ""
