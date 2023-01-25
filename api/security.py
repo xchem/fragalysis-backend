@@ -204,28 +204,28 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             #    'personRemoteOnSession': 1
             #
             # Iterate through the response and return the 'proposalNumber' (proposals)
-            # and one with the 'proposalNumber' and 'sessionNumber' (visits),
-            # e.g. ["12345", "12345-1"].
+            # and one with the 'proposalNumber' and 'sessionNumber' (visits), each
+            # prefixed by the `proposalCode` (if present).
             #
-            # These strings would normally correspond to a title value
-            # in a Project record.
+            # These strings should correspond to a title value in a Project record.
             #
-            # To maintain backward compatibility we create a list of
-            # raw proposals and visits and a duplicate set with the 'proposalCode'
-            # prefix (converted to upper-case). The proposalCode is 'aa' but 'AA'
-            # will be in the project record.
-            #
-            # e.g. we eventually get this sort of list: -
+            # We should get this sort of list: -
             # 
-            # ["12345", "12345-1", "LB12345", "LB12345-1"]
+            # ["lb12345", "lb12345-1"]
+            #              --      -
+            #              | ----- |
+            #   proposalCode   |   |
+            #   proposalCode 
             prop_id_set = set()
             for record in rs:
-                proposal_str = f'{record["proposalNumber"]}'
-                visit_str = f'{proposal_str}-{record["sessionNumber"]}'
-                prop_id_set.update([proposal_str, visit_str])
-                if record["proposalCode"]:
-                    proposalCode = str(record["proposalCode"]).upper()
-                    prop_id_set.update([f'{proposalCode}{proposal_str}', f'{proposalCode}{visit_str}'])
+                pc_str = ""
+                if "proposalCode" in record and record["proposalCode"]:
+                    pc_str = f'{record["proposalCode"]}'
+                pn_str = f'{record["proposalNumber"]}'
+                sn_str = f'{record["sessionNumber"]}'
+                proposal_str = f'{pc_str}{pn_str}'
+                proposal_visit_str = f'{proposal_str}-{sn_str}'
+                prop_id_set.update([proposal_str, proposal_visit_str])
             logger.debug("Got %s proposals: %s", len(prop_id_set), prop_id_set)
 
             # Cache the result and return the result for the user
