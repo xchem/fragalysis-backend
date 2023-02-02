@@ -154,7 +154,7 @@ class Squonk2Agent:
         self.__keycloak_realm: str = ''
 
         # The Safe QuerySet from the security module.
-        # Used when we are given an access_id.
+        # Used when we are given a tas (target access string).
         # It allows us to check that a user is permitted to use the access ID
         # and relies on ISPyB credentials present in the environment.
         self.__ispyb_safe_query_set: ISpyBSafeQuerySet = ISpyBSafeQuerySet()
@@ -716,9 +716,12 @@ class Squonk2Agent:
         assert user
         access_id: str = rj_params.common.access_id
         assert access_id
+        target_access_string = self._get_target_access_string(access_id)
+        assert target_access_string
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
-        if not access_id in proposal_list:
-            msg = f'The user does not have access to {access_id}'
+        if not target_access_string in proposal_list:
+            msg = f'The user ({user.username}) cannot access "{target_access_string}"' \
+                  f' (access_id={access_id}). Only {proposal_list})'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
             
@@ -748,9 +751,12 @@ class Squonk2Agent:
         assert user
         access_id: str = s_params.common.access_id
         assert access_id
+        target_access_string = self._get_target_access_string(access_id)
+        assert target_access_string
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
-        if not access_id in proposal_list:
-            msg = f'You cannot access {access_id}'
+        if not target_access_string in proposal_list:
+            msg = f'The user ({user.username}) cannot access "{target_access_string}"' \
+                  f' (access_id={access_id}). Only {proposal_list})'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
             
@@ -780,9 +786,12 @@ class Squonk2Agent:
         user = None
         access_id: str = params.common.access_id
         assert access_id
+        target_access_string = self._get_target_access_string(access_id)
+        assert target_access_string
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
-        if not access_id in proposal_list:
-            msg = f'The user does not have access to {access_id}'
+        if not target_access_string in proposal_list:
+            msg = f'The user ({user.username}) cannot access "{target_access_string}"' \
+                  f'(access_id={access_id}). Only {proposal_list})'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
             
