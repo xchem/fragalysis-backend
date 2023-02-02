@@ -3324,7 +3324,7 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Can't use this method if the squonk variables are not set!
-        sqa_rv = SQ2A.configured()
+        sqa_rv = _SQ2A.configured()
         if sqa_rv.success:
             content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg}'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
