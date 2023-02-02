@@ -224,7 +224,7 @@ def createReactionModel(
     intramolecular: bool,
     reaction_smarts: str,
     reaction_temperature: float = None,
-    recipe_type: str = None,
+    reaction_recipe: str = None,
 ) -> int:
     """Creates a Django reaction object - a chemical reaction
 
@@ -241,8 +241,8 @@ def createReactionModel(
     reaction_SMARTS: str
         The SMARTS for the reaction
     reaction_temperature: float
-        The reaction temperature
-    recipe_type: str
+        The opotional reaction temperature
+    reaction_recipe: str
         The optional (if found in encoded recipes) type of encoded recipe used to execute the reaction
 
     Returns
@@ -258,8 +258,8 @@ def createReactionModel(
     reaction.intramolecular = intramolecular
     if reaction_temperature:
         reaction.temperature = reaction_temperature
-    if recipe_type:
-        reaction.recipetype = recipe_type
+    if reaction_recipe:
+        reaction.recipe = reaction_recipe
     reaction_svg_string = createReactionSVGString(reaction_smarts)
     reaction_svg_fn = default_storage.save(
         "reactionimages/" + reaction_class + ".svg", ContentFile(reaction_svg_string)
@@ -839,6 +839,7 @@ class CreateEncodedActionModels(object):
             add.save()
 
         except Exception as e:
+            print(smiles)
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
     def createExtractActionModel(self, actionsession_obj: ActionSession, action: dict):

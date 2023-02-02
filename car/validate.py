@@ -70,10 +70,10 @@ class ValidateFile(object):
                     smiles=self.target_smiles,
                     smiles_type="target",
                 )
-                if self.validated:
-                    self.checkIsNumber(values=self.amounts)
-                if self.validated:
-                    self.checkIsString()
+                # if self.validated:
+                #     self.checkIsNumber(values=self.amounts)
+                # if self.validated:
+                #     self.checkIsString()
 
     def validateCustomChem(self):
         max_no_steps = max(self.df["no-steps"])
@@ -88,6 +88,10 @@ class ValidateFile(object):
         ]
         expected_reaction_name_column_names = [
             "reaction-name-{}".format(reaction_number)
+            for reaction_number in reaction_numbers
+        ]
+        expected_reaction_recipe_column_names = [
+            "reaction-recipe-{}".format(reaction_number)
             for reaction_number in reaction_numbers
         ]
         expected_product_column_names = [
@@ -106,6 +110,7 @@ class ValidateFile(object):
             + expected_reactant_2_column_names
             + expected_product_column_names
             + expected_reaction_name_column_names
+            + expected_reaction_recipe_column_names
         )
         expected_no_columns = len(expected_column_names)
         self.checkNumberColumns(
@@ -115,103 +120,126 @@ class ValidateFile(object):
         if self.validated:
             self.checkColumnNames(expected_column_names=expected_column_names)
         if self.validated:
-            self.target_names = self.df["target-names"]
-            self.batchtags = self.df["batch-tag"]
-            self.concentrations = self.df["concentration-required-mM"]
-            self.amounts = self.df["amount-required-uL"]
-            self.nosteps = self.df["no-steps"]
+            self.target_names = self.df["target-names"].tolist()
+            self.batchtags = self.df["batch-tag"].tolist()
+            self.concentrations = self.df["concentration-required-mM"].tolist()
+            self.amounts = self.df["amount-required-uL"].tolist()
+            self.nosteps = self.df["no-steps"].tolist()
             self.target_smiles = []
-            self.products = []
+            self.product_smiles = []
             self.reactant_pair_smiles = []
             self.reaction_names = []
-            for index, row in self.df.iterrows():
-                no_reaction_steps = row["no-steps"]
-                reaction_numbers_group = list(range(1, no_reaction_steps + 1))
-                for reaction_number in reaction_numbers_group:
-                    reactant_1_SMILES = [
-                        reactant.strip()
-                        for reactant in row["reactant-1-{}".format(reaction_number)]
-                        if str(reactant) != "nan"
-                    ]
-
-                    reactant_2_SMILES = [
-                        reactant.strip()
-                        for reactant in row["reactant-2-{}".format(reaction_number)]
-                        if str(reactant) != "nan"
-                    ]
-
-                    reactant_pair_smiles = [reactant_1_SMILES, reactant_2_SMILES]
-                    self.checkSMILES(
-                        df_rows_index=index,
-                        smiles=reactant_pair_smiles,
-                        smiles_type="reactant_pair",
+            self.reaction_recipes = []
+            all_reaction_info = {}
+            for reaction_number in reaction_numbers:
+                reaction_info = {}
+                reaction_names = self.df[
+                    "reaction-name-{}".format(reaction_number)
+                ].tolist()
+                reaction_recipes = self.df[
+                    "reaction-recipe-{}".format(reaction_number)
+                ].tolist()
+                product_smiles = self.df[
+                    "reaction-product-smiles-{}".format(reaction_number)
+                ].tolist()
+                reactant_1_SMILES = self.df[
+                    "reactant-1-{}".format(reaction_number)
+                ].tolist()
+                reactant_1_SMILES = [smi.strip() for smi in reactant_1_SMILES]
+                reactant_2_SMILES = self.df["reactant-2-{}".format(reaction_number)]
+                reactant_2_SMILES = [smi.strip() for smi in reactant_2_SMILES]
+                reactant_pair_smiles = list(zip(reactant_1_SMILES, reactant_2_SMILES))
+                # self.checkSMILES(
+                #     df_rows_index=self.index_df_rows,
+                #     smiles=reactant_pair_smiles,
+                #     smiles_type="reactant_pair",
+                # )
+                if self.validated:
+                    reactant_pair_smiles_ordered, product_smiles = self.checkReaction(
+                        reactant_pair_smiles=reactant_pair_smiles,
+                        reaction_names=reaction_names,
+                        product_smiles=product_smiles,
                     )
-                    if self.validated:
-                        (
-                            reactant_pair_smiles_ordered,
-                            product_smiles,
-                        ) = self.checkReaction(
-                            reactant_pair_smiles=reactant_pair_smiles,
-                            reaction_names=row[
-                                "reaction-name-{}".format(reaction_number)
-                            ],
-                            product_smiles=row[
-                                "reaction-product-smiles-{}".format(reaction_number)
-                            ],
-                        )
-                    row[
-                        "reaction-reactant-pair-smiles-{}".format(reaction_number)
-                    ] = reactant_pair_smiles_ordered
-                    if reaction_number == no_reaction_steps:
+
+                    # self.product_smiles = self.product_smiles + product_smiles
+                    # self.reactant_pair_smiles = (
+                    # self.reactant_pair_smiles + reactant_pair_smiles_ordered
+                    # )
+                    # self.reaction_names = self.reaction_names + reaction_names
+                    # self.reaction_recipes = self.reaction_recipes + reaction_recipes
+                    print(reaction_number, max_no_steps)
+                    if reaction_number == max_no_steps:
                         self.target_smiles = self.target_smiles + product_smiles
 
-                reaction_names = list(
-                    zip(
-                        *[
-                            row["reaction-name-{}".format(reactionnumber)]
-                            for reactionnumber in reaction_numbers_group
-                        ]
-                    )
-                )
-                reactant_pair_smiles = list(
-                    zip(
-                        *[
-                            row[
-                                "reaction-reactant-pair-smiles-{}".format(
-                                    reactionnumber
-                                )
-                            ]
-                            for reactionnumber in reaction_numbers_group
-                        ]
-                    )
-                )
-                products = list(
-                    zip(
-                        *[
-                            row["reaction-product-smiles-{}".format(reactionnumber)]
-                            for reactionnumber in reaction_numbers_group
-                        ]
-                    )
-                )
-                self.products = self.products + products
-                self.reactant_pair_smiles = (
-                    self.reactant_pair_smiles + reactant_pair_smiles
-                )
-                self.reaction_names = self.reaction_names + reaction_names
+                    reaction_info[
+                        "reaction-name-{}".format(reaction_number)
+                    ] = reaction_names
+                    reaction_info[
+                        "reaction-recipe-{}".format(reaction_number)
+                    ] = reaction_recipes
+                    reaction_info[
+                        "reaction-reactant-pair-smiles-{}".format(reaction_number)
+                    ] = reactant_pair_smiles_ordered
+                    reaction_info[
+                        "reaction-product-smiles-{}".format(reaction_number)
+                    ] = product_smiles
+                    all_reaction_info.update(reaction_info)
 
-            if self.validated:
-                self.df = pd.DataFrame()
-                self.df["batch-tag"] = self.batchtags
-                self.df["target-names"] = self.target_names
-                self.df["target-SMILES"] = self.target_smiles
-                self.df["concentration-required-mM"] = self.concentrations
-                self.df["amount-required-uL"] = self.amounts
-                self.df["no-steps"] = self.nosteps
-                self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
-                self.df["reaction-name"] = self.reaction_names
-                self.df["product-smiles"] = self.products
-                self.checkIsNumber(values=self.concentrations)
-                self.checkIsNumber(values=self.amounts)
+            products = list(
+                zip(
+                    *[
+                        all_reaction_info[
+                            "reaction-product-smiles-{}".format(reactionnumber)
+                        ]
+                        for reactionnumber in reaction_numbers
+                    ]
+                )
+            )
+            reactant_pair_smiles = list(
+                zip(
+                    *[
+                        all_reaction_info[
+                            "reaction-reactant-pair-smiles-{}".format(reactionnumber)
+                        ]
+                        for reactionnumber in reaction_numbers
+                    ]
+                )
+            )
+            reaction_names = list(
+                zip(
+                    *[
+                        all_reaction_info["reaction-name-{}".format(reactionnumber)]
+                        for reactionnumber in reaction_numbers
+                    ]
+                )
+            )
+            reaction_recipes = list(
+                zip(
+                    *[
+                        all_reaction_info["reaction-recipe-{}".format(reactionnumber)]
+                        for reactionnumber in reaction_numbers
+                    ]
+                )
+            )
+
+            self.product_smiles = self.product_smiles + products
+            self.reactant_pair_smiles = self.reactant_pair_smiles + reactant_pair_smiles
+            self.reaction_names = self.reaction_names + reaction_names
+            self.reaction_recipes = self.reaction_recipes + reaction_recipes
+
+            self.df = pd.DataFrame()
+            self.df["batch-tag"] = self.batchtags
+            self.df["target-names"] = self.target_names
+            self.df["target-SMILES"] = self.target_smiles
+            self.df["concentration-required-mM"] = self.concentrations
+            self.df["amount-required-uL"] = self.amounts
+            self.df["no-steps"] = self.nosteps
+            self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
+            self.df["reaction-name"] = self.reaction_names
+            self.df["reaction-recipe"] = self.reaction_recipes
+            self.df["product-smiles"] = self.product_smiles
+            self.checkIsNumber(values=self.concentrations)
+            self.checkIsNumber(values=self.amounts)
 
     def validateCustomCombiChem(self):
         max_no_steps = int(max(self.df["no-steps"]))
@@ -248,7 +276,7 @@ class ValidateFile(object):
             self.target_names = []
             self.target_smiles = []
             self.nosteps = []
-            self.products = []
+            self.product_smiles = []
             self.reactant_pair_smiles = []
             self.reaction_names = []
             self.batchtags = []
@@ -266,12 +294,14 @@ class ValidateFile(object):
                 number_reactant_1s = [
                     columns_count["reactant-1-{}".format(reaction_number)]
                     for reaction_number in reaction_numbers_group
-                    if "reactant-1-{}".format(reaction_number) in columns_count and columns_count["reactant-1-{}".format(reaction_number)] !=0
+                    if "reactant-1-{}".format(reaction_number) in columns_count
+                    and columns_count["reactant-1-{}".format(reaction_number)] != 0
                 ]
                 number_reactant_2s = [
                     columns_count["reactant-2-{}".format(reaction_number)]
                     for reaction_number in reaction_numbers_group
-                    if "reactant-2-{}".format(reaction_number) in columns_count and columns_count["reactant-1-{}".format(reaction_number)] !=0
+                    if "reactant-2-{}".format(reaction_number) in columns_count
+                    and columns_count["reactant-1-{}".format(reaction_number)] != 0
                 ]
                 no_targets = int(math.prod(number_reactant_1s + number_reactant_2s))
                 target_names = [
@@ -376,7 +406,7 @@ class ValidateFile(object):
                         ]
                     )
                 )
-                self.products = self.products + products
+                self.product_smiles = self.product_smiles + products
                 self.reactant_pair_smiles = (
                     self.reactant_pair_smiles + reactant_pair_smiles
                 )
@@ -392,7 +422,7 @@ class ValidateFile(object):
                 self.df["no-steps"] = self.nosteps
                 self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
                 self.df["reaction-name"] = self.reaction_names
-                self.df["product-smiles"] = self.products
+                self.df["product-smiles"] = self.product_smiles
                 self.checkIsNumber(values=self.concentrations)
                 self.checkIsNumber(values=self.amounts)
 
@@ -455,6 +485,7 @@ class ValidateFile(object):
         """
         try:
             for index, smi in zip(df_rows_index, smiles):
+                print("The index is: {} and smi is: {}".format(index, smi))
                 if all(isinstance(item, tuple) for item in smi):
                     mol_test = [Chem.MolFromSmiles(smi) for smi in smi]
                 else:
@@ -473,8 +504,8 @@ class ValidateFile(object):
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
             self.add_warning(
                 field="check_smiles",
-                warning_string="Input {} smiles check failed with error: {}".format(
-                    smiles_type, e
+                warning_string="Input {} smiles check failed for smiles: {} and with error: {}".format(
+                    smiles_type, smiles, e
                 ),
             )
             self.validated = False
@@ -523,22 +554,24 @@ class ValidateFile(object):
         self,
         reactant_pair_smiles: list,
         reaction_names: list[str],
-        product_smiles: str = None,
+        product_smiles: list[str] = None,
     ):
+        print(reactant_pair_smiles)
+        print(reaction_names)
+        print(product_smiles)
         try:
             product_created_smiles = []
             reactant_pair_smiles_ordered = []
-            for reactant_pair, reaction_name in zip(
-                reactant_pair_smiles, reaction_names
+            for index, (reactant_pair, reaction_name) in enumerate(
+                zip(reactant_pair_smiles, reaction_names)
             ):
-
+                print(index, reactant_pair_smiles, reaction_name)
                 smarts = encoded_recipes[reaction_name]["recipes"]["standard"][
                     "reactionSMARTS"
                 ]
                 product_mols = checkReactantSMARTS(
                     reactant_SMILES=reactant_pair, reaction_SMARTS=smarts
                 )
-
                 if not product_mols:
                     self.add_warning(
                         field="check_reaction",
@@ -550,7 +583,7 @@ class ValidateFile(object):
 
                 if product_mols:
                     if product_smiles:
-                        product_mol = Chem.MolFromSmiles(product_smiles)
+                        product_mol = Chem.MolFromSmiles(product_smiles[index])
                     else:
                         product_mol = product_mols[0]
                     product_smi = Chem.MolToSmiles(product_mol)
