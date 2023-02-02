@@ -123,10 +123,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         We still add "OPEN" to the list for legacy testing.
         """
         if os.environ.get("TEST_SECURITY_FLAG", False):
-            return ["OPEN", "private_dummy_project"]
+            return ["lb00000", "OPEN", "private_dummy_project"]
         else:
             # A list of well-known (built-in) public Projects (Proposals/Visits)
-            return ["OPEN", "lb27156"]
+            return ["lb00000", "OPEN", "lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user

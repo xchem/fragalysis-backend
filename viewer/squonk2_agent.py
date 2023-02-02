@@ -8,7 +8,7 @@ This module 'simplifies' the use of the Squonk2 Python client package.
 from collections import namedtuple
 import logging
 import os
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import ParseResult, urlparse
 from urllib3.exceptions import InsecureRequestWarning
 from urllib3 import disable_warnings
@@ -202,7 +202,7 @@ class Squonk2Agent:
 
         session_title: str = self.__DUMMY_SESSION_TITLE
         if session_id:
-            session_project: SessionProject = SessionProject.objects.filter(id=params.session_id).first()
+            session_project: SessionProject = SessionProject.objects.filter(id=session_id).first()
             assert session_project
             session_title = session_project.title
         assert session_title
@@ -371,7 +371,7 @@ class Squonk2Agent:
 
         dm_rv: DmApiRv = DmApi.delete_project(self.__org_owner_dm_token,
                                               project_id=project_uuid)
-        if not as_rv.success:
+        if not dm_rv.success:
             _LOGGER.error('Failed to delete DM Project %s', project_uuid)
             return
 
