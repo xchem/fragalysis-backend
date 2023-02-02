@@ -6,5 +6,5 @@
 # C : Convention warnings
 # R : Refactoring warnings
 disable = C, R,
-          import-error,
-          django-not-configured
+          bare-except,
+          import-error

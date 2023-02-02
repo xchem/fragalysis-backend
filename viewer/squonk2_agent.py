@@ -13,7 +13,6 @@ from urllib.parse import ParseResult, urlparse
 from urllib3.exceptions import InsecureRequestWarning
 from urllib3 import disable_warnings
 
-from django.core.exceptions import ObjectDoesNotExist
 from squonk2.auth import Auth
 from squonk2.as_api import AsApi, AsApiRv
 from squonk2.dm_api import DmApi, DmApiRv
@@ -133,17 +132,9 @@ class Squonk2Agent:
         # True if configured...
         self.__configuration_checked: bool = False
         self.__configured: bool = False
-        # OIDC hostname and realm.
-        # Extracted during configuration check from the OIDC variable
-        self.__oidc_hostname: str = ''
-        self.__oidc_realm: str = ''
         # Ignore cert errors? (no)
         self.__verify_certificates: bool = True
 
-        # Set when pre-flight checks have passed.
-        # When they've been done we can safely (?) continue to use the
-        # Squonk2 Python client.
-        self.__pre_flight_check_status: bool = False
         # The record ID of the Squonk2Org for this deployment.
         # Set on successful 'pre-flight-check'
         self.__org_record: Optional[Squonk2Org] = None
@@ -392,7 +383,7 @@ class Squonk2Agent:
         assert params
 
         # Create an AS Product.
-        name_truncated, name_full = self._build_product_name(user_name, session_title)
+        name_truncated, _ = self._build_product_name(user_name, session_title)
         msg: str = f'Creating AS Product "{name_truncated}"...'
         _LOGGER.info(msg)
 
@@ -411,7 +402,7 @@ class Squonk2Agent:
         _LOGGER.info(msg)
 
         # Create a DM Project
-        name_truncated, name_full = self._build_project_name(1, 2)
+        name_truncated, _ = self._build_project_name(1, 2)
         msg = f'Creating DM Project "{name_truncated}"...'
         _LOGGER.info(msg)
 
@@ -454,7 +445,7 @@ class Squonk2Agent:
                                         "sq2_product_uuid": product_uuid}
         return Squonk2AgentRv(success=True, msg=response_msg)
 
-    def _ensure_unit(self, access_id: int) -> Squonk2AgentRv:
+    def _ensure_unit(self, target_access_string: int) -> Squonk2AgentRv:
         """Gets or creates a Squonk2 Unit based on a customer's "target access string"
         (TAS). If a Unit is created its name will begin with the text "Fragalysis "
         followed by the configured 'SQUONK2_SLUG' (chosen to be unique between all
@@ -523,7 +514,7 @@ class Squonk2Agent:
         assert user_name
         assert session_title
 
-        name_truncated, name_full = self._build_product_name(user_name, session_title)
+        _, name_full = self._build_product_name(user_name, session_title)
         sq2_project: Optional[Squonk2Project] = Squonk2Project.objects.filter(name=name_full).first()
         if not sq2_project:
             msg = f'No existing Squonk2Project for "{name_full}"'
@@ -563,7 +554,7 @@ class Squonk2Agent:
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
         if not target_access_string in proposal_list:
             msg = f'The user ({user.username}) cannot access "{target_access_string}"' \
-                  f' (access_id={access_id}). Only {proposal_list})'
+                  f' (access_id={c_params.access_id}). Only {proposal_list})'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
             
@@ -681,7 +672,7 @@ class Squonk2Agent:
         url = f'{self.__CFG_SQUONK2_DMAPI_URL}/api'
         try:
             resp = requests.head(url, verify=self.__verify_certificates)
-        except Exception as ex:
+        except Exception:  # pylint: disable=broad-except
             _LOGGER.error('Exception checking DM at %s', url)
         if resp is None or resp.status_code != 308:
             msg = f'Squonk2 DM is not responding from {url}'
