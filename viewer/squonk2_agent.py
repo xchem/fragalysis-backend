@@ -508,11 +508,9 @@ class Squonk2Agent:
         """
         assert c_params
         assert isinstance(c_params, CommonParams)
-
         
-        target_access_string = self._get_target_access_string(access_id)
+        target_access_string = self._get_target_access_string(c_params.access_id)
         assert target_access_string
-
 
         # A Squonk2Unit must exist for the Target Access String.
         rv: Squonk2AgentRv = self._ensure_unit(target_access_string)
@@ -560,9 +558,7 @@ class Squonk2Agent:
         # Ensure that the user is allowed to use the given access ID
         user: User  = User.objects.filter(id=c_params.user_id).first()
         assert user
-        access_id: str = c_params.access_id
-        assert access_id
-        target_access_string = self._get_target_access_string(access_id)
+        target_access_string = self._get_target_access_string(c_params.access_id)
         assert target_access_string
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
         if not target_access_string in proposal_list:
