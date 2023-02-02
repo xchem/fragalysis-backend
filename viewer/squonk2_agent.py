@@ -496,7 +496,7 @@ class Squonk2Agent:
 
         return Squonk2AgentRv(success=True, msg=sq2_unit)
 
-    def _ensure_project(self, params: CommonParams) -> Squonk2AgentRv:
+    def _ensure_project(self, c_params: CommonParams) -> Squonk2AgentRv:
         """Gets or creates a Squonk2 Project, used as the destination of files
         and job executions. Each project requires an AS Product
         (tied to the User and Session) and Unit (tied to the Proposal/Project).
@@ -509,17 +509,17 @@ class Squonk2Agent:
 
         For testing the target and user IDs are permitted to be 0.
         """
-        assert params
-        assert isinstance(params, CommonParams)
+        assert c_params
+        assert isinstance(c_params, CommonParams)
 
         # A Squonk2Unit must exist for the Target Access String.
-        rv: Squonk2AgentRv = self._ensure_unit(params.access_id)
+        rv: Squonk2AgentRv = self._ensure_unit(c_params.access_id)
         if not rv.success:
             return rv
         unit: Squonk2Unit = rv.msg
 
-        user_name: str = self._get_user_name(params.user_id)
-        session_title: str = self._get_session_title(params.session_id)
+        user_name: str = self._get_user_name(c_params.user_id)
+        session_title: str = self._get_session_title(c_params.session_id)
         assert user_name
         assert session_title
 
@@ -530,7 +530,7 @@ class Squonk2Agent:
             _LOGGER.info(msg)
             # Need to call upon Squonk2 to create a 'Product'
             # (and corresponding 'Product').
-            rv = self._create_product_and_project(unit, user_name, session_title, params)
+            rv = self._create_product_and_project(unit, user_name, session_title, c_params)
             if not rv.success:
                 msg = f'Failed creating AS Product or DM Project ({rv.msg})'
                 _LOGGER.error(msg)
@@ -694,11 +694,11 @@ class Squonk2Agent:
         return SuccessRv
 
     @synchronized
-    def can_run_job(self, params: RunJobParams) -> Squonk2AgentRv:
+    def can_run_job(self, rj_params: RunJobParams) -> Squonk2AgentRv:
         """Executes a Job on a Squonk2 installation.
         """
-        assert params
-        assert isinstance(params, RunJobParams)
+        assert rj_params
+        assert isinstance(rj_params, RunJobParams)
 
         if _TEST_MODE:
             msg: str = 'Squonk2Agent is in TEST mode'
@@ -712,9 +712,9 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         # Ensure that the user is allowed to use the given access ID
-        user: User  = User.objects.filter(id=params.user_id).first()
+        user: User  = User.objects.filter(id=rj_params.common.user_id).first()
         assert user
-        access_id: str = params.common.access_id
+        access_id: str = rj_params.common.access_id
         assert access_id
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
         if not access_id in proposal_list:
@@ -725,11 +725,11 @@ class Squonk2Agent:
         return SuccessRv
 
     @synchronized
-    def can_send(self, params: SendParams) -> Squonk2AgentRv:
+    def can_send(self, s_params: SendParams) -> Squonk2AgentRv:
         """A blocking method that checks whether a user can send files to Squonk2.
         """
-        assert params
-        assert isinstance(params, SendParams)
+        assert s_params
+        assert isinstance(s_params, SendParams)
 
         if _TEST_MODE:
             msg: str = 'Squonk2Agent is in TEST mode'
@@ -744,9 +744,9 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         # Ensure that the user is allowed to use the access ID
-        user: User  = User.objects.filter(id=params.user_id).first()
+        user: User  = User.objects.filter(id=s_params.common.user_id).first()
         assert user
-        access_id: str = params.common.access_id
+        access_id: str = s_params.common.access_id
         assert access_id
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
         if not access_id in proposal_list:
