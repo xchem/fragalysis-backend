@@ -465,9 +465,6 @@ class Squonk2Agent:
         """
         assert self.__org_record
 
-        target_access_string = self._get_target_access_string(access_id)
-        assert target_access_string
-
         # Now we check and create a Squonk2Unit...
         unit_name_truncated, unit_name_full = self._build_unit_name(target_access_string)
         sq2_unit: Optional[Squonk2Unit] = Squonk2Unit.objects.filter(name=unit_name_full).first()
@@ -512,8 +509,13 @@ class Squonk2Agent:
         assert c_params
         assert isinstance(c_params, CommonParams)
 
+        
+        target_access_string = self._get_target_access_string(access_id)
+        assert target_access_string
+
+
         # A Squonk2Unit must exist for the Target Access String.
-        rv: Squonk2AgentRv = self._ensure_unit(c_params.access_id)
+        rv: Squonk2AgentRv = self._ensure_unit(target_access_string)
         if not rv.success:
             return rv
         unit: Squonk2Unit = rv.msg
@@ -552,6 +554,25 @@ class Squonk2Agent:
 
         return Squonk2AgentRv(success=True, msg=sq2_project)
 
+    def _verify_access(self, c_params: CommonParams) -> Squonk2AgentRv:
+        """Checks the user has access to the project.
+        """
+        # Ensure that the user is allowed to use the given access ID
+        user: User  = User.objects.filter(id=c_params.user_id).first()
+        assert user
+        access_id: str = c_params.access_id
+        assert access_id
+        target_access_string = self._get_target_access_string(access_id)
+        assert target_access_string
+        proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
+        if not target_access_string in proposal_list:
+            msg = f'The user ({user.username}) cannot access "{target_access_string}"' \
+                  f' (access_id={access_id}). Only {proposal_list})'
+            _LOGGER.warning(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+            
+        return SuccessRv
+        
     @synchronized
     def get_ui_url(self):
         """Returns the UI URL, if configured.
@@ -711,21 +732,7 @@ class Squonk2Agent:
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
-        # Ensure that the user is allowed to use the given access ID
-        user: User  = User.objects.filter(id=rj_params.common.user_id).first()
-        assert user
-        access_id: str = rj_params.common.access_id
-        assert access_id
-        target_access_string = self._get_target_access_string(access_id)
-        assert target_access_string
-        proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
-        if not target_access_string in proposal_list:
-            msg = f'The user ({user.username}) cannot access "{target_access_string}"' \
-                  f' (access_id={access_id}). Only {proposal_list})'
-            _LOGGER.warning(msg)
-            return Squonk2AgentRv(success=False, msg=msg)
-            
-        return SuccessRv
+        return self._verify_access(c_params=rj_params.common)
 
     @synchronized
     def can_send(self, s_params: SendParams) -> Squonk2AgentRv:
@@ -746,29 +753,15 @@ class Squonk2Agent:
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
-        # Ensure that the user is allowed to use the access ID
-        user: User  = User.objects.filter(id=s_params.common.user_id).first()
-        assert user
-        access_id: str = s_params.common.access_id
-        assert access_id
-        target_access_string = self._get_target_access_string(access_id)
-        assert target_access_string
-        proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
-        if not target_access_string in proposal_list:
-            msg = f'The user ({user.username}) cannot access "{target_access_string}"' \
-                  f' (access_id={access_id}). Only {proposal_list})'
-            _LOGGER.warning(msg)
-            return Squonk2AgentRv(success=False, msg=msg)
-            
-        return SuccessRv
+        return self._verify_access(c_params=s_params.common)
 
     @synchronized
-    def send(self, params: SendParams) -> Squonk2AgentRv:
+    def send(self, s_params: SendParams) -> Squonk2AgentRv:
         """A blocking method that takes care of sending a set of files to
         the configured Squonk2 installation.
         """
-        assert params
-        assert isinstance(params, SendParams)
+        assert s_params
+        assert isinstance(s_params, SendParams)
 
         if _TEST_MODE:
             msg: str = 'Squonk2Agent is in TEST mode'
@@ -782,20 +775,11 @@ class Squonk2Agent:
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
-        # Ensure that the user is allowed to use the access ID
-        user = None
-        access_id: str = params.common.access_id
-        assert access_id
-        target_access_string = self._get_target_access_string(access_id)
-        assert target_access_string
-        proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
-        if not target_access_string in proposal_list:
-            msg = f'The user ({user.username}) cannot access "{target_access_string}"' \
-                  f'(access_id={access_id}). Only {proposal_list})'
-            _LOGGER.warning(msg)
-            return Squonk2AgentRv(success=False, msg=msg)
+        rv_access: Squonk2AgentRv = self._verify_access(s_params.common)
+        if not rv_access.success:
+            return rv_access
             
-        rv_u: Squonk2AgentRv = self._ensure_project(params.common)
+        rv_u: Squonk2AgentRv = self._ensure_project(s_params.common)
         if not rv_u.success:
             msg = 'Failed to create corresponding Squonk2 Project'
             _LOGGER.error(msg)
@@ -804,7 +788,7 @@ class Squonk2Agent:
         return SuccessRv
 
     @synchronized
-    def ensure_project(self, params: CommonParams) -> Squonk2AgentRv:
+    def ensure_project(self, c_params: CommonParams) -> Squonk2AgentRv:
         """A blocking method that takes care of the provisioning of the
         required Squonk2 environment. For Fragalysis this entails the
         creation of a 'Squonk2 Project' (which also requires a 'Unit' and 'Product').
@@ -812,14 +796,14 @@ class Squonk2Agent:
         If successful the Corresponding Squonk2Project record is returned as
         the response 'msg' value.
         """
-        assert params
-        assert isinstance(params, CommonParams)
+        assert c_params
+        assert isinstance(c_params, CommonParams)
 
         if _TEST_MODE:
             msg: str = 'Squonk2Agent is in TEST mode'
             _LOGGER.warning(msg)
 
-        # Every public API**MUST**  call ping().
+        # Every public API **MUST** call ping().
         # This ensures Squonk2 is available and gets suitable API tokens...
         if not self.ping():
             msg = 'Squonk2 ping failed.'\
@@ -827,7 +811,11 @@ class Squonk2Agent:
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
-        rv_u: Squonk2AgentRv = self._ensure_project(params)
+        rv_access: Squonk2AgentRv = self._verify_access(c_params)
+        if not rv_access.success:
+            return rv_access
+                        
+        rv_u: Squonk2AgentRv = self._ensure_project(c_params)
         if not rv_u.success:
             msg = 'Failed to create corresponding Squonk2 Project'
             _LOGGER.error(msg)
