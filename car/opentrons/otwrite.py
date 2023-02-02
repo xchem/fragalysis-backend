@@ -827,13 +827,40 @@ class OTWrite(object):
         )
         return reactionclasses
 
-    def getGroupedReactionByClass(self, reactionqueryset: QuerySet[Reaction]) -> list:
-        """Group reactions by reaction class
+    def getUniqueReactionRecipes(
+        self, reactionclass: str, reactionqueryset: QuerySet[Reaction]
+    ) -> list:
+        """Set of unique reaction recipes
+
+        Parameters
+        ----------
+        reactionclass: str
+            The reaction type to find linked recipes for
+        reactionqueryset: QuerySet[Reaction]
+            The reactions to get unique list of reaction recipes for
+
+        Returns
+        ------
+        reactionrecipes: list
+            The set of reaction receipes
+        """
+        reactionrecipes = (
+            reactionqueryset.filter(reactionclass=reactionclass)
+            .values_list("recipe", flat=True)
+            .order_by("recipe")
+            .distinct()
+        )
+        return reactionrecipes
+
+    def getGroupedReactionByClassRecipe(
+        self, reactionqueryset: QuerySet[Reaction]
+    ) -> list:
+        """Group reactions by reaction class and recipe type
 
         Parameters
         ----------
         reactionqueryset: QuerySet[Reaction]
-            The reactions to to group by reaction class
+            The reactions to group by reaction class
 
         Returns
         -------
@@ -843,18 +870,85 @@ class OTWrite(object):
         reactionclasses = self.getUniqueReactionClasses(
             reactionqueryset=reactionqueryset
         )
-        groupedreactionbyclassquerysets = []
+        groupedreactionbyclassrecipequerysets = []
 
         for reactionclass in reactionclasses:
-            reactionbyclassqueryset = (
-                reactionqueryset.filter(reactionclass=reactionclass)
-                .distinct()
-                .order_by("reactionclass")
+            reactionrecipes = self.getUniqueReactionRecipes(
+                reactionclass=reactionclass,
+                reactionqueryset=reactionqueryset,
             )
-            if reactionbyclassqueryset:
-                groupedreactionbyclassquerysets.append(reactionbyclassqueryset)
+            for recipe in reactionrecipes:
+                reactionbyclassrecipequeryset = (
+                    reactionqueryset.filter(reactionclass=reactionclass, recipe=recipe)
+                    .distinct()
+                    .order_by("reactionclass")
+                )
+                if reactionbyclassrecipequeryset:
+                    groupedreactionbyclassrecipequerysets.append(
+                        reactionbyclassrecipequeryset
+                    )
 
-        return groupedreactionbyclassquerysets
+        return groupedreactionbyclassrecipequerysets
+
+    # def getGroupedReactionByClass(self, reactionqueryset: QuerySet[Reaction]) -> list:
+    #     """Group reactions by reaction class
+
+    #     Parameters
+    #     ----------
+    #     reactionqueryset: QuerySet[Reaction]
+    #         The reactions to group by reaction class
+
+    #     Returns
+    #     -------
+    #     groupedreactionbyclassquerysets: list
+    #         The list of sublists of reaction querysets grouped by reaction class
+    #     """
+    #     reactionclasses = self.getUniqueReactionClasses(
+    #         reactionqueryset=reactionqueryset
+    #     )
+    #     groupedreactionbyclassquerysets = []
+
+    #     for reactionclass in reactionclasses:
+    #         reactionbyclassqueryset = (
+    #             reactionqueryset.filter(reactionclass=reactionclass)
+    #             .distinct()
+    #             .order_by("reactionclass")
+    #         )
+    #         if reactionbyclassqueryset:
+    #             groupedreactionbyclassquerysets.append(reactionbyclassqueryset)
+
+    #     return groupedreactionbyclassquerysets
+
+    # def getGroupedReactionByRecipe(self, reactionclass: str, reactionqueryset: QuerySet[Reaction]) -> list:
+    #     """Group reactions by reaction recipe type
+
+    #     Parameters
+    #     ----------
+    #     reactionclass: str
+    #         The type of reaction eg. "Suzuki" to group recipes for
+    #     reactionqueryset: QuerySet[Reaction]
+    #         The reactions to group by reaction class
+
+    #     Returns
+    #     -------
+    #     groupedreactionbyrecipequerysets: list
+    #         The list of sublists of reaction querysets grouped by reaction recipe
+    #     """
+    #     reactionrecipes = self.getUniqueReactionRecipes(
+    #         reactionqueryset=reactionqueryset
+    #     )
+    #     groupedreactionbyrecipequerysets = []
+
+    #     for recipe in reactionrecipes:
+    #         reactionbyrecipequeryset = (
+    #             reactionqueryset.filter(reactionclass=reactionclass, recipe=recipe)
+    #             .distinct()
+    #             .order_by("recipe")
+    #         )
+    #         if reactionbyrecipequeryset:
+    #             groupedreactionbyrecipequerysets.append(reactionbyrecipequeryset)
+
+    #     return groupedreactionbyrecipequerysets
 
     def setupScript(self):
         """Writes header information for an OT script"""
@@ -1249,7 +1343,7 @@ class OTWrite(object):
         if self.reactionstep > 1:
             try:
                 reactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
-                groupedreactionclassquerysets = self.getGroupedReactionByClass(
+                groupedreactionclassquerysets = self.getGroupedReactionByClassRecipe(
                     reactionqueryset=reactionqueryset
                 )
                 self.pickUpTip()
@@ -1258,7 +1352,9 @@ class OTWrite(object):
                     reactionclass = groupreactionclassqueryset.values_list(
                         "reactionclass", flat=True
                     ).distinct()[0]
-                    recipetype = "standard"
+                    recipetype = groupreactionclassqueryset.values_list(
+                        "recipe", flat=True
+                    ).distinct()[0]
                     intramolecular = groupreactionclassqueryset.values_list(
                         "intramolecular", flat=True
                     ).distinct()[0]
@@ -1349,14 +1445,14 @@ class OTWrite(object):
                 print(e)
                 print(reactionqueryset)
             self.pauseProtocol(
-                message="Addtion of dilution solvent complete. Confimr dilution complete to restart protocol."
+                message="Addtion of dilution solvent complete. Confirm dilution complete to restart protocol."
             )
 
         for index, actionsessionobj in enumerate(actionsessionqueryset):
             reactionobj = getReaction(reaction_id=actionsessionobj.reaction_id.id)
             reaction_id = reactionobj.id
             reactionclass = reactionobj.reactionclass
-            recipetype = reactionobj.recipetype
+            recipetype = reactionobj.recipe
             intramolecular = reactionobj.intramolecular
             if intramolecular:
                 reactionactionsearch = "intramolecular"
@@ -1464,7 +1560,7 @@ class OTWrite(object):
             "sessionnumber", flat=True
         ).distinct()[0]
         reactionqueryset = getReactionQuerySet(reaction_ids=self.reaction_ids)
-        groupedreactionclassquerysets = self.getGroupedReactionByClass(
+        groupedreactionclassquerysets = self.getGroupedReactionByClassRecipe(
             reactionqueryset=reactionqueryset
         )
         for groupreactionclassqueryset in groupedreactionclassquerysets:
@@ -1472,7 +1568,9 @@ class OTWrite(object):
             reactionclass = groupreactionclassqueryset.values_list(
                 "reactionclass", flat=True
             ).distinct()[0]
-            recipetype = "standard"  # Introduce loop here to group by recipe type
+            recipetype = groupreactionclassqueryset.values_list(
+                "recipe", flat=True
+            ).distinct()[0]
             actionsessions = encoded_recipes[reactionclass]["recipes"][recipetype][
                 "actionsessions"
             ]
@@ -1679,7 +1777,7 @@ class OTWrite(object):
             "reaction_id", flat=True
         ).order_by("reaction_id")
         reactionqueryset = getReactionQuerySet(reaction_ids=reaction_ids)
-        groupedreactionclassquerysets = self.getGroupedReactionByClass(
+        groupedreactionclassquerysets = self.getGroupedReactionByClassRecipe(
             reactionqueryset=reactionqueryset
         )
         for groupreactionclassqueryset in groupedreactionclassquerysets:
@@ -1687,7 +1785,9 @@ class OTWrite(object):
             reactionclass = groupreactionclassqueryset.values_list(
                 "reactionclass", flat=True
             ).distinct()[0]
-            recipetype = "standard"  # Introduce loop here to group by recipe type
+            recipetype = groupreactionclassqueryset.values_list(
+                "recipe", flat=True
+            ).distinct()[0]
             actionsessions = encoded_recipes[reactionclass]["recipes"][recipetype][
                 "actionsessions"
             ]

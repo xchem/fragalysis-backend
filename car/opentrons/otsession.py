@@ -798,7 +798,7 @@ class CreateOTSession(object):
         Returns
         ------
         reactionclasses: list
-            The set of reactionclasses
+            The set of reaction classes
         """
         reactionclasses = (
             reactionqueryset.values_list("reactionclass", flat=True)
@@ -806,6 +806,31 @@ class CreateOTSession(object):
             .distinct()
         )
         return reactionclasses
+
+    def getUniqueReactionRecipes(
+        self, reactionclass: str, reactionqueryset: QuerySet[Reaction]
+    ) -> list:
+        """Set of unique reaction recipes
+
+        Parameters
+        ----------
+        reactionclass: str
+            The reaction type to find linked recipes for
+        reactionqueryset: QuerySet[Reaction]
+            The reactions to get unique list of reaction recipes for
+
+        Returns
+        ------
+        reactionrecipes: list
+            The set of reaction receipes
+        """
+        reactionrecipes = (
+            reactionqueryset.filter(reactionclass=reactionclass)
+            .values_list("recipe", flat=True)
+            .order_by("recipe")
+            .distinct()
+        )
+        return reactionrecipes
 
     def getGroupedTemperatureReactions(
         self, reactionqueryset: QuerySet[Reaction]
@@ -835,13 +860,15 @@ class CreateOTSession(object):
                 groupedreactiontemperaturequerysets.append(reactiontemperaturequeryset)
         return groupedreactiontemperaturequerysets
 
-    def getGroupedReactionByClass(self, reactionqueryset: QuerySet[Reaction]) -> list:
-        """Group reactions by reaction class
+    def getGroupedReactionByClassRecipe(
+        self, reactionqueryset: QuerySet[Reaction]
+    ) -> list:
+        """Group reactions by reaction class and recipe type
 
         Parameters
         ----------
         reactionqueryset: QuerySet[Reaction]
-            The reactions to to group by reaction class
+            The reactions to group by reaction class
 
         Returns
         -------
@@ -851,18 +878,56 @@ class CreateOTSession(object):
         reactionclasses = self.getUniqueReactionClasses(
             reactionqueryset=reactionqueryset
         )
-        groupedreactionbyclassquerysets = []
+        groupedreactionbyclassrecipequerysets = []
 
         for reactionclass in reactionclasses:
-            reactionbyclassqueryset = (
-                reactionqueryset.filter(reactionclass=reactionclass)
-                .distinct()
-                .order_by("reactionclass")
+            reactionrecipes = self.getUniqueReactionRecipes(
+                reactionclass=reactionclass,
+                reactionqueryset=reactionqueryset,
             )
-            if reactionbyclassqueryset:
-                groupedreactionbyclassquerysets.append(reactionbyclassqueryset)
+            for recipe in reactionrecipes:
+                reactionbyclassrecipequeryset = (
+                    reactionqueryset.filter(reactionclass=reactionclass, recipe=recipe)
+                    .distinct()
+                    .order_by("reactionclass")
+                )
+                if reactionbyclassrecipequeryset:
+                    groupedreactionbyclassrecipequerysets.append(
+                        reactionbyclassrecipequeryset
+                    )
 
-        return groupedreactionbyclassquerysets
+        return groupedreactionbyclassrecipequerysets
+
+    # def getGroupedReactionByRecipe(self, reactionclass: str, reactionqueryset: QuerySet[Reaction]) -> list:
+    #     """Group reactions by reaction recipe type
+
+    #     Parameters
+    #     ----------
+    #     reactionclass: str
+    #         The type of reaction eg. "Suzuki" to group recipes for
+    #     reactionqueryset: QuerySet[Reaction]
+    #         The reactions to group by reaction class
+
+    #     Returns
+    #     -------
+    #     groupedreactionbyrecipequerysets: list
+    #         The list of sublists of reaction querysets grouped by reaction recipe
+    #     """
+    #     reactionrecipes = self.getUniqueReactionRecipes(
+    #         reactionqueryset=reactionqueryset
+    #     )
+    #     groupedreactionbyrecipequerysets = []
+
+    #     for recipe in reactionrecipes:
+    #         reactionbyrecipequeryset = (
+    #             reactionqueryset.filter(reactionclass=reactionclass, recipe=recipe)
+    #             .distinct()
+    #             .order_by("recipe")
+    #         )
+    #         if reactionbyrecipequeryset:
+    #             groupedreactionbyrecipequerysets.append(reactionbyrecipequeryset)
+
+    #     return groupedreactionbyrecipequerysets
 
     def getMedianValue(self, values: list) -> float:
         medianvalue = median(values)
@@ -1594,7 +1659,7 @@ class CreateOTSession(object):
             if (indexwellavailable % numberwellsincolumn) != 0:
                 return False
 
-    def createPlateByReactionClass(
+    def createPlateByReactionClassRecipe(
         self,
         reactionqueryset: QuerySet[Reaction],
         labwareplatetype: str,
@@ -1613,7 +1678,7 @@ class CreateOTSession(object):
             The type of plate being created eg. reaction, workup1, workup2, workup3, analyse
         """
         platename = "{}_plate".format(platetype.capitalize())
-        groupedreactionclassquerysets = self.getGroupedReactionByClass(
+        groupedreactionclassrecipequerysets = self.getGroupedReactionByClassRecipe(
             reactionqueryset=reactionqueryset
         )
         plateobj = self.createPlateModel(
@@ -1621,8 +1686,8 @@ class CreateOTSession(object):
             platename=platename,
             labwaretype=labwareplatetype,
         )
-        for groupreactionclassqueryset in groupedreactionclassquerysets:
-            reactionclass = groupreactionclassqueryset.values_list(
+        for groupreactionclassrecipequeryset in groupedreactionclassrecipequerysets:
+            reactionclass = groupreactionclassrecipequeryset.values_list(
                 "reactionclass", flat=True
             ).distinct()[0]
             indexwellavailable = self.getPlateWellIndexAvailable(plateobj=plateobj)
@@ -1697,7 +1762,7 @@ class CreateOTSession(object):
                             plateobj=plateobj, wellindexupdate=indexwellavailable
                         )
 
-            for index, reactionobj in enumerate(groupreactionclassqueryset):
+            for index, reactionobj in enumerate(groupreactionclassrecipequeryset):
                 productobj = getProduct(reaction_id=reactionobj.id)
                 indexwellavailable = self.getPlateWellIndexAvailable(plateobj=plateobj)
                 if type(indexwellavailable) == bool:
@@ -1765,7 +1830,7 @@ class CreateOTSession(object):
             labwareplatetype = self.getPlateType(
                 platetype=platetype, temperature=reactiontemperature, volumes=volumes
             )
-            self.createPlateByReactionClass(
+            self.createPlateByReactionClassRecipe(
                 reactionqueryset=groupreactiontemperaturequeryset,
                 labwareplatetype=labwareplatetype,
                 platetype=platetype,
@@ -1800,7 +1865,7 @@ class CreateOTSession(object):
             "reaction_id", flat=True
         ).order_by("reaction_id")
         reactionqueryset = getReactionQuerySet(reaction_ids=reaction_ids)
-        self.createPlateByReactionClass(
+        self.createPlateByReactionClassRecipe(
             reactionqueryset=reactionqueryset,
             labwareplatetype=labwareplatetype,
             platetype=platetype,
@@ -1834,7 +1899,7 @@ class CreateOTSession(object):
             "reaction_id", flat=True
         ).order_by("reaction_id")
         reactionqueryset = getReactionQuerySet(reaction_ids=reaction_ids)
-        self.createPlateByReactionClass(
+        self.createPlateByReactionClassRecipe(
             reactionqueryset=reactionqueryset,
             labwareplatetype=labwareplatetype,
             platetype=platetype,

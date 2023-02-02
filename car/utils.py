@@ -566,8 +566,11 @@ def getBatchReactionProductMWs(batch_id: int, reaction_number: int) -> list[floa
     return product_MWs
 
 
-def getPlateQuerySet(otsession_id: int) -> QuerySet[Plate]:
-    platequeryset = Plate.objects.filter(otsession_id=otsession_id)
+def getPlateQuerySet(plate_id: int = None, otsession_id: int = None) -> QuerySet[Plate]:
+    if plate_id:
+        platequeryset = Plate.objects.filter(id=plate_id)
+    if otsession_id:
+        platequeryset = Plate.objects.filter(otsession_id=otsession_id)
     return platequeryset
 
 
@@ -894,7 +897,7 @@ def combiChem(reactant_1_SMILES: list, reactant_2_SMILES: list) -> list:
         all_possible_combinations = list(
             itertools.product([""], set(reactant_1_SMILES))
         )
-    if len(reactant_1_SMILES) !=0 and len(reactant_2_SMILES) !=0:
+    if len(reactant_1_SMILES) != 0 and len(reactant_2_SMILES) != 0:
         all_possible_combinations = list(
             itertools.product(set(reactant_1_SMILES), set(reactant_2_SMILES))
         )
@@ -969,7 +972,7 @@ def getAddtionOrder(
     """
     rxn = AllChem.ReactionFromSmarts(reaction_SMARTS)
     reactant_mols = [Chem.MolFromSmiles(smi) for smi in reactant_SMILES if smi != ""]
-    
+
     if len(reactant_mols) == 1:
         ordered_smis = [smi for smi in reactant_SMILES if smi != ""]
 
@@ -1033,7 +1036,9 @@ def checkReactantSMARTS(reactant_SMILES: tuple, reaction_SMARTS: str) -> list:
                 products = rxn.RunReactants(reactant_permutation)
                 product_mols = [product[0] for product in products]
                 if product_mols:
-                    product_smiles = set([Chem.MolToSmiles(mol) for mol in product_mols])
+                    product_smiles = set(
+                        [Chem.MolToSmiles(mol) for mol in product_mols]
+                    )
                     product_mols = [Chem.MolFromSmiles(smi) for smi in product_smiles]
                     break
                 if not product_mols:
