@@ -1099,10 +1099,10 @@ def email_task_completion(contact_email, message_type, target_name, target_path=
                   'Please navigate the following link to check the errors: validate_task/' + str(task_id)
 
     recipient_list = [contact_email, ]
-    logger.info('+ email_notify_task_completion email_from: ' + email_from )
-    logger.info('+ email_notify_task_completion subject: ' + subject )
-    logger.info('+ email_notify_task_completion message: ' + message )
-    logger.info('+ email_notify_task_completion contact_email: ' + contact_email )
+    logger.info('+ email_notify_task_completion email_from: %s', email_from )
+    logger.info('+ email_notify_task_completion subject: %s',  subject )
+    logger.info('+ email_notify_task_completion message: %s',  message )
+    logger.info('+ email_notify_task_completion contact_email: %s', contact_email )
 
     # Send email - this should not prevent returning to the screen in the case of error.
     send_mail(subject, message, email_from, recipient_list, fail_silently=True)
@@ -1321,7 +1321,7 @@ class UploadTaskView(View):
                         target_path = '/viewer/target/%s' % target_name
                         response_data['results'] = {}
                         response_data['results']['tset_download_url'] = target_path
-                        logger.info('+ UploadTaskView.get.success -email:'+contact_email)
+                        logger.info('+ UploadTaskView.get.success -email: %s', contact_email)
                         email_task_completion(contact_email, 'upload-success', target_name, target_path=target_path)
                     else:
                         cset_name = results[2]
@@ -2395,7 +2395,7 @@ class DiscoursePostView(viewsets.ViewSet):
         logger.info('+ DiscoursePostView.post')
         data = request.data
 
-        logger.info('+ DiscoursePostView.post'+json.dumps(data))
+        logger.info('+ DiscoursePostView.post %s', json.dumps(data))
         if data['category_name'] == '':
             category_details = None
         else:
@@ -2424,7 +2424,7 @@ class DiscoursePostView(viewsets.ViewSet):
         """
         logger.info('+ DiscoursePostView.get')
         query_params = request.query_params
-        logger.info('+ DiscoursePostView.get'+json.dumps(query_params))
+        logger.info('+ DiscoursePostView.get %s', json.dumps(query_params))
 
         discourse_api_key = settings.DISCOURSE_API_KEY
 
@@ -2918,7 +2918,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
             link = DownloadLinks.objects.filter(file_url=file_url)
             if (link and link[0].zip_file
                     and os.path.isfile(link[0].file_url)):
-                logger.info('zip_file: {}'.format(link[0].zip_file))
+                logger.info('zip_file: %s', link[0].zip_file)
 
                 # return file and tidy up.
                 file_name = os.path.basename(file_url)
