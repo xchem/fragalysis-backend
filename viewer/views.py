@@ -1478,7 +1478,7 @@ def cset_download(request, name):
     """
     compound_set = ComputedSet.objects.get(unique_name=name)
     filepath = compound_set.submitted_sdf
-    with open(filepath.path, 'r', encoding='utf-8')) as fp:
+    with open(filepath.path, 'r', encoding='utf-8') as fp:
         data = fp.read()
     filename = 'compund-set_' + name + '.sdf'
     response = HttpResponse(content_type='text/plain')
@@ -1517,7 +1517,7 @@ def pset_download(request, name):
     zip_obj = zipfile.ZipFile(buff, 'w')
 
     for fp in pdb_filepaths:
-        data = open(fp, 'r', encoding='utf-8')).read()
+        data = open(fp, 'r', encoding='utf-8').read()
         zip_obj.writestr(fp.split('/')[-1], data)
     zip_obj.close()
 

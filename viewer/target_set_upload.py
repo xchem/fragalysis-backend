@@ -332,7 +332,7 @@ def add_mol(mol_file, prot, projects, lig_id="LIG", chaind_id="Z",
     """
     # create mol object from mol_sd
     rd_mol = Chem.MolFromMolFile(mol_file)
-    orig_mol_block = open(mol_file, 'r', encoding='utf-8')).read()
+    orig_mol_block = open(mol_file, 'r', encoding='utf-8').read()
 
     if rd_mol is None:
         return None
@@ -374,7 +374,7 @@ def add_mol(mol_file, prot, projects, lig_id="LIG", chaind_id="Z",
         if sdf_file:
             new_mol.sdf_file.save(
                 os.path.basename(sdf_file),
-                File(open(sdf_file, encoding='utf-8')))
+                File(open(sdf_file, encoding='utf-8'))
             )
         new_mol.save()
         return new_mol
@@ -462,7 +462,7 @@ def add_map(new_prot, new_target, map_path, map_type):
     hotspot_map = HotspotMap.objects.get_or_create(
         map_type=map_type, target_id=new_target, prot_id=new_prot
     )[0]
-    hotspot_map.map_info.save(os.path.basename(map_path), File(open(map_path, encoding='utf-8'))))
+    hotspot_map.map_info.save(os.path.basename(map_path), File(open(map_path, encoding='utf-8')))
     return hotspot_map
 
 
@@ -537,7 +537,7 @@ def remove_not_added(target, xtal_list):
 def save_confidence(mol, file_path, annotation_type="ligand_confidence"):
     """save ligand confidence"""
 
-    input_dict = json.load(open(file_path), encoding='utf-8'))
+    input_dict = json.load(open(file_path), encoding='utf-8')
     val_store_dict = ["ligand_confidence_comment", "refinement_outcome", "ligand_confidence_int"]
     for val in val_store_dict:
         if val in input_dict:
@@ -926,7 +926,7 @@ def analyse_target(target, aligned_path):
         new_frame.sort_values(by='site_name', inplace=True)
 
         # one file for new names
-        with open(os.path.join(aligned_path, 'alternate_names.csv'), 'a', encoding='utf-8')) as f:
+        with open(os.path.join(aligned_path, 'alternate_names.csv'), 'a', encoding='utf-8') as f:
             f.write('name,alternate_name\n')
 
             for _, row in new_frame.iterrows():
@@ -945,7 +945,7 @@ def analyse_target(target, aligned_path):
         for i in range(0, len(sorted(unique_sites))):
             site_mapping[unique_sites[i]] = i
 
-        with open(os.path.join(aligned_path, 'hits_ids.csv'), 'a', encoding='utf-8')) as f:
+        with open(os.path.join(aligned_path, 'hits_ids.csv'), 'a', encoding='utf-8') as f:
             f.write('crystal_id,site_number\n')
 
             for _, row in new_frame.iterrows():
@@ -956,7 +956,7 @@ def analyse_target(target, aligned_path):
                 for crys in list(set([c.code for c in crystal])):
                     f.write(str(crys) + ',' + str(s_id) + '\n')
 
-        with open(os.path.join(aligned_path, 'sites.csv'), 'a', encoding='utf-8')) as f:
+        with open(os.path.join(aligned_path, 'sites.csv'), 'a', encoding='utf-8') as f:
             f.write('site,id\n')
             for key in site_mapping.keys():
                 f.write(str(key) + ',' + str(site_mapping[key]) + '\n')

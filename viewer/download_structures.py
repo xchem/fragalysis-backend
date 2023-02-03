@@ -407,7 +407,7 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
             readme.write('- '+filename+'\n')
 
     # Convert markdown to pdf file
-    doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8")).read())
+    doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8").read())
     pandoc.write(doc, file=pdf_filepath, format='latex',
                  options=["--columns=72"])
 

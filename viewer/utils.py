@@ -67,8 +67,8 @@ def add_prop_to_sdf(sdf_file_in, sdf_file_out, properties):
     _REC_SEPARATOR = '$$$$\n'
 
     found_separator = False
-    with open(sdf_file_out, 'a', encoding='utf-8')) as sdf_out:
-        with open(sdf_file_in, 'r', encoding='utf-8')) as sdf_in:
+    with open(sdf_file_out, 'a', encoding='utf-8') as sdf_out:
+        with open(sdf_file_in, 'r', encoding='utf-8') as sdf_in:
             while True:
                 line = sdf_in.readline()
                 if line:
