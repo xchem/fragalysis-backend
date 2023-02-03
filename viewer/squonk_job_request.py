@@ -107,9 +107,8 @@ def create_squonk_job(request):
     job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
     if not job_transfers:
         logger.warning('No JobFileTransfer object for snapshot %s', snapshot_id)
-        raise ValueError('No JobFileTransfer object for snapshot %s.'
-                         ' Files must be transferred before a job can be requested.',
-                         snapshot_id)
+        raise ValueError(f'No JobFileTransfer object for snapshot {snapshot_id}.'
+                         ' Files must be transferred before a job can be requested.')
 
     job_transfer = JobFileTransfer.objects.filter(snapshot=snapshot_id).latest('id')
     if job_transfer.transfer_status != 'SUCCESS':
