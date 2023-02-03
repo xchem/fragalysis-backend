@@ -345,7 +345,7 @@ class ProtMapInfoSerializer(serializers.ModelSerializer):
 
     def get_map_data(self, obj):
         if obj.map_info:
-            return open(obj.map_info.path).read()
+            return open(obj.map_info.path, encoding='utf-8').read()
         else:
             return None
 
@@ -359,7 +359,7 @@ class ProtPDBInfoSerializer(serializers.ModelSerializer):
     pdb_data = serializers.SerializerMethodField()
 
     def get_pdb_data(self, obj):
-        return open(obj.pdb_info.path).read()
+        return open(obj.pdb_info.path, encoding='utf-8').read()
 
 
     class Meta:
@@ -373,7 +373,7 @@ class ProtPDBBoundInfoSerializer(serializers.ModelSerializer):
 
     def get_bound_pdb_data(self, obj):
         if obj.bound_info:
-            return open(obj.bound_info.path).read()
+            return open(obj.bound_info.path, encoding='utf-8').read()
         else:
             return None
 

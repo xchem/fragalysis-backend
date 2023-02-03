@@ -69,7 +69,7 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
 
     # Do nothing if the first line of the file matches the version we're about to set.
     blank_present = False
-    with open(sdf_filename, 'r') as in_file:
+    with open(sdf_filename, 'r', encoding='utf-8') as in_file:
         line = in_file.readline()
         if line and line.startswith(SDF_VERSION):
             blank_present = True
@@ -103,9 +103,9 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
                  'ref_url': ref_url}
     blank_mol = _SDF_BLANK_MOL_TEMPLATE.format(**variables)
     tmp_filename = sdf_filename + '.tmp'
-    with open(tmp_filename, 'w') as tmp_file:
+    with open(tmp_filename, 'w', encoding='utf-8') as tmp_file:
         tmp_file.write(blank_mol)
-        with open(sdf_filename, 'r') as in_file:
+        with open(sdf_filename, 'r', encoding='utf-8') as in_file:
             for line in in_file:
                 tmp_file.write(line)
     os.remove(sdf_filename)
@@ -274,7 +274,7 @@ def process_compound_set_file(jr_id,
     # We take every field as the key and the description as the value.
     # If anything goes wrong we erase the SD file and return
     params = {}
-    with open(tmp_param_filename, 'r') as param_file:
+    with open(tmp_param_filename, 'r', encoding='utf-8') as param_file:
         meta = json.loads(param_file.read())
         if 'annotations' not in meta or len(meta['annotations']) == 0:
             logger.warning('Not processing. No annotations in %s',

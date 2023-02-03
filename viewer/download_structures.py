@@ -109,7 +109,7 @@ def _replace_missing_sdf(molecule, code):
     # create the file if it doesn't exist...
     if not os.path.isfile(missing_path):
         # No file - create one.
-        with open(missing_path, 'w') as sd_file:
+        with open(missing_path, 'w', encoding='utf-8') as sd_file:
             # First line is the protein code, i.e. "PGN_RS02895PGA-x0346_0B"
             sd_file.write(f'{code}\n')
             # Now write the lines from the molecule sdf_info record
@@ -189,7 +189,7 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     # We accumulate the file's content into 'content',
     # which we eventually return to the caller.
     content = ''
-    with open(path, 'r') as f_in:
+    with open(path, 'r', encoding='utf-8') as f_in:
         # First line (stripped)
         first_line = f_in.readline().strip()
         if first_line:
@@ -258,7 +258,7 @@ def _add_file_to_sdf(combined_sdf_file, filepath):
     fullpath = os.path.join(media_root, filepath)
 
     if os.path.isfile(fullpath):
-        with open(combined_sdf_file, 'a') as f_out:
+        with open(combined_sdf_file, 'a', encoding='utf-8') as f_out:
             patched_sdf_content = _read_and_patch_molecule_name(fullpath)
             f_out.write(patched_sdf_content)
         return False
@@ -320,7 +320,7 @@ def _smiles_files_zip(zip_contents, ziparchive, download_path):
     """Create and write the smiles file to the ZIP file
     """
     smiles_filename = os.path.join(download_path, 'smiles.smi')
-    with open(smiles_filename, 'w') as smilesfile:
+    with open(smiles_filename, 'w', encoding='utf-8') as smilesfile:
         for smi in zip_contents['molecules']['smiles_info']:
             smilesfile.write(smi + ',')
     ziparchive.write(
@@ -374,7 +374,7 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
     readme_filepath = os.path.join(download_path, 'Readme.md')
     pdf_filepath = os.path.join(download_path, 'Readme.pdf')
 
-    with open(readme_filepath, "a") as readme:
+    with open(readme_filepath, "a", encoding="utf-8") as readme:
         readme.write("# Documentation for the downloaded zipfile\n")
         # Download links
         readme.write("## Download details\n")
@@ -394,7 +394,7 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
         # Download Structure from the template
         # (but prepare for the template file not existing)?
         if os.path.isfile(template_file):
-            with open(template_file, "r") as template:
+            with open(template_file, "r", encoding="utf-8") as template:
                 readme.write(template.read())
         else:
             logger.warning('Could not find template file (%s)', template_file)
@@ -407,7 +407,7 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
             readme.write('- '+filename+'\n')
 
     # Convert markdown to pdf file
-    doc = pandoc.read(open(readme_filepath, "r").read())
+    doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8")).read())
     pandoc.write(doc, file=pdf_filepath, format='latex',
                  options=["--columns=72"])
 
@@ -441,7 +441,7 @@ def _create_structures_zip(target,
     os.makedirs(download_path, exist_ok=True)
 
     error_filename = os.path.join(download_path, "errors.csv")
-    error_file = open(error_filename, "w")
+    error_file = open(error_filename, "w", encoding="utf-8")
     error_file.write("Param,Code,Invalid file reference\n")
     errors = 0
 

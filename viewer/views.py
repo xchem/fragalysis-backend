@@ -1478,7 +1478,7 @@ def cset_download(request, name):
     """
     compound_set = ComputedSet.objects.get(unique_name=name)
     filepath = compound_set.submitted_sdf
-    with open(filepath.path, 'r') as fp:
+    with open(filepath.path, 'r', encoding='utf-8')) as fp:
         data = fp.read()
     filename = 'compund-set_' + name + '.sdf'
     response = HttpResponse(content_type='text/plain')
@@ -1517,7 +1517,7 @@ def pset_download(request, name):
     zip_obj = zipfile.ZipFile(buff, 'w')
 
     for fp in pdb_filepaths:
-        data = open(fp, 'r').read()
+        data = open(fp, 'r', encoding='utf-8')).read()
         zip_obj.writestr(fp.split('/')[-1], data)
     zip_obj.close()
 
@@ -2462,7 +2462,7 @@ def create_csv_from_dict(input_dict, title=None, filename=None):
     if os.path.isfile(download_file):
         os.remove(download_file)
 
-    with open(download_file, "w", newline='') as csvfile:
+    with open(download_file, "w", newline='', encoding='utf-8') as csvfile:
         if title:
             csvfile.write(title)
             csvfile.write("\n")
@@ -2549,7 +2549,7 @@ class DictToCsv(viewsets.ViewSet):
         file_url = request.GET.get('file_url')
 
         if file_url and os.path.isfile(file_url):
-            with open(file_url) as csvfile:
+            with open(file_url, encoding='utf8') as csvfile:
                 # return file and tidy up.
                 response = HttpResponse(csvfile, content_type='text/csv')
                 response['Content-Disposition'] = 'attachment; filename=download.csv'
