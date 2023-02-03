@@ -19,7 +19,12 @@ coveralls==2.1.1
 cryptography==3.2
 decorator==4.4.2
 deepdiff==5.8.1
+
+# Dango is also referred to in the builtrequirements.txt file
+# (for non-execution linting).
+# Make sure they're the same!
 Django==3.1.14
+
 django-bootstrap3==14.1.0
 django-cleanup==5.0.0
 django-extensions==3.0.3

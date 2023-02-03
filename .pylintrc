@@ -5,6 +5,10 @@
 #
 # C : Convention warnings
 # R : Refactoring warnings
-disable = C, R,
+disable = C, F, R,
           bare-except,
-          import-error
+          broad-exception-caught,
+          broad-exception-raised,
+          fixme,
+          import-error,
+          unused-variable
