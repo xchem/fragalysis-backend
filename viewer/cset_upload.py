@@ -248,6 +248,9 @@ class MolOps:
         return set_obj
 
     def set_mol(self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None):
+        # Don't need...
+        del filename
+
         # zfile = {'zip_obj': zf, 'zf_list': zip_names}
         print(f'mol: {mol}')
         smiles = Chem.MolToSmiles(mol)
@@ -290,7 +293,7 @@ class MolOps:
 
             insp_frags.append(ref)
 
-        orig = mol.GetProp('original SMILES')
+        _ = mol.GetProp('original SMILES')
 
         # Try to get the protein object.
         # This may fail.
@@ -370,10 +373,10 @@ class MolOps:
 
         for key in list(description_dict.keys()):
             if key in descriptions_needed and key not in ['ref_mols', 'ref_pdb', 'index', 'Name', 'original SMILES']:
-                desc = ScoreDescription.objects.get_or_create(computed_set=compound_set,
-                                                              name=key,
-                                                              description=description_dict[key],
-                                                              )[0]
+                _ = ScoreDescription.objects.get_or_create(computed_set=compound_set,
+                                                           name=key,
+                                                           description=description_dict[key],
+                                                           )
 
         return mols
 
@@ -423,7 +426,7 @@ class MolOps:
             self.process_mol(mols_to_process[i], self.target, compound_set, sdf_filename, self.zfile, self.zfile_hashvals)
 
         # check that molecules have been added to the compound set
-        check = ComputedMolecule.objects.filter(computed_set=compound_set)
+        _ = ComputedMolecule.objects.filter(computed_set=compound_set)
 
         # check compound set folder exists.
         cmp_set_folder = os.path.join(settings.MEDIA_ROOT, 'compound_sets')

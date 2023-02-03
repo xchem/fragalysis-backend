@@ -7,7 +7,6 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 
 import django
 django.setup()
-from django.conf import settings
 from celery import shared_task
 import numpy as np
 
@@ -112,6 +111,7 @@ def process_compound_set(validate_output):
     process_stage, process_type, validate_dict, validated, params = validate_output
 
     logger.info('process_compound_set() ENTER')
+    logger.info('process_compound_set() process_type=%s', process_type)
     logger.info('process_compound_set() validated=%s', validated)
     logger.info('process_compound_set() params=%s', params)
 

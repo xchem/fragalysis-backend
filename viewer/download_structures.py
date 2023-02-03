@@ -13,7 +13,6 @@ import fnmatch
 import logging
 import copy
 import json
-from pathlib import Path
 import pandoc
 
 from django.conf import settings

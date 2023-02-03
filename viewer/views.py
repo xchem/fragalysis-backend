@@ -65,7 +65,7 @@ from viewer import filters
 from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
 from viewer.squonk2_agent import CommonParams, SendParams, RunJobParams
 
-from .forms import CSetForm, CSetUpdateForm, TSetForm
+from .forms import CSetForm, TSetForm
 from .tasks import (
     check_services,
     erase_compound_set_job_material,

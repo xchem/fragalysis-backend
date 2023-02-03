@@ -10,7 +10,6 @@ import datetime
 
 import shortuuid
 
-from django.conf import settings
 from squonk2.dm_api import DmApi
 
 from viewer.models import ( Target,
@@ -18,7 +17,7 @@ from viewer.models import ( Target,
                             JobRequest,
                             JobFileTransfer )
 from viewer.utils import create_squonk_job_request_url, get_https_host
-from viewer.squonk2_agent import CommonParams, Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
+from viewer.squonk2_agent import CommonParams, Squonk2Agent, get_squonk2_agent
 
 logger = logging.getLogger(__name__)
 

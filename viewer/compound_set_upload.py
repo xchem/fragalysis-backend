@@ -5,25 +5,13 @@ import django
 django.setup()
 from django.conf import settings
 
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-
 from rdkit import Chem
 from viewer.models import (
-    ComputedMolecule,
     ScoreDescription,
-    NumericalScoreValues,
-    TextScoreValues,
     Protein,
     Target,
-    Molecule,
     ComputedSetSubmitter)
-import ast
 import os.path
-
-import os
-
-import psutil
 
 def get_inspiration_frags(cpd, compound_set):
     pass
@@ -115,4 +103,3 @@ def get_additional_mols(filename, compound_set):
         return f"Missing score descriptions for: {', '.join(missing)}, please re-upload"
 
     return mols
-

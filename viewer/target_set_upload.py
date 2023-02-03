@@ -6,7 +6,7 @@ loaders.py
 functions.py
 """
 import logging
-import sys, json, os, glob, shutil
+import sys, json, os, shutil
 import datetime
 
 from django.contrib.auth.models import User
