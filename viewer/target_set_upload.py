@@ -1173,6 +1173,9 @@ def validate_target(new_data_folder, target_name, proposal_ref):
     :param proposal_ref: A reference to the proposal/visit used for connecting the target to a project/users
     :return:
     """
+    # Don't need
+    del proposal_ref
+
     validate_dict = {'Location': [], 'Error': [], 'Line number': []}
 
     # Check if there is any data to process

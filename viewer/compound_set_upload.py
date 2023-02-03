@@ -14,7 +14,9 @@ from viewer.models import (
 import os.path
 
 def get_inspiration_frags(cpd, compound_set):
-    pass
+    # Don't need...
+    del cpd
+    del compound_set
 
 
 def process_pdb(pdb_code, target, zfile, zfile_hashvals):

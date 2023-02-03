@@ -367,6 +367,8 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
     """Create the document file
     This consists of a template plus an added contents description.
     """
+    # Don't need...
+    del host
 
     template_file = os.path.join("/code/doc_templates",
                                  "download_readme_template.md")

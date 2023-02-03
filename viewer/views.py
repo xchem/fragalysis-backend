@@ -1939,6 +1939,8 @@ class DSetUploadView(APIView):
     def put(self, request, format=None):
         """Method to handle PUT request and upload a design set
         """
+        # Don't need...
+        del format
 
         f = request.FILES['file']
         set_type = request.PUT['type']
