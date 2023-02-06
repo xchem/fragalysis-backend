@@ -870,25 +870,133 @@ class OTWrite(object):
         reactionclasses = self.getUniqueReactionClasses(
             reactionqueryset=reactionqueryset
         )
-        groupedreactionbyclassrecipequerysets = []
+        groupedreactionquerysets = []
 
         for reactionclass in reactionclasses:
-            reactionrecipes = self.getUniqueReactionRecipes(
-                reactionclass=reactionclass,
-                reactionqueryset=reactionqueryset,
-            )
-            for recipe in reactionrecipes:
-                reactionbyclassrecipequeryset = (
-                    reactionqueryset.filter(reactionclass=reactionclass, recipe=recipe)
+            reactionclassqueryset = reactionqueryset.filter(reactionclass=reactionclass)
+            if reactionclassqueryset:
+                reactionrecipes = (
+                    reactionclassqueryset.values_list("recipe", flat=True)
                     .distinct()
-                    .order_by("reactionclass")
+                    .order_by("recipe")
                 )
-                if reactionbyclassrecipequeryset:
-                    groupedreactionbyclassrecipequerysets.append(
-                        reactionbyclassrecipequeryset
+                if len(reactionrecipes) == 1:
+                    groupedreactionquerysets.append(reactionclassqueryset)
+                if len(reactionrecipes) > 1:
+                    workuptypes = (
+                        ActionSession.objects.filter(
+                            reaction_id__in=reactionclassqueryset,
+                            type__in=["workup1", "workup2", "workup3"],
+                        )
+                        .distinct()
+                        .values_list("type", flat=True)
+                        .order_by("type")
                     )
+                    if len(workuptypes) <= 1:
+                        groupedreactionquerysets.append(reactionclassqueryset)
+                    if len(workuptypes) > 1:
+                        for workuptype in workuptypes:
+                            reactionbyworkuptypequeryset = (
+                                reactionclassqueryset.filter(
+                                    actionsessions__type=workuptype
+                                )
+                                .distinct()
+                                .order_by("id")
+                            )
+                            groupedreactionquerysets.append(
+                                reactionbyworkuptypequeryset
+                            )
 
-        return groupedreactionbyclassrecipequerysets
+        return groupedreactionquerysets
+
+    # def getGroupedReactionByClassRecipe(
+    #     self, reactionqueryset: QuerySet[Reaction]
+    # ) -> list:
+    #     """Group reactions by reaction class and recipe type
+
+    #     Parameters
+    #     ----------
+    #     reactionqueryset: QuerySet[Reaction]
+    #         The reactions to group by reaction class
+
+    #     Returns
+    #     -------
+    #     groupedreactionbyclassquerysets: list
+    #         The list of sublists of reaction querysets grouped by reaction class
+    #     """
+    #     reactionclasses = self.getUniqueReactionClasses(
+    #         reactionqueryset=reactionqueryset
+    #     )
+    #     groupedreactionquerysets = []
+
+    #     for reactionclass in reactionclasses:
+    #         reactionrecipes = self.getUniqueReactionRecipes(
+    #             reactionclass=reactionclass,
+    #             reactionqueryset=reactionqueryset,
+    #         )
+    #         for recipe in reactionrecipes:
+    #             reactionbyclassrecipequeryset = (
+    #                 reactionqueryset.filter(reactionclass=reactionclass, recipe=recipe)
+    #                 .distinct()
+    #                 .order_by("reactionclass")
+    #             )
+    #             if reactionbyclassrecipequeryset:
+    #                 workuptypes = (
+    #                     reactionbyclassrecipequeryset.filter(actionsessions__type__in=["workup1", "workup2", "workup3"]).actionsessions.all().distinct().values_list("type", flat=True).order_by("type")
+    #                             )
+    #                 if workuptypes:
+    #                     for workuptype in workuptypes:
+    #                         reactionbyworkuptypequeryset = (
+    #                             reactionbyclassrecipequeryset.filter(type=workuptype)
+    #                             .distinct()
+    #                             .order_by("type")
+    #                         )
+    #                         if reactionbyworkuptypequeryset:
+    #                             groupedreactionquerysets.append(
+    #                                 reactionbyworkuptypequeryset
+    #                             )
+    #                 if not workuptypes:
+    #                     groupedreactionquerysets.append(reactionbyclassrecipequeryset)
+
+    #     return groupedreactionquerysets
+
+    # def getGroupedReactionByClassRecipe(
+    #     self, reactionqueryset: QuerySet[Reaction]
+    # ) -> list:
+    #     """Group reactions by reaction class and recipe type
+
+    #     Parameters
+    #     ----------
+    #     reactionqueryset: QuerySet[Reaction]
+    #         The reactions to group by reaction class
+
+    #     Returns
+    #     -------
+    #     groupedreactionbyclassquerysets: list
+    #         The list of sublists of reaction querysets grouped by reaction class
+    #     """
+    #     reactionclasses = self.getUniqueReactionClasses(
+    #         reactionqueryset=reactionqueryset
+    #     )
+    #     groupedreactionbyclassrecipequerysets = []
+
+    #     for reactionclass in reactionclasses:
+    #         reactionrecipes = self.getUniqueReactionRecipes(
+    #             reactionclass=reactionclass,
+    #             reactionqueryset=reactionqueryset,
+    #         )
+    #         for recipe in reactionrecipes:
+    #             reactionbyclassrecipequeryset = (
+    #                 reactionqueryset.filter(reactionclass=reactionclass, recipe=recipe)
+    #                 .distinct()
+    #                 .order_by("reactionclass")
+    #             )
+    #             if reactionbyclassrecipequeryset:
+    #                 groupedreactionbyclassrecipequerysets.append(
+    #                     reactionbyclassrecipequeryset
+    #                 )
+
+    #     return groupedreactionbyclassrecipequerysets
 
     # def getGroupedReactionByClass(self, reactionqueryset: QuerySet[Reaction]) -> list:
     #     """Group reactions by reaction class

@@ -4488,7 +4488,7 @@ encoded_recipes = {
                         ],
                     },
                     {
-                        "type": "workup",
+                        "type": "workup1",
                         "driver": "robot",
                         "sessionnumber": 3,
                         "actions": [
@@ -4547,7 +4547,7 @@ encoded_recipes = {
                         ],
                     },
                     {
-                        "type": "workup",
+                        "type": "workup2",
                         "driver": "robot",
                         "sessionnumber": 5,
                         "actions": [
@@ -4668,7 +4668,7 @@ encoded_recipes = {
                     # },
                 ],
             },
-            "SHIP-WE-1": {
+            "SHIP1-WE-1": {
                 "yield": 70,
                 "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
                 "references": "To do",
@@ -4709,7 +4709,7 @@ encoded_recipes = {
                                             "SMILES": None,
                                             "quantity": {"value": 2.0, "unit": "moleq"},
                                             "solvent": "Toluene",
-                                            "concentration": 0.5,
+                                            "concentration": 0.25,
                                         },
                                     },
                                 },
@@ -4724,9 +4724,9 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "[OH-].[Na+]",
-                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
                                             "solvent": "H2O",
-                                            "concentration": 1.2,
+                                            "concentration": 0.15,
                                         },
                                     },
                                 },
@@ -4754,7 +4754,182 @@ encoded_recipes = {
                     },
                 ],
             },
-            "SHIP-WE-2": {
+            "SHIP1-WE-2": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-3": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "Toluene",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-4": {
                 "yield": 70,
                 "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
                 "references": "To do",
@@ -4795,7 +4970,7 @@ encoded_recipes = {
                                             "SMILES": None,
                                             "quantity": {"value": 2.0, "unit": "moleq"},
                                             "solvent": "DMA",
-                                            "concentration": 0.5,
+                                            "concentration": 0.25,
                                         },
                                     },
                                 },
@@ -4810,9 +4985,9 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "[OH-].[Na+]",
-                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
                                             "solvent": "H2O",
-                                            "concentration": 1.2,
+                                            "concentration": 0.15,
                                         },
                                     },
                                 },
@@ -4840,7 +5015,182 @@ encoded_recipes = {
                     },
                 ],
             },
-            "SHIP-WE-3": {
+            "SHIP1-WE-5": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-6": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "DMA",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-7": {
                 "yield": 70,
                 "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
                 "references": "To do",
@@ -4881,7 +5231,7 @@ encoded_recipes = {
                                             "SMILES": None,
                                             "quantity": {"value": 2.0, "unit": "moleq"},
                                             "solvent": "Toluene",
-                                            "concentration": 0.5,
+                                            "concentration": 0.25,
                                         },
                                     },
                                 },
@@ -4896,9 +5246,9 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "[OH-].[Na+]",
-                                            "quantity": {"value": 4.0, "unit": "moleq"},
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
                                             "solvent": "H2O",
-                                            "concentration": 1.2,
+                                            "concentration": 0.25,
                                         },
                                     },
                                 },
@@ -4926,7 +5276,182 @@ encoded_recipes = {
                     },
                 ],
             },
-            "SHIP-WE-4": {
+            "SHIP1-WE-8": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-9": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "Toluene",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-10": {
                 "yield": 70,
                 "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
                 "references": "To do",
@@ -4967,7 +5492,7 @@ encoded_recipes = {
                                             "SMILES": None,
                                             "quantity": {"value": 2.0, "unit": "moleq"},
                                             "solvent": "DMA",
-                                            "concentration": 0.5,
+                                            "concentration": 0.25,
                                         },
                                     },
                                 },
@@ -4982,9 +5507,9 @@ encoded_recipes = {
                                         "material": {
                                             "SMARTS": None,
                                             "SMILES": "[OH-].[Na+]",
-                                            "quantity": {"value": 4.0, "unit": "moleq"},
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
                                             "solvent": "H2O",
-                                            "concentration": 1.2,
+                                            "concentration": 0.25,
                                         },
                                     },
                                 },
@@ -5003,6 +5528,2269 @@ encoded_recipes = {
                                     "platetype": "reaction",
                                     "temperature": {
                                         "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-11": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-12": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "DMA",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-13": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-14": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-15": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "Toluene",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-16": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-17": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-18": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "DMA",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-19": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-20": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-21": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "Toluene",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-22": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-23": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-24": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "DMA",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 1.2, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.15,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-25": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-26": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-27": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "Toluene",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-28": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-29": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-30": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "DMA",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-31": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-32": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-33": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "Toluene",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "Toluene",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-34": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 2.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.25,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-35": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 8, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            "SHIP1-WE-36": {
+                "yield": 70,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "To do",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {
+                                                "value": 10.0,
+                                                "unit": "moleq",
+                                            },
+                                            "solvent": "DMA",
+                                            "concentration": 1.250,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 120,
                                         "unit": "degC",
                                     },
                                     "duration": {"value": 8, "unit": "hours"},
