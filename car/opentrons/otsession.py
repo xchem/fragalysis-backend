@@ -93,7 +93,9 @@ class CreateOTSession(object):
         """Calls the functions to create the appropriate action session"""
         actionSessionTypes = {
             "reaction": self.createReactionSession,
-            "workup": self.createWorkUpSession,
+            "workup1": self.createWorkUpSession,
+            "workup2": self.createWorkUpSession,
+            "workup3": self.createWorkUpSession,
             "analyse": self.createAnalyseSession,
         }
 
@@ -878,25 +880,44 @@ class CreateOTSession(object):
         reactionclasses = self.getUniqueReactionClasses(
             reactionqueryset=reactionqueryset
         )
-        groupedreactionbyclassrecipequerysets = []
+        groupedreactionquerysets = []
 
         for reactionclass in reactionclasses:
-            reactionrecipes = self.getUniqueReactionRecipes(
-                reactionclass=reactionclass,
-                reactionqueryset=reactionqueryset,
-            )
-            for recipe in reactionrecipes:
-                reactionbyclassrecipequeryset = (
-                    reactionqueryset.filter(reactionclass=reactionclass, recipe=recipe)
+            reactionclassqueryset = reactionqueryset.filter(reactionclass=reactionclass)
+            if reactionclassqueryset:
+                reactionrecipes = (
+                    reactionclassqueryset.values_list("recipe", flat=True)
                     .distinct()
-                    .order_by("reactionclass")
+                    .order_by("recipe")
                 )
-                if reactionbyclassrecipequeryset:
-                    groupedreactionbyclassrecipequerysets.append(
-                        reactionbyclassrecipequeryset
+                if len(reactionrecipes) == 1:
+                    groupedreactionquerysets.append(reactionclassqueryset)
+                if len(reactionrecipes) > 1:
+                    workuptypes = (
+                        ActionSession.objects.filter(
+                            reaction_id__in=reactionclassqueryset,
+                            type__in=["workup1", "workup2", "workup3"],
+                        )
+                        .distinct()
+                        .values_list("type", flat=True)
+                        .order_by("type")
                     )
+                    if len(workuptypes) <= 1:
+                        groupedreactionquerysets.append(reactionclassqueryset)
+                    if len(workuptypes) > 1:
+                        for workuptype in workuptypes:
+                            reactionbyworkuptypequeryset = (
+                                reactionclassqueryset.filter(
+                                    actionsessions__type=workuptype
+                                )
+                                .distinct()
+                                .order_by("id")
+                            )
+                            groupedreactionquerysets.append(
+                                reactionbyworkuptypequeryset
+                            )
 
-        return groupedreactionbyclassrecipequerysets
+        return groupedreactionquerysets
 
     # def getGroupedReactionByRecipe(self, reactionclass: str, reactionqueryset: QuerySet[Reaction]) -> list:
     #     """Group reactions by reaction recipe type

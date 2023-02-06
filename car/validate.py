@@ -167,7 +167,6 @@ class ValidateFile(object):
                     # )
                     # self.reaction_names = self.reaction_names + reaction_names
                     # self.reaction_recipes = self.reaction_recipes + reaction_recipes
-                    print(reaction_number, max_no_steps)
                     if reaction_number == max_no_steps:
                         self.target_smiles = self.target_smiles + product_smiles
 
@@ -184,7 +183,7 @@ class ValidateFile(object):
                         "reaction-product-smiles-{}".format(reaction_number)
                     ] = product_smiles
                     all_reaction_info.update(reaction_info)
-
+        if self.validated:
             products = list(
                 zip(
                     *[
@@ -556,16 +555,12 @@ class ValidateFile(object):
         reaction_names: list[str],
         product_smiles: list[str] = None,
     ):
-        print(reactant_pair_smiles)
-        print(reaction_names)
-        print(product_smiles)
         try:
             product_created_smiles = []
             reactant_pair_smiles_ordered = []
             for index, (reactant_pair, reaction_name) in enumerate(
                 zip(reactant_pair_smiles, reaction_names)
             ):
-                print(index, reactant_pair_smiles, reaction_name)
                 smarts = encoded_recipes[reaction_name]["recipes"]["standard"][
                     "reactionSMARTS"
                 ]
@@ -573,6 +568,7 @@ class ValidateFile(object):
                     reactant_SMILES=reactant_pair, reaction_SMARTS=smarts
                 )
                 if not product_mols:
+                    print(reactant_pair, smarts)
                     self.add_warning(
                         field="check_reaction",
                         warning_string="Reaction for reactants: {} and reaction: {} is not a valid reaction".format(

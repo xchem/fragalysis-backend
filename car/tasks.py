@@ -482,6 +482,8 @@ def uploadCustomReaction(validate_output):
                         ),
                         useSmiles=True,
                     )
+                    # Need to move this to OT session - this will enable changing reaction temps in recipes
+                    # and not have to upload again...
                     reaction_temperature = [
                         actionsession["actions"][0]["content"]["temperature"]["value"]
                         for actionsession in encoded_recipes[reaction_name]["recipes"][
@@ -571,9 +573,7 @@ def createOTScript(batchids: list, protocol_name: str):
                 reactant_pair_smiles = reactionobj.reactants.all().values_list(
                     "smiles", flat=True
                 )
-                recipe = encoded_recipes[reactionclass]["recipes"][
-                    reactionrecipe
-                ]  # NB need to include multiple recipes
+                recipe = encoded_recipes[reactionclass]["recipes"][reactionrecipe]
                 intramolecular_possible = encoded_recipes[reactionclass][
                     "intramolecular"
                 ]
