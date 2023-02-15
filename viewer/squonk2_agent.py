@@ -330,9 +330,12 @@ class Squonk2Agent:
                                      as_url=self.__CFG_SQUONK2_ASAPI_URL,
                                      as_version=as_version)
             squonk2_org.save()
+            _LOGGER.info('Created Squonk2Org record for %s',
+                         self.__CFG_SQUONK2_ORG_UUID)
         else:
-            _LOGGER.debug('Squonk2Org already exists for %s - nothing to do',
-                          self.__CFG_SQUONK2_ORG_UUID)
+            _LOGGER.debug('Squonk2Org for %s "%s" already exists - nothing to do',
+                          squonk2_org.uuid,
+                          squonk2_org.name)
 
         # Keep the record ID for future use.
         self.__org_record = squonk2_org
@@ -344,7 +347,7 @@ class Squonk2Agent:
         """Used in error conditions to remove a previously created Product.
         If this fails there's nothing else we can do so we just return regardless.
         """
-        _LOGGER.warning('Deleting AS Product %s', product_uuid)
+        _LOGGER.warning('Deleting AS Product %s...', product_uuid)
 
         as_rv: AsApiRv = AsApi.delete_product(self.__org_owner_as_token,
                                               product_id=product_uuid)
@@ -358,7 +361,7 @@ class Squonk2Agent:
         """Used in error conditions to remove a previously created Project.
         If this fails there's nothing else we can do so we just return regardless.
         """
-        _LOGGER.warning('Deleting DM Project %s', project_uuid)
+        _LOGGER.warning('Deleting DM Project %s...', project_uuid)
 
         dm_rv: DmApiRv = DmApi.delete_project(self.__org_owner_dm_token,
                                               project_id=project_uuid)
@@ -384,7 +387,7 @@ class Squonk2Agent:
 
         # Create an AS Product.
         name_truncated, _ = self._build_product_name(user_name, session_title)
-        msg: str = f'Creating AS Product "{name_truncated}"...'
+        msg: str = f'Creating NEW AS Product "{name_truncated}" (unit={unit.uuid})...'
         _LOGGER.info(msg)
 
         as_rv: AsApiRv = AsApi.create_product(self.__org_owner_as_token,
@@ -398,12 +401,12 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         product_uuid: str = as_rv.msg['id']
-        msg = f'Created AS Product "{product_uuid}"...'
+        msg = f'Created AS Product {product_uuid}...'
         _LOGGER.info(msg)
 
         # Create a DM Project
         name_truncated, _ = self._build_project_name(1, 2)
-        msg = f'Creating DM Project "{name_truncated}"...'
+        msg = f'Continuing by creating NEW DM Project "{name_truncated}"...'
         _LOGGER.info(msg)
 
         dm_rv: DmApiRv = DmApi.create_project(self.__org_owner_dm_token,
@@ -418,7 +421,7 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         project_uuid: str = dm_rv.msg["project_id"]
-        msg = f'Created DM Project "{project_uuid}"...'
+        msg = f'Created DM Project {project_uuid}...'
         _LOGGER.info(msg)
 
         # Add the user as an Editor to the Project
@@ -430,13 +433,14 @@ class Squonk2Agent:
         if not dm_rv.success:
             msg = f'Failed to add "{user_name}" to DM Project ({dm_rv.msg})'
             _LOGGER.error(msg)
+            _LOGGER.warning('Rolling back DM Project and AS Product creation...')
             # First delete the DM Project amd the corresponding AS Product...
             self._delete_dm_project(project_uuid)
             self._delete_as_product(product_uuid)
             # Then leave...
             return Squonk2AgentRv(success=False, msg=msg)
 
-        msg = f'Added "{user_name} to DM Project {project_uuid} as Editor'
+        msg = f'"{user_name}" is now an Editor of DM Project {project_uuid}'
         _LOGGER.info(msg)
 
         # If the second call fails - delete the object created in the first
@@ -460,11 +464,16 @@ class Squonk2Agent:
         unit_name_truncated, unit_name_full = self._build_unit_name(target_access_string)
         sq2_unit: Optional[Squonk2Unit] = Squonk2Unit.objects.filter(name=unit_name_full).first()
         if not sq2_unit:
-            _LOGGER.info('No existing Unit for "%s"', target_access_string)
+            _LOGGER.info('No existing Squonk2Unit for "%s"', target_access_string)
             rv: AsApiRv = AsApi.create_unit(self.__org_owner_as_token,
                                             unit_name=unit_name_truncated,
                                             org_id=self.__org_record.uuid,
                                             billing_day=self.__unit_billing_day)
+
+            _LOGGER.info('Creating NEW Squonk2Unit "%s" (for "%s")',
+                         unit_name_full,
+                         target_access_string)
+
             if not rv.success:
                 msg: str = rv.msg['error']
                 _LOGGER.error('Failed to create Unit "%s"', target_access_string)
@@ -476,10 +485,14 @@ class Squonk2Agent:
                                    organisation_id=self.__org_record.id)
             sq2_unit.save()
 
-            _LOGGER.info('Created NEW Unit %s for "%s"', unit_uuid, target_access_string)
+            _LOGGER.info('Created Squonk2Unit %s "%s" (for "%s")',
+                         unit_uuid,
+                         unit_name_full,
+                         target_access_string)
         else:
-            _LOGGER.debug('Unit %s already exists for "%s" - nothing to do',
+            _LOGGER.debug('Squonk2Unit %s "%s" already exists (for "%s") - nothing to do',
                           sq2_unit.uuid,
+                          unit_name_full,
                           target_access_string)
 
         return Squonk2AgentRv(success=True, msg=sq2_unit)
@@ -535,10 +548,10 @@ class Squonk2Agent:
                                          product_uuid=rv.msg['sq2_product_uuid'],
                                          unit_id=unit.id)
             sq2_project.save()
-            msg = f'Created NEW Squonk2Project for "{name_full}"'
+            msg = f'Created NEW Squonk2Project for {sq2_project.uuid} "{name_full}"'
             _LOGGER.info(msg)
         else:
-            msg = f'Project {sq2_project.uuid} already exists for "{name_full}" - nothing to do'
+            msg = f'Squonk2Project for {sq2_project.uuid} "{name_full}" already exists - nothing to do'
             _LOGGER.debug(msg)
 
         return Squonk2AgentRv(success=True, msg=sq2_project)
