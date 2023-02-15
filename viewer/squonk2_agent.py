@@ -210,24 +210,11 @@ class Squonk2Agent:
         """Builds a Product name, returning the truncated and un-truncated form"""
         assert username
         assert session_string
-        # AS Products (there's a 1:1 mapping to DM Projects)
-        # are named using the user and the session
+        # AS Products are named using the user and the session
+        # (there's a 1:1 mapping to DM Projects)
 
         # The Product name characters are not restricted
         identifier: str = f'{username}::{session_string}'
-        name: str = f'{_SQ2_NAME_PREFIX} {self.__CFG_SQUONK2_SLUG} {identifier}'
-        return name[:_SQ2_MAX_NAME_LENGTH], name
-
-    def _build_project_name(self, user_id: int, session_id: int) -> Tuple[str, str]:
-        assert user_id
-        assert session_id
-        # DM Projects (there's a 1:1 mapping to Products)
-        # are named using the user and the session
-
-        # The Project name characters are RESTRICTED,
-        # and need to be limited to characters that are
-        # valid for use with RFC 1123 Label Names
-        identifier: str = f'{user_id}-{session_id}'
         name: str = f'{_SQ2_NAME_PREFIX} {self.__CFG_SQUONK2_SLUG} {identifier}'
         return name[:_SQ2_MAX_NAME_LENGTH], name
 
@@ -404,8 +391,7 @@ class Squonk2Agent:
         msg = f'Created AS Product {product_uuid}...'
         _LOGGER.info(msg)
 
-        # Create a DM Project
-        name_truncated, _ = self._build_project_name(1, 2)
+        # Create a DM Project (using the same name we used for the AS Product)
         msg = f'Continuing by creating NEW DM Project "{name_truncated}"...'
         _LOGGER.info(msg)
 
