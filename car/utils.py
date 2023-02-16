@@ -890,16 +890,20 @@ def combiChem(reactant_1_SMILES: list, reactant_2_SMILES: list) -> list:
         as a list of tuples
     """
     if len(reactant_1_SMILES) == 0:
+        reactant_2_SMILES_canon = [canonSmiles(smi) for smi in reactant_1_SMILES]
         all_possible_combinations = list(
-            itertools.product([""], set(reactant_2_SMILES))
+            itertools.product([""], set(reactant_2_SMILES_canon))
         )
     if len(reactant_2_SMILES) == 0:
+        reactant_1_SMILES_canon = [canonSmiles(smi) for smi in reactant_1_SMILES]
         all_possible_combinations = list(
-            itertools.product([""], set(reactant_1_SMILES))
+            itertools.product([""], set(reactant_1_SMILES_canon))
         )
     if len(reactant_1_SMILES) != 0 and len(reactant_2_SMILES) != 0:
+        reactant_1_SMILES_canon = [canonSmiles(smi) for smi in reactant_1_SMILES]
+        reactant_2_SMILES_canon = [canonSmiles(smi) for smi in reactant_1_SMILES]
         all_possible_combinations = list(
-            itertools.product(set(reactant_1_SMILES), set(reactant_2_SMILES))
+            itertools.product(reactant_1_SMILES, reactant_2_SMILES)
         )
     return all_possible_combinations
 

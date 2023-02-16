@@ -251,6 +251,10 @@ class ValidateFile(object):
             "reaction-name-{}".format(reaction_number)
             for reaction_number in reaction_numbers
         ]
+        expected_reaction_recipe_column_names = [
+            "reaction-recipe-{}".format(reaction_number)
+            for reaction_number in reaction_numbers
+        ]
         expected_column_names = (
             [
                 "combi-group",
@@ -262,6 +266,7 @@ class ValidateFile(object):
             ]
             + expected_reactant_1_column_names
             + expected_reaction_name_column_names
+            + expected_reaction_recipe_column_names
         )
         expected_no_columns = len(expected_column_names)
         self.checkNumberColumns(
@@ -278,6 +283,7 @@ class ValidateFile(object):
             self.product_smiles = []
             self.reactant_pair_smiles = []
             self.reaction_names = []
+            self.reaction_recipes = []
             self.batchtags = []
             self.concentrations = []
             self.amounts = []
@@ -354,19 +360,26 @@ class ValidateFile(object):
                         reactant_pair_smiles = reactant_pair_smiles * (
                             no_targets // len(reactant_pair_smiles)
                         )
-
                     reaction_names = [
                         combi_group.at[0, "reaction-name-{}".format(reaction_number)]
+                    ] * no_targets
+                    reaction_recipes = [
+                        combi_group.at[0, "reaction-recipe-{}".format(reaction_number)]
                     ] * no_targets
                     reactant_pair_smiles_ordered, product_smiles = self.checkReaction(
                         reactant_pair_smiles=reactant_pair_smiles,
                         reaction_names=reaction_names,
                     )
+                    print(reactant_pair_smiles)
+                    print(product_smiles)
                     if reaction_number == max_no_steps_combi_group:
                         self.target_smiles = self.target_smiles + product_smiles
                     reaction_combi_group_info[
                         "reaction-name-{}".format(reaction_number)
                     ] = reaction_names
+                    reaction_combi_group_info[
+                        "reaction-recipe-{}".format(reaction_number)
+                    ] = reaction_recipes
                     reaction_combi_group_info[
                         "reaction-reactant-pair-smiles-{}".format(reaction_number)
                     ] = reactant_pair_smiles_ordered
@@ -405,11 +418,22 @@ class ValidateFile(object):
                         ]
                     )
                 )
+                reaction_recipes = list(
+                    zip(
+                        *[
+                            combi_group_info[
+                                "reaction-recipe-{}".format(reactionnumber)
+                            ]
+                            for reactionnumber in reaction_numbers
+                        ]
+                    )
+                )
                 self.product_smiles = self.product_smiles + products
                 self.reactant_pair_smiles = (
                     self.reactant_pair_smiles + reactant_pair_smiles
                 )
                 self.reaction_names = self.reaction_names + reaction_names
+                self.reaction_recipes = self.reaction_recipes + reaction_recipes
 
             if self.validated:
                 self.df = pd.DataFrame()
@@ -421,6 +445,7 @@ class ValidateFile(object):
                 self.df["no-steps"] = self.nosteps
                 self.df["reactant-pair-smiles"] = self.reactant_pair_smiles
                 self.df["reaction-name"] = self.reaction_names
+                self.df["reaction-recipe"] = self.reaction_recipes
                 self.df["product-smiles"] = self.product_smiles
                 self.checkIsNumber(values=self.concentrations)
                 self.checkIsNumber(values=self.amounts)
@@ -484,7 +509,6 @@ class ValidateFile(object):
         """
         try:
             for index, smi in zip(df_rows_index, smiles):
-                print("The index is: {} and smi is: {}".format(index, smi))
                 if all(isinstance(item, tuple) for item in smi):
                     mol_test = [Chem.MolFromSmiles(smi) for smi in smi]
                 else:
@@ -568,7 +592,6 @@ class ValidateFile(object):
                     reactant_SMILES=reactant_pair, reaction_SMARTS=smarts
                 )
                 if not product_mols:
-                    print(reactant_pair, smarts)
                     self.add_warning(
                         field="check_reaction",
                         warning_string="Reaction for reactants: {} and reaction: {} is not a valid reaction".format(

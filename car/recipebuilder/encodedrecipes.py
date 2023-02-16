@@ -13,12 +13,17 @@ density (g/mL)
 # OTBatchProtocol.objects.get(batch_id=batchid).delete()
 
 # Finding plate reactions and MWS
+# from car.models import Plate
 # from car.utils import getMWs
-# plate_id=2312
+# plate_id=2239
 # plate = Plate.objects.get(id=plate_id)
 # wells = plate.well_set.all().order_by("id")
 # smiles = wells.values_list("smiles", flat=True)
+# for smi in smiles:
+#     print(smi)
 # mws = getMWs(smiles=smiles)
+# for mw in mws:
+#     print(mw)
 encoded_recipes = {
     "Amidation": {
         "intramolecular": True,
@@ -4666,6 +4671,92 @@ encoded_recipes = {
                     #         },
                     #     ],
                     # },
+                ],
+            },
+            "SHIP1-WE-OPT": {
+                "yield": 77,
+                "reactionSMARTS": "[#6:1]-[#8;H:2].[#6:3]-[Cl,Br,I]>>[#6:1]-[#8:2]-[#6:3]",
+                "references": "Recipe from WE DoE investigation",
+                "actionsessions": [
+                    {
+                        "type": "reaction",
+                        "driver": "robot",
+                        "sessionnumber": 1,
+                        "intermolecular": {
+                            "actions": [
+                                {
+                                    "type": "add",
+                                    "actionnumber": 1,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:1]-[#8;H:2]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 1.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.5,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 2,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": "[#6:3]-[Cl,Br,I]",
+                                            "SMILES": None,
+                                            "quantity": {"value": 5.0, "unit": "moleq"},
+                                            "solvent": "DMA",
+                                            "concentration": 0.625,
+                                        },
+                                    },
+                                },
+                                {
+                                    "type": "add",
+                                    "actionnumber": 3,
+                                    "content": {
+                                        "plates": {
+                                            "fromplatetype": "startingmaterial",
+                                            "toplatetype": "reaction",
+                                        },
+                                        "material": {
+                                            "SMARTS": None,
+                                            "SMILES": "[OH-].[Na+]",
+                                            "quantity": {"value": 3.0, "unit": "moleq"},
+                                            "solvent": "H2O",
+                                            "concentration": 0.375,
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        "type": "stir",
+                        "driver": "human",
+                        "sessionnumber": 2,
+                        "actions": [
+                            {
+                                "type": "stir",
+                                "actionnumber": 4,
+                                "content": {
+                                    "platetype": "reaction",
+                                    "temperature": {
+                                        "value": 50,
+                                        "unit": "degC",
+                                    },
+                                    "duration": {"value": 3, "unit": "hours"},
+                                },
+                            },
+                        ],
+                    },
                 ],
             },
             "SHIP1-WE-1": {
