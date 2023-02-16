@@ -88,7 +88,7 @@ services:
       SQUONK2_ASAPI_URL: ${SQUONK2_ASAPI_URL}
       DUMMY_TAS: ${DUMMY_TAS}
       DUMMY_USER: ${DUMMY_USER}
-      DUMMY_SESSION_TITLE: ${DUMMY_SESSION_TITLE}
+      DUMMY_TARGET_TITLE: ${DUMMY_TARGET_TITLE}
     ports:
     - "8080:80"
     depends_on:

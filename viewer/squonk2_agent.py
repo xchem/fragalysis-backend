@@ -21,7 +21,7 @@ from requests import Response
 from wrapt import synchronized
 
 from api.security import ISpyBSafeQuerySet
-from viewer.models import User, SessionProject, Project
+from viewer.models import User, Project, Target
 from viewer.models import Squonk2Project, Squonk2Org, Squonk2Unit
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
@@ -118,8 +118,8 @@ class Squonk2Agent:
             os.environ.get('OIDC_KEYCLOAK_REALM')
 
         # Optional config (no '__CFG_' prefix)
-        self.__DUMMY_SESSION_TITLE: Optional[str] =\
-            os.environ.get('DUMMY_SESSION_TITLE')
+        self.__DUMMY_TARGET_TITLE: Optional[str] =\
+            os.environ.get('DUMMY_TARGET_TITLE')
         self.__DUMMY_USER: Optional[str] =\
             os.environ.get('DUMMY_USER')
         self.__DUMMY_TAS: Optional[str] =\
@@ -183,21 +183,21 @@ class Squonk2Agent:
         assert target_access_string
         return target_access_string
 
-    def _get_session_title(self, session_id: int) -> str:
-        # Gets the Session title (if id looks sensible)
+    def _get_target_title(self, target_id: int) -> str:
+        # Gets the Target title (if it looks sensible)
         # or a fixed value (used for testing)
-        if session_id == 0:
+        if target_id == 0:
             assert _TEST_MODE
-            _LOGGER.warning('Caution - in TEST mode, using __DUMMY_TAS__DUMMY_SESSION_TITLE (%s)',
-                            self.__DUMMY_SESSION_TITLE)
+            _LOGGER.warning('Caution - in TEST mode, using __DUMMY_TARGET_TITLE (%s)',
+                            self.__DUMMY_TARGET_TITLE)
 
-        session_title: str = self.__DUMMY_SESSION_TITLE
-        if session_id:
-            session_project: SessionProject = SessionProject.objects.filter(id=session_id).first()
-            assert session_project
-            session_title = session_project.title
-        assert session_title
-        return session_title
+        target_title: str = self.__DUMMY_TARGET_TITLE
+        if target_id:
+            target: Target = Target.objects.filter(id=target_id).first()
+            assert target
+            target_title = target.title
+        assert target_title
+        return target_title
 
     def _build_unit_name(self, target_access_string: str) -> Tuple[str, str]:
         assert target_access_string
@@ -206,15 +206,15 @@ class Squonk2Agent:
         name: str = f'{_SQ2_NAME_PREFIX} {self.__CFG_SQUONK2_SLUG} /{target_access_string}/'
         return name[:_SQ2_MAX_NAME_LENGTH], name
 
-    def _build_product_name(self, username: str, session_string: str) -> Tuple[str, str]:
+    def _build_product_name(self, username: str, target_title: str) -> Tuple[str, str]:
         """Builds a Product name, returning the truncated and un-truncated form"""
         assert username
-        assert session_string
+        assert target_title
         # AS Products are named using the user and the session
         # (there's a 1:1 mapping to DM Projects)
 
         # The Product name characters are not restricted
-        identifier: str = f'{username}::{session_string}'
+        identifier: str = f'{username}::{target_title}'
         name: str = f'{_SQ2_NAME_PREFIX} {self.__CFG_SQUONK2_SLUG} {identifier}'
         return name[:_SQ2_MAX_NAME_LENGTH], name
 
@@ -509,18 +509,18 @@ class Squonk2Agent:
         unit: Squonk2Unit = rv.msg
 
         user_name: str = self._get_user_name(c_params.user_id)
-        session_title: str = self._get_session_title(c_params.session_id)
+        target_title: str = self._get_target_title(c_params.target_id)
         assert user_name
-        assert session_title
+        assert target_title
 
-        _, name_full = self._build_product_name(user_name, session_title)
+        _, name_full = self._build_product_name(user_name, target_title)
         sq2_project: Optional[Squonk2Project] = Squonk2Project.objects.filter(name=name_full).first()
         if not sq2_project:
             msg = f'No existing Squonk2Project for "{name_full}"'
             _LOGGER.info(msg)
             # Need to call upon Squonk2 to create a 'Product'
             # (and corresponding 'Product').
-            rv = self._create_product_and_project(unit, user_name, session_title, c_params)
+            rv = self._create_product_and_project(unit, user_name, target_title, c_params)
             if not rv.success:
                 msg = f'Failed creating AS Product or DM Project ({rv.msg})'
                 _LOGGER.error(msg)

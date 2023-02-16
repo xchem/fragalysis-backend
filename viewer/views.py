@@ -3167,20 +3167,19 @@ class JobFileTransferView(viewsets.ModelViewSet):
         if error:
             return Response(error['message'], status=error['status'])
 
-        # If transfer has already happened find the latest
-        job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
+        # If transfer has already happened find the latest.
+        #
+        # Squonk Access Control feature creates a 'Project' for 
+        # each unique combination of user and target.
+        # So if there's a transfer for user 'a', and taregt 'b'
+        # then we can assume the transfer has taken place
+        # and we do not need to start another.
+        job_transfers = JobFileTransfer.objects.filter(target=target_id,
+                                                       user=user.id)
         if job_transfers:
             job_transfer = job_transfers.latest('id')
         else:
             job_transfer = None
-        if job_transfer and not job_transfer.target:
-            msg = f'JobTransfer record ({job_transfer.id})' \
-                  f' for snapshot {snapshot_id} has no target.' \
-                  ' Cannot continue'
-            content = {'message': msg}
-            logger.error(msg)
-            return Response(content,
-                            status=status.HTTP_404_NOT_FOUND)
 
         # The root (in the Squonk project) where files will be written.
         # This is "understood" by the celery task (which uses this constant).
