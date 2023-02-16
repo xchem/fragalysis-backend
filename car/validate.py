@@ -350,7 +350,7 @@ class ValidateFile(object):
                             ]
                             if str(reactant) != "nan"
                         ]
-                        reactant_2_SMILES = product_smiles
+                        reactant_2_SMILES = product_smiles[:number_reactant_pair_smiles]
                     reactant_pair_smiles = combiChem(
                         reactant_1_SMILES=reactant_1_SMILES,
                         reactant_2_SMILES=reactant_2_SMILES,
@@ -370,6 +370,8 @@ class ValidateFile(object):
                         reactant_pair_smiles=reactant_pair_smiles,
                         reaction_names=reaction_names,
                     )
+                    print(reactant_pair_smiles)
+                    print(product_smiles)
                     if reaction_number == max_no_steps_combi_group:
                         self.target_smiles = self.target_smiles + product_smiles
                     reaction_combi_group_info[
@@ -417,20 +419,21 @@ class ValidateFile(object):
                     )
                 )
                 reaction_recipes = list(
-                zip(
-                    *[
-                        combi_group_info["reaction-recipe-{}".format(reactionnumber)]
-                        for reactionnumber in reaction_numbers
-                    ]
+                    zip(
+                        *[
+                            combi_group_info[
+                                "reaction-recipe-{}".format(reactionnumber)
+                            ]
+                            for reactionnumber in reaction_numbers
+                        ]
+                    )
                 )
-            )
                 self.product_smiles = self.product_smiles + products
                 self.reactant_pair_smiles = (
                     self.reactant_pair_smiles + reactant_pair_smiles
                 )
                 self.reaction_names = self.reaction_names + reaction_names
                 self.reaction_recipes = self.reaction_recipes + reaction_recipes
-
 
             if self.validated:
                 self.df = pd.DataFrame()
@@ -620,4 +623,3 @@ class ValidateFile(object):
                 warning_string="Reaction check failed with error: {}".format(e),
             )
             self.validated = False
-                                                                                                                                                                    

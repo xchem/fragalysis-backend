@@ -325,7 +325,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         return JsonResponse(data)
 
                 if project_info:
-                    print(project_info)
                     project_id = project_info["project_id"]
 
                     if validated:
