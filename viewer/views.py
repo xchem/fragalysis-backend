@@ -3167,94 +3167,49 @@ class JobFileTransferView(viewsets.ModelViewSet):
         if error:
             return Response(error['message'], status=error['status'])
 
-        # If transfer has already happened find the latest.
-        #
-        # Squonk Access Control feature creates a 'Project' for 
-        # each unique combination of user and target.
-        # So if there's a transfer for user 'a', and taregt 'b'
-        # then we can assume the transfer has taken place
-        # and we do not need to start another.
-        job_transfers = JobFileTransfer.objects.filter(target=target_id,
-                                                       user=user.id)
-        if job_transfers:
-            job_transfer = job_transfers.latest('id')
-        else:
-            job_transfer = None
-
         # The root (in the Squonk project) where files will be written.
         # This is "understood" by the celery task (which uses this constant).
         # e.g. 'fragalysis-files'
         transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
         logger.info('+ transfer_root=%s', transfer_root)
 
-        if job_transfer:
+        # Create new file transfer job
+        logger.info('+ Calling ensure_project() to get the Squonk2 Project...')
 
-            # A pre-existing transfer...
-            transfer_target = job_transfer.target.title
-            if (job_transfer.transfer_status == 'PENDING' or
-                    job_transfer.transfer_status == 'STARTED'):
+        # This requires a Squonk2 Project (created by the Squonk2Agent).
+        # It may be an existing project, or it might be a new project.
+        common_params = CommonParams(user_id=user.id,
+                                        access_id=access_id,
+                                        target_id=target_id,
+                                        session_id=session_project_id)
+        sq2_rv = _SQ2A.ensure_project(common_params)
+        if not sq2_rv.success:
+            msg = f'Failed to get/create a Squonk2 Project' \
+                    f' for User "{user.username}", Access ID {access_id},' \
+                    f' Target ID {target_id}, and SessionProject ID {session_project_id}.' \
+                    f' Got "{sq2_rv.msg}".' \
+                    ' Cannot continue'
+            content = {'message': msg}
+            logger.error(msg)
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-                logger.info('+ Existing transfer_status=%s', job_transfer.transfer_status)
-                content = {'transfer_root': transfer_root,
-                           'transfer_target': transfer_target,
-                           'message': 'Files currently being transferred'}
-                return Response(content,
-                                status=status.HTTP_208_ALREADY_REPORTED)
+        # The Squonk2Project record is in the response msg
+        squonk2_project_uuid = sq2_rv.msg.uuid
+        squonk2_unit_name = sq2_rv.msg.unit.name
+        squonk2_unit_uuid = sq2_rv.msg.unit.uuid
+        logger.info('+ ensure_project() returned Project uuid=%s (unit="%s" unit_uuid=%s)',
+                    squonk2_project_uuid, squonk2_unit_name, squonk2_unit_uuid)
 
-            if (target.upload_datetime and job_transfer.transfer_datetime) \
-                    and target.upload_datetime < job_transfer.transfer_datetime:
-
-                # The target data has already been transferred for the snapshot.
-                logger.info('+ Existing transfer finished (transfer_status=%s)',
-                            job_transfer.transfer_status)
-                content = {'transfer_root': transfer_root,
-                           'transfer_target': transfer_target,
-                           'message': 'Files already transferred for this job'}
-                return Response(content,
-                                status=status.HTTP_200_OK)
-
-            # Restart existing transfer - it must have failed or be outdated
-            job_transfer.user = request.user
-
-        else:
-
-            # Create new file transfer job
-            logger.info('+ Calling ensure_project() to get the Squonk2 Project...')
-
-            # This requires a Squonk2 Project (created by the Squonk2Agent).
-            # It may be an existing project, or it might be a new project.
-            common_params = CommonParams(user_id=user.id,
-                                         access_id=access_id,
-                                         target_id=target_id,
-                                         session_id=session_project_id)
-            sq2_rv = _SQ2A.ensure_project(common_params)
-            if not sq2_rv.success:
-                msg = f'Failed to get/create a Squonk2 Project' \
-                      f' for User "{user.username}", Access ID {access_id},' \
-                      f' Target ID {target_id}, and SessionProject ID {session_project_id}.' \
-                      f' Got "{sq2_rv.msg}".' \
-                      ' Cannot continue'
-                content = {'message': msg}
-                logger.error(msg)
-                return Response(content, status=status.HTTP_404_NOT_FOUND)
-
-            # The Squonk2Project record is in the response msg
-            squonk2_project_uuid = sq2_rv.msg.uuid
-            squonk2_unit_name = sq2_rv.msg.unit.name
-            squonk2_unit_uuid = sq2_rv.msg.unit.uuid
-            logger.info('+ ensure_project() returned Project uuid=%s (unit="%s" unit_uuid=%s)',
-                        squonk2_project_uuid, squonk2_unit_name, squonk2_unit_uuid)
-
-            job_transfer = JobFileTransfer()
-            job_transfer.user = request.user
-            job_transfer.proteins = [p['code'] for p in proteins]
-            job_transfer.compounds = [c['name'] for c in compounds]
-            # We should use a foreign key,
-            # but to avoid migration issues with the existing code
-            # we continue to use the project UUID string field.
-            job_transfer.squonk_project = squonk2_project_uuid
-            job_transfer.target = Target.objects.get(id=target_id)
-            job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
+        job_transfer = JobFileTransfer()
+        job_transfer.user = request.user
+        job_transfer.proteins = [p['code'] for p in proteins]
+        job_transfer.compounds = [c['name'] for c in compounds]
+        # We should use a foreign key,
+        # but to avoid migration issues with the existing code
+        # we continue to use the project UUID string field.
+        job_transfer.squonk_project = squonk2_project_uuid
+        job_transfer.target = Target.objects.get(id=target_id)
+        job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
 
         # The 'transfer target' (a sub-directory of the transfer root)
         # For example the root might be 'fragalysis-files'
