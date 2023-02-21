@@ -125,7 +125,7 @@ Now the project's rules will run on every commit.
 Start `Fragalysis stack` (All infrastructure - databases + populating data)
 
 ```
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 ```
 
 `Please wait, it takes a minute until all containers are fully started.`
@@ -135,7 +135,7 @@ Test if we are running at [http://localhost:8080](http://localhost:8080)
 If needed stop containers
 
 ```
-docker-compose -f docker-compose.dev.yml down
+docker-compose down
 ```
 
 

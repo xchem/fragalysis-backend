@@ -285,12 +285,28 @@ class ProteinSerializer(serializers.ModelSerializer):
 
 class ProjectSerializer(serializers.ModelSerializer):
 
+    # Field name translation (prior to refactoring the Model)
+    # 'tas' is the new name for 'title'
+    target_access_string =  serializers.SerializerMethodField()
+    # 'authority' is the (as yet to be implemented) origin of the TAS
+    # For now this is fixed at "DIAMOND-ISPYB"
+    authority =  serializers.SerializerMethodField()
+
+    def get_target_access_string(self, instance):
+        return instance.title
+
+    def get_authority(self, instance):
+        # Don't actually need the instance here.
+        # We return a hard-coded string.
+        del instance
+        return "DIAMOND-ISPYB"
+
     class Meta:
         model = Project
-        fields = ("id", "title")
+        fields = ("id", "target_access_string", "init_date", "authority", "open_to_public")
 
 
-class MolImageSerialzier(serializers.ModelSerializer):
+class MolImageSerializer(serializers.ModelSerializer):
 
     mol_image = serializers.SerializerMethodField()
 
@@ -311,7 +327,7 @@ class MolImageSerialzier(serializers.ModelSerializer):
         fields = ("id", "mol_image")
 
 
-class CmpdImageSerialzier(serializers.ModelSerializer):
+class CmpdImageSerializer(serializers.ModelSerializer):
 
     cmpd_image = serializers.SerializerMethodField()
 
@@ -323,13 +339,13 @@ class CmpdImageSerialzier(serializers.ModelSerializer):
         fields = ("id", "cmpd_image")
 
 
-class ProtMapInfoSerialzer(serializers.ModelSerializer):
+class ProtMapInfoSerializer(serializers.ModelSerializer):
 
     map_data = serializers.SerializerMethodField()
 
     def get_map_data(self, obj):
         if obj.map_info:
-            return open(obj.map_info.path).read()
+            return open(obj.map_info.path, encoding='utf-8').read()
         else:
             return None
 
@@ -338,12 +354,12 @@ class ProtMapInfoSerialzer(serializers.ModelSerializer):
         fields = ("id", "map_data", "prot_type")
 
 
-class ProtPDBInfoSerialzer(serializers.ModelSerializer):
+class ProtPDBInfoSerializer(serializers.ModelSerializer):
 
     pdb_data = serializers.SerializerMethodField()
 
     def get_pdb_data(self, obj):
-        return open(obj.pdb_info.path).read()
+        return open(obj.pdb_info.path, encoding='utf-8').read()
 
 
     class Meta:
@@ -351,13 +367,13 @@ class ProtPDBInfoSerialzer(serializers.ModelSerializer):
         fields = ("id", "pdb_data", "prot_type")
 
 
-class ProtPDBBoundInfoSerialzer(serializers.ModelSerializer):
+class ProtPDBBoundInfoSerializer(serializers.ModelSerializer):
 
     bound_pdb_data = serializers.SerializerMethodField()
 
     def get_bound_pdb_data(self, obj):
         if obj.bound_info:
-            return open(obj.bound_info.path).read()
+            return open(obj.bound_info.path, encoding='utf-8').read()
         else:
             return None
 
@@ -417,7 +433,8 @@ class ActionTypeSerializer(serializers.ModelSerializer):
 # GET
 class SessionProjectReadSerializer(serializers.ModelSerializer):
     target = TargetSerializer(read_only=True)
-    author = UserSerializer(read_only=True)
+    project = ProjectSerializer(read_only=True)
+    target = TargetSerializer(read_only=True)
     # This is for the new tags functionality. The old tags field is left here for backwards
     # compatibility
     session_project_tags = serializers.SerializerMethodField()
@@ -429,7 +446,7 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = SessionProject
         fields = ('id', 'title', 'init_date', 'description',
-                  'target', 'author', 'tags', 'session_project_tags')
+                  'target', 'project', 'author', 'tags', 'session_project_tags')
 
 
 # (POST, PUT, PATCH)

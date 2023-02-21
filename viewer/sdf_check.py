@@ -8,7 +8,6 @@ Script to check sdf file format for Fragalysis upload
 
 from rdkit import Chem
 import validators
-import numpy as np
 from viewer.models import Protein, ComputedSet
 import datetime
 
@@ -288,4 +287,3 @@ def check_mol_props(mol, validate_dict):
         validate_dict = missing_field_check(mol, field, validate_dict)
 
     return validate_dict
-

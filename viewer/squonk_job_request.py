@@ -10,7 +10,6 @@ import datetime
 
 import shortuuid
 
-from django.conf import settings
 from squonk2.dm_api import DmApi
 
 from viewer.models import ( Target,
@@ -18,23 +17,21 @@ from viewer.models import ( Target,
                             JobRequest,
                             JobFileTransfer )
 from viewer.utils import create_squonk_job_request_url, get_https_host
+from viewer.squonk2_agent import CommonParams, Squonk2Agent, get_squonk2_agent
 
 logger = logging.getLogger(__name__)
 
+_SQ2A: Squonk2Agent = get_squonk2_agent()
 
 def check_squonk_active(request):
-    """Call a Squonk API to check that Squonk can be reached.
+    """Call the Squonk2 Agent to check that Squonk2 can be reached.
     """
-    logger.info('+ Ping')
-    auth_token = request.session['oidc_access_token']
+    logger.info('+ Squonk2Agent.ping()')
 
-    logger.info('oidc token')
-    logger.info(auth_token)
+    ping_rv = _SQ2A.ping()
+    logger.debug(ping_rv)
 
-    result = DmApi.ping(auth_token)
-    logger.debug(result)
-
-    return result.success
+    return ping_rv.success
 
 
 def get_squonk_job_config(request,
@@ -93,24 +90,25 @@ def create_squonk_job(request):
     auth_token = request.session['oidc_access_token']
     logger.debug(auth_token)
 
-    squonk_job_name = request.data['squonk_job_name']
+    access_id = request.data['access']  # The access ID/legacy Project record title
     target_id = request.data['target']
     snapshot_id = request.data['snapshot']
-    squonk_project = request.data['squonk_project']
+    session_project_id = request.data['session_project'] 
+    squonk_job_name = request.data['squonk_job_name']
     squonk_job_spec = request.data['squonk_job_spec']
 
-    logger.info('+ squonk_job_name=%s', squonk_job_name)
+    logger.info('+ access_id=%s', access_id)
     logger.info('+ target_id=%s', target_id)
     logger.info('+ snapshot_id=%s', snapshot_id)
-    logger.info('+ squonk_project=%s', squonk_project)
+    logger.info('+ session_project_id=%s', session_project_id)
+    logger.info('+ squonk_job_name=%s', squonk_job_name)
     logger.info('+ squonk_job_spec=%s', squonk_job_spec)
 
     job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
     if not job_transfers:
         logger.warning('No JobFileTransfer object for snapshot %s', snapshot_id)
-        raise ValueError('No JobFileTransfer object for snapshot %s.'
-                         ' Files must be transferred before a job can be requested.',
-                         snapshot_id)
+        raise ValueError(f'No JobFileTransfer object for snapshot {snapshot_id}.'
+                         ' Files must be transferred before a job can be requested.')
 
     job_transfer = JobFileTransfer.objects.filter(snapshot=snapshot_id).latest('id')
     if job_transfer.transfer_status != 'SUCCESS':
@@ -118,12 +116,41 @@ def create_squonk_job(request):
                        job_transfer.transfer_status)
         raise ValueError('Job Transfer not complete')
 
+    logger.info('+ Calling ensure_project() to get the Squonk2 Project...')
+
+    # This requires a Squonk2 Project (created by the Squonk2Agent).
+    # It may be an existing project, or it might be a new project.
+    user = request.user
+    common_params = CommonParams(user_id=user.id,
+                                 access_id=access_id,
+                                 target_id=target_id,
+                                 session_id=session_project_id)
+    sq2_rv = _SQ2A.ensure_project(common_params)
+    if not sq2_rv.success:
+        msg = f'JobTransfer failed to get/create a Squonk2 Project' \
+                f' for User "{user.username}", Access ID {access_id},' \
+                f' Target ID {target_id}, and SessionProject ID {session_project_id}.' \
+                f' Got "{sq2_rv.msg}".' \
+                ' Cannot continue'
+        logger.error(msg)
+        raise ValueError(msg)
+
+    # The Squonk2Project record is in the response msg
+    squonk2_project_uuid = sq2_rv.msg.uuid
+    squonk2_unit_name = sq2_rv.msg.unit.name
+    squonk2_unit_uuid = sq2_rv.msg.unit.uuid
+    logger.info('+ ensure_project() returned Project uuid=%s (unit="%s" unit_uuid=%s)',
+                squonk2_project_uuid, squonk2_unit_name, squonk2_unit_uuid)
+
     job_request = JobRequest()
     job_request.squonk_job_name = squonk_job_name
     job_request.user = request.user
     job_request.snapshot = Snapshot.objects.get(id=snapshot_id)
     job_request.target = Target.objects.get(id=target_id)
-    job_request.squonk_project = squonk_project
+    # We should use a foreign key,
+    # but to avoid migration issues with the existing code
+    # we continue to use the project UUID string field.
+    job_request.squonk_project = squonk2_project_uuid
     job_request.squonk_job_spec = squonk_job_spec
 
     # Saving creates the uuid for the callback

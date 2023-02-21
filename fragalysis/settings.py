@@ -344,12 +344,6 @@ DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
-# Squonk settings for API calls to Squonk Platform.
-# The environment variable SQUONK2_DMAPI_URL
-# is expected by the squonk2-client package.
-SQUONK2_DMAPI_URL = os.environ.get('SQUONK2_DMAPI_URL')
-SQUONK2_UI_URL = os.environ.get('SQUONK2_UI_URL')
-
 SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 
@@ -371,7 +365,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
         'formatters': {
             'simple': {
                 'format': '%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s',
-                'datefmt': '%Y-%m-%dT%H:%M:%S'}},
+                'datefmt': '%Y-%m-%dT%H:%M:%S%z'}},
         'handlers': {
             'console': {
                 'level': 'DEBUG',
@@ -385,13 +379,19 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 'filename': os.path.join(BASE_DIR, 'logs/backend.log'),
                 'formatter': 'simple'}},
         'loggers': {
+            'api.security': {
+                'level': 'INFO'},
             'asyncio': {
+                'level': 'WARNING'},
+            'celery': {
                 'level': 'WARNING'},
             'django': {
                 'level': 'WARNING'},
             'mozilla_django_oidc': {
-                'level': 'DEBUG'},
+                'level': 'WARNING'},
             'urllib3': {
+                'level': 'WARNING'},
+            'paramiko': {
                 'level': 'WARNING'}},
         'root': {
             'level': LOGGING_FRAMEWORK_ROOT_LEVEL,

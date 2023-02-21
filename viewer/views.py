@@ -41,6 +41,7 @@ from viewer.utils import create_squonk_job_request_url
 from viewer.models import (
     Molecule,
     Protein,
+    Project,
     Compound,
     Target,
     ActionType,
@@ -50,10 +51,8 @@ from viewer.models import (
     SnapshotActions,
     ComputedMolecule,
     ComputedSet,
-    CSetKeys,
     NumericalScoreValues,
     ScoreDescription,
-    File,
     TagCategory,
     TextScoreValues,
     MoleculeTag,
@@ -63,7 +62,10 @@ from viewer.models import (
     JobFileTransfer
 )
 from viewer import filters
-from .forms import CSetForm, CSetUpdateForm, TSetForm
+from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
+from viewer.squonk2_agent import CommonParams, SendParams, RunJobParams
+
+from .forms import CSetForm, TSetForm
 from .tasks import (
     check_services,
     erase_compound_set_job_material,
@@ -97,11 +99,11 @@ from viewer.serializers import (
     ProteinSerializer,
     CompoundSerializer,
     TargetSerializer,
-    MolImageSerialzier,
-    CmpdImageSerialzier,
-    ProtMapInfoSerialzer,
-    ProtPDBInfoSerialzer,
-    ProtPDBBoundInfoSerialzer,
+    MolImageSerializer,
+    CmpdImageSerializer,
+    ProtMapInfoSerializer,
+    ProtPDBInfoSerializer,
+    ProtPDBBoundInfoSerializer,
     VectorsSerializer,
     GraphSerializer,
     ActionTypeSerializer,
@@ -111,7 +113,6 @@ from viewer.serializers import (
     SnapshotReadSerializer,
     SnapshotWriteSerializer,
     SnapshotActionsSerializer,
-    FileSerializer,
     ComputedSetSerializer,
     ComputedMoleculeSerializer,
     NumericalScoreSerializer,
@@ -130,7 +131,8 @@ from viewer.serializers import (
     JobRequestReadSerializer,
     JobRequestWriteSerializer,
     JobCallBackReadSerializer,
-    JobCallBackWriteSerializer
+    JobCallBackWriteSerializer,
+    ProjectSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -142,6 +144,7 @@ logger = logging.getLogger(__name__)
 _SESSION_ERROR = 'session_error'
 _SESSION_MESSAGE = 'session_message'
 
+_SQ2A: Squonk2Agent = get_squonk2_agent()
 
 class VectorsView(ISpyBSafeQuerySet):
     """ DjagnoRF view for vectors
@@ -275,7 +278,7 @@ class MolImageView(ISpyBSafeQuerySet):
                         "mol_image": "<?xml version='1.0' encoding='iso-8859-1'?><svg version='1.1' nk'..."}]
     """
     queryset = Molecule.objects.filter()
-    serializer_class = MolImageSerialzier
+    serializer_class = MolImageSerializer
     filter_permissions = "prot_id__target_id__project_id"
     filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
 
@@ -304,7 +307,7 @@ class CompoundImageView(ISpyBSafeQuerySet):
 
     """
     queryset = Compound.objects.filter()
-    serializer_class = CmpdImageSerialzier
+    serializer_class = CmpdImageSerializer
     filter_permissions = "project_id"
     filterset_fields = ("smiles",)
 
@@ -327,7 +330,7 @@ class ProteinMapInfoView(ISpyBSafeQuerySet):
 
    """
     queryset = Protein.objects.filter()
-    serializer_class = ProtMapInfoSerialzer
+    serializer_class = ProtMapInfoSerializer
     filter_permissions = "target_id__project_id"
     filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
@@ -363,7 +366,7 @@ class ProteinPDBInfoView(ISpyBSafeQuerySet):
 
    """
     queryset = Protein.objects.filter()
-    serializer_class = ProtPDBInfoSerialzer
+    serializer_class = ProtPDBInfoSerializer
     filter_permissions = "target_id__project_id"
     filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
@@ -399,9 +402,44 @@ class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
 
    """
     queryset = Protein.objects.filter()
-    serializer_class = ProtPDBBoundInfoSerialzer
+    serializer_class = ProtPDBBoundInfoSerializer
     filter_permissions = "target_id__project_id"
     filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
+
+
+class ProjectView(ISpyBSafeQuerySet):
+    """ DjagnoRF view to retrieve info about projects
+
+       Methods
+       -------
+       url:
+           api/projects
+       queryset:
+           `viewer.models.Project.objects.filter()`
+       returns: JSON
+           - id: id of the project object
+           - title: name of the target
+           - init_date: The date the Project was created
+
+       example output:
+
+           .. code-block:: javascript
+
+               "results": [
+                {
+                    "id": 2,
+                    "target_access_string": "lb27156-1",
+                    "init_date": "2023-01-09T15:00:00Z",
+                    "authority": "DIAMOND-ISPYB",
+                    "open_to_public": false
+                }
+            ]
+
+       """
+    queryset = Project.objects.filter()
+    serializer_class = ProjectSerializer
+    # Special case - Project filter permissions is blank.
+    filter_permissions = ""
 
 
 class TargetView(ISpyBSafeQuerySet):
@@ -642,19 +680,25 @@ def react(request):
     """
 
     discourse_api_key = settings.DISCOURSE_API_KEY
-    squonk_api_url = settings.SQUONK2_DMAPI_URL
-    squonk_ui_url = settings.SQUONK2_UI_URL
 
     context = {}
-    context['discourse_available'] = 'false'
-    context['squonk_available'] = 'false'
+
+    # Is the Squonk2 Agent configured?
+    logger.info("Checking whether Squonk2 is configured...")
+    sq2_rv = _SQ2A.configured()
+    if sq2_rv.success:
+        logger.info("Squonk2 is configured")
+        context['squonk_available'] = 'true'
+    else:
+        logger.info("Squonk2 is NOT configured")
+        context['squonk_available'] = 'false'
+
     if discourse_api_key:
         context['discourse_available'] = 'true'
-    if squonk_api_url and squonk_ui_url:
-        context['squonk_available'] = 'true'
+    else:
+        context['discourse_available'] = 'false'
 
     user = request.user
-
     if user.is_authenticated:
         context['discourse_host'] = ''
         context['user_present_on_discourse'] = 'false'
@@ -669,8 +713,8 @@ def react(request):
         # If user is authenticated Squonk can be called then return the Squonk host
         # so the Frontend can navigate to it
         context['squonk_ui_url'] = ''
-        if squonk_api_url and check_squonk_active(request):
-            context['squonk_ui_url'] = settings.SQUONK2_UI_URL
+        if sq2_rv.success and check_squonk_active(request):
+            context['squonk_ui_url'] = _SQ2A.get_ui_url()
 
     return render(request, "viewer/react_temp.html", context)
 
@@ -1055,10 +1099,10 @@ def email_task_completion(contact_email, message_type, target_name, target_path=
                   'Please navigate the following link to check the errors: validate_task/' + str(task_id)
 
     recipient_list = [contact_email, ]
-    logger.info('+ email_notify_task_completion email_from: ' + email_from )
-    logger.info('+ email_notify_task_completion subject: ' + subject )
-    logger.info('+ email_notify_task_completion message: ' + message )
-    logger.info('+ email_notify_task_completion contact_email: ' + contact_email )
+    logger.info('+ email_notify_task_completion email_from: %s', email_from )
+    logger.info('+ email_notify_task_completion subject: %s',  subject )
+    logger.info('+ email_notify_task_completion message: %s',  message )
+    logger.info('+ email_notify_task_completion contact_email: %s', contact_email )
 
     # Send email - this should not prevent returning to the screen in the case of error.
     send_mail(subject, message, email_from, recipient_list, fail_silently=True)
@@ -1277,7 +1321,7 @@ class UploadTaskView(View):
                         target_path = '/viewer/target/%s' % target_name
                         response_data['results'] = {}
                         response_data['results']['tset_download_url'] = target_path
-                        logger.info('+ UploadTaskView.get.success -email:'+contact_email)
+                        logger.info('+ UploadTaskView.get.success -email: %s', contact_email)
                         email_task_completion(contact_email, 'upload-success', target_name, target_path=target_path)
                     else:
                         cset_name = results[2]
@@ -1434,7 +1478,7 @@ def cset_download(request, name):
     """
     compound_set = ComputedSet.objects.get(unique_name=name)
     filepath = compound_set.submitted_sdf
-    with open(filepath.path, 'r') as fp:
+    with open(filepath.path, 'r', encoding='utf-8') as fp:
         data = fp.read()
     filename = 'compund-set_' + name + '.sdf'
     response = HttpResponse(content_type='text/plain')
@@ -1473,7 +1517,7 @@ def pset_download(request, name):
     zip_obj = zipfile.ZipFile(buff, 'w')
 
     for fp in pdb_filepaths:
-        data = open(fp, 'r').read()
+        data = open(fp, 'r', encoding='utf-8').read()
         zip_obj.writestr(fp.split('/')[-1], data)
     zip_obj.close()
 
@@ -1895,6 +1939,8 @@ class DSetUploadView(APIView):
     def put(self, request, format=None):
         """Method to handle PUT request and upload a design set
         """
+        # Don't need...
+        del format
 
         f = request.FILES['file']
         set_type = request.PUT['type']
@@ -2351,7 +2397,7 @@ class DiscoursePostView(viewsets.ViewSet):
         logger.info('+ DiscoursePostView.post')
         data = request.data
 
-        logger.info('+ DiscoursePostView.post'+json.dumps(data))
+        logger.info('+ DiscoursePostView.post %s', json.dumps(data))
         if data['category_name'] == '':
             category_details = None
         else:
@@ -2380,7 +2426,7 @@ class DiscoursePostView(viewsets.ViewSet):
         """
         logger.info('+ DiscoursePostView.get')
         query_params = request.query_params
-        logger.info('+ DiscoursePostView.get'+json.dumps(query_params))
+        logger.info('+ DiscoursePostView.get %s', json.dumps(query_params))
 
         discourse_api_key = settings.DISCOURSE_API_KEY
 
@@ -2418,7 +2464,7 @@ def create_csv_from_dict(input_dict, title=None, filename=None):
     if os.path.isfile(download_file):
         os.remove(download_file)
 
-    with open(download_file, "w", newline='') as csvfile:
+    with open(download_file, "w", newline='', encoding='utf-8') as csvfile:
         if title:
             csvfile.write(title)
             csvfile.write("\n")
@@ -2505,7 +2551,7 @@ class DictToCsv(viewsets.ViewSet):
         file_url = request.GET.get('file_url')
 
         if file_url and os.path.isfile(file_url):
-            with open(file_url) as csvfile:
+            with open(file_url, encoding='utf8') as csvfile:
                 # return file and tidy up.
                 response = HttpResponse(csvfile, content_type='text/csv')
                 response['Content-Disposition'] = 'attachment; filename=download.csv'
@@ -2874,7 +2920,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
             link = DownloadLinks.objects.filter(file_url=file_url)
             if (link and link[0].zip_file
                     and os.path.isfile(link[0].file_url)):
-                logger.info('zip_file: {}'.format(link[0].zip_file))
+                logger.info('zip_file: %s', link[0].zip_file)
 
                 # return file and tidy up.
                 file_name = os.path.basename(file_url)
@@ -3082,90 +3128,88 @@ class JobFileTransferView(viewsets.ModelViewSet):
             content = {'Only authenticated users can transfer files'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        # Can't use this method if the squonk variables are not set!
-        if not settings.SQUONK2_DMAPI_URL:
-            content = {'SQUONK2_DMAPI_URL is not set'}
+        # Can't use this method if the Squonk2 agent is not configured
+        sq2a_rv = _SQ2A.configured()
+        if not sq2a_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
+        # Collect expected API parameters....
+        access_id = request.data['access']  # The access ID/legacy Project record title
         target_id = request.data['target']
-        target = Target.objects.get(id=target_id)
         snapshot_id = request.data['snapshot']
+        session_project_id = request.data['session_project']
 
-        if 'squonk_project' in request.data:
-            squonk_project = request.data['squonk_project']
-        else:
-            content = {
-                'message': 'A squonk project must be entered'}
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        logger.info('+ user="%s" (id=%s)', user.username, user.id)
+        logger.info('+ access_id=%s', access_id)
+        logger.info('+ target_id=%s', target_id)
+        logger.info('+ snapshot_id=%s', snapshot_id)
+        logger.info('+ session_project_id=%s', session_project_id)
 
+        target = Target.objects.get(id=target_id)
+        assert target
+
+        # Check the user can use this Squonk2 facility.
+        # To do this we need to setup a couple of API parameter objects.
+        sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
+                                                        access_id=access_id,
+                                                        session_id=session_project_id,
+                                                        target_id=target_id)
+        sq2a_send_params: SendParams = SendParams(common=sq2a_common_params,
+                                                  snapshot_id=snapshot_id)
+        sq2a_rv: Squonk2AgentRv = _SQ2A.can_send(sq2a_send_params)
+        if not sq2a_rv.success:
+            content = {f'You cannot do this ({sq2a_rv.msg})'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        # Check the presense of the files expected to be transferred
         error, proteins, compounds = check_file_transfer(request)
         if error:
             return Response(error['message'], status=error['status'])
-
-        # If transfer has already happened find the latest
-        job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
-        if job_transfers:
-            job_transfer = job_transfers.latest('id')
-        else:
-            job_transfer = None
-        if job_transfer and not job_transfer.target:
-            msg = f'JobTransfer record ({job_transfer.id})' \
-                  f' for snapshot {snapshot_id} has no target.' \
-                  ' Cannot continue'
-            content = {'message': msg}
-            logger.error(msg)
-            return Response(content,
-                            status=status.HTTP_404_NOT_FOUND)
 
         # The root (in the Squonk project) where files will be written.
         # This is "understood" by the celery task (which uses this constant).
         # e.g. 'fragalysis-files'
         transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
-
-        logger.info('+ target_id=%s', target_id)
-        logger.info('+ snapshot_id=%s', snapshot_id)
-        logger.info('+ squonk_project=%s', squonk_project)
         logger.info('+ transfer_root=%s', transfer_root)
 
-        if job_transfer:
+        # Create new file transfer job
+        logger.info('+ Calling ensure_project() to get the Squonk2 Project...')
 
-            # A pre-existing transfer...
-            transfer_target = job_transfer.target.title
-            if (job_transfer.transfer_status == 'PENDING' or
-                    job_transfer.transfer_status == 'STARTED'):
+        # This requires a Squonk2 Project (created by the Squonk2Agent).
+        # It may be an existing project, or it might be a new project.
+        common_params = CommonParams(user_id=user.id,
+                                        access_id=access_id,
+                                        target_id=target_id,
+                                        session_id=session_project_id)
+        sq2_rv = _SQ2A.ensure_project(common_params)
+        if not sq2_rv.success:
+            msg = f'Failed to get/create a Squonk2 Project' \
+                    f' for User "{user.username}", Access ID {access_id},' \
+                    f' Target ID {target_id}, and SessionProject ID {session_project_id}.' \
+                    f' Got "{sq2_rv.msg}".' \
+                    ' Cannot continue'
+            content = {'message': msg}
+            logger.error(msg)
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-                logger.info('+ Existing transfer_status=%s', job_transfer.transfer_status)
-                content = {'transfer_root': transfer_root,
-                           'transfer_target': transfer_target,
-                           'message': 'Files currently being transferred'}
-                return Response(content,
-                                status=status.HTTP_208_ALREADY_REPORTED)
+        # The Squonk2Project record is in the response msg
+        squonk2_project_uuid = sq2_rv.msg.uuid
+        squonk2_unit_name = sq2_rv.msg.unit.name
+        squonk2_unit_uuid = sq2_rv.msg.unit.uuid
+        logger.info('+ ensure_project() returned Project uuid=%s (unit="%s" unit_uuid=%s)',
+                    squonk2_project_uuid, squonk2_unit_name, squonk2_unit_uuid)
 
-            if (target.upload_datetime and job_transfer.transfer_datetime) \
-                    and target.upload_datetime < job_transfer.transfer_datetime:
-
-                # The target data has already been transferred for the snapshot.
-                logger.info('+ Existing transfer finished (transfer_status=%s)',
-                            job_transfer.transfer_status)
-                content = {'transfer_root': transfer_root,
-                           'transfer_target': transfer_target,
-                           'message': 'Files already transferred for this job'}
-                return Response(content,
-                                status=status.HTTP_200_OK)
-
-            # Restart existing transfer - it must have failed or be outdated
-            job_transfer.user = request.user
-
-        else:
-
-            # Create new file transfer job
-            job_transfer = JobFileTransfer()
-            job_transfer.user = request.user
-            job_transfer.proteins = [p['code'] for p in proteins]
-            job_transfer.compounds = [c['name'] for c in compounds]
-            job_transfer.squonk_project = squonk_project
-            job_transfer.target = Target.objects.get(id=target_id)
-            job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
+        job_transfer = JobFileTransfer()
+        job_transfer.user = request.user
+        job_transfer.proteins = [p['code'] for p in proteins]
+        job_transfer.compounds = [c['name'] for c in compounds]
+        # We should use a foreign key,
+        # but to avoid migration issues with the existing code
+        # we continue to use the project UUID string field.
+        job_transfer.squonk_project = squonk2_project_uuid
+        job_transfer.target = Target.objects.get(id=target_id)
+        job_transfer.snapshot = Snapshot.objects.get(id=snapshot_id)
 
         # The 'transfer target' (a sub-directory of the transfer root)
         # For example the root might be 'fragalysis-files'
@@ -3236,8 +3280,9 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Can't use this method if the squonk variables are not set!
-        if not settings.SQUONK2_DMAPI_URL:
-            content = {'SQUONK2_DMAPI_URL is not set'}
+        sqa_rv = _SQ2A.configured()
+        if sqa_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg}'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         job_collection = request.query_params.get('job_collection', None)
@@ -3329,9 +3374,37 @@ class JobRequestView(viewsets.ModelViewSet):
             content = {'Only authenticated users can run jobs'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        # Can't use this method if the squonk variables are not set!
-        if not settings.SQUONK2_DMAPI_URL:
-            content = {'SQUONK2_DMAPI_URL is not set'}
+        # Can't use this method if the Squonk2 agent is not configured
+        sq2a_rv = _SQ2A.configured()
+        if not sq2a_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        # Collect expected API parameters....
+        target_id = request.data['target']
+        snapshot_id = request.data['snapshot']
+        session_project_id = request.data['session_project']
+        access_id = request.data['access']  # The access ID/legacy Project record title
+
+        logger.info('+ user="%s" (id=%s)', user.username, user.id)
+        logger.info('+ access_id=%s', access_id)
+        logger.info('+ target_id=%s', target_id)
+        logger.info('+ snapshot_id=%s', snapshot_id)
+        logger.info('+ session_project_id=%s', session_project_id)
+
+        # Check the user can use this Squonk2 facility.
+        # To do this we need to setup a couple of API parameter objects.
+        # We don't (at this point) care about the Job spec or callback URL.
+        sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
+                                                        access_id=access_id,
+                                                        session_id=session_project_id,
+                                                        target_id=target_id)
+        sq2a_run_job_params: RunJobParams = RunJobParams(common=sq2a_common_params,
+                                                         job_spec=None,
+                                                         callback_url=None)
+        sq2a_rv: Squonk2AgentRv = _SQ2A.can_run_job(sq2a_run_job_params)
+        if not sq2a_rv.success:
+            content = {f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         try:
