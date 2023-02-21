@@ -477,7 +477,7 @@ def delete_users(project):
     project.save()
 
 
-def get_create_projects(target, proposal_ref):
+def get_create_projects(target, proposal_ref, proposal_code='lb'):
     """Add proposals and visits as projects for a given target.
 
     :param new_target: the target being added
@@ -494,6 +494,10 @@ def get_create_projects(target, proposal_ref):
     # The first word is the ISPY proposal/visit name that is used as the title of the project.
     # It can be set to OPEN in which case there are no users.
     visit = proposal_ref.split()[0]
+    # If the visit is not prefixed by the proposal code
+    # (typically a 2-letter sequence like "lb") then prefix it.
+    if visit[0].isdigit():
+        visit = f"{proposal_code}{visit}"
     project = Project.objects.get_or_create(title=visit)[0]
     projects.append(project)
 
@@ -504,9 +508,14 @@ def get_create_projects(target, proposal_ref):
     target.project_id.add(project)
 
     # Remaining words in proposal_ref (if any) must be fedid's which are used to find users information.
+    num_users = 0
     for fedid in proposal_ref.split()[1:]:
         user = User.objects.get_or_create(username=fedid, password="")[0]
         project.user_id.add(user)
+        num_users += 1
+    if num_users == 0:
+        project.open_to_public = True
+
     target.upload_progess = 10.00
     target.save()
 
