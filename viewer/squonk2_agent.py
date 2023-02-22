@@ -545,15 +545,27 @@ class Squonk2Agent:
     def _verify_access(self, c_params: CommonParams) -> Squonk2AgentRv:
         """Checks the user has access to the project.
         """
-        # Ensure that the user is allowed to use the given access ID
+        access_id: int = c_params.access_id
+        assert access_id
+        project: Optional[Project] = Project.objects.filter(id=access_id).first()
+        if not project:
+            msg = f'Access ID (Project) {access_id} does not exist'
+            _LOGGER.warning(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+        # Public projects can always be accessed...
+        if project.open_to_public:
+            return SuccessRv
+
+        # The project is not a public Project,
+        # ensure that the user is allowed to use the given access ID
         user: User  = User.objects.filter(id=c_params.user_id).first()
         assert user
-        target_access_string = self._get_target_access_string(c_params.access_id)
+        target_access_string = self._get_target_access_string(access_id)
         assert target_access_string
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(user)
         if not target_access_string in proposal_list:
             msg = f'The user ({user.username}) cannot access "{target_access_string}"' \
-                  f' (access_id={c_params.access_id}). Only {proposal_list})'
+                  f' (access_id={access_id}). Only {proposal_list})'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
             
