@@ -66,9 +66,9 @@ def get_remote_conn():
     conn = None
     try:
         conn = SSHConnector(**ispyb_credentials)
-    except ValueError as cex:
-        logger.info("ssh_credentials=%s", ssh_credentials)
-        logger.error("Got ValueError exception getting SSH connection (%s)", cex)
+    except:
+        logger.info("ispyb_credentials=%s", ispyb_credentials)
+        logger.exception("Exception creating SSHConnector")
 
     return conn
 
@@ -89,7 +89,13 @@ def get_conn():
     if not credentials["host"]:
         return None
 
-    conn = Connector(**credentials)
+    conn = None
+    try:
+        conn = Connector(**credentials)
+    except:
+        logger.info("credentials=%s", credentials)
+        logger.exception("Exception creating Connector")
+        
     return conn
 
 
