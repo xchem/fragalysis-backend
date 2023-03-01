@@ -397,6 +397,7 @@ class Squonk2Agent:
 
         dm_rv: DmApiRv = DmApi.create_project(self.__org_owner_dm_token,
                                               project_name=name_truncated,
+                                              private=True,
                                               as_tier_product_id=product_uuid)
         if not dm_rv.success:
             msg = f'Failed to create DM Project ({dm_rv.msg})'
