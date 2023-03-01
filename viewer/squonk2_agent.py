@@ -553,12 +553,10 @@ class Squonk2Agent:
             msg = f'Access ID (Project) {access_id} does not exist'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
-        # Public projects can always be accessed...
-        if project.open_to_public:
-            return SuccessRv
 
-        # The project is not a public Project,
-        # ensure that the user is allowed to use the given access ID
+        # Ensure that the user is allowed to use the given access ID.
+        # Even on public projects the user must be part of the project
+        # to use Squonk.
         user: User  = User.objects.filter(id=c_params.user_id).first()
         assert user
         target_access_string = self._get_target_access_string(access_id)
