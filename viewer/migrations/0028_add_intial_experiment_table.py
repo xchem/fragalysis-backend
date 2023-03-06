@@ -24,4 +24,6 @@ class Migration(migrations.Migration):
             name='experiment_id',
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='viewer.experiment'),
         ),
+        migrations.RunSQL('insert into viewer_experiment (code, target_id) select m.code, m.target_id from viewer_protein m;'),
+        migrations.RunSQL('with sq as (select id, code from viewer_experiment) update viewer_protein set experiment_id = sq.id from sq where viewer_protein.code = sq.code;'),
     ]
