@@ -100,7 +100,7 @@ class Experiment(models.Model):
     """Model for holding Crystallographic PDB and relationships with Target
     (and referenced from the corresponding Protein).
     """
-    crystallographic_pdb = models.FileField(upload_to="exp_c_pdbs/", null=True, max_length=255)
+    code = models.CharField(max_length=50, null=True)
     target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     
 
