@@ -10,21 +10,21 @@ that contains an 'outfile' declaration (e.g. "abc-molecules.sdf".).
 """
 import json
 import os
-import shutil
 
-from django.conf import settings
-from rest_framework import status
 from squonk2.dm_api import DmApi
 
 from celery.utils.log import get_task_logger
-from viewer.models import JobRequest, User
+from viewer.models import JobRequest
 from viewer.utils import (
     SDF_VERSION,
     add_prop_to_sdf,
     create_media_sub_directory
 )
+from viewer.squonk2_agent import Squonk2Agent, get_squonk2_agent
 
 logger = get_task_logger(__name__)
+
+_SQ2A: Squonk2Agent = get_squonk2_agent()
 
 # A "Blank" molecule.
 # Inserted at the top of SDF files pulled from Squonk2.
@@ -69,7 +69,7 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
 
     # Do nothing if the first line of the file matches the version we're about to set.
     blank_present = False
-    with open(sdf_filename, 'r') as in_file:
+    with open(sdf_filename, 'r', encoding='utf-8') as in_file:
         line = in_file.readline()
         if line and line.startswith(SDF_VERSION):
             blank_present = True
@@ -79,7 +79,7 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
     # Compound set reference URL.
     # What's the https-prefixed URL to the instance?
     # The record's URL is relative to the API.
-    ref_url = settings.SQUONK2_UI_URL
+    ref_url = _SQ2A.get_ui_url()
     if ref_url.endswith('/'):
         ref_url += job_request.squonk_url_ext
     else:
@@ -103,9 +103,9 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
                  'ref_url': ref_url}
     blank_mol = _SDF_BLANK_MOL_TEMPLATE.format(**variables)
     tmp_filename = sdf_filename + '.tmp'
-    with open(tmp_filename, 'w') as tmp_file:
+    with open(tmp_filename, 'w', encoding='utf-8') as tmp_file:
         tmp_file.write(blank_mol)
-        with open(sdf_filename, 'r') as in_file:
+        with open(sdf_filename, 'r', encoding='utf-8') as in_file:
             for line in in_file:
                 tmp_file.write(line)
     os.remove(sdf_filename)
@@ -138,17 +138,27 @@ def process_compound_set_file(jr_id,
 
     logger.info('Processing job compound file (%s)...', jr_id)
 
+    logger.info("Squonk transition_time='%s'", transition_time)
+    logger.info("Squonk job_output_path='%s'", job_output_path)
+    logger.info("Squonk job_output_filename='%s'", job_output_filename)
+
     jr = JobRequest.objects.get(id=jr_id)
 
-    # The callback token (required to make Squonk API calls from the callback)
-    # and instance ID are in JobRequest.
+    # The callback token is required to make Squonk API calls from the callback context
     jr_job_info_msg = jr.squonk_job_info[1]
-    token = jr_job_info_msg.get('callback_token')
-    instance_id = jr_job_info_msg.get('instance_id')
-    logger.info("Squonk API token=%s", token)
-    logger.info("Squonk API instance_id=%s", instance_id)
+    callback_token = jr_job_info_msg.get('callback_token')
+    logger.info("Squonk API callback_token=%s", callback_token)
 
-    logger.info("Expecting Squonk path='%s'", job_output_path)
+    # The Squonk instance that ran the Job can be found
+    # at the end of the jr.squonk_url_ext field.
+    instance_id = ''
+    if jr.squonk_url_ext:
+        i_id = jr.squonk_url_ext.split('/')[-1]
+        if i_id.startswith('instance-'):
+            instance_id = i_id
+            logger.info("Squonk instance_id='%s'", instance_id)
+        else:
+            logger.warning("jr.squonk_url_ext does not contain an instance ID")
 
     # Do we need to create the upload path?
     # This is used for this 'job' and is removed when the upload is complete
@@ -182,7 +192,7 @@ def process_compound_set_file(jr_id,
     logger.info("Expecting Squonk job_output_param_filename='%s'...",
                 job_output_param_filename)
     result = DmApi.get_unmanaged_project_file_with_token(
-        token=token,
+        token=callback_token,
         project_id=jr.squonk_project,
         project_path=job_output_path,
         project_file=job_output_param_filename,
@@ -197,7 +207,7 @@ def process_compound_set_file(jr_id,
         logger.info("Expecting Squonk job_output_filename='%s'...",
                     job_output_filename)
         result = DmApi.get_unmanaged_project_file_with_token(
-            token=token,
+            token=callback_token,
             project_id=jr.squonk_project,
             project_path=job_output_path,
             project_file=job_output_filename,
@@ -209,12 +219,13 @@ def process_compound_set_file(jr_id,
         else:
             # Both files pulled back.
             got_all_files = True
-            # Delete the callback token, which is no-longer needed.
-            # Don't care if this fails - the token will expire automatically
-            # after a period of time.
-#            _ = DmApi.delete_instance_token(
-#                instance_id=instance_id,
-#                token=token)
+#            if instance_id:
+#                # Delete the callback token, which is no-longer needed.
+#                # Don't care if this fails - the token will expire automatically
+#                # after a period of time.
+#                _ = DmApi.delete_instance_token(
+#                    instance_id=instance_id,
+#                    token=callback_token)
 
     if not got_all_files:
         logger.warning('Not processing. Either %s or %s is missing',
@@ -263,7 +274,7 @@ def process_compound_set_file(jr_id,
     # We take every field as the key and the description as the value.
     # If anything goes wrong we erase the SD file and return
     params = {}
-    with open(tmp_param_filename, 'r') as param_file:
+    with open(tmp_param_filename, 'r', encoding='utf-8') as param_file:
         meta = json.loads(param_file.read())
         if 'annotations' not in meta or len(meta['annotations']) == 0:
             logger.warning('Not processing. No annotations in %s',
