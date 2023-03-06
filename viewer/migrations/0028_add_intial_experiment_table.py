@@ -16,14 +16,17 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('code', models.CharField(max_length=50, null=True)),
-                ('target_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='viewer.target')),
+                ('target', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='viewer.target')),
             ],
         ),
         migrations.AddField(
             model_name='protein',
-            name='experiment_id',
+            name='experiment',
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='viewer.experiment'),
         ),
-        migrations.RunSQL('insert into viewer_experiment (code, target_id) select m.code, m.target_id from viewer_protein m;'),
-        migrations.RunSQL('with sq as (select id, code from viewer_experiment) update viewer_protein set experiment_id = sq.id from sq where viewer_protein.code = sq.code;'),
+        migrations.RunSQL('insert into viewer_experiment (code, target_id)'
+                          ' select m.code, m.target_id_id from viewer_protein m;'),
+        migrations.RunSQL('with sq as (select id, code from viewer_experiment)'
+                          ' update viewer_protein set experiment_id = sq.id'
+                          ' from sq where viewer_protein.code = sq.code;'),
     ]

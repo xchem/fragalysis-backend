@@ -101,7 +101,7 @@ class Experiment(models.Model):
     (and referenced from the corresponding Protein).
     """
     code = models.CharField(max_length=50, null=True)
-    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
     
 
 class Protein(models.Model):
@@ -157,7 +157,7 @@ class Protein(models.Model):
     target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     # The (new) Experiment reference (to replace the Target reference)
     # Blank/unset until code supports Experiments.
-    experiment_id = models.ForeignKey(Experiment, null=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey(Experiment, null=True, on_delete=models.CASCADE)
     apo_holo = models.NullBooleanField()
     # Set the groups types
     prot_choices, default_prot = get_prot_choices()
