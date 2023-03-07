@@ -12,7 +12,8 @@ import shortuuid
 
 from squonk2.dm_api import DmApi
 
-from viewer.models import ( Target,
+from viewer.models import ( Project,
+                            Target,
                             Snapshot,
                             JobRequest,
                             JobFileTransfer )
@@ -145,6 +146,7 @@ def create_squonk_job(request):
     job_request = JobRequest()
     job_request.squonk_job_name = squonk_job_name
     job_request.user = request.user
+    job_request.project =  Project.objects.get(id=access_id)
     job_request.snapshot = Snapshot.objects.get(id=snapshot_id)
     job_request.target = Target.objects.get(id=target_id)
     # We should use a foreign key,

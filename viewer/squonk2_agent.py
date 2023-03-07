@@ -51,6 +51,10 @@ RunJobParams: namedtuple = namedtuple("RunJob", ["common",
 SendParams: namedtuple = namedtuple("Send", ["common",
                                              "snapshot_id"])
 
+# Parameters for the grant_access() method.
+AccessParams: namedtuple = namedtuple("Access", ["username",
+                                                 "project_uuid"])
+
 _SUPPORTED_PRODUCT_FLAVOURS: List[str] = ["BRONZE", "SILVER", "GOLD"]
 
 # Squonk2 Have defined limits - assumed here.
@@ -819,6 +823,36 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         return rv_u
+
+    @synchronized
+    def grant_access(self, a_params: AccessParams) -> Squonk2AgentRv:
+        """A blocking method that takes care of sending a set of files to
+        the configured Squonk2 installation.
+        """
+        assert a_params
+        assert isinstance(a_params, AccessParams)
+
+        if _TEST_MODE:
+            msg: str = 'Squonk2Agent is in TEST mode'
+            _LOGGER.warning(msg)
+
+        # Every public API **MUST**  call ping().
+        # This ensures Squonk2 is available and gets suitable API tokens...
+        if not self.ping():
+            msg = 'Squonk2 ping failed.'\
+                  ' Are we configured properly and is Squonk2 alive?'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        dm_rv: DmApiRv = DmApi.add_project_observer(self.__org_owner_dm_token,
+                                                    project_id=a_params.project_uuid,
+                                                    observer=a_params.username)
+        if not dm_rv.success:
+            msg = f'Failed to add DM Project Observer ({dm_rv.msg})'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+        
+        return SuccessRv
 
 # A placeholder for the Agent object
 _AGENT_SINGLETON: Optional[Squonk2Agent] = None
