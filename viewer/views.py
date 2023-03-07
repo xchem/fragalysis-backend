@@ -3604,7 +3604,7 @@ class JobCallBackView(viewsets.ModelViewSet):
 
         return HttpResponse(status=204)
 
-class JobAccessView(viewsets.ReadOnlyModelViewSet):
+class JobAccessView(APIView):
     """Django view that calls Squonk to allow a user (who is able to see a Job)
     the ability to access that Job in Squonk. To be successful the user
     must have access to the corresponding Fragalysis Project. This can be called by
@@ -3629,7 +3629,7 @@ class JobAccessView(viewsets.ReadOnlyModelViewSet):
 
             /api/job_access/?job_request_id=17
     """
-    def list(self, request):
+    def get(self, request):
         """Method to handle GET request
         """
         query_params = request.query_params
@@ -3648,24 +3648,24 @@ class JobAccessView(viewsets.ReadOnlyModelViewSet):
         # Can't use this method if the squonk variables are not set!
         sqa_rv = _SQ2A.configured()
         if not sqa_rv.success:
-            err_response['error'] = f'The Squonk2 Agent is not configured ({sqa_rv.msg}'
+            err_response['error'] = f'Squonk is not configured for this stack'
             return Response(err_response, status=status.HTTP_403_FORBIDDEN)
 
         # Get the JobRequest Record
         jr_id = request.query_params.get('job_request_id', None)
         if not jr_id or jr_id < 1:
-            err_response['error'] = f'The JobRequest ID is invalid ({jr_id}'
+            err_response['error'] = f'The JobRequest ID ("{jr_id}") is invalid'
             return Response(err_response, status=status.HTTP_400_BAD_REQUEST)
             
         jr_list = JobRequest.objects.filter(id=jr_id)
         if len(jr_list) == 0:
-            err_response['error'] = f'The JobRequest does not exist ({jr_id}'
+            err_response['error'] = f'The JobRequest does not exist'
             return Response(err_response, status=status.HTTP_400_BAD_REQUEST)
         jr = jr_list[0]
         
         # JobRequest must have a Squonk Project value
         if not jr.squonk_project:
-            err_response['error'] = f'The JobRequest has no Squonk2Project value ({jr_id}'
+            err_response['error'] = f'The JobRequest has no Squonk Project value ({jr_id})'
             return Response(err_response, status=status.HTTP_403_FORBIDDEN)
             
         # User must have access to the Job's Project.
@@ -3675,10 +3675,11 @@ class JobAccessView(viewsets.ReadOnlyModelViewSet):
         # If the Job has no Project (Jobs created before this chnage will not have a Project)
         # or the user is the owner of the Job we skip this check.
         if user.id != jr.user.id:
-            logger.info('+ JobAccessView/GET Checking access to JobRequest %s for "%s"',
-                        jr_id, user.username)
+            logger.info('+ JobAccessView/GET Checking access to JobRequest %s for "%s" (%s)',
+                        jr_id, user.username, jr.squonk_project)
             if not jr.project or not jr.project.title:
-                logger.warning('+ JobAccessView/GET No Project (or title) for JobRequest %s - granting acess',
+                logger.warning('+ JobAccessView/GET No Fragalysis Project (or title)'
+                               ' for JobRequest %s - granting access',
                                jr_id)
             else:
                 # The project title is the Job access string.
@@ -3689,21 +3690,22 @@ class JobAccessView(viewsets.ReadOnlyModelViewSet):
                                                                 session_id=None,
                                                                 target_id=None)
                 sq2a_run_job_params: RunJobParams = RunJobParams(common=sq2a_common_params,
-                                                                job_spec=None,
-                                                                callback_url=None)
+                                                                 job_spec=None,
+                                                                 callback_url=None)
                 sq2a_rv: Squonk2AgentRv = _SQ2A.can_run_job(sq2a_run_job_params)
                 if not sq2a_rv.success:
-                    err_response['error'] = f'Access to the Job ({access_id}) is denied. {sq2a_rv.msg}'
+                    err_response['error'] = f'Access to the Job for {access_id} is denied. {sq2a_rv.msg}'
                     return Response(err_response, status=status.HTTP_403_FORBIDDEN)
 
-            # It's not the Job owner, so grant access for this user
+            # All checks passed ... grant access for this user
             sq2a_access_params: AccessParams = AccessParams(username=user.username,
                                                             project_uuid=jr.squonk_project)
             sqa_rv = _SQ2A.grant_access(sq2a_access_params)
             if not sqa_rv.success:
-                err_response['error'] = f'The Squonk2 Agent failed to grant access ({sqa_rv.msg}'
+                err_response['error'] = f'Squonk failed to grant access ({sqa_rv.msg})'
                 logger.warning('+ JobAccessView/GET error=%s', content['error'])
                 return Response(err_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        logger.info('+ JobAccessView/GET Success for %s/"%s"', jr_id, user.username)
+        logger.info('+ JobAccessView/GET Success for %s/"%s" on %s',
+                    jr_id, user.username, jr.squonk_project)
         return Response(ok_response)

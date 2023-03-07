@@ -88,7 +88,6 @@ router.register(r"job_file_transfer", viewer_views.JobFileTransferView, basename
 router.register(r"job_request", viewer_views.JobRequestView, basename='job_request')
 router.register(r"job_callback", viewer_views.JobCallBackView, basename='job_callback')
 router.register(r"job_config", viewer_views.JobConfigView, basename='job_config')
-router.register(r"job_access", viewer_views.JobAccessView, basename='job_access')
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
 from rest_framework.decorators import api_view, renderer_classes
