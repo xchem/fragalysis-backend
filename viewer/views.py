@@ -3621,7 +3621,7 @@ class JobAccessView(APIView):
        - job_request_id: The identity of the JobRequest (the Job) the user needs access to
 
        Returns: A structure with 'accessible' set to True on success. On failure
-                an 'error' property contains a reason (string)
+                an 'error' string contains a reason
 
     example input for get
 
@@ -3648,13 +3648,17 @@ class JobAccessView(APIView):
         # Can't use this method if the squonk variables are not set!
         sqa_rv = _SQ2A.configured()
         if not sqa_rv.success:
-            err_response['error'] = f'Squonk is not configured for this stack'
+            err_response['error'] = f'Squonk is not available ({sqa_rv.msg})'
             return Response(err_response, status=status.HTTP_403_FORBIDDEN)
 
-        # Get the JobRequest Record
-        jr_id = request.query_params.get('job_request_id', None)
-        if not jr_id or jr_id < 1:
-            err_response['error'] = f'The JobRequest ID ("{jr_id}") is invalid'
+        # Get the JobRequest Record form the supplied record ID
+        jr_id_str = request.query_params.get('job_request_id', None)
+        if not jr_id_str or not jr_id_str.isdigit():
+            err_response['error'] = f'The JobRequest ID ({jr_id_str}) is not valid'
+            return Response(err_response, status=status.HTTP_400_BAD_REQUEST)
+        jr_id = int(jr_id_str)
+        if jr_id < 1:
+            err_response['error'] = f'The JobRequest ID ({jr_id}) cannot be less than 1'
             return Response(err_response, status=status.HTTP_400_BAD_REQUEST)
             
         jr_list = JobRequest.objects.filter(id=jr_id)
@@ -3665,7 +3669,7 @@ class JobAccessView(APIView):
         
         # JobRequest must have a Squonk Project value
         if not jr.squonk_project:
-            err_response['error'] = f'The JobRequest has no Squonk Project value ({jr_id})'
+            err_response['error'] = f'The JobRequest ({jr_id}) has no Squonk Project value'
             return Response(err_response, status=status.HTTP_403_FORBIDDEN)
             
         # User must have access to the Job's Project.
