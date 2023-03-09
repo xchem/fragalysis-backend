@@ -655,7 +655,8 @@ class APIUrlsTestCase(APITestCase):
                 "apo_desolve_info": None,
                 "aligned": None,
                 "has_eds": None,
-                "aligned_to": None
+                "aligned_to": None,
+                "experiment": None
 
             },
             {"id": 1, "cmpd_id": 1, "smiles": "DUMMY", "type": "DE"},
