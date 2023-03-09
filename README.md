@@ -115,11 +115,17 @@ pre-commit documentation.
 
 Ideally from a Python environment...
 
+    python -m venv venv
+    source venv/bin/activate
+
     pip install --upgrade pip
     pip install -r build-requirements.txt
     pre-commit install -t commit-msg -t pre-commit
 
-Now the project's rules will run on every commit.
+Now the project's rules will run on every commit and you can check the
+state of the repository as it stands with...
+
+    pre-commit run --all-files
 
 ## Start
 Start `Fragalysis stack` (All infrastructure - databases + populating data)
