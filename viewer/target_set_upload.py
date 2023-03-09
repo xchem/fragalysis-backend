@@ -172,7 +172,7 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
     """Add a protein with a PDB, code and
 
     :param code: the unique code for this file
-    :param target: the target to be linkede to
+    :param target: the target to be linked to
     :param xtal_path: the path to the crystal directory
     :param xtal: name of the xtal(?)
     :param input_dict: dictionary of files in crystal directory from load_dir
@@ -183,13 +183,13 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
     # code is normally the xtal directory in the aligned folder, but this may have been modified to have
     # an alternate name added to it - in the form 'directory:alternate_name'.
     code_first_part = code.split(":")[0]
-    proteins = Protein.objects.filter(code__contains=code_first_part)
+    proteins = Protein.objects.filter(code__contains=code_first_part, target_id=target)
     if proteins.exists():
         new_prot = proteins.first()
-        logger.debug("Protein exists='%s'", new_prot[1])
+        logger.debug("Pre-existing Protein (%s)", new_prot)
     else:
         new_prot = Protein.objects.get_or_create(code=code, target_id=target)
-        logger.debug("Protein created new_prot='%s'", new_prot[1])
+        logger.debug("New Protein (code='%s' target_id='%s')", code, target)
         new_prot = new_prot[0]
 
     new_prot.apo_holo = True
@@ -1190,20 +1190,37 @@ def validate_target(new_data_folder, target_name, proposal_ref):
     # Check if there is any data to process
     target_path = os.path.join(new_data_folder, target_name)
 
+    # Assume success...
+    validated = True
+
+    # A target directory must exist
     if not os.path.isdir(target_path):
-        validate_dict = add_tset_warning(validate_dict, 'Folder', f'No folder matching target name in extracted zip file {new_data_folder}, {target_name}', 0)
-
-    aligned_path = os.path.join(target_path, 'aligned')
-
-    if not os.path.isdir(aligned_path):
-        validate_dict = add_tset_warning(validate_dict, 'Folder', 'No aligned folder present in target name folder', 0)
-
-    # Check if there is a metadata.csv file to process
-    metadata_file = os.path.join(aligned_path, 'metadata.csv')
-    if os.path.isfile(metadata_file):
-        validated, validate_dict = check_metadata(metadata_file, validate_dict)
-    else:
-        validate_dict = add_tset_warning(validate_dict, 'File', 'No metedata.csv file present in the aligned folder', 0)
+        validate_dict = add_tset_warning(validate_dict, 'Folder',
+                                         'Folder does not match target name.'
+                                         f' Expected "{target_name}".'
+                                         f' Is the upload called "{target_name}.zip"?', 0)
+        # No point in checking anything else if this check fails
         validated = False
+
+    if validated:
+        # An 'aligned' directory must exist
+        aligned_path = os.path.join(target_path, 'aligned')
+        if not os.path.isdir(aligned_path):
+            validate_dict = add_tset_warning(validate_dict, 'Folder',
+                                         'No aligned folder present.'
+                                         f' Expected "{target_name}/{aligned_path}"', 0)
+            # No point in checking anything else if this check fails
+            ok_so_far = False
+
+    if validated:
+        # A metadata.csv file must exist
+        metadata_file = os.path.join(aligned_path, 'metadata.csv')
+        if os.path.isfile(metadata_file):
+            validated, validate_dict = check_metadata(metadata_file, validate_dict)
+        else:
+            validate_dict = add_tset_warning(validate_dict, 'File',
+                                             'No metedata file present.'
+                                             f' Expected "{target_name}/{aligned_path}/{metadata_file}"', 0)
+            validated = False
 
     return validated, validate_dict

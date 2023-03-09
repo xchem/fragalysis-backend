@@ -51,6 +51,10 @@ RunJobParams: namedtuple = namedtuple("RunJob", ["common",
 SendParams: namedtuple = namedtuple("Send", ["common",
                                              "snapshot_id"])
 
+# Parameters for the grant_access() method.
+AccessParams: namedtuple = namedtuple("Access", ["username",
+                                                 "project_uuid"])
+
 _SUPPORTED_PRODUCT_FLAVOURS: List[str] = ["BRONZE", "SILVER", "GOLD"]
 
 # Squonk2 Have defined limits - assumed here.
@@ -397,6 +401,7 @@ class Squonk2Agent:
 
         dm_rv: DmApiRv = DmApi.create_project(self.__org_owner_dm_token,
                                               project_name=name_truncated,
+                                              private=True,
                                               as_tier_product_id=product_uuid)
         if not dm_rv.success:
             msg = f'Failed to create DM Project ({dm_rv.msg})'
@@ -552,12 +557,10 @@ class Squonk2Agent:
             msg = f'Access ID (Project) {access_id} does not exist'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
-        # Public projects can always be accessed...
-        if project.open_to_public:
-            return SuccessRv
 
-        # The project is not a public Project,
-        # ensure that the user is allowed to use the given access ID
+        # Ensure that the user is allowed to use the given access ID.
+        # Even on public projects the user must be part of the project
+        # to use Squonk.
         user: User  = User.objects.filter(id=c_params.user_id).first()
         assert user
         target_access_string = self._get_target_access_string(access_id)
@@ -820,6 +823,36 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         return rv_u
+
+    @synchronized
+    def grant_access(self, a_params: AccessParams) -> Squonk2AgentRv:
+        """A blocking method that takes care of sending a set of files to
+        the configured Squonk2 installation.
+        """
+        assert a_params
+        assert isinstance(a_params, AccessParams)
+
+        if _TEST_MODE:
+            msg: str = 'Squonk2Agent is in TEST mode'
+            _LOGGER.warning(msg)
+
+        # Every public API **MUST**  call ping().
+        # This ensures Squonk2 is available and gets suitable API tokens...
+        if not self.ping():
+            msg = 'Squonk2 ping failed.'\
+                  ' Are we configured properly and is Squonk2 alive?'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        dm_rv: DmApiRv = DmApi.add_project_observer(self.__org_owner_dm_token,
+                                                    project_id=a_params.project_uuid,
+                                                    observer=a_params.username)
+        if not dm_rv.success:
+            msg = f'Failed to add DM Project Observer ({dm_rv.msg})'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+        
+        return SuccessRv
 
 # A placeholder for the Agent object
 _AGENT_SINGLETON: Optional[Squonk2Agent] = None

@@ -180,7 +180,7 @@ class Protein(models.Model):
     has_eds = models.NullBooleanField()
 
     class Meta:
-        unique_together = ("code", "prot_type")
+        unique_together = ("code", "target_id", "prot_type")
 
 
 class Compound(models.Model):
@@ -1192,6 +1192,7 @@ class JobRequest(models.Model):
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE,
                                db_index=True)
+    project = models.ForeignKey(Project, null=True, on_delete=models.CASCADE)
     squonk_project = models.CharField(max_length=200, null=True)
     squonk_job_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # Start and finish times for the Job
