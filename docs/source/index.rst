@@ -25,6 +25,7 @@ Contents
    computational_data/tasks
    API/media
    API/download
+   vectors
 
 
 Indices and tables
