@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('viewer', '0024_add_job_request_start_and_finish_times'),
+        ('viewer', '0027_sessionproject_project.py'),
     ]
 
     operations = [
