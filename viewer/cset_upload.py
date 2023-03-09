@@ -450,13 +450,28 @@ class MolOps:
 
 
 def blank_mol_vals(sdf_file):
+    """Returns the submitter name, method and version (_Name) if present.
+    If not present the corresponding values are empty strings.
+    """
     suppl = Chem.SDMolSupplier(sdf_file)
+    if not suppl:
+        return '', '', ''
     # print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
+    if not blank_mol:
+        return '', '', ''
 
     # Get submitter name/info for passing into upload to get unique name
-    submitter_name = blank_mol.GetProp('submitter_name')
-    submitter_method = blank_mol.GetProp('method')
-    version = blank_mol.GetProp('_Name')
+    submitter_name = ''
+    if blank_mol.HasProp('submitter_name'):
+        submitter_name = blank_mol.GetProp('submitter_name')
+
+    submitter_method = ''
+    if blank_mol.HasProp('method'):
+        submitter_method = blank_mol.GetProp('method')
+
+    version = ''
+    if blank_mol.HasProp('_Name'):
+        version = blank_mol.GetProp('_Name')
 
     return submitter_name, submitter_method, version
