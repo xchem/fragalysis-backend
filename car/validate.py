@@ -142,12 +142,25 @@ class ValidateFile(object):
                 product_smiles = self.df[
                     "reaction-product-smiles-{}".format(reaction_number)
                 ].tolist()
-                reactant_1_SMILES = self.df[
-                    "reactant-1-{}".format(reaction_number)
-                ].tolist()
-                reactant_1_SMILES = [smi.strip() for smi in reactant_1_SMILES]
-                reactant_2_SMILES = self.df["reactant-2-{}".format(reaction_number)]
-                reactant_2_SMILES = [smi.strip() for smi in reactant_2_SMILES]
+                # reactant_1_SMILES = self.df[
+                #     "reactant-1-{}".format(reaction_number)
+                # ].tolist()
+                # reactant_1_SMILES = [smi.strip() for smi in reactant_1_SMILES]
+                
+                reactant_1_SMILES = [
+                            reactant.strip()
+                            for reactant in self.df["reactant-1-{}".format(reaction_number)]
+                            if str(reactant) != "nan"
+                        ]
+               
+                # reactant_2_SMILES = self.df["reactant-2-{}".format(reaction_number)]
+                reactant_2_SMILES = [
+                            reactant.strip()
+                            for reactant in self.df["reactant-2-{}".format(reaction_number)]
+                            if str(reactant) != "nan"
+                        ]
+                if not reactant_2_SMILES:
+                    reactant_2_SMILES = [""] * len(reactant_1_SMILES)
                 reactant_pair_smiles = list(zip(reactant_1_SMILES, reactant_2_SMILES))
                 # self.checkSMILES(
                 #     df_rows_index=self.index_df_rows,

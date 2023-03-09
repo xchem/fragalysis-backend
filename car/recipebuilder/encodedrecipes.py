@@ -15,7 +15,7 @@ density (g/mL)
 # Finding plate reactions and MWS
 # from car.models import Plate
 # from car.utils import getMWs
-# plate_id=2239
+# plate_id=2395
 # plate = Plate.objects.get(id=plate_id)
 # wells = plate.well_set.all().order_by("id")
 # smiles = wells.values_list("smiles", flat=True)
@@ -4718,23 +4718,23 @@ encoded_recipes = {
                                         },
                                     },
                                 },
-                                {
-                                    "type": "add",
-                                    "actionnumber": 3,
-                                    "content": {
-                                        "plates": {
-                                            "fromplatetype": "startingmaterial",
-                                            "toplatetype": "reaction",
-                                        },
-                                        "material": {
-                                            "SMARTS": None,
-                                            "SMILES": "[OH-].[Na+]",
-                                            "quantity": {"value": 3.0, "unit": "moleq"},
-                                            "solvent": "H2O",
-                                            "concentration": 0.375,
-                                        },
-                                    },
-                                },
+                                # {
+                                #     "type": "add",
+                                #     "actionnumber": 3,
+                                #     "content": {
+                                #         "plates": {
+                                #             "fromplatetype": "startingmaterial",
+                                #             "toplatetype": "reaction",
+                                #         },
+                                #         "material": {
+                                #             "SMARTS": None,
+                                #             "SMILES": "[OH-].[Na+]",
+                                #             "quantity": {"value": 3.0, "unit": "moleq"},
+                                #             "solvent": "H2O",
+                                #             "concentration": 0.375,
+                                #         },
+                                #     },
+                                # },
                             ],
                         },
                     },
