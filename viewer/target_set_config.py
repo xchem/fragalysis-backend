@@ -45,13 +45,13 @@ def _prot_choices():
     return prot_choices, APO
 
 
-def _djangofy_choices(input):
+def _djangofy_choices(inputs):
     """
     Convert a list of tuples into the required format
     :param input:
     :return:
     """
-    return [x[:2] for x in input]
+    return [x[:2] for x in inputs]
 
 
 def get_dict():

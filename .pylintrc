@@ -11,4 +11,6 @@ disable = C, F, R,
           broad-exception-raised,
           fixme,
           import-error,
-          unused-variable
+          imported-auth-user,
+          unused-variable,
+          unused-argument

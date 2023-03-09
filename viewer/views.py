@@ -1936,7 +1936,7 @@ class DSetUploadView(APIView):
     """
     parser_class = (DSetCSVParser,)
 
-    def put(self, request, format=None):
+    def put(self, request, format=None):  # pylint: disable=redefined-builtin
         """Method to handle PUT request and upload a design set
         """
         # Don't need...
@@ -3482,18 +3482,18 @@ class JobCallBackView(viewsets.ModelViewSet):
         if not request.data:
             return HttpResponse(status=204)
 
-        status = request.data['job_status']
+        j_status = request.data['job_status']
         # Get the appropriate SQUONK_STATUS...
         status_changed = False
         for squonk_status in JobRequest.SQUONK_STATUS:
-            if squonk_status[0] == status and jr.job_status != status:
+            if squonk_status[0] == j_status and jr.job_status != j_status:
                 jr.job_status = squonk_status[1]
                 status_changed = True
                 break
 
         if not status_changed:
             logger.info('code=%s status=%s ignoring (no status change)',
-                        code, status)
+                        code, j_status)
             return HttpResponse(status=204)
 
         # This is now a chance to safely set the squonk_url_ext using the instance ID
@@ -3516,7 +3516,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         jr.job_status_datetime = transition_time_utc
 
         logger.info('code=%s status=%s transition_time=%s (new status)',
-                    code, status, transition_time)
+                    code, j_status, transition_time)
 
         # If the Job's start-time is not set, set it.
         if not jr.job_start_datetime:
@@ -3526,14 +3526,14 @@ class JobCallBackView(viewsets.ModelViewSet):
         # Set the Job's finish time (once) if it looks lie the Job's finished.
         # We can assume the Job's finished if the status is one of a number
         # of values...
-        if not jr.job_finish_datetime and status in ('SUCCESS', 'FAILURE', 'REVOKED'):
+        if not jr.job_finish_datetime and j_status in ('SUCCESS', 'FAILURE', 'REVOKED'):
             logger.info('Setting job FINISH datetime (%s)', transition_time)
             jr.job_finish_datetime = transition_time_utc
 
         # Save the JobRequest record before going further.
         jr.save()
 
-        if status != 'SUCCESS':
+        if j_status != 'SUCCESS':
             # Go no further unless SUCCESS
             return HttpResponse(status=204)
 
@@ -3663,7 +3663,7 @@ class JobAccessView(APIView):
 
         jr_list = JobRequest.objects.filter(id=jr_id)
         if len(jr_list) == 0:
-            err_response['error'] = f'The JobRequest does not exist'
+            err_response['error'] = 'The JobRequest does not exist'
             return Response(err_response, status=status.HTTP_400_BAD_REQUEST)
         jr = jr_list[0]
 

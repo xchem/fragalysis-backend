@@ -544,13 +544,13 @@ def process_target_set(validate_output):
 
 # File Transfer ###
 @shared_task
-def process_job_file_transfer(auth_token, id):
+def process_job_file_transfer(auth_token, jt_id):
     """ Celery task to take a list of proteins and specification and transfer the files to Squonk2
 
     Parameters
     ----------
     task_
-        id of job_file_transfer record
+        jt_id of job_file_transfer record
 
     Returns
     -------
@@ -559,19 +559,19 @@ def process_job_file_transfer(auth_token, id):
 
     """
 
-    logger.info('+ Starting File Transfer (%s) [STARTED]', id)
-    job_transfer = JobFileTransfer.objects.get(id=id)
+    logger.info('+ Starting File Transfer (%s) [STARTED]', jt_id)
+    job_transfer = JobFileTransfer.objects.get(id=jt_id)
     job_transfer.transfer_status = "STARTED"
     job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
     job_transfer.save()
     try:
         process_file_transfer(auth_token, job_transfer.id)
     except RuntimeError as error:
-        logger.error('- File Transfer failed %s', id)
+        logger.error('- File Transfer failed %s', jt_id)
         logger.error(error)
         job_transfer.transfer_status = "FAILURE"
         job_transfer.save()
-        logger.info('+ Failed File Transfer (%s) [FAILURE]', id)
+        logger.info('+ Failed File Transfer (%s) [FAILURE]', jt_id)
     else:
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
@@ -582,7 +582,7 @@ def process_job_file_transfer(auth_token, id):
                       "compounds": list(SQUONK_COMP_MAPPING.keys())}
         job_transfer.transfer_spec = files_spec
         job_transfer.save()
-        logger.info('+ Successful File Transfer (%s) [SUCCESS]', id)
+        logger.info('+ Successful File Transfer (%s) [SUCCESS]', jt_id)
 
     return job_transfer.transfer_status
 

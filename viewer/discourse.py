@@ -20,7 +20,7 @@ def get_user(client, username):
         user = client.user(username)
     except Exception as e:
         # User is not known in Discourse or there is a failure accessing Discourse.
-        logger.error('discourse.get_user', 'get_user', exc_info=e)
+        logger.error('discourse.get_user', exc_info=e)
         error = True
         if settings.DISCOURSE_HOST:
             error_message = 'Error validating user in Discourse. If this is your first post ' \

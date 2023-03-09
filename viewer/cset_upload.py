@@ -37,11 +37,11 @@ from viewer.models import (
 )
 
 
-def dataType(str):
-    str = str.strip()
-    if len(str) == 0: return 'BLANK'
+def dataType(a_str):
+    lean_str = a_str.strip()
+    if len(lean_str) == 0: return 'BLANK'
     try:
-        t = ast.literal_eval(str)
+        t = ast.literal_eval(lean_str)
 
     except ValueError:
         return 'TEXT'
@@ -289,7 +289,7 @@ class MolOps:
                 if len(mols) == 1:
                     ref = mols[0]
                 if len(mols) == 0:
-                    raise Exception('No matching molecules found for inspiration frag ' + i)
+                    raise Exception('No matching molecules found for inspiration frag ' + i)  # pylint: disable=raise-missing-from
 
             insp_frags.append(ref)
 
@@ -308,7 +308,8 @@ class MolOps:
         if len(existing) == 1:
             cpd = existing[0]
         if len(existing) > 1:
-            [c.delete() for c in existing]
+            for exist in existing:
+                exist.delete()
             cpd = ComputedMolecule()
         elif len(existing) == 0:
             cpd = ComputedMolecule()
@@ -321,7 +322,8 @@ class MolOps:
         cpd.pdb = prot
         cpd.save()
 
-        [cpd.computed_inspirations.add(mol) for mol in insp_frags]
+        for insp_frag in insp_frags:
+            cpd.computed_inspirations.add(insp_frag)
 
         cpd.save()
 
@@ -444,7 +446,8 @@ class MolOps:
         # old_mols.extend([o.compound for o in old_s1])
         # print(list(set(old_mols)))
 
-        [c.delete() for c in old_mols]
+        for old_mol in old_mols:
+            old_mol.delete()
 
         return compound_set
 

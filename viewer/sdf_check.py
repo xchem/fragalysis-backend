@@ -158,7 +158,7 @@ def check_SMILES(mol, validate_dict):
     return validate_dict
 
 
-def check_ver_name(blank_mol, version, validate_dict):
+def check_ver_name(blank_mol, check_version, validate_dict):
     """
     Checks if blank mol:
     The name (title line) of this molecule should be the
@@ -169,10 +169,10 @@ def check_ver_name(blank_mol, version, validate_dict):
     """
 
     ver_name = blank_mol.GetProp('_Name')
-    if ver_name != version:
+    if ver_name != check_version:
         validate_dict = add_warning(molecule_name=blank_mol.GetProp('_Name'),
                                     field='_Name',
-                                    warning_string='illegal version: %s found. Should be %s' % (ver_name, version),
+                                    warning_string='illegal version: %s found. Should be %s' % (ver_name, check_version),
                                     validate_dict=validate_dict)
 
     return validate_dict

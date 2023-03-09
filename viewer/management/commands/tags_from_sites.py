@@ -45,7 +45,7 @@ class Command(BaseCommand):
         # If this is there, then the new sites functionality was used.
         sites_filepath = os.path.join(settings.MEDIA_ROOT, 'targets', target_name, 'sites.csv')
         if os.path.isfile(sites_filepath):
-            expected_sites = sum(1 for line in open(sites_filepath)) - 1
+            expected_sites = sum(1 for line in open(sites_filepath, encoding='utf-8')) - 1
             self.stdout.write("Expected number of sites: %s" % expected_sites)
             # These should correspond to the sites for the target held in sites.csv
             mol_groups = MolGroup.objects.filter(target_id__title=target_name, group_type = "MC")

@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
         ('viewer', '0014_auto_20210421_1438'),
     ]
 
-    def insertTagData(apps, schema_editor):
+    def insertTagData(apps, schema_editor):  # pylint: disable=no-self-argument
         TagCategory = apps.get_model('viewer', 'TagCategory')
         tag_cat = TagCategory(category = "Sites", colour = "00CC00", description = None)
         tag_cat.save()
@@ -21,5 +21,5 @@ class Migration(migrations.Migration):
         tag_cat.save()
 
     operations = [
-        migrations.RunPython(insertTagData),
+        migrations.RunPython(insertTagData),  # pylint: disable=missing-backwards-migration-callable
     ]

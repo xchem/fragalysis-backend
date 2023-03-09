@@ -78,7 +78,7 @@ def _InitialiseNeutralisationReactions():
 
 def neutralise_charges(smiles, reactions=None):
     """Contribution from Hans de Winter"""
-    global _reactions
+    global _reactions  # pylint: disable=global-statement
     if reactions is None:
         if _reactions is None:
             _reactions = _InitialiseNeutralisationReactions()
@@ -227,7 +227,8 @@ def add_projects_to_cmpd(new_comp, projects):
     :param projects:  the list Django projects to add
     :return: the compound with the added projects
     """
-    [new_comp.project_id.add(x) for x in projects]
+    for project in projects:
+        new_comp.project_id.add(project)
     new_comp.save()
     return new_comp
 
@@ -251,7 +252,9 @@ def calc_cpd(cpd_object, mol, projects):
 
     cpd_object.smiles = smiles
     len_smiles = len(smiles)
-    if len_smiles > Compound._meta.get_field("smiles").max_length:
+    # Rather than using the protected member,
+    # why not introduce constants in the model?
+    if len_smiles > Compound._meta.get_field("smiles").max_length:  # pylint: disable=protected-access
         logger.warning("SMILES too long (%s) [%d]", smiles, len_smiles)
         return None
     len_inchi = len(inchi)
@@ -546,7 +549,7 @@ def remove_not_added(target, xtal_list):
 def save_confidence(mol, file_path, annotation_type="ligand_confidence"):
     """save ligand confidence"""
 
-    input_dict = json.load(open(file_path), encoding='utf-8')
+    input_dict = json.load(open(file_path, encoding='utf-8'), encoding='utf-8')
     val_store_dict = ["ligand_confidence_comment", "refinement_outcome", "ligand_confidence_int"]
     for val in val_store_dict:
         if val in input_dict:
@@ -918,7 +921,7 @@ def analyse_target(target, aligned_path):
 
         target.metadata.save(
             os.path.basename(os.path.join(aligned_path, 'metadata.csv')),
-            File(open(os.path.join(aligned_path, 'metadata.csv')))
+            File(open(os.path.join(aligned_path, 'metadata.csv'), encoding='utf-8'))
         )
 
         # remove any existing files so that we don't create a messy file when appending
