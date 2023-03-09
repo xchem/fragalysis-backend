@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('viewer', '0027_sessionproject_project'),
+        ('viewer', '0028_protein_target_id_unique_constraint'),
     ]
 
     operations = [
