@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('viewer', '0027_sessionproject_project.py'),
+        ('viewer', '0027_sessionproject_project'),
     ]
 
     operations = [
