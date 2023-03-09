@@ -3686,9 +3686,10 @@ class JobAccessView(APIView):
                                ' for JobRequest %s - granting access',
                                jr_id)
             else:
-                # The project title is the Job access string.
+                # The project is the Job's access ID.
                 # To check access we need this and the User's ID
-                access_id = jr.project.title
+                access_id = jr.project.id
+                access_string = jr.project.title
                 sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
                                                                 access_id=access_id,
                                                                 session_id=None,
@@ -3698,7 +3699,7 @@ class JobAccessView(APIView):
                                                                  callback_url=None)
                 sq2a_rv: Squonk2AgentRv = _SQ2A.can_run_job(sq2a_run_job_params)
                 if not sq2a_rv.success:
-                    err_response['error'] = f'Access to the Job for {access_id} is denied. {sq2a_rv.msg}'
+                    err_response['error'] = f'Access to the Job for {access_id} ({access_string}) is denied. {sq2a_rv.msg}'
                     return Response(err_response, status=status.HTTP_403_FORBIDDEN)
 
             # All checks passed ... grant access for this user
