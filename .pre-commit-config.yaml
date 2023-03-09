@@ -1,6 +1,7 @@
 ---
 minimum_pre_commit_version: 3.1.1
-exclude: ^(design_docs|doc_templates|docs|tests)
+# It's a legacy project and likely to be noisy - limit to key directories...
+files: ^viewer/
 
 repos:
 
