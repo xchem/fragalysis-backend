@@ -168,7 +168,7 @@ class Protein(models.Model):
     has_eds = models.NullBooleanField()
 
     class Meta:
-        unique_together = ("code", "prot_type")
+        unique_together = ("code", "target_id", "prot_type")
 
 
 class Compound(models.Model):
