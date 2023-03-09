@@ -3637,7 +3637,7 @@ class JobAccessView(APIView):
 
         err_response = {'accessible': False}
         ok_response = {'accessible': True, 'error': ''}
-        
+
         # Only authenticated users can have squonk jobs
         user = self.request.user
         if not user.is_authenticated:
@@ -3660,18 +3660,18 @@ class JobAccessView(APIView):
         if jr_id < 1:
             err_response['error'] = f'The JobRequest ID ({jr_id}) cannot be less than 1'
             return Response(err_response, status=status.HTTP_400_BAD_REQUEST)
-            
+
         jr_list = JobRequest.objects.filter(id=jr_id)
         if len(jr_list) == 0:
             err_response['error'] = f'The JobRequest does not exist'
             return Response(err_response, status=status.HTTP_400_BAD_REQUEST)
         jr = jr_list[0]
-        
+
         # JobRequest must have a Squonk Project value
         if not jr.squonk_project:
             err_response['error'] = f'The JobRequest ({jr_id}) has no Squonk Project value'
             return Response(err_response, status=status.HTTP_403_FORBIDDEN)
-            
+
         # User must have access to the Job's Project.
         # If the user is not the owner of the Job, and there is a Project,
         # we then check the user has access to the gievn access ID.

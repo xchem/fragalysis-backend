@@ -102,7 +102,7 @@ class Experiment(models.Model):
     """
     code = models.CharField(max_length=50, null=True)
     target = models.ForeignKey(Target, on_delete=models.CASCADE)
-    
+
 
 class Protein(models.Model):
     """Django model for holding information about a protein. A protein is a protein structure which has a unique set of

@@ -503,7 +503,7 @@ class Squonk2Agent:
         """
         assert c_params
         assert isinstance(c_params, CommonParams)
-        
+
         target_access_string = self._get_target_access_string(c_params.access_id)
         assert target_access_string
 
@@ -571,9 +571,9 @@ class Squonk2Agent:
                   f' (access_id={access_id}). Only {proposal_list})'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
-            
+
         return SuccessRv
-        
+
     @synchronized
     def get_ui_url(self):
         """Returns the UI URL, if configured.
@@ -779,7 +779,7 @@ class Squonk2Agent:
         rv_access: Squonk2AgentRv = self._verify_access(s_params.common)
         if not rv_access.success:
             return rv_access
-            
+
         rv_u: Squonk2AgentRv = self._ensure_project(s_params.common)
         if not rv_u.success:
             msg = 'Failed to create corresponding Squonk2 Project'
@@ -815,7 +815,7 @@ class Squonk2Agent:
         rv_access: Squonk2AgentRv = self._verify_access(c_params)
         if not rv_access.success:
             return rv_access
-                        
+
         rv_u: Squonk2AgentRv = self._ensure_project(c_params)
         if not rv_u.success:
             msg = 'Failed to create corresponding Squonk2 Project'
@@ -851,7 +851,7 @@ class Squonk2Agent:
             msg = f'Failed to add DM Project Observer ({dm_rv.msg})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
-        
+
         return SuccessRv
 
 # A placeholder for the Agent object

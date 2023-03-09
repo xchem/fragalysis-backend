@@ -90,7 +90,7 @@ def check_refmol(mol, validate_dict, target=None):
                     validate_dict=validate_dict)
 
     return validate_dict
-    
+
 
 def check_pdb(mol, validate_dict, target=None, zfile=None):
     """

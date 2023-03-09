@@ -94,7 +94,7 @@ def create_squonk_job(request):
     access_id = request.data['access']  # The access ID/legacy Project record title
     target_id = request.data['target']
     snapshot_id = request.data['snapshot']
-    session_project_id = request.data['session_project'] 
+    session_project_id = request.data['session_project']
     squonk_job_name = request.data['squonk_job_name']
     squonk_job_spec = request.data['squonk_job_spec']
 
@@ -173,8 +173,8 @@ def create_squonk_job(request):
     logger.info('+ job_name=%s', job_name)
     logger.info('+ callback_url=%s', callback_url)
     logger.info('+ callback_token=%s', callback_token)
-    
-    # Dry-run the Job execution (this provides us with the 'command', which is 
+
+    # Dry-run the Job execution (this provides us with the 'command', which is
     # placed in the JobRecord's squonk_job_info).
     logger.info('+ Calling DmApi.dry_run_job_instance(%s)', job_name)
     result = DmApi.dry_run_job_instance(auth_token,

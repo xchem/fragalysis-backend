@@ -39,22 +39,22 @@ _SDF_BLANK_MOL_TEMPLATE = """{sdf_version}
   1  0  0  0  0  0  0  0  0  0999 V2000
     0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
 M  END
->  <submitter_name>  (1) 
+>  <submitter_name>  (1)
 {submitter_name}
 
->  <submitter_email>  (1) 
+>  <submitter_email>  (1)
 {submitter_email}
 
->  <submitter_institution>  (1) 
+>  <submitter_institution>  (1)
 Diamond Light Source
 
->  <generation_date>  (1) 
+>  <generation_date>  (1)
 {generation_date}
 
->  <method>  (1) 
+>  <method>  (1)
 {method}
 
->  <ref_url>  (1) 
+>  <ref_url>  (1)
 {ref_url}
 
 $$$$
