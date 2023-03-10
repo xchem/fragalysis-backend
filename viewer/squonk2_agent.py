@@ -343,7 +343,7 @@ class Squonk2Agent:
         """
         # Get existing Units for our Organisation
         org_uuid: str = self.__org_record.uuid
-        as_rv: AsApiRv = AsApiRv.get_units(self.__org_owner_as_token, org_id=org_uuid)
+        as_rv: AsApiRv = AsApi.get_units(self.__org_owner_as_token, org_id=org_uuid)
         if not as_rv.success:
             msg: str = as_rv.msg['error']
             _LOGGER.error('Failed to get Units for Organisation "%s"', org_uuid)
@@ -377,8 +377,8 @@ class Squonk2Agent:
     def _get_or_create_product(self, name_truncated: str, unit_uuid: str) -> Squonk2AgentRv:
 
         # Get existing Products for the Unit
-        as_rv: AsApiRv = AsApiRv.get_products_for_unit(self.__org_owner_as_token,
-                                                       unit_id=unit_uuid)
+        as_rv: AsApiRv = AsApi.get_products_for_unit(self.__org_owner_as_token,
+                                                     unit_id=unit_uuid)
         if not as_rv.success:
             msg: str = as_rv.msg['error']
             _LOGGER.error('Failed to get Products for Unit "%s"', unit_uuid)
@@ -415,7 +415,7 @@ class Squonk2Agent:
         to see if ours exists, if not a new one is created.
         """
         # TODO
-        dm_rv: DmApiRv = DmApiRv.get_available_projects(self.__org_owner_as_token)
+        dm_rv: DmApiRv = DmApi.get_available_projects(self.__org_owner_as_token)
         if not dm_rv.success:
             msg: str = dm_rv.msg['error']
             _LOGGER.error('Failed to get Projects')
