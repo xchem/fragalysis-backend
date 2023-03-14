@@ -26,7 +26,8 @@ from viewer.models import Squonk2Project, Squonk2Org, Squonk2Unit
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
 
-# Response value for the agent methods
+# Response value for the agent methods.
+# It's a boolean and an optional string (used for errors or response content)
 Squonk2AgentRv: namedtuple = namedtuple('Squonk2AgentRv', ['success', 'msg'])
 SuccessRv: Squonk2AgentRv = Squonk2AgentRv(success=True, msg=None)
 
@@ -334,6 +335,116 @@ class Squonk2Agent:
         # Organisation is known to AS, and it hasn't changed.
         return SuccessRv
 
+    def _get_or_create_unit(self,
+                            unit_name_truncated: str,
+                            unit_name_full: str) -> Squonk2AgentRv:
+        """Gets an exiting Unit or creates a new one
+        returning its UUID as the msg content.
+        """
+        # Get existing Units for our Organisation
+        org_uuid: str = self.__org_record.uuid
+        as_rv: AsApiRv = AsApi.get_units(self.__org_owner_as_token, org_id=org_uuid)
+        if not as_rv.success:
+            msg: str = as_rv.msg['error']
+            _LOGGER.error('Failed to get Units for Organisation "%s"', org_uuid)
+            return Squonk2AgentRv(success=False, msg=msg)
+        # Iterate through them, looking for ours...
+        _LOGGER.info('Got %s Units for Organisation "%s"', len(as_rv.msg['units']), org_uuid)
+        for unit in as_rv.msg['units']:
+            if unit['name'] == unit_name_truncated:
+                unit_uuid: str = unit['id']
+                _LOGGER.info('...and one was ours (%s)', unit_uuid)
+                return Squonk2AgentRv(success=True, msg=unit_uuid)
+
+        # Not found, create it...
+        _LOGGER.info('No exiting Unit, creating NEW Unit "%s" (for "%s")',
+                      unit_name_full,
+                      unit_name_truncated)
+        as_rv = AsApi.create_unit(self.__org_owner_as_token,
+                                  unit_name=unit_name_truncated,
+                                  org_id=org_uuid,
+                                  billing_day=self.__unit_billing_day)
+        if not as_rv.success:
+            msg = as_rv.msg['error']
+            _LOGGER.error('Failed to create Unit "%s" (for "%s")',
+                          unit_name_full, unit_name_truncated)
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        unit_uuid = as_rv.msg['id']
+        _LOGGER.info('Created NEW Unit "%s"', unit_uuid)
+        return Squonk2AgentRv(success=True, msg=unit_uuid)
+
+    def _get_or_create_product(self, name_truncated: str, unit_uuid: str) -> Squonk2AgentRv:
+
+        # Get existing Products for the Unit
+        as_rv: AsApiRv = AsApi.get_products_for_unit(self.__org_owner_as_token,
+                                                     unit_id=unit_uuid)
+        if not as_rv.success:
+            msg: str = as_rv.msg['error']
+            _LOGGER.error('Failed to get Products for Unit "%s"', unit_uuid)
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        # Iterate through them, looking for ours...
+        for product in as_rv.msg['products']:
+            if product['product']['name'] == name_truncated:
+                product_uuid: str = product['product']['id']
+                _LOGGER.info('Found pre-existing AS Product "%s"', product_uuid)
+                return Squonk2AgentRv(success=True, msg=product_uuid)
+
+        # No existing Product with this name...        
+        _LOGGER.info('No existing Product, creating NEW AS Product "%s" (for "%s")',
+                      name_truncated,
+                      unit_uuid)
+        as_rv = AsApi.create_product(self.__org_owner_as_token,
+                                     product_name=name_truncated,
+                                     unit_id=unit_uuid,
+                                     product_type=_SQ2_PRODUCT_TYPE,
+                                     flavour=self.__CFG_SQUONK2_PRODUCT_FLAVOUR)
+        if not as_rv.success:
+            msg = f'Failed to create AS Product ({as_rv.msg})'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        product_uuid = as_rv.msg['id']
+        msg = f'Created NEW AS Product {product_uuid}...'
+        _LOGGER.info(msg)
+        return Squonk2AgentRv(success=True, msg=product_uuid)
+
+    def _get_or_create_project(self, name_truncated: str, product_uuid: str) -> Squonk2AgentRv:
+        """Gets existing DM Projects (that belong to the given Product)
+        to see if ours exists, if not a new one is created.
+        """
+        # TODO
+        dm_rv: DmApiRv = DmApi.get_available_projects(self.__org_owner_as_token)
+        if not dm_rv.success:
+            msg: str = dm_rv.msg['error']
+            _LOGGER.error('Failed to get Projects')
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        # Iterate through them, looking for ours...
+        for project in dm_rv.msg['projects']:
+            if project['name'] == name_truncated and 'product_id' in project and project['product_id'] == product_uuid:
+                project_uuid: str = project['project_id']
+                _LOGGER.info('Found pre-existing DM Project "%s"', project_uuid)
+                return Squonk2AgentRv(success=True, msg=project_uuid)
+
+        # No existing Project
+        _LOGGER.info('No existing Project, creating NEW DM Project "%s" (for "%s")',
+                      name_truncated,
+                      product_uuid)
+        dm_rv = DmApi.create_project(self.__org_owner_dm_token,
+                                     project_name=name_truncated,
+                                     private=True,
+                                     as_tier_product_id=product_uuid)
+        if not dm_rv.success:
+            msg = f'Failed to create DM Project ({dm_rv.msg})'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+        
+        project_uuid: str = dm_rv.msg['project_id']
+        msg = f'Created NEW DM Project {project_uuid}...'
+        return Squonk2AgentRv(success=True, msg=project_uuid)
+
     def _delete_as_product(self, product_uuid: str) -> None:
         """Used in error conditions to remove a previously created Product.
         If this fails there's nothing else we can do so we just return regardless.
@@ -378,41 +489,32 @@ class Squonk2Agent:
 
         # Create an AS Product.
         name_truncated, _ = self._build_product_name(user_name, session_title)
-        msg: str = f'Creating NEW AS Product "{name_truncated}" (unit={unit.uuid})...'
+        msg: str = f'Creating AS Product "{name_truncated}" (unit={unit.uuid})...'
         _LOGGER.info(msg)
 
-        as_rv: AsApiRv = AsApi.create_product(self.__org_owner_as_token,
-                                              product_name=name_truncated,
-                                              unit_id=unit.uuid,
-                                              product_type=_SQ2_PRODUCT_TYPE,
-                                              flavour=self.__CFG_SQUONK2_PRODUCT_FLAVOUR)
-        if not as_rv.success:
-            msg = f'Failed to create AS Product ({as_rv.msg})'
+        sq2_rv: Squonk2AgentRv = self._get_or_create_product(name_truncated, unit.uuid)
+        if not sq2_rv.success:
+            msg = f'Failed to create AS Product ({sq2_rv.msg})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
-
-        product_uuid: str = as_rv.msg['id']
-        msg = f'Created AS Product {product_uuid}...'
+        product_uuid: str = sq2_rv.msg
+        msg = f'Got or created AS Product {product_uuid}'
         _LOGGER.info(msg)
 
         # Create a DM Project (using the same name we used for the AS Product)
-        msg = f'Continuing by creating NEW DM Project "{name_truncated}"...'
+        msg = f'Continuing by creating DM Project "{name_truncated}"...'
         _LOGGER.info(msg)
 
-        dm_rv: DmApiRv = DmApi.create_project(self.__org_owner_dm_token,
-                                              project_name=name_truncated,
-                                              private=True,
-                                              as_tier_product_id=product_uuid)
-        if not dm_rv.success:
-            msg = f'Failed to create DM Project ({dm_rv.msg})'
+        sq2_rv: Squonk2AgentRv = self._get_or_create_project(name_truncated, product_uuid)
+        if not sq2_rv.success:
+            msg = f'Failed to create DM Project ({sq2_rv.msg})'
             _LOGGER.error(msg)
             # First delete the AS Product it should have been attached to
             self._delete_as_product(product_uuid)
             # Then leave...
             return Squonk2AgentRv(success=False, msg=msg)
-
-        project_uuid: str = dm_rv.msg["project_id"]
-        msg = f'Created DM Project {project_uuid}...'
+        project_uuid: str = sq2_rv.msg
+        msg = f'Got or created DM Project {project_uuid}...'
         _LOGGER.info(msg)
 
         # Add the user as an Editor to the Project
@@ -456,26 +558,17 @@ class Squonk2Agent:
         sq2_unit: Optional[Squonk2Unit] = Squonk2Unit.objects.filter(name=unit_name_full).first()
         if not sq2_unit:
             _LOGGER.info('No existing Squonk2Unit for "%s"', target_access_string)
-            rv: AsApiRv = AsApi.create_unit(self.__org_owner_as_token,
-                                            unit_name=unit_name_truncated,
-                                            org_id=self.__org_record.uuid,
-                                            billing_day=self.__unit_billing_day)
+            # Get the list of Units from Squonk.
+            sq2a_rv: Squonk2AgentRv = self._get_or_create_unit(unit_name_truncated, unit_name_full)
+            if not sq2a_rv.success:
+                _LOGGER.error('Failed to create Unit "%s" (%s)', target_access_string, sq2a_rv.msg)
+                return Squonk2AgentRv(success=False, msg=sq2a_rv.msg)
 
-            _LOGGER.info('Creating NEW Squonk2Unit "%s" (for "%s")',
-                         unit_name_full,
-                         target_access_string)
-
-            if not rv.success:
-                msg: str = rv.msg['error']
-                _LOGGER.error('Failed to create Unit "%s"', target_access_string)
-                return Squonk2AgentRv(success=False, msg=msg)
-
-            unit_uuid: str = rv.msg['id']
+            unit_uuid: str = sq2a_rv.msg
             sq2_unit = Squonk2Unit(uuid=unit_uuid,
                                    name=unit_name_full,
                                    organisation_id=self.__org_record.id)
             sq2_unit.save()
-
             _LOGGER.info('Created Squonk2Unit %s "%s" (for "%s")',
                          unit_uuid,
                          unit_name_full,
@@ -490,7 +583,7 @@ class Squonk2Agent:
 
     def _ensure_project(self, c_params: CommonParams) -> Squonk2AgentRv:
         """Gets or creates a Squonk2 Project, used as the destination of files
-        and job executions. Each project requires an AS Product
+        and job executions. Each Project requires an AS Product
         (tied to the User and Session) and Unit (tied to the Proposal/Project).
 
         The proposal is expected to be valid for a given user, this method does not
