@@ -35,7 +35,7 @@ from celery.result import AsyncResult
 
 from api.security import ISpyBSafeQuerySet
 
-from api.utils import get_params, get_highlighted_diffs
+from api.utils import get_params, get_highlighted_diffs, pretty_request
 from viewer.utils import create_squonk_job_request_url
 
 from viewer.models import (
@@ -773,7 +773,7 @@ def save_tmp_file(myfile):
     return tmp_file
 
 
-class UploadCSet(View):
+class UploadCSet(APIView):
     """ View to render and control viewer/upload-cset.html  - a page allowing upload of computed sets. Validation and
     upload tasks are defined in `viewer.compound_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
     response handling is done by `viewer.views.ValidateTaskView` and `viewer.views.UploadTaskView`
@@ -802,6 +802,11 @@ class UploadCSet(View):
     """
 
     def get(self, request):
+
+        tag = '+ UploadCSet GET'
+        logger.info('%s', pretty_request(request, tag=tag))
+        logger.info('User=%s', str(request.user))
+#        logger.info('Auth=%s', str(request.auth))
 
         # Any messages passed to us via the session?
         # Maybe from a redirect?
@@ -835,6 +840,11 @@ class UploadCSet(View):
 
     def post(self, request):
 
+        tag = '+ UploadCSet POST'
+        logger.info('%s', pretty_request(request, tag=tag))
+        logger.info('User=%s', str(request.user))
+#        logger.info('Auth=%s', str(request.auth))
+
         # Only authenticated users can upload files
         # - this can be switched off in settings.py.
         user = self.request.user
@@ -864,12 +874,12 @@ class UploadCSet(View):
             # The 'sdf_file' anf 'target_name' are only required for upload/update
             sdf_file = request.FILES.get('sdf_file')
             target = request.POST.get('target_name')
-            update_set = request.POST['update_set']
+            update_set = request.POST.get('update_set')
 
             # If a set is named the ComputedSet cannot be 'Anonymous'
             # and the user has to be the owner.
             selected_set = None
-            if update_set != 'None':
+            if update_set and update_set != 'None':
                 computed_set_query = ComputedSet.objects.filter(unique_name=update_set)
                 if computed_set_query:
                     selected_set = computed_set_query[0]
@@ -967,7 +977,7 @@ class UploadCSet(View):
 
 
 # Upload Target datasets functions
-class UploadTSet(View):
+class UploadTSet(APIView):
     """ View to render and control viewer/upload-tset.html  - a page allowing upload of computed sets. Validation and
     upload tasks are defined in `viewer.target_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
     response handling is done by `viewer.views.ValidateTaskView` and `viewer.views.UploadTaskView`
@@ -996,6 +1006,11 @@ class UploadTSet(View):
 
     def get(self, request):
 
+        tag = '+ UploadTSet GET'
+        logger.info('%s', pretty_request(request, tag=tag))
+        logger.info('User="%s"', str(request.user))
+#        logger.info('Auth="%s"', str(request.auth))
+
         # Only authenticated users can upload files - this can be switched off in settings.py.
         user = self.request.user
         if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
@@ -1013,7 +1028,12 @@ class UploadTSet(View):
         return render(request, 'viewer/upload-tset.html', {'form': form})
 
     def post(self, request):
-        logger.info('+ UploadTSet.post')
+
+        tag = '+ UploadTSet POST'
+        logger.info('%s', pretty_request(request, tag=tag))
+        logger.info('User="%s"', str(request.user))
+#        logger.info('Auth="%s"', str(request.auth))
+
         context = {}
 
         # Only authenticated users can upload files - this can be switched off in settings.py.
