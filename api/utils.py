@@ -321,3 +321,36 @@ def mol_view(request):
         return get_params(smiles, request)
     else:
         return HttpResponse("Please insert SMILES")
+
+
+def pretty_request(request, *, tag=''):
+    """A simple function to return a Django request as nicely formatted string."""
+    headers = ''
+    if request.headers:
+        for key, value in request.headers.items():
+            headers += f'{key}: {value}\n'
+
+    tag_text = f'{tag}\n' if tag else ''
+
+    user_text = 'User: '
+    if request.user:
+        user_text += str(request.user)
+    else:
+        user_text += '(-)'
+    
+    # Load the body but cater for problems, like
+    #   django.http.request.RawPostDataException:
+    #   You cannot access body after reading from request's data stream
+    body = None
+    try:
+        body = request.body
+    except Exception:
+        pass
+    
+    return f'{tag_text}' \
+            '+ REQUEST BEGIN\n' \
+           f'{user_text}\n' \
+           f'{request.method} HTTP/1.1\n' \
+           f'{headers}\n\n' \
+           f'{body}\n' \
+            '- REQUEST END'
