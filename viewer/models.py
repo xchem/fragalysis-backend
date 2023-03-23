@@ -1210,7 +1210,9 @@ class JobRequest(models.Model):
         db_table = 'viewer_jobrequest'
 
     def job_has_finished(self):
-        return self.job_status in [JobRequest.SUCCESS, JobRequest.FAILURE]
+        """Finished if status is SUCCESS or FAILURE (or a new state of LOST).
+        """
+        return self.job_status in [JobRequest.SUCCESS, JobRequest.FAILURE, 'LOST']
 
 class Squonk2Org(models.Model):
     """Django model to store Squonk2 Organisations (UUIDs) and the Account Servers
