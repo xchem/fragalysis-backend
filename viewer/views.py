@@ -24,12 +24,12 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views import View
 
-from rest_framework import viewsets
-from rest_framework.parsers import BaseParser
+from rest_framework import status, viewsets
 from rest_framework.exceptions import ParseError
-from rest_framework.views import APIView
+from rest_framework.parsers import BaseParser
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.views import APIView
 
 from celery.result import AsyncResult
 
@@ -3316,7 +3316,7 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
         return Response(content)
 
 
-class JobRequestView(viewsets.ModelViewSet):
+class JobRequestView(APIView):
     """ Operational Django view to set up/retrieve information about tags relating to Session
     Projects
 
@@ -3324,15 +3324,6 @@ class JobRequestView(viewsets.ModelViewSet):
     -------
     url:
         api/job_request
-    queryset:
-        `viewer.models.JobRequest.objects.filter()`
-    filter fields:
-        - `viewer.models.JobRequest.snapshot` - ?snapshot=<int>
-        - `viewer.models.JobRequest.target` - ?target=<int>
-        - `viewer.models.JobRequest.user` - ?user=<int>
-        - `viewer.models.JobRequest.squonk_job_name` - ?squonk_job_name=<str>
-        - `viewer.models.JobRequest.squonk_project` - ?squonk_project=<str>
-        - `viewer.models.JobRequest.job_status` - ?job_status=<str>
 
     returns: JSON
 
@@ -3359,30 +3350,81 @@ class JobRequestView(viewsets.ModelViewSet):
 
     """
 
-    queryset = JobRequest.objects.filter()
-    filter_permissions = "target__project_id"
-    filterset_fields = ('id', 'snapshot', 'target', 'user', 'squonk_job_name',
-                     'squonk_project', 'job_status')
+    def get(self, request):
+        logger.info('+ JobRequest.get')
+        
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can access squonk jobs'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-    def get_serializer_class(self):
-        """Determine which serializer to use based on whether the request is a GET or a POST, PUT
-        or PATCH request
+        # Can't use this method if the Squonk2 agent is not configured
+        sq2a_rv = _SQ2A.configured()
+        if not sq2a_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        Returns
-        -------
-        Serializer (rest_framework.serializers.ModelSerializer):
-            - if GET: `viewer.serializers.JobRequestReadSerializer`
-            - if other: `viewer.serializers.JobRequestWriteSerializer
-        """
-        if self.request.method in ['GET']:
-            # GET
-            return JobRequestReadSerializer
-        # (POST, PUT, PATCH)
-        return JobRequestWriteSerializer
+        # Iterate through each record, for JobRequests that are not 'finished'
+        # we call into Squonk to get an update. We then return the (possibly) updated
+        # records to the caller.
 
-    def create(self, request):
-        """Method to handle POST request
-        """
+        results = []
+        snapshot_id = request.query_params.get('snapshot_id', None)
+
+        if snapshot_id:
+            logger.info('+ JobRequest.get snapshot_id=%s', snapshot_id)
+            job_requests = JobRequest.objects.filter(snapshot=int(snapshot_id))
+        else:
+            logger.info('+ JobRequest.get snapshot_id=(unset)')
+            job_requests = JobRequest.objects.all()
+        
+        for jr in job_requests:
+            if not jr.job_has_finished():
+                logger.info('+ JobRequest.get (id=%s) has not finished (job_status=%s)',
+                            jr.id, jr.job_status)
+                # Job's not finished, an opportunity to call into Squonk
+                # To get the current status. To do this we'll need
+                # the instance ID (from the record's 'squonk_url_ext').
+                # The URL is essentially a path which should end
+                # '/instalce-[...]'.
+                if jr.squonk_url_ext:
+                    i_uuid = jr.squonk_url_ext.split('/')[-1]
+                    if i_uuid.startswith('instance-'):
+                        logger.info('+ JobRequest.get (id=%s, i_uuid=%s) getting update from Squonk...',
+                                    jr.id, i_uuid)
+                        sq2a_rv = _SQ2A.get_instance_execution_status(i_uuid)
+                        # If the job's now finished, update the record.
+                        # We'll get None, 'LOST', 'SUCCESS' or 'FAILURE'
+                        if not sq2a_rv.success:
+                            logger.warning('+ JobRequest.get (id=%s, i_uuid=%s) check failed (%s)',
+                                           jr.id, i_uuid, sq2a_rv.msg)
+                        elif sq2a_rv.success and sq2a_rv.msg:
+                            logger.info('+ JobRequest.get (id=%s, i_uuid=%s) new status is (%s)',
+                                    jr.id, i_uuid, sq2a_rv.msg)
+                            transition_time = str(datetime.utcnow())
+                            transition_time_utc = parse(transition_time).replace(tzinfo=pytz.UTC)
+                            jr.job_status = sq2a_rv.msg
+                            jr.job_status_datetime = transition_time_utc
+                            jr.job_finish_datetime = transition_time_utc
+                            jr.save()
+                        else:
+                            logger.info('+ JobRequest.get (id=%s, i_uuid=%s) is (probably) still running',
+                                        jr.id, i_uuid)
+
+            serializer = JobRequestReadSerializer(jr)
+            results.append(serializer.data)
+
+        num_results = len(results)
+        logger.info('+ JobRequest.get num_results=%s', num_results)
+
+        # Simulate the original paged API response...
+        content = {'count': num_results,
+                   'next': None,
+                   'previous': None,
+                   'results': results}
+        return Response(content, status=status.HTTP_200_OK)
+
+    def post(self, request):
         # Celery/Redis must be running.
         # This call checks and trys to start them if they're not.
         assert check_services()

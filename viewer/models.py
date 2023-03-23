@@ -1209,6 +1209,8 @@ class JobRequest(models.Model):
     class Meta:
         db_table = 'viewer_jobrequest'
 
+    def job_has_finished(self):
+        return self.job_status in [JobRequest.SUCCESS, JobRequest.FAILURE]
 
 class Squonk2Org(models.Model):
     """Django model to store Squonk2 Organisations (UUIDs) and the Account Servers
