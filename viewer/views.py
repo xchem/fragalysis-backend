@@ -3369,7 +3369,7 @@ class JobRequestView(APIView):
         # records to the caller.
 
         results = []
-        snapshot_id = request.query_params.get('snapshot_id', None)
+        snapshot_id = request.query_params.get('snapshot', None)
 
         if snapshot_id:
             logger.info('+ JobRequest.get snapshot_id=%s', snapshot_id)
