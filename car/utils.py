@@ -792,12 +792,12 @@ def getMWs(smiles: list[str]) -> list[float]:
 
 
 def getInchiKey(smiles: str) -> str:
-    """Gets the inchikeys of a list of compounds SMILES
+    """Gets the inchikey for a compound SMILES
 
     Parameters
     ----------
     smiles: str
-        The SMILES to convert to an inchikey
+        The SMILESs to convert to an inchikey
 
     Returns
     -------
@@ -871,7 +871,7 @@ def canonSmiles(smiles: str) -> str:
         return False
 
 
-def combiChem(reactant_1_SMILES: list, reactant_2_SMILES: list) -> list:
+def combiChem(reactant_1_SMILES: list, reactant_2_SMILES: list, are_product_SMILES: bool = False) -> list:
     """Gets all possible combinations between two uneven lists of
        reactants
 
@@ -881,6 +881,9 @@ def combiChem(reactant_1_SMILES: list, reactant_2_SMILES: list) -> list:
         The list of reactant one smiles
     reactant_2_SMILES: list
         The second list of reactant two smiles
+    are_product_SMILES: boolean
+        Set to True if reactant_2_SMILES is list of products from
+        previous reaction step 
 
     Returns
     -------
@@ -890,20 +893,26 @@ def combiChem(reactant_1_SMILES: list, reactant_2_SMILES: list) -> list:
         as a list of tuples
     """
     if len(reactant_1_SMILES) == 0:
-        reactant_2_SMILES_canon = [canonSmiles(smi) for smi in reactant_1_SMILES]
+        reactant_2_SMILES_canon = [canonSmiles(smi) for smi in reactant_2_SMILES]
+        if not are_product_SMILES:
+            reactant_2_SMILES_canon = set(reactant_2_SMILES_canon)
         all_possible_combinations = list(
-            itertools.product([""], set(reactant_2_SMILES_canon))
+            itertools.product([""], reactant_2_SMILES_canon)
         )
     if len(reactant_2_SMILES) == 0:
         reactant_1_SMILES_canon = [canonSmiles(smi) for smi in reactant_1_SMILES]
+        if not are_product_SMILES:
+            reactant_1_SMILES_canon = set(reactant_1_SMILES_canon)
         all_possible_combinations = list(
-            itertools.product([""], set(reactant_1_SMILES_canon))
+            itertools.product([""], reactant_1_SMILES_canon)
         )
     if len(reactant_1_SMILES) != 0 and len(reactant_2_SMILES) != 0:
         reactant_1_SMILES_canon = [canonSmiles(smi) for smi in reactant_1_SMILES]
-        reactant_2_SMILES_canon = [canonSmiles(smi) for smi in reactant_1_SMILES]
+        reactant_2_SMILES_canon = [canonSmiles(smi) for smi in reactant_2_SMILES]
+        if not are_product_SMILES:
+            reactant_2_SMILES_canon = set(reactant_2_SMILES_canon)
         all_possible_combinations = list(
-            itertools.product(reactant_1_SMILES, reactant_2_SMILES)
+            itertools.product(set(reactant_1_SMILES_canon), reactant_2_SMILES_canon)
         )
     return all_possible_combinations
 

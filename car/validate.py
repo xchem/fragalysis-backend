@@ -354,6 +354,7 @@ class ValidateFile(object):
                             ]
                             if str(reactant) != "nan"
                         ]
+                        are_product_SMILES = False
 
                     if reaction_number > 1:
                         reactant_1_SMILES = [
@@ -364,9 +365,11 @@ class ValidateFile(object):
                             if str(reactant) != "nan"
                         ]
                         reactant_2_SMILES = product_smiles[:number_reactant_pair_smiles]
+                        are_product_SMILES = True
                     reactant_pair_smiles = combiChem(
                         reactant_1_SMILES=reactant_1_SMILES,
                         reactant_2_SMILES=reactant_2_SMILES,
+                        are_product_SMILES=are_product_SMILES
                     )
                     number_reactant_pair_smiles = len(reactant_pair_smiles)
                     if number_reactant_pair_smiles != no_targets:
@@ -383,8 +386,6 @@ class ValidateFile(object):
                         reactant_pair_smiles=reactant_pair_smiles,
                         reaction_names=reaction_names,
                     )
-                    print(reactant_pair_smiles)
-                    print(product_smiles)
                     if reaction_number == max_no_steps_combi_group:
                         self.target_smiles = self.target_smiles + product_smiles
                     reaction_combi_group_info[

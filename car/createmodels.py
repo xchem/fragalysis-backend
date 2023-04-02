@@ -354,13 +354,13 @@ def createProductModel(reaction_id: int, product_smiles: str):
     product_smiles: str
         The SMILES of the product
     """
-    pubcheminfoobj = getPubChemInfo(smiles=product_smiles)
+    # pubcheminfoobj = getPubChemInfo(smiles=product_smiles)
     product = Product()
     reaction_obj = Reaction.objects.get(id=reaction_id)
     product.reaction_id = reaction_obj
     product.smiles = product_smiles
-    if pubcheminfoobj:
-        product.pubcheminfo_id = pubcheminfoobj
+    # if pubcheminfoobj:
+    #     product.pubcheminfo_id = pubcheminfoobj
     product_svg_string = createSVGString(product_smiles)
     product_svg_fn = default_storage.save(
         "productimages/.svg", ContentFile(product_svg_string)
@@ -390,13 +390,13 @@ def createReactantModel(
     reactant_id: int
         The id of the reactant model object created
     """
-    pubcheminfoobj = getPubChemInfo(smiles=reactant_smiles)
+    # pubcheminfoobj = getPubChemInfo(smiles=reactant_smiles)
     reactant = Reactant()
     reaction_obj = Reaction.objects.get(id=reaction_id)
     reactant.reaction_id = reaction_obj
     reactant.smiles = reactant_smiles
-    if pubcheminfoobj:
-        reactant.pubcheminfo_id = pubcheminfoobj
+    # if pubcheminfoobj:
+    #     reactant.pubcheminfo_id = pubcheminfoobj
     reactant.previousreactionproduct = previous_reaction_product
     reactant.save()
     return reactant.id

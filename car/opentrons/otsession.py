@@ -642,6 +642,9 @@ class CreateOTSession(object):
                 pipettevolume=x["maxvolume"], roundedvolumes=roundedvolumes
             ),
         )
+        print(self.actionsessiontype)
+        print(channeltype)
+        print(pipettetype)
         return pipettetype
 
     def getNumberTransfers(self, pipettevolume: int, roundedvolumes: list) -> int:

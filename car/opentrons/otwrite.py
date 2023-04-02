@@ -582,7 +582,6 @@ class OTWrite(object):
                             "reaction",
                             "workup1",
                             "workup2",
-                            "workup2",
                             "workup3",
                             "spefilter",
                         ]
