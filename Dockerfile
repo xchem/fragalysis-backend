@@ -25,13 +25,13 @@ RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled
 COPY nginx.conf /etc/nginx/nginx.conf
 
 WORKDIR /code
-COPY requirements.txt /code/
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
-
 ADD . /code/
 RUN chmod 755 launch-stack.sh && \
-    chmod 755 makemigrations.sh
+    chmod 755 makemigrations.sh && \
+    chmod 755 docker-entrypoint.sh
+
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
 
 WORKDIR /srv/logs
 WORKDIR /code/logs
