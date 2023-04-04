@@ -132,7 +132,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return ["lb00000", "OPEN", "private_dummy_project"]
         else:
             # A list of well-known (built-in) public Projects (Proposals/Visits)
-            return ["lb00000", "OPEN", "lb27156"]
+            return ["lb18453-1", "lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
