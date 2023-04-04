@@ -947,6 +947,55 @@ class Squonk2Agent:
         
         return SuccessRv
 
+    @synchronized
+    def get_instance_execution_status(self, instance_id: str) -> Squonk2AgentRv:
+        """A blocking method that attempt to get the execution status (success/failure)
+        of a given instance. The status (string) is returned as the Squonk2AgentRv.msg
+        value.
+        """
+        assert instance_id
+        assert instance_id.startswith('instance-')
+
+        if _TEST_MODE:
+            msg: str = 'Squonk2Agent is in TEST mode'
+            _LOGGER.warning(msg)
+
+        # Every public API **MUST**  call ping().
+        # This ensures Squonk2 is available and gets suitable API tokens...
+        if not self.ping():
+            msg = 'Squonk2 ping failed.'\
+                  ' Are we configured properly and is Squonk2 alive?'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+
+        # To do this we actually get the DM tasks
+        # (we can't currently filter on instance ID)
+        # And then look for the first one that is about our instance.
+        dm_rv: DmApiRv = DmApi.get_tasks(self.__org_owner_dm_token,
+                                         exclude_purpose='FILE.DATASET')
+        if not dm_rv.success:
+            msg = f'Failed to get DM Tasks ({dm_rv.msg})'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+        
+        # Search tasks for one relating to our instance...
+        # We return 'LOST' if a task cannot be found for th instance,
+        # otherwise it's one of None, 'SUCCESS or FAILURE
+        i_status: Optional[str] = 'LOST'
+        for i_task in dm_rv.msg['tasks']:
+            if i_task['purpose_id'] == instance_id:
+                # We've found a task for the instance...
+                if i_task['done']:
+                    i_status = 'FAILURE' if i_task['exit_code'] != 0 else 'SUCCESS'
+                    break
+                else:
+                    i_status = None
+        if i_status and i_status == 'LOST':
+            msg = f'No Tasks found for {instance_id}'
+            _LOGGER.warning(msg)
+                
+        return Squonk2AgentRv(success=True, msg=i_status)
+
 # A placeholder for the Agent object
 _AGENT_SINGLETON: Optional[Squonk2Agent] = None
 
