@@ -64,7 +64,7 @@ env:
   #   For Jobs conditional on the presence of a secret see this Gist...
   #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
   BE_NAMESPACE: xchem
-  FE_BRANCH: production
+  FE_BRANCH: staging
   FE_NAMESPACE: xchem
   STACK_BRANCH: master
   STACK_GITHUB_NAMESPACE: xchem
