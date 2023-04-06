@@ -3387,11 +3387,10 @@ class JobRequestView(APIView):
 
                 # Job's not finished, an opportunity to call into Squonk
                 # To get the current status. To do this we'll need
-                # the instance ID. We can either get this from the record's
-                # 'squonk_url_ext' (set in the first callback).
+                # the instance ID, which, for the time-being we can only find in the
+                # callback URL - it is found in 'squonk_url_ext' (set in the first callback).
                 # The URL is essentially a path which should end
-                # '/instalce-[...]'. If this fails, as a fall-back we also
-                # check the squonk_job_info, which may contain the instance in the command
+                # '/instalce-[...]'.
                 i_uuid = None
                 if jr.squonk_url_ext:
                     possible_uuid = jr.squonk_url_ext.split('/')[-1]
@@ -3399,17 +3398,6 @@ class JobRequestView(APIView):
                         i_uuid = possible_uuid
                         logger.info('+ JobRequest.get (id=%s) found instance in squonk_url_ext (%s)',
                                     jr.id, i_uuid)
-                if i_uuid is None and jr.squonk_job_info is not None:
-                    # Not found it using the 'squonk_url_ext'.
-                    # Let's try and find it in the command string....
-                    if 'command' in jr.squonk_job_info[1]:
-                        cmd = jr.squonk_job_info[1]['command']
-                        match = re.search('(instance-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', cmd)
-                        if match:
-                            i_uuid = match.group(1)
-                            logger.info('+ JobRequest.get (id=%s) found instance in squonk_job_info command (%s)',
-                                        jr.id, i_uuid)
-
                 if i_uuid is None:
                     logger.info('+ JobRequest.get (id=%s) could not determine Instance', jr.id)
                 else:
@@ -3577,8 +3565,7 @@ class JobCallBackView(viewsets.ModelViewSet):
                 break
 
         if not status_changed:
-            logger.info('code=%s status=%s ignoring (no status change)',
-                        code, status)
+            logger.info('+ JobCallBackView.update(code=%s) status=%s ignoring (no status change)', code, status)
             return HttpResponse(status=204)
 
         # This is now a chance to safely set the squonk_url_ext using the instance ID
@@ -3588,31 +3575,33 @@ class JobCallBackView(viewsets.ModelViewSet):
         # into Fragalysis
         if not jr.squonk_url_ext:
             jr.squonk_url_ext = create_squonk_job_request_url(request.data['instance_id'])
-            logger.info("Setting jr.squonk_url_ext='%s'", jr.squonk_url_ext)
+            logger.info("+ JobCallBackView.update(code=%s) jr.squonk_url_ext='%s'", code, jr.squonk_url_ext)
 
         # Update the state transition time,
         # assuming UTC.
         transition_time = request.data.get('state_transition_time')
         if not transition_time:
             transition_time = str(datetime.utcnow())
-            logger.warning("Callback is missing state_transition_time"
-                           " (using '%s')", transition_time)
+            logger.warning("+ JobCallBackView.update(code=%s) callback is missing state_transition_time"
+                           " (using '%s')", code, transition_time)
         transition_time_utc = parse(transition_time).replace(tzinfo=pytz.UTC)
         jr.job_status_datetime = transition_time_utc
 
-        logger.info('code=%s status=%s transition_time=%s (new status)',
+        logger.info('+ JobCallBackView.update(code=%s) status=%s transition_time=%s (new status)',
                     code, status, transition_time)
 
         # If the Job's start-time is not set, set it.
         if not jr.job_start_datetime:
-            logger.info('Setting job START datetime (%s)', transition_time)
+            logger.info('+ JobCallBackView.update(code=%s) setting job START datetime (%s)',
+                        code, transition_time)
             jr.job_start_datetime = transition_time_utc
 
         # Set the Job's finish time (once) if it looks lie the Job's finished.
         # We can assume the Job's finished if the status is one of a number
         # of values...
         if not jr.job_finish_datetime and status in ('SUCCESS', 'FAILURE', 'REVOKED'):
-            logger.info('Setting job FINISH datetime (%s)', transition_time)
+            logger.info('+ JobCallBackView.update(code=%s) Setting job FINISH datetime (%s)',
+                        code, transition_time)
             jr.job_finish_datetime = transition_time_utc
 
         # Save the JobRequest record before going further.
@@ -3622,7 +3611,8 @@ class JobCallBackView(viewsets.ModelViewSet):
             # Go no further unless SUCCESS
             return HttpResponse(status=204)
 
-        logger.info('Job finished (SUCCESS). Can we upload the results..?')
+        logger.info('+ JobCallBackView.update(code=%s) job finished (SUCCESS).'
+                    ' Can we upload the results?', code)
 
         # SUCCESS ... automatic upload?
         #
@@ -3647,21 +3637,21 @@ class JobCallBackView(viewsets.ModelViewSet):
         job_output_path = '/' + os.path.dirname(job_output)
         job_output_filename = os.path.basename(job_output)
 
-        logging.info('job_output_path="%s"', job_output_path)
-        logging.info('job_output_filename="%s"', job_output_filename)
+        logging.info('+ JobCallBackView.update(code=%s) job_output_path="%s"', code, job_output_path)
+        logging.info('+ JobCallBackView.update(code=%s) job_output_filename="%s"', code, job_output_filename)
 
         # If it's not suitably named, leave
         expected_squonk_filename = 'merged.sdf'
         if job_output_filename != expected_squonk_filename:
             # Incorrectly named file - nothing to get/upload.
-            logger.info('SUCCESS but not uploading.'
+            logger.info('+ JobCallBackView.update(code=%s) SUCCESS but not uploading.'
                         ' Expected "%s" as job_output_filename.'
-                        ' Found "%s"', expected_squonk_filename, job_output_filename)
+                        ' Found "%s"', code, expected_squonk_filename, job_output_filename)
             return HttpResponse(status=204)
 
         if jr.upload_status != 'PENDING':
-            logger.warning('SUCCESS but ignoring.'
-                           ' upload_status=%s (already uploading?)', jr.upload_status)
+            logger.warning('+ JobCallBackView.update(code=%s) SUCCESS but ignoring.'
+                           ' upload_status=%s (already uploading?)', code, jr.upload_status)
             return HttpResponse(status=204)
 
         # Change of status and SUCCESS
@@ -3684,8 +3674,9 @@ class JobCallBackView(viewsets.ModelViewSet):
              erase_compound_set_job_material.s(job_request_id=jr.id)
         ).apply_async()
 
-        logger.info('Started process_job_file_upload(%s) task_upload=%s',
-                    jr.id, task_upload)
+        logger.info('+ JobCallBackView.update(code=%s)'
+                    ' started process_job_file_upload(%s) task_upload=%s',
+                    code, jr.id, task_upload)
 
         return HttpResponse(status=204)
 
