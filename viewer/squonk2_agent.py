@@ -551,7 +551,11 @@ class Squonk2Agent:
 
         On success the returned message is used to carry the Squonk2 project UUID.
         """
-        assert self.__org_record
+        if not self.__org_record:
+            msg: str = 'The Squonk2Org record does not match' \
+                       ' the configured SQUONK2_ORG_UUID.' \
+                       ' You cannot change the SQUONK2_ORG_UUID once it has been used'
+            return Squonk2AgentRv(success=False, msg=msg)
 
         # Now we check and create a Squonk2Unit...
         unit_name_truncated, unit_name_full = self._build_unit_name(target_access_string)
@@ -875,7 +879,7 @@ class Squonk2Agent:
             
         rv_u: Squonk2AgentRv = self._ensure_project(s_params.common)
         if not rv_u.success:
-            msg = 'Failed to create corresponding Squonk2 Project'
+            msg = f'Failed to create corresponding Squonk2 Project (msg={rv_u.msg})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -911,7 +915,7 @@ class Squonk2Agent:
                         
         rv_u: Squonk2AgentRv = self._ensure_project(c_params)
         if not rv_u.success:
-            msg = 'Failed to create corresponding Squonk2 Project'
+            msg = f'Failed to create corresponding Squonk2 Project (msg={rv_u.msg})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
