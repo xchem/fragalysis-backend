@@ -551,7 +551,11 @@ class Squonk2Agent:
 
         On success the returned message is used to carry the Squonk2 project UUID.
         """
-        assert self.__org_record
+        if not self.__org_record:
+            msg: str = 'The Squonk2Org record does not match' \
+                       ' the configured SQUONK2_ORG_UUID.' \
+                       ' You cannot change the SQUONK2_ORG_UUID once it has been used'
+            return Squonk2AgentRv(success=False, msg=msg)
 
         # Now we check and create a Squonk2Unit...
         unit_name_truncated, unit_name_full = self._build_unit_name(target_access_string)
@@ -875,7 +879,7 @@ class Squonk2Agent:
             
         rv_u: Squonk2AgentRv = self._ensure_project(s_params.common)
         if not rv_u.success:
-            msg = 'Failed to create corresponding Squonk2 Project'
+            msg = f'Failed to create corresponding Squonk2 Project (msg={rv_u.msg})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -911,7 +915,7 @@ class Squonk2Agent:
                         
         rv_u: Squonk2AgentRv = self._ensure_project(c_params)
         if not rv_u.success:
-            msg = 'Failed to create corresponding Squonk2 Project'
+            msg = f'Failed to create corresponding Squonk2 Project (msg={rv_u.msg})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -948,13 +952,12 @@ class Squonk2Agent:
         return SuccessRv
 
     @synchronized
-    def get_instance_execution_status(self, instance_id: str) -> Squonk2AgentRv:
+    def get_instance_execution_status(self, callback_context: str) -> Squonk2AgentRv:
         """A blocking method that attempt to get the execution status (success/failure)
-        of a given instance. The status (string) is returned as the Squonk2AgentRv.msg
-        value.
+        of an instance (a Job) based on the given callback context. The status (string)
+        is returned as the Squonk2AgentRv.msg value.
         """
-        assert instance_id
-        assert instance_id.startswith('instance-')
+        assert callback_context
 
         if _TEST_MODE:
             msg: str = 'Squonk2Agent is in TEST mode'
@@ -968,30 +971,35 @@ class Squonk2Agent:
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
-        # To do this we actually get the DM tasks
-        # (we can't currently filter on instance ID)
-        # And then look for the first one that is about our instance.
+        # To do this we actually get the DM tasks associated with the
+        # callback context that Fragalysis provided.
+        # For the filters we provide we should only get one Task.
         dm_rv: DmApiRv = DmApi.get_tasks(self.__org_owner_dm_token,
-                                         exclude_purpose='FILE.DATASET')
+                                         exclude_removal=True,
+                                         exclude_purpose='FILE.DATASET.PROJECT',
+                                         instance_callback_context=callback_context)
         if not dm_rv.success:
             msg = f'Failed to get DM Tasks ({dm_rv.msg})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
         
-        # Search tasks for one relating to our instance...
-        # We return 'LOST' if a task cannot be found for th instance,
-        # otherwise it's one of None, 'SUCCESS or FAILURE
+        # Find the task that relates to our instance.
+        # We return 'LOST' if a task cannot be found,
+        # otherwise it's one of None, SUCCESS or FAILURE
         i_status: Optional[str] = 'LOST'
-        for i_task in dm_rv.msg['tasks']:
-            if i_task['purpose_id'] == instance_id:
-                # We've found a task for the instance...
-                if i_task['done']:
-                    i_status = 'FAILURE' if i_task['exit_code'] != 0 else 'SUCCESS'
-                    break
-                else:
-                    i_status = None
+        num_tasks: int = len(dm_rv.msg['tasks'])
+        if num_tasks == 1:
+            i_task = dm_rv.msg['tasks'][0]
+            if i_task['done']:
+                i_status = 'FAILURE' if i_task['exit_code'] != 0 else 'SUCCESS'
+            else:
+                i_status = None
+        else:
+            msg = f'More than one Task found ({num_tasks}) for callback context "{callback_context}"'
+            _LOGGER.warning(msg)
+
         if i_status and i_status == 'LOST':
-            msg = f'No Tasks found for {instance_id}'
+            msg = f'No Task found for callback context "{callback_context}", assume "LOST"'
             _LOGGER.warning(msg)
                 
         return Squonk2AgentRv(success=True, msg=i_status)

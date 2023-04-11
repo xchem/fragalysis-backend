@@ -3387,40 +3387,28 @@ class JobRequestView(APIView):
 
                 # Job's not finished, an opportunity to call into Squonk
                 # To get the current status. To do this we'll need
-                # the instance ID, which, for the time-being we can only find in the
-                # callback URL - it is found in 'squonk_url_ext' (set in the first callback).
-                # The URL is essentially a path which should end
-                # '/instalce-[...]'.
-                i_uuid = None
-                if jr.squonk_url_ext:
-                    possible_uuid = jr.squonk_url_ext.split('/')[-1]
-                    if possible_uuid.startswith('instance-'):
-                        i_uuid = possible_uuid
-                        logger.info('+ JobRequest.get (id=%s) found instance in squonk_url_ext (%s)',
-                                    jr.id, i_uuid)
-                if i_uuid is None:
-                    logger.info('+ JobRequest.get (id=%s) could not determine Instance', jr.id)
+                # the 'callback context' we supplied when launching the Job.
+                logger.info('+ JobRequest.get (id=%s, code=%s) getting update from Squonk...',
+                            jr.id, jr.code)
+                sq2a_rv = _SQ2A.get_instance_execution_status(jr.code)
+                # If the job's now finished, update the record.
+                # If the call was successful we'll get None (not finished),
+                # 'LOST', 'SUCCESS' or 'FAILURE'
+                if not sq2a_rv.success:
+                    logger.warning('+ JobRequest.get (id=%s, code=%s) check failed (%s)',
+                                    jr.id, jr.code, sq2a_rv.msg)
+                elif sq2a_rv.success and sq2a_rv.msg:
+                    logger.info('+ JobRequest.get (id=%s, code=%s) new status is (%s)',
+                                jr.id, jr.code, sq2a_rv.msg)
+                    transition_time = str(datetime.utcnow())
+                    transition_time_utc = parse(transition_time).replace(tzinfo=pytz.UTC)
+                    jr.job_status = sq2a_rv.msg
+                    jr.job_status_datetime = transition_time_utc
+                    jr.job_finish_datetime = transition_time_utc
+                    jr.save()
                 else:
-                    logger.info('+ JobRequest.get (id=%s, i_uuid=%s) getting update from Squonk...',
-                                jr.id, i_uuid)
-                    sq2a_rv = _SQ2A.get_instance_execution_status(i_uuid)
-                    # If the job's now finished, update the record.
-                    # We'll get None, 'LOST', 'SUCCESS' or 'FAILURE'
-                    if not sq2a_rv.success:
-                        logger.warning('+ JobRequest.get (id=%s, i_uuid=%s) check failed (%s)',
-                                        jr.id, i_uuid, sq2a_rv.msg)
-                    elif sq2a_rv.success and sq2a_rv.msg:
-                        logger.info('+ JobRequest.get (id=%s, i_uuid=%s) new status is (%s)',
-                                jr.id, i_uuid, sq2a_rv.msg)
-                        transition_time = str(datetime.utcnow())
-                        transition_time_utc = parse(transition_time).replace(tzinfo=pytz.UTC)
-                        jr.job_status = sq2a_rv.msg
-                        jr.job_status_datetime = transition_time_utc
-                        jr.job_finish_datetime = transition_time_utc
-                        jr.save()
-                    else:
-                        logger.info('+ JobRequest.get (id=%s, i_uuid=%s) is (probably) still running',
-                                    jr.id, i_uuid)
+                    logger.info('+ JobRequest.get (id=%s, code=%s) is (probably) still running',
+                                jr.id, jr.code)
 
             serializer = JobRequestReadSerializer(jr)
             results.append(serializer.data)
