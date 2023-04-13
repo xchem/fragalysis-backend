@@ -21,11 +21,16 @@ services:
     - ../data/postgresql/data:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD: fragalysis
-      POSTGRES_USER: fragalysis
       POSTGRES_DB: frag
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
     - "5432:5432"
+    healthcheck:
+      test: pg_isready -U postgres -d frag
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 10s
 
   # The graph
   graph:
@@ -45,6 +50,12 @@ services:
     environment:
     - NEO4J_AUTH=none
     - NEO4J_dbms_memory_pagecache_size=4G
+    healthcheck:
+      test: wget http://localhost:7474 || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
 
   # The stack (backend)
   stack:
@@ -60,7 +71,7 @@ services:
     - .:/code/
     environment:
       POSTGRESQL_DATABASE: frag
-      POSTGRESQL_USER: fragalysis
+      POSTGRESQL_USER: postgres
       POSTGRESQL_PASSWORD: fragalysis
       POSTGRESQL_HOST: database
       POSTGRESQL_PORT: 5432
@@ -92,5 +103,7 @@ services:
     ports:
     - "8080:80"
     depends_on:
-    - database
-    - graph
+      database:
+        condition: service_healthy
+      graph:
+        condition: service_healthy
