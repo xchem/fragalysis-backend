@@ -862,7 +862,6 @@ class UploadCSet(APIView):
         assert check_services()
 
         form = CSetForm(request.POST, request.FILES)
-
         if form.is_valid():
 
             # Get all the variables needed from the form.
@@ -878,6 +877,9 @@ class UploadCSet(APIView):
             target = request.POST.get('target_name')
             update_set = request.POST.get('update_set')
 
+            logger.info('+ UploadCSet POST target=%s', target)
+            logger.info('+ UploadCSet POST update_set="%s"', update_set)
+            
             # If a set is named the ComputedSet cannot be 'Anonymous'
             # and the user has to be the owner.
             selected_set = None
@@ -888,6 +890,7 @@ class UploadCSet(APIView):
                 else:
                     request.session[_SESSION_ERROR] = \
                         'The set could not be found'
+                    logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
                     return redirect('upload_cset')
 
             # If validating or uploading we need a Target and SDF file.
@@ -897,11 +900,13 @@ class UploadCSet(APIView):
                     request.session[_SESSION_ERROR] = \
                         'To Validate or Upload' \
                         ' you must provide a Target and SDF file'
+                    logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
                     return redirect('upload_cset')
             elif choice in ['D']:
                 if update_set == 'None':
                     request.session[_SESSION_ERROR] = \
                         'To Delete you must select an existing set'
+                    logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
                     return redirect('upload_cset')
 
             # If uploading (updating) or deleting
@@ -917,6 +922,7 @@ class UploadCSet(APIView):
                 # Something wrong?
                 # If so redirect...
                 if _SESSION_ERROR in request.session:
+                    logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
                     return redirect('upload_cset')
 
             # Save uploaded sdf and zip to tmp storage
@@ -940,6 +946,8 @@ class UploadCSet(APIView):
                     task_params['update'] = update_set
                 task_validate = validate_compound_set.delay(task_params)
 
+                logger.info('+ UploadCSet POST "Validate" task underway')
+
                 # Update client side with task id and status
                 context = {'validate_task_id': task_validate.id,
                            'validate_task_status': task_validate.status}
@@ -960,6 +968,8 @@ class UploadCSet(APIView):
                         validate_compound_set.s(task_params) |
                         process_compound_set.s()).apply_async()
 
+                logger.info('+ UploadCSet POST "Upload" task underway')
+
                 # Update client side with task id and status
                 context = {'upload_task_id': task_upload.id,
                            'upload_task_status': task_upload.status}
@@ -971,7 +981,14 @@ class UploadCSet(APIView):
 
                 request.session[_SESSION_MESSAGE] = \
                     f'Compound set "{selected_set.unique_name}" deleted'
+
+                logger.info('+ UploadCSet POST "Delete" done')
+                
                 return redirect('upload_cset')
+        else:
+            logger.warning('- UploadCSet POST form.is_valid() returned False')
+
+        logger.warning('- UploadCSet POST (leaving)')
 
         context = {'form': form}
         return render(request, 'viewer/upload-cset.html', context)
