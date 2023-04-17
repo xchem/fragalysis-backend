@@ -877,8 +877,7 @@ class UploadCSet(APIView):
             target = request.POST.get('target_name')
             update_set = request.POST.get('update_set')
 
-            logger.info('+ UploadCSet POST target=%s', target)
-            logger.info('+ UploadCSet POST update_set="%s"', update_set)
+            logger.info('+ UploadCSet POST choice="%s" target="%s" update_set="%s"', choice, target, update_set)
             
             # If a set is named the ComputedSet cannot be 'Anonymous'
             # and the user has to be the owner.
@@ -985,10 +984,14 @@ class UploadCSet(APIView):
                 logger.info('+ UploadCSet POST "Delete" done')
                 
                 return redirect('upload_cset')
+            
+            else:
+                logger.warning('+ UploadCSet POST unsupported submit_choice value (%s)', choice)
+
         else:
             logger.warning('- UploadCSet POST form.is_valid() returned False')
 
-        logger.warning('- UploadCSet POST (leaving)')
+        logger.info('- UploadCSet POST (leaving)')
 
         context = {'form': form}
         return render(request, 'viewer/upload-cset.html', context)
