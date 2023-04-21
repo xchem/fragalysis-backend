@@ -1,3 +1,4 @@
+import logging
 import json
 import os
 import zipfile
@@ -11,8 +12,7 @@ from wsgiref.util import FileWrapper
 from dateutil.parser import parse
 import pytz
 
-# import the logging library
-import logging
+import shortuuid
 import pandas as pd
 
 from django.db import connections
@@ -3209,21 +3209,15 @@ class JobFileTransferView(viewsets.ModelViewSet):
         if error:
             return Response(error['message'], status=error['status'])
 
-        # The root (in the Squonk project) where files will be written.
-        # This is "understood" by the celery task (which uses this constant).
-        # e.g. 'fragalysis-files'
-        transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
-        logger.info('+ transfer_root=%s', transfer_root)
-
         # Create new file transfer job
         logger.info('+ Calling ensure_project() to get the Squonk2 Project...')
 
         # This requires a Squonk2 Project (created by the Squonk2Agent).
         # It may be an existing project, or it might be a new project.
         common_params = CommonParams(user_id=user.id,
-                                        access_id=access_id,
-                                        target_id=target_id,
-                                        session_id=session_project_id)
+                                     access_id=access_id,
+                                     target_id=target_id,
+                                     session_id=session_project_id)
         sq2_rv = _SQ2A.ensure_project(common_params)
         if not sq2_rv.success:
             msg = f'Failed to get/create a Squonk2 Project' \
@@ -3266,6 +3260,10 @@ class JobFileTransferView(viewsets.ModelViewSet):
         job_transfer.transfer_datetime = None
         job_transfer.transfer_progress = None
         job_transfer.save()
+
+        # The root (in the Squonk project) where files will be written for this Job.
+        transfer_root = os.path.join(settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path)
+        logger.info('+ transfer_root=%s', transfer_root)
 
         # Celery/Redis must be running.
         # This call checks and trys to start them if they're not.
