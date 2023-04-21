@@ -5,30 +5,7 @@ from urllib.parse import urljoin
 
 from api.utils import draw_mol
 
-from viewer.models import (
-    ActivityPoint,
-    Molecule,
-    Project,
-    Protein,
-    Compound,
-    Target,
-    Snapshot,
-    SessionProject,
-    ActionType,
-    SnapshotActions,
-    SessionActions,
-    ComputedMolecule,
-    ComputedSet,
-    NumericalScoreValues,
-    ScoreDescription,
-    File,
-    TextScoreValues,
-    TagCategory,
-    MoleculeTag,
-    SessionProjectTag,
-    JobFileTransfer,
-    JobRequest
-)
+from viewer import models
 from viewer.utils import get_https_host
 
 from scoring.models import MolGroup
@@ -122,6 +99,17 @@ def template_protein(obj):
     return "NOT AVAILABLE"
 
 
+class CompoundIdentifierTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CompoundIdentifierType
+        fields = '__all__'
+
+
+class CompoundIdentifierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CompoundIdentifier
+        fields = '__all__'
+
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
     zip_archive = serializers.SerializerMethodField()
@@ -147,7 +135,7 @@ class TargetSerializer(serializers.ModelSerializer):
         return protein_sequences(obj)
 
     class Meta:
-        model = Target
+        model = models.Target
         fields = ("id", "title", "project_id", "protein_set", "default_squonk_project",
                   "template_protein", "metadata", "zip_archive", "upload_status", "sequences")
 
@@ -155,7 +143,7 @@ class TargetSerializer(serializers.ModelSerializer):
 class CompoundSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = Compound
+        model = models.Compound
         fields = (
             "id",
             "inchi",
@@ -232,7 +220,7 @@ class MoleculeSerializer(serializers.ModelSerializer):
         return obj.cmpd_id.num_val_electrons
 
     class Meta:
-        model = Molecule
+        model = models.Molecule
         fields = (
             "id",
             "smiles",
@@ -262,7 +250,7 @@ class MoleculeSerializer(serializers.ModelSerializer):
 class ActivityPointSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = ActivityPoint
+        model = models.ActivityPoint
         fields = (
             "id",
             "source",
@@ -279,7 +267,7 @@ class ActivityPointSerializer(serializers.ModelSerializer):
 class ProteinSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = Protein
+        model = models.Protein
         fields = '__all__'
 
 
@@ -302,7 +290,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         return "DIAMOND-ISPYB"
 
     class Meta:
-        model = Project
+        model = models.Project
         fields = ("id", "target_access_string", "init_date", "authority", "open_to_public")
 
 
@@ -323,7 +311,7 @@ class MolImageSerializer(serializers.ModelSerializer):
             return draw_mol(obj.smiles, height=125, width=125)
 
     class Meta:
-        model = Molecule
+        model = models.Molecule
         fields = ("id", "mol_image")
 
 
@@ -335,7 +323,7 @@ class CmpdImageSerializer(serializers.ModelSerializer):
         return draw_mol(obj.smiles, height=125, width=125)
 
     class Meta:
-        model = Compound
+        model = models.Compound
         fields = ("id", "cmpd_image")
 
 
@@ -350,7 +338,7 @@ class ProtMapInfoSerializer(serializers.ModelSerializer):
             return None
 
     class Meta:
-        model = Protein
+        model = models.Protein
         fields = ("id", "map_data", "prot_type")
 
 
@@ -363,7 +351,7 @@ class ProtPDBInfoSerializer(serializers.ModelSerializer):
 
 
     class Meta:
-        model = Protein
+        model = models.Protein
         fields = ("id", "pdb_data", "prot_type")
 
 
@@ -378,7 +366,7 @@ class ProtPDBBoundInfoSerializer(serializers.ModelSerializer):
             return None
 
     class Meta:
-        model = Protein
+        model = models.Protein
         fields = ("id", "bound_pdb_data", "target_id")
 
 
@@ -397,7 +385,7 @@ class VectorsSerializer(serializers.ModelSerializer):
         return out_data
 
     class Meta:
-        model = Molecule
+        model = models.Molecule
         fields = ("id", "vectors")
 
 
@@ -412,7 +400,7 @@ class GraphSerializer(serializers.ModelSerializer):
                               isomericSmiles=True)
 
     class Meta:
-        model = Molecule
+        model = models.Molecule
         fields = ("id", "graph")
 
 
@@ -426,7 +414,7 @@ class UserSerializer(serializers.ModelSerializer):
 # GET
 class ActionTypeSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ActionType
+        model = models.ActionType
         fields = '__all__'
 
 
@@ -440,11 +428,11 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
     session_project_tags = serializers.SerializerMethodField()
 
     def get_session_project_tags(self, obj):
-        sp_tags = SessionProjectTag.objects.filter(session_projects=obj.id).values()
+        sp_tags = models.SessionProjectTag.objects.filter(session_projects=obj.id).values()
         return sp_tags
 
     class Meta:
-        model = SessionProject
+        model = models.SessionProject
         fields = ('id', 'title', 'init_date', 'description',
                   'target', 'project', 'author', 'tags', 'session_project_tags')
 
@@ -452,7 +440,7 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
 # (POST, PUT, PATCH)
 class SessionProjectWriteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SessionProject
+        model = models.SessionProject
         fields = '__all__'
 
 
@@ -460,7 +448,7 @@ class SessionProjectWriteSerializer(serializers.ModelSerializer):
 class SessionActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
     class Meta:
-        model = SessionActions
+        model = models.SessionActions
         fields = '__all__'
 
 
@@ -469,7 +457,7 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
     author  = UserSerializer()
     session_project  = SessionProjectWriteSerializer()
     class Meta:
-        model = Snapshot
+        model = models.Snapshot
         fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data',
                   'session_project', 'parent', 'children', 'additional_info')
 
@@ -477,7 +465,7 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
 # (POST, PUT, PATCH)
 class SnapshotWriteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Snapshot
+        model = models.Snapshot
         fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data',
                   'session_project', 'parent', 'children', 'additional_info')
 
@@ -486,14 +474,14 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 class SnapshotActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
     class Meta:
-        model = SnapshotActions
+        model = models.SnapshotActions
         fields = '__all__'
 ## End of Session Project
 
 
 class ComputedSetSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ComputedSet
+        model = models.ComputedSet
         fields = '__all__'
 
 
@@ -501,27 +489,27 @@ class ComputedMoleculeSerializer(serializers.ModelSerializer):
     # performance issue
     # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
     class Meta:
-        model = ComputedMolecule
+        model = models.ComputedMolecule
         fields = '__all__'
 
 
 class ScoreDescriptionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ScoreDescription
+        model = models.ScoreDescription
         fields = '__all__'
 
 
 class NumericalScoreSerializer(serializers.ModelSerializer):
     score = ScoreDescriptionSerializer(read_only=True)
     class Meta:
-        model = NumericalScoreValues
+        model = models.NumericalScoreValues
         fields = '__all__'
 
 
 class TextScoreSerializer(serializers.ModelSerializer):
     score = ScoreDescriptionSerializer(read_only=True)
     class Meta:
-        model = TextScoreValues
+        model = models.TextScoreValues
         fields = '__all__'
 
 
@@ -532,7 +520,7 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
     # score_descriptions = serializers.SerializerMethodField()
 
     class Meta:
-        model = ComputedMolecule
+        model = models.ComputedMolecule
         fields = (
             "id",
             "sdf_info",
@@ -548,14 +536,14 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
         )
 
     def get_numerical_scores(self, obj):
-        scores = NumericalScoreValues.objects.filter(compound=obj)
+        scores = models.NumericalScoreValues.objects.filter(compound=obj)
         score_dict = {}
         for score in scores:
             score_dict[score.score.name] = score.value
         return score_dict
 
     def get_text_scores(self, obj):
-        scores = TextScoreValues.objects.filter(compound=obj)
+        scores = models.TextScoreValues.objects.filter(compound=obj)
         score_dict = {}
         for score in scores:
             score_dict[score.score.name] = score.value
@@ -597,19 +585,19 @@ class DictToCsvSerializer(serializers.Serializer):
 # Start of Serializers for Tags
 class TagCategorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = TagCategory
+        model = models.TagCategory
         fields = '__all__'
 
 
 class MoleculeTagSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MoleculeTag
+        model = models.MoleculeTag
         fields = '__all__'
 
 
 class SessionProjectTagSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SessionProjectTag
+        model = models.SessionProjectTag
         fields = '__all__'
 
 
@@ -641,7 +629,7 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
         return protein_sequences(obj)
 
     def get_molecules(self, obj):
-        mols = Molecule.objects.filter(prot_id__target_id=obj.id)
+        mols = models.Molecule.objects.filter(prot_id__target_id=obj.id)
         molecules = []
         for mol in mols:
             mol_data = {
@@ -669,17 +657,17 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
                 'velec': mol.cmpd_id.num_val_electrons
             }
             mol_tags_set = \
-                [mt['id'] for mt in MoleculeTag.objects.filter(molecules=mol.id).values()]
+                [mt['id'] for mt in models.MoleculeTag.objects.filter(molecules=mol.id).values()]
             mol_dict = {'data': mol_data, 'tags_set': mol_tags_set}
             molecules.append(mol_dict)
 
         return molecules
 
     def get_tags_info(self, obj):
-        tags = MoleculeTag.objects.filter(target_id=obj.id)
+        tags = models.MoleculeTag.objects.filter(target_id=obj.id)
         tags_info = []
         for tag in tags:
-            tag_data = MoleculeTag.objects.filter(id=tag.id).values()
+            tag_data = models.MoleculeTag.objects.filter(id=tag.id).values()
             tag_coords = \
                 MolGroup.objects.filter(id=tag.mol_group_id).values('x_com','y_com','z_com' )
             tag_dict = {'data': tag_data, 'coords': tag_coords}
@@ -688,12 +676,12 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
         return tags_info
 
     def get_tag_categories(self, obj):
-        tag_categories = TagCategory.objects.filter(moleculetag__target_id=obj.id).distinct().\
+        tag_categories = models.TagCategory.objects.filter(moleculetag__target_id=obj.id).distinct().\
             values()
         return tag_categories
 
     class Meta:
-        model = Target
+        model = models.Target
         fields = ("id", "title", "project_id", "default_squonk_project", "template_protein",
                   "metadata", "zip_archive", "upload_status", "sequences",
                   "molecules", "tags_info", "tag_categories")
@@ -724,14 +712,14 @@ class DownloadStructuresSerializer(serializers.Serializer):
 # (GET)
 class JobFileTransferReadSerializer(serializers.ModelSerializer):
     class Meta:
-        model = JobFileTransfer
+        model = models.JobFileTransfer
         fields = '__all__'
 
 
 # (POST, PUT, PATCH)
 class JobFileTransferWriteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = JobFileTransfer
+        model = models.JobFileTransfer
         fields = ("snapshot", "target", "squonk_project",
                   "proteins", "compounds")
 
@@ -739,14 +727,14 @@ class JobFileTransferWriteSerializer(serializers.ModelSerializer):
 # (GET)
 class JobRequestReadSerializer(serializers.ModelSerializer):
     class Meta:
-        model = JobRequest
+        model = models.JobRequest
         fields = '__all__'
 
 
 # (POST, PUT, PATCH)
 class JobRequestWriteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = JobRequest
+        model = models.JobRequest
         fields = ("squonk_job_name", "snapshot", "target", "squonk_project",
                   "squonk_job_spec")
 
@@ -754,7 +742,7 @@ class JobRequestWriteSerializer(serializers.ModelSerializer):
 # Contains output fields from Fragalysis
 class JobCallBackReadSerializer(serializers.ModelSerializer):
     class Meta:
-        model = JobRequest
+        model = models.JobRequest
         fields = ("job_status", "job_status_datetime",
                   "squonk_job_name", "squonk_job_spec", "upload_status")
 
@@ -766,7 +754,7 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
     state_transition_time = serializers.DateTimeField(source='job_status_datetime')
 
     class Meta:
-        model = JobRequest
+        model = models.JobRequest
         fields = ("job_status", "state_transition_time")
 
 # End of Serializers for Squonk Jobs

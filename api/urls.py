@@ -21,6 +21,8 @@ router.register(r"snapshots", viewer_views.SnapshotsView)
 router.register(r"action-type", viewer_views.ActionTypeView)
 router.register(r"session-actions", viewer_views.SessionActionsView)
 router.register(r"snapshot-actions", viewer_views.SnapshotActionsView)
+router.register(r"compound-identifier-types", viewer_views.CompoundIdentifierTypesView)
+router.register(r"compound-identifiers", viewer_views.CompoundIdentifierView)
 
 # Compounds sets
 router.register(r"compound-sets", viewer_views.ComputedSetView)

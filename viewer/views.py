@@ -30,6 +30,7 @@ from rest_framework.exceptions import ParseError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework import permissions
 
 from celery.result import AsyncResult
 
@@ -38,6 +39,7 @@ from api.security import ISpyBSafeQuerySet
 from api.utils import get_params, get_highlighted_diffs
 from viewer.utils import create_squonk_job_request_url
 
+from viewer import models
 from viewer.models import (
     Molecule,
     Protein,
@@ -59,7 +61,7 @@ from viewer.models import (
     SessionProjectTag,
     DownloadLinks,
     JobRequest,
-    JobFileTransfer
+    JobFileTransfer,
 )
 from viewer import filters
 from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
@@ -133,6 +135,8 @@ from viewer.serializers import (
     JobCallBackReadSerializer,
     JobCallBackWriteSerializer,
     ProjectSerializer,
+    CompoundIdentifierSerializer,
+    CompoundIdentifierTypeSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -145,6 +149,19 @@ _SESSION_ERROR = 'session_error'
 _SESSION_MESSAGE = 'session_message'
 
 _SQ2A: Squonk2Agent = get_squonk2_agent()
+
+class CompoundIdentifierTypeView(viewsets.ModelViewSet):
+    queryset = models.CompoundIdentifierType.objects.all()
+    serializer_class = CompoundIdentifierTypeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class CompoundIdentifierTypeView(viewsets.ModelViewSet):
+    queryset = models.CompoundIdentifier.objects.all()
+    serializer_class = CompoundIdentifierSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filterset_fields = ["type", "compound"]
+
 
 class VectorsView(ISpyBSafeQuerySet):
     """ DjagnoRF view for vectors

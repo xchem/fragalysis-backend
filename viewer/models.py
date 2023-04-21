@@ -348,6 +348,20 @@ class Molecule(models.Model):
         unique_together = ("prot_id", "cmpd_id", "mol_type")
 
 
+class CompoundIdentifierType(models.Model):
+    NAME_LENGTH = 20
+    name = models.CharField(max_length=NAME_LENGTH)
+
+
+class CompoundIdentifier(models.Model):
+    NAME_LENGTH = 40
+    URL_LENGTH = 200
+    type = models.ForeignKey(CompoundIdentifierType, on_delete=models.CASCADE)
+    compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    url = models.URLField(max_length=URL_LENGTH, null=True)
+    name = models.CharField(max_length=NAME_LENGTH)
+
+
 class ActivityPoint(models.Model):
     """Django model for holding information about the activity of a compound - currently unused
 
