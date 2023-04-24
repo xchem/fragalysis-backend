@@ -1093,7 +1093,7 @@ class JobFileTransfer(models.Model):
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE, db_index=True)
     squonk_project = models.CharField(max_length=200, null=True)
-    sub_path = ShortUUIDField(length=4, alphabet="abcdefghijklmnopqrstuvwxyz")
+    sub_path = ShortUUIDField(length=4, alphabet="abcdefghijklmnopqrstuvwxyz", null=True)
     proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # Not used in phase 1
     compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True)
