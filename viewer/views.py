@@ -3262,7 +3262,12 @@ class JobFileTransferView(viewsets.ModelViewSet):
         job_transfer.save()
 
         # The root (in the Squonk project) where files will be written for this Job.
-        transfer_root = os.path.join(settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path)
+        # Something like "fragalysis-files/hjyx" for new transfers,
+        # "fragalysis-files" for existing transfers
+        if job_transfer.sub_path:
+            transfer_root = os.path.join(settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path)
+        else:
+            transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
         logger.info('+ transfer_root=%s', transfer_root)
 
         # Celery/Redis must be running.
