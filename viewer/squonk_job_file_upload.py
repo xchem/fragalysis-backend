@@ -149,17 +149,6 @@ def process_compound_set_file(jr_id,
     callback_token = jr_job_info_msg.get('callback_token')
     logger.info("Squonk API callback_token=%s", callback_token)
 
-    # The Squonk instance that ran the Job can be found
-    # at the end of the jr.squonk_url_ext field.
-    instance_id = ''
-    if jr.squonk_url_ext:
-        i_id = jr.squonk_url_ext.split('/')[-1]
-        if i_id.startswith('instance-'):
-            instance_id = i_id
-            logger.info("Squonk instance_id='%s'", instance_id)
-        else:
-            logger.warning("jr.squonk_url_ext does not contain an instance ID")
-
     # Do we need to create the upload path?
     # This is used for this 'job' and is removed when the upload is complete
     # successful or otherwise.

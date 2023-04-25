@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('viewer', '0029_add_job_request_project'),
+        ('viewer', '0031_fix_JobFileTransfer_sub_path'),
     ]
 
     operations = [

@@ -248,9 +248,13 @@ def process_file_transfer(auth_token,
     trans_dir = create_media_sub_directory(trans_sub_dir)
 
     # location in squonk project where files will reside
-    # e.g. "/fragalysis-files/Mpro"
+    # e.g. "/fragalysis-files/hjyx/Mpro" for new transfers,
+    # "/fragalysis-files/Mpro" for existing transfers
     target = job_transfer.target
-    squonk_directory = '/' + settings.SQUONK2_MEDIA_DIRECTORY + '/' + target.title
+    if job_transfer.sub_path:
+        squonk_directory = os.path.join('/', settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path, target.title)
+    else:
+        squonk_directory = os.path.join('/', settings.SQUONK2_MEDIA_DIRECTORY, target.title)
     logger.info('+ Destination squonk_directory=%s', squonk_directory)
 
     # This to pick up NULL values from the changeover to using compounds.

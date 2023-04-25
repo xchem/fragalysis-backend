@@ -26,6 +26,7 @@ Contents
    API/media
    API/download
    vectors
+   squonk/integration
 
 
 Indices and tables

@@ -3,6 +3,7 @@ from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
 from urllib.parse import urljoin
 
+from api.security import ISpyBSafeQuerySet
 from api.utils import draw_mol
 
 from viewer import models
@@ -15,9 +16,12 @@ from django.conf import settings
 
 from rest_framework import serializers
 
+_ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
+
+
 class FileSerializer(serializers.ModelSerializer):
     class Meta:
-        model = File
+        model = models.File
         fields = "__all__"
 
 def get_protein_sequences(pdb_block):
@@ -279,9 +283,19 @@ class ProjectSerializer(serializers.ModelSerializer):
     # 'authority' is the (as yet to be implemented) origin of the TAS
     # For now this is fixed at "DIAMOND-ISPYB"
     authority =  serializers.SerializerMethodField()
+    # 'can_use_squonk' defines whether a user cna use Squonk for the Projetc
+    user_can_use_squonk =  serializers.SerializerMethodField()
 
     def get_target_access_string(self, instance):
         return instance.title
+
+    def get_user_can_use_squonk(self, instance):
+        # User can use Squonk if there is a user object (i.e. they're authenticated)
+        # and ISPyB has the user in the Project
+        user = self.context['request'].user
+        if not user or instance.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(user):
+            return False
+        return True
 
     def get_authority(self, instance):
         # Don't actually need the instance here.
@@ -291,7 +305,12 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Project
-        fields = ("id", "target_access_string", "init_date", "authority", "open_to_public")
+        fields = ("id",
+                  "target_access_string",
+                  "init_date",
+                  "authority",
+                  "open_to_public",
+                  "user_can_use_squonk")
 
 
 class MolImageSerializer(serializers.ModelSerializer):

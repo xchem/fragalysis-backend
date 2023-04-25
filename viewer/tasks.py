@@ -479,7 +479,7 @@ def validate_target_set(target_zip, target=None, proposal=None, email=None):
             - submitter_name (str): name of the user who submitted the upload
 
     """
-    logger.info('+ validating target set: ' + target_zip)
+    logger.info('+ TASK target_zip=%s', target_zip)
 
     # Get submitter name/info for passing into upload to get unique name
     submitter_name = ''
@@ -559,19 +559,19 @@ def process_job_file_transfer(auth_token, jt_id):
 
     """
 
-    logger.info('+ Starting File Transfer (%s) [STARTED]', jt_id)
-    job_transfer = JobFileTransfer.objects.get(id=jt_id)
+    logger.info('+ TASK Starting File Transfer (%s) [STARTED]', id)
+    job_transfer = JobFileTransfer.objects.get(id=id)
     job_transfer.transfer_status = "STARTED"
     job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
     job_transfer.save()
     try:
         process_file_transfer(auth_token, job_transfer.id)
     except RuntimeError as error:
-        logger.error('- File Transfer failed %s', jt_id)
+        logger.error('- TASK File transfer (%s) [FAILED] error=%s',
+                     id, error)
         logger.error(error)
         job_transfer.transfer_status = "FAILURE"
         job_transfer.save()
-        logger.info('+ Failed File Transfer (%s) [FAILURE]', jt_id)
     else:
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
@@ -582,7 +582,7 @@ def process_job_file_transfer(auth_token, jt_id):
                       "compounds": list(SQUONK_COMP_MAPPING.keys())}
         job_transfer.transfer_spec = files_spec
         job_transfer.save()
-        logger.info('+ Successful File Transfer (%s) [SUCCESS]', jt_id)
+        logger.info('+ TASK File transfer (%s) [SUCCESS]', id)
 
     return job_transfer.transfer_status
 
@@ -611,7 +611,8 @@ def process_compound_set_job_file(task_params):
     job_output_path = task_params['job_output_path']
     job_output_filename = task_params['job_output_filename']
 
-    logger.info('+ Starting File Upload (%s)', jr_id)
+    logger.info('+ TASK task_params=%s', task_params)
+
     job_request = JobRequest.objects.get(id=jr_id)
     job_request.upload_task_id = str(process_compound_set_job_file.request.id)
     job_request.save()
@@ -623,12 +624,12 @@ def process_compound_set_job_file(task_params):
                                             job_output_path,
                                             job_output_filename)
     except RuntimeError as error:
-        logger.error('- File Upload failed (%s)', jr_id)
+        logger.error('- TASK file Upload failed (%s)', jr_id)
         logger.error(error)
     else:
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
-        logger.info('- File Upload Ended Successfully (%s)', jr_id)
+        logger.info('+ TASK file Upload Ended Successfully (%s)', jr_id)
 
     # We are expected to be followed by 'validate_compound_set'
     # which expects user_id, sdf_file and target
@@ -660,6 +661,7 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
         return
 
     job_request = JobRequest.objects.get(id=job_request_id)
+    logger.info('+ TASK Erasing job material job_request %s', job_request)
 
     # Upload done (successfully or not)
     # 'task_params' (a dictionary) is expected to be
@@ -682,13 +684,13 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
         job_request.computed_set = cs
     else:
         # Failed validation?
-        logger.info('Upload failed (%d) - task_params=%s',
-                       job_request_id, task_params)
+        logger.info('- TASK Upload failed (%d) - task_params=%s',
+                    job_request_id, task_params)
         logger.warning('Upload failed (%d) - process_stage value not satisfied',
                        job_request_id)
         job_request.upload_status = 'FAILURE'
     job_request.save()
-    logger.info('Updated job_request %s', job_request)
+    logger.info('+ TASK Erased and updated job_request %s', job_request)
 
     # Always erase uploaded data
     delete_media_sub_directory(get_upload_sub_directory(job_request))

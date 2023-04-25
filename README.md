@@ -94,14 +94,18 @@ The best approach is to spin-up the development stack (locally) using
 to make new migrations called "add_job_request_start_and_finish_times"
 for the viewer's models run the following: -
 
+>   Before starting postgres, if you need to, remove any pre-existing Db (if one exists)
+    with `rm -rf data`
+
     docker-compose up -d
     docker-compose exec stack bash
 
-Then from within the stack...
+Then from within the stack make the migrations. Here we're migrating the `viewer`
+application...
 
     python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
 
-Exit the container and tear-down the deployemnt: -
+Exit the container and tear-down the deployment: -
 
     docker-compose down
 
