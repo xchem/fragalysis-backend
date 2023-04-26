@@ -124,14 +124,15 @@ The best approach is to spin-up the development stack (locally) using
 to make new migrations called "add_job_request_start_and_finish_times"
 for the viewer's models run the following: -
 
->   Before starting postgres, if you need to, remove any pre-existing db (if one exists)
-    with `rm -rf ../data` (a directory maintained above the stack clone)
+>   Before starting postgres, if you need to, remove any pre-existing database (if one exists)
+    with `rm -rf ../data` (a directory maintained above the repository's clone)
 
     docker-compose up -d
-    docker-compose exec stack bash
 
-Then from within the stack make the migrations. Here we're migrating the `viewer`
+Then from within the stack container make the migrations. Here we're migrating the `viewer`
 application...
+
+    docker-compose exec stack bash
 
     python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
 
@@ -141,9 +142,9 @@ Exit the container and tear-down the deployment: -
 
 >   The migrations will be written to your clone's filesystem as the clone directory
     is mapped into the container as a volume. You just need to commit the
-    migrations to Git.
+    migrations that have been written to the local directory to Git.
 
-## Pre-commit hooks
+## Pre-commit
 The project uses [pre-commit] to enforce linting of files prior to committing
 them to the upstream repository.
 
@@ -165,9 +166,6 @@ state of the repository as it stands with...
 
     pre-commit run --all-files
 
-## Start
-Start `Fragalysis stack` (All infrastructure - databases + populating data)
-
 ## Sentry error logging
 
 In `settings.py`, this is controlled by setting the value of `SENTRY_DNS`.
@@ -179,10 +177,11 @@ following line to the `stack` section of your docker_compose file:
 
 ## Design Documents
 
-As the application evolves several design documents have been written detailing
+As the application has evolved several design documents have been written detailing
 improvements. These may be useful for background reading on why decisions have been made.
 
-The documents will be stored in the /design_docs folder in the repo. Current docs are listed below: -
+The documents will be stored in the `/design_docs` folder in the repo.
+Current docs are listed below: -
 
 - [Fragalysis Discourse Design](design_docs/Fragalysis_Discourse_v0.2.pdf)
 - [Fragalysis Tags Design V1.0](design_docs/Fragalysis_Tags_Design_V1.0.pdf)
