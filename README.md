@@ -20,31 +20,38 @@ The stack consists of three services, running as containers: -
 
 - a Postgres database
 - a neo4j graph database
-- the fraglaysis stack
+- the Fraglaysis "stack"
 
 The stack is formed from code resident in a number of repositories.
 Begin by forking repositories you anticipate editing (although you really want
 to consider forking all the repositories as this is a relatively low-cost
 operation).
 
-The repositories are:
+The repositories are: -
 
 - [xchem/fragalysis](https://github.com/xchem/fragalysis)
 - [xchem/fragalysis-frontend](https://github.com/xchem/fragalysis-frontend)
 - [xchem/fragalysis-backend](https://github.com/xchem/fragalysis-backend)
 - [xchem/fragalysis-stack](https://github.com/xchem/fragalysis-stack)
 
-### Prerequisites
+The stack is deployed as a container image to [Kubernetes] using [Ansible] playbooks
+that can be found in the Ansible repository, where additional development and deployment
+documentation can also be found: -
 
-- Docker
-- Docker Compose
-- Git
+- [informaticsmatters/dls-fragalysis-stack-kubernetes](https://github.com/InformaticsMatters/dls-fragalysis-stack-kubernetes)
 
 ## Local development
 
 >   These _local development_ notes are **Deprecated**, please see the
     documentation relating to the [Kubernetes Stack] deployment on ReadTheDocs where
     the development architecture is described in detail.
+
+Prerequisites: -
+
+- Docker
+- Docker Compose
+- Git
+- Ideally a Linux host (although Windows and Mac should work)
 
 Create project directory: -
 
@@ -185,6 +192,8 @@ The documents will be stored in the /design_docs folder in the repo. Current doc
 
 ---
 
+[ansible]: https://github.com/ansible/ansible
+[kubernetes]: https://kubernetes.io
 [kubernetes stack]: https://dls-fragalysis-stack-kubernetes.readthedocs.io/en/latest/index.html#
 [pre-commit]: https://pre-commit.com
 [readthedocs]: https://fragalysis-backend.readthedocs.io/en/latest/index.html
