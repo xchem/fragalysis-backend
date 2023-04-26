@@ -8,8 +8,8 @@
 
 [![License](http://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat)](https://github.com/xchem/fragalysis-backend/blob/master/LICENSE.txt)
 
-The Django server for Fragalysis with Django REST Framework for the API
-and loaders for data.
+The Django server for Fragalysis using the Django REST Framework ([DRF])
+for the API, and loaders for data.
 
 >   See additional documentation relating to the backend on ReadTheDocs at
     https://fragalysis-backend.readthedocs.io/en/latest/index.html
@@ -42,7 +42,7 @@ documentation can also be found: -
 
 ## Local development
 
->   These _local development_ notes are **Deprecated**, please see the
+>   These _local development_ notes are **deprecated**, please see the
     documentation relating to the [Kubernetes Stack] deployment on ReadTheDocs where
     the development architecture is described in detail.
 
@@ -193,6 +193,7 @@ The documents will be stored in the /design_docs folder in the repo. Current doc
 ---
 
 [ansible]: https://github.com/ansible/ansible
+[drf]: https://www.django-rest-framework.org
 [kubernetes]: https://kubernetes.io
 [kubernetes stack]: https://dls-fragalysis-stack-kubernetes.readthedocs.io/en/latest/index.html#
 [pre-commit]: https://pre-commit.com
