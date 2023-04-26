@@ -53,6 +53,11 @@ Prerequisites: -
 - Git
 - Ideally a Linux host (although Windows and Mac should work)
 
+Other 'handy' tools to have while developing are: -
+
+- [jq]
+- [httpie]
+
 Create project directory: -
 
     mkdir fragalysis
@@ -95,13 +100,23 @@ create it and add a content list of your data, for example:
 
     Mpro, NUDT7A,...
 
-Start the stack and generate an upload key: -
-
-    docker-compose up -d
+Build and start the stack and generate an upload key: -
 
 >   You may want to use a `.env` file to set some of the environment values defined in the
     `docker-compose.yml` file. The `.env` is ignored by git but allows you to set a number
     of variables, some of which may be _sensitive_.
+
+To run successfully you wil need to provide some variables, ideally in a `.env` file.
+Namely: -
+
+    OIDC_KEYCLOAK_REALM=https://keycloak.example.com/auth/realms/xchem
+    OIDC_RP_CLIENT_ID=fragalysis-local
+    OIDC_RP_CLIENT_SECRET=<secret>
+
+Then run: -
+
+    docker-compose build
+    docker-compose up -d
 
 Connect to `stack` service and run following script: -
 
@@ -117,6 +132,45 @@ It is important to have key in following format: `f8c4ea0f-6b81-46d0-b85a-360113
 With the stack running, upload a compound set by visiting `localhost:8080/viewer/upload_cset`
 
 The target name is for example `Mpro`, select `sdf` file and you don't need a `pdb` file. 
+
+## Command-line accessing the API
+With the stack (or backend) running you should be able to access the REST API. From
+the command-line you can use curl or [httpie]. Here's we use the httpie utility to
+`GET` the API root (which does not require authentication)...
+
+    http :8080/api/
+
+To use much of the remainder of the API you will need to authenticate. but some endpoints allow you to use a token,
+obtained from the corresponding Keycloak authentication service. If you are
+running a local stack a client ID exists that should work for you, assuming you have
+a Keycloak user identity. So, with a few variables: -
+
+    TOKEN_URL=keycloak.example.com/auth/realms/xchem/protocol/openid-connect/token
+    CLIENT_ID=fragalysis-local
+    CLIENT_SECRET=00000000-0000-0000-0000-000000000000
+    USER=someone
+    PASSWORD=password123
+
+...you can then get an API token. Here we're using `httpie`and `jq`: -
+
+    TOKEN=$(http --form POST https://$TOKEN_URL/ \
+        grant_type=password \
+        client_id=$CLIENT_ID \
+        client_secret=$CLIENT_SECRET \
+        username=$USER \
+        password=$PASSWORD | jq -r '.access_token')
+
+The token should last for at least 15 minutes, depending on the Keycloak configuration.
+With the Token you should then be able to make authenticated requests to the API on your
+local stack: -
+
+    ENDPOINT=api/compound-identifier-types
+    http :8080/$ENDPOINT/ "Authorization:Bearer $TOKEN"
+    
+## Logging
+The backend writes log information in the container to `/code/logs/backend.log`. This is
+typically persisted between container restarts on Kubernetes with a separate volume mounted
+at `/code/logs`.
 
 ## Database migrations
 The best approach is to spin-up the development stack (locally) using
@@ -193,6 +247,8 @@ Current docs are listed below: -
 
 [ansible]: https://github.com/ansible/ansible
 [drf]: https://www.django-rest-framework.org
+[httpie]: https://pypi.org/project/httpie/
+[jq]: https://stedolan.github.io/jq/
 [kubernetes]: https://kubernetes.io
 [kubernetes stack]: https://dls-fragalysis-stack-kubernetes.readthedocs.io/en/latest/index.html#
 [pre-commit]: https://pre-commit.com

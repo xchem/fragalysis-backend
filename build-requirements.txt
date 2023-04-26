@@ -6,3 +6,6 @@ pre-commit == 3.1.1
 
 # Matching main requirements...
 Django==3.1.14
+
+# Others
+httpie == 3.2.1

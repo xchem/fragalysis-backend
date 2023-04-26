@@ -79,8 +79,6 @@ services:
       LOGGING_FRAMEWORK_ROOT_LEVEL: ${LOGGING_FRAMEWORK_ROOT_LEVEL:-INFO}
       # Celery tasks run synchronously?
       CELERY_TASK_ALWAYS_EAGER: 'True'
-      # Default Debug to true for local development
-      OIDC_RP_CLIENT_SECRET: 'c6245428-04c7-466f-9c4f-58c340e981c2'
       SQUONK2_VERIFY_CERTIFICATES: 'No'
       SQUONK2_UNIT_BILLING_DAY: 3
       SQUONK2_PRODUCT_FLAVOUR: BRONZE
@@ -89,8 +87,10 @@ services:
       # that is not part of the repo, it is a file you create
       # and is used by docker-compose if it finds it.
       OIDC_KEYCLOAK_REALM: ${OIDC_KEYCLOAK_REALM}
-      OIDC_AS_CLIENT_ID: ${OIDC_AS_CLIENT_ID}
-      OIDC_DM_CLIENT_ID: ${OIDC_DM_CLIENT_ID}
+      OIDC_RP_CLIENT_ID: ${OIDC_RP_CLIENT_ID:-fragalysis-local}
+      OIDC_RP_CLIENT_SECRET: ${OIDC_RP_CLIENT_SECRET}
+      OIDC_AS_CLIENT_ID: ${OIDC_AS_CLIENT_ID:-account-server-api}
+      OIDC_DM_CLIENT_ID: ${OIDC_DM_CLIENT_ID:-data-manager-api}
       SQUONK2_ORG_OWNER: ${SQUONK2_ORG_OWNER}
       SQUONK2_ORG_OWNER_PASSWORD: ${SQUONK2_ORG_OWNER_PASSWORD}
       SQUONK2_ORG_UUID: ${SQUONK2_ORG_UUID}
@@ -99,7 +99,6 @@ services:
       SQUONK2_ASAPI_URL: ${SQUONK2_ASAPI_URL}
       DUMMY_TAS: ${DUMMY_TAS}
       DUMMY_USER: ${DUMMY_USER}
-      DUMMY_TARGET_TITLE: ${DUMMY_TARGET_TITLE}
     ports:
     - "8080:80"
     depends_on:
