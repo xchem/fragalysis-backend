@@ -30,8 +30,7 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
 ADD . /code/
-RUN chmod 755 launch-stack.sh && \
-    chmod 755 makemigrations.sh
+RUN chmod 755 launch-stack.sh
 
 WORKDIR /srv/logs
 WORKDIR /code/logs
