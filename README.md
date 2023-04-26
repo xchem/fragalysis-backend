@@ -1,6 +1,6 @@
-[![build dev](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-dev.yaml/badge.svg)](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-dev.yaml)
-[![build staging](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-staging.yaml/badge.svg)](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-staging.yaml)
-[![build production](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-production.yaml/badge.svg)](https://github.com/alanbchristie/fragalysis-backend/actions/workflows/build-production.yaml)
+[![build dev](https://github.com/xchem/fragalysis-backend/actions/workflows/build-dev.yaml/badge.svg)](https://github.com/xchem/fragalysis-backend/actions/workflows/build-dev.yaml)
+[![build staging](https://github.com/xchem/fragalysis-backend/actions/workflows/build-staging.yaml/badge.svg)](https://github.com/xchem/fragalysis-backend/actions/workflows/build-staging.yaml)
+[![build production](https://github.com/xchem/fragalysis-backend/actions/workflows/build-production.yaml/badge.svg)](https://github.com/xchem/fragalysis-backend/actions/workflows/build-production.yaml)
 
 [![stable](http://badges.github.io/stability-badges/dist/stable.svg)](http://github.com/badges/stability-badges)
 [![Version](http://img.shields.io/badge/version-0.0.1-blue.svg?style=flat)](https://github.com/xchem/fragalysis-backend)
@@ -10,8 +10,7 @@
 # Fragalysis backend
 Django server for Fragalysis with DRF API and loaders for data. Has components to serve React web-app.
 
->   See additional documentation relating to the Stack, especially the development
-    process and deployment mechanism on ReadTheDocs at
+>   See additional documentation relating to the backend on ReadTheDocs at
     https://fragalysis-backend.readthedocs.io/en/latest/index.html
 
 ## Background
@@ -37,22 +36,20 @@ The repositories are:
 ### Prerequisites
 
 - Docker
-- Docker-compose
+- Docker Compose
 - Git
 
 ## Local development
 
+>   These _local development_ notes are **Deprecated**, please see the
+    documentation relating to the [Kubernetes Stack] deployment on ReadTheDocs where
+    the development architecture is described in detail.
+
 Create project directory: -
 
-mkdir fragalysis
-mkdir fragalysis
-```
     mkdir fragalysis
-```
-
 
 Clone repositories inside your project's directory: -
-
 
 >   You can clone original `xchem` repositories or your forked
     e.g. `m2ms` and checkout any branch if necessary
@@ -90,14 +87,37 @@ create it and add a content list of your data, for example:
 
     Mpro, NUDT7A,...
 
+Start the stack and generate an upload key: -
+
+    docker-compose up -d
+
+>   You may want to use a `.env` file to set some of the environment values defined in the
+    `docker-compose.yml` file. The `.env` is ignored by git but allows you to set a number
+    of variables, some of which may be _sensitive_.
+
+Connect to `stack` service and run following script: -
+
+    python manage.py shell
+    from viewer.models import CSetKeys
+    new_key = CSetKeys()
+    new_key.name = 'test'
+    new_key.save()
+    print(new_key.uuid)
+
+It is important to have key in following format: `f8c4ea0f-6b81-46d0-b85a-3601135756bc` 
+
+With the stack running, upload a compound set by visiting `localhost:8080/viewer/upload_cset`
+
+The target name is for example `Mpro`, select `sdf` file and you don't need a `pdb` file. 
+
 ## Database migrations
 The best approach is to spin-up the development stack (locally) using
 `docker-compose` and then shell into the Django (stack). For example,
 to make new migrations called "add_job_request_start_and_finish_times"
 for the viewer's models run the following: -
 
->   Before starting postgres, if you need to, remove any pre-existing Db (if one exists)
-    with `rm -rf data`
+>   Before starting postgres, if you need to, remove any pre-existing db (if one exists)
+    with `rm -rf ../data` (a directory maintained above the stack clone)
 
     docker-compose up -d
     docker-compose exec stack bash
@@ -110,6 +130,10 @@ application...
 Exit the container and tear-down the deployment: -
 
     docker-compose down
+
+>   The migrations will be written to your clone's filesystem as the clone directory
+    is mapped into the container as a volume. You just need to commit the
+    migrations to Git.
 
 ## Pre-commit hooks
 The project uses [pre-commit] to enforce linting of files prior to committing
@@ -136,25 +160,6 @@ state of the repository as it stands with...
 ## Start
 Start `Fragalysis stack` (All infrastructure - databases + populating data)
 
-### Generate upload key
-Connect to `stack` service and run following script
-
-    python manage.py shell
-    from viewer.models import CSetKeys
-    new_key = CSetKeys()
-    new_key.name = 'test'
-    new_key.save()
-    print(new_key.uuid)
-
-It is important to have key in following format (with `-`)
-`f8c4ea0f-6b81-46d0-b85a-3601135756bc` 
-
-#### Upload page
-Visit `localhost:8080/viewer/upload_cset`
-
-The target name is for example `Mpro`, select `sdf` file and you don't need a `pdb` file. 
-Before upload generate upload key.
-
 ## Sentry error logging
 
 In `settings.py`, this is controlled by setting the value of `SENTRY_DNS`.
@@ -179,4 +184,6 @@ The documents will be stored in the /design_docs folder in the repo. Current doc
 
 ---
 
+[kubernetes stack]: https://dls-fragalysis-stack-kubernetes.readthedocs.io/en/latest/index.html#
 [pre-commit]: https://pre-commit.com
+[readthedocs]: https://fragalysis-backend.readthedocs.io/en/latest/index.html
