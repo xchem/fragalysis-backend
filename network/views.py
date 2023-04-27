@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from frag.network.decorate import get_add_del_link
 from frag.network.query import get_full_graph
 
-from network.functions import order_stuctures
+from network.functions import order_structures
 
 
 def full_graph(request):
@@ -23,6 +23,6 @@ def full_graph(request):
         decoration_list = get_add_del_link(smiles)
         if not out_dict:
             return HttpResponse("EMPTY RESULT SET")
-        return HttpResponse(order_stuctures(out_dict, decoration_list))
+        return HttpResponse(order_structures(out_dict, decoration_list))
     else:
         return HttpResponse("Please insert SMILES")

@@ -1,4 +1,4 @@
-# Fragalysis backend
+# The Fragalysis Stack (Backend)
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/xchem/fragalysis-backend)
 
@@ -15,7 +15,6 @@ for the API, and loaders for data.
     https://fragalysis-backend.readthedocs.io/en/latest/index.html
 
 ## Background
-
 The stack consists of three services, running as containers: -
 
 - a Postgres database
@@ -40,8 +39,103 @@ documentation can also be found: -
 
 - [informaticsmatters/dls-fragalysis-stack-kubernetes](https://github.com/InformaticsMatters/dls-fragalysis-stack-kubernetes)
 
-## Local development
+## Command-line access to the API
+With the stack (or backend) running you should be able to access the REST API. From
+the command-line you can use curl or [httpie]. Here's we use the httpie utility to
+`GET` the API root (which does not require authentication)...
 
+    http :8080/api/
+
+To use much of the remainder of the API you will need to authenticate. but some endpoints allow you to use a token,
+obtained from the corresponding Keycloak authentication service. If you are
+running a local stack a client ID exists that should work for you, assuming you have
+a Keycloak user identity. So, with a few variables: -
+
+    TOKEN_URL=keycloak.example.com/auth/realms/xchem/protocol/openid-connect/token
+    CLIENT_ID=fragalysis-local
+    CLIENT_SECRET=00000000-0000-0000-0000-000000000000
+    USER=someone
+    PASSWORD=password123
+
+...you can then get an API token. Here we're using `httpie`and `jq`: -
+
+    TOKEN=$(http --form POST https://$TOKEN_URL/ \
+        grant_type=password \
+        client_id=$CLIENT_ID \
+        client_secret=$CLIENT_SECRET \
+        username=$USER \
+        password=$PASSWORD | jq -r '.access_token')
+
+The token should last for at least 15 minutes, depending on the Keycloak configuration.
+With the Token you should then be able to make authenticated requests to the API on your
+local stack: -
+
+    ENDPOINT=api/compound-identifier-types
+    http :8080/$ENDPOINT/ "Authorization:Bearer $TOKEN"
+    
+## Logging
+The backend writes log information in the container to `/code/logs/backend.log`. This is
+typically persisted between container restarts on Kubernetes with a separate volume mounted
+at `/code/logs`.
+
+## Database migrations
+The best approach is to spin-up the development stack (locally) using
+`docker-compose` and then shell into the Django (stack). For example,
+to make new migrations called "add_job_request_start_and_finish_times"
+for the viewer's models run the following: -
+
+>   Before starting postgres, if you need to, remove any pre-existing database (if one exists)
+    with `rm -rf ../data` (a directory maintained above the repository's clone)
+
+    docker-compose up -d
+
+Then from within the stack container make the migrations. Here we're migrating the `viewer`
+application...
+
+    docker-compose exec stack bash
+
+    python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
+
+Exit the container and tear-down the deployment: -
+
+    docker-compose down
+
+>   The migrations will be written to your clone's filesystem as the clone directory
+    is mapped into the container as a volume. You just need to commit the
+    migrations that have been written to the local directory to Git.
+
+## Sentry error logging
+In `settings.py`, this is controlled by setting the value of `SENTRY_DNS`.
+To enable it, you need to set it to a valid Sentry DNS entry.
+For Diamond, this can be set locally by adding the 
+following line to the `stack` section of your docker_compose file:
+
+    SENTRY_DNS: https://<SENTRY_DNS>
+
+## Compiling the documentation
+Because the documentation uses Sphinx and its `autodoc` module, compiling the
+documentation needs all the application requirements. As this is often impractical
+on the command-line, the most efficient way to build the documentation is from within
+the stack container (as shown below).
+
+    docker-compose up -d
+    docker-compose exec stack bash
+
+    pip install sphinx==5.3.0
+    pip install importlib-metadata~=4.0
+    
+    cd docs
+    sphinx-build -b html source/ build/
+
+>   The current version of Python used in the Django container image is **3.7**
+    and this suffers from an import error relating to celery. It is fixed by
+    using a pre-v5.0 version of `importlib-metadata` as illustrated in the above example.
+    (see https://stackoverflow.com/questions/73933432/)
+
+The code directory is mounted in the container the documentation can then be committed
+from the host machine.
+
+## Local development
 >   These _local development_ notes are **deprecated**, please see the
     documentation relating to the [Kubernetes Stack] deployment on ReadTheDocs where
     the development architecture is described in detail.
@@ -133,70 +227,18 @@ With the stack running, upload a compound set by visiting `localhost:8080/viewer
 
 The target name is for example `Mpro`, select `sdf` file and you don't need a `pdb` file. 
 
-## Command-line accessing the API
-With the stack (or backend) running you should be able to access the REST API. From
-the command-line you can use curl or [httpie]. Here's we use the httpie utility to
-`GET` the API root (which does not require authentication)...
+## Design Documents
+As the application has evolved several design documents have been written detailing
+improvements. These may be useful for background reading on why decisions have been made.
 
-    http :8080/api/
+The documents will be stored in the `/design_docs` folder in the repo.
+Current docs are listed below: -
 
-To use much of the remainder of the API you will need to authenticate. but some endpoints allow you to use a token,
-obtained from the corresponding Keycloak authentication service. If you are
-running a local stack a client ID exists that should work for you, assuming you have
-a Keycloak user identity. So, with a few variables: -
-
-    TOKEN_URL=keycloak.example.com/auth/realms/xchem/protocol/openid-connect/token
-    CLIENT_ID=fragalysis-local
-    CLIENT_SECRET=00000000-0000-0000-0000-000000000000
-    USER=someone
-    PASSWORD=password123
-
-...you can then get an API token. Here we're using `httpie`and `jq`: -
-
-    TOKEN=$(http --form POST https://$TOKEN_URL/ \
-        grant_type=password \
-        client_id=$CLIENT_ID \
-        client_secret=$CLIENT_SECRET \
-        username=$USER \
-        password=$PASSWORD | jq -r '.access_token')
-
-The token should last for at least 15 minutes, depending on the Keycloak configuration.
-With the Token you should then be able to make authenticated requests to the API on your
-local stack: -
-
-    ENDPOINT=api/compound-identifier-types
-    http :8080/$ENDPOINT/ "Authorization:Bearer $TOKEN"
-    
-## Logging
-The backend writes log information in the container to `/code/logs/backend.log`. This is
-typically persisted between container restarts on Kubernetes with a separate volume mounted
-at `/code/logs`.
-
-## Database migrations
-The best approach is to spin-up the development stack (locally) using
-`docker-compose` and then shell into the Django (stack). For example,
-to make new migrations called "add_job_request_start_and_finish_times"
-for the viewer's models run the following: -
-
->   Before starting postgres, if you need to, remove any pre-existing database (if one exists)
-    with `rm -rf ../data` (a directory maintained above the repository's clone)
-
-    docker-compose up -d
-
-Then from within the stack container make the migrations. Here we're migrating the `viewer`
-application...
-
-    docker-compose exec stack bash
-
-    python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
-
-Exit the container and tear-down the deployment: -
-
-    docker-compose down
-
->   The migrations will be written to your clone's filesystem as the clone directory
-    is mapped into the container as a volume. You just need to commit the
-    migrations that have been written to the local directory to Git.
+- [Fragalysis Discourse Design](design_docs/Fragalysis_Discourse_v0.2.pdf)
+- [Fragalysis Tags Design V1.0](design_docs/Fragalysis_Tags_Design_V1.0.pdf)
+- [Fragalysis Design #651 Fix Data Download V2.0](design_docs/Fragalysis_Design_651_Fix_Data_Download_V2.0.pdf)
+- [Fragalysis Job Launcher V1.0](design_docs/Fragalysis_Job_Launcher_V1.0.pdf)
+- [Fragalysis Job Launcher V2.0](design_docs/Fragalysis_Job_Launcher_Phase2_V1.0.pdf)
 
 ## Pre-commit
 The project uses [pre-commit] to enforce linting of files prior to committing
@@ -219,52 +261,6 @@ Now the project's rules will run on every commit and you can check the
 state of the repository as it stands with...
 
     pre-commit run --all-files
-
-## Sentry error logging
-
-In `settings.py`, this is controlled by setting the value of `SENTRY_DNS`.
-To enable it, you need to set it to a valid Sentry DNS entry.
-For Diamond, this can be set locally by adding the 
-following line to the `stack` section of your docker_compose file:
-
-    SENTRY_DNS: https://<SENTRY_DNS>
-
-## Compiling the documentation
-Because the documentation uses Sphinx and its `autodoc` module, compiling the
-documentation needs all the application requirements. As this is often impractical
-on the command-line, the most efficient way to build the documentation is from within
-the stack container (as shown below).
-
-    docker-compose up -d
-    docker-compose exec stack bash
-
-    pip install sphinx==5.3.0
-    pip install importlib-metadata~=4.0
-    
-    cd docs
-    sphinx-build -b html source/ build/
-
->   The current version of Python used in the Django container image is **3.7**
-    and this suffers from an import error relating to celery. It is fixed by
-    using a pre-v5.0 version of `importlib-metadata` as illustrated in the above example.
-    (see https://stackoverflow.com/questions/73933432/)
-
-The code directory is mounted in the container the documentation can then be committed
-from the host machine.
-
-## Design Documents
-
-As the application has evolved several design documents have been written detailing
-improvements. These may be useful for background reading on why decisions have been made.
-
-The documents will be stored in the `/design_docs` folder in the repo.
-Current docs are listed below: -
-
-- [Fragalysis Discourse Design](design_docs/Fragalysis_Discourse_v0.2.pdf)
-- [Fragalysis Tags Design V1.0](design_docs/Fragalysis_Tags_Design_V1.0.pdf)
-- [Fragalysis Design #651 Fix Data Download V2.0](design_docs/Fragalysis_Design_651_Fix_Data_Download_V2.0.pdf)
-- [Fragalysis Job Launcher V1.0](design_docs/Fragalysis_Job_Launcher_V1.0.pdf)
-- [Fragalysis Job Launcher V2.0](design_docs/Fragalysis_Job_Launcher_Phase2_V1.0.pdf)
 
 ---
 
