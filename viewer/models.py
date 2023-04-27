@@ -180,54 +180,7 @@ class Molecule(models.Model):
             "MOL2",
         ),
         )
-        )
-    sdf_info: TextField
-        The 3D coordinates for the molecule in MDL (mol file) format. Taken directly from the uploaded file
-    rscc: FloatField
-        The RSCC score of the molecule 3D coordinates vs. PANDDA event map (optional)
-    occupancy: FloatField
-        The occupancy (electron density) of the molecule (optional)
-    x_com: FloatField
-        x-coordinate for centre of mass (optional)
-    y_com: FloatField
-        y-coordinate for centre of mass (optional)
-    z_com: FloatField
-        z-coordinate for centre of mass (optional)
-    rmsd: FloatField
-        RMSD of this molecule compared to ? (optional - unused)
-    prot_id: ForeignKey
-        Foreign key link to the associated protein (apo) that this ligand was pulled from
-    cmpd_id: ForeignKey
-        Foreign key link to the associated 2D compound
-    sdf_file: FileField
-        File link to uploaded sdf file (optional)
-    history: HistoricalRecords
-        Tracks the changes made to an instance of this model over time
-
     )
-    sdf_info: TextField
-        The 3D coordinates for the molecule in MDL (mol file) format. Taken directly from the uploaded file
-    rscc: FloatField
-        The RSCC score of the molecule 3D coordinates vs. PANDDA event map (optional)
-    occupancy: FloatField
-        The occupancy (electron density) of the molecule (optional)
-    x_com: FloatField
-        x-coordinate for centre of mass (optional)
-    y_com: FloatField
-        y-coordinate for centre of mass (optional)
-    z_com: FloatField
-        z-coordinate for centre of mass (optional)
-    rmsd: FloatField
-        RMSD of this molecule compared to ? (optional - unused)
-    prot_id: ForeignKey
-        Foreign key link to the associated protein (apo) that this ligand was pulled from
-    cmpd_id: ForeignKey
-        Foreign key link to the associated 2D compound
-    sdf_file: FileField
-        File link to uploaded sdf file (optional)
-    history: HistoricalRecords
-        Tracks the changes made to an instance of this model over time
-
     """
     smiles = models.CharField(max_length=255, db_index=True, null=True)
     lig_id = models.CharField(max_length=5, null=True,
