@@ -229,6 +229,29 @@ following line to the `stack` section of your docker_compose file:
 
     SENTRY_DNS: https://<SENTRY_DNS>
 
+## Compiling the documentation
+Because the documentation uses Sphinx and its `autodoc` module, compiling the
+documentation needs all the application requirements. As this is often impractical
+on the command-line, the most efficient way to build the documentation is from within
+the stack container (as shown below).
+
+    docker-compose up -d
+    docker-compose exec stack bash
+
+    pip install sphinx==5.3.0
+    pip install importlib-metadata~=4.0
+    
+    cd docs
+    sphinx-build -b html source/ build/
+
+>   The current version of Python used in the Django container image is **3.7**
+    and this suffers from an import error relating to celery. It is fixed by
+    using a pre-v5.0 version of `importlib-metadata` as illustrated in the above example.
+    (see https://stackoverflow.com/questions/73933432/)
+
+The code directory is mounted in the container the documentation can then be committed
+from the host machine.
+
 ## Design Documents
 
 As the application has evolved several design documents have been written detailing
