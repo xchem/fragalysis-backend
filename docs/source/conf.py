@@ -10,9 +10,13 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import inspect
 import sys
 import os
+
 import django
+from django.utils.html import strip_tags
+from django.utils.encoding import force_text
 
 sys.path.insert(0, os.path.abspath('../..'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'fragalysis.settings'
@@ -56,3 +60,31 @@ html_static_path = ['_static']
 
 master_doc = 'index'
 
+# A function that extracts documentation from the Django model classes.
+# Field documentation is extracted from the model's help_text or verbose_name
+# along with automated docs for the type.
+#
+# Inspired by https://www.djangosnippets.org/snippets/2533/
+def process_docstring(app, what, name, obj, options, lines):
+    # This causes import errors if left outside the function
+    from django.db import models
+    
+    # Only look at objects that inherit from Django's base model class
+    if inspect.isclass(obj) and issubclass(obj, models.Model):
+        for field in obj._meta.get_fields():
+
+            # Try the column's help text or the verbose name
+            text = ""
+            if hasattr(field, "help_text"):
+                text = strip_tags(force_text(field.help_text))
+            if not text and hasattr(field, "verbose_name"):
+                text = force_text(field.verbose_name).capitalize()
+            if text:
+                lines.append(u':param %s: %s' % (field.attname, text))
+                lines.append(u':type %s: %s' % (field.attname, type(field).__name__))
+   
+    return lines  
+
+# Register the docstring processor with sphinx
+def setup(app):
+    app.connect('autodoc-process-docstring', process_docstring)
