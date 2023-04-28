@@ -58,11 +58,6 @@ def add_prop_to_sdf(sdf_file_in, sdf_file_out, properties):
         0.115601
     In this case we'd provide the following properties dictionary...
         {"TransFSScore": "0.115601"}
-
-    Args:
-        sdf_file_in : filepath of source file
-        sdf_file_out : filepath to write new file to
-        properties : dictionary or properties
     """
     _REC_SEPARATOR = '$$$$\n'
 
@@ -89,14 +84,8 @@ def add_prop_to_sdf(sdf_file_in, sdf_file_out, properties):
 
 
 def add_prop_to_mol(mol_field, mol_file_out, value):
-    """Returns a mol_file with the requested property added
+    """Returns a mol_file with the requested property added.
     Note that the only property that seems to work with a .mol file if you write it is: "_Name".
-
-    Args:
-        mol_field
-        mol_file_out : filepath to write new file to
-        property
-        value
     """
     rd_mol = Chem.MolFromMolBlock(mol_field)
     # Set the new property in the property mol object
@@ -105,17 +94,8 @@ def add_prop_to_mol(mol_field, mol_file_out, value):
 
 
 def clean_filename(filepath):
-    """Return the "clean" version of a Django filename without the '_abcdefg_' that is created
-    when a file is overwritten.
-
-    Given a path and a file, e.g. './media/sdfs/Mpro-x3351_0A_rtEVbqf.sdf' this
-    function will return 'Mpro-x3351_0A.sdf'.
-
-    Args:
-        filepath
-
-    Returns:
-        cleaned filename
+    """Return the "clean" version of a Django filename without the '_abcdefg_' that is
+    created when a file is overwritten.
     """
     file_split = os.path.splitext(os.path.basename(filepath))
     if fnmatch.fnmatch(

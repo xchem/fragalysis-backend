@@ -1,9 +1,10 @@
-from django.test import TestCase
+from django.test import SimpleTestCase, tag
 
 from network.functions import add_keys, add_empty, order_structures
 
 
-class NetworkUtilsTestCase(TestCase):
+@tag("nodb")
+class NetworkFunctionsTestCase(SimpleTestCase):
 
     def test_can_add_key(self):
         test_d = {"D_ONE": {"TYPE_ONE": {}}}
