@@ -2,6 +2,7 @@
 version: '3'
 
 services:
+
   database:
     image: postgres:12.2
     volumes:
@@ -12,9 +13,18 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
     - "5432:5432"
+    healthcheck:
+      test: pg_isready -U postgres -d frag
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 10s
+    
   tests:
     image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_TAG:-latest}
-    command: ["/code/wait-for-it.sh", "database:5432", "--", "/bin/bash", "/code/test_entry.sh"]
+    command:
+    - /bin/bash
+    - /code/test-entry.sh
     volumes:
     - .:/code
     - ../logs:/code/logs/
@@ -28,4 +38,5 @@ services:
     ports:
     - "80:80"
     depends_on:
-    - database
+      database:
+        condition: service_healthy
