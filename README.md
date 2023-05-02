@@ -26,30 +26,56 @@ Begin by forking repositories you anticipate editing (although you really want
 to consider forking all the repositories as this is a relatively low-cost
 operation).
 
-The repositories are: -
+The main repositories are: -
 
-- [xchem/fragalysis](https://github.com/xchem/fragalysis)
 - [xchem/fragalysis-frontend](https://github.com/xchem/fragalysis-frontend)
 - [xchem/fragalysis-backend](https://github.com/xchem/fragalysis-backend)
 - [xchem/fragalysis-stack](https://github.com/xchem/fragalysis-stack)
 
+Other, significant, repositories include: -
+
+- [xchem/fragalysis](https://github.com/xchem/fragalysis)
+- [xchem/fragalysis-api](https://github.com/xchem/fragalysis-api)
+- 
 The stack is deployed as a container image to [Kubernetes] using [Ansible] playbooks
 that can be found in the Ansible repository, where additional development and deployment
 documentation can also be found: -
 
 - [informaticsmatters/dls-fragalysis-stack-kubernetes](https://github.com/InformaticsMatters/dls-fragalysis-stack-kubernetes)
 
+## Building and running (local)
+The backend is a Docker container image and can be build and deployed locally using
+`docker-compose`.
+
+    docker-compose build
+
+To run the application (which wil include deployment of the postgres and neo4j databases)
+run: -
+
+    docker-compose up -d
+
+The postgres database is persisted in the `data` directory, outside of the repo.
+
+You may need to provide a number of environment variables
+that are employed in the container image. Fragalysis configuration depends on
+a large number of variables, and the defaults may not be suitable for your needs.
+
+The typical pattern with `docker-compose`, is to provide these variables in the
+`docker-compose.yml` file and adjust their values (especially the sensitive ones)
+using a local `.env` file (see [environment variables]).
+
 ## Command-line access to the API
 With the stack (or backend) running you should be able to access the REST API. From
-the command-line you can use curl or [httpie]. Here's we use the httpie utility to
-`GET` the API root (which does not require authentication)...
+the command-line you can use [curl] or [httpie]. Here, we use `http` to
+**GET** a response from the API root (which does not require authentication)...
 
     http :8080/api/
 
-To use much of the remainder of the API you will need to authenticate. but some endpoints allow you to use a token,
-obtained from the corresponding Keycloak authentication service. If you are
-running a local stack a client ID exists that should work for you, assuming you have
-a Keycloak user identity. So, with a few variables: -
+To use much of the remainder of the API you will need to authenticate.
+Some endpoints allow you to use a token, obtained from the corresponding Keycloak
+authentication service. If you are running a local stack a client ID exists that
+should work for you, assuming you have a Keycloak user identity.
+With a few variables: -
 
     TOKEN_URL=keycloak.example.com/auth/realms/xchem/protocol/openid-connect/token
     CLIENT_ID=fragalysis-local
@@ -57,7 +83,7 @@ a Keycloak user identity. So, with a few variables: -
     USER=someone
     PASSWORD=password123
 
-...you can then get an API token. Here we're using `httpie`and `jq`: -
+...you should eb able to obtain an API token. Here we're using `http`and `jq`: -
 
     TOKEN=$(http --form POST https://$TOKEN_URL/ \
         grant_type=password \
@@ -80,17 +106,17 @@ at `/code/logs`.
 
 ## Database migrations
 The best approach is to spin-up the development stack (locally) using
-`docker-compose` and then shell into the Django (stack). For example,
+`docker-compose` and then shell into Django. For example,
 to make new migrations called "add_job_request_start_and_finish_times"
-for the viewer's models run the following: -
+for the viewer's model run the following: -
 
 >   Before starting postgres, if you need to, remove any pre-existing database (if one exists)
     with `rm -rf ../data` (a directory maintained above the repository's clone)
 
     docker-compose up -d
 
-Then from within the stack container make the migrations. Here we're migrating the `viewer`
-application...
+Then from within the stack container make the migrations
+(in this case for the `viewer`)...
 
     docker-compose exec stack bash
 
@@ -116,7 +142,7 @@ following line to the `stack` section of your docker_compose file:
 Because the documentation uses Sphinx and its `autodoc` module, compiling the
 documentation needs all the application requirements. As this is often impractical
 on the command-line, the most efficient way to build the documentation is from within
-the stack container (as shown below).
+the stack container: -
 
     docker-compose up -d
     docker-compose exec stack bash
@@ -132,102 +158,10 @@ the stack container (as shown below).
     using a pre-v5.0 version of `importlib-metadata` as illustrated in the above example.
     (see https://stackoverflow.com/questions/73933432/)
 
-The code directory is mounted in the container the documentation can then be committed
-from the host machine.
+The code directory is mounted in the container so the compiled documentation
+can then be committed from the host machine.
 
-## Local development
->   These _local development_ notes are **deprecated**, please see the
-    documentation relating to the [Kubernetes Stack] deployment on ReadTheDocs where
-    the development architecture is described in detail.
-
-Prerequisites: -
-
-- Docker
-- Docker Compose
-- Git
-- Ideally a Linux host (although Windows and Mac should work)
-
-Other 'handy' tools to have while developing are: -
-
-- [jq]
-- [httpie]
-
-Create project directory: -
-
-    mkdir fragalysis
-
-Clone repositories inside your project's directory: -
-
->   You can clone original `xchem` repositories or your forked
-    e.g. `m2ms` and checkout any branch if necessary
-
-    git clone https://github.com/xchem/fragalysis-backend.git
-    git clone https://github.com/xchem/fragalysis-frontend.git
-    git clone https://github.com/InformaticsMatters/dls-fragalysis-stack-openshift.git
-
-Note: To successfully build and run, the following directories should exit
-from repository cloning. The frontend is also important, because the django
-server will serve this directory!
-
-    fragalysis/fragalysis-frontend/
-    fragalysis/fragalysis-backend/
-    fragalysis/dls-fragalysis-stack-openshift/
-
-Create some key data directories: -
-
-In the `fragalysis/` directory run the following to create a data directory structure: -
-
-    mkdir -p data/input/django_data/EXAMPLE
-    mkdir -p data/neo4j/data
-    mkdir -p data/neo4j/logs
-    mkdir -p data/stack/media
-    mkdir -p data/stack/logs
-    mkdir -p data/media/compound_sets
-    mkdir -p data/postgre/data
-
-Populating database: -
-
-Copy to `fragalysis/data/input/django_data/EXAMPLE` your PDB data, before you can launch the application.
-
-If the file `fragalysis/data/input/django_data/EXAMPLE/TARGET_LIST` does not exist,
-create it and add a content list of your data, for example:
-
-    Mpro, NUDT7A,...
-
-Build and start the stack and generate an upload key: -
-
->   You may want to use a `.env` file to set some of the environment values defined in the
-    `docker-compose.yml` file. The `.env` is ignored by git but allows you to set a number
-    of variables, some of which may be _sensitive_.
-
-To run successfully you wil need to provide some variables, ideally in a `.env` file.
-Namely: -
-
-    OIDC_KEYCLOAK_REALM=https://keycloak.example.com/auth/realms/xchem
-    OIDC_RP_CLIENT_ID=fragalysis-local
-    OIDC_RP_CLIENT_SECRET=<secret>
-
-Then run: -
-
-    docker-compose build
-    docker-compose up -d
-
-Connect to `stack` service and run following script: -
-
-    python manage.py shell
-    from viewer.models import CSetKeys
-    new_key = CSetKeys()
-    new_key.name = 'test'
-    new_key.save()
-    print(new_key.uuid)
-
-It is important to have key in following format: `f8c4ea0f-6b81-46d0-b85a-3601135756bc` 
-
-With the stack running, upload a compound set by visiting `localhost:8080/viewer/upload_cset`
-
-The target name is for example `Mpro`, select `sdf` file and you don't need a `pdb` file. 
-
-## Design Documents
+## Design documents
 As the application has evolved several design documents have been written detailing
 improvements. These may be useful for background reading on why decisions have been made.
 
@@ -243,6 +177,11 @@ Current docs are listed below: -
 ## Pre-commit
 The project uses [pre-commit] to enforce linting of files prior to committing
 them to the upstream repository.
+
+>   As fragalysis is a complex code-based (that's been maintained by a number of
+    key developers) we currently limit the linting to the `viewer` application
+    (see the `.pre-commit-config.yaml` file for details).
+    In the future we might extend this to the entire code-base.
 
 To get started review the pre-commit utility and then set-up your local clone
 by following the **Installation** and **Quick Start** sections of the
@@ -265,7 +204,9 @@ state of the repository as it stands with...
 ---
 
 [ansible]: https://github.com/ansible/ansible
+[curl]: https://curl.se
 [drf]: https://www.django-rest-framework.org
+[environment variables]: https://docs.docker.com/compose/environment-variables/set-environment-variables/
 [httpie]: https://pypi.org/project/httpie/
 [jq]: https://stedolan.github.io/jq/
 [kubernetes]: https://kubernetes.io
