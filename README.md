@@ -1,4 +1,4 @@
-# The Fragalysis Stack (Backend)
+# The Fragalysis Backend
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/xchem/fragalysis-backend)
 
@@ -15,17 +15,16 @@ for the API, and loaders for data.
     https://fragalysis-backend.readthedocs.io/en/latest/index.html
 
 ## Background
-A **Stack** consists of three services: -
+The **Backend** is part of the **Stack**, which consists of three services: -
 
 - a Postgres database
 - a neo4j graph database
 - the Fraglaysis "stack"
 
 The stack is formed from code resident in a number of repositories.
-The main repositories are: -
+This one, and: -
 
 - [xchem/fragalysis-frontend](https://github.com/xchem/fragalysis-frontend)
-- [xchem/fragalysis-backend](https://github.com/xchem/fragalysis-backend)
 - [xchem/fragalysis-stack](https://github.com/xchem/fragalysis-stack)
 
 Other, significant, repositories include: -
