@@ -15,17 +15,13 @@ for the API, and loaders for data.
     https://fragalysis-backend.readthedocs.io/en/latest/index.html
 
 ## Background
-The stack consists of three services, running as containers: -
+A **Stack** consists of three services: -
 
 - a Postgres database
 - a neo4j graph database
 - the Fraglaysis "stack"
 
 The stack is formed from code resident in a number of repositories.
-Begin by forking repositories you anticipate editing (although you really want
-to consider forking all the repositories as this is a relatively low-cost
-operation).
-
 The main repositories are: -
 
 - [xchem/fragalysis-frontend](https://github.com/xchem/fragalysis-frontend)
@@ -37,11 +33,9 @@ Other, significant, repositories include: -
 - [xchem/fragalysis](https://github.com/xchem/fragalysis)
 - [xchem/fragalysis-api](https://github.com/xchem/fragalysis-api)
   
-The stack is deployed as a container image to [Kubernetes] using [Ansible] playbooks
-that can be found in the Ansible repository, where additional development and deployment
-documentation can also be found: -
-
-- [informaticsmatters/dls-fragalysis-stack-kubernetes](https://github.com/InformaticsMatters/dls-fragalysis-stack-kubernetes)
+The stack is deployed as a container images to [Kubernetes] using [Ansible] playbooks
+that can be found in the Ansible repository. Additional development and deployment
+documentation can be found in the [informaticsmatters/dls-fragalysis-stack-kubernetes](https://github.com/InformaticsMatters/dls-fragalysis-stack-kubernetes) repository.
 
 ## Building and running (local)
 The backend is a Docker container image and can be build and deployed locally using
@@ -71,6 +65,20 @@ the command-line you can use [curl] or [httpie]. Here, we use `http` to
 
     http :8080/api/
 
+The response should contain a list of endpoint names and URLs, something like this...
+
+```
+{
+    "action-type": "http://localhost:8080/api/action-type/",
+    "cmpdchoice": "http://localhost:8080/api/cmpdchoice/",
+    "cmpdimg": "http://localhost:8080/api/cmpdimg/",
+    [...]
+    "vector3ds": "http://localhost:8080/api/vector3ds/",
+    "vectors": "http://localhost:8080/api/vectors/",
+    "viewscene": "http://localhost:8080/api/viewscene/"
+}
+```
+
 To use much of the remainder of the API you will need to authenticate.
 Some endpoints allow you to use a token, obtained from the corresponding Keycloak
 authentication service. If you are running a local stack a client ID exists that
@@ -94,11 +102,17 @@ With a few variables: -
 
 The token should last for at least 15 minutes, depending on the Keycloak configuration.
 With the Token you should then be able to make authenticated requests to the API on your
-local stack: -
+local stack.
+
+Here's an illustration of how to use the API from the command-line by getting, adding,
+and deleting a `CompoundIdentifierType`: -
 
     ENDPOINT=api/compound-identifier-types
+
     http :8080/$ENDPOINT/ "Authorization:Bearer $TOKEN"
-    
+    RID=$(http post :8080/$ENDPOINT/ "Authorization:Bearer $TOKEN" name="XT345632" | jq -r '.id')
+    http delete :8080/$ENDPOINT/$RID/ "Authorization:Bearer $TOKEN"
+
 ## Logging
 The backend writes log information in the container to `/code/logs/backend.log`. This is
 typically persisted between container restarts on Kubernetes with a separate volume mounted
@@ -131,12 +145,11 @@ Exit the container and tear-down the deployment: -
     migrations that have been written to the local directory to Git.
 
 ## Sentry error logging
-In `settings.py`, this is controlled by setting the value of `SENTRY_DNS`.
-To enable it, you need to set it to a valid Sentry DNS entry.
-For Diamond, this can be set locally by adding the 
-following line to the `stack` section of your docker_compose file:
+[Sentry] can be used to log errors in the stack container image.
 
-    SENTRY_DNS: https://<SENTRY_DNS>
+In `settings.py`, this is controlled by setting the value of `FRAGALYSIS_BACKEND_SENTRY_DNS`,
+which is also exposed in the developer docker-compose file.
+To enable it, you need to set it to a valid Sentry DNS value.
 
 ## Compiling the documentation
 Because the documentation uses Sphinx and its `autodoc` module, compiling the
@@ -160,19 +173,6 @@ the stack container: -
 
 The code directory is mounted in the container so the compiled documentation
 can then be committed from the host machine.
-
-## Design documents
-As the application has evolved several design documents have been written detailing
-improvements. These may be useful for background reading on why decisions have been made.
-
-The documents will be stored in the `/design_docs` folder in the repo.
-Current docs are listed below: -
-
-- [Fragalysis Discourse Design](design_docs/Fragalysis_Discourse_v0.2.pdf)
-- [Fragalysis Tags Design V1.0](design_docs/Fragalysis_Tags_Design_V1.0.pdf)
-- [Fragalysis Design #651 Fix Data Download V2.0](design_docs/Fragalysis_Design_651_Fix_Data_Download_V2.0.pdf)
-- [Fragalysis Job Launcher V1.0](design_docs/Fragalysis_Job_Launcher_V1.0.pdf)
-- [Fragalysis Job Launcher V2.0](design_docs/Fragalysis_Job_Launcher_Phase2_V1.0.pdf)
 
 ## Pre-commit
 The project uses [pre-commit] to enforce linting of files prior to committing
@@ -201,6 +201,19 @@ state of the repository as it stands with...
 
     pre-commit run --all-files
 
+## Design documents
+As the application has evolved several design documents have been written detailing
+improvements. These may be useful for background reading on why decisions have been made.
+
+The documents will be stored in the `/design_docs` folder in the repo.
+These include, but are not limit to: -
+
+- [Fragalysis Discourse Design](design_docs/Fragalysis_Discourse_v0.2.pdf)
+- [Fragalysis Tags Design V1.0](design_docs/Fragalysis_Tags_Design_V1.0.pdf)
+- [Fragalysis Design #651 Fix Data Download V2.0](design_docs/Fragalysis_Design_651_Fix_Data_Download_V2.0.pdf)
+- [Fragalysis Job Launcher V1.0](design_docs/Fragalysis_Job_Launcher_V1.0.pdf)
+- [Fragalysis Job Launcher V2.0](design_docs/Fragalysis_Job_Launcher_Phase2_V1.0.pdf)
+
 ---
 
 [ansible]: https://github.com/ansible/ansible
@@ -213,3 +226,4 @@ state of the repository as it stands with...
 [kubernetes stack]: https://dls-fragalysis-stack-kubernetes.readthedocs.io/en/latest/index.html#
 [pre-commit]: https://pre-commit.com
 [readthedocs]: https://fragalysis-backend.readthedocs.io/en/latest/index.html
+[sentry]: https://sentry.io/welcome/
