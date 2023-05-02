@@ -36,7 +36,7 @@ Other, significant, repositories include: -
 
 - [xchem/fragalysis](https://github.com/xchem/fragalysis)
 - [xchem/fragalysis-api](https://github.com/xchem/fragalysis-api)
-- 
+  
 The stack is deployed as a container image to [Kubernetes] using [Ansible] playbooks
 that can be found in the Ansible repository, where additional development and deployment
 documentation can also be found: -
