@@ -16,6 +16,12 @@ from rdkit import Chem
 SDF_VERSION = 'ver_1.2'
 
 
+def create_squonk_job_request_url(instance_id):
+    """Creates the Squonk Instance API url from an instance ID (UUID).
+    """
+    return settings.SQUONK2_INSTANCE_API + str(instance_id)
+
+
 def create_media_sub_directory(sub_directory):
     """Creates a directory (or directories) in the MEDIA directory,
     returning the full path.
@@ -61,8 +67,8 @@ def add_prop_to_sdf(sdf_file_in, sdf_file_out, properties):
     _REC_SEPARATOR = '$$$$\n'
 
     found_separator = False
-    with open(sdf_file_out, 'a') as sdf_out:
-        with open(sdf_file_in, 'r') as sdf_in:
+    with open(sdf_file_out, 'a', encoding='utf-8') as sdf_out:
+        with open(sdf_file_in, 'r', encoding='utf-8') as sdf_in:
             while True:
                 line = sdf_in.readline()
                 if line:
@@ -133,4 +139,3 @@ def get_https_host(request):
     Note that this link will not work on local
     """
     return settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
-

@@ -248,6 +248,9 @@ class MolOps:
         return set_obj
 
     def set_mol(self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None):
+        # Don't need...
+        del filename
+
         # zfile = {'zip_obj': zf, 'zf_list': zip_names}
         print(f'mol: {mol}')
         smiles = Chem.MolToSmiles(mol)
@@ -290,7 +293,7 @@ class MolOps:
 
             insp_frags.append(ref)
 
-        orig = mol.GetProp('original SMILES')
+        _ = mol.GetProp('original SMILES')
 
         # Try to get the protein object.
         # This may fail.
@@ -370,10 +373,10 @@ class MolOps:
 
         for key in list(description_dict.keys()):
             if key in descriptions_needed and key not in ['ref_mols', 'ref_pdb', 'index', 'Name', 'original SMILES']:
-                desc = ScoreDescription.objects.get_or_create(computed_set=compound_set,
-                                                              name=key,
-                                                              description=description_dict[key],
-                                                              )[0]
+                _ = ScoreDescription.objects.get_or_create(computed_set=compound_set,
+                                                           name=key,
+                                                           description=description_dict[key],
+                                                           )
 
         return mols
 
@@ -423,7 +426,7 @@ class MolOps:
             self.process_mol(mols_to_process[i], self.target, compound_set, sdf_filename, self.zfile, self.zfile_hashvals)
 
         # check that molecules have been added to the compound set
-        check = ComputedMolecule.objects.filter(computed_set=compound_set)
+        _ = ComputedMolecule.objects.filter(computed_set=compound_set)
 
         # check compound set folder exists.
         cmp_set_folder = os.path.join(settings.MEDIA_ROOT, 'compound_sets')
@@ -447,13 +450,28 @@ class MolOps:
 
 
 def blank_mol_vals(sdf_file):
+    """Returns the submitter name, method and version (_Name) if present.
+    If not present the corresponding values are empty strings.
+    """
     suppl = Chem.SDMolSupplier(sdf_file)
+    if not suppl:
+        return '', '', ''
     # print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
+    if not blank_mol:
+        return '', '', ''
 
     # Get submitter name/info for passing into upload to get unique name
-    submitter_name = blank_mol.GetProp('submitter_name')
-    submitter_method = blank_mol.GetProp('method')
-    version = blank_mol.GetProp('_Name')
+    submitter_name = ''
+    if blank_mol.HasProp('submitter_name'):
+        submitter_name = blank_mol.GetProp('submitter_name')
+
+    submitter_method = ''
+    if blank_mol.HasProp('method'):
+        submitter_method = blank_mol.GetProp('method')
+
+    version = ''
+    if blank_mol.HasProp('_Name'):
+        version = blank_mol.GetProp('_Name')
 
     return submitter_name, submitter_method, version

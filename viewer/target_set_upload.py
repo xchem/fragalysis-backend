@@ -6,7 +6,7 @@ loaders.py
 functions.py
 """
 import logging
-import sys, json, os, glob, shutil
+import sys, json, os, shutil
 import datetime
 
 from django.contrib.auth.models import User
@@ -172,7 +172,7 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
     """Add a protein with a PDB, code and
 
     :param code: the unique code for this file
-    :param target: the target to be linkede to
+    :param target: the target to be linked to
     :param xtal_path: the path to the crystal directory
     :param xtal: name of the xtal(?)
     :param input_dict: dictionary of files in crystal directory from load_dir
@@ -183,13 +183,13 @@ def add_prot(code, target, xtal_path, xtal, input_dict):
     # code is normally the xtal directory in the aligned folder, but this may have been modified to have
     # an alternate name added to it - in the form 'directory:alternate_name'.
     code_first_part = code.split(":")[0]
-    proteins = Protein.objects.filter(code__contains=code_first_part)
+    proteins = Protein.objects.filter(code__contains=code_first_part, target_id=target)
     if proteins.exists():
         new_prot = proteins.first()
-        logger.debug("Protein exists='%s'", new_prot[1])
+        logger.debug("Pre-existing Protein (%s)", new_prot)
     else:
         new_prot = Protein.objects.get_or_create(code=code, target_id=target)
-        logger.debug("Protein created new_prot='%s'", new_prot[1])
+        logger.debug("New Protein (code='%s' target_id='%s')", code, target)
         new_prot = new_prot[0]
 
     new_prot.apo_holo = True
@@ -332,7 +332,7 @@ def add_mol(mol_file, prot, projects, lig_id="LIG", chaind_id="Z",
     """
     # create mol object from mol_sd
     rd_mol = Chem.MolFromMolFile(mol_file)
-    orig_mol_block = open(mol_file, 'r').read()
+    orig_mol_block = open(mol_file, 'r', encoding='utf-8').read()
 
     if rd_mol is None:
         return None
@@ -374,7 +374,7 @@ def add_mol(mol_file, prot, projects, lig_id="LIG", chaind_id="Z",
         if sdf_file:
             new_mol.sdf_file.save(
                 os.path.basename(sdf_file),
-                File(open(sdf_file))
+                File(open(sdf_file, encoding='utf-8'))
             )
         new_mol.save()
         return new_mol
@@ -462,7 +462,7 @@ def add_map(new_prot, new_target, map_path, map_type):
     hotspot_map = HotspotMap.objects.get_or_create(
         map_type=map_type, target_id=new_target, prot_id=new_prot
     )[0]
-    hotspot_map.map_info.save(os.path.basename(map_path), File(open(map_path)))
+    hotspot_map.map_info.save(os.path.basename(map_path), File(open(map_path, encoding='utf-8')))
     return hotspot_map
 
 
@@ -477,7 +477,7 @@ def delete_users(project):
     project.save()
 
 
-def get_create_projects(target, proposal_ref):
+def get_create_projects(target, proposal_ref, proposal_code='lb'):
     """Add proposals and visits as projects for a given target.
 
     :param new_target: the target being added
@@ -494,6 +494,10 @@ def get_create_projects(target, proposal_ref):
     # The first word is the ISPY proposal/visit name that is used as the title of the project.
     # It can be set to OPEN in which case there are no users.
     visit = proposal_ref.split()[0]
+    # If the visit is not prefixed by the proposal code
+    # (typically a 2-letter sequence like "lb") then prefix it.
+    if visit[0].isdigit():
+        visit = f"{proposal_code}{visit}"
     project = Project.objects.get_or_create(title=visit)[0]
     projects.append(project)
 
@@ -504,9 +508,14 @@ def get_create_projects(target, proposal_ref):
     target.project_id.add(project)
 
     # Remaining words in proposal_ref (if any) must be fedid's which are used to find users information.
+    num_users = 0
     for fedid in proposal_ref.split()[1:]:
         user = User.objects.get_or_create(username=fedid, password="")[0]
         project.user_id.add(user)
+        num_users += 1
+    if num_users == 0:
+        project.open_to_public = True
+
     target.upload_progess = 10.00
     target.save()
 
@@ -537,7 +546,7 @@ def remove_not_added(target, xtal_list):
 def save_confidence(mol, file_path, annotation_type="ligand_confidence"):
     """save ligand confidence"""
 
-    input_dict = json.load(open(file_path))
+    input_dict = json.load(open(file_path), encoding='utf-8')
     val_store_dict = ["ligand_confidence_comment", "refinement_outcome", "ligand_confidence_int"]
     for val in val_store_dict:
         if val in input_dict:
@@ -926,7 +935,7 @@ def analyse_target(target, aligned_path):
         new_frame.sort_values(by='site_name', inplace=True)
 
         # one file for new names
-        with open(os.path.join(aligned_path, 'alternate_names.csv'), 'a') as f:
+        with open(os.path.join(aligned_path, 'alternate_names.csv'), 'a', encoding='utf-8') as f:
             f.write('name,alternate_name\n')
 
             for _, row in new_frame.iterrows():
@@ -945,7 +954,7 @@ def analyse_target(target, aligned_path):
         for i in range(0, len(sorted(unique_sites))):
             site_mapping[unique_sites[i]] = i
 
-        with open(os.path.join(aligned_path, 'hits_ids.csv'), 'a') as f:
+        with open(os.path.join(aligned_path, 'hits_ids.csv'), 'a', encoding='utf-8') as f:
             f.write('crystal_id,site_number\n')
 
             for _, row in new_frame.iterrows():
@@ -956,7 +965,7 @@ def analyse_target(target, aligned_path):
                 for crys in list(set([c.code for c in crystal])):
                     f.write(str(crys) + ',' + str(s_id) + '\n')
 
-        with open(os.path.join(aligned_path, 'sites.csv'), 'a') as f:
+        with open(os.path.join(aligned_path, 'sites.csv'), 'a', encoding='utf-8') as f:
             f.write('site,id\n')
             for key in site_mapping.keys():
                 f.write(str(key) + ',' + str(site_mapping[key]) + '\n')
@@ -1173,25 +1182,45 @@ def validate_target(new_data_folder, target_name, proposal_ref):
     :param proposal_ref: A reference to the proposal/visit used for connecting the target to a project/users
     :return:
     """
+    # Don't need
+    del proposal_ref
+
     validate_dict = {'Location': [], 'Error': [], 'Line number': []}
 
     # Check if there is any data to process
     target_path = os.path.join(new_data_folder, target_name)
 
+    # Assume success...
+    validated = True
+
+    # A target directory must exist
     if not os.path.isdir(target_path):
-        validate_dict = add_tset_warning(validate_dict, 'Folder', f'No folder matching target name in extracted zip file {new_data_folder}, {target_name}', 0)
-
-    aligned_path = os.path.join(target_path, 'aligned')
-
-    if not os.path.isdir(aligned_path):
-        validate_dict = add_tset_warning(validate_dict, 'Folder', 'No aligned folder present in target name folder', 0)
-
-    # Check if there is a metadata.csv file to process
-    metadata_file = os.path.join(aligned_path, 'metadata.csv')
-    if os.path.isfile(metadata_file):
-        validated, validate_dict = check_metadata(metadata_file, validate_dict)
-    else:
-        validate_dict = add_tset_warning(validate_dict, 'File', 'No metedata.csv file present in the aligned folder', 0)
+        validate_dict = add_tset_warning(validate_dict, 'Folder',
+                                         'Folder does not match target name.'
+                                         f' Expected "{target_name}".'
+                                         f' Is the upload called "{target_name}.zip"?', 0)
+        # No point in checking anything else if this check fails
         validated = False
+
+    if validated:
+        # An 'aligned' directory must exist
+        aligned_path = os.path.join(target_path, 'aligned')
+        if not os.path.isdir(aligned_path):
+            validate_dict = add_tset_warning(validate_dict, 'Folder',
+                                         'No aligned folder present.'
+                                         f' Expected "{target_name}/{aligned_path}"', 0)
+            # No point in checking anything else if this check fails
+            ok_so_far = False
+
+    if validated:
+        # A metadata.csv file must exist
+        metadata_file = os.path.join(aligned_path, 'metadata.csv')
+        if os.path.isfile(metadata_file):
+            validated, validate_dict = check_metadata(metadata_file, validate_dict)
+        else:
+            validate_dict = add_tset_warning(validate_dict, 'File',
+                                             'No metedata file present.'
+                                             f' Expected "{target_name}/{aligned_path}/{metadata_file}"', 0)
+            validated = False
 
     return validated, validate_dict

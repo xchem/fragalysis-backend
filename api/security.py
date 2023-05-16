@@ -1,14 +1,19 @@
+import logging
 import os
 import time
+
 from wsgiref.util import FileWrapper
 from django.http import Http404
 from django.http import HttpResponse
+from django.db.models import Q
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from ispyb.connector.mysqlsp.main import ISPyBNoResultException
 from rest_framework import viewsets
 from .remote_ispyb_connector import SSHConnector
 
 from viewer.models import Project
+
+logger = logging.getLogger(__name__)
 
 USER_LIST_DICT = {}
 
@@ -54,9 +59,17 @@ def get_remote_conn():
     #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
     if not ispyb_credentials["host"]:
+        logger.debug("No ISPyB host - cannot return a connector")
         return None
 
-    conn = SSHConnector(**ispyb_credentials)
+    # Try to get an SSH connection (aware that it might fail)
+    conn = None
+    try:
+        conn = SSHConnector(**ispyb_credentials)
+    except:
+        logger.info("ispyb_credentials=%s", ispyb_credentials)
+        logger.exception("Exception creating SSHConnector")
+
     return conn
 
 
@@ -76,7 +89,13 @@ def get_conn():
     if not credentials["host"]:
         return None
 
-    conn = Connector(**credentials)
+    conn = None
+    try:
+        conn = Connector(**credentials)
+    except:
+        logger.info("credentials=%s", credentials)
+        logger.exception("Exception creating Connector")
+        
     return conn
 
 
@@ -87,34 +106,53 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         Optionally restricts the returned purchases to a given proposals
         """
         # The list of proposals this user can have
-        proposal_list = self.get_proposals_for_user()
+        proposal_list = self.get_proposals_for_user(self.request.user)
         # Add in the ones everyone has access to
-        proposal_list.extend(self.get_open_proposals())
-        # Must have a directy foreign key (project_id) for it to work
-        filter_dict = self.get_filter_dict(proposal_list)
-        return self.queryset.filter(**filter_dict).distinct()
+        # (unless we already have it)
+        for open_proposal in self.get_open_proposals():
+            if open_proposal not in proposal_list:
+                proposal_list.append(open_proposal)
+
+        logger.debug('is_authenticated=%s, proposal_list=%s',
+                     self.request.user.is_authenticated, proposal_list)
+
+        # Must have a foreign key to a Project for this filter to work.
+        # get_q_filter() returns a Q expression for filtering
+        q_filter = self.get_q_filter(proposal_list)
+        return self.queryset.filter(q_filter).distinct()
 
     def get_open_proposals(self):
         """
-        Returns the list of proposals anybody can access
-        :return:
+        Returns the list of proposals anybody can access.
+        This function is deprecated, instead we should move to the 'open_to_public'
+        field rather than using a built-in list of Projects.
+        We still add "OPEN" to the list for legacy testing.
         """
         if os.environ.get("TEST_SECURITY_FLAG", False):
-            return ["OPEN", "private_dummy_project"]
+            return ["lb00000", "OPEN", "private_dummy_project"]
         else:
-            return ["OPEN", "lb27156"]
+            # A list of well-known (built-in) public Projects (Proposals/Visits)
+            return ["lb00000", "OPEN", "lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
         if user.pk is None:
+            logger.warning("user.pk is None")
             return []
         else:
-            return list(
+            prop_ids = list(
                 Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
             )
+            logger.debug("Got %s proposals: %s", len(prop_ids), prop_ids)
+            return prop_ids
 
     def needs_updating(self, user):
+        """Returns true of the data collected for a user is out of date.
+        It's simple, we just record the last collected timestamp and consider it
+        'out of date' (i.e. more than an hour old).
+        """
         global USER_LIST_DICT
+
         update_window = 3600
         if user.username not in USER_LIST_DICT:
             USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": 0}
@@ -125,6 +163,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return False
 
     def run_query_with_connector(self, conn, user):
+
         core = conn.core
         try:
             rs = core.retrieve_sessions_for_person_login(user.username)
@@ -139,43 +178,115 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_proposals_for_user_from_ispyb(self, user):
         # First check if it's updated in the past 1 hour
         global USER_LIST_DICT
-        if self.needs_updating(user):
+
+        needs_updating = self.needs_updating(user)
+        logger.debug("user=%s needs_updating=%s", user.username, needs_updating)
+        
+        if needs_updating:
             conn = None
             if connector == 'ispyb':
                 conn = get_conn()
             if connector == 'ssh_ispyb':
                 conn = get_remote_conn()
 
-            # If there is no connection (ISpyB credentials may be missing)
+            # If there is no connection (ISPyB credentials may be missing)
             # then there's nothing we can do except return an empty list.
+            # Otherwise run a query for the user.
             if conn is None:
+                logger.warning("Failed to get ISPyB connector")
                 return []
-
             rs = self.run_query_with_connector(conn=conn, user=user)
+            logger.debug("Connector query rs=%s", rs)
+            
+            # Typically you'll find the following fields in each item
+            # in the rs response; -
+            #
+            #    'id': 0000000,
+            #    'proposalId': 00000,
+            #    'startDate': datetime.datetime(2022, 12, 1, 15, 56, 30)
+            #    'endDate': datetime.datetime(2022, 12, 3, 18, 34, 9)
+            #    'beamline': 'i00-0'
+            #    'proposalCode': 'lb'
+            #    'proposalNumber': '12345'
+            #    'sessionNumber': 1
+            #    'comments': None
+            #    'personRoleOnSession': 'Data Access'
+            #    'personRemoteOnSession': 1
+            #
+            # Iterate through the response and return the 'proposalNumber' (proposals)
+            # and one with the 'proposalNumber' and 'sessionNumber' (visits), each
+            # prefixed by the `proposalCode` (if present).
+            #
+            # Codes are expected to consist of 2 letters.
+            # Typically: lb, mx, nt, nr, bi
+            #
+            # These strings should correspond to a title value in a Project record.
+            # and should get this sort of list: -
+            # 
+            # ["lb12345", "lb12345-1"]
+            #              --      -
+            #              | ----- |
+            #           Code   |   Session
+            #               Proposal 
+            prop_id_set = set()
+            for record in rs:
+                pc_str = ""
+                if "proposalCode" in record and record["proposalCode"]:
+                    pc_str = f'{record["proposalCode"]}'
+                pn_str = f'{record["proposalNumber"]}'
+                sn_str = f'{record["sessionNumber"]}'
+                proposal_str = f'{pc_str}{pn_str}'
+                proposal_visit_str = f'{proposal_str}-{sn_str}'
+                prop_id_set.update([proposal_str, proposal_visit_str])
 
-            visit_ids = list(set([
-                str(x["proposalNumber"]) + "-" + str(x["sessionNumber"]) for x in rs
-            ]))
-            prop_ids = list(set([str(x["proposalNumber"]) for x in rs]))
-            prop_ids.extend(visit_ids)
-            USER_LIST_DICT[user.username]["RESULTS"] = prop_ids
-            return prop_ids
-        else:
+            # Always display the collected results for the user.
+            # These will be cached. 
+            logger.info("Got %s proposals (%s): %s",
+                        len(prop_id_set), user.username, prop_id_set)
+
+            # Cache the result and return the result for the user
+            USER_LIST_DICT[user.username]["RESULTS"] = list(prop_id_set)
             return USER_LIST_DICT[user.username]["RESULTS"]
+        else:
+            # Return the previous query (cached for an hour)
+            cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
+            logger.debug("Got %s cached proposals: %s", len(cached_prop_ids), cached_prop_ids)
+            return cached_prop_ids
 
-    def get_proposals_for_user(self):
-        user = self.request.user
+    def get_proposals_for_user(self, user):
+        """Returns a list of proposals (public and private) that the user has access to.
+        """
+        assert user
+        
         ispyb_user = os.environ.get("ISPYB_USER")
+        logger.debug("ispyb_user=%s", ispyb_user)
         if ispyb_user:
+            logger.debug("user.is_authenticated=%s", user.is_authenticated)
             if user.is_authenticated:
                 return self.get_proposals_for_user_from_ispyb(user)
             else:
+                logger.debug("Got no proposals")
                 return []
         else:
             return self.get_proposals_for_user_from_django(user)
 
-    def get_filter_dict(self, proposal_list):
-        return {self.filter_permissions + "__title__in": proposal_list}
+    def get_q_filter(self, proposal_list):
+        """Returns a Q expression representing a (potentially complex) table filter.
+        """
+        if self.filter_permissions:
+            # Q-filter is based on the filter_permissions string
+            # whether the resultant Project title in the proposal list
+            # OR where the Project is 'open_to_public'
+            return Q(**{self.filter_permissions + "__title__in": proposal_list}) |\
+                Q(**{self.filter_permissions + "__open_to_public": True})
+        else:
+            # No filter permission?
+            # Assume this QuerySet is used for the Project model.
+            # Added during 937 development (Access Control).
+            #
+            # Q-filter is based on the Project title being in the proposal list
+            # OR where the Project is 'open_to_public'
+            return Q(title__in=proposal_list) | Q(open_to_public=True)
 
 
 class ISpyBSafeStaticFiles:

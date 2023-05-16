@@ -7,7 +7,6 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 
 import django
 django.setup()
-from django.conf import settings
 from celery import shared_task
 import numpy as np
 
@@ -112,6 +111,7 @@ def process_compound_set(validate_output):
     process_stage, process_type, validate_dict, validated, params = validate_output
 
     logger.info('process_compound_set() ENTER')
+    logger.info('process_compound_set() process_type=%s', process_type)
     logger.info('process_compound_set() validated=%s', validated)
     logger.info('process_compound_set() params=%s', params)
 
@@ -244,10 +244,6 @@ def validate_compound_set(task_params):
     # print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
 
-    # Get submitter name/info for passing into upload to get unique name
-    submitter_name = blank_mol.GetProp('submitter_name')
-    submitter_method = blank_mol.GetProp('method')
-
     if blank_mol is None:
         validate_dict = add_warning(molecule_name='Blank Mol',
                                     field='N/A',
@@ -260,6 +256,9 @@ def validate_compound_set(task_params):
         logger.warning('validate_compound_set() EXIT'
                        ' user_id=%s sdf_file=%s validated=False',
                        user_id, sdf_file)
+        # Can't get submitter name or method when there is now mol
+        submitter_name = ''
+        submitter_method = ''
         return (validate_dict, validated, sdf_file, target, zfile,
                 submitter_name, submitter_method)
 
@@ -295,7 +294,10 @@ def validate_compound_set(task_params):
             props = [key for key in list(mol.GetPropsAsDict().keys())]
             diff_list = np.setdiff1d(props, unique_props)
             for diff in diff_list:
-                add_warning(molecule_name=mol.GetProp('_Name'),
+                molecule_name = 'Unknown (no _Name property)'
+                if mol.HasProp('_Name'):
+                    molecule_name = mol.GetProp('_Name')
+                add_warning(molecule_name=molecule_name,
                             field='property (missing)',
                             warning_string=f'{diff} property is missing from this molecule',
                             validate_dict=validate_dict)
@@ -321,7 +323,10 @@ def validate_compound_set(task_params):
     for m in other_mols:
         if m:
             validate_dict = check_mol_props(m, validate_dict)
-            validate_dict = check_name_characters(m.GetProp('_Name'), validate_dict)
+            molecule_name = ''
+            if m.HasProp('_Name'):
+                molecule_name = m.GetProp('_Name')
+            validate_dict = check_name_characters(molecule_name, validate_dict)
             # validate_dict = check_pdb(m, validate_dict, target, zfile)
             validate_dict = check_refmol(m, validate_dict, target)
             validate_dict = check_field_populated(m, validate_dict)
@@ -474,7 +479,7 @@ def validate_target_set(target_zip, target=None, proposal=None, email=None):
             - submitter_name (str): name of the user who submitted the upload
 
     """
-    logger.info('+ validating target set: ' + target_zip)
+    logger.info('+ TASK target_zip=%s', target_zip)
 
     # Get submitter name/info for passing into upload to get unique name
     submitter_name = ''
@@ -554,7 +559,7 @@ def process_job_file_transfer(auth_token, id):
 
     """
 
-    logger.info('+ Starting File Transfer (%s) [STARTED]', id)
+    logger.info('+ TASK Starting File Transfer (%s) [STARTED]', id)
     job_transfer = JobFileTransfer.objects.get(id=id)
     job_transfer.transfer_status = "STARTED"
     job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
@@ -562,11 +567,11 @@ def process_job_file_transfer(auth_token, id):
     try:
         process_file_transfer(auth_token, job_transfer.id)
     except RuntimeError as error:
-        logger.error('- File Transfer failed %s', id)
+        logger.error('- TASK File transfer (%s) [FAILED] error=%s',
+                     id, error)
         logger.error(error)
         job_transfer.transfer_status = "FAILURE"
         job_transfer.save()
-        logger.info('+ Failed File Transfer (%s) [FAILURE]', id)
     else:
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
@@ -577,7 +582,7 @@ def process_job_file_transfer(auth_token, id):
                       "compounds": list(SQUONK_COMP_MAPPING.keys())}
         job_transfer.transfer_spec = files_spec
         job_transfer.save()
-        logger.info('+ Successful File Transfer (%s) [SUCCESS]', id)
+        logger.info('+ TASK File transfer (%s) [SUCCESS]', id)
 
     return job_transfer.transfer_status
 
@@ -606,7 +611,8 @@ def process_compound_set_job_file(task_params):
     job_output_path = task_params['job_output_path']
     job_output_filename = task_params['job_output_filename']
 
-    logger.info('+ Starting File Upload (%s)', jr_id)
+    logger.info('+ TASK task_params=%s', task_params)
+
     job_request = JobRequest.objects.get(id=jr_id)
     job_request.upload_task_id = str(process_compound_set_job_file.request.id)
     job_request.save()
@@ -618,12 +624,12 @@ def process_compound_set_job_file(task_params):
                                             job_output_path,
                                             job_output_filename)
     except RuntimeError as error:
-        logger.error('- File Upload failed (%s)', jr_id)
+        logger.error('- TASK file Upload failed (%s)', jr_id)
         logger.error(error)
     else:
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
-        logger.info('- File Upload Ended Successfully (%s)', jr_id)
+        logger.info('+ TASK file Upload Ended Successfully (%s)', jr_id)
 
     # We are expected to be followed by 'validate_compound_set'
     # which expects user_id, sdf_file and target
@@ -655,6 +661,7 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
         return
 
     job_request = JobRequest.objects.get(id=job_request_id)
+    logger.info('+ TASK Erasing job material job_request %s', job_request)
 
     # Upload done (successfully or not)
     # 'task_params' (a dictionary) is expected to be
@@ -677,13 +684,13 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
         job_request.computed_set = cs
     else:
         # Failed validation?
-        logger.info('Upload failed (%d) - task_params=%s',
-                       job_request_id, task_params)
+        logger.info('- TASK Upload failed (%d) - task_params=%s',
+                    job_request_id, task_params)
         logger.warning('Upload failed (%d) - process_stage value not satisfied',
                        job_request_id)
         job_request.upload_status = 'FAILURE'
     job_request.save()
-    logger.info('Updated job_request %s', job_request)
+    logger.info('+ TASK Erased and updated job_request %s', job_request)
 
     # Always erase uploaded data
     delete_media_sub_directory(get_upload_sub_directory(job_request))

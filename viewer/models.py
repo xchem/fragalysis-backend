@@ -6,6 +6,8 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.conf import settings
 
+from shortuuid.django_fields import ShortUUIDField
+
 from simple_history.models import HistoricalRecords
 
 from viewer.target_set_config import get_mol_choices, get_prot_choices
@@ -22,6 +24,8 @@ class Project(models.Model):
         The date the project was initiated (autofield)
     user_id: ManyToManyField
         Links to the User model
+    open_to_public: BooleanField
+        True if open to the Public
     """
     # The title of the project_id -> userdefined
     title = models.CharField(max_length=200, unique=True)
@@ -29,6 +33,7 @@ class Project(models.Model):
     init_date = models.DateTimeField(auto_now_add=True)
     # The users it's related to
     user_id = models.ManyToManyField(User)
+    open_to_public = models.BooleanField(default=False)
 
 
 class Target(models.Model):
@@ -165,7 +170,7 @@ class Protein(models.Model):
     has_eds = models.NullBooleanField()
 
     class Meta:
-        unique_together = ("code", "prot_type")
+        unique_together = ("code", "target_id", "prot_type")
 
 
 class Compound(models.Model):
@@ -401,7 +406,8 @@ class ActionType(models.Model):
 
 # Start of Session Project
 class SessionProject(models.Model):
-    """Django model for holding information about a fragalysis user project - a set of sessions saved by a user
+    """Django model for holding information about a fragalysis user Session Project
+    - a set of sessions saved by a user that belong to a Target and Project.
 
     Parameters
     ----------
@@ -412,17 +418,19 @@ class SessionProject(models.Model):
     description: Charfield
         A short user-defined description for the project
     target: ForeignKey
-        Foreign Key link to the relevent project target
+        Foreign Key link to the relevant project target
+    project: ForeignKey
+        Foreign Key link to the relevant project (optional for legacy reasons)
     author: ForeignKey
         A link to the user that created the project
     tags: TextField
         A comma separated list of user-defined tags - for searching and tagging projects
-
     """
     title = models.CharField(max_length=200)
     init_date = models.DateTimeField(default=timezone.now)
     description = models.CharField(max_length=255, default='')
     target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, null=True, on_delete=models.CASCADE)
     author = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     tags = models.TextField(default='[]')
 
@@ -1050,14 +1058,14 @@ class JobFileTransfer(models.Model):
         A foreign key link to the relevant target the file transfer is part of (required)
     squonk_project: CharField
         The name of a project that has been created in Squonk that the files will be transferred to
-    projects: JSONField
+    proteins: JSONField
         List of proteins to be transferred
     compounds: JSONField
-        List of coumpounds to be transferred (not used yet)
+        List of compounds to be transferred (not used yet)
     transfer_spec: JSONField
         Identifies for each type (protein or compound), which file types were transferred over.
     transfer_task_id: CharField
-        Task id of transfer celery task Note that if a resynchronisation is
+        Task id of transfer celery task Note that if a re-synchronisation is
         required this will be re-used.
     transfer_status: CharField
         Identifies the status of the transfer.
@@ -1085,6 +1093,7 @@ class JobFileTransfer(models.Model):
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE, db_index=True)
     squonk_project = models.CharField(max_length=200, null=True)
+    sub_path = ShortUUIDField(length=4, alphabet="abcdefghijklmnopqrstuvwxyz", null=True)
     proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # Not used in phase 1
     compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True)
@@ -1115,6 +1124,8 @@ class JobRequest(models.Model):
         A foreign key link to the relevant snapshot the file transfer is part of (required)
     target: ForeignKey
         A foreign key link to the relevant target the file transfer is part of (required)
+    project: ForeignKey
+        The Fragalysis Project record ths JobRequest is associated with
     squonk_project: CharField
         The name of a project that has been created in Squonk that the files will be transferred to
     squonk_job_spec: JSONField
@@ -1135,9 +1146,13 @@ class JobRequest(models.Model):
     squonk_job_info: JSONField
         Squonk job information returned from the initial Squonk POST instance API call
     squonk_url_ext: CharField
-        Squonk URL information to be added to the Host URL to link to a Squonk Job
+        Squonk URL information to be added to the Host URL to link to a Squonk Job.
+        This field is populated during a call to the JobCallbackView.
     code: UUIDField
         A UUID generated by Fragalysis and passed to Squonk as part of a callback URL.
+        This value is used to uniquely identify the HJob in Squonk and is passed back
+        by squonk to provide context in calls to the JobCallBackView.
+        context in subs
     upload_task_id: CharField
         Celery task ID for results upload task (optional). Set when the Job completes
         and an automated upload follows.
@@ -1174,6 +1189,7 @@ class JobRequest(models.Model):
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE,
                                db_index=True)
+    project = models.ForeignKey(Project, null=True, on_delete=models.CASCADE)
     squonk_project = models.CharField(max_length=200, null=True)
     squonk_job_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # Start and finish times for the Job
@@ -1188,7 +1204,7 @@ class JobRequest(models.Model):
     # For us this will contain a 'task_id', 'instance_id' and 'callback_token'.
     # The content will be a list with index '0' that's the value of the DmApiRv
     # 'success' variable and, at index '1', the original response message json().
-    # The Job callback token will be squonk_job_info[0]['callback_token']
+    # The Job callback token will be squonk_job_info[1]['callback_token']
     squonk_job_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # 'squonk_url_ext' is a Squonk UI URL to obtain information about the
     # running instance. It's essentially the Squonk URL with the instance ID appended.
@@ -1201,6 +1217,84 @@ class JobRequest(models.Model):
 
     class Meta:
         db_table = 'viewer_jobrequest'
+
+    def job_has_finished(self):
+        """Finished if status is SUCCESS or FAILURE (or a new state of LOST).
+        """
+        return self.job_status in [JobRequest.SUCCESS, JobRequest.FAILURE, 'LOST']
+
+class Squonk2Org(models.Model):
+    """Django model to store Squonk2 Organisations (UUIDs) and the Account Servers
+    they belong to. Managed by the Squonk2Agent class.
+
+       Parameters
+       ----------
+       uuid: TextField (40)
+           A Squonk2 Account Server (AS) Organisation UUID. A fixed length string
+           consisting of 'org-' followed by a uuid4 value,
+           e.g. 'org-54260047-183b-42e8-9658-385a1e1bd236'
+       name: TextField (80)
+           The name of the Squonk2 Organisation UUID (obtained form the AS).
+       as_url: URLField (200)
+           The URL of the Squonk2 Account Server that owns the organisation.
+           e.g. 'https://example.com/account-server-api'
+       as_version: TextField
+           The version of the AS that was first seen to own the Organisation
+       """
+    uuid = models.TextField(max_length=40, null=False)
+    name = models.TextField(max_length=80, null=False)
+    as_url = models.URLField(null=False)
+    as_version = models.TextField(null=False)
+
+class Squonk2Unit(models.Model):
+    """Django model to store Squonk2 Unit (UUIDs). Managed by the Squonk2Agent class.
+
+       Parameters
+       ----------
+       uuid: TextField (41)
+           A Squonk2 Account Server (AS) Unit UUID. A fixed length string
+           consisting of 'unit-' followed by a uuid4 value,
+           e.g. 'unit-54260047-183b-42e8-9658-385a1e1bd236'
+       name: TextField (80)
+           The name used to create the Squonk2 Unit UUID
+           This is not limited by the actual name length imposed by the DM
+       target_access: ForeignKey
+           A Foreign Key to the Project (Proposal) the Unit belongs to,
+           a record that contains the "target access string".
+       organisation: ForeignKey
+           The Organisation the Unit belongs to.
+       """
+    uuid = models.TextField(max_length=41, null=False)
+    name = models.TextField(null=False)
+
+#    target_access = models.ForeignKey(Project, null=False, on_delete=models.CASCADE)
+    organisation = models.ForeignKey(Squonk2Org, null=False, on_delete=models.CASCADE)
+
+class Squonk2Project(models.Model):
+    """Django model to store Squonk2 Project and Product (UUIDs).
+    Managed by the Squonk2Agent class.
+
+       Parameters
+       ----------
+       uuid: TextField (44)
+           A Squonk2 Data Manager (DM) Project UUID. A fixed length string
+           consisting of 'project-' followed by a uuid4 value,
+           e.g. 'project-54260047-183b-42e8-9658-385a1e1bd236'
+       name: TextField (80)
+           The name of the Squonk2 Unit UUID (obtained form the AS).
+       product_uuid: TextField (44)
+           A Squonk2 Account Server (AS) Product UUID. A fixed length string
+           consisting of 'product-' followed by a uuid4 value,
+           e.g. 'product-54260047-183b-42e8-9658-385a1e1bd236'
+       unit: ForeignKey
+           The Squonk2 Unit the Product (and Project) belongs to.
+       """
+    uuid = models.TextField(max_length=44, null=False)
+    name = models.TextField(null=False)
+    product_uuid = models.TextField(max_length=44, null=False)
+
+    unit = models.ForeignKey(Squonk2Unit, null=False, on_delete=models.CASCADE)
+#    user = models.ForeignKey(User, null=False, on_delete=models.CASCADE)
+#    session_project = models.ForeignKey(SessionProject, null=False, on_delete=models.CASCADE)
+
 # End of Squonk Job Tables
-
-

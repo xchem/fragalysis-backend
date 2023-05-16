@@ -15,6 +15,7 @@ router.register(r"molecules", viewer_views.MoleculeView)
 router.register(r"compounds", viewer_views.CompoundView)
 router.register(r"targets", viewer_views.TargetView, "targets")
 router.register(r"proteins", viewer_views.ProteinView)
+router.register(r"projects", viewer_views.ProjectView)
 router.register(r"session-projects", viewer_views.SessionProjectsView)
 router.register(r"snapshots", viewer_views.SnapshotsView)
 router.register(r"action-type", viewer_views.ActionTypeView)
@@ -84,7 +85,6 @@ router.register(r"download_structures", viewer_views.DownloadStructures, basenam
 
 # Squonk Jobs
 router.register(r"job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer')
-router.register(r"job_request", viewer_views.JobRequestView, basename='job_request')
 router.register(r"job_callback", viewer_views.JobCallBackView, basename='job_callback')
 router.register(r"job_config", viewer_views.JobConfigView, basename='job_config')
 
@@ -105,4 +105,6 @@ urlpatterns = [
     url(r"^", include(router.urls)),
     url(r"^auth$", drf_views.obtain_auth_token, name="auth"),
     url(r"^swagger$", schema_view),
+
+    url(r"job_request", viewer_views.JobRequestView.as_view(), name="job_request"),
 ]
