@@ -778,6 +778,9 @@ class CreateEncodedActionModels(object):
             fromplatetype = action["content"]["plates"]["fromplatetype"]
             toplatetype = action["content"]["plates"]["toplatetype"]
             if action["content"]["material"]["SMARTS"]:
+                # MUst fix this to match SMARTS with molecule vs just taking first reactant SMILES!!!!!!
+                # FIX!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # Do not use reactant pair smiles here
                 smiles = self.reactant_pair_smiles[0]
                 del self.reactant_pair_smiles[0]
             if action["content"]["material"]["SMILES"]:
