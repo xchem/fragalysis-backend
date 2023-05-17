@@ -33,6 +33,8 @@ urlpatterns = [
     url(r"^scoring/", include("scoring.urls")),
     url(r"^xcdb/", include("xcdb.urls")),
     url(r"^graphql/", GraphQLView.as_view(graphiql=True)),
+    # CAR
+    url(r"^car/", include("car.urls")),
     # Keycloak - Mozilla_django_oidc - settings
     url('oidc/', include('mozilla_django_oidc.urls')),
     url("accounts/login/", mozilla_django_oidc.views.OIDCAuthenticationRequestView.as_view(), name="keylcoak_login"),
@@ -40,5 +42,4 @@ urlpatterns = [
     url("oidc/callback/", mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(),
         name="keycloak_callback"),
     url(r"^$", RedirectView.as_view(url="/viewer/react/landing")),
-    url(r"^car/", include("car.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
