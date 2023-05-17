@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pycule import MCuleWrapper
 import os
 import inspect

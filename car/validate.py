@@ -1,4 +1,5 @@
 """Checks validation of file for uploading to CAR"""
+from __future__ import annotations
 import math
 from typing import BinaryIO
 import inspect

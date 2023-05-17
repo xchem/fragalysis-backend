@@ -1,3 +1,4 @@
+from __future__ import annotations
 import requests
 from ratelimit import limits, sleep_and_retry
 import os

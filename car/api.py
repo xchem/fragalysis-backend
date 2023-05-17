@@ -1,3 +1,4 @@
+from __future__ import annotations
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from django.http import JsonResponse
