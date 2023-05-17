@@ -357,7 +357,7 @@ def groupReactions(reactionqueryset: QuerySet[Reaction], maxreactionnumber: int)
     return groupedreactionquerysets
 
 
-def getReactantsToBuy(batch_ids: list[int]) -> list:
+def getReactantsToBuy(batch_ids: list[int]) -> list[str]:
     """Finds the reactnats that need to be bought to execute a batch/batches
     synthesis. Finds recatants that are not made in previous method's reactions
 
