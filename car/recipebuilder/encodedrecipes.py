@@ -13,17 +13,17 @@ density (g/mL)
 # OTBatchProtocol.objects.get(batch_id=batchid).delete()
 
 # Finding plate reactions and MWS
-from car.models import Plate
-from car.utils import getMWs
-plate_id=2395
-plate = Plate.objects.get(id=plate_id)
-wells = plate.well_set.all().order_by("id")
-smiles = wells.values_list("smiles", flat=True)
-for smi in smiles:
-    print(smi)
-mws = getMWs(smiles=smiles)
-for mw in mws:
-    print(mw)
+# from car.models import Plate
+# from car.utils import getMWs
+# plate_id=2395
+# plate = Plate.objects.get(id=plate_id)
+# wells = plate.well_set.all().order_by("id")
+# smiles = wells.values_list("smiles", flat=True)
+# for smi in smiles:
+#     print(smi)
+# mws = getMWs(smiles=smiles)
+# for mw in mws:
+#     print(mw)
 # Addtion order in SMARTS is critical. Must check, should be adaptive for changingrecipes ie go with order in actions and not order
 # in SMARTS NB RA with Alice where had issues with amine vs aldehyde amounts 
 encoded_recipes = {
