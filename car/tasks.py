@@ -195,6 +195,8 @@ def uploadManifoldReaction(validate_output):
                                     ]
 
                                     if len(encoded_reactions_found) != no_steps:
+                                        # Introduce a combinatorial calc of all recipe combos possible
+                                        # between reactions and then create many recipe methods
                                         method_id = createMethodModel(
                                             target_id=target_id,
                                             nosteps=no_steps,
@@ -343,7 +345,7 @@ def uploadManifoldReaction(validate_output):
                                                 reaction_class=reaction_name,
                                                 reaction_number=index + 1,
                                                 intramolecular=intramolecular,
-                                                recipe_type="standard",  # Need to change when we get multiple recipes runnning!
+                                                reaction_recipe="standard",  # Need to change when we get multiple recipes runnning!
                                                 reaction_temperature=reaction_temperature,
                                                 reaction_smarts=reaction_smarts,
                                             )
@@ -402,7 +404,6 @@ def uploadManifoldReaction(validate_output):
 
 @shared_task
 def uploadCustomReaction(validate_output):
-
     (
         _,
         validate_dict,
@@ -436,6 +437,7 @@ def uploadCustomReaction(validate_output):
                 no_steps,
                 reactant_pair_smiles_tuples,
                 reaction_name_tuples,
+                reaction_recipe_tuples,
                 reaction_product_smiles_tuples,
             ) in zip(
                 group["target-names"],
@@ -445,6 +447,7 @@ def uploadCustomReaction(validate_output):
                 group["no-steps"],
                 group["reactant-pair-smiles"],
                 group["reaction-name"],
+                group["reaction-recipe"],
                 group["product-smiles"],
             ):
                 target_id = createTargetModel(
@@ -464,11 +467,13 @@ def uploadCustomReaction(validate_output):
                     index,
                     reactant_pair_smiles,
                     reaction_name,
+                    reaction_recipe,
                     reaction_product_smiles,
                 ) in zip(
                     count(),
                     reactant_pair_smiles_tuples,
                     reaction_name_tuples,
+                    reaction_recipe_tuples,
                     reaction_product_smiles_tuples,
                 ):
                     reaction_smarts = AllChem.ReactionFromSmarts(
@@ -477,10 +482,12 @@ def uploadCustomReaction(validate_output):
                         ),
                         useSmiles=True,
                     )
+                    # Need to move this to OT session - this will enable changing reaction temps in recipes
+                    # and not have to upload again...
                     reaction_temperature = [
                         actionsession["actions"][0]["content"]["temperature"]["value"]
                         for actionsession in encoded_recipes[reaction_name]["recipes"][
-                            "standard"
+                            reaction_recipe
                         ]["actionsessions"]
                         if actionsession["type"] == "stir"
                     ][0]
@@ -490,7 +497,7 @@ def uploadCustomReaction(validate_output):
                         reaction_class=reaction_name,
                         reaction_number=index + 1,
                         intramolecular=False,
-                        recipe_type="standard",
+                        reaction_recipe=reaction_recipe,
                         reaction_temperature=reaction_temperature,
                         reaction_smarts=reaction_smarts,
                     )
@@ -561,13 +568,12 @@ def createOTScript(batchids: list, protocol_name: str):
             for reactionobj in reactionqueryset:
                 reaction_id = reactionobj.id
                 reactionclass = reactionobj.reactionclass
+                reactionrecipe = reactionobj.recipe
                 target_id = reactionobj.method_id.target_id.id
                 reactant_pair_smiles = reactionobj.reactants.all().values_list(
                     "smiles", flat=True
                 )
-                std_recipe = encoded_recipes[reactionclass]["recipes"][
-                    "standard"
-                ]  # NB need to include multiple recipes
+                recipe = encoded_recipes[reactionclass]["recipes"][reactionrecipe]
                 intramolecular_possible = encoded_recipes[reactionclass][
                     "intramolecular"
                 ]
@@ -577,7 +583,7 @@ def createOTScript(batchids: list, protocol_name: str):
                 else:
                     intramolecular_possible = False
 
-                actionsessions = std_recipe["actionsessions"]
+                actionsessions = recipe["actionsessions"]
 
                 CreateEncodedActionModels(
                     intramolecular=intramolecular_possible,

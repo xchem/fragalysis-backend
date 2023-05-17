@@ -117,12 +117,12 @@ class Reaction(models.Model):
         Foreign key linking a reaction to it's method
     reactionclass: Charfield
         The name of the reaction
+    recipe: CharField
+        The encoded recipe type used for the reaction
     nnumber: IntegerField
         The number of the reaction eg. reaction 1 of 3
     intramolecular: BooleanField
         Set to True if the reaction is intermolecular
-    recipetype: CharField
-        The encoded recipe type used to execute the reaction
     image: FileField
         File link to a stored version of the image file of the reaction
     success: BooleanField
@@ -133,9 +133,10 @@ class Reaction(models.Model):
         Method, related_name="reactions", on_delete=models.CASCADE
     )
     reactionclass = models.CharField(max_length=255)
+    recipe = models.CharField(max_length=50, default="standard")
     number = models.IntegerField()
     intramolecular = models.BooleanField(default=False)
-    recipetype = models.CharField(max_length=50, default="standard", null=True)
+    # recipetype = models.CharField(max_length=50, null=True)
     temperature = models.IntegerField(default=25)
     image = models.FileField(
         upload_to="reactionimages/",
@@ -262,7 +263,9 @@ class ActionSession(models.Model):
     class Type(models.TextChoices):
         reaction = "reaction"
         stir = "stir"
-        workup = "workup"
+        workup1 = "workup1"
+        workup2 = "workup2"
+        workup3 = "workup3"
         analyse = "analyse"
 
     class Driver(models.TextChoices):

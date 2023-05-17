@@ -224,7 +224,7 @@ def createReactionModel(
     intramolecular: bool,
     reaction_smarts: str,
     reaction_temperature: float = None,
-    recipe_type: str = None,
+    reaction_recipe: str = None,
 ) -> int:
     """Creates a Django reaction object - a chemical reaction
 
@@ -241,8 +241,8 @@ def createReactionModel(
     reaction_SMARTS: str
         The SMARTS for the reaction
     reaction_temperature: float
-        The reaction temperature
-    recipe_type: str
+        The opotional reaction temperature
+    reaction_recipe: str
         The optional (if found in encoded recipes) type of encoded recipe used to execute the reaction
 
     Returns
@@ -258,8 +258,8 @@ def createReactionModel(
     reaction.intramolecular = intramolecular
     if reaction_temperature:
         reaction.temperature = reaction_temperature
-    if recipe_type:
-        reaction.recipetype = recipe_type
+    if reaction_recipe:
+        reaction.recipe = reaction_recipe
     reaction_svg_string = createReactionSVGString(reaction_smarts)
     reaction_svg_fn = default_storage.save(
         "reactionimages/" + reaction_class + ".svg", ContentFile(reaction_svg_string)
@@ -354,13 +354,13 @@ def createProductModel(reaction_id: int, product_smiles: str):
     product_smiles: str
         The SMILES of the product
     """
-    pubcheminfoobj = getPubChemInfo(smiles=product_smiles)
+    # pubcheminfoobj = getPubChemInfo(smiles=product_smiles)
     product = Product()
     reaction_obj = Reaction.objects.get(id=reaction_id)
     product.reaction_id = reaction_obj
     product.smiles = product_smiles
-    if pubcheminfoobj:
-        product.pubcheminfo_id = pubcheminfoobj
+    # if pubcheminfoobj:
+    #     product.pubcheminfo_id = pubcheminfoobj
     product_svg_string = createSVGString(product_smiles)
     product_svg_fn = default_storage.save(
         "productimages/.svg", ContentFile(product_svg_string)
@@ -390,13 +390,13 @@ def createReactantModel(
     reactant_id: int
         The id of the reactant model object created
     """
-    pubcheminfoobj = getPubChemInfo(smiles=reactant_smiles)
+    # pubcheminfoobj = getPubChemInfo(smiles=reactant_smiles)
     reactant = Reactant()
     reaction_obj = Reaction.objects.get(id=reaction_id)
     reactant.reaction_id = reaction_obj
     reactant.smiles = reactant_smiles
-    if pubcheminfoobj:
-        reactant.pubcheminfo_id = pubcheminfoobj
+    # if pubcheminfoobj:
+    #     reactant.pubcheminfo_id = pubcheminfoobj
     reactant.previousreactionproduct = previous_reaction_product
     reactant.save()
     return reactant.id
@@ -778,6 +778,9 @@ class CreateEncodedActionModels(object):
             fromplatetype = action["content"]["plates"]["fromplatetype"]
             toplatetype = action["content"]["plates"]["toplatetype"]
             if action["content"]["material"]["SMARTS"]:
+                # MUst fix this to match SMARTS with molecule vs just taking first reactant SMILES!!!!!!
+                # FIX!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # Do not use reactant pair smiles here
                 smiles = self.reactant_pair_smiles[0]
                 del self.reactant_pair_smiles[0]
             if action["content"]["material"]["SMILES"]:
@@ -839,6 +842,7 @@ class CreateEncodedActionModels(object):
             add.save()
 
         except Exception as e:
+            print(smiles)
             logger.info(inspect.stack()[0][3] + " yielded error: {}".format(e))
 
     def createExtractActionModel(self, actionsession_obj: ActionSession, action: dict):
