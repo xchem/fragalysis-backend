@@ -1,3 +1,4 @@
+from __future__ import annotations
 from django.db.models import QuerySet
 from django.db.models import Q, Max
 from rdkit.Chem import Descriptors
