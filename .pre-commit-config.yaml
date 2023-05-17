@@ -1,5 +1,5 @@
 ---
-minimum_pre_commit_version: 2.20.0
+minimum_pre_commit_version: 2.21.0
 exclude: ^(design_docs|doc_templates|docs|tests|)
 
 repos:
@@ -40,8 +40,13 @@ repos:
 # the user has done 90% of the lint checks before the code
 # hits the server.
 - repo: https://github.com/pycqa/pylint
-  rev: v2.14.4
+  rev: v2.16.1
   hooks:
   - id: pylint
     args:
-    - --disable=import-error
+    - --django-settings-module
+    - fragalysis.settings
+    - --load-plugins
+    - pylint_django
+    - --load-plugins
+    - pylint_django.checkers.migrations

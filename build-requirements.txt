@@ -1,5 +1,7 @@
 # Requirements specifically used to build/test the backend.
 # These are not rquirements needed by the backend in order for it to run.
-pylint
-pylint-django
-pre-commit == 2.20.0
+pylint == 2.16.1
+pylint-django == 2.5.3
+pre-commit == 2.21.0
+
+Django==3.1.14

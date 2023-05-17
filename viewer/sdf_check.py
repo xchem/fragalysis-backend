@@ -8,7 +8,6 @@ Script to check sdf file format for Fragalysis upload
 
 from rdkit import Chem
 import validators
-import numpy as np
 from viewer.models import Protein, ComputedSet
 import datetime
 
@@ -19,7 +18,22 @@ def check_property_descriptions():
     pass
 
 def check_compound_set(description_mol, validate_dict, update=None):
-    y_m_d = description_mol.GetProp('generation_date').split('-')
+    # Must have a 'generation_date'
+    if not description_mol.HasProp('generation_date'):
+        validate_dict = add_warning(molecule_name='File error',
+                                    field='compound set',
+                                    warning_string="Molecule has no generation_date",
+                                    validate_dict=validate_dict)
+        return validate_dict
+    # That's of the form "<Y>-<M>-<D>"...
+    g_date = description_mol.GetProp('generation_date')
+    y_m_d = g_date.split('-')
+    if len(y_m_d) != 3:
+        validate_dict = add_warning(molecule_name='File error',
+                                    field='compound set',
+                                    warning_string=f"Molecule has no generation_date is not Y-M-D (g_date)",
+                                    validate_dict=validate_dict)
+        return validate_dict
 
     submitter_dict = {'submitter__name': description_mol.GetProp('submitter_name'),
                       'submitter__email': description_mol.GetProp('submitter_email'),
@@ -288,4 +302,3 @@ def check_mol_props(mol, validate_dict):
         validate_dict = missing_field_check(mol, field, validate_dict)
 
     return validate_dict
-

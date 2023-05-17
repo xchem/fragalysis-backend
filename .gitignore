@@ -12,6 +12,7 @@ django_app.sock
 .vscode/
 
 .idea/
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

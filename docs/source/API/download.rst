@@ -10,10 +10,8 @@ Fragalysis provides functionality to flexibly download subsets of data as follow
 - **Subset of Computed Set Data** - Constructs a csv file for download based on a dictionary constructed in the react
   front end from the computed sets.
 
-
- Views
----------
-
+Views
+-----
 
 .. autoclass:: viewer.views.DownloadStructures
     :members:

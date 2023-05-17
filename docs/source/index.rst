@@ -25,6 +25,8 @@ Contents
    computational_data/tasks
    API/media
    API/download
+   vectors
+   squonk/integration
 
 
 Indices and tables

@@ -95,6 +95,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 5000,
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.QueryParameterVersioning",
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'mozilla_django_oidc.contrib.drf.OIDCAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
 }
 
 # CELERY STUFF
@@ -225,8 +230,13 @@ LOGOUT_REDIRECT_URL = "/viewer/react/landing"
 OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_STORE_ACCESS_TOKEN = True
 OIDC_STORE_ID_TOKEN = True
-# Keycloak mozilla_django_oidc - Settings - End
 
+# SessionRefresh configuration.
+# There's only one item - the token expiry period, with a default of 15 minutes.
+# The default is 15 minutes if you don't set this value.
+TOKEN_EXPIRY_MINUTES = os.environ.get("OIDC_RENEW_ID_TOKEN_EXPIRY_MINUTES", "15")
+OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = int(TOKEN_EXPIRY_MINUTES) * 60
+# Keycloak mozilla_django_oidc - Settings - End
 
 ROOT_URLCONF = "fragalysis.urls"
 
@@ -362,12 +372,6 @@ DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
-# Squonk settings for API calls to Squonk Platform.
-# The environment variable SQUONK2_DMAPI_URL
-# is expected by the squonk2-client package.
-SQUONK2_DMAPI_URL = os.environ.get('SQUONK2_DMAPI_URL')
-SQUONK2_UI_URL = os.environ.get('SQUONK2_UI_URL')
-
 SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 
@@ -381,7 +385,7 @@ SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 # (50Mi of logging in 10 files of 5M each),
 # with the rotating file handler typically used for everything.
 DISABLE_LOGGING_FRAMEWORK = True if os.environ.get("DISABLE_LOGGING_FRAMEWORK", "no").lower() in ["yes"] else False
-LOGGING_FRAMEWORK_ROOT_LEVEL = os.environ.get("LOGGING_FRAMEWORK_ROOT_LEVEL", "INFO")
+LOGGING_FRAMEWORK_ROOT_LEVEL = os.environ.get("LOGGING_FRAMEWORK_ROOT_LEVEL", "DEBUG")
 if not DISABLE_LOGGING_FRAMEWORK:
     LOGGING = {
         'version': 1,
@@ -389,7 +393,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
         'formatters': {
             'simple': {
                 'format': '%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s',
-                'datefmt': '%Y-%m-%dT%H:%M:%S'}},
+                'datefmt': '%Y-%m-%dT%H:%M:%S%z'}},
         'handlers': {
             'console': {
                 'level': 'DEBUG',
@@ -403,13 +407,19 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 'filename': os.path.join(BASE_DIR, 'logs/backend.log'),
                 'formatter': 'simple'}},
         'loggers': {
+            'api.security': {
+                'level': 'INFO'},
             'asyncio': {
+                'level': 'WARNING'},
+            'celery': {
                 'level': 'WARNING'},
             'django': {
                 'level': 'WARNING'},
             'mozilla_django_oidc': {
                 'level': 'WARNING'},
             'urllib3': {
+                'level': 'WARNING'},
+            'paramiko': {
                 'level': 'WARNING'}},
         'root': {
             'level': LOGGING_FRAMEWORK_ROOT_LEVEL,

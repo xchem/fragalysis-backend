@@ -100,14 +100,18 @@ The best approach is to spin-up the development stack (locally) using
 to make new migrations called "add_job_request_start_and_finish_times"
 for the viewer's models run the following: -
 
+>   Before starting postgres, if you need to, remove any pre-existing Db (if one exists)
+    with `rm -rf data`
+
     docker-compose up -d
     docker-compose exec stack bash
 
-Then from within the stack...
+Then from within the stack make the migrations. Here we're migrating the `viewer`
+application...
 
     python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
 
-Exit the container and tear-down the deployemnt: -
+Exit the container and tear-down the deployment: -
 
     docker-compose down
 
@@ -133,7 +137,7 @@ Now the project's rules will run on every commit.
 Start `Fragalysis stack` (All infrastructure - databases + populating data)
 
 ```
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 ```
 
 `Please wait, it takes a minute until all containers are fully started.`
@@ -143,7 +147,7 @@ Test if we are running at [http://localhost:8080](http://localhost:8080)
 If needed stop containers
 
 ```
-docker-compose -f docker-compose.dev.yml down
+docker-compose down
 ```
 
 Note: The first run will be probably not successful. To fix after first run:
