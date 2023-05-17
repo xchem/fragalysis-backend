@@ -41,7 +41,7 @@ from car.models import (
 )
 
 import math
-from .labwareavailable import labware_plates
+from car.opentrons.labwareavailable import labware_plates
 
 
 class CreateOTSession(object):

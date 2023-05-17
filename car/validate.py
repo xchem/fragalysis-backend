@@ -5,8 +5,8 @@ import inspect
 import pandas as pd
 from rdkit import Chem
 
-from .recipebuilder.encodedrecipes import encoded_recipes
-from .utils import (
+from car.recipebuilder.encodedrecipes import encoded_recipes
+from car.utils import (
     canonSmiles,
     getAddtionOrder,
     checkReactantSMARTS,

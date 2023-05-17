@@ -11,7 +11,7 @@ from django.core.files.base import ContentFile
 from .mcule.apicalls import MCuleAPI
 
 # Import standard models
-from .models import (
+from car.models import (
     Project,
     Batch,
     PubChemInfo,
@@ -25,7 +25,7 @@ from .models import (
 )
 
 # Import action models
-from .models import (
+from car.models import (
     ActionSession,
     AddAction,
     ExtractAction,
@@ -33,7 +33,7 @@ from .models import (
     StirAction,
 )
 
-from .utils import (
+from car.utils import (
     getProduct,
     getProductSmiles,
     calculateMassFromMols,

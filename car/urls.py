@@ -1,7 +1,7 @@
 from rest_framework import routers
 
 # Import standard views
-from .api import (
+from car.api import (
     ProjectViewSet,
     BatchViewSet,
     TargetViewSet,
@@ -14,7 +14,7 @@ from .api import (
 )
 
 # Import action views
-from .api import (
+from car.api import (
     ActionSessionViewSet,
     AddActionViewSet,
     ExtractActionViewSet,
@@ -23,7 +23,7 @@ from .api import (
 )
 
 # Import OT Session views
-from .api import (
+from car.api import (
     OTProjectViewSet,
     OTBatchProtocolViewSet,
     OTSessionViewSet,

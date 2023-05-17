@@ -1085,7 +1085,7 @@ def getPubChemCAS(compound: object) -> str:
     synonyms = compound.synonyms
     if synonyms:
         for syn in synonyms:
-            match = re.match("(\d{1,7}-\d{1,2}-\d)", syn)
+            match = re.match(r"(\d{1,7}-\d{1,2}-\d)", syn)
             if match:
                 cas = match.group(1)
                 return cas

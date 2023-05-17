@@ -8,7 +8,6 @@ import json
 from celery.result import AsyncResult
 from viewer.tasks import check_services
 import pandas as pd
-from rdkit.Chem import Descriptors
 
 from car.tasks import (
     validateFileUpload,
@@ -19,7 +18,7 @@ from car.tasks import (
 )
 
 # Import standard models
-from .models import (
+from car.models import (
     Project,
     Batch,
     PubChemInfo,
@@ -32,7 +31,7 @@ from .models import (
 )
 
 # Import action models
-from .models import (
+from car.models import (
     ActionSession,
     AddAction,
     ExtractAction,
@@ -41,7 +40,7 @@ from .models import (
 )
 
 # Import OT Session models
-from .models import (
+from car.models import (
     OTSession,
     Deck,
     Pipette,
@@ -56,7 +55,7 @@ from .models import (
 )
 
 # Import standard serializers
-from .serializers import (
+from car.serializers import (
     OTProjectSerializer,
     ProjectSerializer,
     ProjectSerializerAll,
@@ -77,7 +76,7 @@ from .serializers import (
 )
 
 # Import action serializers
-from .serializers import (
+from car.serializers import (
     ActionSessionSerializer,
     AddActionSerializer,
     ExtractActionSerializer,
@@ -86,7 +85,7 @@ from .serializers import (
 )
 
 # Import OT Session serializers
-from .serializers import (
+from car.serializers import (
     OTBatchProtocolSerializer,
     OTSessionSerializer,
     DeckSerializer,

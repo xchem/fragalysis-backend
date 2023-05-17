@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 # Import standard models
-from .models import (
+from car.models import (
     Project,
     Batch,
     Target,
@@ -14,7 +14,7 @@ from .models import (
 )
 
 # Import action models
-from .models import (
+from car.models import (
     ActionSession,
     AddAction,
     ExtractAction,
@@ -23,7 +23,7 @@ from .models import (
 )
 
 # Import OT session models
-from .models import (
+from car.models import (
     OTSession,
     Deck,
     Pipette,

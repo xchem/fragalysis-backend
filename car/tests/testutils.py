@@ -17,11 +17,11 @@ from car.utils import (
     getPubChemCompound,
 )
 
-from .testdata.indata.testutils import (
+from car.tests.testdata.indata.testutils import (
     snar_reactant_smiles_one,
     snar_reactant_smiles_two,
 )
-from .testdata.outdata.testutils import (
+from car.tests.testdata.outdata.testutils import (
     snar_combo_equal,
     snar_combo_unequal,
     svg_str,

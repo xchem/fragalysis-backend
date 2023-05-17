@@ -21,8 +21,8 @@ from car.models import (
     OTSession,
 )
 
-from .validate import ValidateFile
-from .createmodels import (
+from car.validate import ValidateFile
+from car.createmodels import (
     createProjectModel,
     createBatchModel,
     createTargetModel,
@@ -34,12 +34,12 @@ from .createmodels import (
     CreateEncodedActionModels,
 )
 
-from .manifold.apicalls import (
+from car.manifold.apicalls import (
     getExactSearch,
     getManifoldRetrosynthesisBatch,
 )
-from .recipebuilder.encodedrecipes import encoded_recipes
-from .utils import (
+from car.recipebuilder.encodedrecipes import encoded_recipes
+from car.utils import (
     checkPreviousReactionProducts,
     getActionSessionQuerySet,
     getActionSessionSequenceNumbers,
@@ -56,8 +56,8 @@ from .utils import (
     groupReactions,
 )
 
-from .opentrons.otsession import CreateOTSession
-from .opentrons.otwrite import OTWrite
+from car.opentrons.otsession import CreateOTSession
+from car.opentrons.otwrite import OTWrite
 
 
 def delete_tmp_file(filepath):
