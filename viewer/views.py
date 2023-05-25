@@ -71,7 +71,6 @@ from .squonk_job_request import (
     create_squonk_job,
 )
 
-
 logger = logging.getLogger(__name__)
 
 # Fields injected in a session object to pass
@@ -82,6 +81,7 @@ _SESSION_ERROR = 'session_error'
 _SESSION_MESSAGE = 'session_message'
 
 _SQ2A: Squonk2Agent = get_squonk2_agent()
+
 
 class CompoundIdentifierTypeView(viewsets.ModelViewSet):
     queryset = models.CompoundIdentifierType.objects.all()
@@ -1515,8 +1515,8 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
             serializer.validated_data['commit_datetime'] = datetime.now(timezone.utc)
             serializer.validated_data['committer'] = request.user
 
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            teu = serializer.save()
+            return Response({'id': teu.id}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
