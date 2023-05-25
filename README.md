@@ -57,6 +57,19 @@ The typical pattern with `docker-compose`, is to provide these variables in the
 `docker-compose.yml` file and adjust their values (especially the sensitive ones)
 using a local `.env` file (see [environment variables]).
 
+The backend API, for example, should be available on port 8080 of your host
+at `http://localhost:8080/api/`.
+
+>   The backend no longer writes `.pyc` files (the `Dockerfile` sets the environment
+    variable `PYTHONDONTWRITEBYTECODE`). This, and the fact the backend code is mapped
+    into the container, allows you to make "live" changes to the code
+    on your host and see them reflected in the container app without having to rebuild
+    or restart the stack container.
+
+When you want to spin-down the deployment run: -
+
+    docker-compose down
+
 ## Command-line access to the API
 With the stack (or backend) running you should be able to access the REST API. From
 the command-line you can use [curl] or [httpie]. Here, we use `http` to
