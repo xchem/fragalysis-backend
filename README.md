@@ -60,6 +60,10 @@ using a local `.env` file (see [environment variables]).
 The backend API, for example, should be available on port 8080 of your host
 at `http://localhost:8080/api/`.
 
+You can visit the `/accounts/login` endpoint to login (assuming you have setup the
+appropriate environment variables for the container). This generates errors relating
+to the fact that the FE/Webpack can’t be found. This looks alarming but you are logged in.
+
 >   The backend no longer writes `.pyc` files (the `Dockerfile` sets the environment
     variable `PYTHONDONTWRITEBYTECODE`). This, and the fact the backend code is mapped
     into the container, allows you to make "live" changes to the code
