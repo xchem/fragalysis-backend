@@ -85,6 +85,10 @@ router.register(r"target_molecules", viewer_views.TargetMoleculesView, basename=
 # Download a zip file of the requested contents
 router.register(r"download_structures", viewer_views.DownloadStructures, basename='download_structures')
 
+# Experiments and Experiment (XChemAlign) upload support
+router.register(r"upload_target_experiments", viewer_views.UploadTargetExperiments, basename='upload_target_experiments')
+router.register(r"target_experiment_uploads", viewer_views.TargetExperimentUploads, basename='target_experiment_uploads')
+
 # Squonk Jobs
 router.register(r"job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer')
 router.register(r"job_callback", viewer_views.JobCallBackView, basename='job_callback')

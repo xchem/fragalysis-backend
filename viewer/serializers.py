@@ -1,7 +1,8 @@
 import os
+from urllib.parse import urljoin
+
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
-from urllib.parse import urljoin
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import draw_mol
@@ -423,7 +424,6 @@ class GraphSerializer(serializers.ModelSerializer):
         fields = ("id", "graph")
 
 
-### Start of Session Project
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -495,7 +495,6 @@ class SnapshotActionsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SnapshotActions
         fields = '__all__'
-## End of Session Project
 
 
 class ComputedSetSerializer(serializers.ModelSerializer):
@@ -581,7 +580,6 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
     #         desc_dict[desc.name] = desc.description
     #     return desc_dict
 
-# Start of Discourse Serializer
 
 # Class for customer Discourse API
 class DiscoursePostWriteSerializer(serializers.Serializer):
@@ -592,16 +590,13 @@ class DiscoursePostWriteSerializer(serializers.Serializer):
     post_title = serializers.CharField(max_length=200)
     post_content = serializers.CharField(max_length=2000)
     post_tags = serializers.JSONField()
-# End of Discourse Serializer
 
 
-# Serializer Class for DictToCsv API
 class DictToCsvSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     dict = serializers.DictField()
 
 
-# Start of Serializers for Tags
 class TagCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = models.TagCategory
@@ -704,10 +699,8 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
         fields = ("id", "title", "project_id", "default_squonk_project", "template_protein",
                   "metadata", "zip_archive", "upload_status", "sequences",
                   "molecules", "tags_info", "tag_categories")
-# Serializers for Tags - End
 
 
-# Serializer Class for DownloadStructures API
 class DownloadStructuresSerializer(serializers.Serializer):
     target_name = serializers.CharField(max_length=200)
     proteins = serializers.CharField(max_length=5000)
@@ -758,7 +751,6 @@ class JobRequestWriteSerializer(serializers.ModelSerializer):
                   "squonk_job_spec")
 
 
-# Contains output fields from Fragalysis
 class JobCallBackReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.JobRequest
@@ -766,7 +758,6 @@ class JobCallBackReadSerializer(serializers.ModelSerializer):
                   "squonk_job_name", "squonk_job_spec", "upload_status")
 
 
-# Contains the input fields from Squonk
 class JobCallBackWriteSerializer(serializers.ModelSerializer):
     SQUONK_STATUS = ['PENDING', 'STARTED', 'SUCCESS', 'FAILURE', 'RETRY', 'REVOKED']
     job_status = serializers.ChoiceField(choices=SQUONK_STATUS, default="PENDING")
@@ -776,4 +767,23 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
         model = models.JobRequest
         fields = ("job_status", "state_transition_time")
 
-# End of Serializers for Squonk Jobs
+
+class TargetExperimentReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ExperimentUpload
+        fields = '__all__'
+
+
+class TargetExperimentWriteSerializer(serializers.ModelSerializer):
+    project = serializers.SlugRelatedField(
+        slug_field='title',
+        queryset=models.Project.objects.all(),
+    )
+    target = serializers.SlugRelatedField(
+        slug_field='title',
+        queryset=models.Target.objects.all(),
+    )
+
+    class Meta:
+        model = models.ExperimentUpload
+        fields = ('project', 'target', 'file')
