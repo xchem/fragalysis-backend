@@ -1,5 +1,6 @@
 FROM informaticsmatters/rdkit-python3-debian:Release_2021_09_2
 ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
 
 USER root
 
