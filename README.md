@@ -68,14 +68,14 @@ to the fact that the FE/Webpack can’t be found. This looks alarming but you ar
     variable `PYTHONDONTWRITEBYTECODE`). This, and the fact the backend code is mapped
     into the container, allows you to make "live" changes to the code
     on your host and see them reflected in the container app without having to rebuild
-    or restart the stack container.
+    or restart the backend container.
 
 When you want to spin-down the deployment run: -
 
     docker-compose down
 
 ## Command-line access to the API
-With the stack (or backend) running you should be able to access the REST API. From
+With the backend running you should be able to access the REST API. From
 the command-line you can use [curl] or [httpie]. Here, we use `http` to
 **GET** a response from the API root (which does not require authentication)...
 
@@ -97,7 +97,7 @@ The response should contain a list of endpoint names and URLs, something like th
 
 To use much of the remainder of the API you will need to authenticate.
 Some endpoints allow you to use a token, obtained from the corresponding Keycloak
-authentication service. If you are running a local stack a client ID exists that
+authentication service. If you are running a local backend a client ID exists that
 should work for you, assuming you have a Keycloak user identity.
 With a few variables: -
 
@@ -118,7 +118,7 @@ With a few variables: -
 
 The token should last for at least 15 minutes, depending on the Keycloak configuration.
 With the Token you should then be able to make authenticated requests to the API on your
-local stack.
+local backend.
 
 Here's an illustration of how to use the API from the command-line by getting, adding,
 and deleting a `CompoundIdentifierType`: -
@@ -134,21 +134,24 @@ The backend writes log information in the container to `/code/logs/backend.log`.
 typically persisted between container restarts on Kubernetes with a separate volume mounted
 at `/code/logs`.
 
+>   For local development using the `docker-compose.yml` file you'll find the logs
+    at `./data/logs/backend.log`.
+
 ## Database migrations
-The best approach is to spin-up the development stack (locally) using
+The best approach is to spin-up the development backend (locally) using
 `docker-compose` and then shell into Django. For example,
 to make new migrations called "add_job_request_start_and_finish_times"
 for the viewer's model run the following: -
 
->   Before starting postgres, if you need to, remove any pre-existing database (if one exists)
-    with `rm -rf ../data` (a directory maintained above the repository's clone)
+>   Before starting postgres, if you need to, remove any pre-existing local database
+    (if one exists) with `rm -rf ./data/postgresl`
 
     docker-compose up -d
 
-Then from within the stack container make the migrations
+Then from within the backend container make the migrations
 (in this case for the `viewer`)...
 
-    docker-compose exec stack bash
+    docker-compose exec backend bash
 
     python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
 
@@ -161,7 +164,7 @@ Exit the container and tear-down the deployment: -
     migrations that have been written to the local directory to Git.
 
 ## Sentry error logging
-[Sentry] can be used to log errors in the stack container image.
+[Sentry] can be used to log errors in the backend container image.
 
 In `settings.py`, this is controlled by setting the value of `FRAGALYSIS_BACKEND_SENTRY_DNS`,
 which is also exposed in the developer docker-compose file.
@@ -171,10 +174,10 @@ To enable it, you need to set it to a valid Sentry DNS value.
 Because the documentation uses Sphinx and its `autodoc` module, compiling the
 documentation needs all the application requirements. As this is often impractical
 on the command-line, the most efficient way to build the documentation is from within
-the stack container: -
+the backend container: -
 
     docker-compose up -d
-    docker-compose exec stack bash
+    docker-compose exec backend bash
 
     pip install sphinx==5.3.0
     pip install importlib-metadata~=4.0

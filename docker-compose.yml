@@ -1,13 +1,13 @@
 ---
 
 # You typically create .env file to populate the
-# sensitive variables for the stack deployment.
+# sensitive variables for the backend deployment.
 # Then bring the containers up with: -
 #   docker-compose up -d
-# Then enter the stack container with: -
-#   docker-compose exec stack bash
+# Then enter the backend container with: -
+#   docker-compose exec backend bash
 # Where you should then find the back end at http://localhost:8080/api/
-# and logs in /code/logs/backend.log
+# and logs in /code/logs/backend.log and on your local machine in ../data/logs/backend.log
 
 version: '3'
 
@@ -18,7 +18,7 @@ services:
     image: postgres:12.2
     container_name: database
     volumes:
-    - ../data/postgresql/data:/var/lib/postgresql/data
+    - ./data/postgresql/data:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD: fragalysis
       POSTGRES_DB: frag
@@ -45,8 +45,8 @@ services:
         soft: 40000
         hard: 40000
     volumes:
-    - ../data/neo4j/data:/data
-    - ../data/neo4j/logs:/logs
+    - ./data/neo4j/data:/data
+    - ./data/neo4j/logs:/logs
     environment:
     - NEO4J_AUTH=none
     - NEO4J_dbms_memory_pagecache_size=4G
@@ -57,22 +57,22 @@ services:
       retries: 20
       start_period: 10s
 
-  # The stack (backend)
-  stack:
-    container_name: stack
+  # The stack backend
+  backend:
+    container_name: backend
     build:
       context: .
       dockerfile: Dockerfile
     command: /bin/bash /code/launch-stack.sh
     volumes:
-    - ../data/logs:/code/logs/
-    - ../data/media:/code/media/
-    - ../fragalysis-frontend:/code/frontend/
+    - ./data/logs:/code/logs/
+    - ./data/media:/code/media/
     - .:/code/
     environment:
       POSTGRESQL_USER: postgres
       # Celery tasks need to run synchronously
       CELERY_TASK_ALWAYS_EAGER: 'True'
+      # Error reporting and default/root log-level
       FRAGALYSIS_BACKEND_SENTRY_DNS: ${FRAGALYSIS_BACKEND_SENTRY_DNS}
       LOGGING_FRAMEWORK_ROOT_LEVEL: ${LOGGING_FRAMEWORK_ROOT_LEVEL:-INFO}
       # Keycloak configuration
