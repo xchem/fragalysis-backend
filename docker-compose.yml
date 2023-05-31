@@ -20,7 +20,6 @@ services:
     volumes:
     - ../data/postgresql/data:/var/lib/postgresql/data
     environment:
-      POSTGRES_USER: fragalysis
       POSTGRES_PASSWORD: fragalysis
       POSTGRES_DB: frag
       PGDATA: /var/lib/postgresql/data/pgdata
@@ -71,6 +70,7 @@ services:
     - ../fragalysis-frontend:/code/frontend/
     - .:/code/
     environment:
+      POSTGRESQL_USER: postgres
       # Celery tasks need to run synchronously
       CELERY_TASK_ALWAYS_EAGER: 'True'
       FRAGALYSIS_BACKEND_SENTRY_DNS: ${FRAGALYSIS_BACKEND_SENTRY_DNS}
