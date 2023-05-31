@@ -74,6 +74,11 @@ When you want to spin-down the deployment run: -
 
     docker-compose down
 
+>   When running locally (via `docker-compose`) Celery tasks are set to run
+    synchronously, like a function call rather than as asynchronous tasks.
+    This is controlled by the `CELERY_TASK_ALWAYS_EAGER` environment variable
+    that you'll find in the `docker-compose.yml` file.
+    
 ## Command-line access to the API
 With the backend running you should be able to access the REST API. From
 the command-line you can use [curl] or [httpie]. Here, we use `http` to
