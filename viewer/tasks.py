@@ -1,3 +1,4 @@
+import logging
 import datetime
 import os
 import psutil
@@ -7,7 +8,10 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 
 import django
 django.setup()
+
+from django.conf import settings
 from celery import shared_task
+from celery.utils.log import get_task_logger
 import numpy as np
 
 from rdkit import Chem
@@ -41,8 +45,12 @@ from .squonk_job_file_upload import (
 from .models import ComputedSet, JobRequest, JobFileTransfer, Molecule
 from .utils import SDF_VERSION, delete_media_sub_directory
 
-from celery.utils.log import get_task_logger
-logger = get_task_logger(__name__)
+# If Celery configured to always run 'synchronously' (eager),
+# then use a standard logger, otherwise use the Celery logger.
+if settings.CELERY_TASK_ALWAYS_EAGER:
+    logger = logging.getLogger(__name__)
+else:
+    logger = get_task_logger(__name__)
 
 
 def check_services():
@@ -63,23 +71,34 @@ def check_services():
     redis_service = 'redis-server'
     if redis_service not in services:
         logger.info('Service "%s" not present ... starting it', redis_service)
-        os.system('redis-server &')
+        rc = os.system('redis-server &')
+        if rc != 0:
+            logger.warning('Got exit-code %s starting "%s"', rc, redis_service)
+
     celery_service = 'celery'
-    if celery_service not in services:
-        logger.info('Service "%s" not present ... starting it', celery_service)
-        os.system('celery -A fragalysis worker -l info &')
+    if settings.CELERY_TASK_ALWAYS_EAGER:
+        logger.warning('Found CELERY_TASK_ALWAYS_EAGER - skipping check of celery service')
+        return True
+    else:
+        if celery_service not in services:
+            logger.info('Service "%s" not present ... starting it', celery_service)
+            rc = os.system('celery -A fragalysis worker -l info &')
+            if rc != 0:
+                logger.warning('Got exit-code %s starting "%s"', rc, celery_service)
 
     # Check again...
     services = [p.name() for p in psutil.process_iter()]
-    if redis_service not in services or celery_service not in services:
-        logger.error('Redis or Celery is not running as a service')
+    if redis_service not in services:
+        logger.error('Redis is not running as a service')
+        return False
+    if not settings.CELERY_TASK_ALWAYS_EAGER and celery_service not in services:
+        logger.error('Celery is not running as a service')
         return False
 
     # OK if we get here
+    logger.info('Redis and Celery are running as services')
     return True
 
-
-# Uploading Compound Sets ###
 
 @shared_task
 def process_compound_set(validate_output):
@@ -144,10 +163,6 @@ def process_compound_set(validate_output):
     return {'process_stage': 'process',
             'process_type': 'cset',
             'compound_set_name': compound_set.name}
-
-# End Uploading Compound Sets ###
-
-# Validating Compound Sets ###
 
 
 @shared_task
@@ -343,9 +358,6 @@ def validate_compound_set(task_params):
                 validated, outbound_params)
     return 'validate', 'cset', validate_dict, validated, outbound_params
 
-# End Validating Compound Sets ###
-
-# Design sets ###
 
 def create_mol(inchi, long_inchi=None, name=None):
     # check for an existing compound
@@ -453,10 +465,8 @@ def process_design_sets(df, set_type=None, set_description=None):
         sets.append(compounds)
 
     return set_names, sets
-# End Design sets ###
 
 
-# Target Sets ###
 @shared_task
 def validate_target_set(target_zip, target=None, proposal=None, email=None):
     """ Celery task to process validate the uploaded files/format for a target set upload. Zip file is mandatory
@@ -498,6 +508,9 @@ def validate_target_set(target_zip, target=None, proposal=None, email=None):
     if not validated:
         shutil.rmtree(new_data_folder)
 
+    logger.info('- TASK target_zip=%s validated=%s validate_dict=%s',
+                target_zip, validated, validate_dict)
+
     return ('validate', 'tset', validate_dict, validated, new_data_folder, target, proposal,
             submitter_name, email)
 
@@ -523,6 +536,8 @@ def process_target_set(validate_output):
         name of the processed target set
 
     """
+    logger.info('+ TASK validate_output=%s', validate_output)
+
     # Validate output is a tuple - this is one way to get
     # Celery chaining to work where second function uses list output
     # from first function (validate) called
@@ -531,18 +546,18 @@ def process_target_set(validate_output):
 
     # If there is a validation error, stop here.
     if not validated:
+        logger.warning('- TASK Leaving (not validated)')
         return process_stage, 'tset', validate_dict, validated
 
-    if validated:
-        logger.info('+ processing target set: ' + target_name + ' target_folder:' + new_data_folder)
+    logger.info('+ TASK Calling process_target(%s, %s, %s)...',
+                new_data_folder, target_name, proposal_ref)
+    mols_loaded, mols_processed = process_target(new_data_folder, target_name, proposal_ref)
+    logger.info('+ TASK process_target() returned mols_loaded=%s mols_processed=%s',
+                mols_loaded, mols_processed)
 
-        mols_loaded, mols_processed = process_target(new_data_folder, target_name, proposal_ref)
-
-        return 'process', 'tset', target_name, mols_loaded, mols_processed, contact_email
-# End Target Sets ###
+    return 'process', 'tset', target_name, mols_loaded, mols_processed, contact_email
 
 
-# File Transfer ###
 @shared_task
 def process_job_file_transfer(auth_token, jt_id):
     """ Celery task to take a list of proteins and specification and transfer the files to Squonk2
@@ -586,10 +601,7 @@ def process_job_file_transfer(auth_token, jt_id):
 
     return job_transfer.transfer_status
 
-# End File Transfer ###
 
-
-# SDF Job Upload ###
 @shared_task
 def process_compound_set_job_file(task_params):
     """Celery task to retrieve files generated by a JobRequest on Squonk2.
@@ -694,5 +706,3 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
 
     # Always erase uploaded data
     delete_media_sub_directory(get_upload_sub_directory(job_request))
-
-# SDF Job Upload ###

@@ -517,7 +517,7 @@ class UploadTSet(APIView):
 
     def get(self, request):
 
-        tag = '+ UploadTSet GET'
+        tag = '+ UploadTSet.get'
         logger.info('%s', pretty_request(request, tag=tag))
         logger.info('User="%s"', str(request.user))
 
@@ -539,7 +539,7 @@ class UploadTSet(APIView):
 
     def post(self, request):
 
-        tag = '+ UploadTSet POST'
+        tag = '+ UploadTSet.post'
         logger.info('%s', pretty_request(request, tag=tag))
         logger.info('User="%s"', str(request.user))
 
@@ -566,20 +566,26 @@ class UploadTSet(APIView):
             proposal_ref = request.POST['proposal_ref']
             contact_email = request.POST['contact_email']
 
+            logger.info("+ UploadTSet.post target_name=%s choice=%s proposal_ref=%s", target_name, choice, proposal_ref)
+
             # Create /code/media/tmp if does not exist
             media_root = settings.MEDIA_ROOT
             tmp_folder = os.path.join(media_root, 'tmp')
             if not os.path.isdir(tmp_folder):
+                logger.info("+ UploadTSet.post creating missing tmp_folder (%s)", tmp_folder)
                 os.mkdir(tmp_folder)
 
             path = default_storage.save('tmp/' + 'NEW_DATA.zip', ContentFile(target_file.read()))
             new_data_file = str(os.path.join(settings.MEDIA_ROOT, path))
+            logger.info("+ UploadTSet.post new_data_file=%s", new_data_file)
 
             # Settings for if validate option selected
             if choice == 'V':
                 # Start celery task
+                logger.info("+ UploadTSet.post (V) starting validate_target_set() Task...")
                 task_validate = validate_target_set.delay(new_data_file, target=target_name, proposal=proposal_ref,
                                                           email=contact_email)
+                logger.info("+ UploadTSet.post (V) got Celery id %s (status %s)", task_validate.id,  task_validate.status)
 
                 # Update client side with task id and status
                 context = {'validate_task_id': task_validate.id,
@@ -590,8 +596,10 @@ class UploadTSet(APIView):
             if choice == 'U':
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
+                logger.info("+ UploadTSet.post (U) starting validate_target_set()/process_target_set() Task chain...")
                 task_upload = (validate_target_set.s(new_data_file, target=target_name, proposal=proposal_ref,
                                                      email=contact_email) | process_target_set.s()).apply_async()
+                logger.info("+ UploadTSet.post (U) got Celery id %s (status %s)", task_upload.id,  task_upload.status)
 
                 # Update client side with task id and status
                 context = {'upload_task_id': task_upload.id,
