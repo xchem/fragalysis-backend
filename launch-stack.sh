@@ -18,9 +18,6 @@ else:
 "
 printf "$script" | python manage.py shell
 
-echo "Initialising JobOverride table..."
-python manage.py initialise_joboverride
-
 # Prepare log files and start outputting logs to stdout
 touch /srv/logs/gunicorn.log
 touch /srv/logs/access.log

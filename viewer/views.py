@@ -3306,9 +3306,9 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
     url:
         api/job_config
     get params:
-        - collection: The collection of the squonk job
-        - name: The name of the squonk job
-        - version: The version of the squonk job
+        - job_collection: The collection of the squonk job
+        - job_name: The name of the squonk job
+        - job_version: The version of the squonk job
 
     Returns: job details.
     """
@@ -3330,18 +3330,18 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
             content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        collection = request.query_params.get('collection', None)
-        name = request.query_params.get('name', None)
-        version = request.query_params.get('version', None)
+        job_collection = request.query_params.get('job_collection', None)
+        job_name = request.query_params.get('job_name', None)
+        job_version = request.query_params.get('job_version', None)
         # User must provide collection, name and version
-        if not collection or not name or not version:
-            content = {'Please provide collection, name and version'}
+        if not job_collection or not job_name or not job_version:
+            content = {'Please provide job_collection, job_name and job_version'}
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         content = get_squonk_job_config(request,
-                                        job_collection=collection,
-                                        job_name=name,
-                                        job_version=version)
+                                        job_collection=job_collection,
+                                        job_name=job_name,
+                                        job_version=job_version)
 
         return Response(content)
 
