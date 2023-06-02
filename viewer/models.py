@@ -1223,6 +1223,16 @@ class JobRequest(models.Model):
         """
         return self.job_status in [JobRequest.SUCCESS, JobRequest.FAILURE, 'LOST']
 
+
+class JobOverride(models.Model):
+    override = models.JSONField(encoder=DjangoJSONEncoder)
+    author = models.ForeignKey(User, null=True, on_delete=models.SET_NULL,
+                               help_text="The user that uploaded the override")
+
+    class Meta:
+        db_table = 'viewer_joboverride'
+
+
 class Squonk2Org(models.Model):
     """Django model to store Squonk2 Organisations (UUIDs) and the Account Servers
     they belong to. Managed by the Squonk2Agent class.

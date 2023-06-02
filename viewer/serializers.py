@@ -28,7 +28,8 @@ from viewer.models import (
     MoleculeTag,
     SessionProjectTag,
     JobFileTransfer,
-    JobRequest
+    JobRequest,
+    JobOverride
 )
 from viewer.utils import get_https_host
 
@@ -789,3 +790,14 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
         fields = ("job_status", "state_transition_time")
 
 # End of Serializers for Squonk Jobs
+
+class JobOverrideReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobOverride
+        fields = '__all__'
+
+
+class JobOverrideWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobOverride
+        fields = ('override',)
