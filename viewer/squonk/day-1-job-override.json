@@ -125,7 +125,7 @@
   
       {
         "job_collection": "fragmenstein",
-        "job_name": "  fragmenstein-place-string",
+        "job_name": "fragmenstein-place-string",
         "job_version": "1.0.0",
         "inputs": {
           "fragments": {
