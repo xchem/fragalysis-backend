@@ -231,12 +231,13 @@ class Squonk2Agent:
         assert self.__keycloak_hostname
 
         _LOGGER.debug('__keycloak_hostname="%s" __keycloak_realm="%s"'
-                      ' dm-client=%s as-client=%s org_owner=%s',
+                      ' dm-client=%s as-client=%s org=%s org_owner=%s',
                      self.__keycloak_hostname,
                      self.__keycloak_realm,
                      self.__CFG_OIDC_DM_CLIENT_ID,
                      self.__CFG_OIDC_AS_CLIENT_ID,
-                     self.__CFG_OIDC_AS_CLIENT_ID)
+                     self.__CFG_SQUONK2_ORG_UUID,
+                     self.__CFG_SQUONK2_ORG_OWNER)
 
         self.__org_owner_as_token = Auth.get_access_token(
             keycloak_url="https://" + self.__keycloak_hostname + "/auth",
@@ -274,8 +275,11 @@ class Squonk2Agent:
         # records the organisation ID and the Account Server URL where the ID
         # is valid. None of these values can change once deployed.
 
+        assert self.__configuration_checked
+        assert self.__configured
+        
         squonk2_org: Optional[Squonk2Org] = Squonk2Org.objects.all().first()
-        if squonk2_org and squonk2_org.uuid != self.__CFG_SQUONK2_ORG_UUID:
+        if squonk2_org.uuid != self.__CFG_SQUONK2_ORG_UUID:
             msg: str = f'Configured Squonk2 Organisation ({self.__CFG_SQUONK2_ORG_UUID})'\
                        f' does not match pre-existing record ({squonk2_org.uuid})'
             _LOGGER.error(msg)
@@ -311,6 +315,7 @@ class Squonk2Agent:
         # If there's no Squonk2Org record, create one,
         # recording the ORG ID and the AS we used to verify it exists.
         if not squonk2_org:
+            assert self.__CFG_SQUONK2_ASAPI_URL
             _LOGGER.info('Creating NEW Squonk2Org record for %s.'
                          ' as-url=%s as-org="%s" as-version=%s',
                          self.__CFG_SQUONK2_ORG_UUID,
@@ -687,13 +692,16 @@ class Squonk2Agent:
         # static (environment) variables, if we've been here before
         # just return our previous result.
         if self.__configuration_checked:
+            _LOGGER.debug('Configuration already checked (configured=%s)',
+                          self.__configured)
             return Squonk2AgentRv(success=self.__configured, msg=None)
 
         self.__configuration_checked = True
+        self.__configured = False
         for name, value in self.__dict__.items():
             # All required configuration has a class '__CFG' prefix
             if name.startswith('_Squonk2Agent__CFG_'):
-                if value is None:
+                if value is None or not value:
                     cfg_name: str = name.split('_Squonk2Agent__CFG_')[1]
                     msg = f'{cfg_name} is not set'
                     _LOGGER.error(msg)
@@ -743,8 +751,9 @@ class Squonk2Agent:
             disable_warnings(InsecureRequestWarning)
 
         # OK - it all looks good.
-        # Mark as 'configured'
+        # This is the only place where we set '__configured'
         self.__configured = True
+        _LOGGER.debug('Configuration checked (configured=%s)', self.__configured)
 
         return SuccessRv
 
@@ -843,7 +852,7 @@ class Squonk2Agent:
             msg: str = 'Squonk2Agent is in TEST mode'
             _LOGGER.warning(msg)
 
-        # Every public API**MUST**  call ping().
+        # Every public API **MUST** call ping().
         # This ensures Squonk2 is available and gets suitable API tokens...
         if not self.ping():
             msg = 'Squonk2 ping failed.'\
@@ -865,7 +874,7 @@ class Squonk2Agent:
             msg: str = 'Squonk2Agent is in TEST mode'
             _LOGGER.warning(msg)
 
-        # Every public API**MUST**  call ping().
+        # Every public API **MUST** call ping().
         # This ensures Squonk2 is available and gets suitable API tokens...
         if not self.ping():
             msg = 'Squonk2 ping failed.'\
