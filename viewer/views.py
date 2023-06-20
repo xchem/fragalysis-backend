@@ -60,7 +60,8 @@ from viewer.models import (
     SessionProjectTag,
     DownloadLinks,
     JobRequest,
-    JobFileTransfer
+    JobFileTransfer,
+    JobOverride
 )
 from viewer import filters
 from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
@@ -133,6 +134,8 @@ from viewer.serializers import (
     JobRequestWriteSerializer,
     JobCallBackReadSerializer,
     JobCallBackWriteSerializer,
+    JobOverrideReadSerializer,
+    JobOverrideWriteSerializer,
     ProjectSerializer,
 )
 
@@ -2990,6 +2993,12 @@ class DownloadStructures(ISpyBSafeQuerySet):
     def create(self, request):
         """Method to handle POST request
         """
+        # Only authenticated users can transfer files to sqonk
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can download structures'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
         logger.info('+ DownloadStructures.post')
 
         # Clear up old existing files
@@ -3292,7 +3301,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
 
 
 class JobConfigView(viewsets.ReadOnlyModelViewSet):
-    """Django view that calls Squonk to get a requested job configuration
+    """Django view that calls Squonk to get a requested job configuration.
+    The caller must provide a collection, name and version for a Job to be retrieved.
 
     Methods
     -------
@@ -3300,17 +3310,13 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
         - GET: Get job config
 
     url:
-       api/job_config
+        api/job_config
     get params:
-       - squonk_job: name of the squonk job requested
+        - job_collection: The collection of the squonk job
+        - job_name: The name of the squonk job
+        - job_version: The version of the squonk job
 
-       Returns: job details.
-
-    example input for get
-
-        .. code-block::
-
-            /api/job_config/?squonk_job_name=run_smina
+    Returns: job details.
     """
     def list(self, request):
         """Method to handle GET request
@@ -3326,19 +3332,70 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
 
         # Can't use this method if the squonk variables are not set!
         sqa_rv = _SQ2A.configured()
-        if sqa_rv.success:
-            content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg}'}
+        if not sqa_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         job_collection = request.query_params.get('job_collection', None)
         job_name = request.query_params.get('job_name', None)
         job_version = request.query_params.get('job_version', None)
+        # User must provide collection, name and version
+        if not job_collection or not job_name or not job_version:
+            content = {'Please provide job_collection, job_name and job_version'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
         content = get_squonk_job_config(request,
                                         job_collection=job_collection,
                                         job_name=job_name,
                                         job_version=job_version)
 
         return Response(content)
+
+
+class JobOverrideView(viewsets.ModelViewSet):
+    queryset = JobOverride.objects.all().order_by('-id')
+
+    def get_serializer_class(self):
+        if self.request.method in ['GET']:
+            return JobOverrideReadSerializer
+        return JobOverrideWriteSerializer
+
+    def create(self, request):
+        logger.info('+ JobOverride.post')
+        # Only authenticated users can transfer files to sqonk
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can provide Job overrides'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        # Override is expected to be a JSON string,
+        # but protect against format issues
+        override = request.data['override']
+        try:
+            override_dict = json.loads(override)
+        except ValueError:
+            content = {'error': 'The override is not valid JSON'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        # We could use a schema but that's comlex.
+        # For now let's just insist on some key fields in the provided override: -
+        # - global
+        # - fragalysis-jobs
+        if "global" not in override_dict:
+            content = {'error': 'The override does not contain a "global" key'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        if "fragalysis-jobs" not in override_dict:
+            content = {'error': 'The override does not contain a "fragalysis-jobs" key'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        if type(override_dict["fragalysis-jobs"]) != list:
+            content = {'error': 'The override "fragalysis-jobs" key is not a list'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
+        job_override = JobOverride()
+        job_override.override = override_dict
+        job_override.author = user
+        job_override.save()
+
+        return Response({"id": job_override.id})
 
 
 class JobRequestView(APIView):

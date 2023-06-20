@@ -1,0 +1,191 @@
+{
+    "global": {
+      "job_dir": "fragalysis-jobs/{username}/{job_name}-{timestamp}",
+      "protein_id": "{selected_protein}"
+    },
+    "precompilation_ignore": ["job_dir", "protein_id"],
+    "fragalysis-jobs": [
+      {
+        "job_collection": "fragmenstein",
+        "job_name": "fragmenstein-combine",
+        "job_version": "1.0.0",
+        "inputs": {
+          "fragments": {
+            "type": "array",
+            "uniqueItems": true,
+            "format": "chemical/x-mdl-molfile",
+            "items": {
+              "from": "lhs",
+              "enum": "{inputs_dir}/{target}-{item}.mol",
+              "enumNames": "{item}"
+            }
+          },
+          "protein": {
+            "type": "string",
+            "format": "chemical/x-pdb",
+            "from": "lhs",
+            "enum": "{inputs_dir}/{target}-{item}_apo-desolv.pdb",
+            "enumNames": "{item}"
+          }
+        },
+        "options": {
+          "outfile": {
+            "default": "{job_dir}/merged.sdf",
+            "ui:widget": "hidden"
+          },
+          "count": {
+            "type": "integer",
+            "default": 5
+          },
+          "smilesFieldName": {
+            "type": "string",
+            "default": "original SMILES",
+            "ui:widget": "hidden"
+          },
+          "fragIdField": {
+            "type": "string",
+            "default": "_Name",
+            "ui:widget": "hidden"
+          },
+          "proteinFieldName": {
+            "type": "string",
+            "default": "ref_pdb",
+            "ui:widget": "hidden"
+          },
+          "proteinFieldValue": {
+            "type": "string",
+            "default": "{protein_id}",
+            "ui:widget": "hidden"
+          }
+        },
+        "outputs": {
+          "outputs": { "type": "string" }
+        },
+        "results": ["Merged molecules"]
+      },
+  
+      {
+        "job_collection": "fragmenstein",
+        "job_name": "fragmenstein-combine-multi-scoring",
+        "job_version": "1.0.0",
+        "inputs": {
+          "fragments": {
+            "type": "array",
+            "uniqueItems": true,
+            "format": "chemical/x-mdl-molfile",
+            "items": {
+              "from": "lhs",
+              "enum": "{inputs_dir}/{target}-{item}.mol",
+              "enumNames": "{item}"
+            }
+          },
+          "protein": {
+            "type": "string",
+            "format": "chemical/x-pdb",
+            "from": "lhs",
+            "enum": "{inputs_dir}/{target}-{item}_apo-desolv.pdb",
+            "enumNames": "{item}"
+          }
+        },
+        "options": {
+          "outfile": {
+            "default": "{job_dir}/merged.sdf",
+            "ui:widget": "hidden"
+          },
+          "count": {
+            "type": "integer",
+            "default": 5
+          },
+          "smilesFieldName": {
+            "type": "string",
+            "default": "original SMILES",
+            "ui:widget": "hidden"
+          },
+          "fragIdField": {
+            "type": "string",
+            "default": "_Name",
+            "ui:widget": "hidden"
+          },
+          "proteinFieldName": {
+            "type": "string",
+            "default": "ref_pdb",
+            "ui:widget": "hidden"
+          },
+          "proteinFieldValue": {
+            "type": "string",
+            "value": "{protein_id}",
+            "ui:widget": "hidden"
+          }
+        },
+        "outputs": {
+          "outputs": { "type": "string" }
+        },
+        "results": ["Merged molecules"]
+      },
+  
+      {
+        "job_collection": "fragmenstein",
+        "job_name": "fragmenstein-place-string",
+        "job_version": "1.0.0",
+        "inputs": {
+          "fragments": {
+            "type": "array",
+            "uniqueItems": true,
+            "format": "chemical/x-mdl-molfile",
+            "items": {
+              "from": "lhs",
+              "enum": "{inputs_dir}/{target}-{item}.mol",
+              "enumNames": "{item}"
+            }
+          },
+          "protein": {
+            "type": "string",
+            "format": "chemical/x-pdb",
+            "from": "lhs",
+            "enum": "{inputs_dir}/{target}-{item}_apo-desolv.pdb",
+            "enumNames": "{item}"
+          }
+        },
+        "options": {
+          "outfile": {
+            "default": "{job_dir}/merged.sdf",
+            "ui:widget": "hidden"
+          },
+          "count": {
+            "type": "integer",
+            "default": 5
+          },
+          "smilesFieldName": {
+            "type": "string",
+            "default": "original SMILES",
+            "ui:widget": "hidden"
+          },
+          "smiles": {
+            "items": {
+              "ui:widget": "textarea"
+            }
+          },
+          "fragIdField": {
+            "type": "string",
+            "default": "_Name",
+            "ui:widget": "hidden"
+          },
+          "proteinFieldName": {
+            "type": "string",
+            "default": "ref_pdb",
+            "ui:widget": "hidden"
+          },
+          "proteinFieldValue": {
+            "type": "string",
+            "value": "{protein_id}",
+            "ui:widget": "hidden"
+          }
+        },
+        "outputs": {
+          "outputs": { "type": "string" }
+        },
+        "results": ["Merged molecules"]
+      }
+    ]
+  }
+  
