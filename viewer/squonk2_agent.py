@@ -277,8 +277,13 @@ class Squonk2Agent:
 
         assert self.__configuration_checked
         assert self.__configured
-        
+
         squonk2_org: Optional[Squonk2Org] = Squonk2Org.objects.all().first()
+        if not squonk2_org:
+            msg: str = 'There is no Squonk2Org record. How did I get here?'
+            _LOGGER.error(msg)
+            return Squonk2AgentRv(success=False, msg=msg)
+
         if squonk2_org.uuid != self.__CFG_SQUONK2_ORG_UUID:
             msg: str = f'Configured Squonk2 Organisation ({self.__CFG_SQUONK2_ORG_UUID})'\
                        f' does not match pre-existing record ({squonk2_org.uuid})'
