@@ -278,24 +278,19 @@ class Squonk2Agent:
         assert self.__configuration_checked
         assert self.__configured
 
-        squonk2_org: Optional[Squonk2Org] = Squonk2Org.objects.all().first()
-        if not squonk2_org:
-            msg: str = 'There is no Squonk2Org record. How did I get here?'
-            _LOGGER.error(msg)
-            return Squonk2AgentRv(success=False, msg=msg)
-
-        if squonk2_org.uuid != self.__CFG_SQUONK2_ORG_UUID:
+        if self.__org_record and self.__org_record.uuid != self.__CFG_SQUONK2_ORG_UUID:
             msg: str = f'Configured Squonk2 Organisation ({self.__CFG_SQUONK2_ORG_UUID})'\
-                       f' does not match pre-existing record ({squonk2_org.uuid})'
+                       f' does not match pre-existing record ({self.__org_record.uuid})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
-        # OK, so the ORG UUID has not changed.
+        # OK, so the ORG exists and its UUID has not changed.
         # Is it known to the configured AS?
         if not self._get_squonk2_owner_tokens():
             msg = 'Failed to get AS or DM token for organisation owner'
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
+        _LOGGER.debug('Got Squonk2 API Access Tokens')
 
         # Get the ORG from the AS API.
         # If it knows the org the response will be successful,
@@ -316,10 +311,13 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         as_version: str = as_v_rv.msg['version']
+        _LOGGER.debug('Happy with Squonk2 Account Server (as_version=%s)', as_version)
 
-        # If there's no Squonk2Org record, create one,
-        # recording the ORG ID and the AS we used to verify it exists.
-        if not squonk2_org:
+        # Everything seems to be OK but we might not have an organisation in this
+        # call (it may be the first call of the instance lifetime).
+        # So, if there's no Squonk2Org record, create one,
+        # recording the ORG ID and the AS and version we used.
+        if not self.__org_record:
             assert self.__CFG_SQUONK2_ASAPI_URL
             _LOGGER.info('Creating NEW Squonk2Org record for %s.'
                          ' as-url=%s as-org="%s" as-version=%s',
@@ -327,22 +325,20 @@ class Squonk2Agent:
                          self.__CFG_SQUONK2_ASAPI_URL,
                          as_o_rv.msg['name'],
                          as_version)
-            squonk2_org = Squonk2Org(uuid=self.__CFG_SQUONK2_ORG_UUID,
-                                     name=as_o_rv.msg['name'],
-                                     as_url=self.__CFG_SQUONK2_ASAPI_URL,
-                                     as_version=as_version)
-            squonk2_org.save()
+            self.__org_record = Squonk2Org(uuid=self.__CFG_SQUONK2_ORG_UUID,
+                                           name=as_o_rv.msg['name'],
+                                           as_url=self.__CFG_SQUONK2_ASAPI_URL,
+                                           as_version=as_version)
+            self.__org_record.save()
             _LOGGER.info('Created Squonk2Org record for %s',
                          self.__CFG_SQUONK2_ORG_UUID)
         else:
             _LOGGER.debug('Squonk2Org for %s "%s" already exists - nothing to do',
-                          squonk2_org.uuid,
-                          squonk2_org.name)
-
-        # Keep the record ID for future use.
-        self.__org_record = squonk2_org
+                          self.__org_record.uuid,
+                          self.__org_record.name)
 
         # Organisation is known to AS, and it hasn't changed.
+        _LOGGER.debug('Successful pre-flight checks')
         return SuccessRv
 
     def _get_or_create_unit(self,
@@ -703,9 +699,13 @@ class Squonk2Agent:
 
         self.__configuration_checked = True
         self.__configured = False
+
+        _LOGGER.debug('Checking configuration (unchecked)...')
+
         for name, value in self.__dict__.items():
             # All required configuration has a class '__CFG' prefix
             if name.startswith('_Squonk2Agent__CFG_'):
+                _LOGGER.debug('CFG variable "%s" has value "%s"', name, value)
                 if value is None or not value:
                     cfg_name: str = name.split('_Squonk2Agent__CFG_')[1]
                     msg = f'{cfg_name} is not set'
@@ -713,6 +713,7 @@ class Squonk2Agent:
                     return Squonk2AgentRv(success=False, msg=msg)
 
         # If we get here all the required configuration variables are set
+        _LOGGER.debug('Required configuration variables are set')
 
         # Is the slug too long?
         # Limited to 10 characters
@@ -721,6 +722,7 @@ class Squonk2Agent:
                   f' ({self.__CFG_SQUONK2_SLUG})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
+        _LOGGER.debug('Acceptable slug (%s)', self.__CFG_SQUONK2_SLUG)
 
         # Extract hostname and realm from the legacy variable
         # i.e. we need 'example.com' and 'xchem'
@@ -741,6 +743,7 @@ class Squonk2Agent:
             msg = 'SQUONK2_UNIT_BILLING_DAY cannot be less than 1'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
+        _LOGGER.debug('Acceptable billing day (%s)', self.__unit_billing_day)
 
         # Product tier flavour must be one of a known value.
         # It's stored in the object's self.__product_flavour as an upper-case value
@@ -749,11 +752,13 @@ class Squonk2Agent:
                   ' is not supported'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
+        _LOGGER.debug('Acceptable flavour (%s)', self.__CFG_SQUONK2_PRODUCT_FLAVOUR)
 
         # Don't verify Squonk2 SSL certificates?
         if self.__SQUONK2_VERIFY_CERTIFICATES and self.__SQUONK2_VERIFY_CERTIFICATES.lower() == 'no':
             self.__verify_certificates = False
             disable_warnings(InsecureRequestWarning)
+            _LOGGER.debug('Disabled certificate verification')
 
         # OK - it all looks good.
         # This is the only place where we set '__configured'
