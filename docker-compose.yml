@@ -59,6 +59,7 @@ services:
 
   # The stack backend
   backend:
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_TAG:-latest}
     container_name: backend
     build:
       context: .
