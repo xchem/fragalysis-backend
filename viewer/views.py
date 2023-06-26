@@ -2993,12 +2993,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
     def create(self, request):
         """Method to handle POST request
         """
-        # Only authenticated users can transfer files to sqonk
-        user = self.request.user
-        if not user.is_authenticated:
-            content = {'Only authenticated users can download structures'}
-            return Response(content, status=status.HTTP_403_FORBIDDEN)
-
         logger.info('+ DownloadStructures.post')
 
         # Clear up old existing files
@@ -3062,7 +3056,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 break
 
         if not target:
-            msg = f'No target found with title "{target_name}"'
+            msg = f'Either the Target "{target_name}" is not present or you are not permitted access it'
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
