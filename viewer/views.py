@@ -2991,7 +2991,11 @@ class DownloadStructures(ISpyBSafeQuerySet):
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
     def create(self, request):
-        """Method to handle POST request
+        """Method to handle POST request that's use to initiate a target download.\
+
+        The user is permitted to download Targets they have ascess to (whether 
+        authenticated or not), and this is hadled by the queryset logic later in
+        this method.
         """
         logger.info('+ DownloadStructures.post')
 
