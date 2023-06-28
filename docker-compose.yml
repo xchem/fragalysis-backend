@@ -70,6 +70,7 @@ services:
     - ./data/media:/code/media/
     - .:/code/
     environment:
+      AUTHENTICATE_UPLOAD: ${AUTHENTICATE_UPLOAD:-True} 
       POSTGRESQL_USER: postgres
       # Celery tasks need to run synchronously
       CELERY_TASK_ALWAYS_EAGER: 'True'

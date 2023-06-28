@@ -20,7 +20,6 @@ from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
-
 if os.environ.get("DEBUG_FRAGALYSIS") == 'True':
     DEBUG = True
 
@@ -32,9 +31,12 @@ if os.environ.get("DEBUG_FRAGALYSIS") == 'True':
 PROPOSAL_SUPPORTED = True
 PROPOSAL_REQUIRED = True
 
-# Authentication check when uploading files. This can be switched off for development testing if required.
+# Authentication check when uploading files.
+# This can be switched off to simplify development testing if required.
 # Should always be True on production.
 AUTHENTICATE_UPLOAD = True
+if os.environ.get("AUTHENTICATE_UPLOAD") == 'False':
+    AUTHENTICATE_UPLOAD = False
 
 # AnonymousUser should be the first record inserted into the auth_user table.
 ANONYMOUS_USER = 1
