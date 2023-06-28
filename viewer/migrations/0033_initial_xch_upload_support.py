@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('viewer', '0031_fix_JobFileTransfer_sub_path'),
+        ('viewer', '0032_add_job_override_table'),
     ]
 
     operations = [

@@ -1393,7 +1393,11 @@ class DownloadStructures(ISpyBSafeQuerySet):
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
     def create(self, request):
-        """Method to handle POST request
+        """Method to handle POST request that's use to initiate a target download.\
+
+        The user is permitted to download Targets they have ascess to (whether
+        authenticated or not), and this is hadled by the queryset logic later in
+        this method.
         """
         logger.info('+ DownloadStructures.post')
 
@@ -1458,7 +1462,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 break
 
         if not target:
-            msg = f'No target found with title "{target_name}"'
+            msg = f'Either the Target "{target_name}" is not present or you are not permitted access it'
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
@@ -1698,13 +1702,18 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
 
         # Can't use this method if the squonk variables are not set!
         sqa_rv = _SQ2A.configured()
-        if sqa_rv.success:
-            content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg}'}
+        if not sqa_rv.success:
+            content = {f'The Squonk2 Agent is not configured ({sqa_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         job_collection = request.query_params.get('job_collection', None)
         job_name = request.query_params.get('job_name', None)
         job_version = request.query_params.get('job_version', None)
+        # User must provide collection, name and version
+        if not job_collection or not job_name or not job_version:
+            content = {'Please provide job_collection, job_name and job_version'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
         content = get_squonk_job_config(request,
                                         job_collection=job_collection,
                                         job_name=job_name,
@@ -1713,9 +1722,54 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
         return Response(content)
 
 
+class JobOverrideView(viewsets.ModelViewSet):
+    queryset = models.JobOverride.objects.all().order_by('-id')
+
+    def get_serializer_class(self):
+        if self.request.method in ['GET']:
+            return serializers.JobOverrideReadSerializer
+        return serializers.JobOverrideWriteSerializer
+
+    def create(self, request):
+        logger.info('+ JobOverride.post')
+        # Only authenticated users can transfer files to sqonk
+        user = self.request.user
+        if not user.is_authenticated:
+            content = {'Only authenticated users can provide Job overrides'}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        # Override is expected to be a JSON string,
+        # but protect against format issues
+        override = request.data['override']
+        try:
+            override_dict = json.loads(override)
+        except ValueError:
+            content = {'error': 'The override is not valid JSON'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        # We could use a schema but that's comlex.
+        # For now let's just insist on some key fields in the provided override: -
+        # - global
+        # - fragalysis-jobs
+        if "global" not in override_dict:
+            content = {'error': 'The override does not contain a "global" key'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        if "fragalysis-jobs" not in override_dict:
+            content = {'error': 'The override does not contain a "fragalysis-jobs" key'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        if type(override_dict["fragalysis-jobs"]) != list:
+            content = {'error': 'The override "fragalysis-jobs" key is not a list'}
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
+        job_override = models.JobOverride()
+        job_override.override = override_dict
+        job_override.author = user
+        job_override.save()
+
+        return Response({"id": job_override.id})
+
+
 class JobRequestView(APIView):
-    """Used to get information about existing Jobs and to start new ones.
-    """
+
     def get(self, request):
         logger.info('+ JobRequest.get')
 

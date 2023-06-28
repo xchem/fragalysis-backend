@@ -6,8 +6,6 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.conf import settings
 
-from shortuuid.django_fields import ShortUUIDField
-
 from simple_history.models import HistoricalRecords
 
 from viewer.target_set_config import get_mol_choices, get_prot_choices
@@ -663,19 +661,12 @@ class JobFileTransfer(models.Model):
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE, db_index=True)
-    squonk_project = models.CharField(max_length=200, null=True,
-                                    help_text="The name of the Squonk project that the files will be transferred to")
-    sub_path = ShortUUIDField(length=4, alphabet="abcdefghijklmnopqrstuvwxyz", null=True,
-                              help_text="A 'random' sub-path where files will be transferred to")
-    proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True,
-                                help_text="List of proteins to be transferred")
-    compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True,
-                                 help_text="List of compounds to be transferred (not used yet)")
-    transfer_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True,
-                                     help_text="Identifies for each type (protein or compound),"
-                                               " which file types were transferred over")
-    transfer_task_id = models.CharField(null=True, max_length=50,
-                                        help_text="The ID of transfer Celery task")
+    squonk_project = models.CharField(max_length=200, null=True)
+    proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    # Not used in phase 1
+    compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    transfer_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    transfer_task_id = models.CharField(null=True, max_length=50)
     transfer_status = models.CharField(choices=STATUS, default=PENDING, max_length=7)
     transfer_progress = models.DecimalField(null=True, max_digits=5, decimal_places=2,
                                             help_text="Intended to be used as an indication of progress (0 to 100%)")
@@ -758,10 +749,15 @@ class JobRequest(models.Model):
     class Meta:
         db_table = 'viewer_jobrequest'
 
-    def job_has_finished(self):
-        """Finished if status is SUCCESS or FAILURE (or a new state of LOST).
-        """
-        return self.job_status in [JobRequest.SUCCESS, JobRequest.FAILURE, 'LOST']
+
+class JobOverride(models.Model):
+    override = models.JSONField(encoder=DjangoJSONEncoder)
+    author = models.ForeignKey(User, null=True, on_delete=models.SET_NULL,
+                               help_text="The user that uploaded the override")
+
+    class Meta:
+        db_table = 'viewer_joboverride'
+
 
 class Squonk2Org(models.Model):
     """Squonk2 Organisations (UUIDs) and the Account Servers

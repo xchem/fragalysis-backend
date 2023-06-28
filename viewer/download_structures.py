@@ -463,11 +463,12 @@ def _create_structures_zip(target,
             errors += _molecule_files_zip(zip_contents, ziparchive,
                                           combined_sdf_file, error_file)
 
-        # Add combined_sdf_file to the archive.
-        combined_sdf_file_exists = os.path.isfile(combined_sdf_file)
-
-        if zip_contents['molecules']['single_sdf_file'] is True \
-                and combined_sdf_file_exists:
+        # Add combined_sdf_file to the archive?
+        if (
+            zip_contents['molecules']['single_sdf_file'] is True
+            and combined_sdf_file
+            and os.path.isfile(combined_sdf_file)
+        ):
             ziparchive.write(
                 combined_sdf_file,
                 os.path.join(_ZIP_FILEPATHS['single_sdf_file'],

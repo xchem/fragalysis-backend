@@ -787,3 +787,14 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ExperimentUpload
         fields = ('project', 'target', 'file')
+
+class JobOverrideReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.JobOverride
+        fields = '__all__'
+
+
+class JobOverrideWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.JobOverride
+        fields = ('override',)
