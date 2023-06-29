@@ -491,7 +491,7 @@ def _create_structures_zip(target,
             and combined_sdf_file
             and os.path.isfile(combined_sdf_file)
         ):
-            logger.warning('Adding combined_sdf_file "%s"...', combined_sdf_file)
+            logger.info('Adding combined_sdf_file "%s"...', combined_sdf_file)
             ziparchive.write(
                 combined_sdf_file,
                 os.path.join(_ZIP_FILEPATHS['single_sdf_file'],
@@ -610,7 +610,7 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
         if num_molecules_collected == 0:
             logger.warning('No SD files collected')
         else:
-            logger.warning('%s SD files collected', num_molecules_collected)
+            logger.info('%s SD files collected', num_molecules_collected)
             
         if num_missing_sd_files > 0:
             logger.error('%d missing files', num_missing_sd_files)
