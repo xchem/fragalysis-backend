@@ -113,7 +113,7 @@ class Protein(models.Model):
     code = models.CharField(max_length=50, db_index=True, help_text='Code for this protein (e.g. NUDT5A-x0001_1A)')
     target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     experiment = models.ForeignKey(Experiment, null=True, on_delete=models.CASCADE)
-    apo_holo = models.NullBooleanField(help_text='0 for apo (ligand removed), 1 for holo (ligand in tact)')
+    apo_holo = models.BooleanField(null=True, help_text='0 for apo (ligand removed), 1 for holo (ligand in tact)')
     # Set the groups types
     prot_choices, default_prot = get_prot_choices()
     prot_type = models.CharField(
@@ -138,11 +138,11 @@ class Protein(models.Model):
                                        help_text='File link to uploaded _header.pdb file (optional)')
     apo_desolve_info = models.FileField(upload_to="pdbs/", null=True, max_length=255,
                                         help_text='File link to uploaded _apo-desolv.pdb file (optional)')
-    aligned = models.NullBooleanField()
+    aligned = models.BooleanField(null=True)
     aligned_to = models.ForeignKey("self", null=True, on_delete=models.CASCADE,
                                    help_text='Foreign key to another instance of a protein'
                                              ' to which this protein is aligned (optional)')
-    has_eds = models.NullBooleanField()
+    has_eds = models.BooleanField(null=True)
 
     class Meta:
         unique_together = ("code", "target_id", "prot_type")
@@ -178,7 +178,7 @@ class Compound(models.Model):
     num_rot_bonds = models.IntegerField(help_text='Computed number of rotatable bonds')
     num_val_electrons = models.IntegerField(help_text='Computed number of valence electrons')
     ring_count = models.IntegerField(help_text='Computed number of rings in the molecule')
-    inspirations = models.ManyToManyField("Molecule", blank=True, null=True,
+    inspirations = models.ManyToManyField("Molecule", blank=True,
                                           help_text='Foreign key link to any number of 3D Molecules that inspired'
                                                     ' the design of this compound')
     description = models.TextField(blank=True, null=True)
@@ -502,7 +502,7 @@ class ComputedMolecule(models.Model):
     name = models.CharField(max_length=50)
     smiles = models.CharField(max_length=255)
     pdb = models.ForeignKey(Protein, on_delete=models.PROTECT, null=True)
-    computed_inspirations = models.ManyToManyField(Molecule, null=True, blank=True,
+    computed_inspirations = models.ManyToManyField(Molecule, blank=True,
                                                    help_text="Existing fragalysis molecules that were inspirations"
                                                              " in the design/calculation of the molecule")
 
