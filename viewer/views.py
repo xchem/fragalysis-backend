@@ -689,13 +689,10 @@ def react(request):
     context = {}
 
     # Is the Squonk2 Agent configured?
-    logger.info("Checking whether Squonk2 is configured...")
     sq2_rv = _SQ2A.configured()
     if sq2_rv.success:
-        logger.info("Squonk2 is configured")
         context['squonk_available'] = 'true'
     else:
-        logger.info("Squonk2 is NOT configured")
         context['squonk_available'] = 'false'
 
     if discourse_api_key:
