@@ -174,7 +174,7 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     """
     assert _is_mol_or_sdf(path)
 
-    logger.info('Patching MOL/SDF "%s" molecule_name=%s', path, molecule_name)
+    logger.debug('Patching MOL/SDF "%s" molecule_name=%s', path, molecule_name)
 
     name = molecule_name
     if not name:
@@ -324,10 +324,15 @@ def _smiles_files_zip(zip_contents, ziparchive, download_path):
     smiles_filename = os.path.join(download_path, 'smiles.smi')
     logger.info('Creating SMILES file "%s"...', smiles_filename)
 
+    num_smiles = 0
     with open(smiles_filename, 'w', encoding='utf-8') as smilesfile:
         for smi in zip_contents['molecules']['smiles_info']:
-            logger.info('Adding "%s"...', smi)
+            logger.debug('Adding "%s"...', smi)
             smilesfile.write(smi + ',')
+            num_smiles += 1
+
+    logger.info('Added %s SMILES', num_smiles)
+            
     ziparchive.write(
         smiles_filename,
         os.path.join(_ZIP_FILEPATHS['smiles_info'],
@@ -602,7 +607,7 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
                     num_missing_sd_files += 1
 
             if rel_sd_file:
-                logger.info('rel_sd_file=%s protein.code=%s', rel_sd_file, protein.code)
+                logger.debug('rel_sd_file=%s protein.code=%s', rel_sd_file, protein.code)
                 zip_contents['molecules']['sdf_files'].update({rel_sd_file: protein.code})
                 num_molecules_collected += 1
 
@@ -611,7 +616,10 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
             logger.warning('No SD files collected')
         else:
             logger.info('%s SD files collected', num_molecules_collected)
-            
+        
+        if num_molecules != num_molecules_collected:
+            logger.error('Expected %d files', num_molecules)            
+
         if num_missing_sd_files > 0:
             logger.error('%d missing files', num_missing_sd_files)
 
