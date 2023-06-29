@@ -74,6 +74,8 @@ zip_template = {'proteins': {'pdb_info': {},
 _MISSING_SDF_DIRECTORY = 'missing-sdfs'
 _MISSING_SDF_PATH = os.path.join(settings.MEDIA_ROOT, _MISSING_SDF_DIRECTORY)
 
+_ERROR_FILE = 'errors.csv'
+
 
 def _replace_missing_sdf(molecule, code):
     """Creates a file in the 'missing SDFs' directory, using the protein code
@@ -172,7 +174,7 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     """
     assert _is_mol_or_sdf(path)
 
-    logger.debug('Patching MOL/SDF "%s" molecule_name=%s', path, molecule_name)
+    logger.info('Patching MOL/SDF "%s" molecule_name=%s', path, molecule_name)
 
     name = molecule_name
     if not name:
@@ -320,8 +322,11 @@ def _smiles_files_zip(zip_contents, ziparchive, download_path):
     """Create and write the smiles file to the ZIP file
     """
     smiles_filename = os.path.join(download_path, 'smiles.smi')
+    logger.info('Creating SMILES file "%s"...', smiles_filename)
+
     with open(smiles_filename, 'w', encoding='utf-8') as smilesfile:
         for smi in zip_contents['molecules']['smiles_info']:
+            logger.info('Adding "%s"...', smi)
             smilesfile.write(smi + ',')
     ziparchive.write(
         smiles_filename,
@@ -337,15 +342,28 @@ def _extra_files_zip(ziparchive, target):
     preserved searches.
     """
 
+    num_processed = 0
     extra_files = os.path.join(settings.MEDIA_ROOT, 'targets', target.title,
                               'extra_files')
+    logger.info('Processing extra files (%s)...', extra_files)
+
     if os.path.isdir(extra_files):
         for dirpath, dummy, files in os.walk(extra_files):
             for file in files:
                 filepath = os.path.join(dirpath, file)
+                logger.info('Adding extra file "%s"...', filepath)
                 ziparchive.write(
                     filepath,
                     os.path.join(_ZIP_FILEPATHS['extra_files'], file))
+                num_processed += 1
+    else:
+        logger.info('Directory does not exist (%s)...', extra_files)
+        
+
+    if num_processed == 0:
+        logger.info('No extra files found')
+    else:
+        logger.info('Processed %s extra files', num_processed)
 
 # def _get_external_download_url(download_path, host):
 #     """Returns the external download URL from the internal url for
@@ -370,12 +388,14 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
     # Don't need...
     del host
 
+    logger.info('Creating documentation...')
+
     template_file = os.path.join("/code/doc_templates",
                                  "download_readme_template.md")
 
     readme_filepath = os.path.join(download_path, 'Readme.md')
     pdf_filepath = os.path.join(download_path, 'Readme.pdf')
-
+    
     with open(readme_filepath, "a", encoding="utf-8") as readme:
         readme.write("# Documentation for the downloaded zipfile\n")
         # Download links
@@ -424,25 +444,21 @@ def _create_structures_zip(target,
                            file_url,
                            original_search,
                            host):
-    """Write a ZIP file containing data from an input dictionary
-
-    Args:
-        target
-        zip_contents
-        file_url
-
+    """Write a ZIP file containing data from an input dictionary.
     """
 
     logger.info('+ _create_structures_zip(%s)', target.title)
-    logger.debug('file_url="%s"', file_url)
+    logger.info('file_url="%s"', file_url)
+    logger.info('single_sdf_file="%s"', zip_contents['molecules']['single_sdf_file'])
+    logger.info('sdf_files=%s', zip_contents['molecules']['sdf_files'])
+
     logger.debug('zip_contents=%s', zip_contents)
-    logger.debug('single_sdf_file=%s', zip_contents['molecules']['single_sdf_file'])
-    logger.debug('sdf_files=%s', zip_contents['molecules']['sdf_files'])
 
     download_path = os.path.dirname(file_url)
+    logger.info('Creating download path (%s)', download_path)
     os.makedirs(download_path, exist_ok=True)
 
-    error_filename = os.path.join(download_path, "errors.csv")
+    error_filename = os.path.join(download_path, _ERROR_FILE)
     error_file = open(error_filename, "w", encoding="utf-8")
     error_file.write("Param,Code,Invalid file reference\n")
     errors = 0
@@ -454,14 +470,20 @@ def _create_structures_zip(target,
         combined_sdf_file = \
             os.path.join(download_path,
                          '{}_combined.sdf'.format(target.title))
+        logger.info('combined_sdf_file=%s', combined_sdf_file)
 
     with zipfile.ZipFile(file_url, 'w') as ziparchive:
         # Read through zip_contents to compile the file
         errors += _protein_files_zip(zip_contents, ziparchive, error_file)
+        if errors > 0:
+            logger.warning('After _protein_files_zip() errors=%s', errors)
 
         if zip_contents['molecules']['sdf_files']:
+            errors_before = errors
             errors += _molecule_files_zip(zip_contents, ziparchive,
                                           combined_sdf_file, error_file)
+            if errors > errors_before:
+                logger.warning('After _molecule_files_zip() errors=%s', errors)
 
         # Add combined_sdf_file to the archive?
         if (
@@ -469,6 +491,7 @@ def _create_structures_zip(target,
             and combined_sdf_file
             and os.path.isfile(combined_sdf_file)
         ):
+            logger.info('Adding combined_sdf_file "%s"...', combined_sdf_file)
             ziparchive.write(
                 combined_sdf_file,
                 os.path.join(_ZIP_FILEPATHS['single_sdf_file'],
@@ -488,6 +511,7 @@ def _create_structures_zip(target,
                     '{},{},{}\n'.format('metadata_info', target,
                                         zip_contents['metadata_info']))
                 errors += 1
+                logger.warning('After _add_file_to_zip() errors=%s', errors)
 
         _extra_files_zip(ziparchive, target)
 
@@ -495,7 +519,8 @@ def _create_structures_zip(target,
 
         error_file.close()
         if errors > 0:
-            ziparchive.write(error_filename, 'errors.csv')
+            logger.warning('errors=%s Adding %s to ziparchive', errors, _ERROR_FILE)
+            ziparchive.write(error_filename, _ERROR_FILE)
         os.remove(error_filename)
 
 
@@ -532,8 +557,8 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
 
     molecules = Molecule.objects.filter(prot_id__in=[protein['id'] for protein
                                                      in proteins]).values()
-    logger.info('Got %d molecules from %d proteins', len(molecules), len(proteins))
     num_molecules = len(molecules)
+    logger.info('Expecting %d molecules from %d proteins', num_molecules, len(proteins))
     logger.debug('molecules=%s', molecules)
 
     # Read through zip_params to compile the parameters
@@ -549,6 +574,7 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
         zip_contents['molecules']['sdf_info'] = True
 
     # sdf information is held as a file on the Molecule record.
+    num_molecules_collected = 0
     if other_params['sdf_info'] or other_params['single_sdf_file']:
         num_missing_sd_files = 0
         for molecule in molecules:
@@ -569,19 +595,25 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
                 else:
                     # No file and no sdf_info field - not much more we can do
                     # except count it and report. Failures will be translated to a line
-                    # in the 'errors.csv' by _create_structures_zip()
+                    # in the _ERROR_FILE by _create_structures_zip()
                     logger.error(
                         "Molecule record's 'sdf_info' isn't set (protein.code=%s).",
                         protein.code)
                     num_missing_sd_files += 1
 
-            logger.debug('sdf_file=%s protein.code=%s', rel_sd_file, protein.code)
-            zip_contents['molecules']['sdf_files'].update({rel_sd_file: protein.code})
+            if rel_sd_file:
+                logger.info('rel_sd_file=%s protein.code=%s', rel_sd_file, protein.code)
+                zip_contents['molecules']['sdf_files'].update({rel_sd_file: protein.code})
+                num_molecules_collected += 1
 
         # Report (in the log) anomalies
+        if num_molecules_collected == 0:
+            logger.warning('No SD files collected')
+        else:
+            logger.info('%s SD files collected', num_molecules_collected)
+            
         if num_missing_sd_files > 0:
-            logger.error('Expected %d SD files but %d missing',
-                         num_molecules, num_missing_sd_files)
+            logger.error('%d missing files', num_missing_sd_files)
 
     # The smiles at molecule level may not be unique.
     if other_params['smiles_info'] is True:
@@ -674,7 +706,11 @@ def check_download_links(request,
     protein_params, other_params, static_link  = get_download_params(request)
 
     # Remove 'references_' from protein list if present.
+    num_given_proteins = len(proteins)
     proteins = _protein_garbage_filter(proteins)
+    num_removed = num_given_proteins - len(proteins)
+    if num_removed:
+        logger.warning('Removed %d "references_" proteins from download', num_removed)
 
     # Save the list of protein codes - this is the ispybsafe set for
     # this user.
@@ -702,10 +738,12 @@ def check_download_links(request,
         if (existing_link[0].zip_file
                 and os.path.isfile(existing_link[0].file_url)
                 and not static_link):
+            logger.info('Existing link (%s)', existing_link[0].file_url)
             return existing_link[0].file_url, True
 
         if (os.path.isfile(existing_link[0].file_url) \
                 and not static_link):
+            logger.info('Existing link in progress (%s)', existing_link[0].file_url)
             # Repeat call, file is currently being created by another process.
             return existing_link[0].file_url, False
 
@@ -730,6 +768,8 @@ def check_download_links(request,
             existing_link[0].static_link = static_link
             existing_link[0].zip_contents = zip_contents
         existing_link[0].save()
+        logger.info('Link saved (%s)', existing_link[0].file_url)
+
         return existing_link[0].file_url, True
 
     # Create a new link for this user

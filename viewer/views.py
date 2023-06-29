@@ -689,13 +689,10 @@ def react(request):
     context = {}
 
     # Is the Squonk2 Agent configured?
-    logger.info("Checking whether Squonk2 is configured...")
     sq2_rv = _SQ2A.configured()
     if sq2_rv.success:
-        logger.info("Squonk2 is configured")
         context['squonk_available'] = 'true'
     else:
-        logger.info("Squonk2 is NOT configured")
         context['squonk_available'] = 'false'
 
     if discourse_api_key:
@@ -2998,6 +2995,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
         this method.
         """
         logger.info('+ DownloadStructures.post')
+        logger.info('request.data=%s', json.dumps(request.data))
 
         # Clear up old existing files
         maintain_download_links()
@@ -3069,7 +3067,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
             # Get first part of protein code
             proteins_list = [p.strip().split(":")[0]
                              for p in request.data['proteins'].split(',')]
-            logger.info('Given %s proteins', len(proteins_list))
+            logger.info('Given %s proteins %s', len(proteins_list), proteins_list)
         else:
             logger.info('No proteins supplied')
             proteins_list = []
@@ -3081,10 +3079,12 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 prot = Protein.objects.filter(code__contains=code_first_part).values()
                 if prot.exists():
                     proteins.append(prot.first())
+                else:
+                    logger.warning('Could not find protein code "%s"', code_first_part)
         else:
             # If no protein codes supplied then return the complete list
             proteins = Protein.objects.filter(target_id=target.id).values()
-        logger.info('Collected %s proteins', len(proteins))
+        logger.info('Collected %s proteins %s', len(proteins), proteins)
 
         if len(proteins) == 0:
             content = {'message': 'Please enter list of valid protein codes '
