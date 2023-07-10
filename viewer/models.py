@@ -6,6 +6,8 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.conf import settings
 
+from django.contrib.postgres.fields import ArrayField
+
 from simple_history.models import HistoricalRecords
 
 from viewer.target_set_config import get_mol_choices, get_prot_choices
@@ -91,8 +93,20 @@ class ExperimentUpload(models.Model):
 
 class Experiment(models.Model):
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
+    code = models.TextField(null=True)
+    status = models.IntegerField(null=True)
+    version = models.IntegerField(null=True)
+    pdb_info = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    mtz_info = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    cif_info = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    event_map_info = ArrayField(models.FileField(), null=True)
+    type = models.PositiveSmallIntegerField(null=True)
+    pdb_sha256 = models.TextField(null=True)
+    compounds = models.ManyToManyField("Compound")
 
 
+
+# TODO: delete
 class Protein(models.Model):
     """Information about a protein. A protein is a protein structure which has a unique set of
     3D coordinates, rather than a target, which is a set of protein objects of the same protein.
@@ -151,12 +165,7 @@ class Protein(models.Model):
 class Compound(models.Model):
     """Information about a compound, which is a unique 2D molecule
     """
-    inchi = models.CharField(max_length=255, unique=False, db_index=True)
-    long_inchi = models.TextField(max_length=1000, blank=True, null=True,
-                                  help_text='For historical reasons, the inchi field cannot be removed, but has a max'
-                                            ' limit of 255 characters. If the inchi key for a compound is longer than'
-                                            ' this, it is stored in the long_inchi field, and the inchi key is'
-                                            ' concatenated to the first 255 characters. (optional)')
+    inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
     current_identifier = models.CharField(max_length=255, db_index=True, blank=True, null=True,
                                           help_text='The identifier for this compound that is used in Fragalysis to'
@@ -187,9 +196,8 @@ class Compound(models.Model):
     def __str__(self) -> str:
         return f"{self.smiles}"
 
-    class Meta:
-        unique_together = ('inchi', 'long_inchi')
 
+# TODO: delete
 class Molecule(models.Model):
     """Information about a Molecule. A molecule is linked to a compound, and represents the
     unique 3D coordinates for that molecule. Note a compound can be linked to multiple molecules,
@@ -239,8 +247,20 @@ class Molecule(models.Model):
         unique_together = ("prot_id", "cmpd_id", "mol_type")
 
 
+
+class QuatAssembly(models.Model):
+    chains = models.TextField()
+    name = models.TextField()
+
+
 class Xtalform(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    name = models.TextField(null=True)
+    quat_assembly = models.ForeignKey(QuatAssembly, on_delete=models.CASCADE, null=True)
+    space_group = models.TextField(null=True)
+    unit_cell_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    xtalform_id = models.IntegerField(null=True, help_text="xtalform id from YAML")
+
 
 class CompoundIdentifierType(models.Model):
     NAME_LENGTH = 20
@@ -804,3 +824,52 @@ class Squonk2Project(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product_uuid}"
+
+
+
+class CanonSite(models.Model):
+    name = models.TextField()
+    quat_assembly = models.ForeignKey(QuatAssembly, null=True, on_delete=models.CASCADE)
+    residues = models.JSONField(encoder=DjangoJSONEncoder)
+    ref_conf_site = models.OneToOneField("CanonSiteConf", null=True, on_delete=models.CASCADE)
+    canon_site_id = models.IntegerField(null=False, help_text="canon_site id from YAML")
+
+
+class XtalformSite(models.Model):
+    xtalform = models.ForeignKey(Xtalform, on_delete=models.CASCADE)
+    canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
+    lig_chain = models.CharField(max_length=1)
+    residues = models.JSONField(encoder=DjangoJSONEncoder)
+    xtalform_site_id = models.IntegerField(null=False, help_text="xtalform site id from YAML")
+
+
+
+class CanonSiteConf(models.Model):
+    canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
+    # TODO: name not present in metadata atm
+    name = models.TextField(null=True)
+    ref_site_observation = models.OneToOneField("SiteObservation", null=True, on_delete=models.CASCADE)
+    residues = models.JSONField(encoder=DjangoJSONEncoder)
+
+
+class SiteObservation(models.Model):
+    code = models.TextField()
+    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    cmpd = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
+    canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
+    bound_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    apo_solv_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    apo_desolv_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    apo_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    xmap_2fofc_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    event_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    artefacts_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    trans_matrix_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    pdb_header_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    smiles = models.TextField()
+    seq_id = models.IntegerField()
+    chain_id = models.CharField(max_length=1)
+    ligand_mol_file = models.TextField(null=True)
+
+    history = HistoricalRecords()

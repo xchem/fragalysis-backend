@@ -123,3 +123,8 @@ ENV/
 
 # macOS stuff
 **/.DS_Store
+
+# emacs temp files
+*~
+\#*#
+\#*
