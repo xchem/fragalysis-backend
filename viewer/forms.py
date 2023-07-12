@@ -43,9 +43,9 @@ class TSetForm(forms.Form):
     # For Diamond, a proposal is always required.
     # For other implementations, it may be optional or omitted.
     if settings.PROPOSAL_SUPPORTED and settings.PROPOSAL_REQUIRED:
-        proposal_ref = forms.CharField(required=True, label='Proposal', max_length=200, initial='OPEN')
+        proposal_ref = forms.CharField(required=True, label='Proposal', max_length=200)
     elif settings.PROPOSAL_SUPPORTED:
-        proposal_ref = forms.CharField(required=False, label='Proposal', max_length=200, initial='OPEN')
+        proposal_ref = forms.CharField(required=False, label='Proposal', max_length=200)
     else:
         proposal_ref = ''
 

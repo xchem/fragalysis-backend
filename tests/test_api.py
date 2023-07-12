@@ -103,7 +103,7 @@ class APIUrlsTestCase(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create(username="DUMMY", password="DUMMY")
         self.user_two = User.objects.create(username="SECURE", password="SECURE")
-        self.project = Project.objects.create(id=1, title="OPEN")
+        self.project = Project.objects.create(id=1, title="lb00000")
         self.project_secure = Project.objects.create(id=2, title="SECURE PROJECT")
         self.project_secure.user_id.add(self.user_two)
         self.project_secure.save()
