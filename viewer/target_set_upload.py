@@ -494,11 +494,11 @@ def get_create_projects(target, proposal_ref, proposal_code='lb'):
     # For the online loader it comes from the proposal_ref
 
     projects = []
-    # The first word is the ISPY proposal/visit name that is used as the title of the project.
-    # It can be set to OPEN in which case there are no users.
+    # The first word is the ISPyB proposal/visit name.
+    # This is used as the title of the project (e.g. "lb12345-4")
     visit = proposal_ref.split()[0]
     # If the visit is not prefixed by the proposal code
-    # (typically a 2-letter sequence like "lb") then prefix it.
+    # (typically the 2-letter sequence "lb") then prefix it.
     if visit[0].isdigit():
         visit = f"{proposal_code}{visit}"
     project = Project.objects.get_or_create(title=visit)[0]
@@ -510,7 +510,8 @@ def get_create_projects(target, proposal_ref, proposal_code='lb'):
     # Update project_id on target.
     target.project_id.add(project)
 
-    # Remaining words in proposal_ref (if any) must be fedid's which are used to find users information.
+    # The remaining words in proposal_ref (if any)
+    # are expected to be fedid's (user IDs) which are used to find user information.
     num_users = 0
     for fedid in proposal_ref.split()[1:]:
         user = User.objects.get_or_create(username=fedid, password="")[0]
