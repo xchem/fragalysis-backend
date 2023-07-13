@@ -3063,28 +3063,32 @@ class DownloadStructures(ISpyBSafeQuerySet):
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
+        logger.info('Found Target record %r', target)
+        proteins = []
         if request.data['proteins']:
+
+            logger.info('Given Proteins in request')
             # Get first part of protein code
             proteins_list = [p.strip().split(":")[0]
                              for p in request.data['proteins'].split(',')]
-            logger.info('Given %s proteins %s', len(proteins_list), proteins_list)
-        else:
-            logger.info('No proteins supplied')
-            proteins_list = []
+            logger.info('Given %s Proteins %s', len(proteins_list), proteins_list)
 
-        if len(proteins_list) > 0:
-            proteins = []
+            logger.info('Looking for Protein records for given Proteins...')
             # Filter by protein codes
             for code_first_part in proteins_list:
                 prot = Protein.objects.filter(code__contains=code_first_part).values()
                 if prot.exists():
                     proteins.append(prot.first())
                 else:
-                    logger.warning('Could not find protein code "%s"', code_first_part)
+                    logger.warning('Could not find Protein record for "%s"', code_first_part)
+
         else:
-            # If no protein codes supplied then return the complete list
+
+            logger.info('Request had no Proteins')
+            logger.info('Looking for Protein records for Target %r...', target)
             proteins = Protein.objects.filter(target_id=target.id).values()
-        logger.info('Collected %s proteins %s', len(proteins), proteins)
+
+        logger.info('Collected %s Protein records: %r', len(proteins), proteins)
 
         if len(proteins) == 0:
             content = {'message': 'Please enter list of valid protein codes '

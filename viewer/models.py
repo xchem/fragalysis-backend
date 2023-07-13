@@ -97,6 +97,12 @@ class Target(models.Model):
     upload_progress = models.DecimalField(null=True, max_digits=5, decimal_places=2)
     upload_datetime = models.DateTimeField(null=True)
 
+    def __str__(self):
+        return self.title
+
+    def __repr__(self):
+        return "<Target %s %s>" % (self.id, self.title)
+
 
 class Protein(models.Model):
     """Django model for holding information about a protein. A protein is a protein structure which has a unique set of
@@ -171,6 +177,12 @@ class Protein(models.Model):
 
     class Meta:
         unique_together = ("code", "target_id", "prot_type")
+
+    def __str__(self):
+        return self.code
+
+    def __repr__(self):
+        return "<Protein %s %s %s %s>" % (self.id, self.title, self.target_id, self.prot_type)
 
 
 class Compound(models.Model):
