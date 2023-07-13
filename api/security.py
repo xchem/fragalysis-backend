@@ -124,15 +124,12 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_open_proposals(self):
         """
         Returns the list of proposals anybody can access.
-        This function is deprecated, instead we should move to the 'open_to_public'
-        field rather than using a built-in list of Projects.
-        We still add "OPEN" to the list for legacy testing.
         """
         if os.environ.get("TEST_SECURITY_FLAG", False):
-            return ["lb00000", "OPEN", "private_dummy_project"]
+            return ["lb00000"]
         else:
-            # A list of well-known (built-in) public Projects (Proposals/Visits)
-            return ["lb00000", "OPEN", "lb27156"]
+            # All of well-known (built-in) public Projects (Proposals/Visits)
+            return ["lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
