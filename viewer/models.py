@@ -182,7 +182,7 @@ class Protein(models.Model):
         return self.code
 
     def __repr__(self):
-        return "<Protein %s %s %s %s>" % (self.id, self.title, self.target_id, self.prot_type)
+        return "<Protein %s %s %s %s>" % (self.id, self.code, self.target_id, self.prot_type)
 
 
 class Compound(models.Model):
