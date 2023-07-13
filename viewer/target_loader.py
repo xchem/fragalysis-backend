@@ -6,8 +6,6 @@ import yaml
 from tempfile import TemporaryDirectory
 import tarfile
 
-import uuid  # for dev
-
 from django.utils import timezone
 
 from django.db import IntegrityError
@@ -37,6 +35,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 METADATA_FILE = "meta_aligner.yaml"
+TARGET_LOADER_DATA = "target_loader_data"
 
 # process all metadata yaml file blocks into following structure:
 # { some_id: MetadataObjects, ...}
@@ -47,14 +46,13 @@ MetadataObjects = namedtuple("MetadataObjects", "instance data")
 
 
 class TargetLoader:
-    def __init__(self, data_bundle: str, tempdir: str, task=None):
+    def __init__(self, data_bundle: str, tempdir: str):
         self.data_bundle = data_bundle
         self.bundle_name = Path(data_bundle).stem
         self.target_name = self.bundle_name.split("-")[0]
         self.bundle_path = Path(settings.MEDIA_ROOT, data_bundle)
         self.tempdir = tempdir
         self.raw_data = Path(self.tempdir).joinpath(self.bundle_name)
-        self.task = task
 
         self._target_root = self.raw_data.joinpath(self.target_name).joinpath(
             "upload_1"
@@ -448,7 +446,9 @@ class TargetLoader:
             data=data["xtalform_members"],
         )
 
-    def process_metadata(self, task=None):
+    def process_metadata(
+        self, proposal_ref=None, contact_email=None, user_id=None, task=None
+    ):
         """Extract model instances from metadata file and save them to db.
 
         If called from task, takes task as a parameter for status updates.
@@ -494,19 +494,25 @@ class TargetLoader:
             # no task passed to method, nothing to do
             pass
 
-        # dummy project, for dev
-        project = Project(title=uuid.uuid4())
-        project.save()
-
         target = get_create_target(self.target_name)
+
+        # this is copied from get_create_projects. i'm not entirely
+        # sure how it's used.
+        visit = proposal_ref.split()[0]
+        project = Project.objects.get_or_create(title=visit)[0]
+
+        try:
+            committer = get_user_model().objects.get(pk=user_id)
+        except get_user_model().DoesNotExist:
+            # TODO: need something here for testing
+            committer = get_user_model().objects.get(pk=1)
 
         experiment_upload = ExperimentUpload(
             project=project,
             target=target,
-            file=self.bundle_name,
+            committer=committer,
             commit_datetime=timezone.now(),
-            # TODO: get correct user
-            committer=get_user_model().objects.get(pk=1),
+            file=self.data_bundle,
         )
         experiment_upload.save()
 
@@ -642,6 +648,7 @@ class TargetLoader:
                 xtalform_site_by_tag[k] = val.instance
 
         site_observation_objects = {}
+        # TODO: would be nice to get rid of quadruple for
         for experiment_meta in experiment_objects.values():
             if experiment_meta.data is None:
                 continue
@@ -736,12 +743,18 @@ class TargetLoader:
         return sha256_hash.hexdigest()
 
 
-def load_target(data_bundle, task=None):
+def load_target(
+    data_bundle,
+    proposal_ref=None,
+    contact_email=None,
+    user_id=None,
+    task=None,
+):
     # TODO: do I need to sniff out correct archive format?
-    with TemporaryDirectory() as tempdir:
+    with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
         # for dev, skip extraction and open existing
         # tempdir = settings.MEDIA_ROOT
-        target_loader = TargetLoader(data_bundle, tempdir, task=task)
+        target_loader = TargetLoader(data_bundle, tempdir)
         try:
             with tarfile.open(target_loader.bundle_path, "r") as archive:
                 archive.extractall(target_loader.raw_data)
@@ -753,8 +766,35 @@ def load_target(data_bundle, task=None):
 
         try:
             with transaction.atomic():
-                target_loader.process_metadata(task=task)
+                target_loader.process_metadata(
+                    proposal_ref=proposal_ref,
+                    contact_email=contact_email,
+                    user_id=user_id,
+                    task=task,
+                )
         except FileNotFoundError as exc:
             raise FileNotFoundError(exc.args[0]) from exc
         except IntegrityError as exc:
             raise IntegrityError(exc.args[0]) from exc
+
+        # data in db, all good, move the files to permanent storage
+
+        # NB! removing existing data. Don't think this should happen
+        # in production, but probably useful for testing.
+        # TODO: remove when done
+        path = (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(TARGET_LOADER_DATA)
+            .joinpath(target_loader.bundle_name)
+        )
+        if path.is_dir():
+            import shutil
+
+            logger.warning("Removing exiting data at %s", path)
+            shutil.rmtree(path)
+
+        target_loader.raw_data.rename(
+            Path(settings.MEDIA_ROOT)
+            .joinpath(TARGET_LOADER_DATA)
+            .joinpath(target_loader.bundle_name)
+        )

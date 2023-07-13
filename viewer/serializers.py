@@ -775,18 +775,12 @@ class TargetExperimentReadSerializer(serializers.ModelSerializer):
 
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
-    project = serializers.SlugRelatedField(
-        slug_field='title',
-        queryset=models.Project.objects.all(),
-    )
-    target = serializers.SlugRelatedField(
-        slug_field='title',
-        queryset=models.Target.objects.all(),
-    )
+    proposal_ref = serializers.CharField(label='Proposal Ref.')
+    contact_email = serializers.EmailField()
 
     class Meta:
         model = models.ExperimentUpload
-        fields = ('project', 'target', 'file')
+        fields = ('proposal_ref', 'contact_email', 'file',)
 
 class JobOverrideReadSerializer(serializers.ModelSerializer):
     class Meta:
