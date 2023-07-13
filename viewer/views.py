@@ -3085,16 +3085,19 @@ class DownloadStructures(ISpyBSafeQuerySet):
         else:
 
             logger.info('Request had no Proteins')
-            logger.info('Looking for Protein records for Target %r...', target)
+            logger.info('Looking for Protein records for %r...', target)
             proteins = Protein.objects.filter(target_id=target.id).values()
-
-        logger.info('Collected %s Protein records: %r', len(proteins), proteins)
 
         if len(proteins) == 0:
             content = {'message': 'Please enter list of valid protein codes '
-                                  'for' + " target: {}, proteins: {} "
+                                  'for target: {}, proteins: {}'
                 .format(target.title, proteins_list) }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        protein_repr = ""
+        for protein in proteins:
+            protein_repr += "%r " % protein
+        logger.info('Collected %s Protein records: %r', len(proteins), protein_repr)
 
         filename_url, file_exists = check_download_links(request,
                                                          target,
