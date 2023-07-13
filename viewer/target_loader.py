@@ -47,12 +47,15 @@ MetadataObjects = namedtuple("MetadataObjects", "instance data")
 
 class TargetLoader:
     def __init__(self, data_bundle: str, tempdir: str):
-        self.data_bundle = data_bundle
+        self.data_bundle = Path(data_bundle).name
         self.bundle_name = Path(data_bundle).stem
         self.target_name = self.bundle_name.split("-")[0]
-        self.bundle_path = Path(settings.MEDIA_ROOT, data_bundle)
+        # self.bundle_path = Path(settings.MEDIA_ROOT, data_bundle)
+        self.bundle_path = data_bundle
         self.tempdir = tempdir
         self.raw_data = Path(self.tempdir).joinpath(self.bundle_name)
+
+        self.raw_data.mkdir()
 
         self._target_root = self.raw_data.joinpath(self.target_name).joinpath(
             "upload_1"
@@ -750,15 +753,13 @@ def load_target(
     user_id=None,
     task=None,
 ):
+    logger.info("load_target called")
     # TODO: do I need to sniff out correct archive format?
     with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
-        # for dev, skip extraction and open existing
-        # tempdir = settings.MEDIA_ROOT
         target_loader = TargetLoader(data_bundle, tempdir)
         try:
             with tarfile.open(target_loader.bundle_path, "r") as archive:
                 archive.extractall(target_loader.raw_data)
-                # pass
         except FileNotFoundError as exc:
             msg = f"{data_bundle} file does not exist!"
             logger.error(msg)
@@ -773,28 +774,24 @@ def load_target(
                     task=task,
                 )
         except FileNotFoundError as exc:
+            logger.error(exc.args[0])
             raise FileNotFoundError(exc.args[0]) from exc
         except IntegrityError as exc:
             raise IntegrityError(exc.args[0]) from exc
 
         # data in db, all good, move the files to permanent storage
 
+        path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
+        path.mkdir(exist_ok=True)
         # NB! removing existing data. Don't think this should happen
         # in production, but probably useful for testing.
         # TODO: remove when done
-        path = (
-            Path(settings.MEDIA_ROOT)
-            .joinpath(TARGET_LOADER_DATA)
-            .joinpath(target_loader.bundle_name)
-        )
+        path = path.joinpath(target_loader.bundle_name)
         if path.is_dir():
             import shutil
 
             logger.warning("Removing exiting data at %s", path)
             shutil.rmtree(path)
 
-        target_loader.raw_data.rename(
-            Path(settings.MEDIA_ROOT)
-            .joinpath(TARGET_LOADER_DATA)
-            .joinpath(target_loader.bundle_name)
-        )
+        path.mkdir()
+        target_loader.raw_data.rename(path)

@@ -525,7 +525,7 @@ def validate_target_set(target_zip, target=None, proposal=None, email=None):
 
 @celery_app.task(bind=True)
 def task_load_target(self, data_bundle, proposal_ref=None, contact_email=None, user_id=None):
-    logger.info('TASK load_target lauched, target_zip=%s', data_bundle)
+    logger.info('TASK load_target launched, target_zip=%s', data_bundle)
     try:
         load_target(data_bundle, proposal_ref=proposal_ref, contact_email=contact_email, user_id=user_id, task=self)
     except KeyError as err:
