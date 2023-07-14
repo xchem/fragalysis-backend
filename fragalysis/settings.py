@@ -369,7 +369,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
         'disable_existing_loggers': False,
         'formatters': {
             'simple': {
-                'format': '%(asctime)s %(funcName)s():%(lineno)s %(levelname)s # %(message)s',
+                'format': '%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s',
                 'datefmt': '%Y-%m-%dT%H:%M:%S%z'}},
         'handlers': {
             'console': {
