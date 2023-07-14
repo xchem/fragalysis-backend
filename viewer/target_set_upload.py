@@ -9,6 +9,7 @@ import logging
 import sys, json, os, shutil
 import datetime
 
+
 from django.contrib.auth.models import User
 from viewer.models import (
     Target,
@@ -18,7 +19,7 @@ from viewer.models import (
     Project,
     ComputedMolecule,
     MoleculeTag,
-    TagCategory
+    TagCategory,
 )
 from hypothesis.models import (
     Vector3D,
@@ -44,6 +45,8 @@ import pandas as pd
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +120,7 @@ def sanitize_mol(mol):
     """Sanitized the input molecule
 
     :param mol: the input molecule
-    :return: the sanitized molecule
+    :return: the molecule
     """
     s_store_mol = neutralise_charges(
         desalt_compound(Chem.MolToSmiles(mol, isomericSmiles=True))
@@ -1029,6 +1032,7 @@ def analyse_target(target, aligned_path):
     target.save()
 
     return mols_processed
+
 
 
 def process_target(new_data_folder, target_name, proposal_ref):

@@ -6,6 +6,8 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.conf import settings
 
+from django.contrib.postgres.fields import ArrayField
+
 from simple_history.models import HistoricalRecords
 
 from viewer.target_set_config import get_mol_choices, get_prot_choices
@@ -100,18 +102,16 @@ class ExperimentUpload(models.Model):
 
 class Experiment(models.Model):
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
-
-    def __str__(self) -> str:
-        return f"{self.experiment_upload}"
-
-    def __str__(self) -> str:
-        return f"<Experiment %r %r>" % (self.id, self.experiment_upload)
-
-    def __str__(self):
-        return self.title
-
-    def __repr__(self):
-        return "<Target %s %s>" % (self.id, self.title)
+    code = models.TextField(null=True)
+    status = models.IntegerField(null=True)
+    version = models.IntegerField(null=True)
+    pdb_info = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    mtz_info = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    cif_info = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    event_map_info = ArrayField(models.FileField(), null=True)
+    type = models.PositiveSmallIntegerField(null=True)
+    pdb_sha256 = models.TextField(null=True)
+    compounds = models.ManyToManyField("Compound")
 
 
 class Protein(models.Model):
@@ -134,7 +134,7 @@ class Protein(models.Model):
     code = models.CharField(max_length=50, db_index=True, help_text='Code for this protein (e.g. NUDT5A-x0001_1A)')
     target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     experiment = models.ForeignKey(Experiment, null=True, on_delete=models.CASCADE)
-    apo_holo = models.NullBooleanField(help_text='0 for apo (ligand removed), 1 for holo (ligand in tact)')
+    apo_holo = models.BooleanField(null=True, help_text='0 for apo (ligand removed), 1 for holo (ligand in tact)')
     # Set the groups types
     prot_choices, default_prot = get_prot_choices()
     prot_type = models.CharField(
@@ -159,11 +159,11 @@ class Protein(models.Model):
                                        help_text='File link to uploaded _header.pdb file (optional)')
     apo_desolve_info = models.FileField(upload_to="pdbs/", null=True, max_length=255,
                                         help_text='File link to uploaded _apo-desolv.pdb file (optional)')
-    aligned = models.NullBooleanField()
+    aligned = models.BooleanField(null=True)
     aligned_to = models.ForeignKey("self", null=True, on_delete=models.CASCADE,
                                    help_text='Foreign key to another instance of a protein'
                                              ' to which this protein is aligned (optional)')
-    has_eds = models.NullBooleanField()
+    has_eds = models.BooleanField(null=True)
 
     class Meta:
         unique_together = ("code", "target_id", "prot_type")
@@ -178,12 +178,7 @@ class Protein(models.Model):
 class Compound(models.Model):
     """Information about a compound, which is a unique 2D molecule
     """
-    inchi = models.CharField(max_length=255, unique=False, db_index=True)
-    long_inchi = models.TextField(max_length=1000, blank=True, null=True,
-                                  help_text='For historical reasons, the inchi field cannot be removed, but has a max'
-                                            ' limit of 255 characters. If the inchi key for a compound is longer than'
-                                            ' this, it is stored in the long_inchi field, and the inchi key is'
-                                            ' concatenated to the first 255 characters. (optional)')
+    inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
     current_identifier = models.CharField(max_length=255, db_index=True, blank=True, null=True,
                                           help_text='The identifier for this compound that is used in Fragalysis to'
@@ -205,7 +200,7 @@ class Compound(models.Model):
     num_rot_bonds = models.IntegerField(help_text='Computed number of rotatable bonds')
     num_val_electrons = models.IntegerField(help_text='Computed number of valence electrons')
     ring_count = models.IntegerField(help_text='Computed number of rings in the molecule')
-    inspirations = models.ManyToManyField("Molecule", blank=True, null=True,
+    inspirations = models.ManyToManyField("Molecule", blank=True,
                                           help_text='Foreign key link to any number of 3D Molecules that inspired'
                                                     ' the design of this compound')
     description = models.TextField(blank=True, null=True)
@@ -220,6 +215,7 @@ class Compound(models.Model):
     class Meta:
         unique_together = ('inchi', 'long_inchi')
 
+# TODO: delete
 class Molecule(models.Model):
     """Information about a Molecule. A molecule is linked to a compound, and represents the
     unique 3D coordinates for that molecule. Note a compound can be linked to multiple molecules,
@@ -275,8 +271,20 @@ class Molecule(models.Model):
         unique_together = ("prot_id", "cmpd_id", "mol_type")
 
 
+
+class QuatAssembly(models.Model):
+    chains = models.TextField()
+    name = models.TextField()
+
+
 class Xtalform(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    name = models.TextField(null=True)
+    quat_assembly = models.ForeignKey(QuatAssembly, on_delete=models.CASCADE, null=True)
+    space_group = models.TextField(null=True)
+    unit_cell_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    xtalform_id = models.IntegerField(null=True, help_text="xtalform id from YAML")
+
 
 
 class CompoundIdentifierType(models.Model):
@@ -606,7 +614,7 @@ class ComputedMolecule(models.Model):
     name = models.CharField(max_length=50)
     smiles = models.CharField(max_length=255)
     pdb = models.ForeignKey(Protein, on_delete=models.PROTECT, null=True)
-    computed_inspirations = models.ManyToManyField(Molecule, null=True, blank=True,
+    computed_inspirations = models.ManyToManyField(Molecule, blank=True,
                                                    help_text="Existing fragalysis molecules that were inspirations"
                                                              " in the design/calculation of the molecule")
 
@@ -1000,3 +1008,52 @@ class Squonk2Project(models.Model):
 
     def __repr__(self) -> str:
         return f"<Squonk2Project %r %r %r>" % (self.id, self.name, self.uuid, self.product_uuid, self.unit)
+
+
+
+class CanonSite(models.Model):
+    name = models.TextField()
+    quat_assembly = models.ForeignKey(QuatAssembly, null=True, on_delete=models.CASCADE)
+    residues = models.JSONField(encoder=DjangoJSONEncoder)
+    ref_conf_site = models.OneToOneField("CanonSiteConf", null=True, on_delete=models.CASCADE)
+    canon_site_id = models.IntegerField(null=False, help_text="canon_site id from YAML")
+
+
+class XtalformSite(models.Model):
+    xtalform = models.ForeignKey(Xtalform, on_delete=models.CASCADE)
+    canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
+    lig_chain = models.CharField(max_length=1)
+    residues = models.JSONField(encoder=DjangoJSONEncoder)
+    xtalform_site_id = models.IntegerField(null=False, help_text="xtalform site id from YAML")
+
+
+
+class CanonSiteConf(models.Model):
+    canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
+    # TODO: name not present in metadata atm
+    name = models.TextField(null=True)
+    ref_site_observation = models.OneToOneField("SiteObservation", null=True, on_delete=models.CASCADE)
+    residues = models.JSONField(encoder=DjangoJSONEncoder)
+
+
+class SiteObservation(models.Model):
+    code = models.TextField()
+    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    cmpd = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
+    canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
+    bound_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    apo_solv_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    apo_desolv_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    apo_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    xmap_2fofc_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    event_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    artefacts_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    trans_matrix_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    pdb_header_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    smiles = models.TextField()
+    seq_id = models.IntegerField()
+    chain_id = models.CharField(max_length=1)
+    ligand_mol_file = models.TextField(null=True)
+
+    history = HistoricalRecords()

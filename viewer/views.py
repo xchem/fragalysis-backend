@@ -6,7 +6,7 @@ from io import StringIO
 import uuid
 import shlex
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime
 from wsgiref.util import FileWrapper
 from dateutil.parser import parse
 import pytz
@@ -22,6 +22,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.http import JsonResponse
 from django.views import View
+
+from django.urls import reverse
 
 from rest_framework import status, viewsets, permissions
 from rest_framework.exceptions import ParseError
@@ -53,6 +55,7 @@ from .tasks import (
     process_target_set,
     validate_compound_set,
     validate_target_set,
+    task_load_target,
 )
 from .discourse import create_discourse_post, list_discourse_posts_for_topic, check_discourse_user
 from .download_structures import (
@@ -1522,21 +1525,42 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         del args, kwargs
+
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
             # User must have access to the Project
             # and the Target must be in the Project.
-            project = serializer.validated_data['project']
-            target = serializer.validated_data['target']
 
-            # Prior to saving the serialized object,
-            # insert object values we're responsible for...
-            serializer.validated_data['commit_datetime'] = datetime.now(timezone.utc)
-            serializer.validated_data['committer'] = request.user
+            # assuming won't be necessary to save
+            contact_email = serializer.validated_data['contact_email']
+            proposal_ref = serializer.validated_data['proposal_ref']
+            filename = serializer.validated_data['file']
 
-            teu = serializer.save()
-            return Response({'id': teu.id}, status=status.HTTP_201_CREATED)
+            # I'm not creating ExperimentUpload object here, so I
+            # suppose there's no point in keeping this as ModelViewSet
+
+            assert check_services()
+
+            task = task_load_target.delay(filename.name, proposal_ref=proposal_ref,
+                                          contact_email=contact_email, user_id=request.user.pk)
+            logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
+
+            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+            # as it launches task, I think 202 is more appropriate
+            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CheckTaskStatus(APIView):
+    def get(self, request, task_id, *args, **kwargs):
+        task = AsyncResult(task_id)
+        messages = [ k for k in task.info.get('description', []) ]
+        data = {
+            'task_status': task.status,
+            'is_ready': task.ready(),
+            'messages': messages,
+        }
+        return JsonResponse(data)
 
 
 class TargetExperimentUploads(viewsets.ModelViewSet):

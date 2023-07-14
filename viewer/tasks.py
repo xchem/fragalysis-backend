@@ -4,6 +4,10 @@ import os
 import psutil
 import shutil
 
+from django.db import IntegrityError
+
+
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 
 import django
@@ -11,6 +15,7 @@ django.setup()
 
 from django.conf import settings
 from celery import shared_task
+from fragalysis.celery import app as celery_app
 from celery.utils.log import get_task_logger
 import numpy as np
 
@@ -18,6 +23,9 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors
 from viewer.models import Compound, DesignSet
 import zipfile
+
+from viewer.target_loader import load_target
+
 
 from .sdf_check import (
     add_warning,
@@ -513,6 +521,34 @@ def validate_target_set(target_zip, target=None, proposal=None, email=None):
 
     return ('validate', 'tset', validate_dict, validated, new_data_folder, target, proposal,
             submitter_name, email)
+
+
+@celery_app.task(bind=True)
+def task_load_target(self, data_bundle, proposal_ref=None, contact_email=None, user_id=None):
+    logger.info('TASK load_target lauched, target_zip=%s', data_bundle)
+    try:
+        load_target(data_bundle, proposal_ref=proposal_ref, contact_email=contact_email, user_id=user_id, task=self)
+    except KeyError as err:
+        logger.error(err.args[0])
+        self.update_state(
+                state="ERROR",
+                meta={"description": err.args[0],},
+            )
+    except IntegrityError as err:
+        logger.error(err.args[0])
+        self.update_state(
+                state="ERROR",
+                meta={"description": err.args[0],},
+            )
+    except FileNotFoundError as err:
+        logger.error(err.args[0])
+        self.update_state(
+                state="ERROR",
+                meta={"description": err.args[0],},
+            )
+
+    logger.info('TASK load_target completed, target_zip=%s', data_bundle)
+
 
 
 @shared_task
