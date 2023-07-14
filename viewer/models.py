@@ -65,6 +65,9 @@ class Target(models.Model):
     def __str__(self) -> str:
         return f"{self.title}"
 
+    def __repr__(self) -> str:
+        return "<Target %r %r %r>" % (self.id, self.title, self.project_id)
+
 
 class ExperimentUpload(models.Model):
     LOADING = "LOADING"
@@ -112,6 +115,12 @@ class Experiment(models.Model):
     type = models.PositiveSmallIntegerField(null=True)
     pdb_sha256 = models.TextField(null=True)
     compounds = models.ManyToManyField("Compound")
+
+    def __str__(self) -> str:
+        return f"{self.code}"
+
+    def __repr__(self) -> str:
+        return "<Experiment %r %r %r>" % (self.id, self.code, self.experiment_upload)
 
 
 # TODO: delete
@@ -275,6 +284,12 @@ class QuatAssembly(models.Model):
     chains = models.TextField()
     name = models.TextField()
 
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<QuatAssembly %r %r %r>" % (self.id, self.name, self.chains)
+
 
 class Xtalform(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
@@ -283,6 +298,12 @@ class Xtalform(models.Model):
     space_group = models.TextField(null=True)
     unit_cell_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     xtalform_id = models.IntegerField(null=True, help_text="xtalform id from YAML")
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<Xtalform %r %r %r>" % (self.id, self.name, self.experiment)
 
 
 class CompoundIdentifierType(models.Model):
@@ -1016,6 +1037,12 @@ class CanonSite(models.Model):
     ref_conf_site = models.OneToOneField("CanonSiteConf", null=True, on_delete=models.CASCADE)
     canon_site_id = models.IntegerField(null=False, help_text="canon_site id from YAML")
 
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<CanonSite %r %r>" % (self.id, self.name)
+
 
 class XtalformSite(models.Model):
     xtalform = models.ForeignKey(Xtalform, on_delete=models.CASCADE)
@@ -1024,6 +1051,11 @@ class XtalformSite(models.Model):
     residues = models.JSONField(encoder=DjangoJSONEncoder)
     xtalform_site_id = models.IntegerField(null=False, help_text="xtalform site id from YAML")
 
+    def __str__(self) -> str:
+        return f"{self.xtalform_site_id}"
+
+    def __repr__(self) -> str:
+        return "<CanonSiteConf %r %r %r>" % (self.id, self.xtalform_site_id, self.xtalform)
 
 
 class CanonSiteConf(models.Model):
@@ -1032,6 +1064,12 @@ class CanonSiteConf(models.Model):
     name = models.TextField(null=True)
     ref_site_observation = models.OneToOneField("SiteObservation", null=True, on_delete=models.CASCADE)
     residues = models.JSONField(encoder=DjangoJSONEncoder)
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<CanonSiteConf %r %r %r>" % (self.id, self.name, self.canon_site)
 
 
 class SiteObservation(models.Model):
@@ -1055,3 +1093,9 @@ class SiteObservation(models.Model):
     ligand_mol_file = models.TextField(null=True)
 
     history = HistoricalRecords()
+
+    def __str__(self) -> str:
+        return f"{self.code}"
+
+    def __repr__(self) -> str:
+        return "<SiteObservation %r %r %r %r>" % (self.id, self.code, self.experiment, self.compound)
