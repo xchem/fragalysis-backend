@@ -107,6 +107,12 @@ class Experiment(models.Model):
     def __str__(self) -> str:
         return f"<Experiment %r %r>" % (self.id, self.experiment_upload)
 
+    def __str__(self):
+        return self.title
+
+    def __repr__(self):
+        return "<Target %s %s>" % (self.id, self.title)
+
 
 class Protein(models.Model):
     """Information about a protein. A protein is a protein structure which has a unique set of
@@ -161,6 +167,12 @@ class Protein(models.Model):
 
     class Meta:
         unique_together = ("code", "target_id", "prot_type")
+
+    def __str__(self):
+        return self.code
+
+    def __repr__(self):
+        return "<Protein %s %s %s %s>" % (self.id, self.code, self.target_id, self.prot_type)
 
 
 class Compound(models.Model):
