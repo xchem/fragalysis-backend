@@ -5,7 +5,7 @@ pylint-django == 2.5.3
 pre-commit == 3.1.1
 
 # Matching main requirements...
-Django==3.1.14
+Django==3.2.20
 
 # Others
 httpie == 3.2.1
