@@ -21,8 +21,8 @@ class Project(models.Model):
     def __str__(self) -> str:
         return f"{self.title}"
 
-    def __str__(self) -> str:
-        return f"<Project %r %r %r>" % (self.id, self.title, self.open_to_public)
+    def __repr__(self) -> str:
+        return "<Project %r %r %r>" % (self.id, self.title, self.open_to_public)
 
 
 class Target(models.Model):
@@ -96,8 +96,8 @@ class ExperimentUpload(models.Model):
     def __str__(self) -> str:
         return f"{self.project}"
 
-    def __str__(self) -> str:
-        return f"<ExperimentUpload %r %r %r>" % (self.id, self.project, self.target)
+    def __repr__(self) -> str:
+        return "<ExperimentUpload %r %r %r>" % (self.id, self.project, self.target)
 
 
 class Experiment(models.Model):
@@ -114,6 +114,7 @@ class Experiment(models.Model):
     compounds = models.ManyToManyField("Compound")
 
 
+# TODO: delete
 class Protein(models.Model):
     """Information about a protein. A protein is a protein structure which has a unique set of
     3D coordinates, rather than a target, which is a set of protein objects of the same protein.
@@ -210,10 +211,8 @@ class Compound(models.Model):
         return f"{self.smiles}"
 
     def __repr__(self) -> str:
-        return f"<Compound %r %r %r %r>" % (self.id, self.smiles, self.inchi, self.long_inchi)
+        return "<Compound %r %r %r>" % (self.id, self.smiles, self.inchi)
 
-    class Meta:
-        unique_together = ('inchi', 'long_inchi')
 
 # TODO: delete
 class Molecule(models.Model):
@@ -265,7 +264,7 @@ class Molecule(models.Model):
         return f"{self.smiles}"
 
     def __repr__(self) -> str:
-        return f"<Molecule %r %r %r %r %r>" % (self.id, self.smiles, self.mol_type, self.prot_id, self.cmpd_id)
+        return "<Molecule %r %r %r %r %r>" % (self.id, self.smiles, self.mol_type, self.prot_id, self.cmpd_id)
 
     class Meta:
         unique_together = ("prot_id", "cmpd_id", "mol_type")
@@ -286,7 +285,6 @@ class Xtalform(models.Model):
     xtalform_id = models.IntegerField(null=True, help_text="xtalform id from YAML")
 
 
-
 class CompoundIdentifierType(models.Model):
     NAME_LENGTH = 20
     name = models.CharField(max_length=NAME_LENGTH)
@@ -295,7 +293,7 @@ class CompoundIdentifierType(models.Model):
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return f"<CompoundIdentifierType %r %r>" % (self.id, self.name)
+        return "<CompoundIdentifierType %r %r>" % (self.id, self.name)
 
 
 class CompoundIdentifier(models.Model):
@@ -310,7 +308,7 @@ class CompoundIdentifier(models.Model):
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return f"<CompoundIdentifier %r %r %r>" % (self.id, self.name, self.type)
+        return "<CompoundIdentifier %r %r %r>" % (self.id, self.name, self.type)
 
 
 class ActivityPoint(models.Model):
@@ -327,7 +325,7 @@ class ActivityPoint(models.Model):
         return f"{self.source}"
 
     def __repr__(self) -> str:
-        return f"<ActivityPoint %r %r %r %r %r %r>" % (self.id, self.source, self.target_id, self.activity, self.cmpd_id, self.units)
+        return "<ActivityPoint %r %r %r %r %r %r>" % (self.id, self.source, self.target_id, self.activity, self.cmpd_id, self.units)
 
     class Meta:
         unique_together = ("target_id", "activity", "cmpd_id", "units")
@@ -343,7 +341,7 @@ class ActionType(models.Model):
         return f"{self.description}"
 
     def __repr__(self) -> str:
-        return f"<ActionType %r %r %r>" % (self.id, self.description, self.active)
+        return "<ActionType %r %r %r>" % (self.id, self.description, self.active)
 
     class Meta:
         db_table = 'viewer_actiontype'
@@ -368,7 +366,7 @@ class SessionProject(models.Model):
         return f"{self.title}"
 
     def __repr__(self) -> str:
-        return f"<SessionProject %r %r %r %r>" % (self.id, self.title, self.target, self.project)
+        return "<SessionProject %r %r %r %r>" % (self.id, self.title, self.target, self.project)
 
     class Meta:
         db_table = 'viewer_sessionproject'
@@ -399,7 +397,7 @@ class SessionActions(models.Model):
         return f"{self.author}"
 
     def __repr__(self) -> str:
-        return f"<SessionActions %r %r %r>" % (self.id, self.author, self.session_project)
+        return "<SessionActions %r %r %r>" % (self.id, self.author, self.session_project)
 
     class Meta:
         db_table = 'viewer_sessionactions'
@@ -436,7 +434,7 @@ class Snapshot(models.Model):
         return f"{self.title}"
 
     def __repr__(self) -> str:
-        return f"<Snapshot %r %r %r %r>" % (self.id, self.title, self.type, self.author)
+        return "<Snapshot %r %r %r %r>" % (self.id, self.title, self.type, self.author)
 
     class Meta:
         managed = True
@@ -470,7 +468,7 @@ class SnapshotActions(models.Model):
         return f"{self.author}"
 
     def __repr__(self) -> str:
-        return f"<SnapshotActions %r %r %r %r>" % (self.id, self.author, self.session_project, self.snapshot)
+        return "<SnapshotActions %r %r %r %r>" % (self.id, self.author, self.session_project, self.snapshot)
 
     class Meta:
         db_table = 'viewer_snapshotactions'
@@ -501,7 +499,7 @@ class DesignSet(models.Model):
         return f"{self.set_name}"
 
     def __repr__(self) -> str:
-        return f"<DesignSet %r %r %r>" % (self.id, self.set_name, self.set_type)
+        return "<DesignSet %r %r %r>" % (self.id, self.set_name, self.set_type)
 
 
 class ComputedSetSubmitter(models.Model):
@@ -519,7 +517,7 @@ class ComputedSetSubmitter(models.Model):
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return f"<ComputedSetSubmitter %r %r %r>" % (self.id, self.name, self.email)
+        return "<ComputedSetSubmitter %r %r %r>" % (self.id, self.name, self.email)
 
     class Meta:
         unique_together = (("name", "method"),)
@@ -538,7 +536,7 @@ class CSetKeys(models.Model):
         return f"{self.user}"
 
     def __repr__(self) -> str:
-        return f"<CSetKeys %r %r %r>" % (self.id, self.user, self.uuid)
+        return "<CSetKeys %r %r %r>" % (self.id, self.user, self.uuid)
 
 
 # computed sets = sets of poses calculated computationally
@@ -602,7 +600,7 @@ class ComputedSet(models.Model):
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return f"<ComputedSet %r %r %r>" % (self.id, self.name, self.target)
+        return "<ComputedSet %r %r %r>" % (self.id, self.name, self.target)
 
 
 class ComputedMolecule(models.Model):
@@ -622,7 +620,7 @@ class ComputedMolecule(models.Model):
         return f"{self.smiles}"
 
     def __repr__(self) -> str:
-        return f"<ComputedMolecule %r %r %r %r>" % (self.id, self.smiles, self.name, self.compound)
+        return "<ComputedMolecule %r %r %r %r>" % (self.id, self.smiles, self.name, self.compound)
 
 
 
@@ -638,7 +636,7 @@ class ScoreDescription(models.Model):
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return f"<ScoreDescription %r %r>" % (self.id, self.name)
+        return "<ScoreDescription %r %r>" % (self.id, self.name)
 
 
 class NumericalScoreValues(models.Model):
@@ -652,7 +650,7 @@ class NumericalScoreValues(models.Model):
         return f"{self.score}"
 
     def __repr__(self) -> str:
-        return f"<NumericalScoreValues %r %r %r %r>" % (self.id, self.score, self.value, self.compound)
+        return "<NumericalScoreValues %r %r %r %r>" % (self.id, self.score, self.value, self.compound)
 
 
 
@@ -667,7 +665,7 @@ class TextScoreValues(models.Model):
         return f"{self.score}"
 
     def __repr__(self) -> str:
-        return f"<TextScoreValues %r %r %r %r>" % (self.id, self.score, self.value, self.compound)
+        return "<TextScoreValues %r %r %r %r>" % (self.id, self.score, self.value, self.compound)
 
 
 class File(models.Model):
@@ -677,7 +675,7 @@ class File(models.Model):
         return self.file.name
 
     def __repr__(self) -> str:
-        return f"<File %r %r>" % (self.id, self.file.name)
+        return "<File %r %r>" % (self.id, self.file.name)
 
 
 class DiscourseCategory(models.Model):
@@ -693,7 +691,7 @@ class DiscourseCategory(models.Model):
         return self.author
 
     def __repr__(self) -> str:
-        return f"<DiscourseCategory %r %r %r>" % (self.id, self.author, self.category_name)
+        return "<DiscourseCategory %r %r %r>" % (self.id, self.author, self.category_name)
 
     class Meta:
         db_table = 'viewer_discoursecategory'
@@ -714,7 +712,7 @@ class DiscourseTopic(models.Model):
         return self.author
 
     def __repr__(self) -> str:
-        return f"<DiscourseTopic %r %r %r>" % (self.id, self.author, self.topic_title)
+        return "<DiscourseTopic %r %r %r>" % (self.id, self.author, self.topic_title)
 
     class Meta:
         db_table = 'viewer_discoursetopic'
@@ -751,7 +749,7 @@ class DownloadLinks(models.Model):
         return self.file_url
 
     def __repr__(self) -> str:
-        return f"<DownloadLinks %r %r %r %r>" % (self.id, self.file_url, self.user, self.target)
+        return "<DownloadLinks %r %r %r %r>" % (self.id, self.file_url, self.user, self.target)
 
     class Meta:
         db_table = 'viewer_downloadlinks'
@@ -766,7 +764,7 @@ class TagCategory(models.Model):
         return self.category
 
     def __repr__(self) -> str:
-        return f"<TagCategory %r %r>" % (self.id, self.category)
+        return "<TagCategory %r %r>" % (self.id, self.category)
 
     class Meta:
         db_table = 'viewer_tagcategory'
@@ -788,7 +786,7 @@ class Tag(models.Model):
         return f"{self.tag}"
 
     def __repr__(self) -> str:
-        return f"<Tag %r %r %r %r %r>" % (self.id, self.tag, self.category, self.target, self.user)
+        return "<Tag %r %r %r %r %r>" % (self.id, self.tag, self.category, self.target, self.user)
 
     class Meta:
         abstract = True
@@ -804,7 +802,7 @@ class MoleculeTag(Tag):
         return f"{self.mol_group}"
 
     def __repr__(self) -> str:
-        return f"<MoleculeTag %r %r>" % (self.id, self.mol_group)
+        return "<MoleculeTag %r %r>" % (self.id, self.mol_group)
 
 
 class SessionProjectTag(Tag):
@@ -816,7 +814,7 @@ class SessionProjectTag(Tag):
         return f"{self.id}"
 
     def __repr__(self) -> str:
-        return f"<SessionProjectTag %r>" % self.id
+        return "<SessionProjectTag %r>" % self.id
 
 
 class JobFileTransfer(models.Model):
@@ -853,7 +851,7 @@ class JobFileTransfer(models.Model):
         return f"{self.user}"
 
     def __repr__(self) -> str:
-        return f"<JobFileTransfer %r %r %r %r %r>" % (self.id, self.user, self.snapshot, self.target, self.squonk_project)
+        return "<JobFileTransfer %r %r %r %r %r>" % (self.id, self.user, self.snapshot, self.target, self.squonk_project)
 
     class Meta:
         db_table = 'viewer_jobfiletransfer'
@@ -933,7 +931,7 @@ class JobRequest(models.Model):
         return f"{self.user}"
 
     def __repr__(self) -> str:
-        return f"<JobRequest %r %r %r %r %r %r>" % (self.id, self.user, self.squonk_job_name, self.snapshot, self.target, self.squonk_project)
+        return "<JobRequest %r %r %r %r %r %r>" % (self.id, self.user, self.squonk_job_name, self.snapshot, self.target, self.squonk_project)
 
     class Meta:
         db_table = 'viewer_jobrequest'
@@ -948,7 +946,7 @@ class JobOverride(models.Model):
         return f"{self.author}"
 
     def __repr__(self) -> str:
-        return f"<JobOverride %r %r>" % (self.id, self.author)
+        return "<JobOverride %r %r>" % (self.id, self.author)
 
     class Meta:
         db_table = 'viewer_joboverride'
@@ -971,7 +969,7 @@ class Squonk2Org(models.Model):
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return f"<Squonk2Org %r %r %r>" % (self.id, self.name, self.uuid)
+        return "<Squonk2Org %r %r %r>" % (self.id, self.name, self.uuid)
 
 
 class Squonk2Unit(models.Model):
@@ -989,7 +987,7 @@ class Squonk2Unit(models.Model):
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return f"<Squonk2Unit %r %r %r>" % (self.id, self.name, self.uuid)
+        return "<Squonk2Unit %r %r %r>" % (self.id, self.name, self.uuid)
 
 
 class Squonk2Project(models.Model):
@@ -1007,7 +1005,7 @@ class Squonk2Project(models.Model):
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return f"<Squonk2Project %r %r %r>" % (self.id, self.name, self.uuid, self.product_uuid, self.unit)
+        return "<Squonk2Project %r %r %r %r %r>" % (self.id, self.name, self.uuid, self.product_uuid, self.unit)
 
 
 
