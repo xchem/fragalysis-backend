@@ -389,13 +389,13 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'asyncio': {
                 'level': 'WARNING'},
             'celery': {
-                'level': 'WARNING'},
+                'level': 'INFO'},
             'django': {
-                'level': 'WARNING'},
+                'level': 'INFO'},
             'mozilla_django_oidc': {
-                'level': 'WARNING'},
+                'level': 'INFO'},
             'urllib3': {
-                'level': 'WARNING'},
+                'level': 'INFO'},
             'paramiko': {
                 'level': 'WARNING'}},
         'root': {
