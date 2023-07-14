@@ -2,7 +2,7 @@ aiohttp==3.4.4
 aionotify==0.2.0
 amqp==2.6.1
 aniso8601==7.0.0
-asgiref==3.2.10
+asgiref==3.7.2
 async-timeout==3.0.1
 attrs==19.3.0
 backcall==0.2.0
@@ -20,10 +20,10 @@ cryptography==3.2
 decorator==4.4.2
 deepdiff==5.8.1
 
-# Dango is also referred to in the builtrequirements.txt file
+# Dango is also referred to in the build-requirements.txt file
 # (for non-execution linting).
 # Make sure they're the same!
-Django==3.1.14
+Django==3.2.20
 
 django-bootstrap3==14.1.0
 django-cleanup==5.0.0
@@ -118,7 +118,7 @@ sshtunnel==0.1.5
 tabulate==0.8.7
 tqdm==4.48.2
 traitlets==4.3.3
-typing-extensions==3.7.4.2
+typing-extensions==4.7.1
 Unidecode==1.1.1
 uritemplate==3.0.1
 urllib3==1.25.10
