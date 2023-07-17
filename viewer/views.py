@@ -38,12 +38,15 @@ from api.security import ISpyBSafeQuerySet
 
 from api.utils import get_params, get_highlighted_diffs, pretty_request
 from viewer.utils import create_squonk_job_request_url
+from viewer.utils import handle_uploaded_file
 
 from viewer import filters
 from viewer import models
 from viewer import serializers
 from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
 from viewer.squonk2_agent import AccessParams, CommonParams, SendParams, RunJobParams
+
+
 
 from .forms import CSetForm, TSetForm
 from .tasks import (
@@ -1508,11 +1511,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
             return Response(content,
                             status=status.HTTP_208_ALREADY_REPORTED)
 
-def handle_uploaded_file(path: Path, f):
-    with open(path, "wb+") as destination:
-        for chunk in f.chunks():
-            destination.write(chunk)
-
 
 class UploadTargetExperiments(viewsets.ModelViewSet):
     serializer_class = serializers.TargetExperimentWriteSerializer
@@ -1531,7 +1529,6 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
             # User must have access to the Project
             # and the Target must be in the Project.
 
-            # assuming won't be necessary to save
             contact_email = serializer.validated_data['contact_email']
             proposal_ref = serializer.validated_data['proposal_ref']
             filename = serializer.validated_data['file']
@@ -1543,10 +1540,6 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
             tmpdir.mkdir(exist_ok=True)
             target_file = tmpdir.joinpath(filename.name)
             handle_uploaded_file(target_file, filename)
-            # target_file = default_storage.save(
-            #     tmpdir.joinpath(filename.name),
-            #     ContentFile(filename.read())
-            # )
 
             assert check_services()
 

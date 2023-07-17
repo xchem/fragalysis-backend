@@ -50,7 +50,6 @@ class TargetLoader:
         self.data_bundle = Path(data_bundle).name
         self.bundle_name = Path(data_bundle).stem
         self.target_name = self.bundle_name.split("-")[0]
-        # self.bundle_path = Path(settings.MEDIA_ROOT, data_bundle)
         self.bundle_path = data_bundle
         self.tempdir = tempdir
         self.raw_data = Path(self.tempdir).joinpath(self.bundle_name)
@@ -61,9 +60,20 @@ class TargetLoader:
             "upload_1"
         )
 
+        # work out where the data finally lands
+        path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
+        path.mkdir(exist_ok=True)
+
+        self._final_path = path.joinpath(self.bundle_name)
+        # but don't create now, this comes later
+
     @property
-    def target_root(self):
+    def target_root(self) -> Path:
         return self._target_root
+
+    @property
+    def final_path(self) -> Path:
+        return self._final_path
 
     def _load_yaml_blocks(self, yaml_file, blocks) -> list:
         try:
@@ -126,9 +136,10 @@ class TargetLoader:
             status=1,
             version=1,
             type=1 if data["type"] is "manual" else 0,  # FIXME
-            pdb_info=files["xtal_pdb"],
-            mtz_info=files["xtal_mtz"],
-            cif_info=files.get("cif_info", None),  # this may be missing from the struct
+            pdb_info=str(self._get_final_path(files["xtal_pdb"])),
+            mtz_info=str(self._get_final_path(files["xtal_mtz"])),
+            # this may be missing from the struct
+            cif_info=str(self._get_final_path(files.get("cif_info", None))),
             # this doesn't seem to be present
             # pdb_sha256=
         )
@@ -220,7 +231,7 @@ class TargetLoader:
         xtalform = Xtalform(
             experiment=experiment,
             quat_assembly=quat_assembly,
-            name=data["xtalform_ref"],
+            name="",  # TODO, missing from metadata
             space_group=data["xtalform_space_group"],
             unit_cell_info=data["xtalform_cell"],
             xtalform_id=idx,
@@ -248,7 +259,7 @@ class TargetLoader:
         # data is structured it seems that there's only one.
         logger.debug("Creating QuatAssembly object: %d", idx)
         quat_assembly = QuatAssembly(
-            chains=data["chains"],
+            chains=", ".join(data["chains"]),
             name="",  # TODO: name missing in yaml
         )
         try:
@@ -333,7 +344,11 @@ class TargetLoader:
         files = self._check_file_struct(self.target_root, data)
 
         mol_data = None
-        with open(files["ligand_mol"], "r", encoding="utf-8") as f:
+        with open(
+            self.target_root.joinpath(files["ligand_mol"]),
+            "r",
+            encoding="utf-8",
+        ) as f:
             mol_data = f.read()
 
         site_observation = SiteObservation(
@@ -343,13 +358,13 @@ class TargetLoader:
             cmpd=compound,
             xtalform_site=xtalform_site,
             canon_site_conf=canon_site_conf,
-            bound_file=str(files["structure"]),
-            apo_solv_file=str(files["pdb_apo_solv"]),
-            apo_desolv_file=str(files["pdb_apo_desolv"]),
-            apo_file=str(files["pdb_apo"]),
-            xmap_2fofc_file=str(files["x_map"]),
-            event_file=str(files["event_map"]),
-            artefacts_file=str(files["artefacts"]),
+            bound_file=str(self._get_final_path(files["structure"])),
+            apo_solv_file=str(self._get_final_path(files["pdb_apo_solv"])),
+            apo_desolv_file=str(self._get_final_path(files["pdb_apo_desolv"])),
+            apo_file=str(self._get_final_path(files["pdb_apo"])),
+            xmap_2fofc_file=str(self._get_final_path(files["x_map"])),
+            event_file=str(self._get_final_path(files["event_map"])),
+            artefacts_file=str(self._get_final_path(files.get("artefacts", None))),
             trans_matrix_info="currently missing",
             pdb_header_file="currently missing",
             smiles=data["ligand_smiles"],
@@ -684,6 +699,14 @@ class TargetLoader:
                 (val.data["dtag"], val.data["chain"], val.data["residue"])
             ].instance
 
+    def _get_final_path(self, path: Path):
+        """Update relative path to final storage path"""
+        try:
+            return self.final_path.joinpath(path)
+        except TypeError:
+            # received invalid path
+            return None
+
     @staticmethod
     def _check_file_struct(target_root, file_struct):
         """Check if file exists and if sha256 hash matches (if given).
@@ -699,16 +722,26 @@ class TargetLoader:
             if isinstance(value, dict):
                 try:
                     filename = value["file"]
+                    # this file is sometimes (always?) given with
+                    # prefix 'upload_1' or something. this is not
+                    # correct relative path, chomp it off if exists
+                    # TODO: if multiple uploads, upload_3, etc, then
+                    # needs some regexing
+                    if Path(filename).parts[0] == "upload_1":
+                        filename = str(Path(*Path(filename).parts[1:]))
+
                     # I guess I don't care if it's not given?
                     file_hash = value.get("sha256", None)
-                    result[key] = TargetLoader._check_file(
+                    if TargetLoader._check_file(
                         target_root.joinpath(filename), file_hash
-                    )
+                    ):
+                        result[key] = str(filename)
+
                 except KeyError:
                     logger.warning("%s file info missing in %s!", key, METADATA_FILE)
-                    result[key] = None
-            elif isinstance(value, str):
-                result[key] = TargetLoader._check_file(target_root.joinpath(value))
+            elif isinstance(value, str) and not key == "ligand_smiles":
+                if TargetLoader._check_file(target_root.joinpath(value)):
+                    result[key] = str(value)
             else:
                 # this is probably the list of panddas event files, don't
                 # need them here
@@ -726,14 +759,14 @@ class TargetLoader:
         return: validated file paths or None
         """
         # TODO: unclear about the proper validation procedure. it
-        # should ideally throw exception, not return Path or None.
+        # should ideally throw exception, not return bool
         if file_path.is_file():
             if file_hash:
                 if file_hash == TargetLoader._calculate_sha256(file_path):
-                    return file_path
+                    return True
             else:
-                return file_path
-        return None
+                return True
+        return False
 
     # borrowed from SO
     @staticmethod
@@ -774,24 +807,17 @@ def load_target(
                     task=task,
                 )
         except FileNotFoundError as exc:
-            logger.error(exc.args[0])
-            raise FileNotFoundError(exc.args[0]) from exc
+            logger.error(exc.args[1])
+            raise FileNotFoundError(exc.args[1]) from exc
         except IntegrityError as exc:
             raise IntegrityError(exc.args[0]) from exc
 
         # data in db, all good, move the files to permanent storage
+        try:
+            target_loader.final_path.mkdir()
+        except OSError as exc:
+            msg = f"Directory {target_loader.final_path} already exists"
+            logger.error(msg)
+            raise OSError(msg) from exc
 
-        path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
-        path.mkdir(exist_ok=True)
-        # NB! removing existing data. Don't think this should happen
-        # in production, but probably useful for testing.
-        # TODO: remove when done
-        path = path.joinpath(target_loader.bundle_name)
-        if path.is_dir():
-            import shutil
-
-            logger.warning("Removing exiting data at %s", path)
-            shutil.rmtree(path)
-
-        path.mkdir()
-        target_loader.raw_data.rename(path)
+        target_loader.raw_data.rename(target_loader.final_path)

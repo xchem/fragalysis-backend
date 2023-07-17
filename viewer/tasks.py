@@ -529,25 +529,32 @@ def task_load_target(self, data_bundle, proposal_ref=None, contact_email=None, u
     try:
         load_target(data_bundle, proposal_ref=proposal_ref, contact_email=contact_email, user_id=user_id, task=self)
     except KeyError as err:
-        logger.error(err.args[0])
+        logger.exception(err)
         self.update_state(
                 state="ERROR",
                 meta={"description": err.args[0],},
             )
     except IntegrityError as err:
-        logger.error(err.args[0])
+        logger.exception(err)
         self.update_state(
                 state="ERROR",
                 meta={"description": err.args[0],},
             )
     except FileNotFoundError as err:
-        logger.error(err.args[0])
+        logger.exception(err)
+        self.update_state(
+                state="ERROR",
+                meta={"description": err.args[0],},
+            )
+    except OSError as err:
+        logger.exception(err)
         self.update_state(
                 state="ERROR",
                 meta={"description": err.args[0],},
             )
 
     logger.info('TASK load_target completed, target_zip=%s', data_bundle)
+    # TODO: send email
 
 
 

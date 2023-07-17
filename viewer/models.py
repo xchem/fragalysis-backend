@@ -255,6 +255,7 @@ class QuatAssembly(models.Model):
 
 class Xtalform(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    # TODO: add fk to ref experiment
     name = models.TextField(null=True)
     quat_assembly = models.ForeignKey(QuatAssembly, on_delete=models.CASCADE, null=True)
     space_group = models.TextField(null=True)
@@ -831,6 +832,7 @@ class CanonSite(models.Model):
     name = models.TextField()
     quat_assembly = models.ForeignKey(QuatAssembly, null=True, on_delete=models.CASCADE)
     residues = models.JSONField(encoder=DjangoJSONEncoder)
+    # TODO: missing in db, check if correct, (might be correct, but might not)
     ref_conf_site = models.OneToOneField("CanonSiteConf", null=True, on_delete=models.CASCADE)
     canon_site_id = models.IntegerField(null=False, help_text="canon_site id from YAML")
 

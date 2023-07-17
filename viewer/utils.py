@@ -7,6 +7,8 @@ import fnmatch
 import os
 import shutil
 
+from pathlib import Path
+
 from django.conf import settings
 
 from rdkit import Chem
@@ -119,3 +121,9 @@ def get_https_host(request):
     Note that this link will not work on local
     """
     return settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
+
+
+def handle_uploaded_file(path: Path, f):
+    with open(path, "wb+") as destination:
+        for chunk in f.chunks(4096):
+            destination.write(chunk)
