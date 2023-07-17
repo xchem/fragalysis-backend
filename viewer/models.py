@@ -21,6 +21,9 @@ class Project(models.Model):
     def __str__(self) -> str:
         return f"{self.title}"
 
+    def __repr__(self) -> str:
+        return "<Project %r %r %r>" % (self.id, self.title, self.open_to_public)
+
 
 class Target(models.Model):
     PENDING = "PENDING"
@@ -62,6 +65,9 @@ class Target(models.Model):
     def __str__(self) -> str:
         return f"{self.title}"
 
+    def __repr__(self) -> str:
+        return "<Target %r %r %r>" % (self.id, self.title, self.project_id)
+
 
 class ExperimentUpload(models.Model):
     LOADING = "LOADING"
@@ -90,6 +96,12 @@ class ExperimentUpload(models.Model):
                                help_text="Any message associated with the upload."
                                          " Typically set when status is FAILURE")
 
+    def __str__(self) -> str:
+        return f"{self.project}"
+
+    def __repr__(self) -> str:
+        return "<ExperimentUpload %r %r %r>" % (self.id, self.project, self.target)
+
 
 class Experiment(models.Model):
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
@@ -104,6 +116,11 @@ class Experiment(models.Model):
     pdb_sha256 = models.TextField(null=True)
     compounds = models.ManyToManyField("Compound")
 
+    def __str__(self) -> str:
+        return f"{self.code}"
+
+    def __repr__(self) -> str:
+        return "<Experiment %r %r %r>" % (self.id, self.code, self.experiment_upload)
 
 
 # TODO: delete
@@ -161,6 +178,12 @@ class Protein(models.Model):
     class Meta:
         unique_together = ("code", "target_id", "prot_type")
 
+    def __str__(self):
+        return self.code
+
+    def __repr__(self):
+        return "<Protein %s %s %s %s>" % (self.id, self.code, self.target_id, self.prot_type)
+
 
 class Compound(models.Model):
     """Information about a compound, which is a unique 2D molecule
@@ -195,6 +218,9 @@ class Compound(models.Model):
 
     def __str__(self) -> str:
         return f"{self.smiles}"
+
+    def __repr__(self) -> str:
+        return "<Compound %r %r %r>" % (self.id, self.smiles, self.inchi)
 
 
 # TODO: delete
@@ -243,6 +269,12 @@ class Molecule(models.Model):
     # Tracks the changes made to an instance of this model over time
     history = HistoricalRecords()
 
+    def __str__(self) -> str:
+        return f"{self.smiles}"
+
+    def __repr__(self) -> str:
+        return "<Molecule %r %r %r %r %r>" % (self.id, self.smiles, self.mol_type, self.prot_id, self.cmpd_id)
+
     class Meta:
         unique_together = ("prot_id", "cmpd_id", "mol_type")
 
@@ -251,6 +283,12 @@ class Molecule(models.Model):
 class QuatAssembly(models.Model):
     chains = models.TextField()
     name = models.TextField()
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<QuatAssembly %r %r %r>" % (self.id, self.name, self.chains)
 
 
 class Xtalform(models.Model):
@@ -262,10 +300,22 @@ class Xtalform(models.Model):
     unit_cell_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     xtalform_id = models.IntegerField(null=True, help_text="xtalform id from YAML")
 
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<Xtalform %r %r %r>" % (self.id, self.name, self.experiment)
+
 
 class CompoundIdentifierType(models.Model):
     NAME_LENGTH = 20
     name = models.CharField(max_length=NAME_LENGTH)
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<CompoundIdentifierType %r %r>" % (self.id, self.name)
 
 
 class CompoundIdentifier(models.Model):
@@ -275,6 +325,12 @@ class CompoundIdentifier(models.Model):
     compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
     url = models.URLField(max_length=URL_LENGTH, null=True)
     name = models.CharField(max_length=NAME_LENGTH)
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<CompoundIdentifier %r %r %r>" % (self.id, self.name, self.type)
 
 
 class ActivityPoint(models.Model):
@@ -287,14 +343,27 @@ class ActivityPoint(models.Model):
     internal_id = models.CharField(max_length=150, null=True, help_text="The ID of the compound for internal use")
     operator = models.CharField(max_length=5, default="NA", help_text="An operator, like > < or =")
 
+    def __str__(self) -> str:
+        return f"{self.source}"
+
+    def __repr__(self) -> str:
+        return "<ActivityPoint %r %r %r %r %r %r>" % (self.id, self.source, self.target_id, self.activity, self.cmpd_id, self.units)
+
     class Meta:
         unique_together = ("target_id", "activity", "cmpd_id", "units")
+
 
 class ActionType(models.Model):
     id = models.AutoField(primary_key=True)
     description = models.CharField(max_length=200, default='')
     active = models.BooleanField(default=False)
     activation_date = models.DateTimeField(default=timezone.now)
+
+    def __str__(self) -> str:
+        return f"{self.description}"
+
+    def __repr__(self) -> str:
+        return "<ActionType %r %r %r>" % (self.id, self.description, self.active)
 
     class Meta:
         db_table = 'viewer_actiontype'
@@ -317,6 +386,9 @@ class SessionProject(models.Model):
 
     def __str__(self) -> str:
         return f"{self.title}"
+
+    def __repr__(self) -> str:
+        return "<SessionProject %r %r %r %r>" % (self.id, self.title, self.target, self.project)
 
     class Meta:
         db_table = 'viewer_sessionproject'
@@ -342,6 +414,12 @@ class SessionActions(models.Model):
     session_project = models.ForeignKey(SessionProject, on_delete=models.CASCADE)
     last_update_date = models.DateTimeField(default=timezone.now)
     actions = models.JSONField(encoder=DjangoJSONEncoder)
+
+    def __str__(self) -> str:
+        return f"{self.author}"
+
+    def __repr__(self) -> str:
+        return "<SessionActions %r %r %r>" % (self.id, self.author, self.session_project)
 
     class Meta:
         db_table = 'viewer_sessionactions'
@@ -377,6 +455,9 @@ class Snapshot(models.Model):
     def __str__(self) -> str:
         return f"{self.title}"
 
+    def __repr__(self) -> str:
+        return "<Snapshot %r %r %r %r>" % (self.id, self.title, self.type, self.author)
+
     class Meta:
         managed = True
         db_table = 'viewer_snapshot'
@@ -405,6 +486,12 @@ class SnapshotActions(models.Model):
     last_update_date = models.DateTimeField(default=timezone.now)
     actions = models.JSONField(encoder=DjangoJSONEncoder)
 
+    def __str__(self) -> str:
+        return f"{self.author}"
+
+    def __repr__(self) -> str:
+        return "<SnapshotActions %r %r %r %r>" % (self.id, self.author, self.session_project, self.snapshot)
+
     class Meta:
         db_table = 'viewer_snapshotactions'
 
@@ -430,6 +517,12 @@ class DesignSet(models.Model):
     set_type = models.CharField(max_length=100, choices=SET_TYPE, default=USR)
     set_description = models.TextField(max_length=1000, blank=True, null=True)
 
+    def __str__(self) -> str:
+        return f"{self.set_name}"
+
+    def __repr__(self) -> str:
+        return "<DesignSet %r %r %r>" % (self.id, self.set_name, self.set_type)
+
 
 class ComputedSetSubmitter(models.Model):
     name = models.CharField(max_length=50)
@@ -441,6 +534,12 @@ class ComputedSetSubmitter(models.Model):
     method = models.CharField(max_length=50,
                               help_text="A name for the method that was used"
                                         " to produce the uploaded data")
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<ComputedSetSubmitter %r %r %r>" % (self.id, self.name, self.email)
 
     class Meta:
         unique_together = (("name", "method"),)
@@ -454,6 +553,12 @@ class CSetKeys(models.Model):
     user = models.CharField(max_length=50, default='User', editable=False)
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True,
                             help_text="Unique key for the user")
+
+    def __str__(self) -> str:
+        return f"{self.user}"
+
+    def __repr__(self) -> str:
+        return "<CSetKeys %r %r %r>" % (self.id, self.user, self.uuid)
 
 
 # computed sets = sets of poses calculated computationally
@@ -513,6 +618,12 @@ class ComputedSet(models.Model):
             self.unique_name = unique_name
         super(ComputedSet, self).save()
 
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<ComputedSet %r %r %r>" % (self.id, self.name, self.target)
+
 
 class ComputedMolecule(models.Model):
     """The 3D information for a computed set molecule
@@ -530,6 +641,10 @@ class ComputedMolecule(models.Model):
     def __str__(self) -> str:
         return f"{self.smiles}"
 
+    def __repr__(self) -> str:
+        return "<ComputedMolecule %r %r %r %r>" % (self.id, self.smiles, self.name, self.compound)
+
+
 
 class ScoreDescription(models.Model):
     """The names and descriptions of scores that the user uploads with each computed set molecule.
@@ -539,6 +654,12 @@ class ScoreDescription(models.Model):
     description = models.TextField(help_text="A description of this score,"
                                              " which should describe how to interpret it")
 
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<ScoreDescription %r %r>" % (self.id, self.name)
+
 
 class NumericalScoreValues(models.Model):
     """The values of numerical scores that the user uploads with each computed set molecule.
@@ -546,6 +667,13 @@ class NumericalScoreValues(models.Model):
     score = models.ForeignKey(ScoreDescription, on_delete=models.CASCADE)
     value = models.FloatField()
     compound = models.ForeignKey(ComputedMolecule, on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return f"{self.score}"
+
+    def __repr__(self) -> str:
+        return "<NumericalScoreValues %r %r %r %r>" % (self.id, self.score, self.value, self.compound)
+
 
 
 class TextScoreValues(models.Model):
@@ -555,12 +683,21 @@ class TextScoreValues(models.Model):
     value = models.TextField(max_length=500)
     compound = models.ForeignKey(ComputedMolecule, on_delete=models.CASCADE)
 
+    def __str__(self) -> str:
+        return f"{self.score}"
+
+    def __repr__(self) -> str:
+        return "<TextScoreValues %r %r %r %r>" % (self.id, self.score, self.value, self.compound)
+
 
 class File(models.Model):
     file = models.FileField(blank=False)
 
     def __str__(self):
         return self.file.name
+
+    def __repr__(self) -> str:
+        return "<File %r %r>" % (self.id, self.file.name)
 
 
 class DiscourseCategory(models.Model):
@@ -571,6 +708,12 @@ class DiscourseCategory(models.Model):
     author = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     discourse_category_id = models.IntegerField(help_text="The Discourse categoryID."
                                                           " Returned when the category was created")
+
+    def __str__(self):
+        return self.author
+
+    def __repr__(self) -> str:
+        return "<DiscourseCategory %r %r %r>" % (self.id, self.author, self.category_name)
 
     class Meta:
         db_table = 'viewer_discoursecategory'
@@ -586,6 +729,12 @@ class DiscourseTopic(models.Model):
                                              " It must be unique within Discourse")
     author = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     discourse_topic_id = models.IntegerField()
+
+    def __str__(self):
+        return self.author
+
+    def __repr__(self) -> str:
+        return "<DiscourseTopic %r %r %r>" % (self.id, self.author, self.topic_title)
 
     class Meta:
         db_table = 'viewer_discoursetopic'
@@ -618,6 +767,12 @@ class DownloadLinks(models.Model):
     zip_file = models.BooleanField(default=False)
     original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
+    def __str__(self):
+        return self.file_url
+
+    def __repr__(self) -> str:
+        return "<DownloadLinks %r %r %r %r>" % (self.id, self.file_url, self.user, self.target)
+
     class Meta:
         db_table = 'viewer_downloadlinks'
 
@@ -626,6 +781,12 @@ class TagCategory(models.Model):
     category = models.CharField(max_length=50, unique=True, help_text="The name of the tag category")
     colour = models.CharField(max_length=20, null=True, help_text="Expected to be an RGB string")
     description = models.CharField(max_length=200, null=True)
+
+    def __str__(self):
+        return self.category
+
+    def __repr__(self) -> str:
+        return "<TagCategory %r %r>" % (self.id, self.category)
 
     class Meta:
         db_table = 'viewer_tagcategory'
@@ -646,6 +807,9 @@ class Tag(models.Model):
     def __str__(self) -> str:
         return f"{self.tag}"
 
+    def __repr__(self) -> str:
+        return "<Tag %r %r %r %r %r>" % (self.id, self.tag, self.category, self.target, self.user)
+
     class Meta:
         abstract = True
         unique_together = ('tag', 'target',)
@@ -656,11 +820,23 @@ class MoleculeTag(Tag):
     mol_group = models.ForeignKey("scoring.MolGroup", null=True, blank=True,
                                   on_delete=models.SET_NULL)
 
+    def __str__(self) -> str:
+        return f"{self.mol_group}"
+
+    def __repr__(self) -> str:
+        return "<MoleculeTag %r %r>" % (self.id, self.mol_group)
+
 
 class SessionProjectTag(Tag):
     """Data for SessionProjectTag(s) inherited from Tag.
     """
     session_projects = models.ManyToManyField(SessionProject)
+
+    def __str__(self) -> str:
+        return f"{self.id}"
+
+    def __repr__(self) -> str:
+        return "<SessionProjectTag %r>" % self.id
 
 
 class JobFileTransfer(models.Model):
@@ -692,6 +868,12 @@ class JobFileTransfer(models.Model):
     transfer_progress = models.DecimalField(null=True, max_digits=5, decimal_places=2,
                                             help_text="Intended to be used as an indication of progress (0 to 100%)")
     transfer_datetime = models.DateTimeField(null=True, help_text="The datetime the transfer was completed")
+
+    def __str__(self) -> str:
+        return f"{self.user}"
+
+    def __repr__(self) -> str:
+        return "<JobFileTransfer %r %r %r %r %r>" % (self.id, self.user, self.snapshot, self.target, self.squonk_project)
 
     class Meta:
         db_table = 'viewer_jobfiletransfer'
@@ -767,6 +949,12 @@ class JobRequest(models.Model):
                                      null=True, help_text="Status of upload task")
     computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE, null=True)
 
+    def __str__(self) -> str:
+        return f"{self.user}"
+
+    def __repr__(self) -> str:
+        return "<JobRequest %r %r %r %r %r %r>" % (self.id, self.user, self.squonk_job_name, self.snapshot, self.target, self.squonk_project)
+
     class Meta:
         db_table = 'viewer_jobrequest'
 
@@ -775,6 +963,12 @@ class JobOverride(models.Model):
     override = models.JSONField(encoder=DjangoJSONEncoder)
     author = models.ForeignKey(User, null=True, on_delete=models.SET_NULL,
                                help_text="The user that uploaded the override")
+
+    def __str__(self) -> str:
+        return f"{self.author}"
+
+    def __repr__(self) -> str:
+        return "<JobOverride %r %r>" % (self.id, self.author)
 
     class Meta:
         db_table = 'viewer_joboverride'
@@ -794,7 +988,10 @@ class Squonk2Org(models.Model):
     as_version = models.TextField()
 
     def __str__(self) -> str:
-        return f"{self.uuid}"
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<Squonk2Org %r %r %r>" % (self.id, self.name, self.uuid)
 
 
 class Squonk2Unit(models.Model):
@@ -809,7 +1006,10 @@ class Squonk2Unit(models.Model):
     organisation = models.ForeignKey(Squonk2Org, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
-        return f"{self.uuid}"
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<Squonk2Unit %r %r %r>" % (self.id, self.name, self.uuid)
 
 
 class Squonk2Project(models.Model):
@@ -824,7 +1024,10 @@ class Squonk2Project(models.Model):
     unit = models.ForeignKey(Squonk2Unit, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
-        return f"{self.product_uuid}"
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<Squonk2Project %r %r %r %r %r>" % (self.id, self.name, self.uuid, self.product_uuid, self.unit)
 
 
 
@@ -836,6 +1039,12 @@ class CanonSite(models.Model):
     ref_conf_site = models.OneToOneField("CanonSiteConf", null=True, on_delete=models.CASCADE)
     canon_site_id = models.IntegerField(null=False, help_text="canon_site id from YAML")
 
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<CanonSite %r %r>" % (self.id, self.name)
+
 
 class XtalformSite(models.Model):
     xtalform = models.ForeignKey(Xtalform, on_delete=models.CASCADE)
@@ -844,6 +1053,11 @@ class XtalformSite(models.Model):
     residues = models.JSONField(encoder=DjangoJSONEncoder)
     xtalform_site_id = models.IntegerField(null=False, help_text="xtalform site id from YAML")
 
+    def __str__(self) -> str:
+        return f"{self.xtalform_site_id}"
+
+    def __repr__(self) -> str:
+        return "<CanonSiteConf %r %r %r>" % (self.id, self.xtalform_site_id, self.xtalform)
 
 
 class CanonSiteConf(models.Model):
@@ -852,6 +1066,12 @@ class CanonSiteConf(models.Model):
     name = models.TextField(null=True)
     ref_site_observation = models.OneToOneField("SiteObservation", null=True, on_delete=models.CASCADE)
     residues = models.JSONField(encoder=DjangoJSONEncoder)
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<CanonSiteConf %r %r %r>" % (self.id, self.name, self.canon_site)
 
 
 class SiteObservation(models.Model):
@@ -875,3 +1095,9 @@ class SiteObservation(models.Model):
     ligand_mol_file = models.TextField(null=True)
 
     history = HistoricalRecords()
+
+    def __str__(self) -> str:
+        return f"{self.code}"
+
+    def __repr__(self) -> str:
+        return "<SiteObservation %r %r %r %r>" % (self.id, self.code, self.experiment, self.compound)
