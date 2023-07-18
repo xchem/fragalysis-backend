@@ -29,6 +29,7 @@ psutil==5.7.2
 psycopg2-binary==2.8.5
 pydiscourse==1.1.2
 pymysql==0.10.1
+redis==3.5.3
 sentry-sdk==0.16.3
 shortuuid==1.0.11
 sshtunnel==0.1.5
