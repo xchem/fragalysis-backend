@@ -41,6 +41,7 @@ sshtunnel = "^0.1.5"
 urllib3 = "^1.25.10"
 validators = "^0.17.1"
 xchem-db = "^0.1.26b0"
+redis = "^3.5.3"
 
 
 [tool.poetry.group.dev.dependencies]
