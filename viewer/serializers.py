@@ -152,7 +152,6 @@ class CompoundSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "inchi",
-            "long_inchi",
             "smiles",
             "current_identifier",
             "all_identifiers",
