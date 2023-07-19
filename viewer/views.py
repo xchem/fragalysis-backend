@@ -689,13 +689,10 @@ def react(request):
     context = {}
 
     # Is the Squonk2 Agent configured?
-    logger.info("Checking whether Squonk2 is configured...")
     sq2_rv = _SQ2A.configured()
     if sq2_rv.success:
-        logger.info("Squonk2 is configured")
         context['squonk_available'] = 'true'
     else:
-        logger.info("Squonk2 is NOT configured")
         context['squonk_available'] = 'false'
 
     if discourse_api_key:
@@ -2991,15 +2988,14 @@ class DownloadStructures(ISpyBSafeQuerySet):
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
     def create(self, request):
-        """Method to handle POST request
-        """
-        # Only authenticated users can transfer files to sqonk
-        user = self.request.user
-        if not user.is_authenticated:
-            content = {'Only authenticated users can download structures'}
-            return Response(content, status=status.HTTP_403_FORBIDDEN)
+        """Method to handle POST request that's use to initiate a target download.\
 
+        The user is permitted to download Targets they have ascess to (whether 
+        authenticated or not), and this is hadled by the queryset logic later in
+        this method.
+        """
         logger.info('+ DownloadStructures.post')
+        logger.info('request.data=%s', json.dumps(request.data))
 
         # Clear up old existing files
         maintain_download_links()
@@ -3062,37 +3058,46 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 break
 
         if not target:
-            msg = f'No target found with title "{target_name}"'
+            msg = f'Either the Target "{target_name}" is not present or you are not permitted access it'
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
+        logger.info('Found Target record %r', target)
+        proteins = []
         if request.data['proteins']:
+
+            logger.info('Given Proteins in request')
             # Get first part of protein code
             proteins_list = [p.strip().split(":")[0]
                              for p in request.data['proteins'].split(',')]
-            logger.info('Given %s proteins', len(proteins_list))
-        else:
-            logger.info('No proteins supplied')
-            proteins_list = []
+            logger.info('Given %s Proteins %s', len(proteins_list), proteins_list)
 
-        if len(proteins_list) > 0:
-            proteins = []
+            logger.info('Looking for Protein records for given Proteins...')
             # Filter by protein codes
             for code_first_part in proteins_list:
                 prot = Protein.objects.filter(code__contains=code_first_part).values()
                 if prot.exists():
                     proteins.append(prot.first())
+                else:
+                    logger.warning('Could not find Protein record for "%s"', code_first_part)
+
         else:
-            # If no protein codes supplied then return the complete list
+
+            logger.info('Request had no Proteins')
+            logger.info('Looking for Protein records for %r...', target)
             proteins = Protein.objects.filter(target_id=target.id).values()
-        logger.info('Collected %s proteins', len(proteins))
 
         if len(proteins) == 0:
             content = {'message': 'Please enter list of valid protein codes '
-                                  'for' + " target: {}, proteins: {} "
+                                  'for target: {}, proteins: {}'
                 .format(target.title, proteins_list) }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        protein_repr = ""
+        for protein in proteins:
+            protein_repr += "%r " % protein
+        logger.info('Collected %s Protein records: %r', len(proteins), protein_repr)
 
         filename_url, file_exists = check_download_links(request,
                                                          target,
