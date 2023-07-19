@@ -1,8 +1,10 @@
 FROM informaticsmatters/rdkit-python3-debian:Release_2021_09_2
+
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV POETRY_VERSION=1.5.1
 ENV POETRY_HOME=/opt/poetry
+ENV PATH="${PATH}:${POETRY_HOME}/bin"
 
 USER root
 
@@ -23,29 +25,19 @@ RUN apt-get --allow-releaseinfo-change update -y && \
       texlive-fonts-recommended \
       wget
 
-RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION}
-
-
-# poetry needs adding to PATH
-ENV PATH="${PATH}:${POETRY_HOME}/bin"
-
-
 COPY django_nginx.conf /etc/nginx/sites-available/default.conf
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled
 COPY nginx.conf /etc/nginx/nginx.conf
 
-WORKDIR /code
-COPY poetry.lock pyproject.toml /code/
-
-
-RUN poetry export -f requirements.txt --without dev --output /tmp/requirements.txt
-RUN pip install --upgrade pip && \
-    pip install -r /tmp/requirements.txt
-
-
-ADD . /code/
-RUN chmod 755 launch-stack.sh
-
 WORKDIR /srv/logs
 WORKDIR /code/logs
 WORKDIR /code
+
+COPY poetry.lock pyproject.toml ./
+
+RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION} && \
+    poetry export -f requirements.txt --without dev --output requirements.txt && \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+ADD . ./

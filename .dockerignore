@@ -1,4 +1,5 @@
 .github/
+.git/
 venv/
 docs/
 doc_templates/
@@ -6,9 +7,21 @@ design_docs/
 logs/
 media/
 static/
+data/
 
+Dockerfile
+*.md
 dump.rdb
 django_app.sock
+build-requirements.txt
+docker-compose.*
+.dockerignore
 .readthedocs.yml
 .pylintrc
+.gitignore
+.mypy.ini
+.pre-commit-config.yaml
+__pycache__/
 /pre-commit-config.yaml
+
+**/.DS_Store
