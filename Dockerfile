@@ -38,9 +38,9 @@ WORKDIR /code
 COPY poetry.lock pyproject.toml /code/
 
 
-RUN poetry export -f requirements.txt --without dev --output requirements.txt
+RUN poetry export -f requirements.txt --without dev --output /tmp/requirements.txt
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r /tmp/requirements.txt
 
 
 ADD . /code/
