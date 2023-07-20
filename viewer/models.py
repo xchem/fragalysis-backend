@@ -293,7 +293,8 @@ class QuatAssembly(models.Model):
 
 class Xtalform(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
-    # TODO: add fk to ref experiment
+    # TODO: add fk to ref experiment.
+    # DONE? this is what experiment is, do I need to change it?
     name = models.TextField(null=True)
     quat_assembly = models.ForeignKey(QuatAssembly, on_delete=models.CASCADE, null=True)
     space_group = models.TextField(null=True)

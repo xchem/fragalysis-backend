@@ -6,6 +6,15 @@ import yaml
 from tempfile import TemporaryDirectory
 import tarfile
 
+from rdkit import Chem
+
+# from hypothesis.definitions import VectTypes
+
+# from hypothesis.models import Vector3D
+# from hypothesis.models import Vector
+
+# from frag.network.decorate import get_3d_vects_for_mol
+
 from django.utils import timezone
 
 from django.db import IntegrityError
@@ -29,6 +38,8 @@ from viewer.models import (
 )
 
 from viewer.target_set_upload import get_create_target
+from viewer.target_set_upload import calc_cpd
+# from viewer.target_set_upload import get_vectors
 
 from django.conf import settings
 
@@ -154,7 +165,7 @@ class TargetLoader:
             instance=experiment, data=data.get("aligned_files", None)
         )
 
-    def _process_compound(self, protein_name, data):
+    def _process_compound(self, protein_name, project, data):
         """Create Compound model instance from data.
 
         Incoming data format:
@@ -175,33 +186,11 @@ class TargetLoader:
         logger.debug("Creating Compound object: %s", protein_name)
         compound = Compound(
             smiles=data["ligand_cif"]["smiles"],
-            # mol_log_p = Chem.Crippen.MolLogP(m),
-            # mol_wt = float(Chem.rdMolDescriptors.CalcExactMolWt(m)),
-            # heavy_atom_count = Chem.Lipinski.HeavyAtomCount(m),
-            # heavy_atom_mol_wt = float(Descriptors.HeavyAtomMolWt(m)),
-            # nhoh_count = Chem.Lipinski.NHOHCount(m),
-            # no_count = Chem.Lipinski.NOCount(m),
-            # num_h_acceptors = Chem.Lipinski.NumHAcceptors(m),
-            # num_h_donors = Chem.Lipinski.NumHDonors(m),
-            # num_het_atoms = Chem.Lipinski.NumHeteroatoms(m),
-            # num_rot_bonds = Chem.Lipinski.NumRotatableBonds(m),
-            # num_val_electrons = Descriptors.NumValenceElectrons(m),
-            # ring_count = Chem.Lipinski.RingCount(m),
-            # tpsa = Chem.rdMolDescriptors.CalcTPSA(m),
-            mol_log_p=0.0,
-            mol_wt=0.0,
-            heavy_atom_count=0,
-            heavy_atom_mol_wt=0,
-            nhoh_count=0,
-            no_count=0,
-            num_h_acceptors=0,
-            num_h_donors=0,
-            num_het_atoms=0,
-            num_rot_bonds=0,
-            num_val_electrons=0,
-            ring_count=0,
-            tpsa=0.0,
         )
+
+        rd_mol = Chem.MolFromSmiles(data["ligand_cif"]["smiles"])
+        compound = calc_cpd(compound, rd_mol, [project])
+
         try:
             compound.save()
         except IntegrityError as exc:
@@ -380,10 +369,62 @@ class TargetLoader:
             logger.error(msg)
             raise IntegrityError(msg) from exc
 
+        # vectors = self._get_vectors(site_observation)
+        # site_observation.sdf_info = site_observation.ligand_mol_file
+        # site_observation.cmpd_id = site_observation.cmpd
+        # get_vectors([site_observation])
+
         return MetadataObjects(
             instance=site_observation,
             data=None,
         )
+
+    # def _get_vectors(self, mol):
+    #     """Get the vectors for a given molecule
+
+    #     :param mols: the Django molecules to get them from
+    #     :return: None
+    #     """
+    #     vect_types = VectTypes()
+    #     if "." not in mol.smiles:
+    #         vectors = get_3d_vects_for_mol(mol.ligand_mol_file)
+    #         for vect_type in vectors:
+    #             vect_choice = vect_types.translate_vect_types(vect_type)
+    #             for vector in vectors[vect_type]:
+    #                 spl_vect = vector.split("__")
+    #                 smiles = spl_vect[0]
+    #                 if len(spl_vect) > 1:
+    #                     vect_ind = int(spl_vect[1])
+    #                 else:
+    #                     vect_ind = 0
+    #                 new_vect = Vector.objects.get_or_create(
+    #                     smiles=smiles, cmpd_id=mol.cmpd, type=vect_choice
+    #                 )[0]
+    #                 create_vect_3d(mol, new_vect, vect_ind, vectors[vect_type][vector])
+
+    # def _create_vect_3d(self, mol, new_vect, vect_ind, vector):
+    #     """Generate the 3D synthesis vectors for a given molecule
+
+    #     :param mol: the Django molecule object
+    #     :param new_vect: the Django 2d vector object
+    #     :param vect_ind: the index of the vector - since the same 2D vector
+    #     can be different in 3D
+    #     :param vector: the vector coordinates - a 2*3 list of lists.
+    #     :return: None
+    #     """
+    #     if vector:
+    #         new_vect3d = Vector3D.objects.get_or_create(
+    #             mol_id=mol, vector_id=new_vect, number=vect_ind
+    #         )[0]
+    #         # The start position
+    #         new_vect3d.start_x = float(vector[0][0])
+    #         new_vect3d.start_y = float(vector[0][1])
+    #         new_vect3d.start_z = float(vector[0][2])
+    #         # The end position
+    #         new_vect3d.end_x = float(vector[1][0])
+    #         new_vect3d.end_y = float(vector[1][1])
+    #         new_vect3d.end_z = float(vector[1][2])
+    #         new_vect3d.save()
 
     def _process_canon_site(self, idx, data):
         """Create CanonSite model instance from data.
@@ -560,7 +601,9 @@ class TargetLoader:
             cmpd_data = prot_data["crystallographic_files"]
             try:
                 compound_objects[prot_name] = self._process_compound(
-                    prot_name, cmpd_data
+                    prot_name,
+                    project,
+                    cmpd_data,
                 )
             except IntegrityError as exc:
                 raise IntegrityError(exc.args[0]) from exc
