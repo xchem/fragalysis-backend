@@ -1565,29 +1565,42 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
 class CheckTaskStatus(APIView):
     def get(self, request, task_id, *args, **kwargs):
         """Given a task_id (a string) we try to return the status of the task,
-        trying to handle unknown task as best we can. Celery is happy to accept any
-        string as a Task ID. Yo know it's a real task takes a lot of work, or you can
-        simply assume that a state of 'PENDING' means "unknown task".
+        trying to handle unknown tasks as best we can. Celery is happy to accept any
+        string as a Task ID. To know it's a real task takes a lot of work, or you can
+        simply interpret a 'PENDING' state as "unknown task".
         """
         logger.info("+ CheckTaskStatus.get called task_id='%s'", task_id)
 
-        task = AsyncResult(task_id)
-        if task.state == 'PENDING':
+        # We're about to interact with Celery
+        # we'd better make sure it's running!
+        if not check_services():
+            error = {'error': 'Celery is not running'}
+            return Response(error, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        # task_id is (will be) a UUID, but Celery expects a string
+        task_id_str = str(task_id)
+        try:
+            result = AsyncResult(task_id_str)
+        except TimeoutError:
+            error = {'error': 'Task result query timed out'}
+            return Response(error, status=status.HTTP_408_REQUEST_TIMEOUT)
+
+        if result.state == 'PENDING':
             error = {'error': 'Unknown task'}
             return Response(error, status=status.HTTP_400_BAD_REQUEST)
 
         # Extract messages (from task info)
         # Assuming the task has some info.
         messages = []
-        if task.info:
-            messages = [k for k in task.info.get('description', [])]
+        if result.info:
+            messages = [k for k in result.info.get('description', [])]
 
         data = {
-            'task_id': task_id,
-            'task_status': task.status,
-            'is_ready': task.ready(),
-            'is_successful': task.successful(),
-            'is_failed': task.failed(),
+            'task_id': result.id,
+            'status': result.state,
+            'ready': result.ready(),
+            'successful': result.successful(),
+            'failed': result.failed(),
             'messages': messages,
         }
         return JsonResponse(data)
