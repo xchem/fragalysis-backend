@@ -3,7 +3,7 @@ name: build production
 
 # Actions that take place on the 'production' branch.
 # Here we only respond to production-grade tags (i.e. "2022.1" or "1.0.0").
-# We build two images - one usign the tag and one using 'stable'
+# We build two images - one using the tag and one using 'stable'
 #
 # If a DOCKERHUB_USERNAME secret is defined the image is pushed.
 
@@ -115,7 +115,11 @@ jobs:
         echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
 
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
+    - name: Lint Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
     - name: Build
       uses: docker/build-push-action@v2
       with:

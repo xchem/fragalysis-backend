@@ -17,6 +17,7 @@ build-requirements.txt
 docker-compose.*
 .dockerignore
 .readthedocs.yml
+.hadolint.yaml
 .pylintrc
 .gitignore
 .mypy.ini

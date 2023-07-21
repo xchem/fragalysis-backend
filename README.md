@@ -40,6 +40,31 @@ The stack is deployed as a container images to [Kubernetes] using [Ansible] play
 that can be found in the Ansible repository. Additional development and deployment
 documentation can be found in the [informaticsmatters/dls-fragalysis-stack-kubernetes](https://github.com/InformaticsMatters/dls-fragalysis-stack-kubernetes) repository.
 
+## Setting up development environment
+This project uses Poetry [https://python-poetry.org/](https://python-poetry.org/) pacakage management system. Required packages (along with other project settings), are specified on `pyproject.toml` file, and all dependencies and their versions in `poetry.lock` file. When the repository is first downloaded, create the local virtual environment by running
+
+```
+poetry install
+```
+
+New packages are added with
+
+```
+poetry add
+```
+
+This opens an interactive dialogue where package name and version (exact or range) can be specified. Alternatively, the package can be added to `pyproject.toml` file under appropriate section manually.
+
+After package has been added (or just to update packages defined with a range of allowed versions) run
+
+```
+poetry update
+```
+
+This resolves all dependencies (and their dependencies), writes `poetry.lock` file and installs/updates new packages to local venv. It's equivalent to running `poetry lock && poetry install`, so if you're not interested in local environment and just want to update the lockfile, you can run just `poetry lock`.
+
+*TODO: at the time of writing (2023-07-21), this project is still on Python 3.7, which means some packages that are needed for development (specifically `pre-commit`), have not been added to `pyproject.toml` due to version conflict. Once Python has been updated to more recent version they can be added to project requirements where they belong; until that time, instructions in section [Pre-commit](#pre-commit) are still relevant.*
+
 ## Building and running (local)
 The backend is a Docker container image and can be build and deployed locally using
 `docker-compose`.
