@@ -10,6 +10,7 @@ from datetime import datetime
 from wsgiref.util import FileWrapper
 from dateutil.parser import parse
 import pytz
+from pathlib import Path
 
 import pandas as pd
 
@@ -37,12 +38,15 @@ from api.security import ISpyBSafeQuerySet
 
 from api.utils import get_params, get_highlighted_diffs, pretty_request
 from viewer.utils import create_squonk_job_request_url
+from viewer.utils import handle_uploaded_file
 
 from viewer import filters
 from viewer import models
 from viewer import serializers
 from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
 from viewer.squonk2_agent import AccessParams, CommonParams, SendParams, RunJobParams
+
+
 
 from .forms import CSetForm, TSetForm
 from .tasks import (
@@ -225,10 +229,13 @@ def react(request):
     context = {}
 
     # Is the Squonk2 Agent configured?
+    logger.info("Checking whether Squonk2 is configured...")
     sq2_rv = _SQ2A.configured()
     if sq2_rv.success:
+        logger.info("Squonk2 is configured")
         context['squonk_available'] = 'true'
     else:
+        logger.info("Squonk2 is NOT configured")
         context['squonk_available'] = 'false'
 
     if discourse_api_key:
@@ -1400,7 +1407,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
         this method.
         """
         logger.info('+ DownloadStructures.post')
-        logger.info('request.data=%s', json.dumps(request.data))
 
         # Clear up old existing files
         maintain_download_links()
@@ -1491,7 +1497,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
 
             logger.info('Request had no Proteins')
             logger.info('Looking for Protein records for %r...', target)
-            proteins = Protein.objects.filter(target_id=target.id).values()
+            proteins = models.Protein.objects.filter(target_id=target.id).values()
 
         if len(proteins) == 0:
             content = {'message': 'Please enter list of valid protein codes '
@@ -1524,6 +1530,7 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
         return "Upload Target Experiments"
 
     def create(self, request, *args, **kwargs):
+        logger.info("+ UploadTargetExperiments.create called")
         del args, kwargs
 
         serializer = self.get_serializer_class()(data=request.data)
@@ -1531,7 +1538,6 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
             # User must have access to the Project
             # and the Target must be in the Project.
 
-            # assuming won't be necessary to save
             contact_email = serializer.validated_data['contact_email']
             proposal_ref = serializer.validated_data['proposal_ref']
             filename = serializer.validated_data['file']
@@ -1539,9 +1545,14 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
             # I'm not creating ExperimentUpload object here, so I
             # suppose there's no point in keeping this as ModelViewSet
 
+            tmpdir = Path(settings.MEDIA_ROOT).joinpath('tmp')
+            tmpdir.mkdir(exist_ok=True)
+            target_file = tmpdir.joinpath(filename.name)
+            handle_uploaded_file(target_file, filename)
+
             assert check_services()
 
-            task = task_load_target.delay(filename.name, proposal_ref=proposal_ref,
+            task = task_load_target.delay(str(target_file), proposal_ref=proposal_ref,
                                           contact_email=contact_email, user_id=request.user.pk)
             logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
 
