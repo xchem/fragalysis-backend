@@ -1564,11 +1564,30 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
 
 class CheckTaskStatus(APIView):
     def get(self, request, task_id, *args, **kwargs):
+        """Given a task_id (a string) we try to return the status of the task,
+        trying to handle unknown task as best we can. Celery is happy to accept any
+        string as a Task ID. Yo know it's a real task takes a lot of work, or you can
+        simply assume that a state of 'PENDING' means "unknown task".
+        """
+        logger.info("+ CheckTaskStatus.get called task_id='%s'", task_id)
+
         task = AsyncResult(task_id)
-        messages = [ k for k in task.info.get('description', []) ]
+        if task.state == 'PENDING':
+            error = {'error': 'Unknown task'}
+            return Response(error, status=status.HTTP_400_BAD_REQUEST)
+
+        # Extract messages (from task info)
+        # Assuming the task has some info.
+        messages = []
+        if task.info:
+            messages = [k for k in task.info.get('description', [])]
+
         data = {
+            'task_id': task_id,
             'task_status': task.status,
             'is_ready': task.ready(),
+            'is_successful': task.successful(),
+            'is_failed': task.failed(),
             'messages': messages,
         }
         return JsonResponse(data)
