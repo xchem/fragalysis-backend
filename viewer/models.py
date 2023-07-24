@@ -1088,7 +1088,8 @@ class SiteObservation(models.Model):
     xmap_2fofc_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
     event_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
     artefacts_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
-    trans_matrix_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    # TODO: remove
+    # trans_matrix_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     pdb_header_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
     smiles = models.TextField()
     seq_id = models.IntegerField()

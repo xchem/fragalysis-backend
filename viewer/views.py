@@ -1593,7 +1593,8 @@ class CheckTaskStatus(APIView):
         # Assuming the task has some info.
         messages = []
         if result.info:
-            messages = [k for k in result.info.get('description', [])]
+            # messages = [k for k in result.info.get('description', [])]
+            messages = result.info.get('description', [])
 
         data = {
             'task_id': result.id,

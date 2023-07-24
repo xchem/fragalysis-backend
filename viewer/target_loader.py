@@ -8,6 +8,8 @@ import tarfile
 
 from rdkit import Chem
 
+from celery import Task
+
 # from hypothesis.definitions import VectTypes
 
 # from hypothesis.models import Vector3D
@@ -39,6 +41,7 @@ from viewer.models import (
 
 from viewer.target_set_upload import get_create_target
 from viewer.target_set_upload import calc_cpd
+
 # from viewer.target_set_upload import get_vectors
 
 from django.conf import settings
@@ -47,6 +50,7 @@ logger = logging.getLogger(__name__)
 
 METADATA_FILE = "meta_aligner.yaml"
 TARGET_LOADER_DATA = "target_loader_data"
+BUNDLE_SUBDIR = "upload_"
 
 # process all metadata yaml file blocks into following structure:
 # { some_id: MetadataObjects, ...}
@@ -57,19 +61,18 @@ MetadataObjects = namedtuple("MetadataObjects", "instance data")
 
 
 class TargetLoader:
-    def __init__(self, data_bundle: str, tempdir: str):
+    def __init__(self, data_bundle: str, tempdir: str, task=None):
         self.data_bundle = Path(data_bundle).name
         self.bundle_name = Path(data_bundle).stem
         self.target_name = self.bundle_name.split("-")[0]
         self.bundle_path = data_bundle
         self.tempdir = tempdir
         self.raw_data = Path(self.tempdir).joinpath(self.bundle_name)
+        self.task = task
 
         self.raw_data.mkdir()
 
-        self._target_root = self.raw_data.joinpath(self.target_name).joinpath(
-            "upload_1"
-        )
+        self._target_root = self.raw_data.joinpath(self.target_name)
 
         # work out where the data finally lands
         path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
@@ -77,6 +80,10 @@ class TargetLoader:
 
         self._final_path = path.joinpath(self.bundle_name)
         # but don't create now, this comes later
+
+        # to be used in logging messages, if no task, means invoked
+        # directly, likely from management command
+        self.task_id = f"task {task.request.id}: " if task else ""
 
     @property
     def target_root(self) -> Path:
@@ -92,7 +99,7 @@ class TargetLoader:
                 meta_aligner = yaml.safe_load(file)
         except FileNotFoundError as exc:
             msg = f"{METADATA_FILE} file not found in data archive!"
-            logger.error(msg)
+            logger.error("%s%s", self.task_id, msg)
             raise FileNotFoundError(msg) from exc
 
         validation_errors = []
@@ -104,7 +111,8 @@ class TargetLoader:
             except KeyError:
                 msg = error_text.format(block)
                 validation_errors.append(msg)
-                logger.error(msg)
+                update_task(self.task, "ERROR", msg)
+                logger.error("%s%s", self.task_id, msg)
 
         # wonder if it's worth throwing a custom exception here.. easier
         # to scan the logs. then again, if errors are passed to user,
@@ -114,7 +122,7 @@ class TargetLoader:
 
         return result
 
-    def _process_experiment(self, experiment_upload, protein_name, data):
+    def _process_experiment(self, upload_root, experiment_upload, protein_name, data):
         """Create Experiment model instance from data.
 
         Incoming data format:
@@ -137,9 +145,7 @@ class TargetLoader:
         """
         logger.debug("Creating experiment object: %s", protein_name)
 
-        files = self._check_file_struct(
-            self.target_root, data["crystallographic_files"]
-        )
+        files = self._check_file_struct(upload_root, data["crystallographic_files"])
 
         experiment = Experiment(
             experiment_upload=experiment_upload,
@@ -158,7 +164,8 @@ class TargetLoader:
             experiment.save()
         except IntegrityError as exc:
             msg = f"Failed to save Experiment: {protein_name}"
-            logger.error(msg)
+            update_task(self.task, "ERROR", msg)
+            logger.error("%s%s", self.task_id, msg)
             raise IntegrityError(msg) from exc
 
         return MetadataObjects(
@@ -195,7 +202,8 @@ class TargetLoader:
             compound.save()
         except IntegrityError as exc:
             msg = f"Failed to save Compound: {protein_name}"
-            logger.error(msg)
+            update_task(self.task, "ERROR", msg)
+            logger.error("%s%s", self.task_id, msg)
             raise IntegrityError(msg) from exc
         except KeyError as exc:
             # this means ligand info missing
@@ -229,7 +237,8 @@ class TargetLoader:
             xtalform.save()
         except IntegrityError as exc:
             msg = f"Failed to save Xtalform: {data['xtalform_ref']}"
-            logger.error(msg)
+            update_task(self.task, "ERROR", msg)
+            logger.error("%s%s", self.task_id, msg)
             raise IntegrityError(msg) from exc
 
         return MetadataObjects(instance=xtalform, data=None)
@@ -255,7 +264,8 @@ class TargetLoader:
             quat_assembly.save()
         except IntegrityError as exc:
             msg = f"Failed to save QuatAssembly: {idx}"
-            logger.error(msg)
+            update_task(self.task, "ERROR", msg)
+            logger.error("%s%s", self.task_id, msg)
             raise IntegrityError(msg) from exc
 
         return MetadataObjects(
@@ -292,7 +302,8 @@ class TargetLoader:
             canon_site_conf.save()
         except IntegrityError as exc:
             msg = f"Failed to save CanonSiteConf: {data['name']}"
-            logger.error(msg)
+            update_task(self.task, "ERROR", msg)
+            logger.error("%s%s", self.task_id, msg)
             raise IntegrityError(msg) from exc
 
         return MetadataObjects(
@@ -302,6 +313,7 @@ class TargetLoader:
 
     def _process_site_observation(
         self,
+        upload_root,
         experiment,
         compound,
         xtalform_site,
@@ -330,11 +342,11 @@ class TargetLoader:
         code = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         logger.debug("Creating SiteObservation object: %s", code)
 
-        files = self._check_file_struct(self.target_root, data)
+        files = self._check_file_struct(upload_root, data)
 
         mol_data = None
         with open(
-            self.target_root.joinpath(files["ligand_mol"]),
+            upload_root.joinpath(files["ligand_mol"]),
             "r",
             encoding="utf-8",
         ) as f:
@@ -354,7 +366,6 @@ class TargetLoader:
             xmap_2fofc_file=str(self._get_final_path(files["x_map"])),
             event_file=str(self._get_final_path(files["event_map"])),
             artefacts_file=str(self._get_final_path(files.get("artefacts", None))),
-            trans_matrix_info="currently missing",
             pdb_header_file="currently missing",
             smiles=data["ligand_smiles"],
             seq_id=ligand,
@@ -366,7 +377,8 @@ class TargetLoader:
             site_observation.save()
         except IntegrityError as exc:
             msg = f"Failed to save SiteObservation: {site_observation.code}"
-            logger.error(msg)
+            update_task(self.task, "ERROR", msg)
+            logger.error("%s%s", self.task_id, msg)
             raise IntegrityError(msg) from exc
 
         # vectors = self._get_vectors(site_observation)
@@ -461,7 +473,8 @@ class TargetLoader:
             canon_site.save()
         except IntegrityError as exc:
             msg = f"Failed to save CanonSite: {idx}"
-            logger.error(msg)
+            update_task(self.task, "ERROR", msg)
+            logger.error("%s%s", self.task_id, msg)
             raise IntegrityError(msg) from exc
 
         return MetadataObjects(
@@ -497,7 +510,8 @@ class TargetLoader:
             xtalform_site.save()
         except IntegrityError as exc:
             msg = f"Failed to save Xtalform: {idx}"
-            logger.error(msg)
+            update_task(self.task, "ERROR", msg)
+            logger.error("%s%s", self.task_id, msg)
             raise IntegrityError(msg) from exc
 
         return MetadataObjects(
@@ -506,14 +520,14 @@ class TargetLoader:
         )
 
     def process_metadata(
-        self, proposal_ref=None, contact_email=None, user_id=None, task=None
+        self,
+        upload_root: Path = None,
+        proposal_ref: str = "",
+        contact_email: str = "",
+        user_id: int = None,
+        task: Task = None,
     ):
-        """Extract model instances from metadata file and save them to db.
-
-        If called from task, takes task as a parameter for status updates.
-
-        The only method to be called outside of the class.
-        """
+        """Extract model instances from metadata file and save them to db."""
         # TODO: this method is quite long and should perhaps be broken
         # apart. then again, it just keeps calling other methods to
         # create model instances, so logically it's just doing the
@@ -535,23 +549,17 @@ class TargetLoader:
                 conformer_sites,
                 xtalform_sites,
             ) = self._load_yaml_blocks(
-                Path(self.target_root).joinpath(METADATA_FILE), blocks
+                Path(upload_root).joinpath(METADATA_FILE), blocks
             )
         except FileNotFoundError as exc:
             raise FileNotFoundError(exc.args[0]) from exc
         except KeyError as exc:
             raise KeyError(exc.args[0]) from exc
 
-        try:
-            task.update_state(
-                state="PROCESSING",
-                meta={
-                    "description": "Processing metadata",
-                },
-            )
-        except AttributeError:
-            # no task passed to method, nothing to do
-            pass
+        result = []
+
+        update_task(task, "PROCESSING", "Processing metadata")
+        logger.info("%sProcessing %s", self.task_id, upload_root)
 
         target = get_create_target(self.target_name)
 
@@ -585,6 +593,10 @@ class TargetLoader:
             except IntegrityError as exc:
                 raise IntegrityError(exc.args[0]) from exc
 
+        msg = f"{len(quat_assembly_objects.keys())} QuatAssembly objects saved"
+        update_task(task, "PROCESSING", msg)
+        logger.info("%s%s", self.task_id, msg)
+
         experiment_objects = {}
         compound_objects = {}
         for prot_name, prot_data in crystals.items():
@@ -593,7 +605,7 @@ class TargetLoader:
             # continue as well.
             try:
                 experiment_objects[prot_name] = self._process_experiment(
-                    experiment_upload, prot_name, prot_data
+                    upload_root, experiment_upload, prot_name, prot_data
                 )
             except IntegrityError as exc:
                 raise IntegrityError(exc.args[0]) from exc
@@ -611,6 +623,15 @@ class TargetLoader:
                 # this particular block doesn't have compound info
                 # continue with the loop, nothing to do
                 continue
+
+        msg = f"{len(compound_objects.keys())} Compound objects saved"
+        update_task(task, "PROCESSING", msg)
+        logger.info("%s%s", self.task_id, msg)
+
+        msg = f"{len(experiment_objects.keys())} Experiment objects saved"
+        update_task(task, "PROCESSING", msg)
+        logger.info("%s%s", self.task_id, msg)
+        result.append(f"{self.bundle_name} {upload_root.name}: {msg}")
 
         # save components manytomany to experiment
         # TODO: is it 1:1 relationship? looking at the meta_align it seems to be,
@@ -638,6 +659,11 @@ class TargetLoader:
             except IntegrityError as exc:
                 raise IntegrityError(exc.args[0]) from exc
 
+        msg = f"{len(xtalform_objects.keys())} Xtalform objects saved"
+        update_task(task, "PROCESSING", msg)
+        logger.info("%s%s", self.task_id, msg)
+        result.append(f"{self.bundle_name} {upload_root.name}: {msg}")
+
         # up until this point, all objects are fully saved
         # missing fk's begin now
 
@@ -650,6 +676,10 @@ class TargetLoader:
         # NB! missing fk's:
         # - ref_conf_site
         # - quat_assembly
+
+        msg = f"{len(canon_site_objects.keys())} CanonSite objects saved"
+        update_task(task, "PROCESSING", msg)
+        logger.info("%s%s", self.task_id, msg)
 
         # reindex canon sites by canon_sites_conf_sites
         # NB! this is also used below for ref_conf_site in canon_site
@@ -672,6 +702,10 @@ class TargetLoader:
         # NB! missing fk's:
         # - site_observation
 
+        msg = f"{len(canon_site_conf_objects.keys())} CanonSiteConf objects saved"
+        update_task(task, "PROCESSING", msg)
+        logger.info("%s%s", self.task_id, msg)
+
         xtalform_sites_objects = {}
         for idx, obj in xtalform_sites.items():
             try:
@@ -683,6 +717,10 @@ class TargetLoader:
                 )
             except IntegrityError as exc:
                 raise IntegrityError(exc.args[0]) from exc
+
+        msg = f"{len(xtalform_sites_objects.keys())} XtalformSite objects saved"
+        update_task(task, "PROCESSING", msg)
+        logger.info("%s%s", self.task_id, msg)
 
         # now can update CanonSite with ref_conf_site and quat_assembly
 
@@ -720,6 +758,7 @@ class TargetLoader:
                             site_observation_objects[
                                 (experiment_meta.instance.code, chain, ligand)
                             ] = self._process_site_observation(
+                                upload_root,
                                 experiment_meta.instance,
                                 compound_objects[
                                     experiment_meta.instance.code
@@ -736,11 +775,18 @@ class TargetLoader:
                         except IntegrityError as exc:
                             raise IntegrityError(exc.args[0]) from exc
 
+        msg = f"{len(site_observation_objects.keys())} SiteOBservation objects saved"
+        update_task(task, "PROCESSING", msg)
+        logger.info("%s%s", self.task_id, msg)
+        result.append(f"{self.bundle_name} {upload_root.name}: {msg}")
+
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():
             val.instance.ref_site_observation = site_observation_objects[
                 (val.data["dtag"], val.data["chain"], val.data["residue"])
             ].instance
+
+        return result
 
     def _get_final_path(self, path: Path):
         """Update relative path to final storage path"""
@@ -750,8 +796,43 @@ class TargetLoader:
             # received invalid path
             return None
 
+    def process_bundle(
+        self, proposal_ref=None, contact_email=None, user_id=None, task=None
+    ):
+        """Resolves subdirs in uploaded data bundle.
+
+        If called from task, takes task as a parameter for status updates.
+        """
+        result = []
+        for path in Path(self.target_root).iterdir():
+            if path.is_dir():
+                logger.info("Found upload dir: %s", str(path))
+                if self.final_path.joinpath(path.name).is_dir():
+                    # this target has been uploaded at least once and
+                    # this upload already exists. skip
+                    result.append(
+                        f"{self.bundle_name}/{path.name} already uploaded, skipping."
+                    )
+                    continue
+                try:
+                    upload_report = self.process_metadata(
+                        upload_root=path,
+                        proposal_ref=proposal_ref,
+                        contact_email=contact_email,
+                        user_id=user_id,
+                        task=task,
+                    )
+                except FileNotFoundError as exc:
+                    raise FileNotFoundError(exc.args[1]) from exc
+                except IntegrityError as exc:
+                    raise IntegrityError(exc.args[0]) from exc
+
+                result.extend(upload_report)
+
+        return result
+
     @staticmethod
-    def _check_file_struct(target_root, file_struct):
+    def _check_file_struct(upload_root, file_struct):
         """Check if file exists and if sha256 hash matches (if given).
 
         file struct can come in 2 configurations:
@@ -765,25 +846,32 @@ class TargetLoader:
             if isinstance(value, dict):
                 try:
                     filename = value["file"]
-                    # this file is sometimes (always?) given with
-                    # prefix 'upload_1' or something. this is not
-                    # correct relative path, chomp it off if exists
-                    # TODO: if multiple uploads, upload_3, etc, then
-                    # needs some regexing
-                    if Path(filename).parts[0] == "upload_1":
+                    # this file is sometimes but not always given with
+                    # prefix 'upload_1' or something. Apparently
+                    # there's a bug here, but until I know which way
+                    # the fix lands, I'll pass it upload_root path and
+                    # just remove the prefix. Should be the most
+                    # future-proof way
+                    if Path(filename).parts[0].startswith(BUNDLE_SUBDIR):
                         filename = str(Path(*Path(filename).parts[1:]))
 
                     # I guess I don't care if it's not given?
                     file_hash = value.get("sha256", None)
+
+                    # TODO: error handling. don't know how to
+                    # implement this because data structure/metadata
+                    # not at final structure yet
                     if TargetLoader._check_file(
-                        target_root.joinpath(filename), file_hash
+                        upload_root.joinpath(filename), file_hash
                     ):
                         result[key] = str(filename)
 
                 except KeyError:
                     logger.warning("%s file info missing in %s!", key, METADATA_FILE)
             elif isinstance(value, str) and not key == "ligand_smiles":
-                if TargetLoader._check_file(target_root.joinpath(value)):
+                # this is a bit of a workaround but ligand_smiles
+                # happens to be specified on the same level as files
+                if TargetLoader._check_file(upload_root.joinpath(value)):
                     result[key] = str(value)
             else:
                 # this is probably the list of panddas event files, don't
@@ -829,38 +917,68 @@ def load_target(
     user_id=None,
     task=None,
 ):
-    logger.info("load_target called")
     # TODO: do I need to sniff out correct archive format?
     with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
-        target_loader = TargetLoader(data_bundle, tempdir)
+        target_loader = TargetLoader(data_bundle, tempdir, task=task)
+
         try:
             with tarfile.open(target_loader.bundle_path, "r") as archive:
+                msg = f"Extracting bundle: {data_bundle}"
+                logger.info("%s%s", target_loader.task_id, msg)
+                update_task(task, "PROCESSING", msg)
                 archive.extractall(target_loader.raw_data)
+                msg = f"Data extraction complete: {data_bundle}"
+                logger.info("%s%s", target_loader.task_id, msg)
         except FileNotFoundError as exc:
             msg = f"{data_bundle} file does not exist!"
-            logger.error(msg)
+            logger.exception("%s%s", target_loader.task_id, msg)
+            update_task(task, "ERROR", msg)
             raise FileNotFoundError(msg) from exc
 
         try:
             with transaction.atomic():
-                target_loader.process_metadata(
+                upload_report = target_loader.process_bundle(
                     proposal_ref=proposal_ref,
                     contact_email=contact_email,
                     user_id=user_id,
                     task=task,
                 )
         except FileNotFoundError as exc:
-            logger.error(exc.args[1])
+            logger.error(exc.args[0])
+            update_task(task, "ERROR", exc.args[1])
             raise FileNotFoundError(exc.args[1]) from exc
         except IntegrityError as exc:
-            raise IntegrityError(exc.args[0]) from exc
+            update_task(task, "ERROR", exc.args[1])
+            raise IntegrityError(exc.args[1]) from exc
 
         # data in db, all good, move the files to permanent storage
-        try:
-            target_loader.final_path.mkdir()
-        except OSError as exc:
-            msg = f"Directory {target_loader.final_path} already exists"
-            logger.error(msg)
-            raise OSError(msg) from exc
+        if target_loader.final_path.is_dir():
+            # target is already uploaded at least once, only copy new
+            # upload_<x> subdirectories
+            for path in Path(target_loader.target_root).iterdir():
+                if path.is_dir():
+                    final_path = target_loader.final_path.joinpath(path.name)
+                    if not final_path.is_dir():
+                        path.rename(final_path)
+                    else:
+                        logger.info("%s already present, skipping", path.name)
 
-        target_loader.raw_data.rename(target_loader.final_path)
+        else:
+            # copy the full target directory
+            target_loader.final_path.mkdir()
+            target_loader.raw_data.rename(target_loader.final_path)
+
+        update_task(task, "SUCCESS", upload_report)
+
+
+def update_task(task, state, message):
+    try:
+        task.update_state(
+            state=state,
+            meta={
+                "description": message,
+            },
+        )
+    except AttributeError:
+        # no task passed to method, nothing to do
+        pass
