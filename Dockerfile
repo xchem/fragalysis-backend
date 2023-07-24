@@ -1,4 +1,4 @@
-FROM informaticsmatters/rdkit-python3-debian:Release_2021_09_2
+FROM python:3.10.12-slim-bullseye
 
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -10,7 +10,7 @@ USER root
 
 # Install required packages.
 # bzip2, gnupg & wget are actually used by the stack,
-# we load them here to simplify the stack Dockerfile.
+# we load them here to simplify the stack's Dockerfile.
 RUN apt-get --allow-releaseinfo-change update -y && \
     apt-get install --no-install-recommends -y \
       bzip2 \
@@ -37,7 +37,7 @@ WORKDIR /code
 
 COPY poetry.lock pyproject.toml ./
 
-RUN curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION} && \
+RUN curl -sSL https://install.python-poetry.org | python - && \
     poetry export -f requirements.txt --without dev --output requirements.txt && \
     pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --requirement requirements.txt
