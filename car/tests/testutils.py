@@ -17,11 +17,11 @@
 #     getPubChemCompound,
 # )
 
-# from car.tests.testdata.indata.testutils import (
+# from .testdata.indata.testutils import (
 #     snar_reactant_smiles_one,
 #     snar_reactant_smiles_two,
 # )
-# from car.tests.testdata.outdata.testutils import (
+# from .testdata.outdata.testutils import (
 #     snar_combo_equal,
 #     snar_combo_unequal,
 #     svg_str,
@@ -212,6 +212,11 @@
 #             "PubChem name search should fail and return None",
 #         )
 
-#     def test_get_pubchem_cas(self):
+#     def test_get_pubchem_cas_success(self):
 #         test_cas = getPubChemCAS(compound=self.compound)
 #         self.assertEqual(test_cas, "733720-95-1", "incorrect CAS number returned")
+
+#     def get_pubchem_cas_fail(self):
+#         test_cas = getPubChemCAS(compound=None)
+#         self.assertEqual(test_cas, None, "CAS should be None")
+    
