@@ -6,4 +6,10 @@
 set -eo pipefail
 
 echo "Running celery..."
-celery -A fragalysis worker -l info
+
+CONCURRENCY="${WORKER_CONCURRENCY:-4}"
+ 
+C_FORCE_ROOT=true celery \
+    --concurrency ${CONCURRENCY} \
+    --app fragalysis \
+    worker
