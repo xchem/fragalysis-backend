@@ -1,4 +1,4 @@
-FROM python:3.10.12-slim-bullseye
+FROM python:3.10.12
 
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -9,21 +9,16 @@ ENV PATH="${PATH}:${POETRY_HOME}/bin"
 USER root
 
 # Install required packages.
-# bzip2, gnupg & wget are actually used by the stack,
+# gnupg (and bzip2 & wget) is actually used by the stack,
 # we load them here to simplify the stack's Dockerfile.
-RUN apt-get --allow-releaseinfo-change update -y && \
+RUN apt-get update --allow-insecure-repositories -y && \
     apt-get install --no-install-recommends -y \
-      bzip2 \
-      curl \
       default-libmysqlclient-dev \
-      git \
       gnupg \
       nginx \
       pandoc \
-      redis-server \
       texlive-latex-base \
-      texlive-fonts-recommended \
-      wget && \
+      texlive-fonts-recommended && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
