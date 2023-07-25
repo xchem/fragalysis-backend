@@ -212,6 +212,11 @@ class PubChemFunctionsTestCase(TestCase):
             "PubChem name search should fail and return None",
         )
 
-    def test_get_pubchem_cas(self):
+    def test_get_pubchem_cas_success(self):
         test_cas = getPubChemCAS(compound=self.compound)
         self.assertEqual(test_cas, "733720-95-1", "incorrect CAS number returned")
+
+    def get_pubchem_cas_fail(self):
+        test_cas = getPubChemCAS(compound=None)
+        self.assertEqual(test_cas, None, "CAS should be None")
+    
