@@ -87,6 +87,7 @@ router.register(r"download_structures", viewer_views.DownloadStructures, basenam
 router.register(r"job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer')
 router.register(r"job_callback", viewer_views.JobCallBackView, basename='job_callback')
 router.register(r"job_config", viewer_views.JobConfigView, basename='job_config')
+router.register(r"job_override", viewer_views.JobOverrideView, basename='job_override')
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
 from rest_framework.decorators import api_view, renderer_classes
