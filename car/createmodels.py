@@ -1,6 +1,7 @@
 """Create Django models from Manifold API/custom chemistry outputs"""
 from __future__ import annotations
-import math
+from functools import reduce
+import operator
 from typing import Tuple
 import inspect
 from rdkit import Chem
@@ -616,11 +617,13 @@ class CreateEncodedActionModels(object):
                 reactionobj.reactionclass for reactionobj in proceedingreactionqueryset
             ] + [self.reaction_name]
             reactionyields = getReactionYields(reactionclasslist=reactionclasslist)
-            yieldcorrection = math.prod(reactionyields)
+            yieldcorrection = reduce(operator.mul, reactionyields, 1)
+            # yieldcorrection =  math.prod(reactionyields)
 
         if not proceedingreactionqueryset:
             reactionyields = getReactionYields(reactionclasslist=[self.reaction_name])
-            yieldcorrection = math.prod(reactionyields)
+            yieldcorrection = reduce(operator.mul, reactionyields, 1)
+            # yieldcorrection = math.prod(reactionyields)
 
         product_mols = self.target_obj.mols / yieldcorrection
         return product_mols

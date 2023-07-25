@@ -1,6 +1,7 @@
 """Checks validation of file for uploading to CAR"""
 from __future__ import annotations
-import math
+from functools import reduce
+import operator
 from typing import BinaryIO
 import inspect
 import pandas as pd
@@ -322,7 +323,7 @@ class ValidateFile(object):
                     if "reactant-2-{}".format(reaction_number) in columns_count
                     and columns_count["reactant-1-{}".format(reaction_number)] != 0
                 ]
-                no_targets = int(math.prod(number_reactant_1s + number_reactant_2s))
+                no_targets = reduce(operator.mul, number_reactant_1s + number_reactant_2s, 1)
                 target_names = [
                     "{}-{}".format(combi_group_name, i) for i in range(no_targets)
                 ]
