@@ -7,9 +7,8 @@ set -eo pipefail
 
 echo "Running celery..."
 
-CONCURRENCY="${WORKER_CONCURRENCY:-4}"
+CONCURRENCY=${WORKER_CONCURRENCY:-4}
 
-C_FORCE_ROOT=true celery \
-    --concurrency ${CONCURRENCY} \
-    --app fragalysis \
-    worker
+export C_FORCE_ROOT=true
+celery --app fragalysis worker \
+    --concurrency ${CONCURRENCY}
