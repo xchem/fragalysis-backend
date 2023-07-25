@@ -44,13 +44,16 @@ name: build staging
 on:
   push:
     branches:
-      - "master"
-      - "main"
-    tags:
-      - "**"
-  # schedule:
-  #   # Build every Sunday (0) at 4:30pm
-  #   - cron: "30 16 * * 0"
+      - "staging"
+    tags-ignore:
+      # Ignore any production-grade tags (i.e. "2022.1" or "1.0.0"),
+      # they're reserved for the production branch. Here
+      # we expect a non-production tag, i.e. "2022.1-rc.1" or "1.0.0-rc.1"
+      - "[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+"
+  schedule:
+    # Build every Sunday (0) at 4:30pm
+    - cron: "30 16 * * 0"
 
 env:
   # The following 'defaults' are used in the 'Initialise workflow variables' step,
@@ -60,9 +63,12 @@ env:
   #
   #   For Jobs conditional on the presence of a secret see this Gist...
   #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
-  BE_NAMESPACE: waztom
-  FE_BRANCH: master
-  FE_NAMESPACE: ag-m2ms
+  BE_NAMESPACE: xchem
+  FE_BRANCH: staging
+  FE_NAMESPACE: xchem
+  STACK_BRANCH: master
+  STACK_GITHUB_NAMESPACE: xchem
+  STACK_NAMESPACE: xchem
 
 jobs:
   build:
@@ -78,6 +84,7 @@ jobs:
         id: vars
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TRIGGER_DOWNSTREAM: ${{ secrets.TRIGGER_DOWNSTREAM }}
         run: |
           # BE_NAMESPACE
           BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
@@ -125,6 +132,10 @@ jobs:
           echo set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
           echo ::set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
 
+          # Do we trigger downstream, i.e. is TRIGGER_DOWNSTREAM 'yes'?
+          echo set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
+          echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
+
       - name: Checkout
         uses: actions/checkout@v2
 
@@ -150,3 +161,23 @@ jobs:
       - name: Push
         if: steps.vars.outputs.push == 'true'
         run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
+
+      # Trigger the stack build for every non-scheduled (staging) build.
+      - name: Trigger stack
+        if: |
+          steps.vars.outputs.trigger == 'true' &&
+          github.event_name != 'schedule'
+        uses: informaticsmatters/trigger-ci-action@v1
+        with:
+          ci-owner: ${{ steps.vars.outputs.STACK_GITHUB_NAMESPACE }}
+          ci-repository: fragalysis-stack
+          ci-name: build main
+          ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
+          ci-inputs: >-
+            be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
+            be_image_tag=${{ steps.vars.outputs.TAG }}
+            fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
+            fe_branch=${{ steps.vars.outputs.FE_BRANCH }}
+            stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
+          ci-user: ${{ secrets.STACK_USER }}
+          ci-user-token: ${{ secrets.STACK_USER_TOKEN }}
