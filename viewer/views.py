@@ -1551,14 +1551,14 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CheckTaskStatus(APIView):
+class TaskStatus(APIView):
     def get(self, request, task_id, *args, **kwargs):
         """Given a task_id (a string) we try to return the status of the task,
         trying to handle unknown tasks as best we can. Celery is happy to accept any
         string as a Task ID. To know it's a real task takes a lot of work, or you can
         simply interpret a 'PENDING' state as "unknown task".
         """
-        logger.info("+ CheckTaskStatus.get called task_id='%s'", task_id)
+        logger.debug("+ TaskStatus.get called task_id='%s'", task_id)
 
         # task_id is (will be) a UUID, but Celery expects a string
         task_id_str = str(task_id)

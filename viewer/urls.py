@@ -33,6 +33,6 @@ urlpatterns = [
     url(r"^target/(?P<title>.+)/$", views.tset_download, name="target_set"),
     url(r"upload_designs/", views.DSetUploadView.as_view(), name="upload_designs"),
     url(r"job_access/", views.JobAccessView.as_view(), name="job_access"),
-    path("task_status/<uuid:task_id>", views.CheckTaskStatus.as_view(), name="task_status"),
+    path("task_status/<uuid:task_id>", views.TaskStatus.as_view(), name="task_status"),
 
 ]
