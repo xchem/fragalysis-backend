@@ -816,7 +816,11 @@ class TargetLoader:
         for path in Path(self.target_root).iterdir():
             if path.is_dir():
                 logger.info("Found upload dir: %s", str(path))
-                if self.final_path.joinpath(path.name).is_dir():
+                if (
+                    self.final_path.joinpath(self.target_name)
+                    .joinpath(path.name)
+                    .is_dir()
+                ):
                     # this target has been uploaded at least once and
                     # this upload already exists. skip
                     result.append(
@@ -966,7 +970,9 @@ def load_target(
             # upload_<x> subdirectories
             for path in Path(target_loader.target_root).iterdir():
                 if path.is_dir():
-                    final_path = target_loader.final_path.joinpath(path.name)
+                    final_path = target_loader.final_path.joinpath(
+                        target_loader.target_name
+                    ).joinpath(path.name)
                     if not final_path.is_dir():
                         path.rename(final_path)
                     else:
