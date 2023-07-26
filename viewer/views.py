@@ -50,7 +50,6 @@ from viewer.squonk2_agent import AccessParams, CommonParams, SendParams, RunJobP
 
 from .forms import CSetForm, TSetForm
 from .tasks import (
-    check_services,
     erase_compound_set_job_material,
     process_compound_set,
     process_design_sets,
@@ -376,10 +375,6 @@ class UploadCSet(APIView):
                   ' - please navigate to landing page and Login'
             return render(request, 'viewer/upload-cset.html', context)
 
-        # Celery/Redis must be running.
-        # This call checks and tries to start them if they're not.
-        assert check_services()
-
         form = CSetForm(request.POST, request.FILES)
         if form.is_valid():
 
@@ -559,10 +554,6 @@ class UploadTSet(APIView):
                 = 'Only authenticated users can upload files - please navigate to landing page and Login'
             logger.info('- UploadTSet.post - authentication error')
             return render(request, 'viewer/upload-tset.html', context)
-
-        # Celery/Redis must be running.
-        # This call checks and tries to start them if they're not.
-        assert check_services()
 
         form = TSetForm(request.POST, request.FILES)
         if form.is_valid():
@@ -1550,8 +1541,6 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
             target_file = tmpdir.joinpath(filename.name)
             handle_uploaded_file(target_file, filename)
 
-            assert check_services()
-
             task = task_load_target.delay(str(target_file), proposal_ref=proposal_ref,
                                           contact_email=contact_email, user_id=request.user.pk)
             logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
@@ -1562,20 +1551,14 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CheckTaskStatus(APIView):
+class TaskStatus(APIView):
     def get(self, request, task_id, *args, **kwargs):
         """Given a task_id (a string) we try to return the status of the task,
         trying to handle unknown tasks as best we can. Celery is happy to accept any
         string as a Task ID. To know it's a real task takes a lot of work, or you can
         simply interpret a 'PENDING' state as "unknown task".
         """
-        logger.info("+ CheckTaskStatus.get called task_id='%s'", task_id)
-
-        # We're about to interact with Celery
-        # we'd better make sure it's running!
-        if not check_services():
-            error = {'error': 'Celery is not running'}
-            return Response(error, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        logger.debug("+ TaskStatus.get called task_id='%s'", task_id)
 
         # task_id is (will be) a UUID, but Celery expects a string
         task_id_str = str(task_id)
@@ -1738,10 +1721,6 @@ class JobFileTransferView(viewsets.ModelViewSet):
         else:
             transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
         logger.info('+ transfer_root=%s', transfer_root)
-
-        # Celery/Redis must be running.
-        # This call checks and tries to start them if they're not.
-        assert check_services()
 
         logger.info('oidc_access_token')
         logger.info(request.session['oidc_access_token'])
@@ -1917,10 +1896,6 @@ class JobRequestView(APIView):
         return Response(content, status=status.HTTP_200_OK)
 
     def post(self, request):
-        # Celery/Redis must be running.
-        # This call checks and tries to start them if they're not.
-        assert check_services()
-
         logger.info('+ JobRequest.post')
         # Only authenticated users can create squonk job requests.
         user = self.request.user
