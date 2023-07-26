@@ -596,6 +596,7 @@ class TargetLoader:
         msg = f"{len(quat_assembly_objects.keys())} QuatAssembly objects saved"
         update_task(task, "PROCESSING", msg)
         logger.info("%s%s", self.task_id, msg)
+        result.append(f"{self.bundle_name} {upload_root.name}: {msg}")
 
         experiment_objects = {}
         compound_objects = {}
@@ -627,6 +628,7 @@ class TargetLoader:
         msg = f"{len(compound_objects.keys())} Compound objects saved"
         update_task(task, "PROCESSING", msg)
         logger.info("%s%s", self.task_id, msg)
+        result.append(f"{self.bundle_name} {upload_root.name}: {msg}")
 
         msg = f"{len(experiment_objects.keys())} Experiment objects saved"
         update_task(task, "PROCESSING", msg)
@@ -680,6 +682,7 @@ class TargetLoader:
         msg = f"{len(canon_site_objects.keys())} CanonSite objects saved"
         update_task(task, "PROCESSING", msg)
         logger.info("%s%s", self.task_id, msg)
+        result.append(f"{self.bundle_name} {upload_root.name}: {msg}")
 
         # reindex canon sites by canon_sites_conf_sites
         # NB! this is also used below for ref_conf_site in canon_site
@@ -705,6 +708,7 @@ class TargetLoader:
         msg = f"{len(canon_site_conf_objects.keys())} CanonSiteConf objects saved"
         update_task(task, "PROCESSING", msg)
         logger.info("%s%s", self.task_id, msg)
+        result.append(f"{self.bundle_name} {upload_root.name}: {msg}")
 
         xtalform_sites_objects = {}
         for idx, obj in xtalform_sites.items():
@@ -721,6 +725,7 @@ class TargetLoader:
         msg = f"{len(xtalform_sites_objects.keys())} XtalformSite objects saved"
         update_task(task, "PROCESSING", msg)
         logger.info("%s%s", self.task_id, msg)
+        result.append(f"{self.bundle_name} {upload_root.name}: {msg}")
 
         # now can update CanonSite with ref_conf_site and quat_assembly
 
@@ -785,6 +790,10 @@ class TargetLoader:
             val.instance.ref_site_observation = site_observation_objects[
                 (val.data["dtag"], val.data["chain"], val.data["residue"])
             ].instance
+
+        result.append(
+            f"{self.bundle_name} {upload_root.name}: User {committer} uploaded target {target}"
+        )
 
         return result
 
