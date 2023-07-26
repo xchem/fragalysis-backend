@@ -1,12 +1,9 @@
 import logging
 import datetime
 import os
-import psutil
 import shutil
 
 from django.db import IntegrityError
-
-
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 
@@ -59,53 +56,6 @@ if settings.CELERY_TASK_ALWAYS_EAGER:
     logger = logging.getLogger(__name__)
 else:
     logger = get_task_logger(__name__)
-
-
-def check_services():
-    """ Method to ensure redis and celery services are running to allow handling of tasks - attempts to start either
-    service if it is not running, and returns True or False to indicate whether both services are running
-
-    Parameters
-    ----------
-    None
-
-    Returns
-    -------
-    status: bool
-        True if both services are running, False if one or both are not
-
-    """
-    services = [p.name() for p in psutil.process_iter()]
-    redis_service = 'redis-server'
-    if redis_service not in services:
-        logger.info('Service "%s" not present ... starting it', redis_service)
-        rc = os.system('redis-server &')
-        if rc != 0:
-            logger.warning('Got exit-code %s starting "%s"', rc, redis_service)
-
-    celery_service = 'celery'
-    if settings.CELERY_TASK_ALWAYS_EAGER:
-        logger.warning('Found CELERY_TASK_ALWAYS_EAGER - skipping check of celery service')
-        return True
-    else:
-        if celery_service not in services:
-            logger.info('Service "%s" not present ... starting it', celery_service)
-            rc = os.system('celery -A fragalysis worker -l info &')
-            if rc != 0:
-                logger.warning('Got exit-code %s starting "%s"', rc, celery_service)
-
-    # Check again...
-    services = [p.name() for p in psutil.process_iter()]
-    if redis_service not in services:
-        logger.error('Redis is not running as a service')
-        return False
-    if not settings.CELERY_TASK_ALWAYS_EAGER and celery_service not in services:
-        logger.error('Celery is not running as a service')
-        return False
-
-    # OK if we get here
-    logger.info('Redis and Celery are running as services')
-    return True
 
 
 @shared_task
