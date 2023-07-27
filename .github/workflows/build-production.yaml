@@ -127,11 +127,12 @@ jobs:
     - name: Compile requirements.txt
       run: |
         pip install --upgrade pip
-        pip install -r build-requirements.txt
+        pip install poetry==1.5.1
         poetry export --without-hashes --without dev --output requirements.txt
     - name: Build
       uses: docker/build-push-action@v4
       with:
+        context: .
         tags: |
           ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
           ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:stable
