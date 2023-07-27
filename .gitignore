@@ -1,5 +1,6 @@
 data/
 static/
+requirements.txt
 
 .idea/
 .vscode/
