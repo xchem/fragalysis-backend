@@ -83,6 +83,7 @@ jobs:
         poetry --version
         poetry export --without-hashes --without dev --output requirements.txt
         file requirements.txt
+        ls
         pwd
     - name: Build
       uses: docker/build-push-action@v4
