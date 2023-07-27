@@ -1,4 +1,4 @@
-FROM python:3.11.4
+FROM python:3.11.4-slim-bullseye
 
 # The build process relies on the presence of a requirements.txt file in project root.
 # This is achived prior to a container build using poetry

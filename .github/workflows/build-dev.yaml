@@ -80,7 +80,10 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install -r build-requirements.txt
+        poetry --version
         poetry export --without-hashes --without dev --output requirements.txt
+        file requirements.txt
+        pwd
     - name: Build
       uses: docker/build-push-action@v4
       with:
