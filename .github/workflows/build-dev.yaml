@@ -81,9 +81,6 @@ jobs:
         pip install --upgrade pip
         pip install poetry==1.5.1
         poetry export --without-hashes --without dev --output requirements.txt
-        file requirements.txt
-        ls
-        pwd
     - name: Build
       uses: docker/build-push-action@v4
       with:
