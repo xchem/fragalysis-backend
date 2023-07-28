@@ -57,8 +57,7 @@ This opens an interactive dialogue where package name and version (exact or rang
 can be specified. Alternatively, the package can be added to `pyproject.toml` file
 under appropriate section manually.
 
-After package has been added (or just to update packages defined with a range of allowed versions)
-run: -
+After package has been added (or just to update packages defined with a range of allowed versions) run: -
 
     poetry update
 
