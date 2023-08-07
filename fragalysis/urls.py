@@ -15,27 +15,28 @@ Including another URLconf
 """
 import mozilla_django_oidc.views
 import fragalysis.views
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import path
 from django.contrib import admin
 from django.views.generic.base import RedirectView
 from graphene_django.views import GraphQLView
 
 
 urlpatterns = [
-    url(r"^version/", fragalysis.views.version, name="version"),
-    url(r"^admin/", admin.site.urls),
-    url(r"^viewer/", include("viewer.urls")),
-    url(r"^network/", include("network.urls")),
-    url(r"^api/", include("api.urls")),
-    url(r"^media/", include("media_serve.urls")),
-    url(r"^scoring/", include("scoring.urls")),
-    url(r"^xcdb/", include("xcdb.urls")),
-    url(r"^graphql/", GraphQLView.as_view(graphiql=True)),
+    path("version/", fragalysis.views.version, name="version"),
+    path("admin/", admin.site.urls),
+    path("viewer/", include("viewer.urls")),
+    path("^network/", include("network.urls")),
+    path("^api/", include("api.urls")),
+    path("^media/", include("media_serve.urls")),
+    path("^scoring/", include("scoring.urls")),
+    path("^xcdb/", include("xcdb.urls")),
+    path("^graphql/", GraphQLView.as_view(graphiql=True)),
     # Keycloak - Mozilla_django_oidc - settings
-    url('oidc/', include('mozilla_django_oidc.urls')),
-    url("accounts/login/", mozilla_django_oidc.views.OIDCAuthenticationRequestView.as_view(), name="keylcoak_login"),
-    url("accounts/logout/", fragalysis.views.LogoutView.as_view(), name="keycloak_logout"),
-    url("oidc/callback/", mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(),
+    path('oidc/', include('mozilla_django_oidc.urls')),
+    path("accounts/login/", mozilla_django_oidc.views.OIDCAuthenticationRequestView.as_view(), name="keylcoak_login"),
+    path("accounts/logout/", fragalysis.views.LogoutView.as_view(), name="keycloak_logout"),
+    path("oidc/callback/", mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(),
         name="keycloak_callback"),
-    url(r"^$", RedirectView.as_view(url="/viewer/react/landing")),
+    path("", RedirectView.as_view(url="/viewer/react/landing")),
 ]

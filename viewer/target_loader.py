@@ -152,7 +152,7 @@ class TargetLoader:
             code=protein_name,
             status=1,
             version=1,
-            type=1 if data["type"] is "manual" else 0,  # FIXME
+            type=1 if data["type"] == "manual" else 0,  # FIXME
             pdb_info=str(self._get_final_path(files["xtal_pdb"])),
             mtz_info=str(self._get_final_path(files["xtal_mtz"])),
             # this may be missing from the struct

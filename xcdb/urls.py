@@ -1,4 +1,5 @@
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import path
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 
@@ -19,6 +20,6 @@ router.register(r'proasis_out', ProasisOutView)
 router.register(r'fragspect', FragspectCrystalView)
 
 urlpatterns = [
-    url(r"^", include(router.urls)),
-    url(r"^auth$", drf_views.obtain_auth_token, name="auth"),
+    path("", include(router.urls)),
+    path("auth", drf_views.obtain_auth_token, name="auth"),
 ]

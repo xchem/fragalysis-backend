@@ -29,7 +29,8 @@ WORKDIR /srv/logs
 WORKDIR /code/logs
 WORKDIR /code
 
-COPY . ./
-
+COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --requirement requirements.txt
+
+COPY . ./
