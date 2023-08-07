@@ -1397,21 +1397,20 @@ files = [
 
 [[package]]
 name = "mozilla-django-oidc"
-version = "1.2.4"
+version = "3.0.0"
 description = "A lightweight authentication and access management library for integration with OpenID Connect enabled authentication services."
 optional = false
 python-versions = "*"
 files = [
-    {file = "mozilla-django-oidc-1.2.4.tar.gz", hash = "sha256:6f1064ec35c0dc42a7f6487e8649c9b51db04df52c424f48ebad6fe35e7481c8"},
-    {file = "mozilla_django_oidc-1.2.4-py2.py3-none-any.whl", hash = "sha256:a5130790bc71096b864d67486bbdabbbd4efc9bf1a755fb50d1f51891c11f423"},
+    {file = "mozilla-django-oidc-3.0.0.tar.gz", hash = "sha256:a7d447af83cb5aa1671a24009b0ce6b2f0d259e9c58d8c88c7a8d0c27c05c04d"},
+    {file = "mozilla_django_oidc-3.0.0-py2.py3-none-any.whl", hash = "sha256:f535eeddf03698ad9fd89dd87037828e9c7d503771acef21f0509f6cc42fc875"},
 ]
 
 [package.dependencies]
 cryptography = "*"
-Django = ">=1.11"
+Django = ">=3.2"
 josepy = "*"
 requests = "*"
-six = "*"
 
 [[package]]
 name = "multidict"
@@ -2942,4 +2941,4 @@ test = ["coverage"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11.3"
-content-hash = "af5e535410af2075501744992d3c44c135b11bfdb9a4e95a6587276926af0c62"
+content-hash = "ee7fc5948461e41e6282c49e7705dc9e69e30cae4107b37921968073637e6846"
