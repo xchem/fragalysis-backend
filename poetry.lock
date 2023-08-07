@@ -145,6 +145,24 @@ tests = ["pytest (>=3.2.1,!=3.3.0)"]
 typecheck = ["mypy"]
 
 [[package]]
+name = "beautifulsoup4"
+version = "4.12.2"
+description = "Screen-scraping library"
+optional = false
+python-versions = ">=3.6.0"
+files = [
+    {file = "beautifulsoup4-4.12.2-py3-none-any.whl", hash = "sha256:bd2520ca0d9d7d12694a53d44ac482d181b4ec1888909b035a3dbf40d0f57d4a"},
+    {file = "beautifulsoup4-4.12.2.tar.gz", hash = "sha256:492bbc69dca35d12daac71c4db1bfff0c876c00ef4a2ffacce226d4638eb72da"},
+]
+
+[package.dependencies]
+soupsieve = ">1.2"
+
+[package.extras]
+html5lib = ["html5lib"]
+lxml = ["lxml"]
+
+[[package]]
 name = "billiard"
 version = "4.1.0"
 description = "Python multiprocessing fork with improvements and bugfixes"
@@ -690,19 +708,19 @@ files = [
 
 [[package]]
 name = "django"
-version = "3.2.20"
-description = "A high-level Python Web framework that encourages rapid development and clean, pragmatic design."
+version = "4.2.4"
+description = "A high-level Python web framework that encourages rapid development and clean, pragmatic design."
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.8"
 files = [
-    {file = "Django-3.2.20-py3-none-any.whl", hash = "sha256:a477ab326ae7d8807dc25c186b951ab8c7648a3a23f9497763c37307a2b5ef87"},
-    {file = "Django-3.2.20.tar.gz", hash = "sha256:dec2a116787b8e14962014bf78e120bba454135108e1af9e9b91ade7b2964c40"},
+    {file = "Django-4.2.4-py3-none-any.whl", hash = "sha256:860ae6a138a238fc4f22c99b52f3ead982bb4b1aad8c0122bcd8c8a3a02e409d"},
+    {file = "Django-4.2.4.tar.gz", hash = "sha256:7e4225ec065e0f354ccf7349a22d209de09cc1c074832be9eb84c51c1799c432"},
 ]
 
 [package.dependencies]
-asgiref = ">=3.3.2,<4"
-pytz = "*"
-sqlparse = ">=0.2.2"
+asgiref = ">=3.6.0,<4"
+sqlparse = ">=0.3.1"
+tzdata = {version = "*", markers = "sys_platform == \"win32\""}
 
 [package.extras]
 argon2 = ["argon2-cffi (>=19.1.0)"]
@@ -710,56 +728,57 @@ bcrypt = ["bcrypt"]
 
 [[package]]
 name = "django-bootstrap3"
-version = "14.3.0"
-description = "Bootstrap 3 support for Django projects"
+version = "23.4"
+description = "Bootstrap 3 for Django"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.8"
 files = [
-    {file = "django-bootstrap3-14.3.0.tar.gz", hash = "sha256:65f77f2c7c3d7f24eb8ad6527f361580061f18e35538b5cc5560afa0d14b7ef5"},
-    {file = "django_bootstrap3-14.3.0-py3-none-any.whl", hash = "sha256:9f99479b272a3e378a83cb24f74166797dd9afee9ed62bae909546e63e9a6419"},
+    {file = "django_bootstrap3-23.4-py3-none-any.whl", hash = "sha256:fc54b9afc6e0d33b9e2ac039dd022996ee95fc19bdf8320f4fd01ec611143ee3"},
+    {file = "django_bootstrap3-23.4.tar.gz", hash = "sha256:975e6017bb25b29a86416c4fbac6020f15bfd36d66861f42a20dd4ccfdab435d"},
 ]
 
 [package.dependencies]
-Django = ">=2.2"
+beautifulsoup4 = ">=4.8.0"
+django = ">=3.2"
 
 [[package]]
 name = "django-cleanup"
-version = "5.2.0"
+version = "8.0.0"
 description = "Deletes old files."
 optional = false
 python-versions = "*"
 files = [
-    {file = "django-cleanup-5.2.0.tar.gz", hash = "sha256:909d10ff574f5ce1a40fa63bd5c94c9ed866fd7ae770994c46cdf66c3db3e846"},
-    {file = "django_cleanup-5.2.0-py2.py3-none-any.whl", hash = "sha256:193cf69de54b9fc0a0f4547edbb3a63bbe01728cb029f9f4b7912098cc1bced7"},
+    {file = "django-cleanup-8.0.0.tar.gz", hash = "sha256:c739a05544e1e48dc848871c870dbf1595f8533d24523bc67360e43562edaf0d"},
+    {file = "django_cleanup-8.0.0-py2.py3-none-any.whl", hash = "sha256:8cd8872d67fe1501b19a843d006cdb5673cfbb74ac3d6d8f2c60e8e7723a7f5b"},
 ]
 
 [[package]]
 name = "django-extensions"
-version = "3.0.0"
+version = "3.2.3"
 description = "Extensions for Django"
 optional = false
-python-versions = "*"
+python-versions = ">=3.6"
 files = [
-    {file = "django-extensions-3.0.0.tar.gz", hash = "sha256:f39162bddd4550465999e8d2897c5d7394e731cc4bf5bc67985bc8d6e05b4fcf"},
-    {file = "django_extensions-3.0.0-py2.py3-none-any.whl", hash = "sha256:10094eca549c004bd4f6512dfe418ae88cc52cbbb40c4b71b5de3bca3ace902d"},
+    {file = "django-extensions-3.2.3.tar.gz", hash = "sha256:44d27919d04e23b3f40231c4ab7af4e61ce832ef46d610cc650d53e68328410a"},
+    {file = "django_extensions-3.2.3-py3-none-any.whl", hash = "sha256:9600b7562f79a92cbf1fde6403c04fee314608fefbb595502e34383ae8203401"},
 ]
 
 [package.dependencies]
-six = ">=1.2"
+Django = ">=3.2"
 
 [[package]]
 name = "django-filter"
-version = "2.4.0"
+version = "23.2"
 description = "Django-filter is a reusable Django application for allowing users to filter querysets dynamically."
 optional = false
-python-versions = ">=3.5"
+python-versions = ">=3.7"
 files = [
-    {file = "django-filter-2.4.0.tar.gz", hash = "sha256:84e9d5bb93f237e451db814ed422a3a625751cbc9968b484ecc74964a8696b06"},
-    {file = "django_filter-2.4.0-py3-none-any.whl", hash = "sha256:e00d32cebdb3d54273c48f4f878f898dced8d5dfaad009438fe61ebdf535ace1"},
+    {file = "django-filter-23.2.tar.gz", hash = "sha256:2fe15f78108475eda525692813205fa6f9e8c1caf1ae65daa5862d403c6dbf00"},
+    {file = "django_filter-23.2-py3-none-any.whl", hash = "sha256:d12d8e0fc6d3eb26641e553e5d53b191eb8cec611427d4bdce0becb1f7c172b5"},
 ]
 
 [package.dependencies]
-Django = ">=2.2"
+Django = ">=3.2"
 
 [[package]]
 name = "django-guardian"
@@ -2638,6 +2657,17 @@ files = [
 ]
 
 [[package]]
+name = "soupsieve"
+version = "2.4.1"
+description = "A modern CSS selector implementation for Beautiful Soup."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "soupsieve-2.4.1-py3-none-any.whl", hash = "sha256:1c1bfee6819544a3447586c889157365a27e10d88cde3ad3da0cf0ddf646feb8"},
+    {file = "soupsieve-2.4.1.tar.gz", hash = "sha256:89d12b2d5dfcd2c9e8c22326da9d9aa9cb3dfab0a83a024f05704076ee8d35ea"},
+]
+
+[[package]]
 name = "sqlparse"
 version = "0.4.4"
 description = "A non-validating SQL parser."
@@ -2941,4 +2971,4 @@ test = ["coverage"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11.3"
-content-hash = "ee7fc5948461e41e6282c49e7705dc9e69e30cae4107b37921968073637e6846"
+content-hash = "9f92cccd282d0f3250f850a8e2fa92b77b7178e98c7b4508e6cd8a5ff9f64b9c"

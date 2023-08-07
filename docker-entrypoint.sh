@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "+> pip list..."
+pip list
+
 CONTAINER_ROLE=${CONTAINER_ROLE:-"stack"}
 echo "+> CONTAINER_ROLE is ${CONTAINER_ROLE}"
 

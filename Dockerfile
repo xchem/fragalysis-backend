@@ -21,16 +21,16 @@ RUN apt-get update -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-COPY django_nginx.conf /etc/nginx/sites-available/default.conf
-RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled
-COPY nginx.conf /etc/nginx/nginx.conf
-
 WORKDIR /srv/logs
 WORKDIR /code/logs
 WORKDIR /code
 
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY django_nginx.conf /etc/nginx/sites-available/default.conf
 COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && \
+
+RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled && \
+    pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --requirement requirements.txt
 
 COPY . ./
