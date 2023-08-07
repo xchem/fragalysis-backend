@@ -1,11 +1,12 @@
-from django.urls import path
+from django.urls import path, re_path
 
 from . import views
 
 app_name = 'viewer'
 
 urlpatterns = [
-    path("react/", views.react, name="react"),
+    re_path(r"^react/*", views.react, name="react"),
+
     path("upload_cset/", views.UploadCSet.as_view(), name="upload_cset"),
     path("upload_tset/", views.UploadTSet.as_view(), name="upload_tset"),
     path("validate_task/<uuid:validate_task_id>/", views.ValidateTaskView.as_view(), name="validate_task"),

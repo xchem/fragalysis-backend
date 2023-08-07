@@ -16,27 +16,26 @@ Including another URLconf
 import mozilla_django_oidc.views
 import fragalysis.views
 from django.conf.urls import include
-from django.urls import path
+from django.urls import path, re_path
 from django.contrib import admin
 from django.views.generic.base import RedirectView
 from graphene_django.views import GraphQLView
 
 
 urlpatterns = [
+    re_path(r"^$", RedirectView.as_view(url="/viewer/react/landing")),
+
     path("version/", fragalysis.views.version, name="version"),
     path("admin/", admin.site.urls),
     path("viewer/", include("viewer.urls")),
-    path("^network/", include("network.urls")),
-    path("^api/", include("api.urls")),
-    path("^media/", include("media_serve.urls")),
-    path("^scoring/", include("scoring.urls")),
-    path("^xcdb/", include("xcdb.urls")),
-    path("^graphql/", GraphQLView.as_view(graphiql=True)),
-    # Keycloak - Mozilla_django_oidc - settings
+    path("network/", include("network.urls")),
+    path("api/", include("api.urls")),
+    path("media/", include("media_serve.urls")),
+    path("scoring/", include("scoring.urls")),
+    path("xcdb/", include("xcdb.urls")),
+    path("graphql/", GraphQLView.as_view(graphiql=True)),
     path('oidc/', include('mozilla_django_oidc.urls')),
     path("accounts/login/", mozilla_django_oidc.views.OIDCAuthenticationRequestView.as_view(), name="keylcoak_login"),
     path("accounts/logout/", fragalysis.views.LogoutView.as_view(), name="keycloak_logout"),
-    path("oidc/callback/", mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(),
-        name="keycloak_callback"),
-    path("", RedirectView.as_view(url="/viewer/react/landing")),
+    path("oidc/callback/", mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(), name="keycloak_callback"),
 ]
