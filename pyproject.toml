@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "fragalysis-backend"
-version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+version = "2.0.0"
+description = "The backend for the Fragalysis Stack web application."
+authors = ["Rachael Skyner <rachael.skyner@diamond.ac.uk>"]
 license = "Apache-2.0"
 readme = "README.md"
 packages = [{include = "fragalysis_backend"}]
