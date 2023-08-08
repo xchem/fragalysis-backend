@@ -1,4 +1,5 @@
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import path
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 
@@ -110,9 +111,8 @@ def schema_view(request):
 
 
 urlpatterns = [
-    url(r"^", include(router.urls)),
-    url(r"^auth$", drf_views.obtain_auth_token, name="auth"),
-    url(r"^swagger$", schema_view),
-
-    url(r"job_request", viewer_views.JobRequestView.as_view(), name="job_request"),
+    path("", include(router.urls)),
+    path("auth/", drf_views.obtain_auth_token, name="auth"),
+    path("swagger/", schema_view),
+    path("job_request/", viewer_views.JobRequestView.as_view(), name="job_request"),
 ]

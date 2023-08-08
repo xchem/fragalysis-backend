@@ -1,38 +1,25 @@
-from django.conf.urls import url
-from django.urls import path
+from django.urls import path, re_path
 
 from . import views
 
 app_name = 'viewer'
 
 urlpatterns = [
-    url(r"^react/*", views.react, name="react"),
-    url(r"^upload_cset/", views.UploadCSet.as_view(), name="upload_cset"),
-    url(r"^upload_tset/", views.UploadTSet.as_view(), name="upload_tset"),
-    url(
-        r"^validate_task/(?P<validate_task_id>.+)/$",
-        views.ValidateTaskView.as_view(),
-        name="validate_task",
-    ),
-    url(
-        r"^upload_task/(?P<upload_task_id>.+)/$",
-        views.UploadTaskView.as_view(),
-        name="upload_task",
-    ),
-    url(
-        r"^update_task/(?P<update_task_id>.+)/$",
-        views.UpdateTaskView.as_view(),
-        name="update_task",
-    ),
-    url(r"^img_from_smiles/$", views.img_from_smiles, name="img_from_smiles"),
-    url(r"^highlight_mol_diff/$", views.highlight_mol_diff, name="highlight_mol_diff"),
-    url(r"^sim_search/$", views.similarity_search, name="sim_search"),
-    url(r"^open_targets/", views.get_open_targets, name="get_open_targets"),
-    url(r"^compound_set/(?P<name>.+)/$", views.cset_download, name="compound_set"),
-    url(r"^protein_set/(?P<name>.+)/$", views.pset_download, name="protein_set"),
-    url(r"^target/(?P<title>.+)/$", views.tset_download, name="target_set"),
-    url(r"upload_designs/", views.DSetUploadView.as_view(), name="upload_designs"),
-    url(r"job_access/", views.JobAccessView.as_view(), name="job_access"),
-    path("task_status/<uuid:task_id>", views.TaskStatus.as_view(), name="task_status"),
+    re_path(r"^react/*", views.react, name="react"),
 
+    path("upload_cset/", views.UploadCSet.as_view(), name="upload_cset"),
+    path("upload_tset/", views.UploadTSet.as_view(), name="upload_tset"),
+    path("validate_task/<uuid:validate_task_id>/", views.ValidateTaskView.as_view(), name="validate_task"),
+    path("upload_task/<uuid:upload_task_id>/", views.UploadTaskView.as_view(), name="upload_task"),
+    path("update_task/<uuid:update_task_id>/", views.UpdateTaskView.as_view(), name="update_task"),
+    path("img_from_smiles/", views.img_from_smiles, name="img_from_smiles"),
+    path("highlight_mol_diff/", views.highlight_mol_diff, name="highlight_mol_diff"),
+    path("sim_search/", views.similarity_search, name="sim_search"),
+    path("open_targets/", views.get_open_targets, name="get_open_targets"),
+    path("compound_set/<name>/", views.cset_download, name="compound_set"),
+    path("protein_set/<name>/", views.pset_download, name="protein_set"),
+    path("target/<title>/", views.tset_download, name="target_set"),
+    path("upload_designs/", views.DSetUploadView.as_view(), name="upload_designs"),
+    path("job_access/", views.JobAccessView.as_view(), name="job_access"),
+    path("task_status/<uuid:task_id>/", views.TaskStatus.as_view(), name="task_status"),
 ]
