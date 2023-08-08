@@ -1102,4 +1102,4 @@ class SiteObservation(models.Model):
         return f"{self.code}"
 
     def __repr__(self) -> str:
-        return "<SiteObservation %r %r %r %r>" % (self.id, self.code, self.experiment, self.compound)
+        return "<SiteObservation %r %r %r %r>" % (self.id, self.code, self.experiment, self.cmpd)
