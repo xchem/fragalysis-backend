@@ -185,6 +185,54 @@
           "outputs": { "type": "string" }
         },
         "results": ["Merged molecules"]
+      },
+
+      {
+        "job_collection": "fragment-network",
+        "job_name": "fragment-network-merge-swills23",
+        "job_version": "1.0.0",
+        "inputs": {
+          "fragments": {
+            "type": "array",
+            "uniqueItems": true,
+            "format": "chemical/x-mdl-molfile",
+            "items": {
+              "from": "lhs",
+              "enum": "{inputs_dir}/{target}-{item}.mol",
+              "enumNames": "{item}"
+            }
+          }
+        },
+        "options": {
+          "outfile": {
+            "default": "{job_dir}/merged.sdf",
+            "ui:widget": "hidden"
+          },
+          "fragIdField": {
+            "type": "string",
+            "default": "_Name",
+            "ui:widget": "hidden"
+          },
+          "smilesFieldName": {
+            "type": "string",
+            "default": "original SMILES",
+            "ui:widget": "hidden"
+          },
+          "proteinFieldName": {
+            "type": "string",
+            "default": "ref_pdb",
+            "ui:widget": "hidden"
+          },
+          "proteinFieldValue": {
+            "type": "string",
+            "value": "{protein_id}",
+            "ui:widget": "hidden"
+          }
+        },
+        "outputs": {
+          "outputs": { "type": "string" }
+        },
+        "results": ["Merged molecules"]
       }
     ]
   }
