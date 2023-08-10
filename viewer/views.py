@@ -1602,6 +1602,34 @@ class TargetExperimentUploads(viewsets.ModelViewSet):
     http_method_names = ('get',)
 
 
+class SiteObservations(viewsets.ModelViewSet):
+    queryset = models.SiteObservation.objects.all()
+    serializer_class = serializers.SiteObservationReadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('get',)
+
+
+class CanonSites(viewsets.ModelViewSet):
+    queryset = models.CanonSite.objects.all()
+    serializer_class = serializers.CanonSiteReadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('get',)
+
+
+class CanonSiteConfs(viewsets.ModelViewSet):
+    queryset = models.CanonSiteConf.objects.all()
+    serializer_class = serializers.CanonSiteConfReadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('get',)
+
+
+class XtalformSites(viewsets.ModelViewSet):
+    queryset = models.XtalformSite.objects.all()
+    serializer_class = serializers.XtalformSiteReadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('get',)
+
+
 class JobFileTransferView(viewsets.ModelViewSet):
     """Squonk Job file transfer (api/job_file_transfer)
     """
