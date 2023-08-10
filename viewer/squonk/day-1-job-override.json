@@ -198,7 +198,7 @@
             "format": "chemical/x-mdl-molfile",
             "items": {
               "from": "lhs",
-              "enum": "{inputs_dir}/{target}-{item}.mol",
+              "enum": "{inputs_dir}/{target}-{item}.mol,{inputs_dir}/{target}-{item}_apo-desolv.pdb",
               "enumNames": "{item}"
             }
           }
