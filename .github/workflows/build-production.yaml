@@ -3,7 +3,7 @@ name: build production
 
 # Actions that take place on the 'production' branch.
 # Here we only respond to production-grade tags (i.e. "2022.1" or "1.0.0").
-# We build two images - one usign the tag and one using 'stable'
+# We build two images - one using the tag and one using 'stable'
 #
 # If a DOCKERHUB_USERNAME secret is defined the image is pushed.
 
@@ -42,11 +42,6 @@ env:
   #   For Jobs conditional on the presence of a secret see this Gist...
   #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
   BE_NAMESPACE: xchem
-  FE_BRANCH: production
-  FE_NAMESPACE: xchem
-  STACK_BRANCH: master
-  STACK_GITHUB_NAMESPACE: xchem
-  STACK_NAMESPACE: xchem
 
 jobs:
   build:
@@ -57,7 +52,7 @@ jobs:
       trigger: ${{ steps.vars.outputs.trigger }}
     steps:
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@v3.x
+      uses: rlespinasse/github-slug-action@v4
     - name: Initialise workflow variables
       id: vars
       env:
@@ -70,36 +65,6 @@ jobs:
         echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
         echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
 
-        # FE_BRANCH
-        FE_BRANCH="${{ env.FE_BRANCH }}"
-        if [ -n "${{ secrets.FE_BRANCH }}" ]; then FE_BRANCH="${{ secrets.FE_BRANCH }}"; fi
-        echo set-output name=FE_BRANCH::${FE_BRANCH}
-        echo ::set-output name=FE_BRANCH::${FE_BRANCH}
-
-        # FE_NAMESPACE
-        FE_NAMESPACE="${{ env.FE_NAMESPACE }}"
-        if [ -n "${{ secrets.FE_NAMESPACE }}" ]; then FE_NAMESPACE="${{ secrets.FE_NAMESPACE }}"; fi
-        echo set-output name=FE_NAMESPACE::${FE_NAMESPACE}
-        echo ::set-output name=FE_NAMESPACE::${FE_NAMESPACE}
-
-        # STACK_BRANCH
-        STACK_BRANCH="${{ env.STACK_BRANCH }}"
-        if [ -n "${{ secrets.STACK_BRANCH }}" ]; then STACK_BRANCH="${{ secrets.STACK_BRANCH }}"; fi
-        echo set-output name=STACK_BRANCH::${STACK_BRANCH}
-        echo ::set-output name=STACK_BRANCH::${STACK_BRANCH}
-
-        # STACK_GITHUB_NAMESPACE
-        STACK_GITHUB_NAMESPACE="${{ env.STACK_GITHUB_NAMESPACE }}"
-        if [ -n "${{ secrets.STACK_GITHUB_NAMESPACE }}" ]; then STACK_GITHUB_NAMESPACE="${{ secrets.STACK_GITHUB_NAMESPACE }}"; fi
-        echo set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
-        echo ::set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
-
-        # STACK_NAMESPACE
-        STACK_NAMESPACE="${{ env.STACK_NAMESPACE }}"
-        if [ -n "${{ secrets.STACK_NAMESPACE }}" ]; then STACK_NAMESPACE="${{ secrets.STACK_NAMESPACE }}"; fi
-        echo set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
-        echo ::set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
-
         # What image tag are we using? 'latest' (if not tagged) or a GitHub tag?
         TAG="latest"
         if [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then TAG="${{ env.GITHUB_REF_SLUG }}"; fi
@@ -110,14 +75,10 @@ jobs:
         echo set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
         echo ::set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
 
-        # Do we trigger downstream, i.e. is TRIGGER_DOWNSTREAM 'yes'?
-        echo set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
-        echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
-
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Build
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
         tags: |
           ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
@@ -133,7 +94,7 @@ jobs:
         BE_TAG: ${{ steps.vars.outputs.tag }}
     - name: Login to DockerHub
       if: steps.vars.outputs.push == 'true'
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -142,21 +103,3 @@ jobs:
       run: |
         docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
         docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:stable
-
-    # Trigger the stack build (expected for every tagged production branch).
-    - name: Trigger stack
-      if: steps.vars.outputs.trigger == 'true'
-      uses: informaticsmatters/trigger-ci-action@v1
-      with:
-        ci-owner: ${{ steps.vars.outputs.STACK_GITHUB_NAMESPACE }}
-        ci-repository: fragalysis-stack
-        ci-name: build main
-        ci-ref: refs/heads/${{ steps.vars.outputs.STACK_BRANCH }}
-        ci-inputs: >-
-          be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
-          be_image_tag=${{ steps.vars.outputs.tag }}
-          fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
-          fe_branch=${{ steps.vars.outputs.FE_BRANCH }}
-          stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
-        ci-user: ${{ secrets.STACK_USER }}
-        ci-user-token: ${{ secrets.STACK_USER_TOKEN }}

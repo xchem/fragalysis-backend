@@ -79,7 +79,7 @@ jobs:
       trigger: ${{ steps.vars.outputs.trigger }}
     steps:
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@v3.x
+      uses: rlespinasse/github-slug-action@v4
     - name: Initialise workflow variables
       id: vars
       env:
@@ -137,10 +137,9 @@ jobs:
         echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
 
     - name: Checkout
-      uses: actions/checkout@v2
-
+      uses: actions/checkout@v3
     - name: Build
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
     - name: Test
