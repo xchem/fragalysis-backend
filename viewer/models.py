@@ -1031,7 +1031,6 @@ class Squonk2Project(models.Model):
         return "<Squonk2Project %r %r %r %r %r>" % (self.id, self.name, self.uuid, self.product_uuid, self.unit)
 
 
-
 class CanonSite(models.Model):
     name = models.TextField()
     quat_assembly = models.ForeignKey(QuatAssembly, null=True, on_delete=models.CASCADE)
@@ -1058,7 +1057,7 @@ class XtalformSite(models.Model):
         return f"{self.xtalform_site_id}"
 
     def __repr__(self) -> str:
-        return "<CanonSiteConf %r %r %r>" % (self.id, self.xtalform_site_id, self.xtalform)
+        return "<XtalformSite %r %r %r>" % (self.id, self.xtalform_site_id, self.xtalform)
 
 
 class CanonSiteConf(models.Model):
@@ -1100,4 +1099,4 @@ class SiteObservation(models.Model):
         return f"{self.code}"
 
     def __repr__(self) -> str:
-        return "<SiteObservation %r %r %r %r>" % (self.id, self.code, self.experiment, self.compound)
+        return "<SiteObservation %r %r %r %r>" % (self.id, self.code, self.experiment, self.cmpd)

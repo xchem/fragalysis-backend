@@ -12,89 +12,92 @@ from xcdb import views as xcdb_views
 
 router = DefaultRouter()
 # Register the basic data
-router.register(r"molecules", viewer_views.MoleculeView)
-router.register(r"compounds", viewer_views.CompoundView)
-router.register(r"targets", viewer_views.TargetView, "targets")
-router.register(r"proteins", viewer_views.ProteinView)
-router.register(r"projects", viewer_views.ProjectView)
-router.register(r"session-projects", viewer_views.SessionProjectsView)
-router.register(r"snapshots", viewer_views.SnapshotsView)
-router.register(r"action-type", viewer_views.ActionTypeView)
-router.register(r"session-actions", viewer_views.SessionActionsView)
-router.register(r"snapshot-actions", viewer_views.SnapshotActionsView)
-router.register(r"compound-identifier-types", viewer_views.CompoundIdentifierTypeView)
-router.register(r"compound-identifiers", viewer_views.CompoundIdentifierView)
+router.register("compounds", viewer_views.CompoundView)
+router.register("targets", viewer_views.TargetView, "targets")
+router.register("proteins", viewer_views.ProteinView)
+router.register("projects", viewer_views.ProjectView)
+router.register("session-projects", viewer_views.SessionProjectsView)
+router.register("snapshots", viewer_views.SnapshotsView)
+router.register("action-type", viewer_views.ActionTypeView)
+router.register("session-actions", viewer_views.SessionActionsView)
+router.register("snapshot-actions", viewer_views.SnapshotActionsView)
+router.register("compound-identifier-types", viewer_views.CompoundIdentifierTypeView)
+router.register("compound-identifiers", viewer_views.CompoundIdentifierView)
 
 # Compounds sets
-router.register(r"compound-sets", viewer_views.ComputedSetView)
-router.register(r"compound-molecules", viewer_views.ComputedMoleculesView)
-router.register(r"numerical-scores", viewer_views.NumericalScoresView)
-router.register(r"text-scores", viewer_views.TextScoresView)
-router.register(r"compound-scores", viewer_views.CompoundScoresView)
-router.register(r"compound-mols-scores", viewer_views.ComputedMolAndScoreView)
+router.register("compound-sets", viewer_views.ComputedSetView)
+router.register("compound-molecules", viewer_views.ComputedMoleculesView)
+router.register("numerical-scores", viewer_views.NumericalScoresView)
+router.register("text-scores", viewer_views.TextScoresView)
+router.register("compound-scores", viewer_views.CompoundScoresView)
+router.register("compound-mols-scores", viewer_views.ComputedMolAndScoreView)
 
 # Get the derived data
-router.register(r"molimg", viewer_views.MolImageView)
-router.register(r"vector", viewer_views.VectorsView)
-router.register(r"graph", viewer_views.GraphView)
-router.register(r"cmpdimg", viewer_views.CompoundImageView)
-router.register(r"protmap", viewer_views.ProteinMapInfoView)
-router.register(r"protpdb", viewer_views.ProteinPDBInfoView)
-router.register(r"protpdbbound", viewer_views.ProteinPDBBoundInfoView)
+router.register("molimg", viewer_views.MolImageView)
+router.register("vector", viewer_views.VectorsView)
+router.register("graph", viewer_views.GraphView)
+router.register("cmpdimg", viewer_views.CompoundImageView)
+router.register("protmap", viewer_views.ProteinMapInfoView)
+router.register("protpdb", viewer_views.ProteinPDBInfoView)
+router.register("protpdbbound", viewer_views.ProteinPDBBoundInfoView)
 
 # Hotspot maps
-router.register(r"hotspots", hostpot_views.HotspotView)
+router.register("hotspots", hostpot_views.HotspotView)
 
 # Register the vectors and hypothesis
-router.register(r"vectors", hypo_views.VectorView)
-router.register(r"vector3ds", hypo_views.Vector3DView)
-router.register(r"interactions", hypo_views.InteractionView)
-router.register(r"proteinres", hypo_views.ProteinResidueView)
-router.register(r"targetres", hypo_views.TargetResidueView)
-router.register(r"interactionpoints", hypo_views.InteractionPointView)
+router.register("vectors", hypo_views.VectorView)
+router.register("vector3ds", hypo_views.Vector3DView)
+router.register("interactions", hypo_views.InteractionView)
+router.register("proteinres", hypo_views.ProteinResidueView)
+router.register("targetres", hypo_views.TargetResidueView)
+router.register("interactionpoints", hypo_views.InteractionPointView)
 
 # Register the  choices
-router.register(r"scorechoice", score_views.ScoreChoiceView)
-router.register(r"molchoice", score_views.MolChoiceView)
-router.register(r"protchoice", score_views.ProtChoiceView)
-router.register(r"cmpdchoice", score_views.CmpdChoiceView)
+router.register("scorechoice", score_views.ScoreChoiceView)
+router.register("molchoice", score_views.MolChoiceView)
+router.register("protchoice", score_views.ProtChoiceView)
+router.register("cmpdchoice", score_views.CmpdChoiceView)
 
 # Register the scenese
-router.register(r"viewscene", score_views.ViewSceneView)
+router.register("viewscene", score_views.ViewSceneView)
 
 # Register the groups
-router.register(r"molgroup", score_views.MolGroupView)
+router.register("molgroup", score_views.MolGroupView)
 
 # Get the information
-router.register(r"molannotation", score_views.MolAnnotationView)
+router.register("molannotation", score_views.MolAnnotationView)
 
 # fragspect
-router.register(r"fragspect", xcdb_views.FragspectCrystalView)
+router.register("fragspect", xcdb_views.FragspectCrystalView)
 
 # discourse posts
-router.register(r"discourse_post", viewer_views.DiscoursePostView, basename='discourse_post')
+router.register("discourse_post", viewer_views.DiscoursePostView, basename='discourse_post')
 
 # Take a dictionary and return a csv
-router.register(r"dicttocsv", viewer_views.DictToCsv, basename='dicttocsv')
+router.register("dicttocsv", viewer_views.DictToCsv, basename='dicttocsv')
 
 # tags
-router.register(r"tag_category", viewer_views.TagCategoryView, basename='tag_category')
-router.register(r"molecule_tag", viewer_views.MoleculeTagView, basename='molecule_tag')
-router.register(r"session_project_tag", viewer_views.SessionProjectTagView, basename='session_project_tag')
-router.register(r"target_molecules", viewer_views.TargetMoleculesView, basename='target_molecules')
+router.register("tag_category", viewer_views.TagCategoryView, basename='tag_category')
+router.register("molecule_tag", viewer_views.MoleculeTagView, basename='molecule_tag')
+router.register("session_project_tag", viewer_views.SessionProjectTagView, basename='session_project_tag')
+router.register("target_molecules", viewer_views.TargetMoleculesView, basename='target_molecules')
 
 # Download a zip file of the requested contents
-router.register(r"download_structures", viewer_views.DownloadStructures, basename='download_structures')
+router.register("download_structures", viewer_views.DownloadStructures, basename='download_structures')
 
 # Experiments and Experiment (XChemAlign) upload support
-router.register(r"upload_target_experiments", viewer_views.UploadTargetExperiments, basename='upload_target_experiments')
-router.register(r"target_experiment_uploads", viewer_views.TargetExperimentUploads, basename='target_experiment_uploads')
+router.register("upload_target_experiments", viewer_views.UploadTargetExperiments, basename='upload_target_experiments')
+router.register("target_experiment_uploads", viewer_views.TargetExperimentUploads, basename='target_experiment_uploads')
+router.register("site_observations", viewer_views.SiteObservations, basename='site_observations')
+router.register("canon_sites", viewer_views.CanonSites, basename='canon_sites')
+router.register("canon_site_confs", viewer_views.CanonSiteConfs, basename='canon_site_confs')
+router.register("xtalform_sites", viewer_views.XtalformSites, basename='xtalform_sites')
 
 # Squonk Jobs
-router.register(r"job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer')
-router.register(r"job_callback", viewer_views.JobCallBackView, basename='job_callback')
-router.register(r"job_config", viewer_views.JobConfigView, basename='job_config')
-router.register(r"job_override", viewer_views.JobOverrideView, basename='job_override')
+router.register("job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer')
+router.register("job_callback", viewer_views.JobCallBackView, basename='job_callback')
+router.register("job_config", viewer_views.JobConfigView, basename='job_config')
+router.register("job_override", viewer_views.JobOverrideView, basename='job_override')
 
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
