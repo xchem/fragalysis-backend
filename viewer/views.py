@@ -671,7 +671,9 @@ class ValidateTaskView(View):
 
         """
         logger.info('+ ValidateTaskView.get')
-        task = AsyncResult(validate_task_id)
+        validate_task_id_str = str(validate_task_id)
+
+        task = AsyncResult(validate_task_id_str)
         response_data = {'validate_task_status': task.status,
                          'validate_task_id': task.id}
 
@@ -714,7 +716,7 @@ class ValidateTaskView(View):
                 if process_type== 'tset':
                     target_name = results[5]
                     contact_email = results[8]
-                    email_task_completion(contact_email, 'validate-failure', target_name, task_id=validate_task_id)
+                    email_task_completion(contact_email, 'validate-failure', target_name, task_id=validate_task_id_str)
 
                 return JsonResponse(response_data)
 
@@ -724,7 +726,8 @@ class ValidateTaskView(View):
 class UpdateTaskView(View):
 
     def get(self, request, update_task_id):
-        task = AsyncResult(update_task_id)
+        update_task_id_str = str(update_task_id)
+        task = AsyncResult(update_task_id_str)
         response_data = {'update_task_status': task.status,
                          'update_task_id': task.id}
 
@@ -782,7 +785,8 @@ class UploadTaskView(View):
                         - html (str): message to tell the user their data was not processed
         """
         logger.debug('+ UploadTaskView.get')
-        task = AsyncResult(upload_task_id)
+        upload_task_id_str = str(upload_task_id)
+        task = AsyncResult(upload_task_id_str)
         response_data = {'upload_task_status': task.status,
                          'upload_task_id': task.id}
 
@@ -1595,6 +1599,34 @@ class TargetExperimentUploads(viewsets.ModelViewSet):
     serializer_class = serializers.TargetExperimentReadSerializer
     permission_class = [permissions.IsAuthenticated]
     filterset_fields = ("target", "project")
+    http_method_names = ('get',)
+
+
+class SiteObservations(viewsets.ModelViewSet):
+    queryset = models.SiteObservation.objects.all()
+    serializer_class = serializers.SiteObservationReadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('get',)
+
+
+class CanonSites(viewsets.ModelViewSet):
+    queryset = models.CanonSite.objects.all()
+    serializer_class = serializers.CanonSiteReadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('get',)
+
+
+class CanonSiteConfs(viewsets.ModelViewSet):
+    queryset = models.CanonSiteConf.objects.all()
+    serializer_class = serializers.CanonSiteConfReadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('get',)
+
+
+class XtalformSites(viewsets.ModelViewSet):
+    queryset = models.XtalformSite.objects.all()
+    serializer_class = serializers.XtalformSiteReadSerializer
+    permission_class = [permissions.IsAuthenticated]
     http_method_names = ('get',)
 
 

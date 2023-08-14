@@ -791,3 +791,27 @@ class JobOverrideWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.JobOverride
         fields = ('override',)
+
+
+class SiteObservationReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SiteObservation
+        fields = '__all__'
+
+
+class CanonSiteReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CanonSite
+        fields = '__all__'
+
+
+class CanonSiteConfReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CanonSiteConf
+        fields = '__all__'
+
+
+class XtalformSiteReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.XtalformSite
+        fields = '__all__'

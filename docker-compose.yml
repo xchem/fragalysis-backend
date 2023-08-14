@@ -36,10 +36,6 @@ services:
   redis:
     image: redis:7.0.12-alpine3.18
     container_name: redis
-    environment:
-      POSTGRES_PASSWORD: fragalysis
-      POSTGRES_DB: frag
-      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
     - "6379:6379"
     healthcheck:

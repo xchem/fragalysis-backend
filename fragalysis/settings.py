@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
+from datetime import timedelta
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -86,14 +87,14 @@ REST_FRAMEWORK = {
 }
 
 # CELERY STUFF
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379')
-CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
+CELERY_RESULT_EXPIRES = timedelta(days=15)
 CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False').lower() in ['true', 'yes']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-# This is to stop Celery overwriting the Django logging defaults.
-# CELERYD_HIJACK_ROOT_LOGGER = False
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 
 # This can be injected as an ENV var
 NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
@@ -402,4 +403,4 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 'level': 'WARNING'}},
         'root': {
             'level': LOGGING_FRAMEWORK_ROOT_LEVEL,
-            'handlers': ['rotating']}}
+            'handlers': ['console', 'rotating']}}
