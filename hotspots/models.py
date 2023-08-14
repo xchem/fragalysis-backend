@@ -1,6 +1,6 @@
 from django.db import models
 
-from viewer.models import Target, Protein
+from viewer.models import Target, SiteObservation
 
 
 class HotspotMap(models.Model):
@@ -8,9 +8,10 @@ class HotspotMap(models.Model):
     Django model for Hotspot Maps
     """
     # The site
-    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
+    # prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
+    site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     # The pdb, map and mtz
-    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
     # The type of map
     APOLAR = "AP"
     ACCEPTOR = "AC"
@@ -23,4 +24,9 @@ class HotspotMap(models.Model):
     compressed_map_info = models.FileField(upload_to="maps/", null=True, max_length=255)
 
     class Meta:
-        unique_together = ("map_type", "target_id", "prot_id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["map_type", "target", "site_observation",],
+                name="unique_maptype_target_siteobvs",
+            ),
+        ]        
