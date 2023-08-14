@@ -34,7 +34,6 @@ echo "Preparing logging..."
 touch /srv/logs/gunicorn.log
 touch /srv/logs/access.log
 touch /code/logs/logfile.log
-tail -n 0 -f /code/logs/*.log &
 
 echo "Starting Gunicorn..."
 gunicorn fragalysis.wsgi:application \

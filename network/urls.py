@@ -1,5 +1,7 @@
-from django.conf.urls import url
+from django.urls import path
 
 from . import views
 
-urlpatterns = [url(r"^full_graph/$", views.full_graph, name="full_graph")]
+urlpatterns = [
+    path(r"full_graph/", views.full_graph, name="full_graph"),
+]
