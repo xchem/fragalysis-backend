@@ -12,6 +12,8 @@ from simple_history.models import HistoricalRecords
 
 from viewer.target_set_config import get_mol_choices, get_prot_choices
 
+from .managers import SiteObservationDataManager
+
 class Project(models.Model):
     title = models.CharField(max_length=200, unique=True)
     init_date = models.DateTimeField(auto_now_add=True)
@@ -1093,7 +1095,9 @@ class SiteObservation(models.Model):
     chain_id = models.CharField(max_length=1)
     ligand_mol_file = models.TextField(null=True)
 
+    objects = models.Manager()
     history = HistoricalRecords()
+    filter_manager = SiteObservationDataManager()
 
     def __str__(self) -> str:
         return f"{self.code}"

@@ -794,6 +794,8 @@ class JobOverrideWriteSerializer(serializers.ModelSerializer):
 
 
 class SiteObservationReadSerializer(serializers.ModelSerializer):
+    target_name = serializers.CharField()
+
     class Meta:
         model = models.SiteObservation
         fields = '__all__'
