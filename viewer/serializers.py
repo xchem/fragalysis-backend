@@ -1,6 +1,12 @@
 import os
 from urllib.parse import urljoin
 
+from django.db.models import F
+
+from django.db.models.functions import Round
+
+from django.contrib.postgres.aggregates import ArrayAgg
+
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
 
@@ -10,7 +16,7 @@ from api.utils import draw_mol
 from viewer import models
 from viewer.utils import get_https_host
 
-from scoring.models import MolGroup
+from scoring.models import SiteObservationGroup
 
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -175,7 +181,8 @@ class CompoundSerializer(serializers.ModelSerializer):
         )
 
 
-class MoleculeSerializer(serializers.ModelSerializer):
+
+class SiteObservationSerializer(serializers.ModelSerializer):
 
     molecule_protein = serializers.SerializerMethodField()
     protein_code = serializers.SerializerMethodField()
@@ -191,54 +198,52 @@ class MoleculeSerializer(serializers.ModelSerializer):
 
 
     def get_molecule_protein(self, obj):
-        return obj.prot_id.pdb_info.url
-
-    def get_protein_code(self, obj):
-        return obj.prot_id.code
+        return obj.experiment.pdb_info.url
 
     def get_mw(self, obj):
-        return round(obj.cmpd_id.mol_wt, 2)
+        return round(obj.cmpd.mol_wt, 2)
 
     def get_logp(self, obj):
-        return round(obj.cmpd_id.mol_log_p, 2)
+        return round(obj.cmpd.mol_log_p, 2)
 
     def get_tpsa(self, obj):
-        return round(obj.cmpd_id.tpsa, 2)
+        return round(obj.cmpd.tpsa, 2)
 
     def get_ha(self, obj):
-        return obj.cmpd_id.heavy_atom_count
+        return obj.cmpd.heavy_atom_count
 
     def get_hacc(self, obj):
-        return obj.cmpd_id.num_h_acceptors
+        return obj.cmpd.num_h_acceptors
 
     def get_hdon(self, obj):
-        return obj.cmpd_id.num_h_donors
+        return obj.cmpd.num_h_donors
 
     def get_rots(self, obj):
-        return obj.cmpd_id.num_rot_bonds
+        return obj.cmpd.num_rot_bonds
 
     def get_rings(self, obj):
-        return obj.cmpd_id.ring_count
+        return obj.cmpd.ring_count
 
     def get_velec(self, obj):
-        return obj.cmpd_id.num_val_electrons
+        return obj.cmpd.num_val_electrons
 
     class Meta:
-        model = models.Molecule
+        model = models.SiteObservation
         fields = (
             "id",
-            "smiles",
-            "cmpd_id",
-            "prot_id",
-            "protein_code",
-            "mol_type",
+            "smiles"
+            "cmpd",
+            "code",
+            # seems that this field is removed
+            # "mol_type",
             "molecule_protein",
-            "lig_id",
+            "seq_id",
             "chain_id",
-            "sdf_info",
-            "x_com",
-            "y_com",
-            "z_com",
+            "ligand_mol_file",
+            # these seem to be removed as well
+            # "x_com",
+            # "y_com",
+            # "z_com",
             "mw",
             "logp",
             "tpsa",
@@ -266,13 +271,6 @@ class ActivityPointSerializer(serializers.ModelSerializer):
             "operator",
             "internal_id",
         )
-
-
-class ProteinSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = models.Protein
-        fields = '__all__'
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -330,7 +328,7 @@ class MolImageSerializer(serializers.ModelSerializer):
             return draw_mol(obj.smiles, height=125, width=125)
 
     class Meta:
-        model = models.Molecule
+        model = models.SiteObservation
         fields = ("id", "mol_image")
 
 
@@ -346,6 +344,9 @@ class CmpdImageSerializer(serializers.ModelSerializer):
         fields = ("id", "cmpd_image")
 
 
+# TODO: this is a tricky one. there's event_map_info in Experiment,
+# but this is array_field of files. there's no way to link back to a
+# single protein, I can only do target now
 class ProtMapInfoSerializer(serializers.ModelSerializer):
 
     map_data = serializers.SerializerMethodField()
@@ -357,7 +358,7 @@ class ProtMapInfoSerializer(serializers.ModelSerializer):
             return None
 
     class Meta:
-        model = models.Protein
+        model = models.SiteObservation
         fields = ("id", "map_data", "prot_type")
 
 
@@ -366,26 +367,32 @@ class ProtPDBInfoSerializer(serializers.ModelSerializer):
     pdb_data = serializers.SerializerMethodField()
 
     def get_pdb_data(self, obj):
-        return open(obj.pdb_info.path, encoding='utf-8').read()
+        return open(obj.experiment.pdb_info.path, encoding='utf-8').read()
 
 
     class Meta:
-        model = models.Protein
-        fields = ("id", "pdb_data", "prot_type")
+        model = models.SiteObservation
+        # fields = ("id", "pdb_data", "prot_type")
+        # prot_type is removed
+        fields = ("id", "pdb_data")
 
 
 class ProtPDBBoundInfoSerializer(serializers.ModelSerializer):
 
     bound_pdb_data = serializers.SerializerMethodField()
+    target_id = serializers.SerializerMethodField()
 
     def get_bound_pdb_data(self, obj):
-        if obj.bound_info:
-            return open(obj.bound_info.path, encoding='utf-8').read()
+        if obj.bound_file:
+            return open(obj.bound_file.path, encoding='utf-8').read()
         else:
             return None
 
+    def get_target_id(self, obj):
+        return obj.experiment.experiment_upload.target.id
+
     class Meta:
-        model = models.Protein
+        model = models.SiteObservation
         fields = ("id", "bound_pdb_data", "target_id")
 
 
@@ -396,15 +403,15 @@ class VectorsSerializer(serializers.ModelSerializer):
     def get_vectors(self, obj):
         out_data = {}
         try:
-            out_data["3d"] = get_3d_vects_for_mol(obj.sdf_info, iso_labels=False)
+            out_data["3d"] = get_3d_vects_for_mol(obj.ligand_mol_file, iso_labels=False)
         # temporary patch
         except IndexError:
-            out_data["3d"] = get_3d_vects_for_mol(obj.sdf_info, iso_labels=True)
-        out_data["indices"] = get_vect_indices_for_mol(obj.sdf_info)
+            out_data["3d"] = get_3d_vects_for_mol(obj.ligand_mol_file, iso_labels=True)
+        out_data["indices"] = get_vect_indices_for_mol(obj.ligand_mol_file)
         return out_data
 
     class Meta:
-        model = models.Molecule
+        model = models.SiteObservation
         fields = ("id", "vectors")
 
 
@@ -419,7 +426,7 @@ class GraphSerializer(serializers.ModelSerializer):
                               isomericSmiles=True)
 
     class Meta:
-        model = models.Molecule
+        model = models.SiteObservation
         fields = ("id", "graph")
 
 
@@ -602,9 +609,9 @@ class TagCategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class MoleculeTagSerializer(serializers.ModelSerializer):
+class SiteObservationTagSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.MoleculeTag
+        model = models.SiteObservationTag
         fields = '__all__'
 
 
@@ -642,47 +649,54 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
         return protein_sequences(obj)
 
     def get_molecules(self, obj):
-        mols = models.Molecule.objects.filter(prot_id__target_id=obj.id)
-        molecules = []
-        for mol in mols:
-            mol_data = {
-                'id': mol.id,
-                'smiles': mol.smiles,
-                'cmpd_id': mol.cmpd_id_id,
-                'prot_id': mol.prot_id_id,
-                'protein_code': mol.prot_id.code,
-                "mol_type": mol.mol_type,
-                "molecule_protein": mol.prot_id.pdb_info.url,
-                "lig_id": mol.lig_id,
-                "chain_id": mol.chain_id,
-                'sdf_info': mol.sdf_info,
-                'x_com': mol.x_com,
-                'y_com': mol.y_com,
-                'z_com': mol.z_com,
-                'mw': round(mol.cmpd_id.mol_wt, 2),
-                'logp': round(mol.cmpd_id.mol_log_p, 2),
-                'tpsa': round(mol.cmpd_id.tpsa, 2),
-                'ha': mol.cmpd_id.heavy_atom_count,
-                'hacc': mol.cmpd_id.num_h_acceptors,
-                'hdon': mol.cmpd_id.num_h_donors,
-                'rots': mol.cmpd_id.num_rot_bonds,
-                'rings': mol.cmpd_id.ring_count,
-                'velec': mol.cmpd_id.num_val_electrons
-            }
-            mol_tags_set = \
-                [mt['id'] for mt in models.MoleculeTag.objects.filter(molecules=mol.id).values()]
-            mol_dict = {'data': mol_data, 'tags_set': mol_tags_set}
-            molecules.append(mol_dict)
+        mols = models.SiteObservation.objects.filter(
+            experiment__experiment_upload__target__id=obj.id
+        ).annotate(
+            # NB! some of the fields are just renamed here, avoiding
+            # that would simplify things here and remove some lines of
+            # code. but that means front-end code needs to know about
+            # the changes
+            protein_code=F('code'),
+            # this field is missing now
+            # mol_type=
+            molecule_protein=F('experiment__pdb_info'),
+            sdf_info=F('ligand_mol_file'),
+            lig_id=F('seq_id'),
+            # missing
+            # x_com=
+            # y_com=
+            # z_com=
+            # NB! this is django 4 syntax, if we don't move, need to round by hand
+            mw=Round(F('cmpd__mol_wt'), precision=2),
+            logp=Round(F('cmpd__mol_log_p'), precision=2),
+            tpsa=Round(F('cmpd__tpsa'), precision=2),
+            ha=F('cmpd__heavy_atom_count'),
+            hacc=F('cmpd__num_h_acceptors'),
+            hdon=F('cmpd__num_h_donors'),
+            rots=F('cmpd__num_rot_bonds'),
+            rings=F('cmpd__ring_count'),
+            velec=F('cmpd__num_val_electrons'),
+            mol_tags_set=ArrayAgg("molecules__pk"),
+        )
+        fields = [ "id", "smiles", "cmpd_id", "prot_id",
+                   "protein_code", "mol_type", "molecule_protein", "lig_id",
+                   "chain_id", "sdf_info", "x_com", "y_com", "z_com", "mw",
+                   "logp", "tpsa", "ha", "hacc", "hdon", "rots", "rings",
+                   "velec",
+                  ]
+
+        molecules = [{'data': k.values(fields), 'tags_set': k.values('mol_tags_set')} for k in mols ]
 
         return molecules
 
+
     def get_tags_info(self, obj):
-        tags = models.MoleculeTag.objects.filter(target_id=obj.id)
+        tags = models.SiteObservationTag.objects.filter(target_id=obj.id)
         tags_info = []
         for tag in tags:
-            tag_data = models.MoleculeTag.objects.filter(id=tag.id).values()
+            tag_data = models.SiteObservationTag.objects.filter(id=tag.id).values()
             tag_coords = \
-                MolGroup.objects.filter(id=tag.mol_group_id).values('x_com','y_com','z_com' )
+                SiteObservationGroup.objects.filter(id=tag.mol_group_id).values('x_com','y_com','z_com' )
             tag_dict = {'data': tag_data, 'coords': tag_coords}
             tags_info.append(tag_dict)
 

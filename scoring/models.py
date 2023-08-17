@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 
-from viewer.models import Protein, Molecule, Compound, Target, Snapshot
+from viewer.models import SiteObservation, Compound, Target, Snapshot
 
 
 class ViewScene(models.Model):
@@ -27,32 +27,16 @@ class ViewScene(models.Model):
     snapshot = models.ForeignKey(Snapshot, null=True, on_delete=models.CASCADE)
 
 
-class ProtChoice(models.Model):
+class SiteObservationChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
-    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
-    # Set the groups types
-    DEFAULT = "DE"
-    PROT_CHOICES = ((DEFAULT, "Default"),)
-    choice_type = models.CharField(choices=PROT_CHOICES, max_length=2, default=DEFAULT)
-    # Integer Score for this
-    score = models.FloatField(null=True)
-
-    class Meta:
-        unique_together = ("user_id", "prot_id", "choice_type")
-
-
-class MolChoice(models.Model):
-    """
-    A Django model to store a selection from a user
-    """
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
-    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     DEFAULT = "DE"
     PANDDA = "PA"
     GOOD_MOL = "GM"
+    # TODO: what choices will there be?
     MOL_CHOICES = (
         (DEFAULT, "Default"),
         (PANDDA, "Pandda"),
@@ -63,19 +47,29 @@ class MolChoice(models.Model):
     score = models.FloatField(null=True)
 
     class Meta:
-        unique_together = ("user_id", "mol_id", "choice_type")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user_id", "site_observation", "choice_type"],
+                name="unique_siteobvs_choice",
+            ),
+        ]         
+        
 
-
-class MolAnnotation(models.Model):
+class SiteObservationAnnotation(models.Model):
     """
     A Django model to annotate a molecule with free text
     """
-    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
+    site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     annotation_type = models.CharField(max_length=50)
     annotation_text = models.CharField(max_length=100)
 
     class Meta:
-        unique_together = ("mol_id", "annotation_type")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["site_observation", "annotation_type"],
+                name="unique_siteobvs_anntype",
+            ),
+        ]         
 
 
 class ScoreChoice(models.Model):
@@ -83,9 +77,8 @@ class ScoreChoice(models.Model):
     A Django model to store a selection from a user
     """
     # IN THIS CASE THIS WOULD INDICATE THE SOFTWARE USED - WE WILL GENERATE DIFFERENT USERS FOR EACH SOFTWARE
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
-    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
-    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     is_done = models.BooleanField(default=False)
     DEFAULT = "DE"
     DOCKING = "AU"
@@ -102,7 +95,12 @@ class ScoreChoice(models.Model):
     score = models.FloatField(null=True)
 
     class Meta:
-        unique_together = ("user_id", "mol_id", "prot_id", "choice_type")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "site_observation", "choice_type"],
+                name="unique_user_siteobvs_dockchoice",
+            ),
+        ]        
 
 
 class CmpdChoice(models.Model):
@@ -124,7 +122,7 @@ class CmpdChoice(models.Model):
         unique_together = ("user_id", "cmpd_id", "choice_type")
 
 
-class MolGroup(models.Model):
+class SiteObservationGroup(models.Model):
     """
     A Django model for a group of molecules.
     No unique set - so needs to be deleted for a type before re-running.
@@ -148,13 +146,13 @@ class MolGroup(models.Model):
         choices=MOL_GROUP_CHOICES, max_length=2, default=DEFAULT
     )
     # Set the target id
-    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
     # Set the description
     description = models.TextField(null=True)
     # Set the ManyToMany
-    mol_id = models.ManyToManyField(Molecule, related_name="mol_groups")
+    site_observation = models.ManyToManyField(SiteObservation, related_name="site_observation_groups")
     # Set the centre of mass
     x_com = models.FloatField(null=True)
     y_com = models.FloatField(null=True)
     z_com = models.FloatField(null=True)
-
+    

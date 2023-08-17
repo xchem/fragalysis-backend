@@ -1,7 +1,7 @@
 from django.db import models
 
 from hypothesis.definitions import IntTypes, VectTypes
-from viewer.models import Protein, Molecule, Target, Compound
+from viewer.models import SiteObservation, Target, Compound
 
 
 class TargetResidue(models.Model):
@@ -19,34 +19,26 @@ class TargetResidue(models.Model):
         unique_together = ("target_id", "res_num", "res_name", "chain_id")
 
 
-class ProteinResidue(models.Model):
-    """Model to store residue information - to curate the probes"""
-    # The target it relates to
-    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
-    # The target Residue it relates to
-    targ_res_id = models.ForeignKey(TargetResidue, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = ("prot_id", "targ_res_id")
-
-
 class InteractionPoint(models.Model):
-    # The protein residue id
-    prot_res_id = models.ForeignKey(ProteinResidue, on_delete=models.CASCADE)
     # The molecule id
-    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
+    site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     # Set the molecule and protein identifier
     protein_atom_name = models.CharField(max_length=255)
     molecule_atom_name = models.CharField(max_length=255)
+    targ_res = models.ForeignKey(TargetResidue, on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = (
-            "prot_res_id",
-            "mol_id",
-            "protein_atom_name",
-            "molecule_atom_name",
-        )
-
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "site_observation",
+                    "protein_atom_name",
+                    "molecule_atom_name",
+                ],
+                name="unique_siteobvs_protatom_molatom",
+            ),
+        ]        
+        
 
 class Interaction(models.Model):
     """Model to store the interaction information."""
@@ -87,9 +79,10 @@ class Vector(models.Model):
 
 class Vector3D(models.Model):
     # The molecule it relates to
-    mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
+    # mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
+    site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     # The vector it relates to
-    vector_id = models.ForeignKey(Vector, on_delete=models.CASCADE)
+    vector = models.ForeignKey(Vector, on_delete=models.CASCADE)
     # The number on this
     number = models.IntegerField()
     # The start position
@@ -102,4 +95,9 @@ class Vector3D(models.Model):
     end_z = models.FloatField(null=True)
 
     class Meta:
-        unique_together = ("mol_id", "vector_id", "number")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["site_observation", "vector", "number"],
+                name="unique_siteobvs_vector_number",
+            ),
+        ]

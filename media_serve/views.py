@@ -1,5 +1,5 @@
 from api.security import ISpyBSafeStaticFiles
-from viewer.models import Protein, Target
+from viewer.models import SiteObservation, Target
 
 
 def prot_download(request, file_path):
@@ -10,7 +10,7 @@ def prot_download(request, file_path):
     :return: the response (a redirect to nginx internal)
     """
     ispy_b_static = ISpyBSafeStaticFiles()
-    ispy_b_static.model = Protein
+    ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
     ispy_b_static.permission_string = "target_id__project_id"
     ispy_b_static.field_name = "pdb_info"
@@ -28,7 +28,7 @@ def bound_download(request, file_path):
     :return: the response (a redirect to nginx internal)
     """
     ispy_b_static = ISpyBSafeStaticFiles()
-    ispy_b_static.model = Protein
+    ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
     ispy_b_static.permission_string = "target_id__project_id"
     ispy_b_static.field_name = "bound_info"
@@ -46,7 +46,7 @@ def map_download(request, file_path):
     :return: the response (a redirect to nginx internal)
     """
     ispy_b_static = ISpyBSafeStaticFiles()
-    ispy_b_static.model = Protein
+    ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
     ispy_b_static.permission_string = "target_id__project_id"
 

@@ -14,7 +14,6 @@ router = DefaultRouter()
 # Register the basic data
 router.register("compounds", viewer_views.CompoundView)
 router.register("targets", viewer_views.TargetView, "targets")
-router.register("proteins", viewer_views.ProteinView)
 router.register("projects", viewer_views.ProjectView)
 router.register("session-projects", viewer_views.SessionProjectsView)
 router.register("snapshots", viewer_views.SnapshotsView)
@@ -48,24 +47,22 @@ router.register("hotspots", hostpot_views.HotspotView)
 router.register("vectors", hypo_views.VectorView)
 router.register("vector3ds", hypo_views.Vector3DView)
 router.register("interactions", hypo_views.InteractionView)
-router.register("proteinres", hypo_views.ProteinResidueView)
 router.register("targetres", hypo_views.TargetResidueView)
 router.register("interactionpoints", hypo_views.InteractionPointView)
 
 # Register the  choices
 router.register("scorechoice", score_views.ScoreChoiceView)
-router.register("molchoice", score_views.MolChoiceView)
-router.register("protchoice", score_views.ProtChoiceView)
+router.register("siteobservationchoice", score_views.SiteObservationChoiceView)
 router.register("cmpdchoice", score_views.CmpdChoiceView)
 
 # Register the scenese
 router.register("viewscene", score_views.ViewSceneView)
 
 # Register the groups
-router.register("molgroup", score_views.MolGroupView)
+router.register("siteobservationgroup", score_views.SiteObservationGroupView)
 
 # Get the information
-router.register("molannotation", score_views.MolAnnotationView)
+router.register("siteobservationannotation", score_views.SiteObservationAnnotationView)
 
 # fragspect
 router.register("fragspect", xcdb_views.FragspectCrystalView)
@@ -78,7 +75,7 @@ router.register("dicttocsv", viewer_views.DictToCsv, basename='dicttocsv')
 
 # tags
 router.register("tag_category", viewer_views.TagCategoryView, basename='tag_category')
-router.register("molecule_tag", viewer_views.MoleculeTagView, basename='molecule_tag')
+router.register("siteobservation_tag", viewer_views.SiteObservationTagView, basename='siteobservation_tag')
 router.register("session_project_tag", viewer_views.SessionProjectTagView, basename='session_project_tag')
 router.register("target_molecules", viewer_views.TargetMoleculesView, basename='target_molecules')
 

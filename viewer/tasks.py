@@ -36,7 +36,7 @@ from .sdf_check import (
     check_field_populated,
     check_compound_set
 )
-from .target_set_upload import process_target, validate_target
+from .target_set_upload import validate_target
 from .cset_upload import blank_mol_vals, MolOps, PdbOps
 from .squonk_job_file_transfer import (
     process_file_transfer,
@@ -47,7 +47,7 @@ from .squonk_job_file_upload import (
     get_upload_sub_directory,
     process_compound_set_file
 )
-from .models import ComputedSet, JobRequest, JobFileTransfer, Molecule
+from .models import ComputedSet, JobRequest, JobFileTransfer, SiteObservation
 from .utils import SDF_VERSION, delete_media_sub_directory
 
 # If Celery configured to always run 'synchronously' (eager),
@@ -381,7 +381,8 @@ def process_design_compound(compound_row):
         # TODO: find matching molecules - change to molecules and search history to find the correct version.
         #  -- search all history and find most recent with matching code? or code most closely matching design date?
         # (Can this be accessed, or does the view need changing to display the correct one? Not implemented yet anyway)
-        molecules = Molecule.objects.filter(prot_id__code__contains=insp.split(':')[0].split('_')[0])
+        # molecules = Molecule.objects.filter(prot_id__code__contains=insp.split(':')[0].split('_')[0])
+        molecules = SiteObservation.objects.filter(prot_id__code__contains=insp.split(':')[0].split('_')[0])
         # compounds = [m.cmpd_id for m in molecules]
         for molecule in molecules:
             new_mol.inspirations.add(molecule)
@@ -506,49 +507,6 @@ def task_load_target(self, data_bundle, proposal_ref=None, contact_email=None, u
     logger.info('TASK %s load_target completed, target_zip=%s', self.request.id, data_bundle)
     # TODO: send email
 
-
-
-@shared_task
-def process_target_set(validate_output):
-    """ Celery task to process a target set, that takes the output of the validation task, and uploads molecules to a
-    new target set if the uploaded files are valid
-
-    Parameters
-    ----------
-    validate_output: tuple
-        contains the following:
-            - validate dict (dict): dict containing any errors found during the validation step
-            - validated (bool): True if the file(s) were validated, False if not
-            - filename (str): name of the uploaded target file (zip file)
-            - target (str): name of the target
-            - submitter_name (str): name of the author of the computed set
-
-    Returns
-    -------
-    target str
-        name of the processed target set
-
-    """
-    logger.info('+ TASK validate_output=%s', validate_output)
-
-    # Validate output is a tuple - this is one way to get
-    # Celery chaining to work where second function uses list output
-    # from first function (validate) called
-    process_stage, process_type, validate_dict, validated, new_data_folder, target_name, proposal_ref, submitter_name, \
-        contact_email = validate_output
-
-    # If there is a validation error, stop here.
-    if not validated:
-        logger.warning('- TASK Leaving (not validated)')
-        return process_stage, 'tset', validate_dict, validated
-
-    logger.info('+ TASK Calling process_target(%s, %s, %s)...',
-                new_data_folder, target_name, proposal_ref)
-    mols_loaded, mols_processed = process_target(new_data_folder, target_name, proposal_ref)
-    logger.info('+ TASK process_target() returned mols_loaded=%s mols_processed=%s',
-                mols_loaded, mols_processed)
-
-    return 'process', 'tset', target_name, mols_loaded, mols_processed, contact_email
 
 
 @shared_task

@@ -10,7 +10,6 @@ from django.contrib.postgres.fields import ArrayField
 
 from simple_history.models import HistoricalRecords
 
-from viewer.target_set_config import get_mol_choices, get_prot_choices
 
 class Project(models.Model):
     title = models.CharField(max_length=200, unique=True)
@@ -123,68 +122,6 @@ class Experiment(models.Model):
         return "<Experiment %r %r %r>" % (self.id, self.code, self.experiment_upload)
 
 
-# TODO: delete
-class Protein(models.Model):
-    """Information about a protein. A protein is a protein structure which has a unique set of
-    3D coordinates, rather than a target, which is a set of protein objects of the same protein.
-    A Molecule object is also linked to a protein, so that a complete structure is
-    comprised of the molecule and protein in separate parts in fragalysis.
-
-    protein type is from a pre-defined list and determined by file extension on upload
-    (defined in loader.config.get_prot_choices): -
-
-    prot_choices = (
-        (APO, "Apo", "_apo.pdb", "APO"),
-        (STRIPPED, "Stripped", "_no_buffer_altlocs.pdb", "STRIPPED"),
-        (TLEAPED, "Tleaped", "_tleap.pdb", "TLEAP"),
-        (CHUNKED, "Chunked", "_chunk.pdb", "CHUNK"),
-        (BOUND, "Bound", '_bound.pdb', "BOUND")
-    )
-    """
-    code = models.CharField(max_length=50, db_index=True, help_text='Code for this protein (e.g. NUDT5A-x0001_1A)')
-    target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
-    experiment = models.ForeignKey(Experiment, null=True, on_delete=models.CASCADE)
-    apo_holo = models.BooleanField(null=True, help_text='0 for apo (ligand removed), 1 for holo (ligand in tact)')
-    # Set the groups types
-    prot_choices, default_prot = get_prot_choices()
-    prot_type = models.CharField(
-        choices=prot_choices, default=default_prot, max_length=2
-    )
-    pdb_info = models.FileField(upload_to="pdbs/", null=True, max_length=255,
-                                help_text='File link to apo pdb structure - pdb file with ligand removed')
-    bound_info = models.FileField(upload_to="bound/", null=True, max_length=255,
-                                  help_text='File link to uploaded bound pdb file (optional)')
-    cif_info = models.FileField(upload_to="cifs/", null=True, max_length=255,
-                                help_text='File link to uploaded cif file (optional)')
-    mtz_info = models.FileField(upload_to="mtzs/", null=True, max_length=255,
-                                help_text='File link to uploaded mtz file (optional)')
-    map_info = models.FileField(upload_to="maps/", null=True, max_length=255,
-                                help_text='File link to uploaded map file (optional)')
-    sigmaa_info = models.FileField(upload_to="maps/", null=True, max_length=255)
-    diff_info = models.FileField(upload_to="maps/", null=True, max_length=255)
-    event_info = models.FileField(upload_to="maps/", null=True, max_length=255)
-    trans_matrix_info = models.FileField(upload_to="trans/", null=True, max_length=255,
-                                         help_text='File link to uploaded transformation matrix file (optional)')
-    pdb_header_info = models.FileField(upload_to="pdbs/", null=True, max_length=255,
-                                       help_text='File link to uploaded _header.pdb file (optional)')
-    apo_desolve_info = models.FileField(upload_to="pdbs/", null=True, max_length=255,
-                                        help_text='File link to uploaded _apo-desolv.pdb file (optional)')
-    aligned = models.BooleanField(null=True)
-    aligned_to = models.ForeignKey("self", null=True, on_delete=models.CASCADE,
-                                   help_text='Foreign key to another instance of a protein'
-                                             ' to which this protein is aligned (optional)')
-    has_eds = models.BooleanField(null=True)
-
-    class Meta:
-        unique_together = ("code", "target_id", "prot_type")
-
-    def __str__(self):
-        return self.code
-
-    def __repr__(self):
-        return "<Protein %s %s %s %s>" % (self.id, self.code, self.target_id, self.prot_type)
-
-
 class Compound(models.Model):
     """Information about a compound, which is a unique 2D molecule
     """
@@ -210,7 +147,7 @@ class Compound(models.Model):
     num_rot_bonds = models.IntegerField(help_text='Computed number of rotatable bonds')
     num_val_electrons = models.IntegerField(help_text='Computed number of valence electrons')
     ring_count = models.IntegerField(help_text='Computed number of rings in the molecule')
-    inspirations = models.ManyToManyField("Molecule", blank=True,
+    inspirations = models.ManyToManyField("SiteObservation", blank=True,
                                           help_text='Foreign key link to any number of 3D Molecules that inspired'
                                                     ' the design of this compound')
     description = models.TextField(blank=True, null=True)
@@ -221,63 +158,6 @@ class Compound(models.Model):
 
     def __repr__(self) -> str:
         return "<Compound %r %r %r>" % (self.id, self.smiles, self.inchi)
-
-
-# TODO: delete
-class Molecule(models.Model):
-    """Information about a Molecule. A molecule is linked to a compound, and represents the
-    unique 3D coordinates for that molecule. Note a compound can be linked to multiple molecules,
-    each with a different 3D structure, but the same 2D structure
-
-    mol_type is from a pre-defined list and determined by file extension on upload
-    (defined in loader.config.get_mol_choices):
-
-    mol_choices = (
-        (PROASIS, "Proasis molecule", ".mol", "MOL"),
-        (SDF, "Sdf molecule", ".sdf", "SDF"),
-        (HYDROGEN, "Hydrogens added ", "_h.mol", "H_MOL"),
-        (
-            HYDROGEN_AM1_CHARGES,
-            "Mol2 format with Hydrogens and AM1 BCC",
-            ".mol2",
-            "MOL2",
-        ),
-        )
-    )
-    """
-    smiles = models.CharField(max_length=255, db_index=True, null=True)
-    lig_id = models.CharField(max_length=5, null=True,
-                              help_text="Ligand ID from the pdb file it originated from (e.g. LIG 1 A)")
-    chain_id = models.CharField(max_length=1, null=True,
-                                help_text="Chain ID from the pdb file it originated from (e.g. A)")
-    mol_choices, default_mol = get_mol_choices()
-    mol_type = models.CharField(choices=mol_choices, default=default_mol, max_length=2)
-    sdf_info = models.TextField(null=True, help_text="The 3D coordinates for the molecule in MDL (mol file) format."
-                                                     " Taken directly from the uploaded file")
-    rscc = models.FloatField(null=True, help_text="The RSCC score of the molecule 3D coordinates vs. PANDDA event map")
-    occupancy = models.FloatField(null=True, help_text="The occupancy (electron density) of the molecule")
-    x_com = models.FloatField(null=True, help_text="x-coordinate for centre of mass")
-    y_com = models.FloatField(null=True, help_text="y-coordinate for centre of mass")
-    z_com = models.FloatField(null=True, help_text="z-coordinate for centre of mass")
-    rmsd = models.FloatField(null=True)
-    prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE,
-                                help_text="Associated protein (apo) that this ligand was pulled from")
-    cmpd_id = models.ForeignKey(Compound, on_delete=models.CASCADE,
-                                help_text="Associated 2D compound")
-    sdf_file = models.FileField(upload_to="sdfs/", null=True, max_length=255,
-                                help_text="File link to uploaded sdf file")
-    # Tracks the changes made to an instance of this model over time
-    history = HistoricalRecords()
-
-    def __str__(self) -> str:
-        return f"{self.smiles}"
-
-    def __repr__(self) -> str:
-        return "<Molecule %r %r %r %r %r>" % (self.id, self.smiles, self.mol_type, self.prot_id, self.cmpd_id)
-
-    class Meta:
-        unique_together = ("prot_id", "cmpd_id", "mol_type")
-
 
 
 class QuatAssembly(models.Model):
@@ -306,6 +186,77 @@ class Xtalform(models.Model):
 
     def __repr__(self) -> str:
         return "<Xtalform %r %r %r>" % (self.id, self.name, self.experiment)
+
+class CanonSite(models.Model):
+    name = models.TextField()
+    quat_assembly = models.ForeignKey(QuatAssembly, null=True, on_delete=models.CASCADE)
+    residues = models.JSONField(encoder=DjangoJSONEncoder)
+    # TODO: missing in db, check if correct, (might be correct, but might not)
+    ref_conf_site = models.OneToOneField("CanonSiteConf", null=True, on_delete=models.CASCADE)
+    canon_site_id = models.IntegerField(null=False, help_text="canon_site id from YAML")
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<CanonSite %r %r>" % (self.id, self.name)
+
+
+class XtalformSite(models.Model):
+    xtalform = models.ForeignKey(Xtalform, on_delete=models.CASCADE)
+    canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
+    lig_chain = models.CharField(max_length=1)
+    residues = models.JSONField(encoder=DjangoJSONEncoder)
+    xtalform_site_id = models.IntegerField(null=False, help_text="xtalform site id from YAML")
+
+    def __str__(self) -> str:
+        return f"{self.xtalform_site_id}"
+
+    def __repr__(self) -> str:
+        return "<CanonSiteConf %r %r %r>" % (self.id, self.xtalform_site_id, self.xtalform)
+
+
+class CanonSiteConf(models.Model):
+    canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
+    # TODO: name not present in metadata atm
+    name = models.TextField(null=True)
+    ref_site_observation = models.OneToOneField("SiteObservation", null=True, on_delete=models.CASCADE)
+    residues = models.JSONField(encoder=DjangoJSONEncoder)
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<CanonSiteConf %r %r %r>" % (self.id, self.name, self.canon_site)
+
+
+class SiteObservation(models.Model):
+    code = models.TextField()
+    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    cmpd = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
+    canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
+    bound_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    apo_solv_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    apo_desolv_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    apo_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    xmap_2fofc_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    event_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    artefacts_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    pdb_header_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    smiles = models.TextField()
+    seq_id = models.IntegerField()
+    chain_id = models.CharField(max_length=1)
+    ligand_mol_file = models.TextField(null=True)
+
+    history = HistoricalRecords()
+
+    def __str__(self) -> str:
+        return f"{self.code}"
+
+    def __repr__(self) -> str:
+        return "<SiteObservation %r %r %r %r>" % (self.id, self.code, self.experiment, self.compound)
+
 
 
 class CompoundIdentifierType(models.Model):
@@ -634,10 +585,8 @@ class ComputedMolecule(models.Model):
     computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE)
     name = models.CharField(max_length=50)
     smiles = models.CharField(max_length=255)
-    pdb = models.ForeignKey(Protein, on_delete=models.PROTECT, null=True)
-    computed_inspirations = models.ManyToManyField(Molecule, blank=True,
-                                                   help_text="Existing fragalysis molecules that were inspirations"
-                                                             " in the design/calculation of the molecule")
+    site_observation = models.ForeignKey(SiteObservation, on_delete=models.PROTECT, null=True)
+
 
     def __str__(self) -> str:
         return f"{self.smiles}"
@@ -816,16 +765,16 @@ class Tag(models.Model):
         unique_together = ('tag', 'target',)
 
 
-class MoleculeTag(Tag):
-    molecules = models.ManyToManyField(Molecule, blank=True)
-    mol_group = models.ForeignKey("scoring.MolGroup", null=True, blank=True,
+class SiteObservationTag(Tag):
+    site_observations = models.ManyToManyField(SiteObservation, blank=True)
+    mol_group = models.ForeignKey("scoring.SiteObservationGroup", null=True, blank=True,
                                   on_delete=models.SET_NULL)
 
     def __str__(self) -> str:
-        return f"{self.mol_group}"
+        return f"{self.site_observations}"
 
     def __repr__(self) -> str:
-        return "<MoleculeTag %r %r>" % (self.id, self.mol_group)
+        return "<SiteObservationTag %r %r>" % (self.id, self.site_observations)
 
 
 class SessionProjectTag(Tag):
@@ -1029,74 +978,3 @@ class Squonk2Project(models.Model):
 
     def __repr__(self) -> str:
         return "<Squonk2Project %r %r %r %r %r>" % (self.id, self.name, self.uuid, self.product_uuid, self.unit)
-
-
-class CanonSite(models.Model):
-    name = models.TextField()
-    quat_assembly = models.ForeignKey(QuatAssembly, null=True, on_delete=models.CASCADE)
-    residues = models.JSONField(encoder=DjangoJSONEncoder)
-    # TODO: missing in db, check if correct, (might be correct, but might not)
-    ref_conf_site = models.OneToOneField("CanonSiteConf", null=True, on_delete=models.CASCADE)
-    canon_site_id = models.IntegerField(null=False, help_text="canon_site id from YAML")
-
-    def __str__(self) -> str:
-        return f"{self.name}"
-
-    def __repr__(self) -> str:
-        return "<CanonSite %r %r>" % (self.id, self.name)
-
-
-class XtalformSite(models.Model):
-    xtalform = models.ForeignKey(Xtalform, on_delete=models.CASCADE)
-    canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
-    lig_chain = models.CharField(max_length=1)
-    residues = models.JSONField(encoder=DjangoJSONEncoder)
-    xtalform_site_id = models.IntegerField(null=False, help_text="xtalform site id from YAML")
-
-    def __str__(self) -> str:
-        return f"{self.xtalform_site_id}"
-
-    def __repr__(self) -> str:
-        return "<XtalformSite %r %r %r>" % (self.id, self.xtalform_site_id, self.xtalform)
-
-
-class CanonSiteConf(models.Model):
-    canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
-    # TODO: name not present in metadata atm
-    name = models.TextField(null=True)
-    ref_site_observation = models.OneToOneField("SiteObservation", null=True, on_delete=models.CASCADE)
-    residues = models.JSONField(encoder=DjangoJSONEncoder)
-
-    def __str__(self) -> str:
-        return f"{self.name}"
-
-    def __repr__(self) -> str:
-        return "<CanonSiteConf %r %r %r>" % (self.id, self.name, self.canon_site)
-
-
-class SiteObservation(models.Model):
-    code = models.TextField()
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
-    cmpd = models.ForeignKey(Compound, on_delete=models.CASCADE)
-    xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
-    canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
-    bound_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
-    apo_solv_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
-    apo_desolv_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
-    apo_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
-    xmap_2fofc_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
-    event_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
-    artefacts_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
-    pdb_header_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
-    smiles = models.TextField()
-    seq_id = models.IntegerField()
-    chain_id = models.CharField(max_length=1)
-    ligand_mol_file = models.TextField(null=True)
-
-    history = HistoricalRecords()
-
-    def __str__(self) -> str:
-        return f"{self.code}"
-
-    def __repr__(self) -> str:
-        return "<SiteObservation %r %r %r %r>" % (self.id, self.code, self.experiment, self.cmpd)

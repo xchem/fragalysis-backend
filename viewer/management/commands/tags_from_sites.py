@@ -5,11 +5,12 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from viewer.models import (
     Target,
-    Molecule,
-    MoleculeTag,
+    SiteObservation,
+    SiteObservationTag,
     TagCategory
 )
-from scoring.models import MolGroup
+# from scoring.models import MolGroup
+from scoring.models import SiteObservationGroup
 
 class Command(BaseCommand):
     help = 'Add moleculeTag record for existing mol_groups for a given target. This effectively adds molecule tags for all the sites for the Target'
@@ -48,11 +49,11 @@ class Command(BaseCommand):
             expected_sites = sum(1 for line in open(sites_filepath, encoding='utf-8')) - 1
             self.stdout.write("Expected number of sites: %s" % expected_sites)
             # These should correspond to the sites for the target held in sites.csv
-            mol_groups = MolGroup.objects.filter(target_id__title=target_name, group_type = "MC")
+            mol_groups = SiteObservationGroup.objects.filter(target_id__title=target_name, group_type = "MC")
             tag_type = 'site'
         else:
             # The sites should correspond to the centres of mass. The sites will be generated from them
-            mol_groups = MolGroup.objects.filter(target_id__title=target_name, group_type = "MC", description = "c_of_m")
+            mol_groups = SiteObservationGroup.objects.filter(target_id__title=target_name, group_type = "MC", description = "c_of_m")
             expected_sites = len(mol_groups)
             self.stdout.write("Expected number of sites: %s" % expected_sites)
             tag_type = 'c_of_e'
@@ -66,7 +67,7 @@ class Command(BaseCommand):
             self.stdout.write("mol_group description: {}, index: {}".format(mol_group.description, idx))
             # A molecule tag record should not exist, but if it does go no further
             try:
-                mol_tag = MoleculeTag.objects.get(mol_group=mol_group)
+                mol_tag = SiteObservationTag.objects.get(mol_group=mol_group)
             except:
                 mol_tag = None
 
@@ -90,14 +91,14 @@ class Command(BaseCommand):
 
             # If update flag is set then actually create molecule Tags.
             if update:
-                mol_tag = MoleculeTag()
+                mol_tag = SiteObservationTag()
                 mol_tag.tag = tag_name
                 mol_tag.category = TagCategory.objects.get(category='Sites')
                 mol_tag.target = target[0]
                 mol_tag.mol_group = mol_group
                 mol_tag.save()
                 for mol in mol_group.mol_id.values():
-                    this_mol = Molecule.objects.get(id=mol['id'])
+                    this_mol = SiteObservation.objects.get(id=mol['id'])
                     mol_tag.molecules.add(this_mol)
                 tags_created += 1
 

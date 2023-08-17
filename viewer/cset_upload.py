@@ -27,9 +27,8 @@ from viewer.models import (
     ComputedMolecule,
     ComputedSet,
     ComputedSetSubmitter,
-    Molecule,
     NumericalScoreValues,
-    Protein,
+    SiteObservation,
     ScoreDescription,
     Target,
     TextScoreValues,
@@ -63,6 +62,7 @@ def dataType(a_str):
 
 
 class PdbOps:
+
     def save_pdb_zip(self, pdb_file):
         zfile = None
         zfile_hashvals = None
@@ -78,10 +78,10 @@ class PdbOps:
                     # Test if Protein object already exists
                     code = filename.split('/')[-1].replace('.pdb', '')
                     test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
-                    test_prot_objs = Protein.objects.filter(code=test_pdb_code)
-                    print([c.code for c in test_prot_objs])
+                    test_site_obvs_objs = SiteObservation.objects.filter(code=test_pdb_code)
+                    print([c.code for c in test_site_obvs_objs])
 
-                    if len(test_prot_objs) != 0:
+                    if len(test_site_obvs_objs) != 0:
                         # make a unique pdb code as not to overwrite existing object
                         rand_str = uuid.uuid4().hex
                         test_pdb_code = f'{code}#{rand_str}'
@@ -119,7 +119,6 @@ class MolOps:
         self.zfile_hashvals = zfile_hashvals
 
     def process_pdb(self, pdb_code, target, zfile, zfile_hashvals):
-        # pdb_fn = zfile[pdb_code].split('/')[-1]
 
         for key in zfile_hashvals.keys():
             if key == pdb_code:
@@ -128,8 +127,6 @@ class MolOps:
         pdb_fp = zfile[pdb_code]
         pdb_fn = zfile[pdb_code].split('/')[-1]
 
-        print(zfile_hashvals)
-
         new_filename = settings.MEDIA_ROOT + 'pdbs/' + pdb_fn
         old_filename = settings.MEDIA_ROOT + pdb_fp
         shutil.copy(old_filename, new_filename)
@@ -137,54 +134,50 @@ class MolOps:
         # Create Protein object
         target_obj = Target.objects.get(title=target)
         # prot.target_id = target_obj
-        prot, created = Protein.objects.get_or_create(code=pdb_code, target_id=target_obj)
-        print(created)
+        site_obvs, created = SiteObservation.objects.get_or_create(code=pdb_code, target_id=target_obj)
         # prot.code = pdb_code
         if created:
             target_obj = Target.objects.get(title=target)
-            prot.target_id = target_obj
-            prot.pdb_info = 'pdbs/' + pdb_fn
-            prot.save()
+            site_obvs.target_id = target_obj
+            site_obvs.pdb_info = 'pdbs/' + pdb_fn
+            site_obvs.save()
 
-        # Get Protein object
-        prot_obj = Protein.objects.get(code=pdb_code)
-
-        return prot_obj
+        return site_obvs
 
     # use zfile object for pdb files uploaded in zip
     def get_prot(self, mol, target, compound_set, zfile, zfile_hashvals):
         # The returned protein object may be None
 
         pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
-        prot_obj = None
+        site_obvs = None
 
         if zfile:
             pdb_code = pdb_fn.replace('.pdb', '')
-            prot_obj = self.process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
+            site_obvs = self.process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
         else:
             name = compound_set.target.title + '-' + pdb_fn
 
             # try to get single exact match
             # name.split(':')[0].split('_')[0]
             try:
-                prot_obj = Protein.objects.get(code__contains=name)
-            except:
+                site_obvs = SiteObservation.objects.get(code__contains=name)
+            except SiteObservation.DoesNotExist:
                 # Protein lookup failed.
                 logger.warning('Failed to get Protein object (target=%s name=%s)',
                                compound_set.target.title, name)
                 # Try an alternative.
                 # If all else fails then the prot_obj will be 'None'
-                prot_objs = Protein.objects.filter(code__contains=name)
-                if len(prot_objs) == 0:
-                    prot_objs = Protein.objects.filter(code__contains=name.split(':')[0].split('_')[0])
-                if len(prot_objs) > 0:
-                    prot_obj = prot_objs[0]
+                qs = SiteObservation.objects.filter(code__contains=name)
+                if not qs.exists():
+                    qs = SiteObservation.objects.filter(code__contains=name.split(':')[0].split('_')[0])
+                if qs.count() > 0:
+                    site_obvs = qs[0]
 
-        if not prot_obj:
+        if not site_obvs:
             logger.warning('No Protein object (target=%s pdb_fn=%s)',
                            compound_set.target.title, pdb_fn)
 
-        return prot_obj
+        return site_obvs
 
     def create_mol(self, inchi, long_inchi=None, name=None):
         # check for an existing compound
@@ -247,12 +240,11 @@ class MolOps:
 
         return set_obj
 
+
     def set_mol(self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None):
         # Don't need...
         del filename
 
-        # zfile = {'zip_obj': zf, 'zf_list': zip_names}
-        print(f'mol: {mol}')
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
         name = mol.GetProp('_Name')
@@ -270,26 +262,28 @@ class MolOps:
         insp = [i.strip() for i in insp]
         insp_frags = []
         for i in insp:
-
             # try exact match first
             try:
-                mols = Molecule.objects.get(
+                site_obvs = SiteObservation.objects.get(
                     prot_id__code__contains=str(compound_set.target.title + '-' + i),
-                    prot_id__target_id=compound_set.target)
-                ref = mols
-            except:
+                    prot_id__target_id=compound_set.target,
+                )
+                ref = site_obvs
+            except SiteObservation.DoesNotExist:
 
-                mols = Molecule.objects.filter(
+                qs = SiteObservation.objects.filter(
                     prot_id__code__contains=str(compound_set.target.title + '-' + i.split(':')[0].split('_')[0]),
-                    prot_id__target_id=compound_set.target)
-                if len(mols) > 1:
-                    ids = [m.cmpd_id.id for m in mols]
-                    ind = ids.index(max(ids))
-                    ref = mols[ind]
-                if len(mols) == 1:
-                    ref = mols[0]
-                if len(mols) == 0:
+                    prot_id__target_id=compound_set.target,
+                )
+                if not qs.exists():
                     raise Exception('No matching molecules found for inspiration frag ' + i)  # pylint: disable=raise-missing-from
+
+                if qs.count() > 1:
+                    ids = [m.cmpd_id.id for m in qs]
+                    ind = ids.index(max(ids))
+                    ref = qs[ind]
+                elif qs.count()  == 1:
+                    ref = qs[0]
 
             insp_frags.append(ref)
 
@@ -328,6 +322,7 @@ class MolOps:
         cpd.save()
 
         return cpd
+
 
     def get_submission_info(self, description_mol):
         y_m_d = description_mol.GetProp('generation_date').split('-')

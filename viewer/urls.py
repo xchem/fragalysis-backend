@@ -8,7 +8,6 @@ urlpatterns = [
     re_path(r"^react/*", views.react, name="react"),
 
     path("upload_cset/", views.UploadCSet.as_view(), name="upload_cset"),
-    path("upload_tset/", views.UploadTSet.as_view(), name="upload_tset"),
     path("validate_task/<uuid:validate_task_id>/", views.ValidateTaskView.as_view(), name="validate_task"),
     path("upload_task/<uuid:upload_task_id>/", views.UploadTaskView.as_view(), name="upload_task"),
     path("update_task/<uuid:update_task_id>/", views.UpdateTaskView.as_view(), name="update_task"),

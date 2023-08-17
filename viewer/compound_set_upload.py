@@ -8,7 +8,7 @@ from django.conf import settings
 from rdkit import Chem
 from viewer.models import (
     ScoreDescription,
-    Protein,
+    SiteObservation,
     Target,
     ComputedSetSubmitter)
 import os.path
@@ -43,17 +43,18 @@ def process_pdb(pdb_code, target, zfile, zfile_hashvals):
     os.renames(old_filename, new_filename)
 
     # Create Protein object
-    prot = Protein()
-    prot.code = pdb_code
+    site_obvs = SiteObservation()
+    site_obvs.code = pdb_code
     target_obj = Target.objects.get(title=target)
-    prot.target_id = target_obj
-    prot.pdb_info = 'pdbs/' + pdb_fn
-    prot.save()
+    site_obvs.target_id = target_obj
+    site_obvs.pdb_info = 'pdbs/' + pdb_fn
+    site_obvs.save()
 
     # Get Protein object
-    prot_obj = Protein.objects.get(code=pdb_code)
+    prot_obj = SiteObservation.objects.get(code=pdb_code)
 
     return prot_obj
+
 
 # use zfile object for pdb files uploaded in zip
 def get_prot(mol, target, compound_set, zfile, zfile_hashvals=None):
@@ -61,13 +62,13 @@ def get_prot(mol, target, compound_set, zfile, zfile_hashvals=None):
 
     if zfile:
         pdb_code = pdb_fn.replace('.pdb','')
-        prot_obj = process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
-        field = prot_obj.pdb_info
+        site_obvs = process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
+        field = site_obvs.pdb_info
 
     else:
         name = compound_set.target.title + '-' + pdb_fn
-        prot_obj = Protein.objects.get(code__contains=name.split(':')[0].split('_')[0])
-        field = prot_obj.pdb_info
+        site_obvs = SiteObservation.objects.get(code__contains=name.split(':')[0].split('_')[0])
+        field = site_obvs.pdb_info
 
     return field
 

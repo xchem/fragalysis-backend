@@ -2,12 +2,11 @@ from rest_framework import serializers
 
 from scoring.models import (
     ViewScene,
-    ProtChoice,
     CmpdChoice,
-    MolChoice,
+    SiteObservationChoice,
     ScoreChoice,
-    MolGroup,
-    MolAnnotation,
+    SiteObservationGroup,
+    SiteObservationAnnotation,
 )
 
 
@@ -18,25 +17,18 @@ class ViewSceneSerializer(serializers.ModelSerializer):
         fields = ("id", "uuid", "title", "scene", "created", "modified", "user_id", "snapshot")
 
 
-class ProtChoiceSerializer(serializers.ModelSerializer):
+class SiteObservationChoiceSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = ProtChoice
-        fields = ("id", "user_id", "prot_id", "choice_type", "score")
+        model = SiteObservationChoice
+        fields = ("id", "user_id", "mol_id", "choice_type", "score")        
 
 
-class MolChoiceSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = MolChoice
-        fields = ("id", "user_id", "mol_id", "choice_type", "score")
-
-
-class MolAnnotationSerializer(serializers.ModelSerializer):
+class SiteObservationAnnotationSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = MolAnnotation
-        fields = ("id", "mol_id", "annotation_type", "annotation_text")
+        model = SiteObservationAnnotation
+        fields = ("id", "mol_id", "annotation_type", "annotation_text")        
 
 
 class CmpdChoiceSerializer(serializers.ModelSerializer):
@@ -61,10 +53,10 @@ class ScoreChoiceSerializer(serializers.ModelSerializer):
         )
 
 
-class MolGroupSerializer(serializers.ModelSerializer):
+class SiteObservationGroupSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = MolGroup
+        model = SiteObservationGroup
         fields = (
             "id",
             "group_type",
@@ -74,6 +66,6 @@ class MolGroupSerializer(serializers.ModelSerializer):
             "y_com",
             "z_com",
             "description",
-        )
+        )        
 
 

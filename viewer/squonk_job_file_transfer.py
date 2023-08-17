@@ -17,8 +17,7 @@ from viewer.utils import (
     delete_media_sub_directory
 )
 from viewer.models import (
-    Molecule,
-    Protein,
+    SiteObservation,
     ComputedMolecule,
     JobFileTransfer
 )
@@ -85,11 +84,13 @@ def mol_file(field, trans_dir, protein_code, target):
     logger.info('Generating filepath from ield=%s trans_dir=%s protein_code=%s target=%s',
                 field, trans_dir, protein_code, target)
 
-    protein = Protein.objects.get(code=protein_code)
-    mol = Molecule.objects.get(prot_id=protein.id)
+    site_obvs = SiteObservation.objects.get(code=protein_code)
 
-    mol_block = getattr(mol, field)
-    filepath = os.path.join(trans_dir, protein.code.strip().split(":")[0] + '.mol')
+    # TODO: I don't think this is working, the mol is stored in
+    # database field. I suppose the path can be inferred from name and
+    # standard location, but not sure.
+    mol_block = getattr(site_obvs, field)
+    filepath = os.path.join(trans_dir, site_obvs.code.strip().split(":")[0] + '.mol')
     code = ref_mol_from_protein_code(protein_code, target.title)
     add_prop_to_mol(mol_block, filepath, code)
 
@@ -114,9 +115,8 @@ def sdf_file(field, trans_dir, protein_code, target):
     logger.info('Generated filepath from field=%s trans_dir=%s protein_code=%s target=%s',
                 field, trans_dir, protein_code, target)
 
-    protein = Protein.objects.get(code=protein_code)
-    mol = Molecule.objects.get(prot_id=protein.id)
-    file = getattr(mol, field)
+    site_obvs = SiteObservation.objects.get(code=protein_code)
+    file = getattr(site_obvs, field)
     if not file:
         logger.error(
             'No file (field=%s trans_dir=%s protein_code=%s target=%s)',
@@ -150,13 +150,14 @@ def prot_file(field, trans_dir, protein_code, target):
                 ' trans_dir=%s protein_code=%s target.title=%s...',
                 field, trans_dir, protein_code, target.title)
 
-    protein = Protein.objects.get(code=protein_code)
+    site_obvs = SiteObservation.objects.get(code=protein_code)
 
     # The source file (if found)
     in_path = None
 
     # Inspect the DB record...
-    file = getattr(protein, field)
+    # file = getattr(protein, field)
+    file = getattr(site_obvs, field)
     if file:
         logger.info('%s has a value (%s)', field, file.name)
         in_path = os.path.join(settings.MEDIA_ROOT, file.name)
@@ -367,9 +368,9 @@ def check_file_transfer(request):
         proteins = []
         # Filter by protein codes
         for code_first_part in proteins_list:
-            prot = Protein.objects.filter(code__contains=code_first_part).values()
-            if prot.exists():
-                proteins.append(prot.first())
+            site_obvs = SiteObservation.objects.filter(code__contains=code_first_part).values()
+            if site_obvs.exists():
+                proteins.append(site_obvs.first())
             else:
                 error['message'] = 'Please enter valid protein code for' \
                                    + ': {} '.format(code_first_part)
