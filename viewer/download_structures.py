@@ -17,12 +17,7 @@ import pandoc
 
 from django.conf import settings
 
-from viewer.models import (
-    # Molecule,
-    # Protein,
-    # SiteObservation,
-    DownloadLinks
-)
+from viewer.models import DownloadLinks
 from viewer.utils import clean_filename
 
 logger = logging.getLogger(__name__)
@@ -543,97 +538,6 @@ def _protein_garbage_filter(proteins):
     """
     return [p for p in proteins
             if not fnmatch.fnmatch(p['code'], 'references_*')]
-
-
-# def _create_structures_dict(target, proteins, protein_params, other_params):
-#     """Write a ZIP file containing data from an input dictionary
-
-#     Args:
-#         target
-#         proteins
-#         protein_params
-#         other_params
-
-#     Returns:
-#         [dict]: [dictionary containing the file contents]
-#     """
-#     logger.info('+ _create_structures_dict')
-
-#     zip_contents =  copy.deepcopy(zip_template)
-
-#     molecules = Molecule.objects.filter(prot_id__in=[protein['id'] for protein
-#                                                      in proteins]).values()
-#     num_molecules = len(molecules)
-#     logger.info('Expecting %d molecules from %d proteins', num_molecules, len(proteins))
-#     logger.debug('molecules=%s', molecules)
-
-#     # Read through zip_params to compile the parameters
-#     for protein in proteins:
-#         for param in protein_params:
-#             if protein_params[param] is True:
-#                 zip_contents['proteins'][param].update({protein['code']: protein[param]})
-
-#     if other_params['single_sdf_file'] is True:
-#         zip_contents['molecules']['single_sdf_file'] = True
-
-#     if other_params['sdf_info'] is True:
-#         zip_contents['molecules']['sdf_info'] = True
-
-#     # sdf information is held as a file on the Molecule record.
-#     num_molecules_collected = 0
-#     if other_params['sdf_info'] or other_params['single_sdf_file']:
-#         num_missing_sd_files = 0
-#         for molecule in molecules:
-#             protein = Protein.objects.get(id=molecule['prot_id_id'])
-#             # Issue 915. If there is no corresponding 'sdf-file' then
-#             # try and create one from the molecule's 'sdf_info' field...
-#             rel_sd_file = None
-#             if molecule['sdf_file']:
-#                 # There is an SD file (normal)
-#                 rel_sd_file = molecule['sdf_file']
-#             else:
-#                 # No file value (odd).
-#                 logger.warning("Molecule record's 'sdf_file' isn't set (protein.code=%s).",
-#                                protein.code)
-#                 # Try and recreate the missing SD file
-#                 if molecule['sdf_info']:
-#                     rel_sd_file = _replace_missing_sdf(molecule, protein.code)
-#                 else:
-#                     # No file and no sdf_info field - not much more we can do
-#                     # except count it and report. Failures will be translated to a line
-#                     # in the _ERROR_FILE by _create_structures_zip()
-#                     logger.error(
-#                         "Molecule record's 'sdf_info' isn't set (protein.code=%s).",
-#                         protein.code)
-#                     num_missing_sd_files += 1
-
-#             if rel_sd_file:
-#                 logger.debug('rel_sd_file=%s protein.code=%s', rel_sd_file, protein.code)
-#                 zip_contents['molecules']['sdf_files'].update({rel_sd_file: protein.code})
-#                 num_molecules_collected += 1
-
-#         # Report (in the log) anomalies
-#         if num_molecules_collected == 0:
-#             logger.warning('No SD files collected')
-#         else:
-#             logger.info('%s SD files collected', num_molecules_collected)
-
-#         if num_molecules != num_molecules_collected:
-#             logger.error('Expected %d files', num_molecules)
-
-#         if num_missing_sd_files > 0:
-#             logger.error('%d missing files', num_missing_sd_files)
-
-#     # The smiles at molecule level may not be unique.
-#     if other_params['smiles_info'] is True:
-#         for molecule in molecules:
-#             zip_contents['molecules']['smiles_info'].update({molecule['smiles']: None})
-
-#     # Add the metadata file from the target
-#     if other_params['metadata_info'] is True:
-#         zip_contents['metadata_info'] = target.metadata.name
-
-#     return zip_contents
 
 
 def _create_structures_dict(target, site_obvs, protein_params, other_params):

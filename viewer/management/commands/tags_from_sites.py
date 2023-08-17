@@ -5,8 +5,6 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from viewer.models import (
     Target,
-    # Molecule,
-    # MoleculeTag,
     SiteObservation,
     SiteObservationTag,
     TagCategory
@@ -69,7 +67,6 @@ class Command(BaseCommand):
             self.stdout.write("mol_group description: {}, index: {}".format(mol_group.description, idx))
             # A molecule tag record should not exist, but if it does go no further
             try:
-                # mol_tag = MoleculeTag.objects.get(mol_group=mol_group)
                 mol_tag = SiteObservationTag.objects.get(mol_group=mol_group)
             except:
                 mol_tag = None

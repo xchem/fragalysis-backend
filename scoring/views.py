@@ -5,26 +5,18 @@ from rest_framework import viewsets
 
 from scoring.models import (
     ViewScene,
-    # ProtChoice,
     CmpdChoice,
-    # MolChoice,
     SiteObservationChoice,
-    # MolAnnotation,
     SiteObservationAnnotation,
     ScoreChoice,
-    # MolGroup,
     SiteObservationGroup,
 )
 from scoring.serializers import (
     ViewSceneSerializer,
-    # ProtChoiceSerializer,
     CmpdChoiceSerializer,
-    # MolChoiceSerializer,
     SiteObservationChoiceSerializer,
-    # MolAnnotationSerializer,
     SiteObservationAnnotationSerializer,
     ScoreChoiceSerializer,
-    # MolGroupSerializer,
     SiteObservationGroupSerializer,
 )
 
@@ -38,27 +30,11 @@ class ViewSceneView(viewsets.ModelViewSet):
         return self.partial_update(request, *args, **kwargs)
 
 
-# class ProtChoiceView(viewsets.ModelViewSet):
-#     queryset = ProtChoice.objects.filter()
-#     serializer_class = ProtChoiceSerializer
-#     filter_fields = ("user_id", "prot_id", "prot_id__target_id", "choice_type")
-
-
-# class MolChoiceView(viewsets.ModelViewSet):
-#     queryset = MolChoice.objects.filter()
-#     serializer_class = MolChoiceSerializer
-#     filter_fields = ("user_id", "mol_id", "mol_id__prot_id__target_id", "choice_type")
-
 class SiteObservationChoiceView(viewsets.ModelViewSet):
     queryset = SiteObservationChoice.objects.filter()
     serializer_class = SiteObservationChoiceSerializer
     filter_fields = ("user_id", "mol_id", "mol_id__prot_id__target_id", "choice_type")    
 
-
-# class MolAnnotationView(viewsets.ModelViewSet):
-#     queryset = MolAnnotation.objects.filter()
-#     serializer_class = MolAnnotationSerializer
-#     filter_fields = ("mol_id", "annotation_type")
 
 class SiteObservationAnnotationView(viewsets.ModelViewSet):
     queryset = SiteObservationAnnotation.objects.filter()
@@ -85,11 +61,6 @@ class ScoreChoiceView(viewsets.ModelViewSet):
         "choice_type",
     )
 
-
-# class MolGroupView(viewsets.ModelViewSet):
-#     queryset = MolGroup.objects.filter()
-#     serializer_class = MolGroupSerializer
-#     filter_fields = ("group_type", "mol_id", "target_id", "description")
 
 class SiteObservationGroupView(viewsets.ModelViewSet):
     queryset = SiteObservationGroup.objects.filter()

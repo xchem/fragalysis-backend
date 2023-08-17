@@ -49,16 +49,13 @@ from viewer.squonk2_agent import AccessParams, CommonParams, SendParams, RunJobP
 
 
 from .forms import CSetForm
-# from .forms import TSetForm
 from .tasks import (
     erase_compound_set_job_material,
     process_compound_set,
     process_design_sets,
     process_job_file_transfer,
     process_compound_set_job_file,
-    # process_target_set,
     validate_compound_set,
-    # validate_target_set,
     task_load_target,
 )
 from .discourse import create_discourse_post, list_discourse_posts_for_topic, check_discourse_user
@@ -184,24 +181,6 @@ class TargetView(ISpyBSafeQuerySet):
     filterset_fields = ("title",)
 
 
-# class MoleculeView(ISpyBSafeQuerySet):
-#     """Molecules (api/molecules)
-#     """
-#     queryset = models.Molecule.objects.filter()
-#     serializer_class = serializers.MoleculeSerializer
-#     filter_permissions = "prot_id__target_id__project_id"
-#     filterset_fields = (
-#         "prot_id",
-#         "prot_id__code",
-#         "cmpd_id",
-#         "smiles",
-#         "prot_id__target_id",
-#         "prot_id__target_id__title",
-#         "mol_type",
-#         "mol_groups",
-#     )
-
-
 class CompoundView(ISpyBSafeQuerySet):
     """Compounds (api/compounds)
     """
@@ -210,14 +189,6 @@ class CompoundView(ISpyBSafeQuerySet):
     filter_permissions = "project_id"
     filterset_fields = ("smiles", "current_identifier", "inchi", "long_inchi")
 
-
-# class ProteinView(ISpyBSafeQuerySet):
-#     """Proteins (api/proteins)
-#     """
-#     queryset = models.Protein.objects.filter()
-#     serializer_class = serializers.ProteinSerializer
-#     filter_permissions = "target_id__project_id"
-#     filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
 
 class SiteObservationView(ISpyBSafeQuerySet):
     queryset = models.SiteObservation.objects.filter()
@@ -517,101 +488,6 @@ class UploadCSet(APIView):
         context = {'form': form}
         return render(request, 'viewer/upload-cset.html', context)
 
-# class UploadTSet(APIView):
-#     """View to render and control viewer/upload-tset.html  - a page allowing upload of computed sets. Validation and
-#     upload tasks are defined in `viewer.target_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
-#     response handling is done by `viewer.views.ValidateTaskView` and `viewer.views.UploadTaskView`
-#     """
-
-#     def get(self, request):
-
-#         tag = '+ UploadTSet.get'
-#         logger.info('%s', pretty_request(request, tag=tag))
-#         logger.info('User="%s"', str(request.user))
-
-#         # Only authenticated users can upload files - this can be switched off in settings.py.
-#         user = self.request.user
-#         if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
-#             context = {}
-#             context['error_message'] \
-#                 = 'Only authenticated users can upload files - please navigate to landing page and Login'
-#             return render(request, 'viewer/upload-tset.html', context)
-
-#         contact_email = ''
-#         if user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
-#             contact_email = user.email
-
-#         form = TSetForm(initial={'contact_email': contact_email})
-
-#         return render(request, 'viewer/upload-tset.html', {'form': form})
-
-#     def post(self, request):
-
-#         tag = '+ UploadTSet.post'
-#         logger.info('%s', pretty_request(request, tag=tag))
-#         logger.info('User="%s"', str(request.user))
-
-#         context = {}
-
-#         # Only authenticated users can upload files - this can be switched off in settings.py.
-#         user = self.request.user
-#         if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
-#             context['error_message'] \
-#                 = 'Only authenticated users can upload files - please navigate to landing page and Login'
-#             logger.info('- UploadTSet.post - authentication error')
-#             return render(request, 'viewer/upload-tset.html', context)
-
-#         form = TSetForm(request.POST, request.FILES)
-#         if form.is_valid():
-#             # get all of the variables needed from the form
-#             target_file = request.FILES['target_zip']
-#             target_name = request.POST['target_name']
-#             choice = request.POST['submit_choice']
-#             proposal_ref = request.POST['proposal_ref']
-#             contact_email = request.POST['contact_email']
-
-#             logger.info("+ UploadTSet.post target_name=%s choice=%s proposal_ref=%s", target_name, choice, proposal_ref)
-
-#             # Create /code/media/tmp if does not exist
-#             media_root = settings.MEDIA_ROOT
-#             tmp_folder = os.path.join(media_root, 'tmp')
-#             if not os.path.isdir(tmp_folder):
-#                 logger.info("+ UploadTSet.post creating missing tmp_folder (%s)", tmp_folder)
-#                 os.mkdir(tmp_folder)
-
-#             path = default_storage.save('tmp/' + 'NEW_DATA.zip', ContentFile(target_file.read()))
-#             new_data_file = str(os.path.join(settings.MEDIA_ROOT, path))
-#             logger.info("+ UploadTSet.post new_data_file=%s", new_data_file)
-
-#             # Settings for if validate option selected
-#             if choice == 'V':
-#                 # Start celery task
-#                 logger.info("+ UploadTSet.post (V) starting validate_target_set() Task...")
-#                 task_validate = validate_target_set.delay(new_data_file, target=target_name, proposal=proposal_ref,
-#                                                           email=contact_email)
-#                 logger.info("+ UploadTSet.post (V) got Celery id %s (status %s)", task_validate.id,  task_validate.status)
-
-#                 # Update client side with task id and status
-#                 context = {'validate_task_id': task_validate.id,
-#                            'validate_task_status': task_validate.status}
-#                 return render(request, 'viewer/upload-tset.html', context)
-
-#             # if it's an upload, run the validate followed by the upload target set task
-#             if choice == 'U':
-#                 # Start chained celery tasks. NB first function passes tuple
-#                 # to second function - see tasks.py
-#                 logger.info("+ UploadTSet.post (U) starting validate_target_set()/process_target_set() Task chain...")
-#                 task_upload = (validate_target_set.s(new_data_file, target=target_name, proposal=proposal_ref,
-#                                                      email=contact_email) | process_target_set.s()).apply_async()
-#                 logger.info("+ UploadTSet.post (U) got Celery id %s (status %s)", task_upload.id,  task_upload.status)
-
-#                 # Update client side with task id and status
-#                 context = {'upload_task_id': task_upload.id,
-#                            'upload_task_status': task_upload.status}
-#                 return render(request, 'viewer/upload-tset.html', context)
-
-#         context = {'form': form}
-#         return render(request, 'viewer/upload-tset.html', context)
 
 
 def email_task_completion(contact_email, message_type, target_name, target_path=None, task_id=None):
@@ -1325,13 +1201,6 @@ class TagCategoryView(viewsets.ModelViewSet):
     serializer_class = serializers.TagCategorySerializer
     filterset_fields = ('id', 'category')
 
-
-# class MoleculeTagView(viewsets.ModelViewSet):
-#     """Set up/retrieve information about tags relating to Molecules (api/molecule_tag)
-#     """
-#     queryset = models.MoleculeTag.objects.filter()
-#     serializer_class = serializers.MoleculeTagSerializer
-#     filterset_fields = ('id', 'tag', 'category', 'target', 'molecules', 'mol_group')
 
 class SiteObservationTagView(viewsets.ModelViewSet):
     """Set up/retrieve information about tags relating to Molecules (api/molecule_tag)

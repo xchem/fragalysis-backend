@@ -16,7 +16,6 @@ from api.utils import draw_mol
 from viewer import models
 from viewer.utils import get_https_host
 
-# from scoring.models import MolGroup
 from scoring.models import SiteObservationGroup
 
 from django.contrib.auth.models import User
@@ -182,80 +181,6 @@ class CompoundSerializer(serializers.ModelSerializer):
         )
 
 
-# class MoleculeSerializer(serializers.ModelSerializer):
-
-#     molecule_protein = serializers.SerializerMethodField()
-#     protein_code = serializers.SerializerMethodField()
-#     mw = serializers.SerializerMethodField()
-#     logp = serializers.SerializerMethodField()
-#     tpsa = serializers.SerializerMethodField()
-#     ha = serializers.SerializerMethodField()
-#     hacc = serializers.SerializerMethodField()
-#     hdon = serializers.SerializerMethodField()
-#     rots = serializers.SerializerMethodField()
-#     rings = serializers.SerializerMethodField()
-#     velec = serializers.SerializerMethodField()
-
-
-#     def get_molecule_protein(self, obj):
-#         return obj.prot_id.pdb_info.url
-
-#     def get_protein_code(self, obj):
-#         return obj.prot_id.code
-
-#     def get_mw(self, obj):
-#         return round(obj.cmpd_id.mol_wt, 2)
-
-#     def get_logp(self, obj):
-#         return round(obj.cmpd_id.mol_log_p, 2)
-
-#     def get_tpsa(self, obj):
-#         return round(obj.cmpd_id.tpsa, 2)
-
-#     def get_ha(self, obj):
-#         return obj.cmpd_id.heavy_atom_count
-
-#     def get_hacc(self, obj):
-#         return obj.cmpd_id.num_h_acceptors
-
-#     def get_hdon(self, obj):
-#         return obj.cmpd_id.num_h_donors
-
-#     def get_rots(self, obj):
-#         return obj.cmpd_id.num_rot_bonds
-
-#     def get_rings(self, obj):
-#         return obj.cmpd_id.ring_count
-
-#     def get_velec(self, obj):
-#         return obj.cmpd_id.num_val_electrons
-
-#     class Meta:
-#         model = models.Molecule
-#         fields = (
-#             "id",
-#             "smiles",
-#             "cmpd_id",
-#             "prot_id",
-#             "protein_code",
-#             "mol_type",
-#             "molecule_protein",
-#             "lig_id",
-#             "chain_id",
-#             "sdf_info",
-#             "x_com",
-#             "y_com",
-#             "z_com",
-#             "mw",
-#             "logp",
-#             "tpsa",
-#             "ha",
-#             "hacc",
-#             "hdon",
-#             "rots",
-#             "rings",
-#             "velec"
-#         )
 
 class SiteObservationSerializer(serializers.ModelSerializer):
 
@@ -346,13 +271,6 @@ class ActivityPointSerializer(serializers.ModelSerializer):
             "operator",
             "internal_id",
         )
-
-
-# class ProteinSerializer(serializers.ModelSerializer):
-
-#     class Meta:
-#         model = models.Protein
-#         fields = '__all__'
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -691,11 +609,6 @@ class TagCategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-# class MoleculeTagSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = models.MoleculeTag
-#         fields = '__all__'
-
 class SiteObservationTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SiteObservationTag
@@ -774,50 +687,8 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
 
         molecules = [{'data': k.values(fields), 'tags_set': k.values('mol_tags_set')} for k in mols ]
 
-        # molecules = []
-        # for mol in mols:
-        #     mol_data = {
-        #         'id': mol.id,
-        #         'smiles': mol.smiles,
-        #         'cmpd_id': mol.cmpd_id_id,
-        #         'prot_id': mol.prot_id_id,
-        #         'protein_code': mol.prot_id.code,
-        #         "mol_type": mol.mol_type,
-        #         "molecule_protein": mol.prot_id.pdb_info.url,
-        #         "lig_id": mol.lig_id,
-        #         "chain_id": mol.chain_id,
-        #         'sdf_info': mol.sdf_info,
-        #         'x_com': mol.x_com,
-        #         'y_com': mol.y_com,
-        #         'z_com': mol.z_com,
-        #         'mw': round(mol.cmpd_id.mol_wt, 2),
-        #         'logp': round(mol.cmpd_id.mol_log_p, 2),
-        #         'tpsa': round(mol.cmpd_id.tpsa, 2),
-        #         'ha': mol.cmpd_id.heavy_atom_count,
-        #         'hacc': mol.cmpd_id.num_h_acceptors,
-        #         'hdon': mol.cmpd_id.num_h_donors,
-        #         'rots': mol.cmpd_id.num_rot_bonds,
-        #         'rings': mol.cmpd_id.ring_count,
-        #         'velec': mol.cmpd_id.num_val_electrons
-        #     }
-        #     mol_tags_set = \
-        #         [mt['id'] for mt in models.MoleculeTag.objects.filter(molecules=mol.id).values()]
-        #     mol_dict = {'data': mol_data, 'tags_set': mol_tags_set}
-        #     molecules.append(mol_dict)
-
         return molecules
 
-    # def get_tags_info(self, obj):
-    #     tags = models.MoleculeTag.objects.filter(target_id=obj.id)
-    #     tags_info = []
-    #     for tag in tags:
-    #         tag_data = models.MoleculeTag.objects.filter(id=tag.id).values()
-    #         tag_coords = \
-    #             MolGroup.objects.filter(id=tag.mol_group_id).values('x_com','y_com','z_com' )
-    #         tag_dict = {'data': tag_data, 'coords': tag_coords}
-    #         tags_info.append(tag_dict)
-
-    #     return tags_info
 
     def get_tags_info(self, obj):
         tags = models.SiteObservationTag.objects.filter(target_id=obj.id)

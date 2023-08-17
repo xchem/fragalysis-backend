@@ -19,35 +19,6 @@ class TargetResidue(models.Model):
         unique_together = ("target_id", "res_num", "res_name", "chain_id")
 
 
-# class ProteinResidue(models.Model):
-#     """Model to store residue information - to curate the probes"""
-#     # The target it relates to
-#     prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
-#     # The target Residue it relates to
-#     targ_res_id = models.ForeignKey(TargetResidue, on_delete=models.CASCADE)
-
-#     class Meta:
-#         unique_together = ("prot_id", "targ_res_id")
-
-
-# class InteractionPoint(models.Model):
-#     # The protein residue id
-#     prot_res_id = models.ForeignKey(ProteinResidue, on_delete=models.CASCADE)
-#     # The molecule id
-#     mol_id = models.ForeignKey(Molecule, on_delete=models.CASCADE)
-#     # Set the molecule and protein identifier
-#     protein_atom_name = models.CharField(max_length=255)
-#     molecule_atom_name = models.CharField(max_length=255)
-
-#     class Meta:
-#         unique_together = (
-#             "prot_res_id",
-#             "mol_id",
-#             "protein_atom_name",
-#             "molecule_atom_name",
-#         )
-
-# seems to make more sendse to move target_res_id here and get rid of ProteinResidue
 class InteractionPoint(models.Model):
     # The molecule id
     site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)

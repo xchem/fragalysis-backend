@@ -8,7 +8,6 @@ Script to check sdf file format for Fragalysis upload
 
 from rdkit import Chem
 import validators
-# from viewer.models import Protein, ComputedSet
 from viewer.models import SiteObservation, ComputedSet
 import datetime
 
@@ -78,34 +77,6 @@ def check_sdf(sdf_file, validate_dict):
                                     validate_dict=validate_dict)
 
     return validate_dict
-
-
-# def check_refmol(mol, validate_dict, target=None):
-#     if target:
-#         try:
-#             refmols = mol.GetProp('ref_mols').split(',')
-#         except KeyError:
-#             validate_dict = add_warning(
-#                 molecule_name=mol.GetProp('_Name'),
-#                 field='ref_mols',
-#                 warning_string="molecule has no 'ref_mols' property",
-#                 validate_dict=validate_dict)
-#             return validate_dict
-
-#         for ref in refmols:
-#             query = Protein.objects\
-#                 .filter(code__contains=target + '-' + ref.strip().split(':')[0].split('_')[0])
-#             if len(query) == 0:
-#                 query = Protein.objects\
-#                     .filter(code__contains=target + '-' + ref.strip().split(':')[0].split('_')[0])
-#             if len(query) == 0:
-#                 validate_dict = add_warning(
-#                     molecule_name=mol.GetProp('_Name'),
-#                     field='ref_mol',
-#                     warning_string="molecule for " + str(ref.strip()) + " does not exist in fragalysis (make sure the code is exactly as it appears in fragalysis - e.g. x0123_0)",
-#                     validate_dict=validate_dict)
-
-#     return validate_dict
 
 
 def check_refmol(mol, validate_dict, target=None):

@@ -27,9 +27,7 @@ from viewer.models import (
     ComputedMolecule,
     ComputedSet,
     ComputedSetSubmitter,
-    # Molecule,
     NumericalScoreValues,
-    # Protein,
     SiteObservation,
     ScoreDescription,
     Target,
@@ -64,41 +62,6 @@ def dataType(a_str):
 
 
 class PdbOps:
-    # def save_pdb_zip(self, pdb_file):
-    #     zfile = None
-    #     zfile_hashvals = None
-    #     if pdb_file:
-    #         zf = zipfile.ZipFile(pdb_file)
-    #         zip_lst = zf.namelist()
-    #         zfile = {}
-    #         zfile_hashvals = {}
-    #         print(zip_lst)
-    #         for filename in zip_lst:
-    #             # only handle pdb files
-    #             if filename.split('.')[-1] == 'pdb':
-    #                 # Test if Protein object already exists
-    #                 code = filename.split('/')[-1].replace('.pdb', '')
-    #                 test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
-    #                 test_prot_objs = Protein.objects.filter(code=test_pdb_code)
-    #                 print([c.code for c in test_prot_objs])
-
-    #                 if len(test_prot_objs) != 0:
-    #                     # make a unique pdb code as not to overwrite existing object
-    #                     rand_str = uuid.uuid4().hex
-    #                     test_pdb_code = f'{code}#{rand_str}'
-    #                     zfile_hashvals[code] = rand_str
-
-    #                 fn = test_pdb_code + '.pdb'
-
-    #                 pdb_path = default_storage.save('tmp/' + fn,
-    #                                                 ContentFile(zf.read(filename)))
-    #                 zfile[test_pdb_code] = pdb_path
-
-    #         # Close the zip file
-    #         if zf:
-    #             zf.close()
-
-    #     return zfile, zfile_hashvals
 
     def save_pdb_zip(self, pdb_file):
         zfile = None
@@ -155,39 +118,6 @@ class MolOps:
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
 
-    # def process_pdb(self, pdb_code, target, zfile, zfile_hashvals):
-    #     # pdb_fn = zfile[pdb_code].split('/')[-1]
-
-    #     for key in zfile_hashvals.keys():
-    #         if key == pdb_code:
-    #             pdb_code = f'{pdb_code}#{zfile_hashvals[pdb_code]}'
-
-    #     pdb_fp = zfile[pdb_code]
-    #     pdb_fn = zfile[pdb_code].split('/')[-1]
-
-    #     print(zfile_hashvals)
-
-    #     new_filename = settings.MEDIA_ROOT + 'pdbs/' + pdb_fn
-    #     old_filename = settings.MEDIA_ROOT + pdb_fp
-    #     shutil.copy(old_filename, new_filename)
-
-    #     # Create Protein object
-    #     target_obj = Target.objects.get(title=target)
-    #     # prot.target_id = target_obj
-    #     prot, created = Protein.objects.get_or_create(code=pdb_code, target_id=target_obj)
-    #     print(created)
-    #     # prot.code = pdb_code
-    #     if created:
-    #         target_obj = Target.objects.get(title=target)
-    #         prot.target_id = target_obj
-    #         prot.pdb_info = 'pdbs/' + pdb_fn
-    #         prot.save()
-
-    #     # Get Protein object
-    #     prot_obj = Protein.objects.get(code=pdb_code)
-
-    #     return prot_obj
-
     def process_pdb(self, pdb_code, target, zfile, zfile_hashvals):
 
         for key in zfile_hashvals.keys():
@@ -213,42 +143,6 @@ class MolOps:
             site_obvs.save()
 
         return site_obvs
-
-    # # use zfile object for pdb files uploaded in zip
-    # def get_prot(self, mol, target, compound_set, zfile, zfile_hashvals):
-    #     # The returned protein object may be None
-
-    #     pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
-    #     prot_obj = None
-
-    #     if zfile:
-    #         pdb_code = pdb_fn.replace('.pdb', '')
-    #         prot_obj = self.process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
-    #     else:
-    #         name = compound_set.target.title + '-' + pdb_fn
-
-    #         # try to get single exact match
-    #         # name.split(':')[0].split('_')[0]
-    #         try:
-    #             prot_obj = Protein.objects.get(code__contains=name)
-    #         except:
-    #             # Protein lookup failed.
-    #             logger.warning('Failed to get Protein object (target=%s name=%s)',
-    #                            compound_set.target.title, name)
-    #             # Try an alternative.
-    #             # If all else fails then the prot_obj will be 'None'
-    #             prot_objs = Protein.objects.filter(code__contains=name)
-    #             if len(prot_objs) == 0:
-    #                 prot_objs = Protein.objects.filter(code__contains=name.split(':')[0].split('_')[0])
-    #             if len(prot_objs) > 0:
-    #                 prot_obj = prot_objs[0]
-
-    #     if not prot_obj:
-    #         logger.warning('No Protein object (target=%s pdb_fn=%s)',
-    #                        compound_set.target.title, pdb_fn)
-
-    #     return prot_obj
-
 
     # use zfile object for pdb files uploaded in zip
     def get_prot(self, mol, target, compound_set, zfile, zfile_hashvals):
@@ -345,88 +239,6 @@ class MolOps:
                 score_value.save()
 
         return set_obj
-
-    # def set_mol(self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None):
-    #     # Don't need...
-    #     del filename
-
-    #     # zfile = {'zip_obj': zf, 'zf_list': zip_names}
-    #     print(f'mol: {mol}')
-    #     smiles = Chem.MolToSmiles(mol)
-    #     inchi = Chem.inchi.MolToInchi(mol)
-    #     name = mol.GetProp('_Name')
-    #     long_inchi = None
-    #     if len(inchi) > 255:
-    #         long_inchi = inchi
-    #         inchi = inchi[:254]
-
-    #     ref_cpd = self.create_mol(inchi, name=name, long_inchi=long_inchi)
-
-    #     mol_block = Chem.MolToMolBlock(mol)
-
-    #     insp = mol.GetProp('ref_mols')
-    #     insp = insp.split(',')
-    #     insp = [i.strip() for i in insp]
-    #     insp_frags = []
-    #     for i in insp:
-
-    #         # try exact match first
-    #         try:
-    #             mols = Molecule.objects.get(
-    #                 prot_id__code__contains=str(compound_set.target.title + '-' + i),
-    #                 prot_id__target_id=compound_set.target)
-    #             ref = mols
-    #         except:
-
-    #             mols = Molecule.objects.filter(
-    #                 prot_id__code__contains=str(compound_set.target.title + '-' + i.split(':')[0].split('_')[0]),
-    #                 prot_id__target_id=compound_set.target)
-    #             if len(mols) > 1:
-    #                 ids = [m.cmpd_id.id for m in mols]
-    #                 ind = ids.index(max(ids))
-    #                 ref = mols[ind]
-    #             if len(mols) == 1:
-    #                 ref = mols[0]
-    #             if len(mols) == 0:
-    #                 raise Exception('No matching molecules found for inspiration frag ' + i)  # pylint: disable=raise-missing-from
-
-    #         insp_frags.append(ref)
-
-    #     _ = mol.GetProp('original SMILES')
-
-    #     # Try to get the protein object.
-    #     # This may fail.
-    #     prot = self.get_prot(mol, target, compound_set, zfile, zfile_hashvals=zfile_hashvals)
-    #     if not prot:
-    #         logger.warning('get_prot() failed to return a Protein object')
-
-    #     #  need to add Compound before saving
-    #     # see if anything exists already
-    #     existing = ComputedMolecule.objects.filter(name=name, smiles=smiles, computed_set=compound_set)
-
-    #     if len(existing) == 1:
-    #         cpd = existing[0]
-    #     if len(existing) > 1:
-    #         for exist in existing:
-    #             exist.delete()
-    #         cpd = ComputedMolecule()
-    #     elif len(existing) == 0:
-    #         cpd = ComputedMolecule()
-
-    #     cpd.compound = ref_cpd
-    #     cpd.computed_set = compound_set
-    #     cpd.sdf_info = mol_block
-    #     cpd.name = name
-    #     cpd.smiles = smiles
-    #     cpd.pdb = prot
-    #     cpd.save()
-
-    #     for insp_frag in insp_frags:
-    #         cpd.computed_inspirations.add(insp_frag)
-
-    #     cpd.save()
-
-    #     return cpd
 
 
     def set_mol(self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None):

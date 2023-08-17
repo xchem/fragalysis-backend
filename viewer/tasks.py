@@ -36,7 +36,6 @@ from .sdf_check import (
     check_field_populated,
     check_compound_set
 )
-# from .target_set_upload import process_target
 from .target_set_upload import validate_target
 from .cset_upload import blank_mol_vals, MolOps, PdbOps
 from .squonk_job_file_transfer import (
@@ -509,47 +508,6 @@ def task_load_target(self, data_bundle, proposal_ref=None, contact_email=None, u
     # TODO: send email
 
 
-# @shared_task
-# def process_target_set(validate_output):
-#     """ Celery task to process a target set, that takes the output of the validation task, and uploads molecules to a
-#     new target set if the uploaded files are valid
-
-#     Parameters
-#     ----------
-#     validate_output: tuple
-#         contains the following:
-#             - validate dict (dict): dict containing any errors found during the validation step
-#             - validated (bool): True if the file(s) were validated, False if not
-#             - filename (str): name of the uploaded target file (zip file)
-#             - target (str): name of the target
-#             - submitter_name (str): name of the author of the computed set
-
-#     Returns
-#     -------
-#     target str
-#         name of the processed target set
-
-#     """
-#     logger.info('+ TASK validate_output=%s', validate_output)
-
-#     # Validate output is a tuple - this is one way to get
-#     # Celery chaining to work where second function uses list output
-#     # from first function (validate) called
-#     process_stage, process_type, validate_dict, validated, new_data_folder, target_name, proposal_ref, submitter_name, \
-#         contact_email = validate_output
-
-#     # If there is a validation error, stop here.
-#     if not validated:
-#         logger.warning('- TASK Leaving (not validated)')
-#         return process_stage, 'tset', validate_dict, validated
-
-#     logger.info('+ TASK Calling process_target(%s, %s, %s)...',
-#                 new_data_folder, target_name, proposal_ref)
-#     mols_loaded, mols_processed = process_target(new_data_folder, target_name, proposal_ref)
-#     logger.info('+ TASK process_target() returned mols_loaded=%s mols_processed=%s',
-#                 mols_loaded, mols_processed)
-
-#     return 'process', 'tset', target_name, mols_loaded, mols_processed, contact_email
 
 @shared_task
 def process_job_file_transfer(auth_token, jt_id):

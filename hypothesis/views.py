@@ -5,7 +5,6 @@ from hypothesis.models import (
     Vector3D,
     Interaction,
     InteractionPoint,
-    # ProteinResidue,
     TargetResidue,
 )
 from hypothesis.serializers import (
@@ -13,7 +12,6 @@ from hypothesis.serializers import (
     Vector3DSerializer,
     InteractionSerializer,
     InteractionPointSerializer,
-    # ProteinResidueSerialzier,
     TargetResidueSerialzier,
 )
 
@@ -51,12 +49,6 @@ class InteractionPointView(viewsets.ReadOnlyModelViewSet):
     queryset = InteractionPoint.objects.filter()
     serializer_class = InteractionPointSerializer
     filterset_fields = ("prot_res_id", "mol_id", "protein_atom_name", "molecule_atom_name")
-
-
-# class ProteinResidueView(viewsets.ReadOnlyModelViewSet):
-#     queryset = ProteinResidue.objects.filter()
-#     serializer_class = ProteinResidueSerialzier
-#     filterset_fields = ("prot_id", "targ_res_id")
 
 
 class TargetResidueView(viewsets.ReadOnlyModelViewSet):
