@@ -17,8 +17,9 @@ from viewer.utils import (
     delete_media_sub_directory
 )
 from viewer.models import (
-    Molecule,
-    Protein,
+    # Molecule,
+    # Protein,
+    SiteObservation,
     ComputedMolecule,
     JobFileTransfer
 )
@@ -70,6 +71,33 @@ def ref_mol_from_protein_code(protein_code, target_title):
         return protein_code
 
 
+# def mol_file(field, trans_dir, protein_code, target):
+#     """Copy the requested file from the molecule table to the transfer directory, standardising
+#     the filename. Extract the contents of the mol_field to a file in the transfer directory.
+
+#     Args:
+#         field : source field in Molecule table
+#         trans_dir : temporary directory used for transfer
+#         protein
+#         target
+#     Returns:
+#         filepath
+#     """
+#     logger.info('Generating filepath from ield=%s trans_dir=%s protein_code=%s target=%s',
+#                 field, trans_dir, protein_code, target)
+
+#     protein = Protein.objects.get(code=protein_code)
+#     mol = Molecule.objects.get(prot_id=protein.id)
+
+#     mol_block = getattr(mol, field)
+#     filepath = os.path.join(trans_dir, protein.code.strip().split(":")[0] + '.mol')
+#     code = ref_mol_from_protein_code(protein_code, target.title)
+#     add_prop_to_mol(mol_block, filepath, code)
+
+#     logger.info('Generated filepath "%s"', filepath)
+
+#     return filepath
+
 def mol_file(field, trans_dir, protein_code, target):
     """Copy the requested file from the molecule table to the transfer directory, standardising
     the filename. Extract the contents of the mol_field to a file in the transfer directory.
@@ -85,11 +113,13 @@ def mol_file(field, trans_dir, protein_code, target):
     logger.info('Generating filepath from ield=%s trans_dir=%s protein_code=%s target=%s',
                 field, trans_dir, protein_code, target)
 
-    protein = Protein.objects.get(code=protein_code)
-    mol = Molecule.objects.get(prot_id=protein.id)
+    site_obvs = SiteObservation.objects.get(code=protein_code)
 
-    mol_block = getattr(mol, field)
-    filepath = os.path.join(trans_dir, protein.code.strip().split(":")[0] + '.mol')
+    # TODO: I don't think this is working, the mol is stored in
+    # database field. I suppose the path can be inferred from name and
+    # standard location, but not sure.
+    mol_block = getattr(site_obvs, field)
+    filepath = os.path.join(trans_dir, site_obvs.code.strip().split(":")[0] + '.mol')
     code = ref_mol_from_protein_code(protein_code, target.title)
     add_prop_to_mol(mol_block, filepath, code)
 
@@ -97,6 +127,40 @@ def mol_file(field, trans_dir, protein_code, target):
 
     return filepath
 
+
+# def sdf_file(field, trans_dir, protein_code, target):
+#     """Copy the requested file from the molecule table to the transfer directory, standardising
+#     the filename.
+
+#     Args:
+#         field : source field in Molecule table
+#         trans_dir : temporary directory used for transfer
+#         protein
+#         target
+#     Returns:
+#         filepath
+#     """
+
+#     logger.info('Generated filepath from field=%s trans_dir=%s protein_code=%s target=%s',
+#                 field, trans_dir, protein_code, target)
+
+#     protein = Protein.objects.get(code=protein_code)
+#     mol = Molecule.objects.get(prot_id=protein.id)
+#     file = getattr(mol, field)
+#     if not file:
+#         logger.error(
+#             'No file (field=%s trans_dir=%s protein_code=%s target=%s)',
+#             field, trans_dir, protein_code, target)
+#         return None
+
+#     inpath = os.path.join(settings.MEDIA_ROOT, file.name)
+#     filepath = os.path.join(trans_dir, clean_filename(inpath))
+#     code = ref_mol_from_protein_code(protein_code, target.title)
+#     add_prop_to_sdf(inpath, filepath, {REF_PROP: code})
+
+#     logger.info('Generated filepath "%s"', filepath)
+
+#     return filepath
 
 def sdf_file(field, trans_dir, protein_code, target):
     """Copy the requested file from the molecule table to the transfer directory, standardising
@@ -114,9 +178,8 @@ def sdf_file(field, trans_dir, protein_code, target):
     logger.info('Generated filepath from field=%s trans_dir=%s protein_code=%s target=%s',
                 field, trans_dir, protein_code, target)
 
-    protein = Protein.objects.get(code=protein_code)
-    mol = Molecule.objects.get(prot_id=protein.id)
-    file = getattr(mol, field)
+    site_obvs = SiteObservation.objects.get(code=protein_code)
+    file = getattr(site_obvs, field)
     if not file:
         logger.error(
             'No file (field=%s trans_dir=%s protein_code=%s target=%s)',
@@ -150,13 +213,15 @@ def prot_file(field, trans_dir, protein_code, target):
                 ' trans_dir=%s protein_code=%s target.title=%s...',
                 field, trans_dir, protein_code, target.title)
 
-    protein = Protein.objects.get(code=protein_code)
+    # protein = Protein.objects.get(code=protein_code)
+    site_obvs = SiteObservation.objects.get(code=protein_code)
 
     # The source file (if found)
     in_path = None
 
     # Inspect the DB record...
-    file = getattr(protein, field)
+    # file = getattr(protein, field)
+    file = getattr(site_obvs, field)
     if file:
         logger.info('%s has a value (%s)', field, file.name)
         in_path = os.path.join(settings.MEDIA_ROOT, file.name)
@@ -346,6 +411,70 @@ def process_file_transfer(auth_token,
     delete_media_sub_directory(trans_sub_dir)
 
 
+# def check_file_transfer(request):
+#     """Check the request and return a list of protein codes and/or computed molecule names
+
+#     Args:
+#         request
+#     Returns
+#         error dict
+#         list of validated protein codes
+#         list of validated computed molecule names
+#     """
+#     error  = {}
+#     proteins = []
+#     compounds = []
+
+#     if request.data['proteins']:
+#         # Get first part of protein code
+#         proteins_list = [p.strip().split(":")[0]
+#                          for p in request.data['proteins'].split(',')]
+#         proteins = []
+#         # Filter by protein codes
+#         for code_first_part in proteins_list:
+#             prot = Protein.objects.filter(code__contains=code_first_part).values()
+#             if prot.exists():
+#                 proteins.append(prot.first())
+#             else:
+#                 error['message'] = 'Please enter valid protein code for' \
+#                                    + ': {} '.format(code_first_part)
+#                 error['status'] = status.HTTP_404_NOT_FOUND
+#                 return error, proteins, compounds
+
+#         if len(proteins) == 0:
+#             error['message'] = 'API expects a list of comma-separated protein codes'
+#             error['status'] = status.HTTP_404_NOT_FOUND
+#             return error, proteins, compounds
+
+#     if request.data['compounds']:
+#         # Get first part of protein code
+#         compounds_list = [c.strip() for c in request.data['compounds'].split(',')]
+#         compounds = []
+#         # Filter by protein codes
+#         for compound in compounds_list:
+#             comp = ComputedMolecule.objects.filter(name=compound).values()
+#             if comp.exists():
+#                 compounds.append(comp.first())
+#             else:
+#                 error['message'] = 'Please enter valid compound name for' \
+#                                    + ': {} '.format(compound)
+#                 error['status'] = status.HTTP_404_NOT_FOUND
+#                 return error, proteins, compounds
+
+#         if len(compounds) == 0:
+#             error['message'] = 'API expects a list of comma-separated compound names'
+#             error['status'] = status.HTTP_404_NOT_FOUND
+#             return error, proteins, compounds
+
+#     if proteins or compounds:
+#         return error, proteins, compounds
+#     else:
+#         error['message'] = 'A valid protein codes and/or a list of valid compound names must ' \
+#                            'be entered'
+#         error['status'] = status.HTTP_404_NOT_FOUND
+#         return error, proteins, compounds
+
+
 def check_file_transfer(request):
     """Check the request and return a list of protein codes and/or computed molecule names
 
@@ -367,9 +496,9 @@ def check_file_transfer(request):
         proteins = []
         # Filter by protein codes
         for code_first_part in proteins_list:
-            prot = Protein.objects.filter(code__contains=code_first_part).values()
-            if prot.exists():
-                proteins.append(prot.first())
+            site_obvs = SiteObservation.objects.filter(code__contains=code_first_part).values()
+            if site_obvs.exists():
+                proteins.append(site_obvs.first())
             else:
                 error['message'] = 'Please enter valid protein code for' \
                                    + ': {} '.format(code_first_part)

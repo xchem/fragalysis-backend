@@ -5,7 +5,7 @@ from hypothesis.models import (
     Vector,
     Interaction,
     InteractionPoint,
-    ProteinResidue,
+    # ProteinResidue,
     TargetResidue,
 )
 
@@ -64,11 +64,11 @@ class InteractionPointSerializer(serializers.ModelSerializer):
         )
 
 
-class ProteinResidueSerialzier(serializers.ModelSerializer):
+# class ProteinResidueSerialzier(serializers.ModelSerializer):
 
-    class Meta:
-        model = ProteinResidue
-        fields = ("id", "prot_id", "targ_res_id")
+#     class Meta:
+#         model = ProteinResidue
+#         fields = ("id", "prot_id", "targ_res_id")
 
 
 class TargetResidueSerialzier(serializers.ModelSerializer):

@@ -89,8 +89,8 @@ class SiteObservationChoice(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["user_id", "site_observation", "molchoice_type"],
-                name="unique_siteobvs_anntype",
+                fields=["user_id", "site_observation", "choice_type"],
+                name="unique_siteobvs_choice",
             ),
         ]         
         

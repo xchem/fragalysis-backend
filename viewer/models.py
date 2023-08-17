@@ -210,7 +210,7 @@ class Compound(models.Model):
     num_rot_bonds = models.IntegerField(help_text='Computed number of rotatable bonds')
     num_val_electrons = models.IntegerField(help_text='Computed number of valence electrons')
     ring_count = models.IntegerField(help_text='Computed number of rings in the molecule')
-    inspirations = models.ManyToManyField("Molecule", blank=True,
+    inspirations = models.ManyToManyField("SiteObservation", blank=True,
                                           help_text='Foreign key link to any number of 3D Molecules that inspired'
                                                     ' the design of this compound')
     description = models.TextField(blank=True, null=True)
@@ -903,7 +903,7 @@ class Tag(models.Model):
 # replacing the above
 class SiteObservationTag(Tag):
     site_observations = models.ManyToManyField(SiteObservation, blank=True)
-    mol_group = models.ForeignKey("scoring.MolGroup", null=True, blank=True,
+    mol_group = models.ForeignKey("scoring.SiteObservationGroup", null=True, blank=True,
                                   on_delete=models.SET_NULL)
 
     def __str__(self) -> str:

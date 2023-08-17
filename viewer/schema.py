@@ -1,8 +1,8 @@
 import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
 from viewer.serializers import (
-    MoleculeSerializer,
-    ProteinSerializer,
+    # MoleculeSerializer,
+    # ProteinSerializer,
     CompoundSerializer,
     TargetSerializer,
 )
@@ -10,18 +10,19 @@ from viewer.serializers import (
 relay = graphene.relay
 
 
-class Molecule(SerializerMutation):
+# I'm pretty sure these aren't used
+# class Molecule(SerializerMutation):
 
-    class Meta:
-        serializer_class = MoleculeSerializer
-        interfaces = (relay.Node,)
+#     class Meta:
+#         serializer_class = MoleculeSerializer
+#         interfaces = (relay.Node,)
 
 
-class Protein(SerializerMutation):
+# class Protein(SerializerMutation):
 
-    class Meta:
-        serializer_class = ProteinSerializer
-        interfaces = (relay.Node,)
+#     class Meta:
+#         serializer_class = ProteinSerializer
+#         interfaces = (relay.Node,)
 
 
 class Compound(SerializerMutation):
@@ -39,8 +40,8 @@ class Target(SerializerMutation):
 
 
 class Query(graphene.ObjectType):
-    molecules = graphene.List(Molecule)
-    proteins = graphene.List(Protein)
+    # molecules = graphene.List(Molecule)
+    # proteins = graphene.List(Protein)
     compounds = graphene.List(Compound)
     targets = graphene.List(Target)
 

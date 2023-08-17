@@ -8,7 +8,8 @@ from django.conf import settings
 from rdkit import Chem
 from viewer.models import (
     ScoreDescription,
-    Protein,
+    # Protein,
+    SiteObservation,
     Target,
     ComputedSetSubmitter)
 import os.path
@@ -18,6 +19,42 @@ def get_inspiration_frags(cpd, compound_set):
     del cpd
     del compound_set
 
+
+# def process_pdb(pdb_code, target, zfile, zfile_hashvals):
+#     # pdb_fn = zfile[pdb_code].split('/')[-1]
+
+#     if zfile_hashvals:
+#         for key in zfile_hashvals.keys():
+#             if key == pdb_code:
+#                 pdb_code = f'{pdb_code}-{zfile_hashvals[pdb_code]}'
+
+#     pdb_fp = zfile[pdb_code]
+#     pdb_fn = zfile[pdb_code].split('/')[-1]
+
+#     # Move and save the protein pdb from tmp to pdbs folder
+#     # pdb may have already been moved and Protein object created
+
+#     # prot_objs = Protein.objects.filter(code=pdb_code)
+#     # if len(prot_objs) > 0:
+#     #     raise Exception(f'Something went wrong with pdb zip upload: {[c.code for c in prot_objs]}')
+
+#     ## THIS BIT ISN'T MOVING THE FILES PROPERLY
+#     new_filename = settings.MEDIA_ROOT + 'pdbs/' + pdb_fn
+#     old_filename = settings.MEDIA_ROOT + pdb_fp
+#     os.renames(old_filename, new_filename)
+
+#     # Create Protein object
+#     prot = Protein()
+#     prot.code = pdb_code
+#     target_obj = Target.objects.get(title=target)
+#     prot.target_id = target_obj
+#     prot.pdb_info = 'pdbs/' + pdb_fn
+#     prot.save()
+
+#     # Get Protein object
+#     prot_obj = Protein.objects.get(code=pdb_code)
+
+#     return prot_obj
 
 def process_pdb(pdb_code, target, zfile, zfile_hashvals):
     # pdb_fn = zfile[pdb_code].split('/')[-1]
@@ -43,17 +80,33 @@ def process_pdb(pdb_code, target, zfile, zfile_hashvals):
     os.renames(old_filename, new_filename)
 
     # Create Protein object
-    prot = Protein()
-    prot.code = pdb_code
+    site_obvs = SiteObservation()
+    site_obvs.code = pdb_code
     target_obj = Target.objects.get(title=target)
-    prot.target_id = target_obj
-    prot.pdb_info = 'pdbs/' + pdb_fn
-    prot.save()
+    site_obvs.target_id = target_obj
+    site_obvs.pdb_info = 'pdbs/' + pdb_fn
+    site_obvs.save()
 
     # Get Protein object
-    prot_obj = Protein.objects.get(code=pdb_code)
+    prot_obj = SiteObservation.objects.get(code=pdb_code)
 
     return prot_obj
+
+# # use zfile object for pdb files uploaded in zip
+# def get_prot(mol, target, compound_set, zfile, zfile_hashvals=None):
+#     pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
+
+#     if zfile:
+#         pdb_code = pdb_fn.replace('.pdb','')
+#         prot_obj = process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
+#         field = prot_obj.pdb_info
+
+#     else:
+#         name = compound_set.target.title + '-' + pdb_fn
+#         prot_obj = Protein.objects.get(code__contains=name.split(':')[0].split('_')[0])
+#         field = prot_obj.pdb_info
+
+#     return field
 
 # use zfile object for pdb files uploaded in zip
 def get_prot(mol, target, compound_set, zfile, zfile_hashvals=None):
@@ -61,13 +114,13 @@ def get_prot(mol, target, compound_set, zfile, zfile_hashvals=None):
 
     if zfile:
         pdb_code = pdb_fn.replace('.pdb','')
-        prot_obj = process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
-        field = prot_obj.pdb_info
+        site_obvs = process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
+        field = site_obvs.pdb_info
 
     else:
         name = compound_set.target.title + '-' + pdb_fn
-        prot_obj = Protein.objects.get(code__contains=name.split(':')[0].split('_')[0])
-        field = prot_obj.pdb_info
+        site_obvs = SiteObservation.objects.get(code__contains=name.split(':')[0].split('_')[0])
+        field = site_obvs.pdb_info
 
     return field
 

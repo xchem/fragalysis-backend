@@ -126,7 +126,7 @@ class Vector3D(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["site_obervation", "vector", "number"],
+                fields=["site_observation", "vector", "number"],
                 name="unique_siteobvs_vector_number",
             ),
         ]

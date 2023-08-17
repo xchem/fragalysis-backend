@@ -696,6 +696,11 @@ class TagCategorySerializer(serializers.ModelSerializer):
 #         model = models.MoleculeTag
 #         fields = '__all__'
 
+class SiteObservationTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SiteObservationTag
+        fields = '__all__'
+
 
 class SessionProjectTagSerializer(serializers.ModelSerializer):
     class Meta:
