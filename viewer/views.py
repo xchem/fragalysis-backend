@@ -32,6 +32,7 @@ from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+
 from celery.result import AsyncResult
 
 from api.security import ISpyBSafeQuerySet
@@ -1480,7 +1481,7 @@ class TaskStatus(APIView):
         return JsonResponse(data)
 
 
-class TargetExperimentUploads(viewsets.ModelViewSet):
+class TargetExperimentUploads(ISpyBSafeQuerySet):
     queryset = models.ExperimentUpload.objects.all()
     serializer_class = serializers.TargetExperimentReadSerializer
     permission_class = [permissions.IsAuthenticated]
@@ -1488,10 +1489,13 @@ class TargetExperimentUploads(viewsets.ModelViewSet):
     http_method_names = ('get',)
 
 
+
 class SiteObservations(viewsets.ModelViewSet):
-    queryset = models.SiteObservation.objects.all()
+    queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.SiteObservationReadSerializer
     permission_class = [permissions.IsAuthenticated]
+    filterset_class = filters.SiteObservationFilter
+    filter_permissions = "target__project_id"
     http_method_names = ('get',)
 
 
