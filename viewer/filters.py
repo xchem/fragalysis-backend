@@ -3,6 +3,9 @@ from django_filters import rest_framework as filters
 
 from viewer.models import Snapshot
 from viewer.models import SiteObservation
+from viewer.models import CanonSite
+from viewer.models import CanonSiteConf
+from viewer.models import XtalformSite
 
 
 class SnapshotFilter(filters.FilterSet):
@@ -29,12 +32,32 @@ class SnapshotFilter(filters.FilterSet):
         ]
 
 
-class SiteObservationFilter(filters.FilterSet):
-    target_name = filters.CharFilter(
-        label="Target",
-        field_name="target_name",
+class TargetFilterMixin(filters.FilterSet):
+    target = filters.CharFilter(
+        label="Target ID",
+        field_name="target",
     )
 
+
+class SiteObservationFilter(TargetFilterMixin):
     class Meta:
         model = SiteObservation
-        fields = ("target_name",)
+        fields = ("target",)
+
+
+class CanonSiteFilter(TargetFilterMixin):
+    class Meta:
+        model = CanonSite
+        fields = ("target",)
+
+
+class CanonSiteConfFilter(TargetFilterMixin):
+    class Meta:
+        model = CanonSiteConf
+        fields = ("target",)
+
+
+class XtalformSiteFilter(TargetFilterMixin):
+    class Meta:
+        model = XtalformSite
+        fields = ("target",)

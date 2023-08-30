@@ -21,7 +21,7 @@ class SiteObservationQueryset(QuerySet):
             "experiment__experiment_upload__target",
         ).annotate(
             target=F("experiment__experiment_upload__target"),
-            target_name=F("experiment__experiment_upload__target__title"),
+            # target_name=F("experiment__experiment_upload__target__title"),
         )
 
         return qs
@@ -85,6 +85,9 @@ class CompoundQueryset(QuerySet):
 class CompoundDataManager(Manager):
     def get_queryset(self):
         return CompoundQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
 
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.pk)
@@ -215,6 +218,9 @@ class QuatAssemblyDataManager(Manager):
     def get_queryset(self):
         return QuatAssemblyQueryset(self.model, using=self._db)
 
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.id)
 
@@ -275,6 +281,9 @@ class CanonSiteConfQueryset(QuerySet):
 class CanonSiteConfDataManager(Manager):
     def get_queryset(self):
         return CanonSiteConfQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
 
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.id)

@@ -1500,22 +1500,25 @@ class SiteObservations(viewsets.ModelViewSet):
 
 
 class CanonSites(viewsets.ModelViewSet):
-    queryset = models.CanonSite.objects.all()
+    queryset = models.CanonSite.filter_manager.filter_qs()
     serializer_class = serializers.CanonSiteReadSerializer
     permission_class = [permissions.IsAuthenticated]
+    filterset_class = filters.CanonSiteFilter
     http_method_names = ('get',)
 
 
 class CanonSiteConfs(viewsets.ModelViewSet):
-    queryset = models.CanonSiteConf.objects.all()
+    queryset = models.CanonSiteConf.filter_manager.filter_qs()
     serializer_class = serializers.CanonSiteConfReadSerializer
+    filterset_class = filters.CanonSiteConfFilter
     permission_class = [permissions.IsAuthenticated]
     http_method_names = ('get',)
 
 
 class XtalformSites(viewsets.ModelViewSet):
-    queryset = models.XtalformSite.objects.all()
+    queryset = models.XtalformSite.filter_manager.filter_qs()
     serializer_class = serializers.XtalformSiteReadSerializer
+    filterset_class = filters.XtalformSiteFilter
     permission_class = [permissions.IsAuthenticated]
     http_method_names = ('get',)
 
