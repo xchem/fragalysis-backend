@@ -127,7 +127,6 @@ class Migration(migrations.Migration):
                 ('event_map_info', django.contrib.postgres.fields.ArrayField(base_field=models.FileField(upload_to=''), null=True, size=None)),
                 ('type', models.PositiveSmallIntegerField(null=True)),
                 ('pdb_sha256', models.TextField(null=True)),
-                ('compounds', models.ManyToManyField(to='viewer.Compound')),
             ],
         ),
         migrations.CreateModel(

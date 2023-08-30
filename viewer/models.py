@@ -12,6 +12,14 @@ from simple_history.models import HistoricalRecords
 
 
 from .managers import SiteObservationDataManager
+from .managers import ExperimentDataManager
+from .managers import CompoundDataManager
+from .managers import XtalformDataManager
+from .managers import XtalformQuatAssemblyDataManager
+from .managers import QuatAssemblyDataManager
+from .managers import XtalformSiteDataManager
+from .managers import CanonSiteDataManager
+from .managers import CanonSiteConfDataManager
 
 class Project(models.Model):
     title = models.CharField(max_length=200, unique=True)
@@ -96,6 +104,8 @@ class ExperimentUpload(models.Model):
     message = models.TextField(null=True, blank=True,
                                help_text="Any message associated with the upload."
                                          " Typically set when status is FAILURE")
+    task_id = models.UUIDField(null=True)
+
 
     def __str__(self) -> str:
         return f"{self.project}"
@@ -115,7 +125,17 @@ class Experiment(models.Model):
     event_map_info = ArrayField(models.FileField(), null=True)
     type = models.PositiveSmallIntegerField(null=True)
     pdb_sha256 = models.TextField(null=True)
-    compounds = models.ManyToManyField("Compound")
+    compounds = models.ManyToManyField(
+        "Compound",
+        through="ExperimentCompound",
+        through_fields=("experiment", "compound"),
+    )
+    # need to set null=True due to the data saving order
+    xtalform = models.ForeignKey("Xtalform", null=True, on_delete=models.CASCADE)
+
+    objects = models.Manager()
+    filter_manager = ExperimentDataManager()
+
 
     def __str__(self) -> str:
         return f"{self.code}"
@@ -155,6 +175,9 @@ class Compound(models.Model):
     description = models.TextField(blank=True, null=True)
     comments = models.TextField(blank=True, null=True)
 
+    objects = models.Manager()
+    filter_manager = CompoundDataManager()
+
     def __str__(self) -> str:
         return f"{self.smiles}"
 
@@ -162,9 +185,25 @@ class Compound(models.Model):
         return "<Compound %r %r %r>" % (self.id, self.smiles, self.inchi)
 
 
+class ExperimentCompound(models.Model):
+    experiment = models.ForeignKey(Experiment, null=False, on_delete=models.CASCADE,)
+    compound = models.ForeignKey(Compound, null=False, on_delete=models.CASCADE,)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["experiment", "compound",],
+                name="unique_experimentcompound",
+            ),
+        ]
+
+
 class QuatAssembly(models.Model):
     chains = models.TextField()
     name = models.TextField()
+
+    objects = models.Manager()
+    filter_manager = QuatAssemblyDataManager()
 
     def __str__(self) -> str:
         return f"{self.name}"
@@ -174,28 +213,57 @@ class QuatAssembly(models.Model):
 
 
 class Xtalform(models.Model):
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
-    # TODO: add fk to ref experiment.
-    # DONE? this is what experiment is, do I need to change it?
     name = models.TextField(null=True)
-    quat_assembly = models.ForeignKey(QuatAssembly, on_delete=models.CASCADE, null=True)
     space_group = models.TextField(null=True)
     unit_cell_info = models.JSONField(encoder=DjangoJSONEncoder, null=True)
-    xtalform_id = models.IntegerField(null=True, help_text="xtalform id from YAML")
+    quat_assembly = models.ManyToManyField(
+        QuatAssembly,
+        through="XtalformQuatAssembly",
+        through_fields=("xtalform", "quat_assembly"),
+    )
+
+    objects = models.Manager()
+    filter_manager = XtalformDataManager()
 
     def __str__(self) -> str:
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return "<Xtalform %r %r %r>" % (self.id, self.name, self.experiment)
+        return "<Xtalform %r %r>" % (self.id, self.name)
+
+
+class XtalformQuatAssembly(models.Model):
+    xtalform = models.ForeignKey(Xtalform, null=False, on_delete=models.CASCADE,)
+    quat_assembly = models.ForeignKey(QuatAssembly, null=False, on_delete=models.CASCADE,)
+    assembly_id = models.TextField()
+    chains = models.TextField()
+
+    objects = models.Manager()
+    filter_manager = XtalformQuatAssemblyDataManager()
+
+    def __str__(self) -> str:
+        return f"XtalformQuatAssembly {self.xtalform} {self.quat_assembly} {self.assembly_id}"
+
+    def __repr__(self) -> str:
+        return "<XtalformQuatAssembly %r %r %r %r>" % (self.id, self.xtalform, self.quat_assembly, self.assembly_id)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["xtalform", "quat_assembly", "assembly_id",],
+                name="unique_xtalformquatassembly",
+            ),
+        ]
+
 
 class CanonSite(models.Model):
     name = models.TextField()
-    quat_assembly = models.ForeignKey(QuatAssembly, null=True, on_delete=models.CASCADE)
     residues = models.JSONField(encoder=DjangoJSONEncoder)
     # TODO: missing in db, check if correct, (might be correct, but might not)
     ref_conf_site = models.OneToOneField("CanonSiteConf", null=True, on_delete=models.CASCADE)
-    canon_site_id = models.IntegerField(null=False, help_text="canon_site id from YAML")
+
+    objects = models.Manager()
+    filter_manager = CanonSiteDataManager()
 
     def __str__(self) -> str:
         return f"{self.name}"
@@ -209,7 +277,10 @@ class XtalformSite(models.Model):
     canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
     lig_chain = models.CharField(max_length=1)
     residues = models.JSONField(encoder=DjangoJSONEncoder)
-    xtalform_site_id = models.IntegerField(null=False, help_text="xtalform site id from YAML")
+    xtalform_site_id = models.TextField(null=False, help_text="xtalform site id from YAML")
+
+    objects = models.Manager()
+    filter_manager = XtalformSiteDataManager()
 
     def __str__(self) -> str:
         return f"{self.xtalform_site_id}"
@@ -224,6 +295,9 @@ class CanonSiteConf(models.Model):
     name = models.TextField(null=True)
     ref_site_observation = models.OneToOneField("SiteObservation", null=True, on_delete=models.CASCADE)
     residues = models.JSONField(encoder=DjangoJSONEncoder)
+
+    objects = models.Manager()
+    filter_manager = CanonSiteConfDataManager()
 
     def __str__(self) -> str:
         return f"{self.name}"

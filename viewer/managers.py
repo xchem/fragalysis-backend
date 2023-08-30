@@ -1,8 +1,15 @@
+import logging
+
 from django.apps import apps
 
 from django.db.models import QuerySet
+from django.db.models import OuterRef
 from django.db.models import Manager
 from django.db.models import F
+from django.db.models import Subquery
+
+
+logger = logging.getLogger(__name__)
 
 
 class SiteObservationQueryset(QuerySet):
@@ -26,3 +33,248 @@ class SiteObservationDataManager(Manager):
 
     def filter_qs(self):
         return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class ExperimentQueryset(QuerySet):
+    def filter_qs(self):
+        Experiment = apps.get_model("viewer", "Experiment")
+        qs = Experiment.objects.prefetch_related(
+            "experiment_upload",
+            "experiment_upload__target",
+        ).annotate(
+            target=F("experiment_upload__target"),
+        )
+
+        return qs
+
+
+class ExperimentDataManager(Manager):
+    def get_queryset(self):
+        return ExperimentQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class CompoundQueryset(QuerySet):
+    def filter_qs(self):
+        Compound = apps.get_model("viewer", "Compound")
+        SiteObservation = apps.get_model("viewer", "SiteObservation")
+
+        so_qs = SiteObservation.filter_manager.filter_qs()
+
+        qs = Compound.objects.annotate(
+            target=Subquery(
+                so_qs.filter(
+                    cmpd=OuterRef("pk"),
+                ).values(
+                    "target"
+                )[:1],
+            ),
+        )
+
+        return qs
+
+
+class CompoundDataManager(Manager):
+    def get_queryset(self):
+        return CompoundQueryset(self.model, using=self._db)
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.pk)
+
+
+class XtalformQueryset(QuerySet):
+    def filter_qs(self):
+        Xtalform = apps.get_model("viewer", "Xtalform")
+        Experiment = apps.get_model("viewer", "Experiment")
+
+        exp_qs = Experiment.filter_manager.filter_qs()
+
+        qs = Xtalform.objects.annotate(
+            target=Subquery(
+                exp_qs.filter(
+                    xtalform=OuterRef("pk"),
+                ).values(
+                    "target"
+                )[:1],
+            ),
+        )
+
+        return qs
+
+
+class XtalformDataManager(Manager):
+    def get_queryset(self):
+        return XtalformQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class XtalformSiteQueryset(QuerySet):
+    def filter_qs(self):
+        XtalformSite = apps.get_model("viewer", "XtalformSite")
+        Experiment = apps.get_model("viewer", "Experiment")
+
+        exp_qs = Experiment.filter_manager.filter_qs()
+
+        qs = XtalformSite.objects.prefetch_related(
+            "xtalform",
+        ).annotate(
+            target=Subquery(
+                exp_qs.filter(
+                    xtalform=OuterRef("xtalform__pk"),
+                ).values(
+                    "target"
+                )[:1],
+            ),
+        )
+
+        return qs
+
+
+class XtalformSiteDataManager(Manager):
+    def get_queryset(self):
+        return XtalformSiteQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+# this is perhaps a bit unusual, a dedicated mangager for m2m junction
+# table. but the contents are coming from yaml file and are used to
+# determin related objects (QuatAssembly) so I think in this case this
+# is justified
+class XtalformQuatAssemblyQueryset(QuerySet):
+    def filter_qs(self):
+        Xtalform = apps.get_model("viewer", "Xtalform")
+        XtalformQuatAssembly = apps.get_model("viewer", "XtalformQuatAssembly")
+
+        xtal_qs = Xtalform.filter_manager.filter_qs()
+
+        qs = XtalformQuatAssembly.objects.prefetch_related(
+            "xtalform",
+        ).annotate(
+            target=Subquery(
+                xtal_qs.filter(
+                    pk=OuterRef("xtalform__pk"),
+                ).values(
+                    "target"
+                )[:1],
+            ),
+        )
+
+        return qs
+
+
+class XtalformQuatAssemblyDataManager(Manager):
+    def get_queryset(self):
+        return XtalformQuatAssemblyQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class QuatAssemblyQueryset(QuerySet):
+    def filter_qs(self):
+        QuatAssembly = apps.get_model("viewer", "QuatAssembly")
+        XtalformQuatAssembly = apps.get_model("viewer", "XtalformQuatAssembly")
+
+        xtlq_qs = XtalformQuatAssembly.filter_manager.filter_qs()
+
+        qs = QuatAssembly.objects.annotate(
+            target=Subquery(
+                xtlq_qs.filter(
+                    quat_assembly=OuterRef("pk"),
+                ).values(
+                    "target"
+                )[:1],
+            ),
+        )
+
+        return qs
+
+
+class QuatAssemblyDataManager(Manager):
+    def get_queryset(self):
+        return QuatAssemblyQueryset(self.model, using=self._db)
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class CanonSiteQueryset(QuerySet):
+    def filter_qs(self):
+        XtalformSite = apps.get_model("viewer", "XtalformSite")
+        CanonSite = apps.get_model("viewer", "CanonSite")
+
+        xtalsite_qs = XtalformSite.filter_manager.filter_qs()
+
+        qs = CanonSite.objects.annotate(
+            target=Subquery(
+                xtalsite_qs.filter(
+                    canon_site=OuterRef("pk"),
+                ).values(
+                    "target"
+                )[:1],
+            ),
+        )
+
+        return qs
+
+
+class CanonSiteDataManager(Manager):
+    def get_queryset(self):
+        return CanonSiteQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class CanonSiteConfQueryset(QuerySet):
+    def filter_qs(self):
+        # this could equally be filtered via siteobservation.. any
+        # advantage in doing that?
+        CanonSite = apps.get_model("viewer", "CanonSite")
+        CanonSiteConf = apps.get_model("viewer", "CanonSiteConf")
+
+        canonsite_qs = CanonSite.filter_manager.filter_qs()
+
+        qs = CanonSiteConf.objects.annotate(
+            target=Subquery(
+                canonsite_qs.filter(
+                    pk=OuterRef("canon_site__pk"),
+                ).values(
+                    "target"
+                )[:1],
+            ),
+        )
+
+        return qs
+
+
+class CanonSiteConfDataManager(Manager):
+    def get_queryset(self):
+        return CanonSiteConfQueryset(self.model, using=self._db)
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)

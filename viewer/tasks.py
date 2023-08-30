@@ -483,7 +483,7 @@ def task_load_target(self, data_bundle, proposal_ref=None, contact_email=None, u
         logger.exception(err)
         self.update_state(
                 state="ERROR",
-                meta={"description": err.args[1],},
+                meta={"description": err.args,},
             )
     except IntegrityError as err:
         logger.exception(err)
