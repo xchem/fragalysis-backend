@@ -878,7 +878,7 @@ class UploadCSet(APIView):
             update_set = request.POST.get('update_set')
 
             logger.info('+ UploadCSet POST choice="%s" target="%s" update_set="%s"', choice, target, update_set)
-            
+
             # If a set is named the ComputedSet cannot be 'Anonymous'
             # and the user has to be the owner.
             selected_set = None
@@ -982,9 +982,9 @@ class UploadCSet(APIView):
                     f'Compound set "{selected_set.unique_name}" deleted'
 
                 logger.info('+ UploadCSet POST "Delete" done')
-                
+
                 return redirect('upload_cset')
-            
+
             else:
                 logger.warning('+ UploadCSet POST unsupported submit_choice value (%s)', choice)
 
@@ -2990,7 +2990,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
     def create(self, request):
         """Method to handle POST request that's use to initiate a target download.\
 
-        The user is permitted to download Targets they have ascess to (whether 
+        The user is permitted to download Targets they have ascess to (whether
         authenticated or not), and this is hadled by the queryset logic later in
         this method.
         """
@@ -3439,7 +3439,7 @@ class JobRequestView(APIView):
 
     def get(self, request):
         logger.info('+ JobRequest.get')
-        
+
         user = self.request.user
         if not user.is_authenticated:
             content = {'Only authenticated users can access squonk jobs'}
@@ -3458,33 +3458,39 @@ class JobRequestView(APIView):
         results = []
         snapshot_id = request.query_params.get('snapshot', None)
 
+        snapshot_msg = 'snapshot_id=(unset)'
         if snapshot_id:
-            logger.info('+ JobRequest.get snapshot_id=%s', snapshot_id)
+            snapshot_msg = f'snapshot_id={snapshot_id}'
             job_requests = JobRequest.objects.filter(snapshot=int(snapshot_id))
         else:
-            logger.info('+ JobRequest.get snapshot_id=(unset)')
             job_requests = JobRequest.objects.all()
-        
+        logger.info('+ JobRequest.get %s', snapshot_msg)
+
         for jr in job_requests:
-            if not jr.job_has_finished():
-                logger.info('+ JobRequest.get (id=%s) has not finished (job_status=%s)',
-                            jr.id, jr.job_status)
+            logger.info('+ JobRequest.get %s (jid=%s) job_status=%s code=%s',
+                        snapshot_msg, jr.id, jr.job_status, jr.code)
+            if jr.job_has_finished():
+                logger.info('+ JobRequest.get %s (jid=%s) has finished',
+                            snapshot_msg, jr.id)
+            else:
+                logger.info('+ JobRequest.get %s (jid=%s) is still running',
+                            snapshot_msg, jr.id)
 
                 # Job's not finished, an opportunity to call into Squonk
                 # To get the current status. To do this we'll need
                 # the 'callback context' we supplied when launching the Job.
-                logger.info('+ JobRequest.get (id=%s, code=%s) getting update from Squonk...',
-                            jr.id, jr.code)
+                logger.info('+ JobRequest.get %s (jid=%s) getting update from Squonk...',
+                            snapshot_msg, jr.id)
                 sq2a_rv = _SQ2A.get_instance_execution_status(jr.code)
                 # If the job's now finished, update the record.
                 # If the call was successful we'll get None (not finished),
                 # 'LOST', 'SUCCESS' or 'FAILURE'
                 if not sq2a_rv.success:
-                    logger.warning('+ JobRequest.get (id=%s, code=%s) check failed (%s)',
-                                    jr.id, jr.code, sq2a_rv.msg)
+                    logger.warning('+ JobRequest.get %s (jid=%s) check failed (%s)',
+                                   snapshot_msg, jr.id, sq2a_rv.msg)
                 elif sq2a_rv.success and sq2a_rv.msg:
-                    logger.info('+ JobRequest.get (id=%s, code=%s) new status is (%s)',
-                                jr.id, jr.code, sq2a_rv.msg)
+                    logger.info('+ JobRequest.get %s (jid=%s) new status is (%s)',
+                                snapshot_msg, jr.id, sq2a_rv.msg)
                     transition_time = str(datetime.utcnow())
                     transition_time_utc = parse(transition_time).replace(tzinfo=pytz.UTC)
                     jr.job_status = sq2a_rv.msg
@@ -3492,14 +3498,14 @@ class JobRequestView(APIView):
                     jr.job_finish_datetime = transition_time_utc
                     jr.save()
                 else:
-                    logger.info('+ JobRequest.get (id=%s, code=%s) is (probably) still running',
-                                jr.id, jr.code)
+                    logger.info('+ JobRequest.get %s (jid=%s) is (probably) still running',
+                                snapshot_msg, jr.id)
 
             serializer = JobRequestReadSerializer(jr)
             results.append(serializer.data)
 
         num_results = len(results)
-        logger.info('+ JobRequest.get num_results=%s', num_results)
+        logger.info('+ JobRequest.get %s num_results=%s', snapshot_msg, num_results)
 
         # Simulate the original paged API response...
         content = {'count': num_results,
@@ -3786,7 +3792,7 @@ class JobAccessView(APIView):
 
         err_response = {'accessible': False}
         ok_response = {'accessible': True, 'error': ''}
-        
+
         # Only authenticated users can have squonk jobs
         user = self.request.user
         if not user.is_authenticated:
@@ -3809,18 +3815,18 @@ class JobAccessView(APIView):
         if jr_id < 1:
             err_response['error'] = f'The JobRequest ID ({jr_id}) cannot be less than 1'
             return Response(err_response, status=status.HTTP_400_BAD_REQUEST)
-            
+
         jr_list = JobRequest.objects.filter(id=jr_id)
         if len(jr_list) == 0:
             err_response['error'] = f'The JobRequest does not exist'
             return Response(err_response, status=status.HTTP_400_BAD_REQUEST)
         jr = jr_list[0]
-        
+
         # JobRequest must have a Squonk Project value
         if not jr.squonk_project:
             err_response['error'] = f'The JobRequest ({jr_id}) has no Squonk Project value'
             return Response(err_response, status=status.HTTP_403_FORBIDDEN)
-            
+
         # User must have access to the Job's Project.
         # If the user is not the owner of the Job, and there is a Project,
         # we then check the user has access to the gievn access ID.
