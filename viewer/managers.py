@@ -21,7 +21,6 @@ class SiteObservationQueryset(QuerySet):
             "experiment__experiment_upload__target",
         ).annotate(
             target=F("experiment__experiment_upload__target"),
-            # target_name=F("experiment__experiment_upload__target__title"),
         )
 
         return qs
