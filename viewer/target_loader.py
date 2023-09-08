@@ -655,16 +655,21 @@ class TargetLoader:
         # this is copied from get_create_projects. i'm not entirely
         # sure how it's used.
         visit = self.proposal_ref.split()[0]
-        self.project = Project.objects.get_or_create(title=visit)[0]
+        self.project, created = Project.objects.get_or_create(title=visit)
 
         try:
             committer = get_user_model().objects.get(pk=self.user_id)
         except get_user_model().DoesNotExist:
-            # TODO: need something here for testing
-            committer = get_user_model().objects.get(pk=1)
+            # add upload as anonymous user
+            committer = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
 
-        # ExperimentUpload object is always saved
-        # TODO: clearly not always, getting it twice
+        if created and committer.pk == settings.ANONYMOUS_USER:
+            self.project.open_to_public = True
+            self.project.save()
+
+        # populate m2m field
+        self.target.project_id.add(self.project)
+
         self.experiment_upload = ExperimentUpload(
             project=self.project,
             target=self.target,
@@ -1047,6 +1052,13 @@ class TargetLoader:
                 # happens to be specified on the same level as files
                 if TargetLoader._check_file(upload_root.joinpath(value)):
                     result[key] = str(value)
+                else:
+                    # wait, I think I should actually raise exp here..
+                    logger.error(
+                        "%s referenced in %s but not found in archive",
+                        value,
+                        METADATA_FILE,
+                    )
             else:
                 # this is probably the list of panddas event files, don't
                 # need them here
