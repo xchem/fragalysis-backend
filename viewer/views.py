@@ -1208,7 +1208,7 @@ class SiteObservationTagView(viewsets.ModelViewSet):
     """
     queryset = models.SiteObservationTag.objects.filter()
     serializer_class = serializers.SiteObservationTagSerializer
-    filterset_fields = ('id', 'tag', 'category', 'target', 'molecules', 'mol_group')
+    filterset_fields = ('id', 'tag', 'category', 'target', 'site_observations', 'mol_group')
 
 
 class SessionProjectTagView(viewsets.ModelViewSet):
@@ -1479,6 +1479,37 @@ class TaskStatus(APIView):
             'messages': messages,
         }
         return JsonResponse(data)
+
+
+class DownloadTargetExperiments(viewsets.ModelViewSet):
+    serializer_class = serializers.TargetExperimentDownloadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('post',)
+
+    def get_view_name(self):
+        return "Download Target Experiments"
+
+    def create(self, request, *args, **kwargs):
+        logger.info("+ DownloadTargetExperiments.create called")
+
+        serializer = self.get_serializer_class()(data=request.data)
+        if serializer.is_valid():
+            # project = serializer.validated_data['project']
+            # target = serializer.validated_data['target']
+            filename = serializer.validated_data['filename']
+
+            # source_dir = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
+            source_dir = Path(settings.MEDIA_ROOT).joinpath('tmp')
+            file_path = source_dir.joinpath(filename)
+            wrapper = FileWrapper(open(file_path, 'rb'))
+            response = FileResponse(wrapper,
+                                        content_type='application/zip')
+            response[
+                'Content-Disposition'] = \
+                    'attachment; filename="%s"' % file_path.name
+            response['Content-Length'] = os.path.getsize(file_path)
+            return response
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TargetExperimentUploads(ISpyBSafeQuerySet):

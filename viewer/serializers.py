@@ -80,13 +80,13 @@ def get_protein_sequences(pdb_block):
 def protein_sequences(obj):
     """Common enabler code for Target-related serializers
     """
-    proteins = obj.protein_set.filter()
+    proteins = models.SiteObservation.filter_manager.by_target(target=obj)
     protein_file = None
     for protein in proteins:
-        if protein.pdb_info:
-            if not os.path.isfile(protein.pdb_info.path):
+        if protein.apo_file:
+            if not os.path.isfile(protein.apo_file.path):
                 continue
-            protein_file = protein.pdb_info
+            protein_file = protein.apo_file
             break
     if not protein_file:
         return [{'chain': '', 'sequence': ''}]
@@ -103,10 +103,10 @@ def template_protein(obj):
     """Common enabler code for Target-related serializers
     """
 
-    proteins = obj.protein_set.filter()
+    proteins = models.SiteObservation.filter_manager.by_target(target=obj)
     for protein in proteins:
-        if protein.pdb_info:
-            return protein.pdb_info.url
+        if protein.apo_file:
+            return protein.apo_file.url
     return "NOT AVAILABLE"
 
 
@@ -147,7 +147,11 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Target
-        fields = ("id", "title", "project_id", "protein_set", "default_squonk_project",
+        # fields = ("id", "title", "project_id", "protein_set", "default_squonk_project",
+        #           "template_protein", "metadata", "zip_archive", "upload_status", "sequences")
+
+        # TODO: it's missing protein_set. is it necessary anymore?
+        fields = ("id", "title", "project_id", "default_squonk_project",
                   "template_protein", "metadata", "zip_archive", "upload_status", "sequences")
 
 
@@ -794,6 +798,16 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ExperimentUpload
         fields = ('proposal_ref', 'contact_email', 'file',)
+
+
+class TargetExperimentDownloadSerializer(serializers.ModelSerializer):
+    filename = serializers.ChoiceField(
+        choices=models.ExperimentUpload.objects.all().values_list('file', flat=True))
+
+    class Meta:
+        model = models.ExperimentUpload
+        fields = ('project', 'target', 'filename',)
+
 
 class JobOverrideReadSerializer(serializers.ModelSerializer):
     class Meta:
