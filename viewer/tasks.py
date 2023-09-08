@@ -475,30 +475,38 @@ def validate_target_set(target_zip, target=None, proposal=None, email=None):
 
 
 @celery_app.task(bind=True)
-def task_load_target(self, data_bundle, proposal_ref=None, contact_email=None, user_id=None):
+def task_load_target(self, data_bundle=None, tempdir=None, proposal_ref=None, contact_email=None, user_id=None):
     logger.info('TASK %s load_target launched, target_zip=%s', self.request.id, data_bundle)
     try:
-        load_target(data_bundle, proposal_ref=proposal_ref, contact_email=contact_email, user_id=user_id, task=self)
+        load_target(
+            data_bundle,
+            tempdir=tempdir,
+            proposal_ref=proposal_ref,
+            contact_email=contact_email,
+            user_id=user_id,
+            task=self,
+        )
     except KeyError as err:
-        logger.exception(err)
         self.update_state(
                 state="ERROR",
                 meta={"description": err.args,},
             )
     except IntegrityError as err:
-        logger.exception(err)
         self.update_state(
                 state="ERROR",
-                meta={"description": err.args[1],},
+                meta={"description": err.args[0],},
             )
     except FileNotFoundError as err:
-        logger.exception(err)
         self.update_state(
                 state="ERROR",
-                meta={"description": err.args[1],},
+                meta={"description": err.args[0],},
+            )
+    except FileExistsError as err:
+        self.update_state(
+                state="ERROR",
+                meta={"description": err.args[0],},
             )
     except OSError as err:
-        logger.exception(err)
         self.update_state(
                 state="ERROR",
                 meta={"description": err.args[1],},

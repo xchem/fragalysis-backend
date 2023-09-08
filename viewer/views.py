@@ -11,6 +11,7 @@ from wsgiref.util import FileWrapper
 from dateutil.parser import parse
 import pytz
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pandas as pd
 
@@ -1427,18 +1428,22 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
             # I'm not creating ExperimentUpload object here, so I
             # suppose there's no point in keeping this as ModelViewSet
 
-            tmpdir = Path(settings.MEDIA_ROOT).joinpath('tmp')
-            tmpdir.mkdir(exist_ok=True)
-            target_file = tmpdir.joinpath(filename.name)
-            handle_uploaded_file(target_file, filename)
+            with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
+                target_file = Path(tempdir).joinpath(filename.name)
+                handle_uploaded_file(target_file, filename)
 
-            task = task_load_target.delay(str(target_file), proposal_ref=proposal_ref,
-                                          contact_email=contact_email, user_id=request.user.pk)
-            logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
+                task = task_load_target.delay(
+                    data_bundle=str(target_file),
+                    tempdir=tempdir,
+                    proposal_ref=proposal_ref,
+                    contact_email=contact_email,
+                    user_id=request.user.pk,
+                )
+                logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
 
-            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
-            # as it launches task, I think 202 is more appropriate
-            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+                url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+                # as it launches task, I think 202 is more appropriate
+                return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

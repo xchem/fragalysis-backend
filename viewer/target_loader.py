@@ -4,8 +4,8 @@ import logging
 from pathlib import Path
 import hashlib
 import yaml
-from tempfile import TemporaryDirectory
 import tarfile
+import uuid
 
 from rdkit import Chem
 
@@ -39,9 +39,9 @@ from viewer.models import (
     Experiment,
     ExperimentUpload,
     XtalformQuatAssembly,
+    Target,
 )
 
-from viewer.target_set_upload import get_create_target
 from viewer.target_set_upload import calc_cpd
 
 # from viewer.target_set_upload import get_vectors
@@ -100,9 +100,26 @@ class TargetLoader:
 
         self._target_root = self.raw_data.joinpath(self.target_name)
 
+        # create exp upload object stub. NB! not saved here but later
+        self.experiment_upload = ExperimentUpload(
+            commit_datetime=timezone.now(),
+            file=self.data_bundle,
+        )
+
         # work out where the data finally lands
         path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
-        path.mkdir(exist_ok=True)
+
+        # give each upload a unique directory. since I already have
+        # task_id, why not reuse it
+        if task:
+            path = path.joinpath(str(task.request.id))
+            self.experiment_upload.task_id = task.request.id
+        else:
+            # unless of course I don't have task..
+            # TODO: i suspect this will never be used.
+            path_uuid = uuid.uuid4().hex
+            path = path.joinpath(path_uuid)
+            self.experiment_upload.task_id = path_uuid
 
         self._final_path = path.joinpath(self.bundle_name)
         # but don't create now, this comes later
@@ -111,9 +128,9 @@ class TargetLoader:
         # directly, likely from management command
         self.task_id = f"task {task.request.id}: " if task else ""
 
+        # these will be filled later
         self.target = None
         self.project = None
-        self.experiment_upload = None
 
     @property
     def target_root(self) -> Path:
@@ -650,12 +667,14 @@ class TargetLoader:
         logger.info("%sProcessing %s", self.task_id, upload_root)
 
         # moved this bit from init
-        self.target = get_create_target(self.target_name)
+        self.target, target_created = Target.objects.get_or_create(
+            title=self.target_name
+        )
 
         # this is copied from get_create_projects. i'm not entirely
         # sure how it's used.
         visit = self.proposal_ref.split()[0]
-        self.project, created = Project.objects.get_or_create(title=visit)
+        self.project, project_created = Project.objects.get_or_create(title=visit)
 
         try:
             committer = get_user_model().objects.get(pk=self.user_id)
@@ -663,21 +682,20 @@ class TargetLoader:
             # add upload as anonymous user
             committer = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
 
-        if created and committer.pk == settings.ANONYMOUS_USER:
+        # TODO: is it here where I can figure out if this has already been uploaded?
+        if self._is_already_uploaded(target_created, project_created):
+            raise FileExistsError(f"{self.bundle_name} already uploaded, skipping.")
+
+        if project_created and committer.pk == settings.ANONYMOUS_USER:
             self.project.open_to_public = True
             self.project.save()
 
         # populate m2m field
         self.target.project_id.add(self.project)
 
-        self.experiment_upload = ExperimentUpload(
-            project=self.project,
-            target=self.target,
-            committer=committer,
-            commit_datetime=timezone.now(),
-            file=self.data_bundle,
-            task_id=task.request.id if task else "",
-        )
+        self.experiment_upload.project = self.project
+        self.experiment_upload.target = self.target
+        self.experiment_upload.committer = committer
         self.experiment_upload.save()
 
         assemblies = self._load_yaml(Path(upload_root).joinpath(ASSEMBLIES_FILE))
@@ -967,6 +985,20 @@ class TargetLoader:
 
         return result
 
+    def _is_already_uploaded(self, target_created, project_created):
+        if target_created or project_created:
+            return False
+        else:
+            uploaded_files = ExperimentUpload.objects.filter(
+                target=self.target,
+                project=self.project,
+            ).values_list("file", flat=True)
+
+            # TODO: this just tests the target-project-filename combo,
+            # which may not be enough
+
+            return self.data_bundle in uploaded_files
+
     def _get_final_path(self, path: Path):
         """Update relative path to final storage path"""
         try:
@@ -984,17 +1016,6 @@ class TargetLoader:
         for path in Path(self.target_root).iterdir():
             if path.is_dir():
                 logger.info("Found upload dir: %s", str(path))
-                if (
-                    self.final_path.joinpath(self.target_name)
-                    .joinpath(path.name)
-                    .is_dir()
-                ):
-                    # this target has been uploaded at least once and
-                    # this upload already exists. skip
-                    result.append(
-                        f"{self.bundle_name}/{path.name} already uploaded, skipping."
-                    )
-                    continue
                 try:
                     upload_report = self.process_metadata(
                         upload_root=path,
@@ -1004,6 +1025,11 @@ class TargetLoader:
                     raise FileNotFoundError(exc.args[1]) from exc
                 except IntegrityError as exc:
                     raise IntegrityError(exc.args[0]) from exc
+                except FileExistsError as exc:
+                    # this target has been uploaded at- least once and
+                    # this upload already exists. skip
+                    result.append(exc.args[0])
+                    raise FileExistsError(exc.args[0]) from exc
 
                 result.extend(upload_report)
 
@@ -1092,61 +1118,51 @@ class TargetLoader:
 
 def load_target(
     data_bundle,
+    tempdir=None,
     proposal_ref=None,
     contact_email=None,
     user_id=None,
     task=None,
 ):
     # TODO: do I need to sniff out correct archive format?
-    with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
-        target_loader = TargetLoader(
-            data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
-        )
-        try:
-            with tarfile.open(target_loader.bundle_path, "r") as archive:
-                msg = f"Extracting bundle: {data_bundle}"
-                logger.info("%s%s", target_loader.task_id, msg)
-                update_task(task, "PROCESSING", msg)
-                archive.extractall(target_loader.raw_data)
-                msg = f"Data extraction complete: {data_bundle}"
-                logger.info("%s%s", target_loader.task_id, msg)
-        except FileNotFoundError as exc:
-            msg = f"{data_bundle} file does not exist!"
-            logger.exception("%s%s", target_loader.task_id, msg)
-            update_task(task, "ERROR", msg)
-            raise FileNotFoundError(msg) from exc
+    target_loader = TargetLoader(
+        data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
+    )
+    try:
+        # archive is first extracted to temporary dir and moved later
+        with tarfile.open(target_loader.bundle_path, "r") as archive:
+            msg = f"Extracting bundle: {data_bundle}"
+            logger.info("%s%s", target_loader.task_id, msg)
+            update_task(task, "PROCESSING", msg)
+            archive.extractall(target_loader.raw_data)
+            msg = f"Data extraction complete: {data_bundle}"
+            logger.info("%s%s", target_loader.task_id, msg)
+    except FileNotFoundError as exc:
+        msg = f"{data_bundle} file does not exist!"
+        logger.exception("%s%s", target_loader.task_id, msg)
+        raise FileNotFoundError(msg) from exc
 
-        try:
-            with transaction.atomic():
-                upload_report = target_loader.process_bundle(task=task)
-        except FileNotFoundError as exc:
-            logger.error(exc.args[0])
-            update_task(task, "ERROR", exc.args[1])
-            raise FileNotFoundError(exc.args[1]) from exc
-        except IntegrityError as exc:
-            update_task(task, "ERROR", exc.args[1])
-            raise IntegrityError(exc.args[1]) from exc
+    try:
+        with transaction.atomic():
+            upload_report = target_loader.process_bundle(task=task)
+    except FileNotFoundError as exc:
+        logger.error(exc.args[0])
+        raise FileNotFoundError(exc.args[0]) from exc
+    except IntegrityError as exc:
+        logger.error(exc.args[0])
+        raise IntegrityError(exc.args[0]) from exc
+    except FileExistsError as exc:
+        logger.error(exc.args[0])
+        raise FileExistsError(exc.args[0]) from exc
 
-        # data in db, all good, move the files to permanent storage
-        if target_loader.final_path.is_dir():
-            # target is already uploaded at least once, only copy new
-            # upload_<x> subdirectories
-            for path in Path(target_loader.target_root).iterdir():
-                if path.is_dir():
-                    final_path = target_loader.final_path.joinpath(
-                        target_loader.target_name
-                    ).joinpath(path.name)
-                    if not final_path.is_dir():
-                        path.rename(final_path)
-                    else:
-                        logger.info("%s already present, skipping", path.name)
+    # move to final location
+    target_loader.final_path.mkdir(parents=True)
+    target_loader.raw_data.rename(target_loader.final_path)
+    Path(target_loader.bundle_path).rename(
+        target_loader.final_path.parent.joinpath(target_loader.data_bundle)
+    )
 
-        else:
-            # copy the full target directory
-            target_loader.final_path.mkdir()
-            target_loader.raw_data.rename(target_loader.final_path)
-
-        update_task(task, "SUCCESS", upload_report)
+    update_task(task, "SUCCESS", upload_report)
 
 
 def update_task(task, state, message):
