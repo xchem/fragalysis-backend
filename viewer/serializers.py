@@ -801,8 +801,7 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
 
 
 class TargetExperimentDownloadSerializer(serializers.ModelSerializer):
-    filename = serializers.ChoiceField(
-        choices=models.ExperimentUpload.objects.all().values_list('file', flat=True))
+    filename = serializers.CharField()
 
     class Meta:
         model = models.ExperimentUpload

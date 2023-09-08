@@ -104,7 +104,6 @@ class ExperimentUpload(models.Model):
     message = models.TextField(null=True, blank=True,
                                help_text="Any message associated with the upload."
                                          " Typically set when status is FAILURE")
-    task_id = models.UUIDField(null=True)
 
 
     def __str__(self) -> str:
