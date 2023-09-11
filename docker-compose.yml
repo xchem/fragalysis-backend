@@ -72,7 +72,7 @@ services:
 
   # The stack backend
   backend:
-    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_TAG:-latest}
+    image: ${BE_NAMESPACE:-xchem}/fragalysis2-backend:${BE_TAG:-latest}
     container_name: backend
     build:
       context: .
@@ -83,7 +83,7 @@ services:
     - ./data/media:/code/media/
     - .:/code/
     environment:
-      AUTHENTICATE_UPLOAD: ${AUTHENTICATE_UPLOAD:-True} 
+      AUTHENTICATE_UPLOAD: ${AUTHENTICATE_UPLOAD:-True}
       POSTGRESQL_USER: postgres
       # Celery tasks need to run synchronously
       CELERY_TASK_ALWAYS_EAGER: 'True'

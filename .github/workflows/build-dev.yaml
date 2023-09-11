@@ -85,9 +85,9 @@ jobs:
       uses: docker/build-push-action@v4
       with:
         context: .
-        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis2-backend:${{ env.GITHUB_REF_SLUG }}
 # DEVELOPER TESTING DISABLED UNTIL MODEL-REFACTORING IS COMPLETE
-#        
+#
 #    - name: Test
 #      run: >
 #        docker-compose -f docker-compose.test.yml up
@@ -105,4 +105,4 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Push
       if: steps.vars.outputs.push == 'true'
-      run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+      run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis2-backend:${{ env.GITHUB_REF_SLUG }}

@@ -44,7 +44,7 @@ env:
   BE_NAMESPACE: xchem
   FE_BRANCH: production
   FE_NAMESPACE: xchem
-  STACK_BRANCH: master
+  STACK_BRANCH: m2ms-1077
   STACK_GITHUB_NAMESPACE: xchem
   STACK_NAMESPACE: xchem
 
@@ -170,7 +170,7 @@ jobs:
           be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
           be_image_tag=${{ steps.vars.outputs.tag }}
           fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
-          fe_branch=${{ steps.vars.outputs.FE_BRANCH }}
+          fe_image_tag=${{ steps.vars.outputs.FE_BRANCH }}
           stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
         ci-user: ${{ secrets.STACK_USER }}
         ci-user-token: ${{ secrets.STACK_USER_TOKEN }}

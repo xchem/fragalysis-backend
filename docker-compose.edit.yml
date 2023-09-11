@@ -44,9 +44,9 @@ services:
       timeout: 2s
       retries: 5
       start_period: 10s
-    
+
   edit:
-    image: ${BE_NAMESPACE}/fragalysis-backend:latest
+    image: ${BE_NAMESPACE}/fragalysis2-backend:latest
     command:
     - tail
     - -f
