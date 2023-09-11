@@ -22,7 +22,7 @@ name: build staging
 # BE_NAMESPACE            optional - default xchem
 # FE_IMAGE_TAG            optional - default latest
 # FE_NAMESPACE            optional - default xchem
-# STACK_BRANCH            optional - default fragalysis2
+# STACK_BRANCH            optional - default master
 # STACK_GITHUB_NAMESPACE  optional - default xchem
 # STACK_NAMESPACE         optional - default xchem
 #
@@ -66,7 +66,7 @@ env:
   BE_NAMESPACE: xchem
   FE_IMAGE_TAG: latest
   FE_NAMESPACE: xchem
-  STACK_BRANCH: m2m2-1077
+  STACK_BRANCH: master
   STACK_GITHUB_NAMESPACE: xchem
   STACK_NAMESPACE: xchem
 
@@ -154,7 +154,7 @@ jobs:
     - name: Build
       uses: docker/build-push-action@v4
       with:
-        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis2-backend:${{ steps.vars.outputs.tag }}
+        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
     - name: Test
       run: >
         docker-compose -f docker-compose.test.yml up
@@ -189,7 +189,7 @@ jobs:
           be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
           be_image_tag=${{ steps.vars.outputs.TAG }}
           fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
-          fe_branch=${{ steps.vars.outputs.FE_BRANCH }}
+          fe_image_tag=${{ steps.vars.outputs.FE_IMAGE_TAG }}
           stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
         ci-user: ${{ secrets.STACK_USER }}
         ci-user-token: ${{ secrets.STACK_USER_TOKEN }}

@@ -21,7 +21,7 @@ services:
       start_period: 10s
 
   tests:
-    image: ${BE_NAMESPACE:-xchem}/fragalysis2-backend:${BE_TAG:-latest}
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_TAG:-latest}
     command:
     - /bin/bash
     - /code/test-entry.sh

@@ -42,9 +42,9 @@ env:
   #   For Jobs conditional on the presence of a secret see this Gist...
   #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
   BE_NAMESPACE: xchem
-  FE_BRANCH: production
+  FE_IMAGE_TAG: stable
   FE_NAMESPACE: xchem
-  STACK_BRANCH: m2ms-1077
+  STACK_BRANCH: master
   STACK_GITHUB_NAMESPACE: xchem
   STACK_NAMESPACE: xchem
 
@@ -70,11 +70,11 @@ jobs:
         echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
         echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
 
-        # FE_BRANCH
-        FE_BRANCH="${{ env.FE_BRANCH }}"
-        if [ -n "${{ secrets.FE_BRANCH }}" ]; then FE_BRANCH="${{ secrets.FE_BRANCH }}"; fi
-        echo set-output name=FE_BRANCH::${FE_BRANCH}
-        echo ::set-output name=FE_BRANCH::${FE_BRANCH}
+        # FE_IMAGE_TAG
+        FE_IMAGE_TAG="${{ env.FE_IMAGE_TAG }}"
+        if [ -n "${{ secrets.FE_IMAGE_TAG }}" ]; then FE_IMAGE_TAG="${{ secrets.FE_IMAGE_TAG }}"; fi
+        echo set-output name=FE_IMAGE_TAG::${FE_IMAGE_TAG}
+        echo ::set-output name=FE_IMAGE_TAG::${FE_IMAGE_TAG}
 
         # FE_NAMESPACE
         FE_NAMESPACE="${{ env.FE_NAMESPACE }}"
@@ -170,7 +170,7 @@ jobs:
           be_namespace=${{ steps.vars.outputs.BE_NAMESPACE }}
           be_image_tag=${{ steps.vars.outputs.tag }}
           fe_namespace=${{ steps.vars.outputs.FE_NAMESPACE }}
-          fe_image_tag=${{ steps.vars.outputs.FE_BRANCH }}
+          fe_image_tag=${{ steps.vars.outputs.FE_IMAGE_TAG }}
           stack_namespace=${{ steps.vars.outputs.STACK_NAMESPACE }}
         ci-user: ${{ secrets.STACK_USER }}
         ci-user-token: ${{ secrets.STACK_USER_TOKEN }}

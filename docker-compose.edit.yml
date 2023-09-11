@@ -46,7 +46,7 @@ services:
       start_period: 10s
 
   edit:
-    image: ${BE_NAMESPACE}/fragalysis2-backend:latest
+    image: ${BE_NAMESPACE}/fragalysis-backend:latest
     command:
     - tail
     - -f
