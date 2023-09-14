@@ -7,24 +7,40 @@ from hypothesis.models import (
     InteractionPoint,
     TargetResidue,
 )
+from viewer.models import SiteObservation
 
 
-class Vector3DSerializer(serializers.ModelSerializer):
+# class Vector3DSerializer(serializers.ModelSerializer):
 
-    class Meta:
-        model = Vector3D
-        fields = (
-            "id",
-            "mol_id",
-            "vector_id",
-            "number",
-            "start_x",
-            "start_y",
-            "start_z",
-            "end_x",
-            "end_y",
-            "end_z",
-        )
+#     class Meta:
+#         model = Vector3D
+#         fields = (
+#             "id",
+#             "site_observation",
+#             "vector_id",
+#             "number",
+#             "start_x",
+#             "start_y",
+#             "start_z",
+#             "end_x",
+#             "end_y",
+#             "end_z",
+#         )
+
+class Vector3DSerializer(serializers.Serializer):
+
+    start_x = serializers.FloatField()
+    start_y = serializers.FloatField()
+    start_z = serializers.FloatField()
+    end_x = serializers.FloatField()
+    end_y = serializers.FloatField()
+    end_z = serializers.FloatField()
+    number = serializers.IntegerField()
+    vector_type = serializers.CharField()
+    smiles = serializers.CharField()
+    site_observation = serializers.IntegerField()
+    cmpd_id = serializers.IntegerField()
+    
 
 
 class VectorSerializer(serializers.ModelSerializer):

@@ -1,4 +1,7 @@
+from dataclasses import dataclass
 import uuid
+import logging
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
@@ -10,6 +13,9 @@ from django.contrib.postgres.fields import ArrayField
 
 from simple_history.models import HistoricalRecords
 
+from hypothesis.definitions import VectTypes
+
+from frag.network.decorate import get_3d_vects_for_mol
 
 from .managers import SiteObservationDataManager
 from .managers import ExperimentDataManager
@@ -20,6 +26,24 @@ from .managers import QuatAssemblyDataManager
 from .managers import XtalformSiteDataManager
 from .managers import CanonSiteDataManager
 from .managers import CanonSiteConfDataManager
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Vector3d:
+    start_x: float
+    start_y: float
+    start_z: float
+    end_x: float
+    end_y: float
+    end_z: float
+    number: int
+    vector_type: str
+    smiles: str
+    site_observation: int
+    cmpd_id: int
+
 
 class Project(models.Model):
     title = models.CharField(max_length=200, unique=True)
@@ -327,6 +351,71 @@ class SiteObservation(models.Model):
     objects = models.Manager()
     history = HistoricalRecords()
     filter_manager = SiteObservationDataManager()
+
+    def get_vectors(self, site_observation=None, smiles=None, cmpd_id=None, vector_type=None, number=None):
+        """Get the vectors for a given molecule
+
+        :param mols: the Django molecules to get them from
+        :return: None
+        """
+        result = []
+        # pk checks and later continure statements are doing filtering
+        # - as this is not going through the usual django_filter
+        # machinery, it needs a different approach
+        if site_observation and int(site_observation) != self.pk:
+            return result
+
+        if cmpd_id and int(cmpd_id) != self.cmpd_id:
+            return result
+
+        if "." in self.smiles:
+            logger.debug("SKIPPING - FRAGMENT: %s", self.smiles)
+            return result
+
+        vect_types = VectTypes()
+
+        vectors = get_3d_vects_for_mol(self.ligand_mol_file)
+        for vect_type in vectors:
+            vect_choice = vect_types.translate_vect_types(vect_type)
+
+            # filter by vector type
+            if vector_type and vector_type != vect_choice:
+                continue
+
+            for vector in vectors[vect_type]:
+                spl_vect = vector.split("__")
+                smi = spl_vect[0]
+
+                # filter by smiles
+                if smiles and smiles != smi:
+                    continue
+
+                if len(spl_vect) > 1:
+                    vect_ind = int(spl_vect[1])
+                else:
+                    vect_ind = 0
+
+                # filter by number
+                if number and int(number) != vect_ind:
+                    continue
+
+                vect3d = Vector3d(
+                    start_x=float(vectors[vect_type][vector][0][0]),
+                    start_y=float(vectors[vect_type][vector][0][1]),
+                    start_z=float(vectors[vect_type][vector][0][2]),
+                    end_x=float(vectors[vect_type][vector][1][0]),
+                    end_y=float(vectors[vect_type][vector][1][1]),
+                    end_z=float(vectors[vect_type][vector][1][2]),
+                    number=vect_ind,
+                    vector_type=vect_choice,
+                    smiles=smi,
+                    site_observation=self.pk,
+                    cmpd_id=self.cmpd_id,
+                )
+                result.append(vect3d)
+
+        return result
+
 
     def __str__(self) -> str:
         return f"{self.code}"

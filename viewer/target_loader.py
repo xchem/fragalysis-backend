@@ -671,8 +671,8 @@ class TargetLoader:
             title=self.target_name
         )
 
-        # this is copied from get_create_projects. i'm not entirely
-        # sure how it's used.
+        # TODO: original target loader's function get_create_projects
+        # seems to handle more cases. adopt or copy
         visit = self.proposal_ref.split()[0]
         self.project, project_created = Project.objects.get_or_create(title=visit)
 

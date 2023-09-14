@@ -1,4 +1,11 @@
+import logging
+from itertools import chain
+
+import json
+
 from rest_framework import viewsets
+from rest_framework.views import APIView
+from rest_framework.response import Response
 
 from hypothesis.models import (
     Vector,
@@ -14,6 +21,11 @@ from hypothesis.serializers import (
     InteractionPointSerializer,
     TargetResidueSerialzier,
 )
+from viewer.models import SiteObservation
+
+from .filters import Vector3DFilter
+
+logger = logging.getLogger(__name__)
 
 
 class VectorView(viewsets.ReadOnlyModelViewSet):
@@ -22,11 +34,26 @@ class VectorView(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ("cmpd_id", "smiles", "type")
 
 
-class Vector3DView(viewsets.ReadOnlyModelViewSet):
-    queryset = Vector3D.objects.filter()
-    serializer_class = Vector3DSerializer
-    filterset_fields = ("mol_id", "vector_id", "number")
+# class Vector3DView(viewsets.ReadOnlyModelViewSet):
+#     queryset = Vector3D.objects.filter()
+#     serializer_class = Vector3DSerializer
+#     filterset_fields = ("site_observation", "vector_id", "number")
 
+    
+class Vector3DView(viewsets.ReadOnlyModelViewSet):
+    queryset = SiteObservation.objects.all()
+    filterset_class = Vector3DFilter
+    filterset_fields = ("site_observation", "number", "smiles", "cmpd_id", "vector_type")
+
+
+    def list(self, request):
+        """Method to handle GET request and call discourse to list posts for a topic
+        """
+        logger.info('+ Vector3DView.list')
+        data = [k.get_vectors(**request.query_params.dict()) for k in self.queryset]
+        serializer = Vector3DSerializer(chain.from_iterable(data), many=True)
+        return Response(serializer.data)        
+    
 
 class InteractionView(viewsets.ReadOnlyModelViewSet):
     queryset = Interaction.objects.filter()
