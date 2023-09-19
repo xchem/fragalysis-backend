@@ -67,52 +67,52 @@ jobs:
         # BE_NAMESPACE
         BE_NAMESPACE="${{ env.BE_NAMESPACE }}"
         if [ -n "${{ secrets.BE_NAMESPACE }}" ]; then BE_NAMESPACE="${{ secrets.BE_NAMESPACE }}"; fi
-        echo set-output name=BE_NAMESPACE::${BE_NAMESPACE}
-        echo ::set-output name=BE_NAMESPACE::${BE_NAMESPACE}
+        echo BE_NAMESPACE=${BE_NAMESPACE}
+        echo "BE_NAMESPACE=${BE_NAMESPACE}" >> $GITHUB_OUTPUT
 
         # FE_IMAGE_TAG
         FE_IMAGE_TAG="${{ env.FE_IMAGE_TAG }}"
         if [ -n "${{ secrets.FE_IMAGE_TAG }}" ]; then FE_IMAGE_TAG="${{ secrets.FE_IMAGE_TAG }}"; fi
-        echo set-output name=FE_IMAGE_TAG::${FE_IMAGE_TAG}
-        echo ::set-output name=FE_IMAGE_TAG::${FE_IMAGE_TAG}
+        echo FE_IMAGE_TAG=${FE_IMAGE_TAG}
+        echo "FE_IMAGE_TAG=${FE_IMAGE_TAG}" >> $GITHUB_OUTPUT
 
         # FE_NAMESPACE
         FE_NAMESPACE="${{ env.FE_NAMESPACE }}"
         if [ -n "${{ secrets.FE_NAMESPACE }}" ]; then FE_NAMESPACE="${{ secrets.FE_NAMESPACE }}"; fi
-        echo set-output name=FE_NAMESPACE::${FE_NAMESPACE}
-        echo ::set-output name=FE_NAMESPACE::${FE_NAMESPACE}
+        echo FE_NAMESPACE=${FE_NAMESPACE}
+        echo "FE_NAMESPACE=${FE_NAMESPACE}" >> $GITHUB_OUTPUT
 
         # STACK_BRANCH
         STACK_BRANCH="${{ env.STACK_BRANCH }}"
         if [ -n "${{ secrets.STACK_BRANCH }}" ]; then STACK_BRANCH="${{ secrets.STACK_BRANCH }}"; fi
-        echo set-output name=STACK_BRANCH::${STACK_BRANCH}
-        echo ::set-output name=STACK_BRANCH::${STACK_BRANCH}
+        echo STACK_BRANCH=${STACK_BRANCH}
+        echo "STACK_BRANCH=${STACK_BRANCH}" >> $GITHUB_OUTPUT
 
         # STACK_GITHUB_NAMESPACE
         STACK_GITHUB_NAMESPACE="${{ env.STACK_GITHUB_NAMESPACE }}"
         if [ -n "${{ secrets.STACK_GITHUB_NAMESPACE }}" ]; then STACK_GITHUB_NAMESPACE="${{ secrets.STACK_GITHUB_NAMESPACE }}"; fi
-        echo set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
-        echo ::set-output name=STACK_GITHUB_NAMESPACE::${STACK_GITHUB_NAMESPACE}
+        echo STACK_GITHUB_NAMESPACE=${STACK_GITHUB_NAMESPACE}
+        echo "STACK_GITHUB_NAMESPACE=${STACK_GITHUB_NAMESPACE}" >> $GITHUB_OUTPUT
 
         # STACK_NAMESPACE
         STACK_NAMESPACE="${{ env.STACK_NAMESPACE }}"
         if [ -n "${{ secrets.STACK_NAMESPACE }}" ]; then STACK_NAMESPACE="${{ secrets.STACK_NAMESPACE }}"; fi
-        echo set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
-        echo ::set-output name=STACK_NAMESPACE::${STACK_NAMESPACE}
+        echo STACK_NAMESPACE=${STACK_NAMESPACE}
+        echo "STACK_NAMESPACE=${STACK_NAMESPACE}" >> $GITHUB_OUTPUT
 
         # What image tag are we using? 'latest' (if not tagged) or a GitHub tag?
         TAG="latest"
         if [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then TAG="${{ env.GITHUB_REF_SLUG }}"; fi
-        echo set-output name=tag::${TAG}
-        echo ::set-output name=tag::${TAG}
+        echo tag=${TAG}
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
         # Do we push, i.e. is DOCKERHUB_USERNAME defined?
-        echo set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
-        echo ::set-output name=push::${{ env.DOCKERHUB_USERNAME != '' }}
+        echo push=${{ env.DOCKERHUB_USERNAME != '' }}
+        echo "push=${{ env.DOCKERHUB_USERNAME != '' }}" >> $GITHUB_OUTPUT
 
         # Do we trigger downstream, i.e. is TRIGGER_DOWNSTREAM 'yes'?
-        echo set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
-        echo ::set-output name=trigger::${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
+        echo trigger=${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
+        echo "trigger=${{ env.TRIGGER_DOWNSTREAM == 'yes' }}" >> $GITHUB_OUTPUT
 
     - name: Checkout
       uses: actions/checkout@v3
