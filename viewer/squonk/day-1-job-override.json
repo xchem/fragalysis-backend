@@ -201,6 +201,9 @@
               "enum": "{inputs_dir}/{target}-{item}.mol,{inputs_dir}/{target}-{item}_apo-desolv.pdb",
               "enumNames": "{item}"
             }
+          },
+          "proteins": {
+            "ignore": "true"
           }
         },
         "options": {
@@ -234,5 +237,6 @@
         },
         "results": ["Merged molecules"]
       }
+
     ]
   }
