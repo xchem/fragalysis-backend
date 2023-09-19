@@ -12,7 +12,7 @@ from xcdb import views as xcdb_views
 
 router = DefaultRouter()
 # Register the basic data
-router.register("compounds", viewer_views.CompoundView)
+router.register("compounds", viewer_views.CompoundView, "compounds")
 router.register("targets", viewer_views.TargetView, "targets")
 router.register("projects", viewer_views.ProjectView)
 router.register("session-projects", viewer_views.SessionProjectsView)
@@ -28,24 +28,23 @@ router.register("compound-sets", viewer_views.ComputedSetView)
 router.register("compound-molecules", viewer_views.ComputedMoleculesView)
 router.register("numerical-scores", viewer_views.NumericalScoresView)
 router.register("text-scores", viewer_views.TextScoresView)
-router.register("compound-scores", viewer_views.CompoundScoresView)
-router.register("compound-mols-scores", viewer_views.ComputedMolAndScoreView)
+router.register("compound-scores", viewer_views.CompoundScoresView, "compound-scores")
+router.register("compound-mols-scores", viewer_views.ComputedMolAndScoreView, "compound-mols-scores")
 
 # Get the derived data
-router.register("molimg", viewer_views.MolImageView)
-router.register("vector", viewer_views.VectorsView)
-router.register("graph", viewer_views.GraphView)
-router.register("cmpdimg", viewer_views.CompoundImageView)
-router.register("protmap", viewer_views.ProteinMapInfoView)
-router.register("protpdb", viewer_views.ProteinPDBInfoView)
-router.register("protpdbbound", viewer_views.ProteinPDBBoundInfoView)
+router.register("molimg", viewer_views.MolImageView, "molimg")
+router.register("vector", viewer_views.VectorsView, "vector")
+router.register("graph", viewer_views.GraphView, "graph")
+router.register("cmpdimg", viewer_views.CompoundImageView, "cmpdimg")
+router.register("protmap", viewer_views.ProteinMapInfoView, "protmap")
+router.register("protpdb", viewer_views.ProteinPDBInfoView, "protpdb")
+router.register("protpdbbound", viewer_views.ProteinPDBBoundInfoView, "protpdbbound")
+router.register("molprops", viewer_views.MolecularPropertiesView, "molprops")
 
 # Hotspot maps
 router.register("hotspots", hostpot_views.HotspotView)
 
 # Register the vectors and hypothesis
-router.register("vectors", hypo_views.VectorView)
-router.register("vector3ds", hypo_views.Vector3DView)
 router.register("interactions", hypo_views.InteractionView)
 router.register("targetres", hypo_views.TargetResidueView)
 router.register("interactionpoints", hypo_views.InteractionPointView)

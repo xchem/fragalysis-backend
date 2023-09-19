@@ -80,7 +80,7 @@ class TargetLoader:
         data_bundle: str,
         proposal_ref: str,
         tempdir: str,
-        user_id: None,
+        user_id=None,
         task=None,
     ):
         self.data_bundle = Path(data_bundle).name

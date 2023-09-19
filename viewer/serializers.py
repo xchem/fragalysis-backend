@@ -10,6 +10,9 @@ from django.contrib.postgres.aggregates import ArrayAgg
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
 
+from rdkit import Chem
+from rdkit.Chem import Descriptors
+
 from api.security import ISpyBSafeQuerySet
 from api.utils import draw_mol
 
@@ -22,6 +25,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 
 from rest_framework import serializers
+
+from viewer.target_set_upload import sanitize_mol
 
 _ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
 
@@ -417,6 +422,35 @@ class VectorsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SiteObservation
         fields = ("id", "vectors")
+
+
+class MolpropsSerializer(serializers.ModelSerializer):
+
+    props = serializers.SerializerMethodField()
+
+    def get_props(self, obj):
+        out_data = {}
+        m = sanitize_mol(Chem.MolFromSmiles(obj.smiles))
+
+        out_data["mol_log_p"] = Chem.Crippen.MolLogP(m)
+        out_data["mol_wt"] = float(Chem.rdMolDescriptors.CalcExactMolWt(m))
+        out_data["heavy_atom_count"] = Chem.Lipinski.HeavyAtomCount(m)
+        out_data["heavy_atom_mol_wt"] = float(Descriptors.HeavyAtomMolWt(m))
+        out_data["nhoh_count"] = Chem.Lipinski.NHOHCount(m)
+        out_data["no_count"] = Chem.Lipinski.NOCount(m)
+        out_data["num_h_acceptors"] = Chem.Lipinski.NumHAcceptors(m)
+        out_data["num_h_donors"] = Chem.Lipinski.NumHDonors(m)
+        out_data["num_het_atoms"] = Chem.Lipinski.NumHeteroatoms(m)
+        out_data["num_rot_bonds"] = Chem.Lipinski.NumRotatableBonds(m)
+        out_data["num_val_electrons"] = Descriptors.NumValenceElectrons(m)
+        out_data["ring_count"] = Chem.Lipinski.RingCount(m)
+        out_data["tpsa"] = Chem.rdMolDescriptors.CalcTPSA(m)
+
+        return out_data
+
+    class Meta:
+        model = models.Compound
+        fields = ("id", "props")
 
 
 class GraphSerializer(serializers.ModelSerializer):

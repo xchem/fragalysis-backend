@@ -6,6 +6,7 @@ from viewer.models import SiteObservation
 from viewer.models import CanonSite
 from viewer.models import CanonSiteConf
 from viewer.models import XtalformSite
+from viewer.models import Compound
 
 
 class SnapshotFilter(filters.FilterSet):
@@ -61,3 +62,27 @@ class XtalformSiteFilter(TargetFilterMixin):
     class Meta:
         model = XtalformSite
         fields = ("target",)
+
+
+class VectorFilter(TargetFilterMixin):
+    class Meta:
+        model = SiteObservation
+        fields = ("target", "cmpd_id", "smiles", "site_observation_groups")
+
+
+class GraphFilter(TargetFilterMixin):
+    class Meta:
+        model = SiteObservation
+        fields = ("target", "cmpd_id", "smiles", "site_observation_groups")
+
+
+class MolpropsFilter(TargetFilterMixin):
+    class Meta:
+        model = Compound
+        fields = ("target", "smiles", "inchi")
+
+
+class MolImgFilter(TargetFilterMixin):
+    class Meta:
+        model = SiteObservation
+        fields = ("target", "cmpd_id", "smiles", "site_observation_groups")

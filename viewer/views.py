@@ -105,19 +105,28 @@ class CompoundIdentifierView(viewsets.ModelViewSet):
 class VectorsView(ISpyBSafeQuerySet):
     """Vectors (api/vector)
     """
-    queryset = models.SiteObservation.objects.all()
+    queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.VectorsSerializer
-    filter_permissions = "prot_id__target_id__project_id"
-    filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
+    filterset_class = filters.VectorFilter
+    filter_permissions = "experiment__experiment_upload__target__project_id"
+    # filterset_fields = ("id", "cmpd_id", "smiles", "target", "mol_groups")
+
+
+class MolecularPropertiesView(ISpyBSafeQuerySet):
+    """Molecular properties (api/molprops)"""
+    queryset = models.Compound.filter_manager.filter_qs()
+    serializer_class = serializers.MolpropsSerializer
+    filterset_class = filters.MolpropsFilter
+    filter_permissions = "experiment__experiment_upload__target__project_id"
 
 
 class GraphView(ISpyBSafeQuerySet):
     """Graph (api/graph)
     """
-    queryset = models.SiteObservation.objects.all()
+    queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.GraphSerializer
-    filter_permissions = "prot_id__target_id__project_id"
-    filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
+    filterset_class = filters.GraphFilter
+    filter_permissions = "experiment__experiment_upload__target__project_id"
 
 
 class MolImageView(ISpyBSafeQuerySet):
@@ -125,8 +134,8 @@ class MolImageView(ISpyBSafeQuerySet):
     """
     queryset = models.SiteObservation.objects.filter()
     serializer_class = serializers.MolImageSerializer
-    filter_permissions = "prot_id__target_id__project_id"
-    filterset_fields = ("prot_id", "cmpd_id", "smiles", "prot_id__target_id", "mol_groups")
+    filterset_class = filters.MolImgFilter
+    filter_permissions = "experiment__experiment_upload__target__project_id"
 
 
 class CompoundImageView(ISpyBSafeQuerySet):
