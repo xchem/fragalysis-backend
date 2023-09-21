@@ -179,19 +179,6 @@ class Compound(models.Model):
                                        help_text='A comma separated list of all identifiers that have been used in'
                                                  ' the past to represent this 2D compound')
     project_id = models.ManyToManyField(Project)
-    mol_log_p = models.FloatField(help_text='Computed LogP value')
-    mol_wt = models.FloatField(help_text='Computed molecular weight (Da)')
-    tpsa = models.FloatField(help_text='Computed Topological Polar Surface Area')
-    heavy_atom_count = models.IntegerField(help_text='Computed heavy (non-hydrogen) atom count')
-    heavy_atom_mol_wt = models.FloatField(help_text='Computed molecular weight of all heavy (non-hydrogen) atoms')
-    nhoh_count = models.IntegerField(help_text='Computed number of hydroxylamine groups')
-    no_count = models.IntegerField(help_text='Computed number of nitroso groups')
-    num_h_acceptors = models.IntegerField(help_text='Computed number of hydrogen-bond acceptor groups')
-    num_h_donors = models.IntegerField(help_text='Computed number of hydrogen-bond donor groups')
-    num_het_atoms = models.IntegerField(help_text='Computed number of heterogeneous atoms')
-    num_rot_bonds = models.IntegerField(help_text='Computed number of rotatable bonds')
-    num_val_electrons = models.IntegerField(help_text='Computed number of valence electrons')
-    ring_count = models.IntegerField(help_text='Computed number of rings in the molecule')
     inspirations = models.ManyToManyField("SiteObservation", blank=True,
                                           help_text='Foreign key link to any number of 3D Molecules that inspired'
                                                     ' the design of this compound')

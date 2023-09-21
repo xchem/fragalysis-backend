@@ -7,8 +7,6 @@ import yaml
 import tarfile
 import uuid
 
-from rdkit import Chem
-
 from celery import Task
 
 # from hypothesis.definitions import VectTypes
@@ -18,6 +16,8 @@ from celery import Task
 
 # from frag.network.decorate import get_3d_vects_for_mol
 
+from django.core.exceptions import MultipleObjectsReturned
+
 from django.utils import timezone
 
 from django.db import IntegrityError
@@ -26,6 +26,7 @@ from django.db import transaction
 
 from django.contrib.auth import get_user_model
 
+from scoring.models import SiteObservationGroup
 
 from viewer.models import (
     Compound,
@@ -40,11 +41,10 @@ from viewer.models import (
     ExperimentUpload,
     XtalformQuatAssembly,
     Target,
+    SiteObservationTag,
+    TagCategory,
 )
 
-from viewer.target_set_upload import calc_cpd
-
-# from viewer.target_set_upload import get_vectors
 
 from django.conf import settings
 
@@ -255,9 +255,6 @@ class TargetLoader:
 
             compound = Compound(smiles=smiles)
 
-            rd_mol = Chem.MolFromSmiles(data["ligand_cif"]["smiles"])
-            compound = calc_cpd(compound, rd_mol, [self.experiment_upload.project])
-
             try:
                 compound.save()
             except IntegrityError as exc:
@@ -268,6 +265,8 @@ class TargetLoader:
             except KeyError as exc:
                 # this means ligand info missing
                 raise KeyError from exc
+
+            compound.project_id.add(self.experiment_upload.project)
 
         # data basically just contains file locations, need to copy them
         # later
@@ -465,63 +464,11 @@ class TargetLoader:
                 logger.error("%s%s", self.task_id, msg)
                 raise IntegrityError(msg) from exc
 
-        # vectors = self._get_vectors(site_observation)
-        # site_observation.sdf_info = site_observation.ligand_mol_file
-        # site_observation.cmpd_id = site_observation.cmpd
-        # get_vectors([site_observation])
-
         return MetadataObjects(
             instance=site_observation,
             data=None,
             new=new,
         )
-
-    # def _get_vectors(self, mol):
-    #     """Get the vectors for a given molecule
-
-    #     :param mols: the Django molecules to get them from
-    #     :return: None
-    #     """
-    #     vect_types = VectTypes()
-    #     if "." not in mol.smiles:
-    #         vectors = get_3d_vects_for_mol(mol.ligand_mol_file)
-    #         for vect_type in vectors:
-    #             vect_choice = vect_types.translate_vect_types(vect_type)
-    #             for vector in vectors[vect_type]:
-    #                 spl_vect = vector.split("__")
-    #                 smiles = spl_vect[0]
-    #                 if len(spl_vect) > 1:
-    #                     vect_ind = int(spl_vect[1])
-    #                 else:
-    #                     vect_ind = 0
-    #                 new_vect = Vector.objects.get_or_create(
-    #                     smiles=smiles, cmpd_id=mol.cmpd, type=vect_choice
-    #                 )[0]
-    #                 create_vect_3d(mol, new_vect, vect_ind, vectors[vect_type][vector])
-
-    # def _create_vect_3d(self, mol, new_vect, vect_ind, vector):
-    #     """Generate the 3D synthesis vectors for a given molecule
-
-    #     :param mol: the Django molecule object
-    #     :param new_vect: the Django 2d vector object
-    #     :param vect_ind: the index of the vector - since the same 2D vector
-    #     can be different in 3D
-    #     :param vector: the vector coordinates - a 2*3 list of lists.
-    #     :return: None
-    #     """
-    #     if vector:
-    #         new_vect3d = Vector3D.objects.get_or_create(
-    #             mol_id=mol, vector_id=new_vect, number=vect_ind
-    #         )[0]
-    #         # The start position
-    #         new_vect3d.start_x = float(vector[0][0])
-    #         new_vect3d.start_y = float(vector[0][1])
-    #         new_vect3d.start_z = float(vector[0][2])
-    #         # The end position
-    #         new_vect3d.end_x = float(vector[1][0])
-    #         new_vect3d.end_y = float(vector[1][1])
-    #         new_vect3d.end_z = float(vector[1][2])
-    #         new_vect3d.save()
 
     def _process_canon_site(self, existing_objects=None, idx=None, data=None):
         """Create CanonSite model instance from data.
@@ -970,6 +917,8 @@ class TargetLoader:
 
         result.append(self._log_msg(site_observation_objects))
 
+        self._tag_site_observations(site_observation_objects)
+
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():
             val.instance.ref_site_observation = site_observation_objects[
@@ -984,6 +933,66 @@ class TargetLoader:
         )
 
         return result
+
+    def _tag_site_observations(self, site_observation_objects):
+        # this is an attempt to replicate tag creation from previous
+        # loader. as there are plenty of differences, I cannot just
+        # use the same functions..
+
+        groups = {}
+        for _, obj in site_observation_objects.items():
+            tag = self._get_tag(obj.instance.canon_site_conf)
+            if tag not in groups.keys():
+                groups[tag] = [obj.instance]
+            else:
+                groups[tag].append(obj.instance)
+
+        # I suspect I need to group them by site..
+        for tag, so_list in groups.items():
+            try:
+                so_group = SiteObservationGroup.objects.get(
+                    target=self.target, description=tag
+                )
+            except SiteObservationGroup.DoesNotExist:
+                so_group = SiteObservationGroup(target_id=self.target.pk)
+                so_group.save()
+            except MultipleObjectsReturned:
+                SiteObservationGroup.objects.filter(
+                    target=self.target, description=tag
+                ).delete()
+                so_group = SiteObservationGroup(target_id=self.target.pk)
+                so_group.save()
+
+            try:
+                so_tag = SiteObservationTag.objects.get(tag=tag, target=self.target)
+                # Tag already exists
+                # Apart from the new mol_group and molecules, we shouldn't be
+                # changing anything.
+                so_tag.mol_group = so_group
+            except SiteObservationTag.DoesNotExist:
+                so_tag = SiteObservationTag()
+                so_tag.tag = tag
+
+                # NB! this is an odd one. in old code, it's just
+                # fetched from db, cannot see where it's created
+                so_tag.category, _ = TagCategory.objects.get_or_create(category="Sites")
+                so_tag.target = self.target
+                so_tag.mol_group = so_group
+
+            so_tag.save()
+
+            for site_obvs in so_list:
+                if site_obvs not in so_group.site_observation.all():
+                    logger.debug("site_obvs_group site_obvs_id=%s", site_obvs.id)
+                    so_group.site_observation.add(site_obvs)
+
+                if site_obvs not in so_tag.site_observations.all():
+                    logger.debug("site_obvs_tag site_obvs_id=%s", site_obvs.id)
+                    so_tag.site_observations.add(site_obvs)
+
+    def _get_tag(self, canon_site_conf):
+        tag = ",".join(canon_site_conf.residues[:3])
+        return tag
 
     def _is_already_uploaded(self, target_created, project_created):
         if target_created or project_created:
@@ -1149,7 +1158,7 @@ def load_target(
         logger.error(exc.args[0])
         raise FileNotFoundError(exc.args[0]) from exc
     except IntegrityError as exc:
-        logger.error(exc.args[0])
+        logger.error(exc, exc_info=True)
         raise IntegrityError(exc.args[0]) from exc
     except FileExistsError as exc:
         logger.error(exc.args[0])
