@@ -122,7 +122,7 @@ class TargetLoader:
             path = path.joinpath(path_uuid)
             self.experiment_upload.task_id = path_uuid
 
-        self._final_path = path.joinpath(self.bundle_name)
+        self._final_path = path.joinpath(self.bundle_name).joinpath(self.target_name)
         # but don't create now, this comes later
 
         # to be used in logging messages, if no task, means invoked
