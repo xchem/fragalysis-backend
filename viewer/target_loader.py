@@ -6,6 +6,7 @@ import hashlib
 import yaml
 import tarfile
 import uuid
+from tempfile import TemporaryDirectory
 
 from celery import Task
 
@@ -631,6 +632,8 @@ class TargetLoader:
 
         # TODO: is it here where I can figure out if this has already been uploaded?
         if self._is_already_uploaded(target_created, project_created):
+            # remove uploaded file
+            Path(self.bundle_path).unlink()
             raise FileExistsError(f"{self.bundle_name} already uploaded, skipping.")
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1127,51 +1130,51 @@ class TargetLoader:
 
 def load_target(
     data_bundle,
-    tempdir=None,
     proposal_ref=None,
     contact_email=None,
     user_id=None,
     task=None,
 ):
     # TODO: do I need to sniff out correct archive format?
-    target_loader = TargetLoader(
-        data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
-    )
-    try:
-        # archive is first extracted to temporary dir and moved later
-        with tarfile.open(target_loader.bundle_path, "r") as archive:
-            msg = f"Extracting bundle: {data_bundle}"
-            logger.info("%s%s", target_loader.task_id, msg)
-            update_task(task, "PROCESSING", msg)
-            archive.extractall(target_loader.raw_data)
-            msg = f"Data extraction complete: {data_bundle}"
-            logger.info("%s%s", target_loader.task_id, msg)
-    except FileNotFoundError as exc:
-        msg = f"{data_bundle} file does not exist!"
-        logger.exception("%s%s", target_loader.task_id, msg)
-        raise FileNotFoundError(msg) from exc
+    with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
+        target_loader = TargetLoader(
+            data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
+        )
+        try:
+            # archive is first extracted to temporary dir and moved later
+            with tarfile.open(target_loader.bundle_path, "r") as archive:
+                msg = f"Extracting bundle: {data_bundle}"
+                logger.info("%s%s", target_loader.task_id, msg)
+                update_task(task, "PROCESSING", msg)
+                archive.extractall(target_loader.raw_data)
+                msg = f"Data extraction complete: {data_bundle}"
+                logger.info("%s%s", target_loader.task_id, msg)
+        except FileNotFoundError as exc:
+            msg = f"{data_bundle} file does not exist!"
+            logger.exception("%s%s", target_loader.task_id, msg)
+            raise FileNotFoundError(msg) from exc
 
-    try:
-        with transaction.atomic():
-            upload_report = target_loader.process_bundle(task=task)
-    except FileNotFoundError as exc:
-        logger.error(exc.args[0])
-        raise FileNotFoundError(exc.args[0]) from exc
-    except IntegrityError as exc:
-        logger.error(exc, exc_info=True)
-        raise IntegrityError(exc.args[0]) from exc
-    except FileExistsError as exc:
-        logger.error(exc.args[0])
-        raise FileExistsError(exc.args[0]) from exc
+        try:
+            with transaction.atomic():
+                upload_report = target_loader.process_bundle(task=task)
+        except FileNotFoundError as exc:
+            logger.error(exc.args[0])
+            raise FileNotFoundError(exc.args[0]) from exc
+        except IntegrityError as exc:
+            logger.error(exc, exc_info=True)
+            raise IntegrityError(exc.args[0]) from exc
+        except FileExistsError as exc:
+            logger.error(exc.args[0])
+            raise FileExistsError(exc.args[0]) from exc
 
-    # move to final location
-    target_loader.final_path.mkdir(parents=True)
-    target_loader.raw_data.rename(target_loader.final_path)
-    Path(target_loader.bundle_path).rename(
-        target_loader.final_path.parent.joinpath(target_loader.data_bundle)
-    )
+        # move to final location
+        target_loader.final_path.mkdir(parents=True)
+        target_loader.raw_data.rename(target_loader.final_path)
+        Path(target_loader.bundle_path).rename(
+            target_loader.final_path.parent.joinpath(target_loader.data_bundle)
+        )
 
-    update_task(task, "SUCCESS", upload_report)
+        update_task(task, "SUCCESS", upload_report)
 
 
 def update_task(task, state, message):

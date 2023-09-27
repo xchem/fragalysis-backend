@@ -11,7 +11,6 @@ from wsgiref.util import FileWrapper
 from dateutil.parser import parse
 import pytz
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pandas as pd
 
@@ -1413,6 +1412,49 @@ class DownloadStructures(ISpyBSafeQuerySet):
                             status=status.HTTP_208_ALREADY_REPORTED)
 
 
+# class UploadTargetExperiments(viewsets.ModelViewSet):
+#     serializer_class = serializers.TargetExperimentWriteSerializer
+#     permission_class = [permissions.IsAuthenticated]
+#     http_method_names = ('post',)
+
+#     def get_view_name(self):
+#         return "Upload Target Experiments"
+
+#     def create(self, request, *args, **kwargs):
+#         logger.info("+ UploadTargetExperiments.create called")
+#         del args, kwargs
+
+#         serializer = self.get_serializer_class()(data=request.data)
+#         if serializer.is_valid():
+#             # User must have access to the Project
+#             # and the Target must be in the Project.
+
+#             contact_email = serializer.validated_data['contact_email']
+#             proposal_ref = serializer.validated_data['proposal_ref']
+#             filename = serializer.validated_data['file']
+
+#             # I'm not creating ExperimentUpload object here, so I
+#             # suppose there's no point in keeping this as ModelViewSet
+
+#             with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
+#                 target_file = Path(tempdir).joinpath(filename.name)
+#                 handle_uploaded_file(target_file, filename)
+
+#                 task = task_load_target.delay(
+#                     data_bundle=str(target_file),
+#                     tempdir=tempdir,
+#                     proposal_ref=proposal_ref,
+#                     contact_email=contact_email,
+#                     user_id=request.user.pk,
+#                 )
+#                 logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
+
+#                 url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+#                 # as it launches task, I think 202 is more appropriate
+#                 return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class UploadTargetExperiments(viewsets.ModelViewSet):
     serializer_class = serializers.TargetExperimentWriteSerializer
     permission_class = [permissions.IsAuthenticated]
@@ -1437,22 +1479,23 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
             # I'm not creating ExperimentUpload object here, so I
             # suppose there's no point in keeping this as ModelViewSet
 
-            with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
-                target_file = Path(tempdir).joinpath(filename.name)
-                handle_uploaded_file(target_file, filename)
+            # memo to self: cannot use TemporaryDirectory here because task
+            temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
+            temp_path.mkdir(exist_ok=True)
+            target_file = temp_path.joinpath(filename.name)
+            handle_uploaded_file(target_file, filename)
 
-                task = task_load_target.delay(
-                    data_bundle=str(target_file),
-                    tempdir=tempdir,
-                    proposal_ref=proposal_ref,
-                    contact_email=contact_email,
-                    user_id=request.user.pk,
-                )
-                logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
+            task = task_load_target.delay(
+                data_bundle=str(target_file),
+                proposal_ref=proposal_ref,
+                contact_email=contact_email,
+                user_id=request.user.pk,
+            )
+            logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
 
-                url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
-                # as it launches task, I think 202 is more appropriate
-                return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+            # as it launches task, I think 202 is more appropriate
+            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
