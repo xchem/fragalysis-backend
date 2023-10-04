@@ -122,7 +122,7 @@ class TargetLoader:
             path = path.joinpath(path_uuid)
             self.experiment_upload.task_id = path_uuid
 
-        self._final_path = path.joinpath(self.bundle_name).joinpath(self.target_name)
+        self._final_path = path.joinpath(self.bundle_name)
         # but don't create now, this comes later
 
         # to be used in logging messages, if no task, means invoked
@@ -1014,7 +1014,7 @@ class TargetLoader:
     def _get_final_path(self, path: Path):
         """Update relative path to final storage path"""
         try:
-            return self.final_path.joinpath(path)
+            return self.final_path.joinpath(self.target_name).joinpath(path)
         except TypeError:
             # received invalid path
             return None

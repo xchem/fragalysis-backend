@@ -1,6 +1,9 @@
 from api.security import ISpyBSafeStaticFiles
+from api.security import ISpyBSafeStaticFiles2
 from viewer.models import SiteObservation, Target
+import logging
 
+logger = logging.getLogger(__name__)
 
 def prot_download(request, file_path):
     """
@@ -9,12 +12,43 @@ def prot_download(request, file_path):
     :param file_path: the file path we're getting from the static
     :return: the response (a redirect to nginx internal)
     """
+    logger.info("+ Received file_download file path: %s", file_path)
+    ispy_b_static = ISpyBSafeStaticFiles2()
+    ispy_b_static.model = SiteObservation
+    ispy_b_static.request = request
+    # ispy_b_static.permission_string = "target_id__project_id"
+    # ispy_b_static.permission_string = "target__project_id"
+    ispy_b_static.permission_string = "experiment__experiment_upload__target__project_id"
+    # ispy_b_static.field_name = "pdb_info"
+    ispy_b_static.field_name = "apo_file"
+    ispy_b_static.content_type = "application/x-pilot"
+    ispy_b_static.prefix = "/pdbs/"
+    # ispy_b_static.prefix = "/target_loader_data/"
+    ispy_b_static.input_string = file_path
+    return ispy_b_static.get_response()
+
+
+def file_download(request, file_path):
+    """
+    Download a protein by nginx redirect
+    :param request: the initial request
+    :param file_path: the file path we're getting from the static
+    :return: the response (a redirect to nginx internal)
+    """
+    logger.info("+ Received file_download file path: %s", file_path)
+    # ispy_b_static = ISpyBSafeStaticFiles2()
     ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
-    ispy_b_static.permission_string = "target_id__project_id"
-    ispy_b_static.field_name = "pdb_info"
+    # ispy_b_static.permission_string = "target_id__project_id"
+    # the following 2 aren't used atm
+    ispy_b_static.permission_string = "experiment__experiment_upload__target__project_id"
+    # ispy_b_static.field_name = "pdb_info"
+    ispy_b_static.field_name = "apo_file"
     ispy_b_static.content_type = "application/x-pilot"
+    # ispy_b_static.prefix = "target_loader_data/48225dbf-204a-48e1-8ae7-f1632f4dba89/Mpro-v2/Mpro/upload_2/aligned_files/Mpro_Nterm-x0029/"
+    # ispy_b_static.prefix = "target_loader_data"
+    # ispy_b_static.prefix = "/target_loader_data/"
     ispy_b_static.prefix = "/pdbs/"
     ispy_b_static.input_string = file_path
     return ispy_b_static.get_response()
