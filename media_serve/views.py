@@ -36,8 +36,8 @@ def file_download(request, file_path):
     :return: the response (a redirect to nginx internal)
     """
     logger.info("+ Received file_download file path: %s", file_path)
-    # ispy_b_static = ISpyBSafeStaticFiles2()
-    ispy_b_static = ISpyBSafeStaticFiles()
+    ispy_b_static = ISpyBSafeStaticFiles2()
+    # ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
     # ispy_b_static.permission_string = "target_id__project_id"
