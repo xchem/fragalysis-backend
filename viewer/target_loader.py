@@ -58,7 +58,7 @@ XTALFORMS_FILE = "xtalforms.yaml"
 ASSIGNED_XTALFORMS_FILE = "assigned_xtalforms.yaml"
 
 
-TARGET_LOADER_DATA = "target_loader_data"
+TARGET_LOADER_DATA = "pdbs"
 
 
 # data blocks from from meta_aligner.yaml are processed into dictionaries:
@@ -1012,7 +1012,12 @@ class TargetLoader:
             return self.data_bundle in uploaded_files
 
     def _get_final_path(self, path: Path):
-        """Update relative path to final storage path"""
+        """Update relative path to final storage path
+
+        NB! this returns a relative path that can be used in queries
+        not absoulte one. This is used to populate location fields in
+        database tables.
+        """
         try:
             return self.final_path.joinpath(self.target_name).joinpath(path)
         except TypeError:
