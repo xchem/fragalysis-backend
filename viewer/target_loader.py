@@ -108,7 +108,8 @@ class TargetLoader:
         )
 
         # work out where the data finally lands
-        path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
+        # path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
+        path = Path(TARGET_LOADER_DATA)
 
         # give each upload a unique directory. since I already have
         # task_id, why not reuse it
@@ -122,7 +123,14 @@ class TargetLoader:
             path = path.joinpath(path_uuid)
             self.experiment_upload.task_id = path_uuid
 
+        # figure out absolute and relative paths to final
+        # location. relative path is added to db field, this will be
+        # used in url requests to retrieve the file. absolute path is
+        # for moving the file to the final location
         self._final_path = path.joinpath(self.bundle_name)
+        self._abs_final_path = (
+            Path(settings.MEDIA_ROOT).joinpath(path).joinpath(self.bundle_name)
+        )
         # but don't create now, this comes later
 
         # to be used in logging messages, if no task, means invoked
@@ -140,6 +148,10 @@ class TargetLoader:
     @property
     def final_path(self) -> Path:
         return self._final_path
+
+    @property
+    def abs_final_path(self) -> Path:
+        return self._abs_final_path
 
     def _load_yaml(self, yaml_file: Path) -> dict:
         try:
@@ -1173,10 +1185,10 @@ def load_target(
             raise FileExistsError(exc.args[0]) from exc
 
         # move to final location
-        target_loader.final_path.mkdir(parents=True)
-        target_loader.raw_data.rename(target_loader.final_path)
+        target_loader.abs_final_path.mkdir(parents=True)
+        target_loader.raw_data.rename(target_loader.abs_final_path)
         Path(target_loader.bundle_path).rename(
-            target_loader.final_path.parent.joinpath(target_loader.data_bundle)
+            target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
         )
 
         update_task(task, "SUCCESS", upload_report)
