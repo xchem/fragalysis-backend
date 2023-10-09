@@ -13,6 +13,6 @@ urlpatterns = [
     path("maps/<file_path>/", views.map_download, name='get_map'),
     # path("target_loader_data/<file_path>", views.file_download, name='get_file'),
     # re_path(r"^target_loader_data/48225dbf-204a-48e1-8ae7-f1632f4dba89/Mpro-v2/Mpro/upload_2/aligned_files/Mpro_Nterm-x0029/(?P<file_path>.+)", views.file_download, name='get_file'),
-    path("target_loader_data/<file_path>/", views.tld_download, name="get_tld"),
-    path("pdbs/(<file_path>", views.file_download, name="get_file"),
+    re_path(r"^target_loader_data/(?P<file_path>.+)", views.tld_download, name="get_tld"),
+    re_path(r"^pdbs/(?P<file_path>.+)", views.file_download, name="get_file"),
 ]
