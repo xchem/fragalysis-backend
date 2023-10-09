@@ -359,6 +359,8 @@ DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 
+TARGET_LOADER_MEDIA_DIRECTORY = "target_loader_data"
+
 # Configure django logging.
 # We provide a standard formatter that emits a timestamp, the module issuing the log
 # and the level name, a little like this...

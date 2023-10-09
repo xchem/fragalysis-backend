@@ -46,6 +46,7 @@ from viewer.models import (
     TagCategory,
 )
 
+from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 
 from django.conf import settings
 
@@ -56,9 +57,6 @@ METADATA_FILE = "meta_aligner.yaml"
 ASSEMBLIES_FILE = "assemblies.yaml"
 XTALFORMS_FILE = "xtalforms.yaml"
 ASSIGNED_XTALFORMS_FILE = "assigned_xtalforms.yaml"
-
-
-TARGET_LOADER_DATA = "pdbs"
 
 
 # data blocks from from meta_aligner.yaml are processed into dictionaries:
@@ -109,7 +107,7 @@ class TargetLoader:
 
         # work out where the data finally lands
         # path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
-        path = Path(TARGET_LOADER_DATA)
+        path = Path(TARGET_LOADER_MEDIA_DIRECTORY)
 
         # give each upload a unique directory. since I already have
         # task_id, why not reuse it
