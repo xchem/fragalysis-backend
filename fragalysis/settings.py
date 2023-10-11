@@ -24,6 +24,8 @@ DEBUG = False
 if os.environ.get("DEBUG_FRAGALYSIS") == 'True':
     DEBUG = True
 
+DEBUG=True
+
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
 # Y                  | Y                 | Shown / Required
@@ -356,6 +358,8 @@ DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
 SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
+
+TARGET_LOADER_MEDIA_DIRECTORY = "target_loader_data"
 
 # Configure django logging.
 # We provide a standard formatter that emits a timestamp, the module issuing the log

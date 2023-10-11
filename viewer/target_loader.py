@@ -46,6 +46,7 @@ from viewer.models import (
     TagCategory,
 )
 
+from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 
 from django.conf import settings
 
@@ -56,9 +57,6 @@ METADATA_FILE = "meta_aligner.yaml"
 ASSEMBLIES_FILE = "assemblies.yaml"
 XTALFORMS_FILE = "xtalforms.yaml"
 ASSIGNED_XTALFORMS_FILE = "assigned_xtalforms.yaml"
-
-
-TARGET_LOADER_DATA = "target_loader_data"
 
 
 # data blocks from from meta_aligner.yaml are processed into dictionaries:
@@ -108,7 +106,8 @@ class TargetLoader:
         )
 
         # work out where the data finally lands
-        path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
+        # path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
+        path = Path(TARGET_LOADER_MEDIA_DIRECTORY)
 
         # give each upload a unique directory. since I already have
         # task_id, why not reuse it
@@ -122,7 +121,14 @@ class TargetLoader:
             path = path.joinpath(path_uuid)
             self.experiment_upload.task_id = path_uuid
 
-        self._final_path = path.joinpath(self.bundle_name).joinpath(self.target_name)
+        # figure out absolute and relative paths to final
+        # location. relative path is added to db field, this will be
+        # used in url requests to retrieve the file. absolute path is
+        # for moving the file to the final location
+        self._final_path = path.joinpath(self.bundle_name)
+        self._abs_final_path = (
+            Path(settings.MEDIA_ROOT).joinpath(path).joinpath(self.bundle_name)
+        )
         # but don't create now, this comes later
 
         # to be used in logging messages, if no task, means invoked
@@ -140,6 +146,10 @@ class TargetLoader:
     @property
     def final_path(self) -> Path:
         return self._final_path
+
+    @property
+    def abs_final_path(self) -> Path:
+        return self._abs_final_path
 
     def _load_yaml(self, yaml_file: Path) -> dict:
         try:
@@ -1012,9 +1022,14 @@ class TargetLoader:
             return self.data_bundle in uploaded_files
 
     def _get_final_path(self, path: Path):
-        """Update relative path to final storage path"""
+        """Update relative path to final storage path
+
+        NB! this returns a relative path that can be used in queries
+        not absoulte one. This is used to populate location fields in
+        database tables.
+        """
         try:
-            return self.final_path.joinpath(path)
+            return self.final_path.joinpath(self.target_name).joinpath(path)
         except TypeError:
             # received invalid path
             return None
@@ -1168,10 +1183,10 @@ def load_target(
             raise FileExistsError(exc.args[0]) from exc
 
         # move to final location
-        target_loader.final_path.mkdir(parents=True)
-        target_loader.raw_data.rename(target_loader.final_path)
+        target_loader.abs_final_path.mkdir(parents=True)
+        target_loader.raw_data.rename(target_loader.abs_final_path)
         Path(target_loader.bundle_path).rename(
-            target_loader.final_path.parent.joinpath(target_loader.data_bundle)
+            target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
         )
 
         update_task(task, "SUCCESS", upload_report)
