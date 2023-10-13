@@ -576,9 +576,11 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
                 zip_contents['proteins'][param].update({protein['code']: protein[param]})
 
     if other_params['single_sdf_file'] is True:
+        logger.info('Setting zip_contents single_sdf_file to True')
         zip_contents['molecules']['single_sdf_file'] = True
 
     if other_params['sdf_info'] is True:
+        logger.info('Setting zip_contents sdf_info to True')
         zip_contents['molecules']['sdf_info'] = True
 
     # sdf information is held as a file on the Molecule record.
@@ -633,7 +635,11 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
 
     # Add the metadata file from the target
     if other_params['metadata_info'] is True:
-        zip_contents['metadata_info'] = target.metadata.name
+        metadata_info = target.metadata.name
+        logger.info("Setting zip_contents metadata_info to '%s'", metadata_info)
+        zip_contents['metadata_info'] = metadata_info
+    else:
+        logger.info("Not setting zip_contents metadata_info")
 
     return zip_contents
 
@@ -759,7 +765,8 @@ def check_download_links(request,
             return existing_link[0].file_url, False
 
         # Recreate file.
-        #
+        logger.info("No existing_link (recreating the file)")
+
         # This step can result in references to missing SD Files (see FE issue 907).
         # If so the missing file will have a file reference of 'MISSING/<filename>'
         # in the corresponding ['molecules']['sdf_files'] entry.
@@ -818,6 +825,9 @@ def check_download_links(request,
     download_link.zip_file = True
     download_link.original_search = original_search
     download_link.save()
+
+    logger.info("DownloadLinks record created (file_url=%s target=%s keep_zip_until=%s)",
+                file_url, target.title, download_link.keep_zip_until)
 
     return file_url, True
 
