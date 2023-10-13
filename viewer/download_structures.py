@@ -134,19 +134,22 @@ def _add_file_to_zip(ziparchive, param, filepath):
     Returns:
         [boolean]: [True of record added to error file]
     """
-    media_root = settings.MEDIA_ROOT
     if not filepath:
+        logger.warning('filepath not set (%s)', filepath)
         return False
 
-    fullpath = os.path.join(media_root, filepath)
+    fullpath = os.path.join(settings.MEDIA_ROOT, filepath)
 
     if os.path.isfile(fullpath):
         cleaned_filename = clean_filename(filepath)
-        ziparchive.write(fullpath,
-                         os.path.join(_ZIP_FILEPATHS[param],
-                                      cleaned_filename))
+        archive_filepath = os.path.join(_ZIP_FILEPATHS[param], cleaned_filename)
+        logger.info('Adding fullpath=%s (cleaned_filename=%s) as %s',
+                    fullpath, cleaned_filename, archive_filepath)
+
+        ziparchive.write(fullpath, archive_filepath)
         return False
 
+    logger.error('Did not add fullpath=%s (no such file)', fullpath)
     return True
 
 
@@ -332,7 +335,7 @@ def _smiles_files_zip(zip_contents, ziparchive, download_path):
             num_smiles += 1
 
     logger.info('Added %s SMILES', num_smiles)
-            
+
     ziparchive.write(
         smiles_filename,
         os.path.join(_ZIP_FILEPATHS['smiles_info'],
@@ -363,7 +366,7 @@ def _extra_files_zip(ziparchive, target):
                 num_processed += 1
     else:
         logger.info('Directory does not exist (%s)...', extra_files)
-        
+
 
     if num_processed == 0:
         logger.info('No extra files found')
@@ -400,7 +403,7 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
 
     readme_filepath = os.path.join(download_path, 'Readme.md')
     pdf_filepath = os.path.join(download_path, 'Readme.pdf')
-    
+
     with open(readme_filepath, "a", encoding="utf-8") as readme:
         readme.write("# Documentation for the downloaded zipfile\n")
         # Download links
@@ -616,9 +619,9 @@ def _create_structures_dict(target, proteins, protein_params, other_params):
             logger.warning('No SD files collected')
         else:
             logger.info('%s SD files collected', num_molecules_collected)
-        
+
         if num_molecules != num_molecules_collected:
-            logger.error('Expected %d files', num_molecules)            
+            logger.error('Expected %d files', num_molecules)
 
         if num_missing_sd_files > 0:
             logger.error('%d missing files', num_missing_sd_files)
