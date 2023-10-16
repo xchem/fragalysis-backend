@@ -933,7 +933,7 @@ class SnapshotsView(viewsets.ModelViewSet):
             return serializers.SnapshotReadSerializer
         return serializers.SnapshotWriteSerializer
 
-    filter_class = filters.SnapshotFilter
+    filterset_class = filters.SnapshotFilter
 
 
 class SnapshotActionsView(viewsets.ModelViewSet):
