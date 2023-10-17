@@ -1,0 +1,38 @@
+[
+{
+    "model": "viewer.tagcategory",
+    "pk": 1,
+    "fields": {
+        "category": "Sites",
+        "colour": "00CC00",
+        "description": null
+    }
+},
+{
+    "model": "viewer.tagcategory",
+    "pk": 2,
+    "fields": {
+        "category": "Series",
+        "colour": "0000CC",
+        "description": null
+    }
+},
+{
+    "model": "viewer.tagcategory",
+    "pk": 3,
+    "fields": {
+        "category": "Forum",
+        "colour": "CC0000",
+        "description": null
+    }
+},
+{
+    "model": "viewer.tagcategory",
+    "pk": 4,
+    "fields": {
+        "category": "Other",
+        "colour": "000000",
+        "description": null
+    }
+}
+]

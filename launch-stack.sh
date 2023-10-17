@@ -9,6 +9,9 @@ echo "Running migrations..."
 cd /code
 python manage.py migrate
 
+echo "Loading fixtures..."
+python manage.py loaddata tagcategories.json
+
 echo "Running collectstatic..."
 python manage.py collectstatic --noinput -v 0
 

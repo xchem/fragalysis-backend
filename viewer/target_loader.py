@@ -985,10 +985,7 @@ class TargetLoader:
             except SiteObservationTag.DoesNotExist:
                 so_tag = SiteObservationTag()
                 so_tag.tag = tag
-
-                # NB! this is an odd one. in old code, it's just
-                # fetched from db, cannot see where it's created
-                so_tag.category, _ = TagCategory.objects.get_or_create(category="Sites")
+                so_tag.category = TagCategory.objects.get(category="Sites")
                 so_tag.target = self.target
                 so_tag.mol_group = so_group
 
