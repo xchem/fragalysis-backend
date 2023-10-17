@@ -67,7 +67,7 @@ class XtalformSiteFilter(TargetFilterMixin):
 class VectorFilter(TargetFilterMixin):
     class Meta:
         model = SiteObservation
-        fields = ("target", "cmpd_id", "smiles", "site_observation_groups")
+        fields = ("id", "target", "cmpd_id", "smiles", "site_observation_groups")
 
 
 class GraphFilter(TargetFilterMixin):

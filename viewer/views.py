@@ -108,7 +108,6 @@ class VectorsView(ISpyBSafeQuerySet):
     serializer_class = serializers.VectorsSerializer
     filterset_class = filters.VectorFilter
     filter_permissions = "experiment__experiment_upload__target__project_id"
-    # filterset_fields = ("id", "cmpd_id", "smiles", "target", "mol_groups")
 
 
 class MolecularPropertiesView(ISpyBSafeQuerySet):
