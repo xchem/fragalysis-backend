@@ -150,9 +150,33 @@ class SiteObservationGroup(models.Model):
     # Set the description
     description = models.TextField(null=True)
     # Set the ManyToMany
-    site_observation = models.ManyToManyField(SiteObservation, related_name="site_observation_groups")
+    site_observation = models.ManyToManyField(
+        SiteObservation,
+        through="SiteObvsSiteObservationGroup",
+        through_fields=("site_obvs_group", "site_observation"),
+        related_name="site_observation_groups",
+    )
     # Set the centre of mass
     x_com = models.FloatField(null=True)
     y_com = models.FloatField(null=True)
     z_com = models.FloatField(null=True)
+
+    def __str__(self) -> str:
+        return f"{self.pk}"
+
+    def __repr__(self) -> str:
+        return "<Xtalform %r %r %r>" % (self.id, self.group_type, self.description)
+
+
+class SiteObvsSiteObservationGroup(models.Model):
+    site_obvs_group = models.ForeignKey(SiteObservationGroup, null=False, on_delete=models.CASCADE)
+    site_observation = models.ForeignKey(SiteObservation, null=False, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["site_observation", "site_obvs_group",],
+                name="unique_siteobservationgroupcontents",
+            ),
+        ]    
     

@@ -3,7 +3,7 @@
     "model": "viewer.tagcategory",
     "pk": 1,
     "fields": {
-        "category": "Sites",
+        "category": "ConformerSites",
         "colour": "00CC00",
         "description": null
     }
@@ -12,6 +12,42 @@
     "model": "viewer.tagcategory",
     "pk": 2,
     "fields": {
+        "category": "CanonSites",
+        "colour": "ffcc00",
+        "description": null
+    }
+},
+{
+    "model": "viewer.tagcategory",
+    "pk": 3,
+    "fields": {
+        "category": "XtalformSites",
+        "colour": "0099ff",
+        "description": null
+    }
+},
+{
+    "model": "viewer.tagcategory",
+    "pk": 4,
+    "fields": {
+        "category": "Quatassemblies",
+        "colour": "00cc99",
+        "description": null
+    }
+},
+{
+    "model": "viewer.tagcategory",
+    "pk": 5,
+    "fields": {
+        "category": "Xtalforms",
+        "colour": "ffcc00",
+        "description": null
+    }
+},
+{
+    "model": "viewer.tagcategory",
+    "pk": 6,
+    "fields": {
         "category": "Series",
         "colour": "0000CC",
         "description": null
@@ -19,7 +55,7 @@
 },
 {
     "model": "viewer.tagcategory",
-    "pk": 3,
+    "pk": 7,
     "fields": {
         "category": "Forum",
         "colour": "CC0000",
@@ -28,7 +64,7 @@
 },
 {
     "model": "viewer.tagcategory",
-    "pk": 4,
+    "pk": 8,
     "fields": {
         "category": "Other",
         "colour": "000000",
