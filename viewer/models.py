@@ -919,7 +919,11 @@ class Tag(models.Model):
 
 
 class SiteObservationTag(Tag):
-    site_observations = models.ManyToManyField(SiteObservation, blank=True)
+    site_observations = models.ManyToManyField(
+        SiteObservation,
+        through="SiteObvsSiteObservationTag",
+        through_fields=("site_obvs_tag", "site_observation"),
+    )
     mol_group = models.ForeignKey("scoring.SiteObservationGroup", null=True, blank=True,
                                   on_delete=models.SET_NULL)
 
@@ -928,6 +932,20 @@ class SiteObservationTag(Tag):
 
     def __repr__(self) -> str:
         return "<SiteObservationTag %r %r>" % (self.id, self.site_observations)
+
+
+class SiteObvsSiteObservationTag(models.Model):
+    site_obvs_tag = models.ForeignKey(SiteObservationTag, null=False, on_delete=models.CASCADE)
+    site_observation = models.ForeignKey(SiteObservation, null=False, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["site_observation", "site_obvs_tag",],
+                name="unique_siteobservationtagcontents",
+            ),
+        ]
+
 
 
 class SessionProjectTag(Tag):

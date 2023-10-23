@@ -930,7 +930,16 @@ class TargetLoader:
 
         result.append(self._log_msg(site_observation_objects))
 
-        self._tag_site_observations(site_observation_objects)
+        tag_categories = (
+            "ConformerSites",
+            "CanonSites",
+            "XtalformSites",
+            "Quatassemblies",
+            "Xtalforms",
+        )
+
+        for cat in tag_categories:
+            self._tag_site_observations(site_observation_objects, cat)
 
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():
@@ -947,22 +956,54 @@ class TargetLoader:
 
         return result
 
-    def _tag_site_observations(self, site_observation_objects):
+    def _tag_site_observations(self, site_observation_objects, category):
         # this is an attempt to replicate tag creation from previous
         # loader. as there are plenty of differences, I cannot just
         # use the same functions..
 
+        logger.debug("Getting category %s", category)
         groups = {}
         for _, obj in site_observation_objects.items():
-            tag = self._get_tag(obj.instance.canon_site_conf)
-            if tag not in groups.keys():
-                groups[tag] = [obj.instance]
+            if category == "ConformerSites":
+                tags = [
+                    "conf_site: " + ",".join(obj.instance.canon_site_conf.residues[:3]),
+                ]
+            elif category == "CanonSites":
+                tags = [
+                    "canon_site: "
+                    + ",".join(obj.instance.xtalform_site.canon_site.residues[:3]),
+                ]
+            elif category == "XtalformSites":
+                tags = [
+                    "xtalform_site: "
+                    + ",".join(obj.instance.xtalform_site.residues[:3]),
+                ]
+            # tricky one. connected via m2m
+            elif category == "Quatassemblies":
+                tags = [
+                    "quatassembly: " + qa.name
+                    for qa in obj.instance.xtalform_site.xtalform.quat_assembly.all()
+                ]
+
+            elif category == "Xtalforms":
+                tags = [
+                    "xtalform: " + obj.instance.xtalform_site.xtalform.name,
+                ]
             else:
-                groups[tag].append(obj.instance)
+                tags = [
+                    "Unspecified",
+                ]
+
+            for tag in tags:
+                if tag not in groups.keys():
+                    groups[tag] = [obj.instance]
+                else:
+                    groups[tag].append(obj.instance)
 
         # I suspect I need to group them by site..
         for tag, so_list in groups.items():
             try:
+                # TODO: not unique, needs a solution
                 so_group = SiteObservationGroup.objects.get(
                     target=self.target, description=tag
                 )
@@ -985,24 +1026,16 @@ class TargetLoader:
             except SiteObservationTag.DoesNotExist:
                 so_tag = SiteObservationTag()
                 so_tag.tag = tag
-                so_tag.category = TagCategory.objects.get(category="Sites")
+                so_tag.category = TagCategory.objects.get(category=category)
                 so_tag.target = self.target
                 so_tag.mol_group = so_group
 
             so_tag.save()
 
             for site_obvs in so_list:
-                if site_obvs not in so_group.site_observation.all():
-                    logger.debug("site_obvs_group site_obvs_id=%s", site_obvs.id)
-                    so_group.site_observation.add(site_obvs)
-
-                if site_obvs not in so_tag.site_observations.all():
-                    logger.debug("site_obvs_tag site_obvs_id=%s", site_obvs.id)
-                    so_tag.site_observations.add(site_obvs)
-
-    def _get_tag(self, canon_site_conf):
-        tag = ",".join(canon_site_conf.residues[:3])
-        return tag
+                logger.debug("site_obvs_id=%s", site_obvs.id)
+                so_group.site_observation.add(site_obvs)
+                so_tag.site_observations.add(site_obvs)
 
     def _is_already_uploaded(self, target_created, project_created):
         if target_created or project_created:
