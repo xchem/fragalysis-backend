@@ -1,4 +1,5 @@
 import os
+import logging
 from urllib.parse import urljoin
 
 from django.db.models import F
@@ -27,6 +28,8 @@ from django.conf import settings
 from rest_framework import serializers
 
 from viewer.target_set_upload import sanitize_mol
+
+logger = logging.getLogger(__name__)
 
 _ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
 
@@ -648,6 +651,12 @@ class TagCategorySerializer(serializers.ModelSerializer):
 
 
 class SiteObservationTagSerializer(serializers.ModelSerializer):
+
+    site_observations = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=models.SiteObservation.objects.all()
+    )
+
     class Meta:
         model = models.SiteObservationTag
         fields = '__all__'

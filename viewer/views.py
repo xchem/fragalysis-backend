@@ -1206,7 +1206,7 @@ class DictToCsv(viewsets.ViewSet):
 class TagCategoryView(viewsets.ModelViewSet):
     """Set up and retrieve information about tag categories (api/tag_category).
     """
-    queryset = models.TagCategory.objects.filter()
+    queryset = models.TagCategory.objects.all()
     serializer_class = serializers.TagCategorySerializer
     filterset_fields = ('id', 'category')
 
@@ -1214,7 +1214,7 @@ class TagCategoryView(viewsets.ModelViewSet):
 class SiteObservationTagView(viewsets.ModelViewSet):
     """Set up/retrieve information about tags relating to Molecules (api/molecule_tag)
     """
-    queryset = models.SiteObservationTag.objects.filter()
+    queryset = models.SiteObservationTag.objects.all()
     serializer_class = serializers.SiteObservationTagSerializer
     filterset_fields = ('id', 'tag', 'category', 'target', 'site_observations', 'mol_group')
 
@@ -1222,7 +1222,7 @@ class SiteObservationTagView(viewsets.ModelViewSet):
 class SessionProjectTagView(viewsets.ModelViewSet):
     """Set up/retrieve information about tags relating to Session Projects.
     """
-    queryset = models.SessionProjectTag.objects.filter()
+    queryset = models.SessionProjectTag.objects.all()
     serializer_class = serializers.SessionProjectTagSerializer
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
@@ -1232,7 +1232,7 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
     to a Target. The idea is that a single call can return all target related
     information needed by the React front end in a single call.
     """
-    queryset = models.Target.objects.filter()
+    queryset = models.Target.objects.all()
     serializer_class = serializers.TargetMoleculesSerializer
     filter_permissions = "project_id"
     filterset_fields = ("title",)
@@ -1245,7 +1245,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
 
     Note that old zip files are removed after one hour.
     """
-    queryset = models.Target.objects.filter()
+    queryset = models.Target.objects.all()
     serializer_class = serializers.DownloadStructuresSerializer
     filter_permissions = "project_id"
     filterset_fields = ('title','id')
