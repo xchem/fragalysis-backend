@@ -1003,7 +1003,15 @@ class TargetLoader:
         # I suspect I need to group them by site..
         for tag, so_list in groups.items():
             try:
-                # TODO: not unique, needs a solution
+                # memo to self: description is set to tag, but there's
+                # no fk to tag, instead, tag has a fk to
+                # group. There's no uniqueness requirement on
+                # description so there's no certainty that this will
+                # be unique (or remain searchable at all because user
+                # is allowed to change the tag name). this feels like
+                # poor design but I don't understand the principles of
+                # this system to know if that's indeed the case or if
+                # it is in fact a truly elegant solution
                 so_group = SiteObservationGroup.objects.get(
                     target=self.target, description=tag
                 )

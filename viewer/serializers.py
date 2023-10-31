@@ -836,7 +836,7 @@ class TargetExperimentReadSerializer(serializers.ModelSerializer):
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     proposal_ref = serializers.CharField(label='Proposal Ref.')
-    contact_email = serializers.EmailField()
+    contact_email = serializers.EmailField(required=True)
 
     class Meta:
         model = models.ExperimentUpload
