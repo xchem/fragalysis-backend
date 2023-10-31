@@ -12,6 +12,10 @@ from dateutil.parser import parse
 import pytz
 from pathlib import Path
 
+from enum import Enum
+
+from pydiscourse import DiscourseClient
+
 import pandas as pd
 
 from django.db import connections
@@ -35,7 +39,10 @@ from rest_framework.views import APIView
 
 from celery.result import AsyncResult
 
+from api import security
 from api.security import ISpyBSafeQuerySet
+
+from frag.utils.network_utils import get_driver
 
 from api.utils import get_params, get_highlighted_diffs, pretty_request
 from viewer.utils import create_squonk_job_request_url
@@ -2174,3 +2181,105 @@ class JobAccessView(APIView):
         logger.info('+ JobAccessView/GET Success for %s/"%s" on %s',
                     jr_id, user.username, jr.squonk_project)
         return Response(ok_response)
+
+
+class State(str, Enum):
+    NOT_CONFIGURED = "NOT_CONFIGURED"
+    DEGRADED = "DEGRADED"
+    OK = "OK"
+
+
+class ServiceState(View):
+
+
+
+    def get(self, request,  *args, **kwargs):
+        """Given a task_id (a string) we try to return the status of the task,
+        trying to handle unknown tasks as best we can. Celery is happy to accept any
+        string as a Task ID. To know it's a real task takes a lot of work, or you can
+        simply interpret a 'PENDING' state as "unknown task".
+        """
+        logger.debug("+ ServiceState.get called")
+
+        data = {
+            "service_states": [
+                {"id": "squonk", "name": "Squonk", "state": self.stat_squonk()},
+                {
+                    "id": "fragmentation_graph",
+                    "name": "Fragmentation graph",
+                    "state": self.stat_graph(),
+                },
+                {"id": "ispyb", "name": "Access control (ISPyB)", "state": self.stat_ispyb()},
+                {"id": "discourse", "name": "Discourse", "state": self.stat_discourse()},
+                {"id": "keycloak", "name": "Keycloak", "state": self.stat_keycloak()},
+            ]
+        }
+        return JsonResponse(data)
+
+
+    @staticmethod
+    def stat_ispyb():
+        state = State.NOT_CONFIGURED
+        if os.environ.get("ISPYB_HOST", None):
+            state = State.DEGRADED
+            if security.get_conn():
+                state = State.OK
+
+        return state
+
+
+    @staticmethod
+    def stat_squonk():
+        state = State.NOT_CONFIGURED
+        if os.environ.get("SQUONK2_ORG_OWNER_PASSWORD", None):
+            state = State.DEGRADED
+            if get_squonk2_agent().configured().success:
+                state = State.OK
+
+        return state
+
+    @staticmethod
+    def stat_graph():
+        state = State.NOT_CONFIGURED
+        if os.environ.get("NEO4J_BOLT_URL", None):
+            state = State.DEGRADED
+            # graph_driver = get_driver(url='neo4j', neo4j_auth='neo4j/password')
+            graph_driver = get_driver()
+            with graph_driver.session() as session:
+                try:
+                    _ = session.run('match (n) return count (n);')
+                    state = State.OK
+                except ValueError:
+                    # service isn't running
+                    pass
+
+        return state
+
+    @staticmethod
+    def stat_discourse():
+        state = State.NOT_CONFIGURED
+        key = os.environ.get("DISCOURSE_API_KEY", None)
+        url = os.environ.get("DISCOURSE_HOST", None)
+        user = os.environ.get("DISCOURSE_USER", None)
+        if key and url and user:
+            state = State.DEGRADED
+            client = DiscourseClient(
+                url,
+                api_username=user,
+                api_key=key,
+            )
+            # TODO: some action on client?
+            if client:
+                state = State.OK
+
+        return state
+
+    @staticmethod
+    def stat_keycloak():
+        state = State.NOT_CONFIGURED
+        if os.environ.get("OIDC_RP_CLIENT_SECRET", None):
+            state = State.DEGRADED
+            if security.get_conn():
+                state = State.OK
+
+        return state
