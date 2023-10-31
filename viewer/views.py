@@ -2183,86 +2183,87 @@ class JobAccessView(APIView):
         return Response(ok_response)
 
 
-class State(str, Enum):
-    NOT_CONFIGURED = "NOT_CONFIGURED"
-    DEGRADED = "DEGRADED"
-    OK = "OK"
-
-
 class ServiceState(View):
 
+    class State(str, Enum):
+        NOT_CONFIGURED = "NOT_CONFIGURED"
+        DEGRADED = "DEGRADED"
+        OK = "OK"
 
+    def get(self, *args, **kwargs):
+        """Poll external service status.
 
-    def get(self, request,  *args, **kwargs):
-        """Given a task_id (a string) we try to return the status of the task,
-        trying to handle unknown tasks as best we can. Celery is happy to accept any
-        string as a Task ID. To know it's a real task takes a lot of work, or you can
-        simply interpret a 'PENDING' state as "unknown task".
+        Available services:
+        - discourse
+        - fragmentation_graph
+        - ispyb
+        - keycloak
+        - squonk
+
+        ENABLE_SERVICE_STATUS returns colon-separated id's for services
         """
-        logger.debug("+ ServiceState.get called")
+        logger.debug("+ ServiceServiceState.State.get called")
+        service_string = os.environ.get("ENABLE_SERVICE_STATUS", "")
+        logger.debug("Service string: %s", service_string)
 
-        data = {
-            "service_states": [
-                {"id": "squonk", "name": "Squonk", "state": self.stat_squonk()},
-                {
-                    "id": "fragmentation_graph",
-                    "name": "Fragmentation graph",
-                    "state": self.stat_graph(),
-                },
-                {"id": "ispyb", "name": "Access control (ISPyB)", "state": self.stat_ispyb()},
-                {"id": "discourse", "name": "Discourse", "state": self.stat_discourse()},
-                {"id": "keycloak", "name": "Keycloak", "state": self.stat_keycloak()},
-            ]
-        }
-        return JsonResponse(data)
+        services = [k for k in service_string.split(":") if k !=  ""]
+        logger.debug("Services ordered: %s", services)
+
+        service_states = []
+        for s in services:
+            func = getattr(self, s, None)
+            if func:
+                service_states.append(func())
+
+        return JsonResponse({"service_states": service_states})
 
 
     @staticmethod
-    def stat_ispyb():
-        state = State.NOT_CONFIGURED
+    def ispyb():
+        state = ServiceState.State.NOT_CONFIGURED
         if os.environ.get("ISPYB_HOST", None):
-            state = State.DEGRADED
+            state = ServiceState.State.DEGRADED
             if security.get_conn():
-                state = State.OK
+                state = ServiceState.State.OK
 
-        return state
+        return {"id": "ispyb", "name": "Access control (ISPyB)", "state": state}
 
 
     @staticmethod
-    def stat_squonk():
-        state = State.NOT_CONFIGURED
+    def squonk():
+        state = ServiceState.State.NOT_CONFIGURED
         if os.environ.get("SQUONK2_ORG_OWNER_PASSWORD", None):
-            state = State.DEGRADED
+            state = ServiceState.State.DEGRADED
             if get_squonk2_agent().configured().success:
-                state = State.OK
+                state = ServiceState.State.OK
 
-        return state
+        return {"id": "squonk", "name": "Squonk", "state": state}
 
     @staticmethod
-    def stat_graph():
-        state = State.NOT_CONFIGURED
+    def fragmentation_graph():
+        state = ServiceState.State.NOT_CONFIGURED
         if os.environ.get("NEO4J_BOLT_URL", None):
-            state = State.DEGRADED
+            state = ServiceState.State.DEGRADED
             # graph_driver = get_driver(url='neo4j', neo4j_auth='neo4j/password')
             graph_driver = get_driver()
             with graph_driver.session() as session:
                 try:
                     _ = session.run('match (n) return count (n);')
-                    state = State.OK
+                    state = ServiceState.State.OK
                 except ValueError:
                     # service isn't running
                     pass
 
-        return state
+        return {"id": "fragmentation_graph", "name": "Fragmentation graph", "state": state}
 
     @staticmethod
-    def stat_discourse():
-        state = State.NOT_CONFIGURED
+    def discourse():
+        state = ServiceState.State.NOT_CONFIGURED
         key = os.environ.get("DISCOURSE_API_KEY", None)
         url = os.environ.get("DISCOURSE_HOST", None)
         user = os.environ.get("DISCOURSE_USER", None)
         if key and url and user:
-            state = State.DEGRADED
+            state = ServiceState.State.DEGRADED
             client = DiscourseClient(
                 url,
                 api_username=user,
@@ -2270,16 +2271,16 @@ class ServiceState(View):
             )
             # TODO: some action on client?
             if client:
-                state = State.OK
+                state = ServiceState.State.OK
 
-        return state
+        return {"id": "discourse", "name": "Discourse", "state": state}
 
     @staticmethod
-    def stat_keycloak():
-        state = State.NOT_CONFIGURED
+    def keycloak():
+        state = ServiceState.State.NOT_CONFIGURED
         if os.environ.get("OIDC_RP_CLIENT_SECRET", None):
-            state = State.DEGRADED
+            state = ServiceState.State.DEGRADED
             if security.get_conn():
-                state = State.OK
+                state = ServiceState.State.OK
 
-        return state
+        return {"id": "keycloak", "name": "Keycloak", "state": state}
