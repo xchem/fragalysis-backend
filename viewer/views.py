@@ -2,8 +2,6 @@ import logging
 import json
 import os
 import zipfile
-import zlib
-import gzip
 from io import StringIO
 import uuid
 import shlex
@@ -1499,78 +1497,6 @@ class TaskStatus(APIView):
         return JsonResponse(data)
 
 
-class FileUploadView(View):
-
-    def get(self, request, *args, **kwargs):
-        from django.middleware.csrf import rotate_token
-        rotate_token(request)
-        return HttpResponse()
-
-
-    def post(self, request, *args, **kwargs):
-        logger.debug("request dir: %s", dir(request))
-        logger.debug("request req: %s", request)
-        logger.debug("request post: %s", request.POST)
-        logger.debug("request files: %s", request.FILES)
-        logger.debug("request meta: %s", request.META)
-        # logger.debug("request body: %s", dir(request.body))
-        # logger.debug("request body: %s", type(request.body))
-        # logger.debug("request stream: %s", request._stream)
-        # logger.debug("args: %s", args)
-        # logger.debug("kwargs: %s", kwargs)
-
-
-        # if True:
-        #     # Create a directory to save the uploaded file
-        #     temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
-        #     temp_path.mkdir(exist_ok=True)
-        #     # target_file = temp_path.joinpath(filename.name)
-        #     target_file = temp_path.joinpath('upload.tgz')
-        #     # save_dir = os.path.join('path/to/save')
-        #     # os.makedirs(save_dir, exist_ok=True)
-
-        #     # Open a new file for writing in binary mode
-        #     # save_path = os.path.join(temp_path, target_file)
-        #     with open(target_file, 'wb') as destination:
-        #         for chunk in iter(lambda: request.read(4096), b""):
-        #             destination.write(chunk)
-
-        #     return HttpResponse('File uploaded successfully.')
-
-
-        if request:   # stashing
-            # Create a directory to save the uploaded file
-            temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
-            temp_path.mkdir(exist_ok=True)
-            # target_file = temp_path.joinpath(filename.name)
-            target_file = temp_path.joinpath('upload.tgz')
-            # save_dir = os.path.join('path/to/save')
-            # os.makedirs(save_dir, exist_ok=True)
-
-            # Open a new file for writing in binary mode
-            # save_path = os.path.join(temp_path, target_file)
-            dec = zlib.decompressobj(32 + zlib.MAX_WBITS)
-            with open(target_file, 'wb') as destination:
-                # from https://stackoverflow.com/questions/12571913/python-ungzipping-stream-of-bytes
-                # for chunk in iter(lambda: request.read(4096), b""):
-                #     rv = destination.write(dec.decompress(chunk))
-                #     # if rv:
-                #     #      yield rv
-                # if dec.unused_data:
-                #      # decompress and yield the remainder
-                #      # yield dec.flush()
-                #      dec.flush()
-                destination.write(gzip.decompress(request.read()))
-
-            return HttpResponse('File uploaded successfully.')
-
-
-
-
-        return HttpResponse('No file was uploaded.', status=400)
-
-
-
 class DownloadTargetExperiments(viewsets.ModelViewSet):
     serializer_class = serializers.TargetExperimentDownloadSerializer
     permission_class = [permissions.IsAuthenticated]
@@ -1607,6 +1533,7 @@ class TargetExperimentUploads(ISpyBSafeQuerySet):
     serializer_class = serializers.TargetExperimentReadSerializer
     permission_class = [permissions.IsAuthenticated]
     filterset_fields = ("target", "project")
+    filter_permissions = "target__project_id"
     http_method_names = ('get',)
 
 

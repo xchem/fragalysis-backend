@@ -21,6 +21,4 @@ urlpatterns = [
     path("upload_designs/", views.DSetUploadView.as_view(), name="upload_designs"),
     path("job_access/", views.JobAccessView.as_view(), name="job_access"),
     path("task_status/<uuid:task_id>/", views.TaskStatus.as_view(), name="task_status"),
-    # testing
-    path("upload_texp/", views.FileUploadView.as_view(), name="fileuploadview")
 ]

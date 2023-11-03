@@ -487,29 +487,29 @@ def task_load_target(self, data_bundle=None, proposal_ref=None, contact_email=No
         )
     except KeyError as err:
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args,},
-            )
+            state="ERROR",
+            meta={"description": err.args,},
+        )
     except IntegrityError as err:
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args[0],},
-            )
+            state="ERROR",
+            meta={"description": err.args[0],},
+        )
     except FileNotFoundError as err:
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args[0],},
-            )
+            state="ERROR",
+            meta={"description": err.args[0],},
+        )
     except FileExistsError as err:
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args[0],},
-            )
+            state="ERROR",
+            meta={"description": err.args[0],},
+        )
     except OSError as err:
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args[1],},
-            )
+            state="ERROR",
+            meta={"description": err.args[1],},
+        )
 
     logger.info('TASK %s load_target completed, target_zip=%s', self.request.id, data_bundle)
     # TODO: send email

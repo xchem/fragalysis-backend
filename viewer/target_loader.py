@@ -99,7 +99,8 @@ class TargetLoader:
 
         self._target_root = self.raw_data.joinpath(self.target_name)
 
-        # create exp upload object stub. NB! not saved here but later
+        # create exp upload object
+        # NB! this is not saved here in case upload fails
         self.experiment_upload = ExperimentUpload(
             commit_datetime=timezone.now(),
             file=self.data_bundle,
@@ -1087,7 +1088,7 @@ class TargetLoader:
                         task=task,
                     )
                 except FileNotFoundError as exc:
-                    raise FileNotFoundError(exc.args[1]) from exc
+                    raise FileNotFoundError(exc.args[0]) from exc
                 except IntegrityError as exc:
                     raise IntegrityError(exc.args[0]) from exc
                 except FileExistsError as exc:
@@ -1205,6 +1206,7 @@ def load_target(
         except FileNotFoundError as exc:
             msg = f"{data_bundle} file does not exist!"
             logger.exception("%s%s", target_loader.task_id, msg)
+            target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(msg) from exc
 
         try:
@@ -1212,12 +1214,15 @@ def load_target(
                 upload_report = target_loader.process_bundle(task=task)
         except FileNotFoundError as exc:
             logger.error(exc.args[0])
+            target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(exc.args[0]) from exc
         except IntegrityError as exc:
             logger.error(exc, exc_info=True)
+            target_loader.experiment_upload.message = exc.args[0]
             raise IntegrityError(exc.args[0]) from exc
         except FileExistsError as exc:
             logger.error(exc.args[0])
+            target_loader.experiment_upload.message = exc.args[0]
             raise FileExistsError(exc.args[0]) from exc
 
         # move to final location
@@ -1228,6 +1233,9 @@ def load_target(
         )
 
         update_task(task, "SUCCESS", upload_report)
+        target_loader.experiment_upload.message = upload_report
+
+        target_loader.experiment_upload.save()
 
 
 def update_task(task, state, message):
