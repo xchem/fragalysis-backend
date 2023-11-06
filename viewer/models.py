@@ -9,6 +9,8 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.conf import settings
 
+from shortuuid.django_fields import ShortUUIDField
+
 from django.contrib.postgres.fields import ArrayField
 
 from simple_history.models import HistoricalRecords
@@ -980,6 +982,7 @@ class JobFileTransfer(models.Model):
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE, db_index=True)
     squonk_project = models.CharField(max_length=200, null=True)
+    sub_path = ShortUUIDField(length=4, alphabet="abcdefghijklmnopqrstuvwxyz", null=True)
     proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # Not used in phase 1
     compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True)
