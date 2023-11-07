@@ -98,13 +98,12 @@ async def service_queries(services):
 def service_query(func):
     @functools.wraps(func)
     async def wrapper_service_query(*args, **kwargs):
-        logger.debug("+wrapper_service_query")
+        logger.debug("+ wrapper_service_query")
         logger.debug("args passed: %s", args)
         logger.debug("kwargs passed: %s", kwargs)
 
         state = State.NOT_CONFIGURED
         envs = [os.environ.get(k, None) for k in kwargs.values()]
-        logger.debug("envs: %s", envs)
         # env variables come in kwargs, all must be defined
         if all(envs):
             state = State.DEGRADED
@@ -119,8 +118,8 @@ def service_query(func):
                     if conn:
                         state = State.OK
 
-            except TimeoutError as exc:
-                logger.error(exc, exc_info=True)
+            except TimeoutError:
+                logger.error("Service query function %s timed out", func.__name__)
                 state = State.TIMEOUT
             except Exception as exc:
                 # unknown error with the query
