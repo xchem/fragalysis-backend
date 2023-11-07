@@ -518,12 +518,13 @@ def task_load_target(self, data_bundle=None, proposal_ref=None, contact_email=No
 
 @shared_task
 def process_job_file_transfer(auth_token, jt_id):
-    """ Celery task to take a list of proteins and specification and transfer the files to Squonk2
+    """Celery task to take a list of proteins and a specification
+    and transfer the files to Squonk2
 
     Parameters
     ----------
-    task_
-        jt_id of job_file_transfer record
+    auth_token for the executing user
+    jt_id is the job_file_transfer record ID
 
     Returns
     -------
