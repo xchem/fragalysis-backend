@@ -3,7 +3,6 @@ Fragalysis to Squonk.
 """
 import urllib.parse
 import os
-import shutil
 
 from django.conf import settings
 from rest_framework import status

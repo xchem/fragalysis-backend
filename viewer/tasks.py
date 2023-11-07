@@ -40,8 +40,6 @@ from .target_set_upload import validate_target
 from .cset_upload import blank_mol_vals, MolOps, PdbOps
 from .squonk_job_file_transfer import (
     process_file_transfer,
-    SQUONK_PROT_MAPPING,
-    SQUONK_COMP_MAPPING
 )
 from .squonk_job_file_upload import (
     get_upload_sub_directory,
@@ -552,9 +550,6 @@ def process_job_file_transfer(auth_token, jt_id):
         job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
         job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
-        files_spec = {"proteins": list(SQUONK_PROT_MAPPING.keys()),
-                      "compounds": list(SQUONK_COMP_MAPPING.keys())}
-        job_transfer.transfer_spec = files_spec
         job_transfer.save()
         logger.info('+ TASK File transfer (%s) [SUCCESS]', id)
 
