@@ -12,14 +12,6 @@ from dateutil.parser import parse
 import pytz
 from pathlib import Path
 
-# from enum import Enum
-
-# import asyncio
-# from concurrent import futures
-# import functools
-# import requests
-
-# from pydiscourse import DiscourseClient
 
 import pandas as pd
 
@@ -2188,22 +2180,6 @@ class JobAccessView(APIView):
 
 class ServiceState(View):
 
-    # DELAY = 10
-
-    # class State(str, Enum):
-    #     NOT_CONFIGURED = "NOT_CONFIGURED"
-    #     DEGRADED = "DEGRADED"
-    #     OK = "OK"
-    #     TIMEOUT = "TIMEOUT"
-    #     ERROR = "ERROR"
-
-    # class Service(str, Enum):
-    #     ISPYB = "ispyb"
-    #     DISCOURSE = "discourse"
-    #     SQUONK = "squonk"
-    #     FRAG = "fragmentation_graph"
-    #     KEYCLOAK = "keycloak"
-
     def get(self, *args, **kwargs):
         """Poll external service status.
 
@@ -2224,142 +2200,6 @@ class ServiceState(View):
         services = [k for k in service_string.split(":") if k !=  ""]
         logger.debug("Services ordered: %s", services)
 
-        # service_states = asyncio.run(self.service_queries(services))
         service_states = get_service_state(services)
 
         return JsonResponse({"service_states": service_states})
-
-
-    # async def service_queries(self, services):
-    #     logger.debug("service query called")
-    #     coroutines = []
-    #     if self.Service.ISPYB in services:
-    #         coroutines.append(self.ispyb(
-    #             self.Service.ISPYB,
-    #             "Access control (ISPyB)",
-    #             ispyb_host="ISPYB_HOST",
-    #         ))
-
-    #     if self.Service.SQUONK in services:
-    #         coroutines.append(self.squonk(
-    #             self.Service.SQUONK,
-    #             "Squonk",
-    #             squonk_pwd="SQUONK2_ORG_OWNER_PASSWORD",
-    #         ))
-
-    #     if self.Service.FRAG in services:
-    #         coroutines.append(self.fragmentation_graph(
-    #             self.Service.FRAG,
-    #             "Fragmentation graph",
-    #             url="NEO4J_BOLT_URL",
-    #         ))
-
-    #     if self.Service.DISCOURSE in services:
-    #         coroutines.append(self.discourse(
-    #             self.Service.DISCOURSE,
-    #             "Discourse",
-    #             key="DISCOURSE_API_KEY",
-    #             url="DISCOURSE_HOST",
-    #             user="DISCOURSE_USER",
-    #         ))
-
-    #     if self.Service.KEYCLOAK in services:
-    #         coroutines.append(self.keycloak(
-    #             self.Service.KEYCLOAK,
-    #             "Keycloak",
-    #             url="OIDC_KEYCLOAK_REALM",
-    #             secret="OIDC_RP_CLIENT_SECRET",
-    #         ))
-
-    #     result = await asyncio.gather(*coroutines)
-    #     logger.debug("service query result: %s", result)
-    #     return result
-
-
-    # @staticmethod
-    # def service_query(func):
-    #     @functools.wraps(func)
-    #     async def wrapper_service_query(*args, **kwargs):
-    #         logger.debug("+wrapper_service_query")
-    #         logger.debug("args passed: %s", args)
-    #         logger.debug("kwargs passed: %s", kwargs)
-
-    #         state = ServiceState.State.NOT_CONFIGURED
-    #         envs = [os.environ.get(k, None) for k in kwargs.values()]
-    #         logger.debug("envs: %s", envs)
-    #         # env variables come in kwargs, all must be defined
-    #         if all(envs):
-    #             state = ServiceState.State.DEGRADED
-    #             loop = asyncio.get_running_loop()
-    #             executor = futures.ThreadPoolExecutor()
-    #             try:
-    #                 async with asyncio.timeout(ServiceState.DELAY):
-    #                     future = loop.run_in_executor(
-    #                         executor,
-    #                         functools.partial(func, *args, **kwargs)
-    #                     )
-    #                     conn = await future
-    #                     if conn:
-    #                         state = ServiceState.State.OK
-
-    #             except TimeoutError as exc:
-    #                 logger.error(exc, exc_info=True)
-    #                 state = ServiceState.State.TIMEOUT
-    #             except Exception as exc:
-    #                 # unknown error with the query
-    #                 logger.exception(exc, exc_info=True)
-    #                 state = ServiceState.State.ERROR
-
-    #         # name and ID are 2nd and 1st params respectively (0 is
-    #         # self). alternative solution for this would be to return
-    #         # just a state and have the service_queries() map the
-    #         # results to the correct values
-    #         return {"id": args[1], "name": args[2], "state": state}
-    #     return wrapper_service_query
-
-
-    # @service_query
-    # async def ispyb(self, func_id, name, ispyb_host=None):
-    #     logger.debug("+ ispyb")
-    #     return security.get_conn()
-
-
-    # @service_query
-    # async def discourse(self, func_id, name, key=None, url=None, user=None):
-    #     logger.debug("+ discourse")
-    #     client = DiscourseClient(
-    #         os.environ.get(url, None),
-    #         api_username=os.environ.get(user, None),
-    #         api_key=os.environ.get(key, None),
-    #     )
-    #     # TODO: some action on client?
-    #     return client
-
-
-    # @service_query
-    # async def squonk(self, func_id, name, squonk_pwd = None):
-    #     logger.debug("+ squonk")
-    #     return get_squonk2_agent().configured().success
-
-
-    # @service_query
-    # async def fragmentation_graph(self, func_id, name, url = None):
-    #     logger.debug("+ fragmentation_graph")
-    #     # graph_driver = get_driver(url='neo4j', neo4j_auth='neo4j/password')
-    #     graph_driver = get_driver()
-    #     with graph_driver.session() as session:
-    #         try:
-    #             _ = session.run('match (n) return count (n);')
-    #             return True
-    #         except ValueError:
-    #             # service isn't running
-    #             return False
-
-
-    # @service_query
-    # async def keycloak(self, func_id, name, url=None, secret = None):
-    #     logger.debug("+ keycloak")
-    #     keycloak_realm = os.environ.get(url, None)
-    #     response = requests.get(keycloak_realm)
-    #     logger.debug("keycloak response: %s", response)
-    #     return response.ok
