@@ -7,6 +7,9 @@ from concurrent import futures
 import functools
 import requests
 
+import sys
+import traceback
+
 from pydiscourse import DiscourseClient
 
 from viewer.squonk2_agent import get_squonk2_agent
@@ -101,6 +104,7 @@ def service_query(func):
         logger.debug("+ wrapper_service_query")
         logger.debug("args passed: %s", args)
         logger.debug("kwargs passed: %s", kwargs)
+        logger.debug("function: %s", func.__name__)
 
         state = State.NOT_CONFIGURED
         envs = [os.environ.get(k, None) for k in kwargs.values()]
@@ -111,16 +115,25 @@ def service_query(func):
             executor = futures.ThreadPoolExecutor()
             try:
                 async with asyncio.timeout(DELAY):
+                    # right, this isn't working
                     future = loop.run_in_executor(
                         executor, functools.partial(func, *args, **kwargs)
+                        # None, functools.partial(func, *args, **kwargs)
                     )
-                    conn = await future
-                    if conn:
+                    # logger.debug("future: %s", future)
+                    result = await future
+                    # result = await func(*args, **kwargs)
+                    # wrapped_future = asyncio.wrap_future(future)
+                    # result = await wrapped_future
+                    if result:
                         state = State.OK
 
             except TimeoutError:
-                logger.error("Service query function %s timed out", func.__name__)
+                logger.error("Service query '%s' timed out", func.__name__)
                 state = State.TIMEOUT
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                logger.error("%s", traceback.print_exception(exc_type, exc_value, exc_traceback))
+                traceback.print_exception(exc_type, exc_value, exc_traceback)
             except Exception as exc:
                 # unknown error with the query
                 logger.exception(exc, exc_info=True)
@@ -174,7 +187,7 @@ async def fragmentation_graph(func_id, name, url=None):
 
 
 @service_query
-async def keycloak(func_id, name, url=None, secret=None):
+def keycloak(func_id, name, url=None, secret=None):
     logger.debug("+ keycloak")
     keycloak_realm = os.environ.get(url, None)
     response = requests.get(keycloak_realm)
