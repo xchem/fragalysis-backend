@@ -5,6 +5,7 @@ from enum import Enum
 import asyncio
 import functools
 import requests
+from concurrent import futures
 
 from pydiscourse import DiscourseClient
 
@@ -90,6 +91,7 @@ async def service_queries(services):
             )
         )
 
+    logger.debug("coroutines: %s", coroutines)
     result = await asyncio.gather(*coroutines)
     logger.debug("service query result: %s", result)
     return result
@@ -111,10 +113,13 @@ def service_query(func):
         if all(envs):
             state = State.DEGRADED
             loop = asyncio.get_running_loop()
+            # memo to self: executor is absolutely crucial, otherwise
+            # TimeoutError is not caught
+            executor = futures.ThreadPoolExecutor()
             try:
                 async with asyncio.timeout(DELAY):
                     future = loop.run_in_executor(
-                        None, functools.partial(func, *args, **kwargs)
+                        executor, functools.partial(func, *args, **kwargs)
                     )
                     logger.debug("future: %s", future)
                     result = await future
