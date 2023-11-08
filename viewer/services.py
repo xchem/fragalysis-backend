@@ -3,7 +3,6 @@ import logging
 from enum import Enum
 
 import asyncio
-from concurrent import futures
 import functools
 import requests
 
@@ -40,6 +39,7 @@ def get_service_state(services):
 
 
 async def service_queries(services):
+    """Chain the requested service queries"""
     logger.debug("service query called")
     coroutines = []
     if Service.ISPYB in services:
@@ -96,11 +96,14 @@ async def service_queries(services):
 
 
 def service_query(func):
+    """Decorator function for service queries functions"""
+
     @functools.wraps(func)
     async def wrapper_service_query(*args, **kwargs):
         logger.debug("+ wrapper_service_query")
         logger.debug("args passed: %s", args)
         logger.debug("kwargs passed: %s", kwargs)
+        logger.debug("function: %s", func.__name__)
 
         state = State.NOT_CONFIGURED
         envs = [os.environ.get(k, None) for k in kwargs.values()]
@@ -108,28 +111,29 @@ def service_query(func):
         if all(envs):
             state = State.DEGRADED
             loop = asyncio.get_running_loop()
-            executor = futures.ThreadPoolExecutor()
             try:
                 async with asyncio.timeout(DELAY):
                     future = loop.run_in_executor(
-                        executor, functools.partial(func, *args, **kwargs)
+                        None, functools.partial(func, *args, **kwargs)
                     )
-                    conn = await future
-                    if conn:
+                    logger.debug("future: %s", future)
+                    result = await future
+                    logger.debug("result: %s", result)
+                    if result:
                         state = State.OK
 
             except TimeoutError:
-                logger.error("Service query function %s timed out", func.__name__)
+                logger.error("Service query '%s' timed out", func.__name__)
                 state = State.TIMEOUT
             except Exception as exc:
                 # unknown error with the query
                 logger.exception(exc, exc_info=True)
                 state = State.ERROR
 
-        # name and ID are 2nd and 1st params respectively (0 is
-        # self). alternative solution for this would be to return
-        # just a state and have the service_queries() map the
-        # results to the correct values
+        # name and ID are 1nd and 0th params respectively.
+        # alternative solution for this would be to return just a
+        # state and have the service_queries() map the results to the
+        # correct values
         return {"id": args[0], "name": args[1], "state": state}
 
     return wrapper_service_query
@@ -142,7 +146,7 @@ async def ispyb(func_id, name, ispyb_host=None):
 
 
 @service_query
-async def discourse(func_id, name, key=None, url=None, user=None):
+def discourse(func_id, name, key=None, url=None, user=None):
     logger.debug("+ discourse")
     client = DiscourseClient(
         os.environ.get(url, None),
@@ -154,13 +158,13 @@ async def discourse(func_id, name, key=None, url=None, user=None):
 
 
 @service_query
-async def squonk(func_id, name, squonk_pwd=None):
+def squonk(func_id, name, squonk_pwd=None):
     logger.debug("+ squonk")
     return get_squonk2_agent().configured().success
 
 
 @service_query
-async def fragmentation_graph(func_id, name, url=None):
+def fragmentation_graph(func_id, name, url=None):
     logger.debug("+ fragmentation_graph")
     # graph_driver = get_driver(url='neo4j', neo4j_auth='neo4j/password')
     graph_driver = get_driver()
@@ -174,7 +178,7 @@ async def fragmentation_graph(func_id, name, url=None):
 
 
 @service_query
-async def keycloak(func_id, name, url=None, secret=None):
+def keycloak(func_id, name, url=None, secret=None):
     logger.debug("+ keycloak")
     keycloak_realm = os.environ.get(url, None)
     response = requests.get(keycloak_realm)
