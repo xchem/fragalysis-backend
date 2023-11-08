@@ -12,9 +12,6 @@ from dateutil.parser import parse
 import pytz
 from pathlib import Path
 
-from enum import Enum
-
-from pydiscourse import DiscourseClient
 
 import pandas as pd
 
@@ -39,10 +36,7 @@ from rest_framework.views import APIView
 
 from celery.result import AsyncResult
 
-from api import security
 from api.security import ISpyBSafeQuerySet
-
-from frag.utils.network_utils import get_driver
 
 from api.utils import get_params, get_highlighted_diffs, pretty_request
 from viewer.utils import create_squonk_job_request_url
@@ -54,6 +48,7 @@ from viewer import serializers
 from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
 from viewer.squonk2_agent import AccessParams, CommonParams, SendParams, RunJobParams
 
+from viewer.services import get_service_state
 
 
 from .forms import CSetForm
@@ -2175,11 +2170,6 @@ class JobAccessView(APIView):
 
 class ServiceState(View):
 
-    class State(str, Enum):
-        NOT_CONFIGURED = "NOT_CONFIGURED"
-        DEGRADED = "DEGRADED"
-        OK = "OK"
-
     def get(self, *args, **kwargs):
         """Poll external service status.
 
@@ -2199,78 +2189,6 @@ class ServiceState(View):
         services = [k for k in service_string.split(":") if k !=  ""]
         logger.debug("Services ordered: %s", services)
 
-        service_states = []
-        for s in services:
-            func = getattr(self, s, None)
-            if func:
-                service_states.append(func())
+        service_states = get_service_state(services)
 
         return JsonResponse({"service_states": service_states})
-
-
-    @staticmethod
-    def ispyb():
-        state = ServiceState.State.NOT_CONFIGURED
-        if os.environ.get("ISPYB_HOST", None):
-            state = ServiceState.State.DEGRADED
-            if security.get_conn():
-                state = ServiceState.State.OK
-
-        return {"id": "ispyb", "name": "Access control (ISPyB)", "state": state}
-
-
-    @staticmethod
-    def squonk():
-        state = ServiceState.State.NOT_CONFIGURED
-        if os.environ.get("SQUONK2_ORG_OWNER_PASSWORD", None):
-            state = ServiceState.State.DEGRADED
-            if get_squonk2_agent().configured().success:
-                state = ServiceState.State.OK
-
-        return {"id": "squonk", "name": "Squonk", "state": state}
-
-    @staticmethod
-    def fragmentation_graph():
-        state = ServiceState.State.NOT_CONFIGURED
-        if os.environ.get("NEO4J_BOLT_URL", None):
-            state = ServiceState.State.DEGRADED
-            # graph_driver = get_driver(url='neo4j', neo4j_auth='neo4j/password')
-            graph_driver = get_driver()
-            with graph_driver.session() as session:
-                try:
-                    _ = session.run('match (n) return count (n);')
-                    state = ServiceState.State.OK
-                except ValueError:
-                    # service isn't running
-                    pass
-
-        return {"id": "fragmentation_graph", "name": "Fragmentation graph", "state": state}
-
-    @staticmethod
-    def discourse():
-        state = ServiceState.State.NOT_CONFIGURED
-        key = os.environ.get("DISCOURSE_API_KEY", None)
-        url = os.environ.get("DISCOURSE_HOST", None)
-        user = os.environ.get("DISCOURSE_USER", None)
-        if key and url and user:
-            state = ServiceState.State.DEGRADED
-            client = DiscourseClient(
-                url,
-                api_username=user,
-                api_key=key,
-            )
-            # TODO: some action on client?
-            if client:
-                state = ServiceState.State.OK
-
-        return {"id": "discourse", "name": "Discourse", "state": state}
-
-    @staticmethod
-    def keycloak():
-        state = ServiceState.State.NOT_CONFIGURED
-        if os.environ.get("OIDC_RP_CLIENT_SECRET", None):
-            state = ServiceState.State.DEGRADED
-            if security.get_conn():
-                state = ServiceState.State.OK
-
-        return {"id": "keycloak", "name": "Keycloak", "state": state}
