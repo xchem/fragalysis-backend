@@ -140,7 +140,7 @@ def service_query(func):
 
 
 @service_query
-async def ispyb(func_id, name, ispyb_host=None):
+def ispyb(func_id, name, ispyb_host=None):
     logger.debug("+ ispyb")
     return security.get_conn()
 
