@@ -130,7 +130,7 @@ When you want to spin-down the deployment run: -
 
 There is also a convenient bash script that can be used to build and push an
 image to a repository. you just need to provide the Docker image *namespace* and a *tag*.
-For example: -
+All you need is [poetry] and [docker], and you can run the script: -
 
     export BE_IMAGE_TAG=1187.1
     export BE_NAMESPACE=alanbchristie
@@ -299,12 +299,14 @@ These include, but are not limit to: -
 
 [ansible]: https://github.com/ansible/ansible
 [curl]: https://curl.se
+[docker]: https://www.docker.com
 [drf]: https://www.django-rest-framework.org
 [environment variables]: https://docs.docker.com/compose/environment-variables/set-environment-variables/
 [httpie]: https://pypi.org/project/httpie/
 [jq]: https://stedolan.github.io/jq/
 [kubernetes]: https://kubernetes.io
 [kubernetes stack]: https://dls-fragalysis-stack-kubernetes.readthedocs.io/en/latest/index.html#
+[poetry]: https://python-poetry.org
 [pre-commit]: https://pre-commit.com
 [readthedocs]: https://fragalysis-backend.readthedocs.io/en/latest/index.html
 [sentry]: https://sentry.io/welcome/
