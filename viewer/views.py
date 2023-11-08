@@ -2195,7 +2195,7 @@ class ServiceState(View):
         logger.debug("+ ServiceServiceState.State.get called")
         service_string = os.environ.get("ENABLE_SERVICE_STATUS", "")
         logger.debug("Service string: %s", service_string)
-        service_string = 'keycloak'
+
         services = [k for k in service_string.split(":") if k !=  ""]
         logger.debug("Services ordered: %s", services)
 
