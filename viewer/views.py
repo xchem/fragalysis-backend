@@ -69,7 +69,7 @@ from .download_structures import (
 )
 
 from .squonk_job_file_transfer import (
-    check_file_transfer
+    validate_file_transfer_files
 )
 
 from .squonk_job_request import (
@@ -1611,9 +1611,6 @@ class JobFileTransferView(viewsets.ModelViewSet):
         logger.info('+ snapshot_id=%s', snapshot_id)
         logger.info('+ session_project_id=%s', session_project_id)
 
-        target = models.Target.objects.get(id=target_id)
-        assert target
-
         # Check the user can use this Squonk2 facility.
         # To do this we need to setup a couple of API parameter objects.
         sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
@@ -1627,8 +1624,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
             content = {f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        # Check the presense of the files expected to be transferred
-        error, proteins, compounds = check_file_transfer(request)
+        # Check the existence of the files that are expected to be transferred
+        error, proteins, compounds = validate_file_transfer_files(request)
         if error:
             return Response(error['message'], status=error['status'])
 
@@ -1677,7 +1674,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         assert job_transfer.target
         assert job_transfer.target.title
         transfer_target = job_transfer.target.title
-        logger.info('+ transfer_target=%s', transfer_target)
+        logger.info('+ job_transfer.target=%s', transfer_target)
 
         job_transfer.transfer_status = 'PENDING'
         job_transfer.transfer_datetime = None
@@ -1685,19 +1682,12 @@ class JobFileTransferView(viewsets.ModelViewSet):
         job_transfer.save()
 
         # The root (in the Squonk project) where files will be written for this Job.
-        # Something like "fragalysis-files/hjyx" for new transfers,
-        # "fragalysis-files" for existing transfers
-        if job_transfer.sub_path:
-            transfer_root = os.path.join(settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path)
-        else:
-            transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
-        logger.info('+ transfer_root=%s', transfer_root)
-
-        logger.info('oidc_access_token')
-        logger.info(request.session['oidc_access_token'])
-
-        logger.info('+ Starting transfer (celery) (job_transfer.id=%s)...',
-                    job_transfer.id)
+        # This will be something "${SQUONK2_MEDIA_DIRECTORY}/hjyx", where "hjyx" is
+        # a randomly-generated 4-character sequence for the given transfer assigned
+        # when the JobFileTransfer record is created.
+        transfer_root = os.path.join(settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path)
+        logger.info('+ Starting transfer (celery) (job_transfer.id=%s transfer_root=%s)...',
+                    job_transfer.id, transfer_root)
         job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
                                                             job_transfer.id)
 

@@ -986,7 +986,6 @@ class JobFileTransfer(models.Model):
     proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # Not used in phase 1
     compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True)
-    transfer_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     transfer_task_id = models.CharField(null=True, max_length=50)
     transfer_status = models.CharField(choices=STATUS, default=PENDING, max_length=7)
     transfer_progress = models.DecimalField(null=True, max_digits=5, decimal_places=2,
