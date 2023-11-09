@@ -234,6 +234,9 @@ class TargetLoader:
                 update_task(self.task, "ERROR", msg)
                 logger.error("%s%s", self.task_id, msg)
                 raise IntegrityError(msg) from exc
+            except ValueError as exc:
+                update_task(self.task, "ERROR", exc.args[0])
+                raise ValueError(exc.args[0]) from exc
 
         return MetadataObjects(
             instance=experiment, data=data.get("aligned_files", None), new=new
@@ -1079,9 +1082,14 @@ class TargetLoader:
                         task=task,
                     )
                 except FileNotFoundError as exc:
+                    result.append(exc.args[0])
                     raise FileNotFoundError(exc.args[1]) from exc
                 except IntegrityError as exc:
+                    result.append(exc.args[0])
                     raise IntegrityError(exc.args[0]) from exc
+                except ValueError as exc:
+                    result.append(exc.args[0])
+                    raise ValueError(exc.args[0]) from exc
                 except FileExistsError as exc:
                     # this target has been uploaded at- least once and
                     # this upload already exists. skip
@@ -1130,6 +1138,10 @@ class TargetLoader:
 
                 except KeyError:
                     logger.warning("%s file info missing in %s!", key, METADATA_FILE)
+                except ValueError as exc:
+                    logger.error("Invalid hash for file %s!", filename)
+                    raise ValueError(f"Invalid hash for file {filename}!") from exc
+
             elif isinstance(value, str) and not key == "ligand_smiles":
                 # this is a bit of a workaround but ligand_smiles
                 # happens to be specified on the same level as files
@@ -1158,6 +1170,10 @@ class TargetLoader:
             if file_hash:
                 if file_hash == TargetLoader._calculate_sha256(file_path):
                     return True
+                else:
+                    # not logging error here because don't have
+                    # correct file path
+                    raise ValueError
             else:
                 return True
         return False
@@ -1206,6 +1222,9 @@ def load_target(
             logger.error(exc.args[0])
             raise FileNotFoundError(exc.args[0]) from exc
         except IntegrityError as exc:
+            logger.error(exc, exc_info=True)
+            raise IntegrityError(exc.args[0]) from exc
+        except ValueError as exc:
             logger.error(exc, exc_info=True)
             raise IntegrityError(exc.args[0]) from exc
         except FileExistsError as exc:

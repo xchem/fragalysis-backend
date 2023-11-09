@@ -495,6 +495,11 @@ def task_load_target(self, data_bundle=None, proposal_ref=None, contact_email=No
                 state="ERROR",
                 meta={"description": err.args[0],},
             )
+    except ValueError as err:
+        self.update_state(
+                state="ERROR",
+                meta={"description": err.args[0],},
+            )
     except FileNotFoundError as err:
         self.update_state(
                 state="ERROR",
