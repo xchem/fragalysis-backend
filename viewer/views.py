@@ -25,6 +25,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views import View
 
+
 from django.urls import reverse
 
 from rest_framework import status, viewsets, permissions
@@ -1427,6 +1428,8 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
 
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
+            logger.debug("Serializer valid: %s", serializer)
+            logger.debug("Serializer valid: %s", serializer.validated_data)
             # User must have access to the Project
             # and the Target must be in the Project.
 
@@ -1532,6 +1535,7 @@ class TargetExperimentUploads(ISpyBSafeQuerySet):
     serializer_class = serializers.TargetExperimentReadSerializer
     permission_class = [permissions.IsAuthenticated]
     filterset_fields = ("target", "project")
+    filter_permissions = "target__project_id"
     http_method_names = ('get',)
 
 

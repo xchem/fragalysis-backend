@@ -99,7 +99,8 @@ class TargetLoader:
 
         self._target_root = self.raw_data.joinpath(self.target_name)
 
-        # create exp upload object stub. NB! not saved here but later
+        # create exp upload object
+        # NB! this is not saved here in case upload fails
         self.experiment_upload = ExperimentUpload(
             commit_datetime=timezone.now(),
             file=self.data_bundle,
@@ -1006,7 +1007,15 @@ class TargetLoader:
         # I suspect I need to group them by site..
         for tag, so_list in groups.items():
             try:
-                # TODO: not unique, needs a solution
+                # memo to self: description is set to tag, but there's
+                # no fk to tag, instead, tag has a fk to
+                # group. There's no uniqueness requirement on
+                # description so there's no certainty that this will
+                # be unique (or remain searchable at all because user
+                # is allowed to change the tag name). this feels like
+                # poor design but I don't understand the principles of
+                # this system to know if that's indeed the case or if
+                # it is in fact a truly elegant solution
                 so_group = SiteObservationGroup.objects.get(
                     target=self.target, description=tag
                 )
@@ -1083,7 +1092,7 @@ class TargetLoader:
                     )
                 except FileNotFoundError as exc:
                     result.append(exc.args[0])
-                    raise FileNotFoundError(exc.args[1]) from exc
+                    raise FileNotFoundError(exc.args[0]) from exc
                 except IntegrityError as exc:
                     result.append(exc.args[0])
                     raise IntegrityError(exc.args[0]) from exc
@@ -1213,6 +1222,7 @@ def load_target(
         except FileNotFoundError as exc:
             msg = f"{data_bundle} file does not exist!"
             logger.exception("%s%s", target_loader.task_id, msg)
+            target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(msg) from exc
 
         try:
@@ -1220,15 +1230,18 @@ def load_target(
                 upload_report = target_loader.process_bundle(task=task)
         except FileNotFoundError as exc:
             logger.error(exc.args[0])
+            target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(exc.args[0]) from exc
         except IntegrityError as exc:
             logger.error(exc, exc_info=True)
+            target_loader.experiment_upload.message = exc.args[0]
             raise IntegrityError(exc.args[0]) from exc
         except ValueError as exc:
             logger.error(exc, exc_info=True)
             raise IntegrityError(exc.args[0]) from exc
         except FileExistsError as exc:
             logger.error(exc.args[0])
+            target_loader.experiment_upload.message = exc.args[0]
             raise FileExistsError(exc.args[0]) from exc
 
         # move to final location
@@ -1239,6 +1252,9 @@ def load_target(
         )
 
         update_task(task, "SUCCESS", upload_report)
+        target_loader.experiment_upload.message = upload_report
+
+        target_loader.experiment_upload.save()
 
 
 def update_task(task, state, message):
