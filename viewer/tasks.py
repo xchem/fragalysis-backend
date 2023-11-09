@@ -531,8 +531,8 @@ def process_job_file_transfer(auth_token, jt_id):
 
     """
 
-    logger.info('+ TASK Starting File Transfer (%s) [STARTED]', id)
-    job_transfer = JobFileTransfer.objects.get(id=id)
+    logger.info('+ TASK Starting File Transfer (%s) [STARTED]', jt_id)
+    job_transfer = JobFileTransfer.objects.get(id=jt_id)
     job_transfer.transfer_status = "STARTED"
     job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
     job_transfer.save()
