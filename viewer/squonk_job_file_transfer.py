@@ -26,10 +26,10 @@ def process_file_transfer(auth_token, job_transfer_id):
         job_transfer_id
     """
 
-    logger.info('+ process_file_transfer(job_transfer_id=%s)', job_transfer_id)
+    logger.info('+ Processing file transfer (id=%s)', job_transfer_id)
 
     job_transfer = JobFileTransfer.objects.get(id=job_transfer_id)
-    logger.info('+ job_transfer.squonk_project=%s', job_transfer.squonk_project)
+    logger.info('+ Transfer (id=%s) squonk_project=%s', job_transfer_id, job_transfer.squonk_project)
 
     # This to pick up NULL values from the changeover to using compounds.
     if not job_transfer.compounds:
@@ -39,42 +39,41 @@ def process_file_transfer(auth_token, job_transfer_id):
     num_compounds_to_transfer = len(job_transfer.compounds)
     num_to_transfer = num_proteins_to_transfer + num_compounds_to_transfer
     idx = 0
-    logger.info('+ num_to_transfer=%s (%s + %s)',
-                num_to_transfer, num_proteins_to_transfer, num_compounds_to_transfer)
+    logger.info('+ Transfer (id=%s) num_to_transfer=%s (%s + %s)',
+                job_transfer_id, num_to_transfer, num_proteins_to_transfer, num_compounds_to_transfer)
 
     # The base directory for the source of the files we are transferring?
     # We expect files to include a path relative to TARGET_LOADER_MEDIA_DIRECTORY
     FILE_ROOT = os.path.join(settings.MEDIA_ROOT, settings.TARGET_LOADER_MEDIA_DIRECTORY)
-    logger.info('+ FILE_ROOT=%s', FILE_ROOT)
+    logger.info('+ Transfer (id=%s) FILE_ROOT=%s', job_transfer_id, FILE_ROOT)
 
     # Build the Squonk2 Project directory where files will be placed
     # e.g. "/fragalysis-files/hjyx".
     target = job_transfer.target
     squonk_directory = os.path.join('/', settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path)
-    logger.info('+ Destination squonk_directory=%s', squonk_directory)
-
+    logger.info('+ Transfer (id=%s) squonk_directory=%s', job_transfer_id, squonk_directory)
     # All the files (proteins or compounds) are provided using relative
     # paths from the media directory. So we can join the tow lists
     # and treat them the same
     all_filename_refs = job_transfer.proteins + job_transfer.compounds
     if all_filename_refs:
-        logger.info('+ Collecting files...')
+        logger.info('+ Collecting files (id=%s)', job_transfer_id)
         file_list = []
         for filename_ref in all_filename_refs:
             # We need to decode the file reference,
             # it is likely to be URL encoded.
             filename = urllib.parse.unquote(filename_ref)
-            logger.info('+ Collecting filename=%s (target=%s)', filename, target)
+            logger.info('+ Collecting %s (target=%s) (id=%s)', filename, target, job_transfer_id)
             # File is expected to exist in the media directory
             file_path = os.path.join(FILE_ROOT, filename)
             if not os.path.isfile(file_path):
-                msg = f'No such protein file ({file_path})'
+                msg = f'No such protein file {file_path} (id={job_transfer_id})'
                 logger.error(msg)
                 raise RuntimeError(msg)
             file_list.append(file_path)
 
-        logger.info('+ Found %s files', len(file_list))
-        logger.info('+ Calling DmApi.put_unmanaged_project_files() [proteins]...')
+        logger.info('+ Found %s files (id=%s)', len(file_list), job_transfer_id)
+        logger.info('+ Calling DmApi.put_unmanaged_project_files() (id=%s)', job_transfer_id)
         result = DmApi.put_unmanaged_project_files(
             auth_token,
             project_id=job_transfer.squonk_project,
@@ -86,11 +85,11 @@ def process_file_transfer(auth_token, job_transfer_id):
 
         if result.success:
             idx += 1
-            job_transfer.transfer_progress = idx * 100 / num_to_transfer
+            job_transfer.transfer_progress = 100
             job_transfer.save()
-            logger.info('+ Transferred files')
+            logger.info('+ Transferred files (id=%s)', job_transfer_id)
         else:
-            msg = f'File Transfer Failed (msg={result.msg})'
+            msg = f'File Transfer Failed (id={job_transfer_id}) (msg={result.msg})'
             logger.error(msg)
             raise RuntimeError(msg)
 

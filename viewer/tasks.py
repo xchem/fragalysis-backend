@@ -531,17 +531,16 @@ def process_job_file_transfer(auth_token, jt_id):
 
     """
 
-    logger.info('+ TASK Starting File Transfer (%s) [STARTED]', jt_id)
+    logger.info('+ File Transfer (id=%s) [STARTED]', jt_id)
     job_transfer = JobFileTransfer.objects.get(id=jt_id)
     job_transfer.transfer_status = "STARTED"
     job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
     job_transfer.save()
+
     try:
         process_file_transfer(auth_token, job_transfer.id)
     except RuntimeError as error:
-        logger.error('- TASK File transfer (%s) [FAILED] error=%s',
-                     id, error)
-        logger.error(error)
+        logger.error('- File transfer (id=%s) [RuntimeError "%s"]', jt_id, error)
         job_transfer.transfer_status = "FAILURE"
         job_transfer.save()
     else:
@@ -551,7 +550,7 @@ def process_job_file_transfer(auth_token, jt_id):
         job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
         job_transfer.save()
-        logger.info('+ TASK File transfer (%s) [SUCCESS]', id)
+        logger.info('+ File transfer (id=%s) [SUCCESS]', jt_id)
 
     return job_transfer.transfer_status
 

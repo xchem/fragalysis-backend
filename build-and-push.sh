@@ -23,3 +23,6 @@ set -xeo pipefail
 poetry export --without-hashes --without dev --output requirements.txt
 docker build --no-cache . -t ${BE_NAMESPACE}/fragalysis-backend:${BE_IMAGE_TAG}
 docker push ${BE_NAMESPACE}/fragalysis-backend:${BE_IMAGE_TAG}
+
+set +x
+echo "Done. Pushed ${BE_NAMESPACE}/fragalysis-backend:${BE_IMAGE_TAG}"
