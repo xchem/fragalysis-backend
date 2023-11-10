@@ -450,26 +450,40 @@ class TargetLoader:
             ) as f:
                 mol_data = f.read()
 
-            site_observation = SiteObservation(
-                # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
-                code=code,
-                experiment=experiment,
-                cmpd=compound,
-                xtalform_site=xtalform_site,
-                canon_site_conf=canon_site_conf,
-                bound_file=str(self._get_final_path(files["structure"])),
-                apo_solv_file=str(self._get_final_path(files["pdb_apo_solv"])),
-                apo_desolv_file=str(self._get_final_path(files["pdb_apo_desolv"])),
-                apo_file=str(self._get_final_path(files["pdb_apo"])),
-                xmap_2fofc_file=str(self._get_final_path(files.get("x_map", None))),
-                event_file=str(self._get_final_path(files["event_map"])),
-                artefacts_file=str(self._get_final_path(files.get("artefacts", None))),
-                pdb_header_file="currently missing",
-                smiles=data["ligand_smiles"],
-                seq_id=ligand,
-                chain_id=chain,
-                ligand_mol_file=mol_data,
-            )
+            try:
+                site_observation = SiteObservation(
+                    # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
+                    code=code,
+                    experiment=experiment,
+                    cmpd=compound,
+                    xtalform_site=xtalform_site,
+                    canon_site_conf=canon_site_conf,
+                    bound_file=str(self._get_final_path(files["structure"])),
+                    apo_solv_file=str(self._get_final_path(files["pdb_apo_solv"])),
+                    apo_desolv_file=str(self._get_final_path(files["pdb_apo_desolv"])),
+                    apo_file=str(self._get_final_path(files["pdb_apo"])),
+                    xmap_2fofc_file=str(self._get_final_path(files["2Fo-Fc_map"])),
+                    xmap_fofc_file=str(self._get_final_path(files["Fo-Fc_map"])),
+                    event_file=str(self._get_final_path(files["event_map"])),
+                    # artefacts file currently missing, hence the get
+                    artefacts_file=str(
+                        self._get_final_path(files.get("artefacts", None))
+                    ),
+                    pdb_header_file="currently missing",
+                    smiles=data["ligand_smiles"],
+                    seq_id=ligand,
+                    chain_id=chain,
+                    ligand_mol_file=mol_data,
+                )
+            except KeyError as exc:
+                logger.debug("exc: %s", exc)
+                msg = (
+                    f"Reference to {exc} file missing from aligned_files/"
+                    + f"{experiment.code}/{chain}/{str(ligand)}/{str(idx)}"
+                )
+                update_task(self.task, "ERROR", msg)
+                logger.error("%s%s", self.task_id, msg)
+                raise KeyError(msg) from exc
 
             try:
                 site_observation.save()
