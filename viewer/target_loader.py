@@ -57,6 +57,7 @@ METADATA_FILE = "meta_aligner.yaml"
 ASSEMBLIES_FILE = "assemblies.yaml"
 XTALFORMS_FILE = "xtalforms.yaml"
 ASSIGNED_XTALFORMS_FILE = "assigned_xtalforms.yaml"
+CONFIG_FILE = "config*.yaml"
 
 
 # data blocks from from meta_aligner.yaml are processed into dictionaries:
@@ -84,7 +85,6 @@ class TargetLoader:
     ):
         self.data_bundle = Path(data_bundle).name
         self.bundle_name = Path(data_bundle).stem
-        self.target_name = self.bundle_name.split("-")[0]
         self.bundle_path = data_bundle
         self.proposal_ref = proposal_ref
         self.tempdir = tempdir
@@ -97,9 +97,8 @@ class TargetLoader:
 
         self.raw_data.mkdir()
 
-        self._target_root = self.raw_data.joinpath(self.target_name)
-
-        # create exp upload object stub. NB! not saved here but later
+        # create exp upload object
+        # NB! this is not saved here in case upload fails
         self.experiment_upload = ExperimentUpload(
             commit_datetime=timezone.now(),
             file=self.data_bundle,
@@ -136,6 +135,8 @@ class TargetLoader:
         self.task_id = f"task {task.request.id}: " if task else ""
 
         # these will be filled later
+        self.target_name = None
+        self._target_root = None
         self.target = None
         self.project = None
 
@@ -234,6 +235,9 @@ class TargetLoader:
                 update_task(self.task, "ERROR", msg)
                 logger.error("%s%s", self.task_id, msg)
                 raise IntegrityError(msg) from exc
+            except ValueError as exc:
+                update_task(self.task, "ERROR", exc.args[0])
+                raise ValueError(exc.args[0]) from exc
 
         return MetadataObjects(
             instance=experiment, data=data.get("aligned_files", None), new=new
@@ -446,26 +450,40 @@ class TargetLoader:
             ) as f:
                 mol_data = f.read()
 
-            site_observation = SiteObservation(
-                # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
-                code=code,
-                experiment=experiment,
-                cmpd=compound,
-                xtalform_site=xtalform_site,
-                canon_site_conf=canon_site_conf,
-                bound_file=str(self._get_final_path(files["structure"])),
-                apo_solv_file=str(self._get_final_path(files["pdb_apo_solv"])),
-                apo_desolv_file=str(self._get_final_path(files["pdb_apo_desolv"])),
-                apo_file=str(self._get_final_path(files["pdb_apo"])),
-                xmap_2fofc_file=str(self._get_final_path(files["x_map"])),
-                event_file=str(self._get_final_path(files["event_map"])),
-                artefacts_file=str(self._get_final_path(files.get("artefacts", None))),
-                pdb_header_file="currently missing",
-                smiles=data["ligand_smiles"],
-                seq_id=ligand,
-                chain_id=chain,
-                ligand_mol_file=mol_data,
-            )
+            try:
+                site_observation = SiteObservation(
+                    # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
+                    code=code,
+                    experiment=experiment,
+                    cmpd=compound,
+                    xtalform_site=xtalform_site,
+                    canon_site_conf=canon_site_conf,
+                    bound_file=str(self._get_final_path(files["structure"])),
+                    apo_solv_file=str(self._get_final_path(files["pdb_apo_solv"])),
+                    apo_desolv_file=str(self._get_final_path(files["pdb_apo_desolv"])),
+                    apo_file=str(self._get_final_path(files["pdb_apo"])),
+                    xmap_2fofc_file=str(self._get_final_path(files["2Fo-Fc_map"])),
+                    xmap_fofc_file=str(self._get_final_path(files["Fo-Fc_map"])),
+                    event_file=str(self._get_final_path(files["event_map"])),
+                    # artefacts file currently missing, hence the get
+                    artefacts_file=str(
+                        self._get_final_path(files.get("artefacts", None))
+                    ),
+                    pdb_header_file="currently missing",
+                    smiles=data["ligand_smiles"],
+                    seq_id=ligand,
+                    chain_id=chain,
+                    ligand_mol_file=mol_data,
+                )
+            except KeyError as exc:
+                logger.debug("exc: %s", exc)
+                msg = (
+                    f"Reference to {exc} file missing from aligned_files/"
+                    + f"{experiment.code}/{chain}/{str(ligand)}/{str(idx)}"
+                )
+                update_task(self.task, "ERROR", msg)
+                logger.error("%s%s", self.task_id, msg)
+                raise KeyError(msg) from exc
 
             try:
                 site_observation.save()
@@ -474,6 +492,10 @@ class TargetLoader:
                 update_task(self.task, "ERROR", msg)
                 logger.error("%s%s", self.task_id, msg)
                 raise IntegrityError(msg) from exc
+
+            # TODO: may have to implement KeyError, in case file is
+            # missing. but that's only when it's guaranteed that it
+            # should exist.
 
         return MetadataObjects(
             instance=site_observation,
@@ -1003,7 +1025,15 @@ class TargetLoader:
         # I suspect I need to group them by site..
         for tag, so_list in groups.items():
             try:
-                # TODO: not unique, needs a solution
+                # memo to self: description is set to tag, but there's
+                # no fk to tag, instead, tag has a fk to
+                # group. There's no uniqueness requirement on
+                # description so there's no certainty that this will
+                # be unique (or remain searchable at all because user
+                # is allowed to change the tag name). this feels like
+                # poor design but I don't understand the principles of
+                # this system to know if that's indeed the case or if
+                # it is in fact a truly elegant solution
                 so_group = SiteObservationGroup.objects.get(
                     target=self.target, description=tag
                 )
@@ -1069,7 +1099,63 @@ class TargetLoader:
 
         If called from task, takes task as a parameter for status updates.
         """
+        # result is final report, list of messages passed back to user
         result = []
+
+        # by now I should have archive unpacked, get target name from
+        # config.yaml
+
+        # this a bit of an chicken and an egg problem. I need to get
+        # to the config file in upload_N directory, but the path to
+        # that goes through another, which is usually the same as
+        # target. But.. I don't know if I can trust that, which is why
+        # I grab it from the config file where says this is the target
+        it = self.raw_data.iterdir()
+        try:
+            target_dir = next(it)
+        except StopIteration as exc:
+            raise StopIteration("Target directory missing from uploaded file!") from exc
+
+        logger.debug("target_dir: %s", target_dir)
+
+        # a quick sanity check, assuming only one target per upload
+        if sum(1 for _ in it) != 0:
+            tgd = "; ".join([str(p) for p in it])
+            raise AssertionError(
+                f"More than one target directory in uploaded file: {tgd}"
+            )
+
+        target_path = self.raw_data.joinpath(target_dir)
+        it = target_path.iterdir()
+        try:
+            upload_dir = next(it)
+        except StopIteration as exc:
+            raise StopIteration("Upload directory missing from uploaded file!") from exc
+
+        # technically, what I could do here is the same validation as
+        # with targed dir above, there should be only on upload_N
+        # directory under target. but it doesn't matter if there's
+        # more, I'll just use the first one
+
+        config_it = upload_dir.glob(CONFIG_FILE)
+        try:
+            config_file = next(config_it)
+        except StopIteration as exc:
+            raise StopIteration(f"config file missing from {upload_dir}") from exc
+
+        config = self._load_yaml(config_file)
+        logger.debug("config: %s", config)
+
+        try:
+            self.target_name = config["target_name"]
+        except KeyError as exc:
+            raise KeyError("target_name missing in config file!") from exc
+
+        self._target_root = self.raw_data.joinpath(self.target_name)
+
+        # as mentioned above, there should be only one upload_N
+        # directory, so I suppose I could get rid of the loop
+        # here. doesn't hurt though, so I'll leave it for now
         for path in Path(self.target_root).iterdir():
             if path.is_dir():
                 logger.info("Found upload dir: %s", str(path))
@@ -1079,9 +1165,14 @@ class TargetLoader:
                         task=task,
                     )
                 except FileNotFoundError as exc:
-                    raise FileNotFoundError(exc.args[1]) from exc
+                    result.append(exc.args[0])
+                    raise FileNotFoundError(exc.args[0]) from exc
                 except IntegrityError as exc:
+                    result.append(exc.args[0])
                     raise IntegrityError(exc.args[0]) from exc
+                except ValueError as exc:
+                    result.append(exc.args[0])
+                    raise ValueError(exc.args[0]) from exc
                 except FileExistsError as exc:
                     # this target has been uploaded at- least once and
                     # this upload already exists. skip
@@ -1130,6 +1221,10 @@ class TargetLoader:
 
                 except KeyError:
                     logger.warning("%s file info missing in %s!", key, METADATA_FILE)
+                except ValueError as exc:
+                    logger.error("Invalid hash for file %s!", filename)
+                    raise ValueError(f"Invalid hash for file {filename}!") from exc
+
             elif isinstance(value, str) and not key == "ligand_smiles":
                 # this is a bit of a workaround but ligand_smiles
                 # happens to be specified on the same level as files
@@ -1137,7 +1232,7 @@ class TargetLoader:
                     result[key] = str(value)
                 else:
                     # wait, I think I should actually raise exp here..
-                    logger.error(
+                    logger.warning(
                         "%s referenced in %s but not found in archive",
                         value,
                         METADATA_FILE,
@@ -1158,6 +1253,10 @@ class TargetLoader:
             if file_hash:
                 if file_hash == TargetLoader._calculate_sha256(file_path):
                     return True
+                else:
+                    # not logging error here because don't have
+                    # correct file path
+                    raise ValueError
             else:
                 return True
         return False
@@ -1197,6 +1296,7 @@ def load_target(
         except FileNotFoundError as exc:
             msg = f"{data_bundle} file does not exist!"
             logger.exception("%s%s", target_loader.task_id, msg)
+            target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(msg) from exc
 
         try:
@@ -1204,13 +1304,23 @@ def load_target(
                 upload_report = target_loader.process_bundle(task=task)
         except FileNotFoundError as exc:
             logger.error(exc.args[0])
+            target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(exc.args[0]) from exc
         except IntegrityError as exc:
+            logger.error(exc, exc_info=True)
+            target_loader.experiment_upload.message = exc.args[0]
+            raise IntegrityError(exc.args[0]) from exc
+        except ValueError as exc:
             logger.error(exc, exc_info=True)
             raise IntegrityError(exc.args[0]) from exc
         except FileExistsError as exc:
             logger.error(exc.args[0])
+            target_loader.experiment_upload.message = exc.args[0]
             raise FileExistsError(exc.args[0]) from exc
+        except AssertionError as exc:
+            logger.error(exc.args[0])
+            target_loader.experiment_upload.message = exc.args[0]
+            raise AssertionError(exc.args[0]) from exc
 
         # move to final location
         target_loader.abs_final_path.mkdir(parents=True)
@@ -1220,6 +1330,9 @@ def load_target(
         )
 
         update_task(task, "SUCCESS", upload_report)
+        target_loader.experiment_upload.message = upload_report
+
+        target_loader.experiment_upload.save()
 
 
 def update_task(task, state, message):
