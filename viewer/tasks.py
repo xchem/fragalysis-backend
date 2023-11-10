@@ -486,31 +486,43 @@ def task_load_target(self, data_bundle=None, proposal_ref=None, contact_email=No
             task=self,
         )
     except KeyError as err:
+        logger.error('KeyError: %s', err, exc_info=True)
         self.update_state(
             state="ERROR",
             meta={"description": err.args,},
         )
     except IntegrityError as err:
+        logger.error('IntegrityError: %s', err, exc_info=True)
         self.update_state(
             state="ERROR",
             meta={"description": err.args[0],},
         )
     except ValueError as err:
+        logger.error('ValueError: %s', err, exc_info=True)
         self.update_state(
             state="ERROR",
             meta={"description": err.args[0],},
         )
     except FileNotFoundError as err:
+        logger.error('FileNotFoundError: %s', err, exc_info=True)
         self.update_state(
             state="ERROR",
             meta={"description": err.args[0],},
         )
     except FileExistsError as err:
+        logger.error('FileExistsError: %s', err, exc_info=True)
+        self.update_state(
+            state="ERROR",
+            meta={"description": err.args[0],},
+        )
+    except AssertionError as err:
+        logger.error('AssertionError: %s', err, exc_info=True)
         self.update_state(
             state="ERROR",
             meta={"description": err.args[0],},
         )
     except OSError as err:
+        logger.error('OSError: %s', err, exc_info=True)
         self.update_state(
             state="ERROR",
             meta={"description": err.args[1],},
