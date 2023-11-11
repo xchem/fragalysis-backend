@@ -75,14 +75,14 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
-        python-version: '3.10'
+        python-version: '3.11'
     - name: Compile requirements.txt
       # We need to put the file in $HOME
       # - a simple way to ensure it's
       # available between steps in the same job.
       run: |
         pip install --upgrade pip
-        pip install poetry==1.5.1
+        pip install poetry==1.7.0
         poetry export --without-hashes --without dev --output requirements.txt
     - name: Upload compiled requirements
       uses: actions/upload-artifact@v3
