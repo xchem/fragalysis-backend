@@ -71,32 +71,7 @@ env:
   STACK_NAMESPACE: xchem
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-    - name: Lint Dockerfile
-      uses: hadolint/hadolint-action@v3.1.0
-      with:
-        dockerfile: Dockerfile
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.11'
-    - name: Compile requirements.txt
-      run: |
-        pip install --upgrade pip
-        pip install poetry==1.7.0
-        poetry export --without-hashes --without dev --output requirements.txt
-    - name: Upload compiled requirements
-      uses: actions/upload-artifact@v3
-      with:
-        name: requirements
-        path: requirements.txt
-
-  build-and-push:
-    needs: prepare
+  build:
     runs-on: ubuntu-latest
     outputs:
       push: ${{ steps.vars.outputs.push }}
@@ -160,13 +135,25 @@ jobs:
         # Do we trigger downstream, i.e. is TRIGGER_DOWNSTREAM 'yes'?
         echo trigger=${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
         echo "trigger=${{ env.TRIGGER_DOWNSTREAM == 'yes' }}" >> $GITHUB_OUTPUT
-    - name: Download requirements
-      uses: actions/download-artifact@v3
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Lint Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
       with:
-        name: requirements
-    - name: Build
+        dockerfile: Dockerfile
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.11'
+    - name: Compile requirements.txt
+      run: |
+        pip install --upgrade pip
+        pip install poetry==1.7.0
+        poetry export --without-hashes --without dev --output requirements.txt
+    - name: Docker build
       uses: docker/build-push-action@v4
       with:
+        context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
 #    - name: Test
 #      run: >
