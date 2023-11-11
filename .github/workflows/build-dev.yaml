@@ -44,7 +44,7 @@ env:
   BE_NAMESPACE: xchem
 
 jobs:
-  prepare:
+  build:
     runs-on: ubuntu-latest
     outputs:
       push: ${{ steps.vars.outputs.push }}
@@ -84,20 +84,6 @@ jobs:
         pip install --upgrade pip
         pip install poetry==1.7.0
         poetry export --without-hashes --without dev --output requirements.txt
-    - name: Upload compiled requirements
-      uses: actions/upload-artifact@v3
-      with:
-        name: requirements
-        path: requirements.txt
-
-  build-and-push:
-    needs: prepare
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download requirements
-      uses: actions/download-artifact@v3
-      with:
-        name: requirements
     - name: Docker build
       uses: docker/build-push-action@v4
       with:
@@ -115,11 +101,11 @@ jobs:
 #        BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
 #        BE_TAG: ${{ env.GITHUB_REF_SLUG }}
     - name: Login to DockerHub
-      if: ${{needs.prepare.outputs.push}} == 'true'
+      if: steps.vars.outputs.push == 'true'
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Push
-      if: ${{needs.prepare.outputs.push}} == 'true'
+      if: steps.vars.outputs.push == 'true'
       run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
