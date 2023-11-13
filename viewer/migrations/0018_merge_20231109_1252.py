@@ -6,8 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('viewer', '0016_add_jobfiletransfer_sub_path'),
-        ('viewer', '0016_alter_experimentupload_message'),
+        ('viewer', '0017_alter_experimentupload_message'),
     ]
 
     operations = [

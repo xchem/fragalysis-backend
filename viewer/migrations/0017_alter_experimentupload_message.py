@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('viewer', '0015_auto_20231023_1049'),
+        ('viewer', '0016_add_jobfiletransfer_sub_path'),
     ]
 
     operations = [
