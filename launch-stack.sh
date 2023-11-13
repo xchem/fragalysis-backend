@@ -40,7 +40,7 @@ touch /code/logs/logfile.log
 
 CONCURRENCY=${STACK_CONCURRENCY:-4}
 
-echo "Starting Gunicorn..."
+echo "Starting Gunicorn (CONCURRENCY=${CONCURRENCY})..."
 gunicorn fragalysis.wsgi:application \
     --daemon \
     --name fragalysis \
