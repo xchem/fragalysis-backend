@@ -814,10 +814,17 @@ class TargetLoader:
 
         # add xtalform fk to experiment
         for _, obj in experiment_objects.items():
-            obj.instance.xtalform = xtalform_objects[
-                assigned_xtalforms[obj.instance.code]
-            ].instance
-            obj.instance.save()
+            try:
+                obj.instance.xtalform = xtalform_objects[
+                    assigned_xtalforms[obj.instance.code]
+                ].instance
+                obj.instance.save()
+            except KeyError:
+                # TODO: don't know at this point whether ignoring this
+                # error is a right thing to do
+                msg = f"xtalform {obj.instance.code} undefined for {obj}"
+                result.append(msg)
+                logger.warning(msg)
 
         quat_assembly_objects = {}
         for idx, obj in assemblies.items():
@@ -1331,6 +1338,8 @@ def load_target(
 
         update_task(task, "SUCCESS", upload_report)
         target_loader.experiment_upload.message = upload_report
+
+        logger.debug("%s", upload_report)
 
         target_loader.experiment_upload.save()
 
