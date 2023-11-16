@@ -1,5 +1,10 @@
 from dataclasses import dataclass
+
 from typing import Any
+# from typing import Optional
+from typing import Iterable
+from typing import Dict
+
 import logging
 from pathlib import Path
 import hashlib
@@ -7,6 +12,8 @@ import yaml
 import tarfile
 import uuid
 from tempfile import TemporaryDirectory
+
+import functools
 
 from celery import Task
 
@@ -72,6 +79,35 @@ class MetadataObjects:
     instance: Any
     data: Any = None
     new: bool = True
+
+
+def create_object(func):
+    """Decorator function for saving database objects"""
+
+    @functools.wraps(func)
+    def wrapper_create_object(*args, **kwargs):
+        logger.debug("+ wrapper_service_query")
+        logger.debug("args passed: %s", args)
+        logger.debug("kwargs passed: %s", kwargs)
+        logger.debug("function: %s", func.__name__)
+
+        try:
+            obj, new = func(*args, **kwargs)
+        except IntegrityError as exc:
+            # msg = f"Failed to save Experiment: {protein_name}"
+            # update_task(self.task, "ERROR", msg)
+            # logger.error("%s%s", self.task_id, msg)
+            raise IntegrityError from exc
+        except ValueError as exc:
+            # update_task(self.task, "ERROR", exc.args[0])
+            raise ValueError(exc.args[0]) from exc
+
+        # return MetadataObjects(
+        #     instance=obj, data=data.get("aligned_files", None), new=new
+        # )
+
+        return
+    return wrapper_create_object
 
 
 class TargetLoader:
@@ -183,6 +219,51 @@ class TargetLoader:
             raise KeyError(validation_errors)
 
         return result
+
+    @create_object
+    def create_experiment(self, protein_name=None, data=None):
+        files = self._check_file_struct(
+            self.target_root, data["crystallographic_files"]
+        )
+
+        # what I would want is smth like this:
+        pdb_info, mtz_info, cif_info = self.validate_files(
+            file_struct=data["crystallographic_files"],
+            required=("xtal_pdb", "mtz_pdb"),
+            recommended=("cif_info",),
+        )
+
+        # for f in ("xtal_pdb", "mtz_pdb"):
+        #     validate_file
+
+        pdb_info = self._get_final_path(files["xtal_pdb"])
+        mtz_info = self._get_final_path(files["mtz_pdb"])
+
+        # TODO:this may be missing from the struct
+        cif_info = self._get_final_path(files.get("cif_info", None))
+
+        exp_type = (1 if data["type"] == "manual" else 0,)  # FIXME
+
+        # status	int	new/deprecated/superseded	metadata.yaml
+        # version	int	old versions are kept	target loader
+
+        status = 1
+        version = 1
+
+        return Experiment.objects.get_or_create(
+            experiment_upload=self.experiment_upload,
+            code=protein_name,
+            defaults={
+                "status": status,
+                "version": version,
+                "type": exp_type,
+                "pdb_info": pdb_info,
+                "mtz_info": mtz_info,
+                "cif_info": cif_info,
+                # this doesn't seem to be present
+                # pdb_sha256:
+            },
+        )
 
     def _process_experiment(self, existing_objects=None, protein_name=None, data=None):
         """Create Experiment model instance from data.
@@ -1199,6 +1280,92 @@ class TargetLoader:
         logger.info("%s%s", self.task_id, msg)
         return f"{self.bundle_name} {self.version_dir}: {msg}"
 
+    def validate_files(
+        self,
+        file_struct: Dict,
+        required: Iterable[str] = (),
+        recommended: Iterable[str] = (),
+    ) -> list[str]:
+        """Check if file exists and if sha256 hash matches (if given).
+
+        file struct can come in 2 configurations:
+        {file_key: {file: <file_path>, sha265: <hash> [smiles: <smiles>]}, ...}
+        or simply
+        {file_key: <file path>}
+        Detect which one and take appropriate action.
+
+        F
+        """
+        result = {}
+        for key, value in file_struct.items():
+            filename, file_hash = None, None
+
+            # sort out the filename
+            if isinstance(value, dict):
+                file_hash = value.get("sha256", None)
+                try:
+                    filename = value["file"]
+                except KeyError as exc:
+                    # this is rather unexpected, haven't seen it yet
+
+                    # NB! I only have the key at this point so I
+                    # cannot reference it properly in here. I think I
+                    # need to raise a custom exception here
+                    msg = "Malformed dict, key 'file' missing!"
+                    if key in required:
+                        logger.error(msg)
+                        raise KeyError(msg) from exc
+                    elif key in recommended:
+                        logger.warning(msg)
+                        continue
+            elif isinstance(value, str) and not key == "ligand_smiles":
+                # workaround for ligand_smiles, it happens to be
+                # specified on the same level as files
+                filename = value
+            else:
+                # this is probably the list of panddas event files, don't
+                # need them here
+                # although.. should i validate them here nevertheless?
+                # i'd have to do this on copy otherwise..
+                continue
+
+            # now I have file path and possibly hash
+            file_path = self.target_root.joinpath(filename)
+            if file_path.is_file():
+                if file_hash:
+                    if file_hash == self._calculate_sha256(file_path):
+                        result[key] = filename
+                    else:
+                        msg =f"Invalid hash for file {filename}!"
+                        if key in required:
+                            logger.error(msg)
+                            raise ValueError(msg)
+                        elif key in recommended:
+                            logger.warning(msg)
+            else:
+                msg = f"{key} referenced in {METADATA_FILE} but not found in archive!"
+                if key in required:
+                    logger.error(msg)
+                    raise FileNotFoundError(msg)
+                elif key in recommended:
+                    logger.warning(msg)
+
+        files = []
+        # for f in required:
+        #     try:
+        #         files.append(result[f])
+        #     except KeyError as exc
+        #         raise KeyError from exc
+
+        # for f in recommended:
+        #     try:
+        #         files.append(result[f])
+        #     except KeyError:
+        #         raise KeyError
+
+        return [ result[k] for k in required ] + [ result[k] for k in recommended ]
+
+    # trying to get rid of that
     @staticmethod
     def _check_file_struct(upload_root, file_struct):
         """Check if file exists and if sha256 hash matches (if given).
@@ -1210,63 +1377,64 @@ class TargetLoader:
         Detect which one and take appropriate action.
         """
         result = {}
-        for key, value in file_struct.items():
-            if isinstance(value, dict):
-                try:
-                    filename = value["file"]
+        # for key, value in file_struct.items():
+        #     if isinstance(value, dict):
+        #         try:
+        #             filename = value["file"]
 
-                    # I guess I don't care if it's not given?
-                    file_hash = value.get("sha256", None)
+        #             # I guess I don't care if it's not given?
+        #             file_hash = value.get("sha256", None)
 
-                    # TODO: error handling. don't know how to
-                    # implement this because data structure/metadata
-                    # not at final structure yet
-                    if TargetLoader._check_file(
-                        upload_root.joinpath(filename), file_hash
-                    ):
-                        result[key] = str(filename)
+        #             # TODO: error handling. don't know how to
+        #             # implement this because data structure/metadata
+        #             # not at final structure yet
+        #             if TargetLoader._check_file(
+        #                 upload_root.joinpath(filename), file_hash
+        #             ):
+        #                 result[key] = str(filename)
 
-                except KeyError:
-                    logger.warning("%s file info missing in %s!", key, METADATA_FILE)
-                except ValueError as exc:
-                    logger.error("Invalid hash for file %s!", filename)
-                    raise ValueError(f"Invalid hash for file {filename}!") from exc
+        #         except KeyError:
+        #             logger.warning("%s file info missing in %s!", key, METADATA_FILE)
+        #         except ValueError as exc:
+        #             logger.error("Invalid hash for file %s!", filename)
+        #             raise ValueError(f"Invalid hash for file {filename}!") from exc
 
-            elif isinstance(value, str) and not key == "ligand_smiles":
-                # this is a bit of a workaround but ligand_smiles
-                # happens to be specified on the same level as files
-                if TargetLoader._check_file(upload_root.joinpath(value)):
-                    result[key] = str(value)
-                else:
-                    # wait, I think I should actually raise exp here..
-                    logger.warning(
-                        "%s referenced in %s but not found in archive",
-                        value,
-                        METADATA_FILE,
-                    )
-            else:
-                # this is probably the list of panddas event files, don't
-                # need them here
-                # although.. should i validate them here nevertheless?
-                # i'd have to do this on copy otherwise..
-                pass
+        #     elif isinstance(value, str) and not key == "ligand_smiles":
+        #         # this is a bit of a workaround but ligand_smiles
+        #         # happens to be specified on the same level as files
+        #         if TargetLoader._check_file(upload_root.joinpath(value)):
+        #             result[key] = str(value)
+        #         else:
+        #             # wait, I think I should actually raise exp here..
+        #             logger.warning(
+        #                 "%s referenced in %s but not found in archive",
+        #                 value,
+        #                 METADATA_FILE,
+        #             )
+        #     else:
+        #         # this is probably the list of panddas event files, don't
+        #         # need them here
+        #         # although.. should i validate them here nevertheless?
+        #         # i'd have to do this on copy otherwise..
+        #         pass
 
         return result
 
-    @staticmethod
-    def _check_file(file_path: Path, file_hash=None):
-        """Check if file exist and compare with hash."""
-        if file_path.is_file():
-            if file_hash:
-                if file_hash == TargetLoader._calculate_sha256(file_path):
-                    return True
-                else:
-                    # not logging error here because don't have
-                    # correct file path
-                    raise ValueError
-            else:
-                return True
-        return False
+    # @staticmethod
+    # def _check_file(file_path: Path, file_hash=None):
+    #     """Check if file exist and compare with hash."""
+    #     if file_path.is_file():
+    #         if file_hash:
+    #             if file_hash == TargetLoader._calculate_sha256(file_path):
+    #                 return True
+    #             else:
+    #                 # not logging error here because don't have
+    #                 # correct file path
+    #                 raise ValueError
+    #         else:
+    #             return True
+    #     return False
+
 
     # borrowed from SO
     @staticmethod
