@@ -4,8 +4,6 @@ from urllib.parse import urljoin
 
 from django.db.models import F
 
-from django.db.models.functions import Round
-
 from django.contrib.postgres.aggregates import ArrayAgg
 
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
@@ -173,23 +171,23 @@ class CompoundSerializer(serializers.ModelSerializer):
             "smiles",
             "current_identifier",
             "all_identifiers",
-            # "project_id",
-            "mol_log_p",
-            "mol_wt",
-            "tpsa",
-            "heavy_atom_count",
-            "heavy_atom_mol_wt",
-            "nhoh_count",
-            "no_count",
-            "num_h_acceptors",
-            "num_h_donors",
-            "num_het_atoms",
-            "num_rot_bonds",
-            "num_val_electrons",
-            "ring_count",
-            # "inspirations",
-            # "description",
-            # "comments",
+            "project_id",
+            # "mol_log_p",
+            # "mol_wt",
+            # "tpsa",
+            # "heavy_atom_count",
+            # "heavy_atom_mol_wt",
+            # "nhoh_count",
+            # "no_count",
+            # "num_h_acceptors",
+            # "num_h_donors",
+            # "num_het_atoms",
+            # "num_rot_bonds",
+            # "num_val_electrons",
+            # "ring_count",
+            "inspirations",
+            "description",
+            "comments",
         )
 
 
@@ -364,14 +362,17 @@ class ProtMapInfoSerializer(serializers.ModelSerializer):
     map_data = serializers.SerializerMethodField()
 
     def get_map_data(self, obj):
-        if obj.map_info:
-            return open(obj.map_info.path, encoding='utf-8').read()
+        # TODO: this was formerly protein.map_info. based on
+        # description in the spec, it seems this is equivalent to
+        # event_file in site_observation, but it's binary and not read
+        if obj.event_file:
+            return open(obj.event_file.path, encoding='utf-8').read()
         else:
             return None
 
     class Meta:
         model = models.SiteObservation
-        fields = ("id", "map_data", "prot_type")
+        fields = ("id", "map_data")
 
 
 class ProtPDBInfoSerializer(serializers.ModelSerializer):
@@ -384,15 +385,13 @@ class ProtPDBInfoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.SiteObservation
-        # fields = ("id", "pdb_data", "prot_type")
-        # prot_type is removed
         fields = ("id", "pdb_data")
 
 
 class ProtPDBBoundInfoSerializer(serializers.ModelSerializer):
 
     bound_pdb_data = serializers.SerializerMethodField()
-    target_id = serializers.SerializerMethodField()
+    target = serializers.IntegerField()
 
     def get_bound_pdb_data(self, obj):
         if obj.bound_file:
@@ -400,12 +399,9 @@ class ProtPDBBoundInfoSerializer(serializers.ModelSerializer):
         else:
             return None
 
-    def get_target_id(self, obj):
-        return obj.experiment.experiment_upload.target.id
-
     class Meta:
         model = models.SiteObservation
-        fields = ("id", "bound_pdb_data", "target_id")
+        fields = ("id", "bound_pdb_data", "target")
 
 
 class VectorsSerializer(serializers.ModelSerializer):
@@ -704,35 +700,20 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
             # code. but that means front-end code needs to know about
             # the changes
             protein_code=F('code'),
-            # this field is missing now
-            # mol_type=
             molecule_protein=F('experiment__pdb_info'),
             sdf_info=F('ligand_mol_file'),
             lig_id=F('seq_id'),
-            # missing
-            # x_com=
-            # y_com=
-            # z_com=
-            # NB! this is django 4 syntax, if we don't move, need to round by hand
-            mw=Round(F('cmpd__mol_wt'), precision=2),
-            logp=Round(F('cmpd__mol_log_p'), precision=2),
-            tpsa=Round(F('cmpd__tpsa'), precision=2),
-            ha=F('cmpd__heavy_atom_count'),
-            hacc=F('cmpd__num_h_acceptors'),
-            hdon=F('cmpd__num_h_donors'),
-            rots=F('cmpd__num_rot_bonds'),
-            rings=F('cmpd__ring_count'),
-            velec=F('cmpd__num_val_electrons'),
-            mol_tags_set=ArrayAgg("molecules__pk"),
+            tags_set=ArrayAgg("siteobservationtag__pk"),
         )
-        fields = [ "id", "smiles", "cmpd_id", "prot_id",
-                   "protein_code", "mol_type", "molecule_protein", "lig_id",
-                   "chain_id", "sdf_info", "x_com", "y_com", "z_com", "mw",
-                   "logp", "tpsa", "ha", "hacc", "hdon", "rots", "rings",
-                   "velec",
+        fields = [ "id", "smiles", "cmpd", "protein_code",
+                   "molecule_protein", "lig_id", "chain_id",
+                   "sdf_info", "tags_set",
                   ]
 
-        molecules = [{'data': k.values(fields), 'tags_set': k.values('mol_tags_set')} for k in mols ]
+        logger.debug("%s", mols)
+        logger.debug("%s", mols.values(*fields))
+
+        molecules = [{'data': k, 'tags_set': k['tags_set']} for k in mols.values(*fields) ]
 
         return molecules
 
@@ -750,7 +731,7 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
         return tags_info
 
     def get_tag_categories(self, obj):
-        tag_categories = models.TagCategory.objects.filter(moleculetag__target_id=obj.id).distinct().\
+        tag_categories = models.TagCategory.objects.filter(siteobservationtag__target_id=obj.id).distinct().\
             values()
         return tag_categories
 
