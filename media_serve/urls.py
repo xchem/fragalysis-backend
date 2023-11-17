@@ -4,7 +4,7 @@ from django.urls import re_path
 from . import views
 
 urlpatterns = [
-    re_path(r"^pdbs/(?P<file_path>.+)", views.prot_download, name="get_protein"),
+    # re_path(r"^pdbs/(?P<file_path>.+)", views.prot_download, name="get_protein"),
     path("bound/<file_path>/", views.bound_download, name="get_bound"),
     path("metadata/<file_path>/", views.metadata_download, name="get_metadata"),
     path("targets/<file_path>/", views.archive_download, name="get_archive"),
