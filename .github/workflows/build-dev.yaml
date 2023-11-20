@@ -82,7 +82,7 @@ jobs:
       # available between steps in the same job.
       run: |
         pip install --upgrade pip
-        pip install poetry==1.7.0
+        pip install poetry==1.7.1
         poetry export --without-hashes --without dev --output requirements.txt
     - name: Docker build
       uses: docker/build-push-action@v4
@@ -99,7 +99,7 @@ jobs:
 #        --abort-on-container-exit
 #      env:
 #        BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
-#        BE_TAG: ${{ env.GITHUB_REF_SLUG }}
+#        BE_IMAGE_TAG: ${{ env.GITHUB_REF_SLUG }}
     - name: Login to DockerHub
       if: steps.vars.outputs.push == 'true'
       uses: docker/login-action@v2
