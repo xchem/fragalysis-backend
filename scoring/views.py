@@ -20,52 +20,56 @@ from scoring.serializers import (
     SiteObservationGroupSerializer,
 )
 
+
 class ViewSceneView(viewsets.ModelViewSet):
-    queryset = ViewScene.objects.filter().order_by('-modified')
+    queryset = ViewScene.objects.all().order_by("-modified")
     # filter_backends = (filters.DjangoFilterBackend,)
     serializer_class = ViewSceneSerializer
-    filter_fields = ("user_id", "uuid")
+    filterset_fields = ("user_id", "uuid")
 
     def put(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
 
 
 class SiteObservationChoiceView(viewsets.ModelViewSet):
-    queryset = SiteObservationChoice.objects.filter()
+    queryset = SiteObservationChoice.objects.all()
     serializer_class = SiteObservationChoiceSerializer
-    filter_fields = ("user_id", "mol_id", "mol_id__prot_id__target_id", "choice_type")    
+    filterset_fields = (
+        "user",
+        "site_observation",
+        "site_observation__experiment__experiment_upload__target",
+        "choice_type",
+    )
 
 
 class SiteObservationAnnotationView(viewsets.ModelViewSet):
-    queryset = SiteObservationAnnotation.objects.filter()
+    queryset = SiteObservationAnnotation.objects.all()
     serializer_class = SiteObservationAnnotationSerializer
-    filter_fields = ("mol_id", "annotation_type")    
+    filterset_fields = ("site_observation", "annotation_type")
 
 
 class CmpdChoiceView(viewsets.ModelViewSet):
-    queryset = CmpdChoice.objects.filter()
+    queryset = CmpdChoice.objects.all()
     serializer_class = CmpdChoiceSerializer
-    filter_fields = ("user_id", "cmpd_id", "choice_type")
+    filterset_fields = ("user_id", "cmpd_id", "choice_type")
 
 
 class ScoreChoiceView(viewsets.ModelViewSet):
-    queryset = ScoreChoice.objects.filter()
+    queryset = ScoreChoice.filter_manager.filter_qs()
     serializer_class = ScoreChoiceSerializer
-    filter_fields = (
-        "user_id",
-        "mol_id",
-        "prot_id",
+    filterset_fields = (
+        "user",
+        "site_observation",
         "is_done",
-        "mol_id__prot_id__target_id",
-        "prot_id__target_id",
+        "site_observation__experiment__experiment_upload__target",
         "choice_type",
     )
 
 
 class SiteObservationGroupView(viewsets.ModelViewSet):
-    queryset = SiteObservationGroup.objects.filter()
+    queryset = SiteObservationGroup.objects.all()
     serializer_class = SiteObservationGroupSerializer
-    filter_fields = ("group_type", "mol_id", "target_id", "description")    
+    filterset_fields = ("group_type", "site_observation", "target", "description")
 
 
 def gen_conf_from_vect(request):
@@ -73,9 +77,7 @@ def gen_conf_from_vect(request):
     input_smiles = input_dict["INPUT_SMILES"]
     input_mol_block = input_dict["INPUT_MOL_BLOCK"]
     return HttpResponse(
-        json.dumps(
-            generate_confs_for_vector(input_smiles, input_mol_block)
-        )
+        json.dumps(generate_confs_for_vector(input_smiles, input_mol_block))
     )
 
 
@@ -83,4 +85,4 @@ def get_current_user_id(request):
     if request.user.is_authenticated():
         return HttpResponse(json.dumps(request.user.id))
     else:
-        return HttpResponse(json.dumps('null'))
+        return HttpResponse(json.dumps("null"))

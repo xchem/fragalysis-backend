@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from typing import Any
 import logging
@@ -1336,6 +1337,8 @@ def load_target(
             target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
         )
 
+        set_directory_permissions(target_loader.abs_final_path, 0o755)
+
         update_task(task, "SUCCESS", upload_report)
         target_loader.experiment_upload.message = upload_report
 
@@ -1355,3 +1358,16 @@ def update_task(task, state, message):
     except AttributeError:
         # no task passed to method, nothing to do
         pass
+
+
+def set_directory_permissions(path, permissions):
+    for root, dirs, files in os.walk(path):
+        # Set permissions for directories
+        for directory in dirs:
+            dir_path = os.path.join(root, directory)
+            os.chmod(dir_path, permissions)
+
+        # Set permissions for files
+        for file in files:
+            file_path = os.path.join(root, file)
+            os.chmod(file_path, permissions)

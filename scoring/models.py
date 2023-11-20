@@ -3,6 +3,8 @@ from django.db import models
 
 from viewer.models import SiteObservation, Compound, Target, Snapshot
 
+from .managers import ScoreChoiceDataManager
+
 
 class ViewScene(models.Model):
     """
@@ -94,6 +96,9 @@ class ScoreChoice(models.Model):
     # Any score
     score = models.FloatField(null=True)
 
+    objects = models.Manager()
+    filter_manager = ScoreChoiceDataManager()
+    
     class Meta:
         constraints = [
             models.UniqueConstraint(

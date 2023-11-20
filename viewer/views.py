@@ -142,37 +142,37 @@ class MolImageView(ISpyBSafeQuerySet):
 class CompoundImageView(ISpyBSafeQuerySet):
     """Compound images (api/cmpdimg)
     """
-    queryset = models.Compound.objects.filter()
+    queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CmpdImageSerializer
     filter_permissions = "project_id"
-    filterset_fields = ("smiles",)
+    filterset_class = filters.CmpdImgFilter
 
 
 class ProteinMapInfoView(ISpyBSafeQuerySet):
     """Protein map info (file) (api/protmap)
     """
-    queryset = models.SiteObservation.objects.filter()
+    queryset = models.SiteObservation.objects.all()
     serializer_class = serializers.ProtMapInfoSerializer
-    filter_permissions = "target_id__project_id"
-    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filterset_fields = ("code", "experiment__experiment_upload__target", "experiment__experiment_upload__target__title")
 
 
 class ProteinPDBInfoView(ISpyBSafeQuerySet):
     """Protein apo pdb info (file) (api/protpdb)
     """
-    queryset = models.SiteObservation.objects.filter()
+    queryset = models.SiteObservation.objects.all()
     serializer_class = serializers.ProtPDBInfoSerializer
-    filter_permissions = "target_id__project_id"
-    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filterset_fields = ("code", "experiment__experiment_upload__target", "experiment__experiment_upload__target__title")
 
 
 class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
     """Protein bound pdb info (file) (api/protpdbbound)
     """
-    queryset = models.SiteObservation.objects.filter()
+    queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.ProtPDBBoundInfoSerializer
-    filter_permissions = "target_id__project_id"
-    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filterset_fields = ("code", "experiment__experiment_upload__target", "experiment__experiment_upload__target__title")
 
 
 class ProjectView(ISpyBSafeQuerySet):
@@ -196,17 +196,10 @@ class TargetView(ISpyBSafeQuerySet):
 class CompoundView(ISpyBSafeQuerySet):
     """Compounds (api/compounds)
     """
-    queryset = models.Compound.objects.filter()
+    queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CompoundSerializer
     filter_permissions = "project_id"
-    filterset_fields = ("smiles", "current_identifier", "inchi", "long_inchi")
-
-
-class SiteObservationView(ISpyBSafeQuerySet):
-    queryset = models.SiteObservation.objects.filter()
-    serializer_class = serializers.SiteObservationReadSerializer
-    filter_permissions = "target_id__project_id"
-    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_class = filters.CompoundFilter
 
 
 def react(request):
@@ -1019,7 +1012,7 @@ class ComputedSetView(viewsets.ModelViewSet):
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
     """Retrieve information about computed molecules - 3D info (api/compound-molecules).
     """
-    queryset = models.ComputedMolecule.objects.filter()
+    queryset = models.ComputedMolecule.objects.all()
     serializer_class = serializers.ComputedMoleculeSerializer
     filter_permissions = "project_id"
     filterset_fields = ('computed_set',)
@@ -1029,7 +1022,7 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve information about numerical computed molecule scores
     (api/numerical-scores).
     """
-    queryset = models.NumericalScoreValues.objects.filter()
+    queryset = models.NumericalScoreValues.objects.all()
     serializer_class = serializers.NumericalScoreSerializer
     filter_permissions = "project_id"
     filterset_fields = ('compound', 'score')
@@ -1038,7 +1031,7 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
 class TextScoresView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve information about text computed molecule scores (api/text-scores).
     """
-    queryset = models.TextScoreValues.objects.filter()
+    queryset = models.TextScoreValues.objects.all()
     serializer_class = serializers.TextScoreSerializer
     filter_permissions = "project_id"
     filterset_fields = ('compound', 'score')
@@ -1047,7 +1040,7 @@ class TextScoresView(viewsets.ReadOnlyModelViewSet):
 class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve descriptions of scores for a given name or computed set.
     """
-    queryset = models.ScoreDescription.objects.filter()
+    queryset = models.ScoreDescription.objects.all()
     serializer_class = serializers.ScoreDescriptionSerializer
     filter_permissions = "project_id"
     filterset_fields = ('computed_set', 'name')
@@ -1057,7 +1050,7 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve all information about molecules from a computed set
     along with all of their scores.
     """
-    queryset = models.ComputedMolecule.objects.filter()
+    queryset = models.ComputedMolecule.objects.all()
     serializer_class = serializers.ComputedMolAndScoreSerializer
     filter_permissions = "project_id"
     filterset_fields = ('computed_set',)
