@@ -12,6 +12,7 @@ from dateutil.parser import parse
 import pytz
 from pathlib import Path
 
+
 import pandas as pd
 
 from django.db import connections
@@ -23,6 +24,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.http import JsonResponse
 from django.views import View
+
 
 from django.urls import reverse
 
@@ -47,6 +49,7 @@ from viewer import serializers
 from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
 from viewer.squonk2_agent import AccessParams, CommonParams, SendParams, RunJobParams
 
+from viewer.services import get_service_state
 
 
 from .forms import CSetForm
@@ -67,7 +70,7 @@ from .download_structures import (
 )
 
 from .squonk_job_file_transfer import (
-    check_file_transfer
+    validate_file_transfer_files
 )
 
 from .squonk_job_request import (
@@ -139,37 +142,37 @@ class MolImageView(ISpyBSafeQuerySet):
 class CompoundImageView(ISpyBSafeQuerySet):
     """Compound images (api/cmpdimg)
     """
-    queryset = models.Compound.objects.filter()
+    queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CmpdImageSerializer
     filter_permissions = "project_id"
-    filterset_fields = ("smiles",)
+    filterset_class = filters.CmpdImgFilter
 
 
 class ProteinMapInfoView(ISpyBSafeQuerySet):
     """Protein map info (file) (api/protmap)
     """
-    queryset = models.SiteObservation.objects.filter()
+    queryset = models.SiteObservation.objects.all()
     serializer_class = serializers.ProtMapInfoSerializer
-    filter_permissions = "target_id__project_id"
-    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filterset_fields = ("code", "experiment__experiment_upload__target", "experiment__experiment_upload__target__title")
 
 
 class ProteinPDBInfoView(ISpyBSafeQuerySet):
     """Protein apo pdb info (file) (api/protpdb)
     """
-    queryset = models.SiteObservation.objects.filter()
+    queryset = models.SiteObservation.objects.all()
     serializer_class = serializers.ProtPDBInfoSerializer
-    filter_permissions = "target_id__project_id"
-    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filterset_fields = ("code", "experiment__experiment_upload__target", "experiment__experiment_upload__target__title")
 
 
 class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
     """Protein bound pdb info (file) (api/protpdbbound)
     """
-    queryset = models.SiteObservation.objects.filter()
+    queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.ProtPDBBoundInfoSerializer
-    filter_permissions = "target_id__project_id"
-    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filterset_fields = ("code", "experiment__experiment_upload__target", "experiment__experiment_upload__target__title")
 
 
 class ProjectView(ISpyBSafeQuerySet):
@@ -193,17 +196,10 @@ class TargetView(ISpyBSafeQuerySet):
 class CompoundView(ISpyBSafeQuerySet):
     """Compounds (api/compounds)
     """
-    queryset = models.Compound.objects.filter()
+    queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CompoundSerializer
     filter_permissions = "project_id"
-    filterset_fields = ("smiles", "current_identifier", "inchi", "long_inchi")
-
-
-class SiteObservationView(ISpyBSafeQuerySet):
-    queryset = models.SiteObservation.objects.filter()
-    serializer_class = serializers.SiteObservationReadSerializer
-    filter_permissions = "target_id__project_id"
-    filterset_fields = ("code", "target_id", "target_id__title", "prot_type")
+    filterset_class = filters.CompoundFilter
 
 
 def react(request):
@@ -1016,7 +1012,7 @@ class ComputedSetView(viewsets.ModelViewSet):
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
     """Retrieve information about computed molecules - 3D info (api/compound-molecules).
     """
-    queryset = models.ComputedMolecule.objects.filter()
+    queryset = models.ComputedMolecule.objects.all()
     serializer_class = serializers.ComputedMoleculeSerializer
     filter_permissions = "project_id"
     filterset_fields = ('computed_set',)
@@ -1026,7 +1022,7 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve information about numerical computed molecule scores
     (api/numerical-scores).
     """
-    queryset = models.NumericalScoreValues.objects.filter()
+    queryset = models.NumericalScoreValues.objects.all()
     serializer_class = serializers.NumericalScoreSerializer
     filter_permissions = "project_id"
     filterset_fields = ('compound', 'score')
@@ -1035,7 +1031,7 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
 class TextScoresView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve information about text computed molecule scores (api/text-scores).
     """
-    queryset = models.TextScoreValues.objects.filter()
+    queryset = models.TextScoreValues.objects.all()
     serializer_class = serializers.TextScoreSerializer
     filter_permissions = "project_id"
     filterset_fields = ('compound', 'score')
@@ -1044,7 +1040,7 @@ class TextScoresView(viewsets.ReadOnlyModelViewSet):
 class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve descriptions of scores for a given name or computed set.
     """
-    queryset = models.ScoreDescription.objects.filter()
+    queryset = models.ScoreDescription.objects.all()
     serializer_class = serializers.ScoreDescriptionSerializer
     filter_permissions = "project_id"
     filterset_fields = ('computed_set', 'name')
@@ -1054,7 +1050,7 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve all information about molecules from a computed set
     along with all of their scores.
     """
-    queryset = models.ComputedMolecule.objects.filter()
+    queryset = models.ComputedMolecule.objects.all()
     serializer_class = serializers.ComputedMolAndScoreSerializer
     filter_permissions = "project_id"
     filterset_fields = ('computed_set',)
@@ -1206,7 +1202,7 @@ class DictToCsv(viewsets.ViewSet):
 class TagCategoryView(viewsets.ModelViewSet):
     """Set up and retrieve information about tag categories (api/tag_category).
     """
-    queryset = models.TagCategory.objects.filter()
+    queryset = models.TagCategory.objects.all()
     serializer_class = serializers.TagCategorySerializer
     filterset_fields = ('id', 'category')
 
@@ -1214,7 +1210,7 @@ class TagCategoryView(viewsets.ModelViewSet):
 class SiteObservationTagView(viewsets.ModelViewSet):
     """Set up/retrieve information about tags relating to Molecules (api/molecule_tag)
     """
-    queryset = models.SiteObservationTag.objects.filter()
+    queryset = models.SiteObservationTag.objects.all()
     serializer_class = serializers.SiteObservationTagSerializer
     filterset_fields = ('id', 'tag', 'category', 'target', 'site_observations', 'mol_group')
 
@@ -1222,7 +1218,7 @@ class SiteObservationTagView(viewsets.ModelViewSet):
 class SessionProjectTagView(viewsets.ModelViewSet):
     """Set up/retrieve information about tags relating to Session Projects.
     """
-    queryset = models.SessionProjectTag.objects.filter()
+    queryset = models.SessionProjectTag.objects.all()
     serializer_class = serializers.SessionProjectTagSerializer
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
@@ -1232,7 +1228,7 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
     to a Target. The idea is that a single call can return all target related
     information needed by the React front end in a single call.
     """
-    queryset = models.Target.objects.filter()
+    queryset = models.Target.objects.all()
     serializer_class = serializers.TargetMoleculesSerializer
     filter_permissions = "project_id"
     filterset_fields = ("title",)
@@ -1245,7 +1241,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
 
     Note that old zip files are removed after one hour.
     """
-    queryset = models.Target.objects.filter()
+    queryset = models.Target.objects.all()
     serializer_class = serializers.DownloadStructuresSerializer
     filter_permissions = "project_id"
     filterset_fields = ('title','id')
@@ -1425,6 +1421,8 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
 
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
+            logger.debug("Serializer valid: %s", serializer)
+            logger.debug("Serializer valid: %s", serializer.validated_data)
             # User must have access to the Project
             # and the Target must be in the Project.
 
@@ -1530,6 +1528,7 @@ class TargetExperimentUploads(ISpyBSafeQuerySet):
     serializer_class = serializers.TargetExperimentReadSerializer
     permission_class = [permissions.IsAuthenticated]
     filterset_fields = ("target", "project")
+    filter_permissions = "target__project_id"
     http_method_names = ('get',)
 
 
@@ -1609,9 +1608,6 @@ class JobFileTransferView(viewsets.ModelViewSet):
         logger.info('+ snapshot_id=%s', snapshot_id)
         logger.info('+ session_project_id=%s', session_project_id)
 
-        target = models.Target.objects.get(id=target_id)
-        assert target
-
         # Check the user can use this Squonk2 facility.
         # To do this we need to setup a couple of API parameter objects.
         sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
@@ -1625,8 +1621,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
             content = {f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        # Check the presense of the files expected to be transferred
-        error, proteins, compounds = check_file_transfer(request)
+        # Check the existence of the files that are expected to be transferred
+        error, proteins, compounds = validate_file_transfer_files(request)
         if error:
             return Response(error['message'], status=error['status'])
 
@@ -1675,7 +1671,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         assert job_transfer.target
         assert job_transfer.target.title
         transfer_target = job_transfer.target.title
-        logger.info('+ transfer_target=%s', transfer_target)
+        logger.info('+ job_transfer.target=%s', transfer_target)
 
         job_transfer.transfer_status = 'PENDING'
         job_transfer.transfer_datetime = None
@@ -1683,19 +1679,12 @@ class JobFileTransferView(viewsets.ModelViewSet):
         job_transfer.save()
 
         # The root (in the Squonk project) where files will be written for this Job.
-        # Something like "fragalysis-files/hjyx" for new transfers,
-        # "fragalysis-files" for existing transfers
-        if job_transfer.sub_path:
-            transfer_root = os.path.join(settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path)
-        else:
-            transfer_root = settings.SQUONK2_MEDIA_DIRECTORY
-        logger.info('+ transfer_root=%s', transfer_root)
-
-        logger.info('oidc_access_token')
-        logger.info(request.session['oidc_access_token'])
-
-        logger.info('+ Starting transfer (celery) (job_transfer.id=%s)...',
-                    job_transfer.id)
+        # This will be something "${SQUONK2_MEDIA_DIRECTORY}/hjyx", where "hjyx" is
+        # a randomly-generated 4-character sequence for the given transfer assigned
+        # when the JobFileTransfer record is created.
+        transfer_root = os.path.join(settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path)
+        logger.info('+ Starting transfer (celery) (job_transfer.id=%s transfer_root=%s)...',
+                    job_transfer.id, transfer_root)
         job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
                                                             job_transfer.id)
 
@@ -2174,3 +2163,29 @@ class JobAccessView(APIView):
         logger.info('+ JobAccessView/GET Success for %s/"%s" on %s',
                     jr_id, user.username, jr.squonk_project)
         return Response(ok_response)
+
+
+class ServiceState(View):
+
+    def get(self, *args, **kwargs):
+        """Poll external service status.
+
+        Available services:
+        - discourse
+        - fragmentation_graph
+        - ispyb
+        - keycloak
+        - squonk
+
+        ENABLE_SERVICE_STATUS returns colon-separated id's for services
+        """
+        logger.debug("+ ServiceServiceState.State.get called")
+        service_string = os.environ.get("ENABLE_SERVICE_STATUS", "")
+        logger.debug("Service string: %s", service_string)
+
+        services = [k for k in service_string.split(":") if k !=  ""]
+        logger.debug("Services ordered: %s", services)
+
+        service_states = get_service_state(services)
+
+        return JsonResponse({"service_states": service_states})

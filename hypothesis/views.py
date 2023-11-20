@@ -1,4 +1,3 @@
-
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,8 +12,7 @@ from hypothesis.serializers import (
     InteractionPointSerializer,
     TargetResidueSerialzier,
 )
-      
-    
+
 
 class InteractionView(viewsets.ReadOnlyModelViewSet):
     queryset = Interaction.objects.filter()
@@ -23,9 +21,8 @@ class InteractionView(viewsets.ReadOnlyModelViewSet):
         "interaction_point",
         "interaction_version",
         "interaction_type",
-        "interaction_point__prot_res_id__targ_res_id__target_id",
-        "interaction_point__mol_id",
-        "interaction_point__prot_res_id__prot_id",
+        "interaction_point__targ_res__target_id",
+        "interaction_point__site_observation",
         "distance",
         "score",
         "prot_smarts",
@@ -34,12 +31,12 @@ class InteractionView(viewsets.ReadOnlyModelViewSet):
 
 
 class InteractionPointView(viewsets.ReadOnlyModelViewSet):
-    queryset = InteractionPoint.objects.filter()
+    queryset = InteractionPoint.objects.all()
     serializer_class = InteractionPointSerializer
-    filterset_fields = ("prot_res_id", "mol_id", "protein_atom_name", "molecule_atom_name")
+    filterset_fields = ("site_observation", "protein_atom_name", "molecule_atom_name")
 
 
 class TargetResidueView(viewsets.ReadOnlyModelViewSet):
-    queryset = TargetResidue.objects.filter()
+    queryset = TargetResidue.objects.all()
     serializer_class = TargetResidueSerialzier
     filterset_fields = ("target_id", "res_name", "res_num", "chain_id")

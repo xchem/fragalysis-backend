@@ -40,8 +40,6 @@ from .target_set_upload import validate_target
 from .cset_upload import blank_mol_vals, MolOps, PdbOps
 from .squonk_job_file_transfer import (
     process_file_transfer,
-    SQUONK_PROT_MAPPING,
-    SQUONK_COMP_MAPPING
 )
 from .squonk_job_file_upload import (
     get_upload_sub_directory,
@@ -486,30 +484,47 @@ def task_load_target(self, data_bundle=None, proposal_ref=None, contact_email=No
             task=self,
         )
     except KeyError as err:
+        logger.error('KeyError: %s', err, exc_info=True)
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args,},
-            )
+            state="ERROR",
+            meta={"description": err.args,},
+        )
     except IntegrityError as err:
+        logger.error('IntegrityError: %s', err, exc_info=True)
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args[0],},
-            )
+            state="ERROR",
+            meta={"description": err.args[0],},
+        )
+    except ValueError as err:
+        logger.error('ValueError: %s', err, exc_info=True)
+        self.update_state(
+            state="ERROR",
+            meta={"description": err.args[0],},
+        )
     except FileNotFoundError as err:
+        logger.error('FileNotFoundError: %s', err, exc_info=True)
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args[0],},
-            )
+            state="ERROR",
+            meta={"description": err.args[0],},
+        )
     except FileExistsError as err:
+        logger.error('FileExistsError: %s', err, exc_info=True)
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args[0],},
-            )
+            state="ERROR",
+            meta={"description": err.args[0],},
+        )
+    except AssertionError as err:
+        logger.error('AssertionError: %s', err, exc_info=True)
+        self.update_state(
+            state="ERROR",
+            meta={"description": err.args[0],},
+        )
     except OSError as err:
+        logger.error('OSError: %s', err, exc_info=True)
         self.update_state(
-                state="ERROR",
-                meta={"description": err.args[1],},
-            )
+            state="ERROR",
+            meta={"description": err.args[1],},
+        )
 
     logger.info('TASK %s load_target completed, target_zip=%s', self.request.id, data_bundle)
     # TODO: send email
@@ -518,12 +533,13 @@ def task_load_target(self, data_bundle=None, proposal_ref=None, contact_email=No
 
 @shared_task
 def process_job_file_transfer(auth_token, jt_id):
-    """ Celery task to take a list of proteins and specification and transfer the files to Squonk2
+    """Celery task to take a list of proteins and a specification
+    and transfer the files to Squonk2
 
     Parameters
     ----------
-    task_
-        jt_id of job_file_transfer record
+    auth_token for the executing user
+    jt_id is the job_file_transfer record ID
 
     Returns
     -------
@@ -532,17 +548,16 @@ def process_job_file_transfer(auth_token, jt_id):
 
     """
 
-    logger.info('+ TASK Starting File Transfer (%s) [STARTED]', id)
-    job_transfer = JobFileTransfer.objects.get(id=id)
+    logger.info('+ File Transfer (id=%s) [STARTED]', jt_id)
+    job_transfer = JobFileTransfer.objects.get(id=jt_id)
     job_transfer.transfer_status = "STARTED"
     job_transfer.transfer_task_id = str(process_job_file_transfer.request.id)
     job_transfer.save()
+
     try:
         process_file_transfer(auth_token, job_transfer.id)
     except RuntimeError as error:
-        logger.error('- TASK File transfer (%s) [FAILED] error=%s',
-                     id, error)
-        logger.error(error)
+        logger.error('- File transfer (id=%s) [RuntimeError "%s"]', jt_id, error)
         job_transfer.transfer_status = "FAILURE"
         job_transfer.save()
     else:
@@ -551,11 +566,8 @@ def process_job_file_transfer(auth_token, jt_id):
         job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
         job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
-        files_spec = {"proteins": list(SQUONK_PROT_MAPPING.keys()),
-                      "compounds": list(SQUONK_COMP_MAPPING.keys())}
-        job_transfer.transfer_spec = files_spec
         job_transfer.save()
-        logger.info('+ TASK File transfer (%s) [SUCCESS]', id)
+        logger.info('+ File transfer (id=%s) [SUCCESS]', jt_id)
 
     return job_transfer.transfer_status
 

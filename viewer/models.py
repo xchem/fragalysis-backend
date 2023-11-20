@@ -9,6 +9,8 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.conf import settings
 
+from shortuuid.django_fields import ShortUUIDField
+
 from django.contrib.postgres.fields import ArrayField
 
 from simple_history.models import HistoricalRecords
@@ -125,9 +127,9 @@ class ExperimentUpload(models.Model):
     task_id = models.CharField(null=True, max_length=50,
                                help_text="Celery task ID responsible for the upload")
     status = models.CharField(choices=STATUS, default=LOADING, max_length=7)
-    message = models.TextField(null=True, blank=True,
-                               help_text="Any message associated with the upload."
-                                         " Typically set when status is FAILURE")
+    message = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True,
+                               help_text="Any message or task info associated with the upload."
+                                         " Used for upload audit trail")
 
 
     def __str__(self) -> str:
@@ -327,6 +329,7 @@ class SiteObservation(models.Model):
     apo_desolv_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
     apo_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
     xmap_2fofc_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
+    xmap_fofc_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
     event_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
     artefacts_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
     pdb_header_file = models.FileField(upload_to="target_loader_data/", null=True, max_length=255)
@@ -980,10 +983,10 @@ class JobFileTransfer(models.Model):
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE, db_index=True)
     squonk_project = models.CharField(max_length=200, null=True)
+    sub_path = ShortUUIDField(length=4, alphabet="abcdefghijklmnopqrstuvwxyz", null=True)
     proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     # Not used in phase 1
     compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True)
-    transfer_spec = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     transfer_task_id = models.CharField(null=True, max_length=50)
     transfer_status = models.CharField(choices=STATUS, default=PENDING, max_length=7)
     transfer_progress = models.DecimalField(null=True, max_digits=5, decimal_places=2,

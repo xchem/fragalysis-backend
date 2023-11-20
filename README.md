@@ -35,7 +35,7 @@ Other, significant, repositories include: -
 
 - [xchem/fragalysis](https://github.com/xchem/fragalysis)
 - [xchem/fragalysis-api](https://github.com/xchem/fragalysis-api)
-  
+
 The stack is deployed as a container images to [Kubernetes] using [Ansible] playbooks
 that can be found in the Ansible repository. Additional development and deployment
 documentation can be found in the [informaticsmatters/dls-fragalysis-stack-kubernetes](https://github.com/InformaticsMatters/dls-fragalysis-stack-kubernetes) repository.
@@ -127,7 +127,15 @@ When you want to spin-down the deployment run: -
     synchronously, like a function call rather than as asynchronous tasks.
     This is controlled by the `CELERY_TASK_ALWAYS_EAGER` environment variable
     that you'll find in the `docker-compose.yml` file.
-    
+
+There is also a convenient bash script that can be used to build and push an
+image to a repository. you just need to provide the Docker image *namespace* and a *tag*.
+All you need is [poetry] and [docker], and you can run the script: -
+
+    export BE_IMAGE_TAG=1187.1
+    export BE_NAMESPACE=alanbchristie
+    ./build-and-push.sh
+
 ## Command-line access to the API
 With the backend running you should be able to access the REST API. From
 the command-line you can use [curl] or [httpie]. Here, we use `http` to
@@ -235,7 +243,7 @@ the backend container: -
 
     pip install sphinx==5.3.0
     pip install importlib-metadata~=4.0
-    
+
     cd docs
     sphinx-build -b html source/ build/
 
@@ -291,12 +299,14 @@ These include, but are not limit to: -
 
 [ansible]: https://github.com/ansible/ansible
 [curl]: https://curl.se
+[docker]: https://www.docker.com
 [drf]: https://www.django-rest-framework.org
 [environment variables]: https://docs.docker.com/compose/environment-variables/set-environment-variables/
 [httpie]: https://pypi.org/project/httpie/
 [jq]: https://stedolan.github.io/jq/
 [kubernetes]: https://kubernetes.io
 [kubernetes stack]: https://dls-fragalysis-stack-kubernetes.readthedocs.io/en/latest/index.html#
+[poetry]: https://python-poetry.org
 [pre-commit]: https://pre-commit.com
 [readthedocs]: https://fragalysis-backend.readthedocs.io/en/latest/index.html
 [sentry]: https://sentry.io/welcome/

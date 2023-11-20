@@ -86,3 +86,15 @@ class MolImgFilter(TargetFilterMixin):
     class Meta:
         model = SiteObservation
         fields = ("target", "cmpd_id", "smiles", "site_observation_groups")
+
+
+class CmpdImgFilter(TargetFilterMixin):
+    class Meta:
+        model = Compound
+        fields = ("target", "smiles")
+
+
+class CompoundFilter(TargetFilterMixin):
+    class Meta:
+        model = Compound
+        fields = ("smiles", "current_identifier", "inchi")
