@@ -442,11 +442,15 @@ class UploadCSet(APIView):
                     task_params['update'] = update_set
                 task_validate = validate_compound_set.delay(task_params)
 
-                logger.info('+ UploadCSet POST "Validate" task underway')
+                task_id = task_validate.id
+                task_status = task_validate.status
+                logger.info('+ UploadCSet POST "Validate" task underway'
+                            ' (validate_task_id=%s (%s) validate_task_status=%s)',
+                            task_id, type(task_id), task_status)
 
                 # Update client side with task id and status
-                context = {'validate_task_id': task_validate.id,
-                           'validate_task_status': task_validate.status}
+                context = {'validate_task_id': task_id,
+                           'validate_task_status': task_status}
                 return render(request, 'viewer/upload-cset.html', context)
 
             elif choice == 'U':
@@ -464,11 +468,15 @@ class UploadCSet(APIView):
                         validate_compound_set.s(task_params) |
                         process_compound_set.s()).apply_async()
 
-                logger.info('+ UploadCSet POST "Upload" task underway')
+                task_id = task_upload.id
+                task_status = task_upload.status
+                logger.info('+ UploadCSet POST "Upload" task underway'
+                            ' (upload_task_id=%s (%s) upload_task_status=%s)',
+                            task_id, type(task_id), task_status)
 
                 # Update client side with task id and status
-                context = {'upload_task_id': task_upload.id,
-                           'upload_task_status': task_upload.status}
+                context = {'upload_task_id': task_id,
+                           'upload_task_status': task_status}
                 return render(request, 'viewer/upload-cset.html', context)
 
             elif choice == 'D':
@@ -1478,8 +1486,10 @@ class TaskStatus(APIView):
         # Assuming the task has some info.
         messages = []
         if result.info:
-            # messages = [k for k in result.info.get('description', [])]
-            messages = result.info.get('description', [])
+            if isinstance(result.info, dict):
+                messages = result.info.get('description', [])
+            elif isinstance(result.info, list):
+                messages = result.info
 
         data = {
             'task_id': result.id,

@@ -33,7 +33,7 @@ load content from django objects, such as models and views. For example, we coul
 create a list of all Target names in a template.
 
 For example, the template for the upload page for computed sets is found at :code:`viewer/templates/viewer/upload-cset.html`.
-A similar page (upload-tset.html) exists for Targets. The main parts of the template are as follows:
+The main parts of the template are as follows:
 
 **1. The upload form** - this part of the template makes use of :code:`viewer.forms.CSetForm`: a version of a :code:`Model`
 that is used to describe what information can be posted as a request through a form contained in a template.
@@ -240,30 +240,6 @@ database.
 .. autoclass:: viewer.tasks.process_compound_set
     :members:
 
-
-Uploading Target data sets
---------------------------
-
-From 2021, a similar process has been developed for Target data sets to replace the existing process
-that are created from the source data using the Fragalysis Loader repo.
-Target data sets are initially created in the same way as currently using the Fragalysis api repo (
-found here: https://github.com/xchem/fragalysis-api ).
-
-The template for the upload page for target sets is found at :code:`viewer/templates/viewer/upload-tset.html`. The
-main parts of the template are similar to the computed sets.
-
-The view controlling interaction is: :code:`viewer.views.UploadTSetView`.
-
-The upload form is:
-
-.. autoclass:: viewer.forms.TSetForm
-    :members:
-
-Note that the user must be **logged on to Fragalysis** to be able to use the form. When the user is logged on, the
-email field is filled with the contents of the user.email field. This is used to send a notification to the user
-on completion of an validation/upload task (see below).
-
-Dynamic loading of validate task status and results otherwise works in a similar way to the computational sets.
 
 Celery task - validating Target data
 --------------------------------------
