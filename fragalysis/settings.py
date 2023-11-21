@@ -354,6 +354,11 @@ DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
+# An optional URL that identifies the URL to a prior stack.
+# If set, it's typically something like "https://fragalysis.diamond.ac.uk".
+# It can be blank, indicating there is no legacy service.
+LEGACY_URL = os.environ.get("LEGACY_URL", "")
+
 SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 
