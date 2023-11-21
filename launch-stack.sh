@@ -52,7 +52,7 @@ gunicorn fragalysis.wsgi:application \
     --access-logfile=/srv/logs/access.log
 
 echo "Testing nginx config..."
-nginx -t
+nginx -tq
 
 echo "Running nginx..."
 nginx

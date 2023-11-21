@@ -387,7 +387,7 @@ class UploadCSet(APIView):
                     request.session[_SESSION_ERROR] = \
                         'The set could not be found'
                     logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
-                    return redirect('upload_cset')
+                    return redirect('viewer:upload_cset')
 
             # If validating or uploading we need a Target and SDF file.
             # If updating or deleting we need an update set (that's not 'None')
@@ -397,13 +397,13 @@ class UploadCSet(APIView):
                         'To Validate or Upload' \
                         ' you must provide a Target and SDF file'
                     logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
-                    return redirect('upload_cset')
+                    return redirect('viewer:upload_cset')
             elif choice in ['D']:
                 if update_set == 'None':
                     request.session[_SESSION_ERROR] = \
                         'To Delete you must select an existing set'
                     logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
-                    return redirect('upload_cset')
+                    return redirect('viewer:upload_cset')
 
             # If uploading (updating) or deleting
             # the set owner cannot be anonymous
@@ -419,7 +419,7 @@ class UploadCSet(APIView):
                 # If so redirect...
                 if _SESSION_ERROR in request.session:
                     logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
-                    return redirect('upload_cset')
+                    return redirect('viewer:upload_cset')
 
             # Save uploaded sdf and zip to tmp storage
             tmp_pdb_file = None
@@ -442,11 +442,15 @@ class UploadCSet(APIView):
                     task_params['update'] = update_set
                 task_validate = validate_compound_set.delay(task_params)
 
-                logger.info('+ UploadCSet POST "Validate" task underway')
+                task_id = task_validate.id
+                task_status = task_validate.status
+                logger.info('+ UploadCSet POST "Validate" task underway'
+                            ' (validate_task_id=%s (%s) validate_task_status=%s)',
+                            task_id, type(task_id), task_status)
 
                 # Update client side with task id and status
-                context = {'validate_task_id': task_validate.id,
-                           'validate_task_status': task_validate.status}
+                context = {'validate_task_id': task_id,
+                           'validate_task_status': task_status}
                 return render(request, 'viewer/upload-cset.html', context)
 
             elif choice == 'U':
@@ -464,11 +468,15 @@ class UploadCSet(APIView):
                         validate_compound_set.s(task_params) |
                         process_compound_set.s()).apply_async()
 
-                logger.info('+ UploadCSet POST "Upload" task underway')
+                task_id = task_upload.id
+                task_status = task_upload.status
+                logger.info('+ UploadCSet POST "Upload" task underway'
+                            ' (upload_task_id=%s (%s) upload_task_status=%s)',
+                            task_id, type(task_id), task_status)
 
                 # Update client side with task id and status
-                context = {'upload_task_id': task_upload.id,
-                           'upload_task_status': task_upload.status}
+                context = {'upload_task_id': task_id,
+                           'upload_task_status': task_status}
                 return render(request, 'viewer/upload-cset.html', context)
 
             elif choice == 'D':
@@ -480,7 +488,7 @@ class UploadCSet(APIView):
 
                 logger.info('+ UploadCSet POST "Delete" done')
 
-                return redirect('upload_cset')
+                return redirect('viewer:upload_cset')
 
             else:
                 logger.warning('+ UploadCSet POST unsupported submit_choice value (%s)', choice)
@@ -1478,8 +1486,10 @@ class TaskStatus(APIView):
         # Assuming the task has some info.
         messages = []
         if result.info:
-            # messages = [k for k in result.info.get('description', [])]
-            messages = result.info.get('description', [])
+            if isinstance(result.info, dict):
+                messages = result.info.get('description', [])
+            elif isinstance(result.info, list):
+                messages = result.info
 
         data = {
             'task_id': result.id,
