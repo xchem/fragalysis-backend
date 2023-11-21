@@ -95,6 +95,7 @@ def add_prop_to_mol(mol_field, mol_file_out, value):
     Chem.MolToMolFile(rd_mol, mol_file_out)
 
 
+# TODO: this method may be deprecated, not an issue with new uploads
 def clean_filename(filepath):
     """Return the "clean" version of a Django filename without the '_abcdefg_' that is
     created when a file is overwritten.

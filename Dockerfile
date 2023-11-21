@@ -17,6 +17,8 @@ RUN apt-get update -y && \
       nginx \
       pandoc \
       texlive-latex-base \
+      texlive-latex-recommended \
+      lmodern \
       texlive-fonts-recommended && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
