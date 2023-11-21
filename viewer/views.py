@@ -387,7 +387,7 @@ class UploadCSet(APIView):
                     request.session[_SESSION_ERROR] = \
                         'The set could not be found'
                     logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
-                    return redirect('upload_cset')
+                    return redirect('viewer:upload_cset')
 
             # If validating or uploading we need a Target and SDF file.
             # If updating or deleting we need an update set (that's not 'None')
@@ -397,13 +397,13 @@ class UploadCSet(APIView):
                         'To Validate or Upload' \
                         ' you must provide a Target and SDF file'
                     logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
-                    return redirect('upload_cset')
+                    return redirect('viewer:upload_cset')
             elif choice in ['D']:
                 if update_set == 'None':
                     request.session[_SESSION_ERROR] = \
                         'To Delete you must select an existing set'
                     logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
-                    return redirect('upload_cset')
+                    return redirect('viewer:upload_cset')
 
             # If uploading (updating) or deleting
             # the set owner cannot be anonymous
@@ -419,7 +419,7 @@ class UploadCSet(APIView):
                 # If so redirect...
                 if _SESSION_ERROR in request.session:
                     logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
-                    return redirect('upload_cset')
+                    return redirect('viewer:upload_cset')
 
             # Save uploaded sdf and zip to tmp storage
             tmp_pdb_file = None
@@ -488,7 +488,7 @@ class UploadCSet(APIView):
 
                 logger.info('+ UploadCSet POST "Delete" done')
 
-                return redirect('upload_cset')
+                return redirect('viewer:upload_cset')
 
             else:
                 logger.warning('+ UploadCSet POST unsupported submit_choice value (%s)', choice)
