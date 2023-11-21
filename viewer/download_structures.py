@@ -12,7 +12,12 @@ import shutil
 import logging
 import copy
 import json
+
+from pathlib import Path
+
 import pandoc
+
+
 
 from django.conf import settings
 
@@ -149,11 +154,7 @@ def _is_mol_or_sdf(path):
     """Returns True if the file and path look like a MOL or SDF file.
     It does this by simply checking the file's extension.
     """
-    path_parts = os.path.splitext(os.path.basename(path))
-    if path_parts[1].lower() in ('.sdf', '.mol'):
-        return True
-    # Doesn't look like a MOL or SDF if we get here.
-    return False
+    return  Path(path).suffix.lower() in ('.sdf', '.mol')
 
 
 def _read_and_patch_molecule_name(path, molecule_name=None):
@@ -214,25 +215,28 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
     Returns:
         [boolean]: [True of record added to error file]
     """
-    media_root = settings.MEDIA_ROOT
     if not filepath:
         return False
 
     logger.debug('+ _add_file_to_zip_aligned, filepath: %s', filepath)
-    fullpath = os.path.join(media_root, filepath)
 
-    if os.path.isfile(fullpath):
-        cleaned_filename = clean_filename(fullpath)
-        archive_path = os.path.join('aligned', code, cleaned_filename)
-        if _is_mol_or_sdf(fullpath):
+    # apparently incoming filepath can be both str and FieldFile
+    try:
+        filepath = filepath.path
+    except AttributeError:
+        filepath = str(Path(settings.MEDIA_ROOT).joinpath(filepath))
+
+    if Path(filepath).is_file():
+        archive_path = str(Path('aligned').joinpath(code).joinpath(filepath))
+        if _is_mol_or_sdf(filepath):
             # It's a MOL or SD file.
             # Read and (potentially) adjust the file
             # and add to the archive as a string.
-            content = _read_and_patch_molecule_name(fullpath, molecule_name=code)
+            content = _read_and_patch_molecule_name(filepath, molecule_name=code)
             ziparchive.writestr(archive_path, content)
         else:
             # Copy the file without modification
-            ziparchive.write(fullpath, archive_path)
+            ziparchive.write(filepath, archive_path)
         return False
 
     return True
@@ -566,12 +570,11 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
                     # getting the param from experiment. more data are
                     # coming from there, that's why this is in try
                     # block
-                    zip_contents['proteins'][param][so.code] = getattr(so.experiment, param)
+                    # getattr retrieves FieldFile object, hance the .name
+                    zip_contents['proteins'][param][so.code] = getattr(so.experiment, param).name
                 except AttributeError:
                     # on the off chance that the data are in site_observation model
-                    zip_contents['proteins'][param][so.code] = getattr(so, param)
-
-    logger.debug('zip contents after param compilation: %s', zip_contents)
+                    zip_contents['proteins'][param][so.code] = getattr(so, param).name
 
     if other_params['single_sdf_file'] is True:
         zip_contents['molecules']['single_sdf_file'] = True
@@ -642,11 +645,9 @@ def get_download_params(request):
     Returns:
         protein_params, other_params
     """
+    protein_param_flags = ['pdb_info', 'bound_file', 'cif_info',
+                           'mtz_info', 'event_file',]
 
-    protein_param_flags = ['pdb_info', 'bound_info',
-                           'cif_info', 'mtz_info',
-                           'diff_info', 'event_info',
-                           'sigmaa_info', 'trans_matrix_info']
     other_param_flags = ['sdf_info', 'single_sdf_file',
                          'metadata_info', 'smiles_info']
 
@@ -795,6 +796,8 @@ def check_download_links(request,
                            file_url,
                            original_search,
                            host)
+
+    logger.debug('zip_contents: %s', zip_contents)
 
     download_link = DownloadLinks()
     download_link.file_url = file_url
