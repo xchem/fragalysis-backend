@@ -245,6 +245,10 @@ class MolOps:
         # Don't need...
         del filename
 
+        assert mol
+        assert target
+        assert compound_set
+
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
         name = mol.GetProp('_Name')
@@ -265,15 +269,15 @@ class MolOps:
             # try exact match first
             try:
                 site_obvs = SiteObservation.objects.get(
-                    prot_id__code__contains=str(compound_set.target.title + '-' + i),
-                    prot_id__target_id=compound_set.target,
+                    code__contains=str(compound_set.target.title + '-' + i),
+                    experiment__experiment_upload__target_id=compound_set.target,
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
 
                 qs = SiteObservation.objects.filter(
-                    prot_id__code__contains=str(compound_set.target.title + '-' + i.split(':')[0].split('_')[0]),
-                    prot_id__target_id=compound_set.target,
+                    code__contains=str(compound_set.target.title + '-' + i.split(':')[0].split('_')[0]),
+                    experiment__experiment_upload__target_id=compound_set.target,
                 )
                 if not qs.exists():
                     raise Exception('No matching molecules found for inspiration frag ' + i)  # pylint: disable=raise-missing-from
