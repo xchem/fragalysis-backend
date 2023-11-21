@@ -105,7 +105,7 @@ def check_refmol(mol, validate_dict, target=None):
                     field='ref_mol',
                     warning_string=msg,
                     validate_dict=validate_dict)
-                logger.warning("%s (query_string=%s)", ref_strip, query_string)
+                logger.warning("%s (query_string=%s)", msg, query_string)
 
     return validate_dict
 
