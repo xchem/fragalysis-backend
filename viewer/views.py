@@ -502,7 +502,6 @@ class UploadCSet(APIView):
         return render(request, 'viewer/upload-cset.html', context)
 
 
-
 def email_task_completion(contact_email, message_type, target_name, target_path=None, task_id=None):
     """Notify user of upload completion
     """
@@ -778,16 +777,15 @@ def get_open_targets(request):
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
 
 
-# This is used in the URL on the process results page after uploading a compound_set
 def cset_download(request, name):
-    """View to download an SDF file of a computed set by name
+    """View to download an SDF file of a ComputedSet by name
     (viewer/compound_set/(<name>)).
     """
-    compound_set = models.ComputedSet.objects.get(unique_name=name)
-    filepath = compound_set.submitted_sdf
+    computed_set = models.ComputedSet.objects.get(unique_name=name)
+    filepath = computed_set.submitted_sdf
     with open(filepath.path, 'r', encoding='utf-8') as fp:
         data = fp.read()
-    filename = 'compund-set_' + name + '.sdf'
+    filename = 'computed-set_' + name + '.sdf'
     response = HttpResponse(content_type='text/plain')
     response['Content-Disposition'] = 'attachment; filename=%s' % filename  # force browser to download file
     response.write(data)
