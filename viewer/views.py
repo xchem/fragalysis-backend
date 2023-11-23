@@ -582,19 +582,12 @@ class ValidateTaskView(View):
         if task.status == "SUCCESS":
             logger.info('+ ValidateTaskView.get.SUCCESS')
             results = task.get()
-            # NB get tuple from validate task
-            process_type = results[1]
-            validate_dict = results[2]
-            validated = results[3]
+            # Response from validation is a tuple
+            validate_dict = results[1]
+            validated = results[2]
             if validated:
                 response_data['html'] = 'Your data was validated. \n It can now be uploaded using the upload option.'
                 response_data['validated'] = 'Validated'
-
-                if process_type== 'tset':
-                    target_name = results[5]
-                    contact_email = results[8]
-                    email_task_completion(contact_email, 'validate-success', target_name)
-
                 return JsonResponse(response_data)
 
             if not validated:
@@ -607,10 +600,6 @@ class ValidateTaskView(View):
 
                 response_data["html"] = html_table
                 response_data['validated'] = 'Not validated'
-                if process_type== 'tset':
-                    target_name = results[5]
-                    contact_email = results[8]
-                    email_task_completion(contact_email, 'validate-failure', target_name, task_id=validate_task_id_str)
 
                 return JsonResponse(response_data)
 
@@ -669,11 +658,8 @@ class UploadTaskView(View):
                         if results are a validation/upload process:
                         - validated (str): 'Validated'
                         - results (dict): results
-                        For compound sets ('cset')
                         - results['cset_download_url'] (str): download url for computed set sdf file
                         - results['pset_download_url'] (str): download url for computed set pdb files (zip)
-                        For target sets ('tset')
-                        - results['tset_download_url'] (str): download url for processed zip file
                     - if results are not string or list:
                         - processed (str): 'None'
                         - html (str): message to tell the user their data was not processed
@@ -690,12 +676,14 @@ class UploadTaskView(View):
 
             return JsonResponse(response_data)
 
+        logger.debug('+ UploadTaskView.get() task.status=%s', task.status)
         if task.status == 'SUCCESS':
-            logger.debug('+ UploadTaskView.get.success')
 
             results = task.get()
+            logger.debug('+ UploadTaskView.get() SUCCESS task.get()=%s (%s)', results, type(results))
 
-            # Validation output for a cset or tset is a dictionary.
+            # Was the task about validation or processing (an actual upload)?
+            # We receive a list with the first value being 'validate' or 'process'
             if isinstance(results, list):
                 if results[0] == 'validate':
                     # Get dictionary results
@@ -703,34 +691,22 @@ class UploadTaskView(View):
 
                     # set pandas options to display all column data
                     pd.set_option('display.max_colwidth', -1)
-                    table = pd.DataFrame.from_dict(results[2])
+                    table = pd.DataFrame.from_dict(validate_dict)
                     html_table = table.to_html()
                     html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-
                     response_data['validated'] = 'Not validated'
                     response_data['html'] = html_table
 
                     return JsonResponse(response_data)
                 else:
                     # Upload/Update output tasks send back a tuple
-                    # First element defines the source of the upload task (cset, tset)
                     response_data['validated'] = 'Validated'
-                    if results[1] == 'tset':
-                        target_name = results[2]
-                        contact_email = results[5]
-                        target_path = '/viewer/target/%s' % target_name
-                        response_data['results'] = {}
-                        response_data['results']['tset_download_url'] = target_path
-                        logger.info('+ UploadTaskView.get.success -email: %s', contact_email)
-                        email_task_completion(contact_email, 'upload-success', target_name, target_path=target_path)
-                    else:
-                        cset_name = results[2]
-                        cset = models.ComputedSet.objects.get(name=cset_name)
-                        submitter = cset.submitter
-                        name = cset.unique_name
-                        response_data['results'] = {}
-                        response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
-                        response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
+                    cset_name = results[1]
+                    cset = models.ComputedSet.objects.get(name=cset_name)
+                    name = cset.unique_name
+                    response_data['results'] = {}
+                    response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
+                    response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
 
                     return JsonResponse(response_data)
 
