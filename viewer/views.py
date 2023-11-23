@@ -540,8 +540,7 @@ def email_task_completion(contact_email, message_type, target_name, target_path=
 
 class ValidateTaskView(View):
     """View to handle dynamic loading of validation results from `viewer.tasks.validate`.
-    The validation of files uploaded to viewer/upload_cset or a target set by a user
-    at viewer/upload_tset
+    The validation of files uploaded to viewer/upload_cset.
     """
     def get(self, request, validate_task_id):
         """Get method for `ValidateTaskView`. Takes a validate task id, checks its
@@ -630,8 +629,7 @@ class UpdateTaskView(View):
 
 class UploadTaskView(View):
     """View to handle dynamic loading of upload results from `viewer.tasks.process_compound_set`.
-    The upload of files for a computed set by a user at viewer/upload_cset or a target
-    set by a user at viewer/upload_tset.
+    The upload of files for a computed set by a user at viewer/upload_cset.
     """
     def get(self, request, upload_task_id):
         """Get method for `UploadTaskView`. Takes an upload task id, checks its
@@ -821,20 +819,6 @@ def pset_download(request, name):
     buff.close()
     response.write(ret_zip)
 
-    return response
-
-
-# This is used in the URL on the process results page after uploading a target_set
-def tset_download(request, title):
-    """View to download an zip file of a target set by name (viewer/target/(<title>)).
-    """
-    target_set = models.Target.objects.get(title=title)
-    media_root = settings.MEDIA_ROOT
-    filepath = os.path.join(media_root, target_set.zip_archive.name)
-    target_zip = open(filepath, 'rb')
-    filename = 'target-set_' + title + '.zip'
-    response = HttpResponse(target_zip, content_type='application/force-download')
-    response['Content-Disposition'] = 'attachment; filename="%s"' % filename  # force browser to download file
     return response
 
 
