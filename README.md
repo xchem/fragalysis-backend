@@ -201,29 +201,30 @@ at `/code/logs`.
 
 ## Database migrations
 The best approach is to spin-up the development backend (locally) using
-`docker-compose` and then shell into Django. For example,
-to make new migrations called "add_job_request_start_and_finish_times"
+`docker-compose` with the custom *migration* compose file and then shell into Django.
+For example, to make new migrations called "add_job_request_start_and_finish_times"
 for the viewer's model run the following: -
 
 >   Before starting postgres, if you need to, remove any pre-existing local database
     (if one exists) with `rm -rf ./data/postgresl`
 
-    docker-compose up -d
+    docker-compose -f docker-compose-migrate.yml up -d
+
+# Then enter the backend container with: -
 
 Then from within the backend container make the migrations
 (in this case for the `viewer`)...
 
-    docker-compose exec backend bash
-
+    docker-compose -f docker-compose-migrate.yml exec backend bash
     python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
 
 Exit the container and tear-down the deployment: -
 
-    docker-compose down
+    docker-compose -f docker-compose-migrate.yml down
 
->   The migrations will be written to your clone's filesystem as the clone directory
-    is mapped into the container as a volume. You just need to commit the
-    migrations that have been written to the local directory to Git.
+>   The migrations will be written to your clone's filesystem as the project directory
+    is mapped into the container as a volume at `/code`. You just need to commit the
+    migrations that have been written to the corresponding migrations directory.
 
 ## Sentry error logging
 [Sentry] can be used to log errors in the backend container image.

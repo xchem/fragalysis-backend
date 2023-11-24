@@ -1,0 +1,77 @@
+---
+
+# You typically create .env file to populate the
+# sensitive variables for the backend deployment.
+# Then bring the containers up with: -
+#   docker-compose -f docker-compose-migrate.yml up -d
+# Then enter the backend container with: -
+#   docker-compose exec backend bash
+# Then run the migrations with: -
+#   python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
+
+version: '3'
+
+services:
+
+  # The database
+  database:
+    image: postgres:12.16-alpine3.18
+    container_name: database
+    volumes:
+    - ./data/postgresql/data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: fragalysis
+      POSTGRES_DB: frag
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+    - "5432:5432"
+    healthcheck:
+      test: pg_isready -U postgres -d frag
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 10s
+
+  # The stack backend
+  backend:
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
+    container_name: backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: /bin/bash /code/launch-stack.sh
+    volumes:
+    - ./data/logs:/code/logs/
+    - ./data/media:/code/media/
+    - .:/code/
+    environment:
+      AUTHENTICATE_UPLOAD: ${AUTHENTICATE_UPLOAD:-True}
+      POSTGRESQL_USER: postgres
+      # Celery tasks need to run synchronously
+      CELERY_TASK_ALWAYS_EAGER: 'True'
+      # Error reporting and default/root log-level
+      FRAGALYSIS_BACKEND_SENTRY_DNS: ${FRAGALYSIS_BACKEND_SENTRY_DNS}
+      LOGGING_FRAMEWORK_ROOT_LEVEL: ${LOGGING_FRAMEWORK_ROOT_LEVEL:-INFO}
+      # Keycloak configuration
+      OIDC_KEYCLOAK_REALM: ${OIDC_KEYCLOAK_REALM}
+      OIDC_RP_CLIENT_ID: ${OIDC_RP_CLIENT_ID:-fragalysis-local}
+      OIDC_RP_CLIENT_SECRET: ${OIDC_RP_CLIENT_SECRET}
+      OIDC_AS_CLIENT_ID: ${OIDC_AS_CLIENT_ID:-account-server-api}
+      OIDC_DM_CLIENT_ID: ${OIDC_DM_CLIENT_ID:-data-manager-api}
+      OIDC_RENEW_ID_TOKEN_EXPIRY_MINUTES: '210'
+      # Squonk configuration
+      SQUONK2_VERIFY_CERTIFICATES: 'No'
+      SQUONK2_UNIT_BILLING_DAY: 3
+      SQUONK2_PRODUCT_FLAVOUR: BRONZE
+      SQUONK2_SLUG: fs-local
+      SQUONK2_ORG_OWNER: ${SQUONK2_ORG_OWNER}
+      SQUONK2_ORG_OWNER_PASSWORD: ${SQUONK2_ORG_OWNER_PASSWORD}
+      SQUONK2_ORG_UUID: ${SQUONK2_ORG_UUID}
+      SQUONK2_UI_URL: ${SQUONK2_UI_URL}
+      SQUONK2_DMAPI_URL: ${SQUONK2_DMAPI_URL}
+      SQUONK2_ASAPI_URL: ${SQUONK2_ASAPI_URL}
+    ports:
+    - "8080:80"
+    depends_on:
+      database:
+        condition: service_healthy

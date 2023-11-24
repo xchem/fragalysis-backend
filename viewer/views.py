@@ -2,7 +2,6 @@ import logging
 import json
 import os
 import zipfile
-from io import StringIO
 import uuid
 import shlex
 import shutil
@@ -429,8 +428,14 @@ class UploadCSet(APIView):
             tmp_pdb_file = None
             tmp_sdf_file = None
             if 'pdb_zip' in list(request.FILES.keys()):
-                pdb_file = request.FILES['pdb_zip']
-                tmp_pdb_file = save_tmp_file(pdb_file)
+                # In the first stage (green release) of the XCA-based Fragalysis Stack
+                # we do not support PDB files.
+                request.session[_SESSION_ERROR] = \
+                        'This release does not support the inclusion of PDB file.'
+                logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
+                return redirect('viewer:upload_cset')
+#                pdb_file = request.FILES['pdb_zip']
+#                tmp_pdb_file = save_tmp_file(pdb_file)
             if sdf_file:
                 tmp_sdf_file = save_tmp_file(sdf_file)
 
@@ -506,7 +511,6 @@ class UploadCSet(APIView):
         return render(request, 'viewer/upload-cset.html', context)
 
 
-
 def email_task_completion(contact_email, message_type, target_name, target_path=None, task_id=None):
     """Notify user of upload completion
     """
@@ -544,8 +548,7 @@ def email_task_completion(contact_email, message_type, target_name, target_path=
 
 class ValidateTaskView(View):
     """View to handle dynamic loading of validation results from `viewer.tasks.validate`.
-    The validation of files uploaded to viewer/upload_cset or a target set by a user
-    at viewer/upload_tset
+    The validation of files uploaded to viewer/upload_cset.
     """
     def get(self, request, validate_task_id):
         """Get method for `ValidateTaskView`. Takes a validate task id, checks its
@@ -586,19 +589,12 @@ class ValidateTaskView(View):
         if task.status == "SUCCESS":
             logger.info('+ ValidateTaskView.get.SUCCESS')
             results = task.get()
-            # NB get tuple from validate task
-            process_type = results[1]
-            validate_dict = results[2]
-            validated = results[3]
+            # Response from validation is a tuple
+            validate_dict = results[1]
+            validated = results[2]
             if validated:
                 response_data['html'] = 'Your data was validated. \n It can now be uploaded using the upload option.'
                 response_data['validated'] = 'Validated'
-
-                if process_type== 'tset':
-                    target_name = results[5]
-                    contact_email = results[8]
-                    email_task_completion(contact_email, 'validate-success', target_name)
-
                 return JsonResponse(response_data)
 
             if not validated:
@@ -611,10 +607,6 @@ class ValidateTaskView(View):
 
                 response_data["html"] = html_table
                 response_data['validated'] = 'Not validated'
-                if process_type== 'tset':
-                    target_name = results[5]
-                    contact_email = results[8]
-                    email_task_completion(contact_email, 'validate-failure', target_name, task_id=validate_task_id_str)
 
                 return JsonResponse(response_data)
 
@@ -645,8 +637,7 @@ class UpdateTaskView(View):
 
 class UploadTaskView(View):
     """View to handle dynamic loading of upload results from `viewer.tasks.process_compound_set`.
-    The upload of files for a computed set by a user at viewer/upload_cset or a target
-    set by a user at viewer/upload_tset.
+    The upload of files for a computed set by a user at viewer/upload_cset.
     """
     def get(self, request, upload_task_id):
         """Get method for `UploadTaskView`. Takes an upload task id, checks its
@@ -673,11 +664,8 @@ class UploadTaskView(View):
                         if results are a validation/upload process:
                         - validated (str): 'Validated'
                         - results (dict): results
-                        For compound sets ('cset')
                         - results['cset_download_url'] (str): download url for computed set sdf file
                         - results['pset_download_url'] (str): download url for computed set pdb files (zip)
-                        For target sets ('tset')
-                        - results['tset_download_url'] (str): download url for processed zip file
                     - if results are not string or list:
                         - processed (str): 'None'
                         - html (str): message to tell the user their data was not processed
@@ -694,12 +682,14 @@ class UploadTaskView(View):
 
             return JsonResponse(response_data)
 
+        logger.debug('+ UploadTaskView.get() task.status=%s', task.status)
         if task.status == 'SUCCESS':
-            logger.debug('+ UploadTaskView.get.success')
 
             results = task.get()
+            logger.debug('+ UploadTaskView.get() SUCCESS task.get()=%s (%s)', results, type(results))
 
-            # Validation output for a cset or tset is a dictionary.
+            # Was the task about validation or processing (an actual upload)?
+            # We receive a list with the first value being 'validate' or 'process'
             if isinstance(results, list):
                 if results[0] == 'validate':
                     # Get dictionary results
@@ -707,34 +697,22 @@ class UploadTaskView(View):
 
                     # set pandas options to display all column data
                     pd.set_option('display.max_colwidth', -1)
-                    table = pd.DataFrame.from_dict(results[2])
+                    table = pd.DataFrame.from_dict(validate_dict)
                     html_table = table.to_html()
                     html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-
                     response_data['validated'] = 'Not validated'
                     response_data['html'] = html_table
 
                     return JsonResponse(response_data)
                 else:
                     # Upload/Update output tasks send back a tuple
-                    # First element defines the source of the upload task (cset, tset)
                     response_data['validated'] = 'Validated'
-                    if results[1] == 'tset':
-                        target_name = results[2]
-                        contact_email = results[5]
-                        target_path = '/viewer/target/%s' % target_name
-                        response_data['results'] = {}
-                        response_data['results']['tset_download_url'] = target_path
-                        logger.info('+ UploadTaskView.get.success -email: %s', contact_email)
-                        email_task_completion(contact_email, 'upload-success', target_name, target_path=target_path)
-                    else:
-                        cset_name = results[2]
-                        cset = models.ComputedSet.objects.get(name=cset_name)
-                        submitter = cset.submitter
-                        name = cset.unique_name
-                        response_data['results'] = {}
-                        response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
-                        response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
+                    cset_name = results[1]
+                    cset = models.ComputedSet.objects.get(name=cset_name)
+                    name = cset.unique_name
+                    response_data['results'] = {}
+                    response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
+                    response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
 
                     return JsonResponse(response_data)
 
@@ -808,16 +786,15 @@ def get_open_targets(request):
     return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
 
 
-# This is used in the URL on the process results page after uploading a compound_set
 def cset_download(request, name):
-    """View to download an SDF file of a computed set by name
+    """View to download an SDF file of a ComputedSet by name
     (viewer/compound_set/(<name>)).
     """
-    compound_set = models.ComputedSet.objects.get(unique_name=name)
-    filepath = compound_set.submitted_sdf
+    computed_set = models.ComputedSet.objects.get(unique_name=name)
+    filepath = computed_set.submitted_sdf
     with open(filepath.path, 'r', encoding='utf-8') as fp:
         data = fp.read()
-    filename = 'compund-set_' + name + '.sdf'
+    filename = 'computed-set_' + name + '.sdf'
     response = HttpResponse(content_type='text/plain')
     response['Content-Disposition'] = 'attachment; filename=%s' % filename  # force browser to download file
     response.write(data)
@@ -832,37 +809,27 @@ def pset_download(request, name):
     filename = 'protein-set_' + name + '.zip'
     response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
 
-    compound_set = models.ComputedSet.objects.get(unique_name=name)
-    computed = models.ComputedMolecule.objects.filter(computed_set=compound_set)
-    pdb_filepaths = list(set([c.pdb_info.path for c in computed]))
+    # For the first stage (green release) of the XCA-based Fragalysis Stack
+    # there are no PDB files.
+#    compound_set = models.ComputedSet.objects.get(unique_name=name)
+#    computed_molecules = models.ComputedMolecule.objects.filter(computed_set=compound_set)
+#    pdb_filepaths = list(set([c.pdb_info.path for c in computed_molecules]))
+#    buff = StringIO()
+#    zip_obj = zipfile.ZipFile(buff, 'w')
+#    zip_obj.writestr('')
+#    for fp in pdb_filepaths:
+#        data = open(fp, 'r', encoding='utf-8').read()
+#        zip_obj.writestr(fp.split('/')[-1], data)
+#    zip_obj.close()
+#    buff.flush()
+#    ret_zip = buff.getvalue()
+#    buff.close()
 
-    buff = StringIO()
-    zip_obj = zipfile.ZipFile(buff, 'w')
+    # ...instead we just create an empty file...
+    with zipfile.ZipFile('dummy.zip', 'w') as pdb_file:
+        pass
 
-    for fp in pdb_filepaths:
-        data = open(fp, 'r', encoding='utf-8').read()
-        zip_obj.writestr(fp.split('/')[-1], data)
-    zip_obj.close()
-
-    buff.flush()
-    ret_zip = buff.getvalue()
-    buff.close()
-    response.write(ret_zip)
-
-    return response
-
-
-# This is used in the URL on the process results page after uploading a target_set
-def tset_download(request, title):
-    """View to download an zip file of a target set by name (viewer/target/(<title>)).
-    """
-    target_set = models.Target.objects.get(title=title)
-    media_root = settings.MEDIA_ROOT
-    filepath = os.path.join(media_root, target_set.zip_archive.name)
-    target_zip = open(filepath, 'rb')
-    filename = 'target-set_' + title + '.zip'
-    response = HttpResponse(target_zip, content_type='application/force-download')
-    response['Content-Disposition'] = 'attachment; filename="%s"' % filename  # force browser to download file
+    response.write(pdb_file)
     return response
 
 

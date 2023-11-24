@@ -354,6 +354,10 @@ DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
+# Where all the computed set SDF files are hosted (relative to the MEDIA_ROOT).
+# Used primarily by the Computed-Set upload logic.
+COMPUTED_SET_SDF_ROOT = "computed_set_sdfs/"
+
 # An optional URL that identifies the URL to a prior stack.
 # If set, it's typically something like "https://fragalysis.diamond.ac.uk".
 # It can be blank, indicating there is no legacy service.

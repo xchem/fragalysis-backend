@@ -1,18 +1,17 @@
+import logging
 import os
+import datetime
+import ast
+import shutil
+import zipfile
+import uuid
+from typing import Any, Dict, List, Optional, Tuple
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
 django.setup()
 from django.conf import settings
 
-import zipfile
-import datetime
-import ast
-import shutil
-
-
-# import the logging library
-import logging
-# Get an instance of a logger
 logger = logging.getLogger(__name__)
 
 from django.core.files.storage import default_storage
@@ -20,7 +19,6 @@ from django.core.files.base import ContentFile
 
 from rdkit import Chem
 from rdkit.Chem import Crippen, Descriptors
-import uuid
 
 from viewer.models import (
     Compound,
@@ -36,7 +34,7 @@ from viewer.models import (
 )
 
 
-def dataType(a_str):
+def dataType(a_str: str) -> str:
     lean_str = a_str.strip()
     if len(lean_str) == 0: return 'BLANK'
     try:
@@ -63,7 +61,7 @@ def dataType(a_str):
 
 class PdbOps:
 
-    def save_pdb_zip(self, pdb_file):
+    def save_pdb_zip(self, pdb_file) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, str]]]:
         zfile = None
         zfile_hashvals = None
         if pdb_file:
@@ -71,7 +69,6 @@ class PdbOps:
             zip_lst = zf.namelist()
             zfile = {}
             zfile_hashvals = {}
-            print(zip_lst)
             for filename in zip_lst:
                 # only handle pdb files
                 if filename.split('.')[-1] == 'pdb':
@@ -79,7 +76,6 @@ class PdbOps:
                     code = filename.split('/')[-1].replace('.pdb', '')
                     test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
                     test_site_obvs_objs = SiteObservation.objects.filter(code=test_pdb_code)
-                    print([c.code for c in test_site_obvs_objs])
 
                     if len(test_site_obvs_objs) != 0:
                         # make a unique pdb code as not to overwrite existing object
@@ -99,11 +95,8 @@ class PdbOps:
 
         return zfile, zfile_hashvals
 
-
-    def run(self, params):
-        zfile, zfile_hashval = self.save_pdb_zip(params['pdb_zip'])
-
-        return zfile, zfile_hashval
+    def run(self, params) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, str]]]:
+        return self.save_pdb_zip(params['pdb_zip'])
 
 
 class MolOps:
@@ -118,7 +111,7 @@ class MolOps:
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
 
-    def process_pdb(self, pdb_code, target, zfile, zfile_hashvals):
+    def process_pdb(self, pdb_code, target, zfile, zfile_hashvals) -> SiteObservation:
 
         for key in zfile_hashvals.keys():
             if key == pdb_code:
@@ -145,7 +138,7 @@ class MolOps:
         return site_obvs
 
     # use zfile object for pdb files uploaded in zip
-    def get_prot(self, mol, target, compound_set, zfile, zfile_hashvals):
+    def get_prot(self, mol, target, compound_set, zfile, zfile_hashvals) -> Optional[SiteObservation]:
         # The returned protein object may be None
 
         pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
@@ -162,8 +155,8 @@ class MolOps:
             try:
                 site_obvs = SiteObservation.objects.get(code__contains=name)
             except SiteObservation.DoesNotExist:
-                # Protein lookup failed.
-                logger.warning('Failed to get Protein object (target=%s name=%s)',
+                # SiteObservation lookup failed.
+                logger.warning('Failed to get SiteObservation object (target=%s name=%s)',
                                compound_set.target.title, name)
                 # Try an alternative.
                 # If all else fails then the prot_obj will be 'None'
@@ -174,13 +167,14 @@ class MolOps:
                     site_obvs = qs[0]
 
         if not site_obvs:
-            logger.warning('No Protein object (target=%s pdb_fn=%s)',
+            logger.warning('No SiteObservation object (target=%s pdb_fn=%s)',
                            compound_set.target.title, pdb_fn)
 
         return site_obvs
 
-    def create_mol(self, inchi, long_inchi=None, name=None):
-        # check for an existing compound
+    def create_mol(self, inchi, long_inchi=None, name=None) -> Compound:
+
+        # check for an existing compound, returning a Compound
         if long_inchi:
             cpd = Compound.objects.filter(long_inchi=long_inchi)
             sanitized_mol = Chem.MolFromInchi(long_inchi, sanitize=True)
@@ -220,11 +214,12 @@ class MolOps:
 
         return new_mol
 
-
-    def set_props(self, cpd, props, compound_set):
+    def set_props(self, cpd, props, compound_set) -> ScoreDescription:
         if 'ref_mols' and 'ref_pdb' not in list(props.keys()):
             raise Exception('ref_mols and ref_pdb not set!')
         set_obj = ScoreDescription.objects.filter(computed_set=compound_set)
+        assert set_obj
+
         set_props_list = [s.name for s in set_obj]
         for key in list(props.keys()):
             if key in set_props_list not in ['ref_mols', 'ref_pdb', 'original SMILES']:
@@ -241,9 +236,19 @@ class MolOps:
         return set_obj
 
 
-    def set_mol(self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None):
+    def set_mol(self,
+                mol,
+                target,
+                compound_set,
+                filename,
+                zfile=None,
+                zfile_hashvals=None) -> ComputedMolecule:
         # Don't need...
         del filename
+
+        assert mol
+        assert target
+        assert compound_set
 
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
@@ -253,7 +258,7 @@ class MolOps:
             long_inchi = inchi
             inchi = inchi[:254]
 
-        ref_cpd = self.create_mol(inchi, name=name, long_inchi=long_inchi)
+        ref_cpd: Compound = self.create_mol(inchi, name=name, long_inchi=long_inchi)
 
         mol_block = Chem.MolToMolBlock(mol)
 
@@ -265,15 +270,14 @@ class MolOps:
             # try exact match first
             try:
                 site_obvs = SiteObservation.objects.get(
-                    prot_id__code__contains=str(compound_set.target.title + '-' + i),
-                    prot_id__target_id=compound_set.target,
+                    code__contains=str(compound_set.target.title + '-' + i),
+                    experiment__experiment_upload__target_id=compound_set.target,
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
-
                 qs = SiteObservation.objects.filter(
-                    prot_id__code__contains=str(compound_set.target.title + '-' + i.split(':')[0].split('_')[0]),
-                    prot_id__target_id=compound_set.target,
+                    code__contains=str(compound_set.target.title + '-' + i.split(':')[0].split('_')[0]),
+                    experiment__experiment_upload__target_id=compound_set.target,
                 )
                 if not qs.exists():
                     raise Exception('No matching molecules found for inspiration frag ' + i)  # pylint: disable=raise-missing-from
@@ -300,31 +304,32 @@ class MolOps:
         existing = ComputedMolecule.objects.filter(name=name, smiles=smiles, computed_set=compound_set)
 
         if len(existing) == 1:
-            cpd = existing[0]
-        if len(existing) > 1:
+            computed_molecule: ComputedMolecule = existing[0]
+        elif len(existing) > 1:
             for exist in existing:
                 exist.delete()
-            cpd = ComputedMolecule()
+            computed_molecule = ComputedMolecule()
         elif len(existing) == 0:
-            cpd = ComputedMolecule()
+            computed_molecule = ComputedMolecule()
 
-        cpd.compound = ref_cpd
-        cpd.computed_set = compound_set
-        cpd.sdf_info = mol_block
-        cpd.name = name
-        cpd.smiles = smiles
-        cpd.pdb = prot
-        cpd.save()
-
+        computed_molecule.compound = ref_cpd
+        computed_molecule.computed_set = compound_set
+        computed_molecule.sdf_info = mol_block
+        computed_molecule.name = name
+        computed_molecule.smiles = smiles
+        # To void the error
+        #   needs to have a value for field "id"
+        #   before this many-to-many relationship can be used.
+        # We must save this ComputedMolecule before adding inspirations
+        computed_molecule.save()
         for insp_frag in insp_frags:
-            cpd.computed_inspirations.add(insp_frag)
+            computed_molecule.computed_inspirations.add(insp_frag)
+        computed_molecule.save()
 
-        cpd.save()
-
-        return cpd
+        return computed_molecule
 
 
-    def get_submission_info(self, description_mol):
+    def get_submission_info(self, description_mol) -> ComputedSetSubmitter:
         y_m_d = description_mol.GetProp('generation_date').split('-')
 
         submitter = ComputedSetSubmitter.objects.get_or_create(name=description_mol.GetProp('submitter_name'),
@@ -338,14 +343,20 @@ class MolOps:
 
         return submitter
 
-    def process_mol(self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None):
+    def process_mol(self,
+                    mol,
+                    target,
+                    compound_set,
+                    filename,
+                    zfile=None,
+                    zfile_hashvals=None) -> ScoreDescription:
         cpd = self.set_mol(mol, target, compound_set, filename, zfile, zfile_hashvals)
         other_props = mol.GetPropsAsDict()
-        compound_set = self.set_props(cpd, other_props, compound_set)
+        score_description = self.set_props(cpd, other_props, compound_set)
 
-        return compound_set
+        return score_description
 
-    def set_descriptions(self, filename, compound_set):
+    def set_descriptions(self, filename, computed_set: ComputedSet) -> List[str]:
 
         suppl = Chem.SDMolSupplier(str(filename))
         description_mol = suppl[0]
@@ -362,26 +373,25 @@ class MolOps:
 
         description_dict = description_mol.GetPropsAsDict()
         version = description_mol.GetProp('_Name')
-        compound_set.spec_version = version.split('_')[-1]
+        computed_set.spec_version = version.split('_')[-1]
         method = description_mol.GetProp('ref_url')
-        compound_set.method_url = method
-        compound_set.submitter = submitter
-        compound_set.save()
+        computed_set.method_url = method
+        computed_set.submitter = submitter
+        computed_set.save()
 
         for key in list(description_dict.keys()):
             if key in descriptions_needed and key not in ['ref_mols', 'ref_pdb', 'index', 'Name', 'original SMILES']:
-                _ = ScoreDescription.objects.get_or_create(computed_set=compound_set,
+                _ = ScoreDescription.objects.get_or_create(computed_set=computed_set,
                                                            name=key,
                                                            description=description_dict[key],
                                                            )
 
         return mols
 
-    def task(self):
+    def task(self) -> ComputedSet:
         user = User.objects.get(id=self.user_id)
         sdf_filename = str(self.sdf_filename)
 
-        # create a new compound set
         set_name = ''.join(sdf_filename.split('/')[-1].replace('.sdf', '').split('_')[1:])
         unique_name = "".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split())
 
@@ -392,38 +402,36 @@ class MolOps:
 
         if len_existing == 1:
             logger.info('Using existing ComputedSet')
-            compound_set = existing[0]
+            computed_set = existing[0]
         elif len_existing > 1:
             raise Exception('Too many ComputedSet instances exist'
                             f' (unique_name="{unique_name}" len_existing={len_existing})')
         else:
-            compound_set = ComputedSet()
+            computed_set = ComputedSet()
 
-        text_scores = TextScoreValues.objects.filter(score__computed_set=compound_set)
-        num_scores = NumericalScoreValues.objects.filter(score__computed_set=compound_set)
+        text_scores = TextScoreValues.objects.filter(score__computed_set=computed_set)
+        num_scores = NumericalScoreValues.objects.filter(score__computed_set=computed_set)
 
         old_mols = [o.compound for o in text_scores]
         old_mols.extend([o.compound for o in num_scores])
-        print(list(set(old_mols)))
 
-        compound_set.name = set_name
+        computed_set.name = set_name
         matching_target = Target.objects.get(title=self.target)
-        compound_set.target = matching_target
-        ver = float(self.version.strip('ver_'))
-        compound_set.spec_version = ver
-        compound_set.unique_name = "".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split())
-        compound_set.owner_user = user
-        compound_set.save()
+        computed_set.target = matching_target
+        computed_set.spec_version = float(self.version.strip('ver_'))
+        computed_set.unique_name = "".join(self.submitter_name.split()) + '-' + "".join(self.submitter_method.split())
+        computed_set.owner_user = user
+        computed_set.save()
 
         # set descriptions and get all other mols back
-        mols_to_process = self.set_descriptions(filename=sdf_filename, compound_set=compound_set)
+        mols_to_process = self.set_descriptions(filename=sdf_filename, computed_set=computed_set)
 
         # process every other mol
         for i in range(0, len(mols_to_process)):
-            self.process_mol(mols_to_process[i], self.target, compound_set, sdf_filename, self.zfile, self.zfile_hashvals)
+            self.process_mol(mols_to_process[i], self.target, computed_set, sdf_filename, self.zfile, self.zfile_hashvals)
 
         # check that molecules have been added to the compound set
-        _ = ComputedMolecule.objects.filter(computed_set=compound_set)
+        _ = ComputedMolecule.objects.filter(computed_set=computed_set)
 
         # check compound set folder exists.
         cmp_set_folder = os.path.join(settings.MEDIA_ROOT, 'compound_sets')
@@ -434,8 +442,8 @@ class MolOps:
         new_filename = settings.MEDIA_ROOT + 'compound_sets/' + sdf_filename.split('/')[-1]
         shutil.copy(sdf_filename, new_filename)
         # os.renames(sdf_filename, new_filename)
-        compound_set.submitted_sdf = new_filename
-        compound_set.save()
+        computed_set.submitted_sdf = new_filename
+        computed_set.save()
 
         # old_mols = [o.compound for o in old_s2]
         # old_mols.extend([o.compound for o in old_s1])
@@ -444,10 +452,10 @@ class MolOps:
         for old_mol in old_mols:
             old_mol.delete()
 
-        return compound_set
+        return computed_set
 
 
-def blank_mol_vals(sdf_file):
+def blank_mol_vals(sdf_file) -> Tuple[str, str, str]:
     """Returns the submitter name, method and version (_Name) if present.
     If not present the corresponding values are empty strings.
     """
