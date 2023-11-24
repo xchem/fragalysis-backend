@@ -9,11 +9,15 @@ import zipfile
 import datetime
 import uuid
 import shutil
-import fnmatch
 import logging
 import copy
 import json
+
+from pathlib import Path
+
 import pandoc
+
+
 
 from django.conf import settings
 
@@ -32,10 +36,10 @@ _ZIP_FILEPATHS = {
     'cif_info': ('aligned'),
     'mtz_info': ('aligned'),
     'map_info': ('aligned'),
-    'sigmaa_info': ('aligned'),
-    'diff_info': ('aligned'),
+    # 'sigmaa_info': ('aligned'),
+    # 'diff_info': ('aligned'),
     'event_info': ('aligned'),
-    'trans_matrix_info': ('aligned'),
+    # 'trans_matrix_info': ('aligned'),
     'sdf_info': ('aligned'),
     'single_sdf_file': (''),
     'metadata_info': (''),
@@ -46,14 +50,14 @@ _ZIP_FILEPATHS = {
 
 # Dictionary containing all references needed to create the zip file
 # NB you may need to add a version number to this at some point...
-zip_template = {'proteins': {'pdb_info': {},
-                             'bound_info': {},
-                             'cif_info': {},
-                             'mtz_info': {},
-                             'diff_info': {},
-                             'event_info': {},
-                             'sigmaa_info': {},
-                             'trans_matrix_info': {}
+zip_template = {'proteins': {'pdb_info': {},    # from experiment
+                             'bound_file': {},  # x
+                             'cif_info': {},    # from experiment
+                             'mtz_info': {},    # from experiment
+                             'event_file': {},  # x
+                             # 'diff_info': {}, # next 3, not collected anymore
+                             # 'sigmaa_info': {},
+                             # 'trans_matrix_info': {}
                              },
                 'molecules': {'sdf_files': {},
                               'sdf_info': False,
@@ -90,7 +94,7 @@ def _replace_missing_sdf(molecule, code):
 
     # We shouldn't be called if molecule['sdf_info'] is blank.
     # but check anyway.
-    sdf_info = molecule['sdf_info']
+    sdf_info = molecule.ligand_mol_file
     if not sdf_info:
         return None
     sdf_lines = sdf_info.splitlines(True)[1:]
@@ -150,11 +154,7 @@ def _is_mol_or_sdf(path):
     """Returns True if the file and path look like a MOL or SDF file.
     It does this by simply checking the file's extension.
     """
-    path_parts = os.path.splitext(os.path.basename(path))
-    if path_parts[1].lower() in ('.sdf', '.mol'):
-        return True
-    # Doesn't look like a MOL or SDF if we get here.
-    return False
+    return  Path(path).suffix.lower() in ('.sdf', '.mol')
 
 
 def _read_and_patch_molecule_name(path, molecule_name=None):
@@ -215,24 +215,28 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
     Returns:
         [boolean]: [True of record added to error file]
     """
-    media_root = settings.MEDIA_ROOT
     if not filepath:
         return False
 
-    fullpath = os.path.join(media_root, filepath)
+    logger.debug('+ _add_file_to_zip_aligned, filepath: %s', filepath)
 
-    if os.path.isfile(fullpath):
-        cleaned_filename = clean_filename(fullpath)
-        archive_path = os.path.join('aligned', code, cleaned_filename)
-        if _is_mol_or_sdf(fullpath):
+    # apparently incoming filepath can be both str and FieldFile
+    try:
+        filepath = filepath.path
+    except AttributeError:
+        filepath = str(Path(settings.MEDIA_ROOT).joinpath(filepath))
+
+    if Path(filepath).is_file():
+        archive_path = str(Path('aligned').joinpath(code).joinpath(filepath))
+        if _is_mol_or_sdf(filepath):
             # It's a MOL or SD file.
             # Read and (potentially) adjust the file
             # and add to the archive as a string.
-            content = _read_and_patch_molecule_name(fullpath, molecule_name=code)
+            content = _read_and_patch_molecule_name(filepath, molecule_name=code)
             ziparchive.writestr(archive_path, content)
         else:
             # Copy the file without modification
-            ziparchive.write(fullpath, archive_path)
+            ziparchive.write(filepath, archive_path)
         return False
 
     return True
@@ -273,10 +277,11 @@ def _protein_files_zip(zip_contents, ziparchive, error_file):
         if not files:
             continue
 
-        for prot, file in files.items():
-            if _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], file):
+        for prot, prot_file in files.items():
+            logger.debug('%s: %s', prot, prot_file)
+            if _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], prot_file):
                 error_file.write(
-                    '{},{},{}\n'.format(param, prot, file))
+                    '{},{},{}\n'.format(param, prot, prot_file))
                 prot_errors += 1
     return prot_errors
 
@@ -349,7 +354,7 @@ def _extra_files_zip(ziparchive, target):
     logger.info('Processing extra files (%s)...', extra_files)
 
     if os.path.isdir(extra_files):
-        for dirpath, dummy, files in os.walk(extra_files):
+        for dirpath, _, files in os.walk(extra_files):
             for file in files:
                 filepath = os.path.join(dirpath, file)
                 logger.info('Adding extra file "%s"...', filepath)
@@ -536,8 +541,7 @@ def _protein_garbage_filter(proteins):
     Returns:
         [list]: [update protein list]
     """
-    return [p for p in proteins
-            if not fnmatch.fnmatch(p['code'], 'references_*')]
+    return proteins.exclude(code__startswith=r'references_')
 
 
 def _create_structures_dict(target, site_obvs, protein_params, other_params):
@@ -562,7 +566,15 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
     for so in site_obvs:
         for param in protein_params:
             if protein_params[param] is True:
-                zip_contents['proteins'][param].update({so['code']: so[param]})
+                try:
+                    # getting the param from experiment. more data are
+                    # coming from there, that's why this is in try
+                    # block
+                    # getattr retrieves FieldFile object, hance the .name
+                    zip_contents['proteins'][param][so.code] = getattr(so.experiment, param).name
+                except AttributeError:
+                    # on the off chance that the data are in site_observation model
+                    zip_contents['proteins'][param][so.code] = getattr(so, param).name
 
     if other_params['single_sdf_file'] is True:
         zip_contents['molecules']['single_sdf_file'] = True
@@ -609,7 +621,7 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
     # The smiles at molecule level may not be unique.
     if other_params['smiles_info'] is True:
         for molecule in site_obvs:
-            zip_contents['molecules']['smiles_info'].update({molecule['smiles']: None})
+            zip_contents['molecules']['smiles_info'].update({molecule.smiles: None})
 
     # Add the metadata file from the target
     if other_params['metadata_info'] is True:
@@ -633,11 +645,9 @@ def get_download_params(request):
     Returns:
         protein_params, other_params
     """
+    protein_param_flags = ['pdb_info', 'bound_file', 'cif_info',
+                           'mtz_info', 'event_file',]
 
-    protein_param_flags = ['pdb_info', 'bound_info',
-                           'cif_info', 'mtz_info',
-                           'diff_info', 'event_info',
-                           'sigmaa_info', 'trans_matrix_info']
     other_param_flags = ['sdf_info', 'single_sdf_file',
                          'metadata_info', 'smiles_info']
 
@@ -679,7 +689,7 @@ def get_download_params(request):
 
 def check_download_links(request,
                          target,
-                         proteins):
+                         site_observations):
     """Check/create the download zip file for dynamic links
 
     Args:
@@ -695,17 +705,22 @@ def check_download_links(request,
     host = request.get_host()
 
     protein_params, other_params, static_link  = get_download_params(request)
+    logger.debug('proteins_params: %s', protein_params)
+    logger.debug('other_params: %s', other_params)
+    logger.debug('static_link: %s', static_link)
 
     # Remove 'references_' from protein list if present.
-    num_given_proteins = len(proteins)
-    proteins = _protein_garbage_filter(proteins)
-    num_removed = num_given_proteins - len(proteins)
+    num_given_proteins = site_observations.count()
+    site_observations = _protein_garbage_filter(site_observations)
+    num_removed = num_given_proteins - site_observations.count()
     if num_removed:
         logger.warning('Removed %d "references_" proteins from download', num_removed)
 
     # Save the list of protein codes - this is the ispybsafe set for
     # this user.
-    proteins_list = [p['code'] for p in proteins]
+    # proteins_list = [p.code for p in site_observations]
+    proteins_list = list(site_observations.values_list('code', flat=True))
+    logger.debug('proteins_list: %s', proteins_list)
 
     # Remove the token so the original search can be stored
     original_search = copy.deepcopy(request.data)
@@ -719,13 +734,15 @@ def check_download_links(request,
     # from the search, to contain the latest information.
     # If no record is not there at all, then this is a new link.
 
-    existing_link = DownloadLinks.objects.filter(target_id=target.id)\
-        .filter(proteins=proteins_list) \
-        .filter(protein_params=protein_params)\
-        .filter(other_params=other_params) \
-        .filter(static_link=False)
+    existing_link = DownloadLinks.objects.filter(
+        target_id=target.id,
+        proteins=proteins_list,
+        protein_params=protein_params,
+        other_params=other_params,
+        static_link=False,
+    )
 
-    if existing_link:
+    if existing_link.exists():
         if (existing_link[0].zip_file
                 and os.path.isfile(existing_link[0].file_url)
                 and not static_link):
@@ -744,7 +761,7 @@ def check_download_links(request,
         # If so the missing file will have a file reference of 'MISSING/<filename>'
         # in the corresponding ['molecules']['sdf_files'] entry.
         zip_contents = _create_structures_dict(target,
-                                               proteins,
+                                               site_observations,
                                                protein_params,
                                                other_params)
         _create_structures_zip(target,
@@ -770,7 +787,7 @@ def check_download_links(request,
     file_url = os.path.join(media_root, 'downloads', str(uuid.uuid4()), filename)
 
     zip_contents = _create_structures_dict(target,
-                                           proteins,
+                                           site_observations,
                                            protein_params,
                                            other_params)
 
@@ -779,6 +796,8 @@ def check_download_links(request,
                            file_url,
                            original_search,
                            host)
+
+    logger.debug('zip_contents: %s', zip_contents)
 
     download_link = DownloadLinks()
     download_link.file_url = file_url

@@ -209,6 +209,10 @@ def react(request):
 
     context = {}
 
+    # Legacy URL (a n optional prior stack)
+    # May be blank ('')
+    context['legacy_url'] = settings.LEGACY_URL
+
     # Is the Squonk2 Agent configured?
     logger.info("Checking whether Squonk2 is configured...")
     sq2_rv = _SQ2A.configured()
