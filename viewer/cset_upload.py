@@ -317,9 +317,13 @@ class MolOps:
         computed_molecule.sdf_info = mol_block
         computed_molecule.name = name
         computed_molecule.smiles = smiles
-#        computed_molecule.pdb = prot
-#        for insp_frag in insp_frags:
-#            computed_molecule.computed_inspirations.add(insp_frag)
+        # To void the error
+        #   needs to have a value for field "id"
+        #   before this many-to-many relationship can be used.
+        # We must save this ComputedMolecule before adding inspirations
+        computed_molecule.save()
+        for insp_frag in insp_frags:
+            computed_molecule.computed_inspirations.add(insp_frag)
         computed_molecule.save()
 
         return computed_molecule

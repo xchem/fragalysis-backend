@@ -354,6 +354,10 @@ DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
+# Where all the computed set SDF files are hosted (relative to the MEDIA_ROOT).
+# Used primarily by the Computed-Set upload logic.
+COMPUTED_SET_SDF_ROOT = "computed_set_sdfs/"
+
 SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 

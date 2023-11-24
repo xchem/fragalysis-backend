@@ -2,7 +2,6 @@ import logging
 import json
 import os
 import zipfile
-from io import StringIO
 import uuid
 import shlex
 import shutil
@@ -425,8 +424,14 @@ class UploadCSet(APIView):
             tmp_pdb_file = None
             tmp_sdf_file = None
             if 'pdb_zip' in list(request.FILES.keys()):
-                pdb_file = request.FILES['pdb_zip']
-                tmp_pdb_file = save_tmp_file(pdb_file)
+                # In the first stage (green release) of the XCA-based Fragalysis Stack
+                # we do not support PDB files.
+                request.session[_SESSION_ERROR] = \
+                        'This release does not support the inclusion of PDB file.'
+                logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
+                return redirect('viewer:upload_cset')
+#                pdb_file = request.FILES['pdb_zip']
+#                tmp_pdb_file = save_tmp_file(pdb_file)
             if sdf_file:
                 tmp_sdf_file = save_tmp_file(sdf_file)
 
@@ -800,23 +805,27 @@ def pset_download(request, name):
     filename = 'protein-set_' + name + '.zip'
     response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
 
-    compound_set = models.ComputedSet.objects.get(unique_name=name)
-    computed = models.ComputedMolecule.objects.filter(computed_set=compound_set)
-    pdb_filepaths = list(set([c.pdb_info.path for c in computed]))
+    # For the first stage (green release) of the XCA-based Fragalysis Stack
+    # there are no PDB files.
+#    compound_set = models.ComputedSet.objects.get(unique_name=name)
+#    computed_molecules = models.ComputedMolecule.objects.filter(computed_set=compound_set)
+#    pdb_filepaths = list(set([c.pdb_info.path for c in computed_molecules]))
+#    buff = StringIO()
+#    zip_obj = zipfile.ZipFile(buff, 'w')
+#    zip_obj.writestr('')
+#    for fp in pdb_filepaths:
+#        data = open(fp, 'r', encoding='utf-8').read()
+#        zip_obj.writestr(fp.split('/')[-1], data)
+#    zip_obj.close()
+#    buff.flush()
+#    ret_zip = buff.getvalue()
+#    buff.close()
 
-    buff = StringIO()
-    zip_obj = zipfile.ZipFile(buff, 'w')
+    # ...instead we just create an empty file...
+    with zipfile.ZipFile('dummy.zip', 'w') as pdb_file:
+        pass
 
-    for fp in pdb_filepaths:
-        data = open(fp, 'r', encoding='utf-8').read()
-        zip_obj.writestr(fp.split('/')[-1], data)
-    zip_obj.close()
-
-    buff.flush()
-    ret_zip = buff.getvalue()
-    buff.close()
-    response.write(ret_zip)
-
+    response.write(pdb_file)
     return response
 
 

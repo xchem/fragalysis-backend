@@ -29,6 +29,8 @@ from .managers import XtalformSiteDataManager
 from .managers import CanonSiteDataManager
 from .managers import CanonSiteConfDataManager
 
+from fragalysis.settings import COMPUTED_SET_SDF_ROOT
+
 logger = logging.getLogger(__name__)
 
 
@@ -666,7 +668,7 @@ class CSetKeys(models.Model):
         return f"{self.user}"
 
     def __repr__(self) -> str:
-        return "<CSetKeys %r %r %r>" % (self.id, self.user, self.uuid)
+        return "<CSetKeys %r %r>" % (self.uuid, self.user)
 
 
 # computed sets = sets of poses calculated computationally
@@ -691,9 +693,9 @@ class ComputedSet(models.Model):
 
     name = models.CharField(max_length=50, unique=True, primary_key=True)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
-    submitted_sdf = models.FileField(upload_to="compound_sets/", max_length=255,
-                                     help_text="The sdf file containing the computed set")
-    spec_version = models.FloatField(help_text="The version of the sdf file format specification")
+    submitted_sdf = models.FileField(upload_to=COMPUTED_SET_SDF_ROOT, max_length=255,
+                                     help_text="The SDF file containing the computed set")
+    spec_version = models.FloatField(help_text="The version of the SDF file format specification")
     method_url = models.TextField(max_length=1000, null=True,
                                   help_text="A url linking to a write-up of the methodology used to create the"
                                             " computed set")
@@ -730,7 +732,7 @@ class ComputedSet(models.Model):
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return "<ComputedSet %r %r %r>" % (self.id, self.name, self.target)
+        return "<ComputedSet %r %r %r>" % (self.name, self.target, self.submitter)
 
 
 class ComputedMolecule(models.Model):
@@ -741,15 +743,13 @@ class ComputedMolecule(models.Model):
     computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE)
     name = models.CharField(max_length=50)
     smiles = models.CharField(max_length=255)
-    site_observation = models.ForeignKey(SiteObservation, on_delete=models.PROTECT, null=True)
-
+    computed_inspirations = models.ManyToManyField(SiteObservation, blank=True)
 
     def __str__(self) -> str:
         return f"{self.smiles}"
 
     def __repr__(self) -> str:
         return "<ComputedMolecule %r %r %r %r>" % (self.id, self.smiles, self.name, self.compound)
-
 
 
 class ScoreDescription(models.Model):
@@ -779,7 +779,6 @@ class NumericalScoreValues(models.Model):
 
     def __repr__(self) -> str:
         return "<NumericalScoreValues %r %r %r %r>" % (self.id, self.score, self.value, self.compound)
-
 
 
 class TextScoreValues(models.Model):
