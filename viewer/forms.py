@@ -14,8 +14,8 @@ TSET_CHOICES = [
 
 
 class CSetForm(forms.Form):
-    """Used for uploading Computed sets at viewer/upload_cset
-    """
+    """Used for uploading Computed sets at viewer/upload_cset"""
+
     target_name = forms.CharField(label='Target', max_length=100, required=False)
     sdf_file = forms.FileField(label='All compounds sdf (.sdf)', required=False)
     pdb_zip = forms.FileField(label='PDB files (.zip)', required=False)
@@ -26,16 +26,16 @@ class CSetForm(forms.Form):
 
 
 class CSetUpdateForm(forms.Form):
-    """Used for updating Computed sets at viewer/update_cset
-    """
+    """Used for updating Computed sets at viewer/update_cset"""
+
     target_name = forms.CharField(label='Target', max_length=100)
     sdf_file = forms.FileField(label='All compounds sdf (.sdf)')
     pdb_zip = forms.FileField(required=False, label='PDB files (.zip)')
 
 
 class TSetForm(forms.Form):
-    """Used for uploading Target sets at viewer/upload_tset
-    """
+    """Used for uploading Target sets at viewer/upload_tset"""
+
     target_name = forms.CharField(label='Target', max_length=100)
     target_zip = forms.FileField(required=True, label='Target data (.zip)')
     submit_choice = forms.CharField(widget=forms.RadioSelect(choices=TSET_CHOICES))
@@ -49,6 +49,7 @@ class TSetForm(forms.Form):
     else:
         proposal_ref = ''
 
-    contact_email = forms.EmailField(widget=forms.TextInput(attrs={'class': 'form-control',
-                                                                   'autocomplete': 'off'}),
-                                     required=False)
+    contact_email = forms.EmailField(
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}),
+        required=False,
+    )

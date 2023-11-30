@@ -6,7 +6,6 @@ relay = graphene.relay
 
 
 class HotspotMap(SerializerMutation):
-
     class Meta:
         serializer_class = HotspotMapSerializer
         interfaces = (relay.Node,)

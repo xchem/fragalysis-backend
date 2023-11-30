@@ -29,7 +29,9 @@ router.register("compound-molecules", viewer_views.ComputedMoleculesView)
 router.register("numerical-scores", viewer_views.NumericalScoresView)
 router.register("text-scores", viewer_views.TextScoresView)
 router.register("compound-scores", viewer_views.CompoundScoresView, "compound-scores")
-router.register("compound-mols-scores", viewer_views.ComputedMolAndScoreView, "compound-mols-scores")
+router.register(
+    "compound-mols-scores", viewer_views.ComputedMolAndScoreView, "compound-mols-scores"
+)
 
 # Get the derived data
 router.register("molimg", viewer_views.MolImageView, "molimg")
@@ -67,38 +69,70 @@ router.register("siteobservationannotation", score_views.SiteObservationAnnotati
 router.register("fragspect", xcdb_views.FragspectCrystalView)
 
 # discourse posts
-router.register("discourse_post", viewer_views.DiscoursePostView, basename='discourse_post')
+router.register(
+    "discourse_post", viewer_views.DiscoursePostView, basename='discourse_post'
+)
 
 # Take a dictionary and return a csv
 router.register("dicttocsv", viewer_views.DictToCsv, basename='dicttocsv')
 
 # tags
 router.register("tag_category", viewer_views.TagCategoryView, basename='tag_category')
-router.register("siteobservation_tag", viewer_views.SiteObservationTagView, basename='siteobservation_tag')
-router.register("session_project_tag", viewer_views.SessionProjectTagView, basename='session_project_tag')
-router.register("target_molecules", viewer_views.TargetMoleculesView, basename='target_molecules')
+router.register(
+    "siteobservation_tag",
+    viewer_views.SiteObservationTagView,
+    basename='siteobservation_tag',
+)
+router.register(
+    "session_project_tag",
+    viewer_views.SessionProjectTagView,
+    basename='session_project_tag',
+)
+router.register(
+    "target_molecules", viewer_views.TargetMoleculesView, basename='target_molecules'
+)
 
 # Download a zip file of the requested contents
-router.register("download_structures", viewer_views.DownloadStructures, basename='download_structures')
+router.register(
+    "download_structures",
+    viewer_views.DownloadStructures,
+    basename='download_structures',
+)
 
 # Experiments and Experiment (XChemAlign) upload support
-router.register("upload_target_experiments", viewer_views.UploadTargetExperiments, basename='upload_target_experiments')
-router.register("download_target_experiments", viewer_views.DownloadTargetExperiments, basename='download_target_experiments')
+router.register(
+    "upload_target_experiments",
+    viewer_views.UploadTargetExperiments,
+    basename='upload_target_experiments',
+)
+router.register(
+    "download_target_experiments",
+    viewer_views.DownloadTargetExperiments,
+    basename='download_target_experiments',
+)
 
 
-
-router.register("target_experiment_uploads", viewer_views.TargetExperimentUploads, basename='target_experiment_uploads')
-router.register("site_observations", viewer_views.SiteObservations, basename='site_observations')
+router.register(
+    "target_experiment_uploads",
+    viewer_views.TargetExperimentUploads,
+    basename='target_experiment_uploads',
+)
+router.register(
+    "site_observations", viewer_views.SiteObservations, basename='site_observations'
+)
 router.register("canon_sites", viewer_views.CanonSites, basename='canon_sites')
-router.register("canon_site_confs", viewer_views.CanonSiteConfs, basename='canon_site_confs')
+router.register(
+    "canon_site_confs", viewer_views.CanonSiteConfs, basename='canon_site_confs'
+)
 router.register("xtalform_sites", viewer_views.XtalformSites, basename='xtalform_sites')
 
 # Squonk Jobs
-router.register("job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer')
+router.register(
+    "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'
+)
 router.register("job_callback", viewer_views.JobCallBackView, basename='job_callback')
 router.register("job_config", viewer_views.JobConfigView, basename='job_config')
 router.register("job_override", viewer_views.JobOverrideView, basename='job_override')
-
 
 
 from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer

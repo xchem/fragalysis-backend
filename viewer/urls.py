@@ -6,11 +6,22 @@ app_name = 'viewer'
 
 urlpatterns = [
     re_path(r"^react/*", views.react, name="react"),
-
     path("upload_cset/", views.UploadCSet.as_view(), name="upload_cset"),
-    path("validate_task/<uuid:validate_task_id>/", views.ValidateTaskView.as_view(), name="validate_task"),
-    path("upload_task/<uuid:upload_task_id>/", views.UploadTaskView.as_view(), name="upload_task"),
-    path("update_task/<uuid:update_task_id>/", views.UpdateTaskView.as_view(), name="update_task"),
+    path(
+        "validate_task/<uuid:validate_task_id>/",
+        views.ValidateTaskView.as_view(),
+        name="validate_task",
+    ),
+    path(
+        "upload_task/<uuid:upload_task_id>/",
+        views.UploadTaskView.as_view(),
+        name="upload_task",
+    ),
+    path(
+        "update_task/<uuid:update_task_id>/",
+        views.UpdateTaskView.as_view(),
+        name="update_task",
+    ),
     path("img_from_smiles/", views.img_from_smiles, name="img_from_smiles"),
     path("highlight_mol_diff/", views.highlight_mol_diff, name="highlight_mol_diff"),
     path("sim_search/", views.similarity_search, name="sim_search"),

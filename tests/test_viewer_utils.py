@@ -16,7 +16,6 @@ from viewer.utils import (
 
 @tag("nodb")
 class ViewerUtilsTestCase(SimpleTestCase):
-
     def test_create_squonk_job_request_url(self):
         result = create_squonk_job_request_url("instance-0000")
         self.assertEqual(result, "data-manager-ui/results/instance/instance-0000")
@@ -40,9 +39,15 @@ class ViewerUtilsTestCase(SimpleTestCase):
     def test_add_prop_to_sdf(self):
         expected_file = "./tests/_test.sdf"
         self.assertFalse(os.path.isfile(expected_file))
-        add_prop_to_sdf("tests/test_data/viewer-utils-test-in.sdf", expected_file, {"TransFSScore": "0.115601"})
+        add_prop_to_sdf(
+            "tests/test_data/viewer-utils-test-in.sdf",
+            expected_file,
+            {"TransFSScore": "0.115601"},
+        )
         self.assertTrue(os.path.isfile(expected_file))
-        self.assertTrue(filecmp.cmp("tests/test_data/viewer-utils-test-out.sdf", expected_file))
+        self.assertTrue(
+            filecmp.cmp("tests/test_data/viewer-utils-test-out.sdf", expected_file)
+        )
         os.remove("./tests/_test.sdf")
 
     def test_clean_filename_a(self):

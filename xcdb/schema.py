@@ -1,11 +1,23 @@
 import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
 
-from xchem_db.serializers import (TargetSerializer, CompoundsSerializer, ReferenceSerializer, SoakdbFilesSerializer,
-                                  CrystalSerializer, DataProcessingSerializer, DimpleSerializer, LabSerializer,
-                                  RefinementSerializer, PanddaAnalysisSerializer,
-                                  PanddaRunSerializer, PanddaSiteSerializer, PanddaEventSerializer,
-                                  ProasisOutSerializer, FragspectCrystalSerializer)
+from xchem_db.serializers import (
+    TargetSerializer,
+    CompoundsSerializer,
+    ReferenceSerializer,
+    SoakdbFilesSerializer,
+    CrystalSerializer,
+    DataProcessingSerializer,
+    DimpleSerializer,
+    LabSerializer,
+    RefinementSerializer,
+    PanddaAnalysisSerializer,
+    PanddaRunSerializer,
+    PanddaSiteSerializer,
+    PanddaEventSerializer,
+    ProasisOutSerializer,
+    FragspectCrystalSerializer,
+)
 
 relay = graphene.relay
 
@@ -78,6 +90,7 @@ class PanddaEvent(SerializerMutation):
 class ProasisOut(SerializerMutation):
     serializer_class = ProasisOutSerializer
     interfaces = (relay.Node,)
+
 
 class Fragspect(SerializerMutation):
     serializer_class = FragspectCrystalSerializer

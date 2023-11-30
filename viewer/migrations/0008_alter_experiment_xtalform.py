@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0007_rename_compounds_xtalform_quat_assembly'),
     ]
@@ -14,6 +13,10 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='experiment',
             name='xtalform',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='viewer.xtalform'),
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to='viewer.xtalform',
+            ),
         ),
     ]

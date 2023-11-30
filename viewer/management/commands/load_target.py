@@ -4,6 +4,7 @@ from django.db import IntegrityError
 
 from viewer.target_loader import load_target
 
+
 class Command(BaseCommand):
     help = 'Load target directly from media/ directory.'
 

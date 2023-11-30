@@ -37,19 +37,37 @@ class FileSerializer(serializers.ModelSerializer):
         model = models.File
         fields = "__all__"
 
+
 def get_protein_sequences(pdb_block):
     sequence_list = []
-    aa = {'CYS': 'C', 'ASP': 'D', 'SER': 'S', 'GLN': 'Q', 'LYS': 'K',
-          'ILE': 'I', 'PRO': 'P', 'THR': 'T', 'PHE': 'F', 'ASN': 'N',
-          'GLY': 'G', 'HIS': 'H', 'LEU': 'L', 'ARG': 'R', 'TRP': 'W',
-          'ALA': 'A', 'VAL': 'V', 'GLU': 'E', 'TYR': 'Y', 'MET': 'M'}
+    aa = {
+        'CYS': 'C',
+        'ASP': 'D',
+        'SER': 'S',
+        'GLN': 'Q',
+        'LYS': 'K',
+        'ILE': 'I',
+        'PRO': 'P',
+        'THR': 'T',
+        'PHE': 'F',
+        'ASN': 'N',
+        'GLY': 'G',
+        'HIS': 'H',
+        'LEU': 'L',
+        'ARG': 'R',
+        'TRP': 'W',
+        'ALA': 'A',
+        'VAL': 'V',
+        'GLU': 'E',
+        'TYR': 'Y',
+        'MET': 'M',
+    }
 
     current_chain = 'A'
     current_sequence = ''
     current_number = 0
 
     for line in pdb_block.split('\n'):
-
         if line[0:4] == 'ATOM':
             residue = line[17:20].strip()
             chain = line[21].strip()
@@ -84,8 +102,7 @@ def get_protein_sequences(pdb_block):
 
 
 def protein_sequences(obj):
-    """Common enabler code for Target-related serializers
-    """
+    """Common enabler code for Target-related serializers"""
     proteins = models.SiteObservation.filter_manager.by_target(target=obj)
     protein_file = None
     for protein in proteins:
@@ -106,8 +123,7 @@ def protein_sequences(obj):
 
 
 def template_protein(obj):
-    """Common enabler code for Target-related serializers
-    """
+    """Common enabler code for Target-related serializers"""
 
     proteins = models.SiteObservation.filter_manager.by_target(target=obj)
     for protein in proteins:
@@ -126,6 +142,7 @@ class CompoundIdentifierSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.CompoundIdentifier
         fields = '__all__'
+
 
 class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
@@ -157,12 +174,20 @@ class TargetSerializer(serializers.ModelSerializer):
         #           "template_protein", "metadata", "zip_archive", "upload_status", "sequences")
 
         # TODO: it's missing protein_set. is it necessary anymore?
-        fields = ("id", "title", "project_id", "default_squonk_project",
-                  "template_protein", "metadata", "zip_archive", "upload_status", "sequences")
+        fields = (
+            "id",
+            "title",
+            "project_id",
+            "default_squonk_project",
+            "template_protein",
+            "metadata",
+            "zip_archive",
+            "upload_status",
+            "sequences",
+        )
 
 
 class CompoundSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.Compound
         fields = (
@@ -191,9 +216,7 @@ class CompoundSerializer(serializers.ModelSerializer):
         )
 
 
-
 class SiteObservationSerializer(serializers.ModelSerializer):
-
     molecule_protein = serializers.SerializerMethodField()
     protein_code = serializers.SerializerMethodField()
     mw = serializers.SerializerMethodField()
@@ -205,7 +228,6 @@ class SiteObservationSerializer(serializers.ModelSerializer):
     rots = serializers.SerializerMethodField()
     rings = serializers.SerializerMethodField()
     velec = serializers.SerializerMethodField()
-
 
     def get_molecule_protein(self, obj):
         return obj.experiment.pdb_info.url
@@ -241,7 +263,7 @@ class SiteObservationSerializer(serializers.ModelSerializer):
         model = models.SiteObservation
         fields = (
             "id",
-            "smiles"
+            "smiles",
             "cmpd",
             "code",
             # seems that this field is removed
@@ -262,12 +284,11 @@ class SiteObservationSerializer(serializers.ModelSerializer):
             "hdon",
             "rots",
             "rings",
-            "velec"
+            "velec",
         )
 
 
 class ActivityPointSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.ActivityPoint
         fields = (
@@ -284,15 +305,14 @@ class ActivityPointSerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
-
     # Field name translation (prior to refactoring the Model)
-    # 'tas' is the new name for 'title'
-    target_access_string =  serializers.SerializerMethodField()
-    # 'authority' is the (as yet to be implemented) origin of the TAS
+    # 'tas' is the new name for 'title'
+    target_access_string = serializers.SerializerMethodField()
+    # 'authority' is the (as yet to be implemented) origin of the TAS
     # For now this is fixed at "DIAMOND-ISPYB"
-    authority =  serializers.SerializerMethodField()
-    # 'can_use_squonk' defines whether a user cna use Squonk for the Projetc
-    user_can_use_squonk =  serializers.SerializerMethodField()
+    authority = serializers.SerializerMethodField()
+    # 'can_use_squonk' defines whether a user cna use Squonk for the Projetc
+    user_can_use_squonk = serializers.SerializerMethodField()
 
     def get_target_access_string(self, instance):
         return instance.title
@@ -301,7 +321,10 @@ class ProjectSerializer(serializers.ModelSerializer):
         # User can use Squonk if there is a user object (i.e. they're authenticated)
         # and ISPyB has the user in the Project
         user = self.context['request'].user
-        if not user or instance.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(user):
+        if (
+            not user
+            or instance.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(user)
+        ):
             return False
         return True
 
@@ -313,16 +336,17 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Project
-        fields = ("id",
-                  "target_access_string",
-                  "init_date",
-                  "authority",
-                  "open_to_public",
-                  "user_can_use_squonk")
+        fields = (
+            "id",
+            "target_access_string",
+            "init_date",
+            "authority",
+            "open_to_public",
+            "user_can_use_squonk",
+        )
 
 
 class MolImageSerializer(serializers.ModelSerializer):
-
     mol_image = serializers.SerializerMethodField()
 
     def get_mol_image(self, obj):
@@ -343,7 +367,6 @@ class MolImageSerializer(serializers.ModelSerializer):
 
 
 class CmpdImageSerializer(serializers.ModelSerializer):
-
     cmpd_image = serializers.SerializerMethodField()
 
     def get_cmpd_image(self, obj):
@@ -358,7 +381,6 @@ class CmpdImageSerializer(serializers.ModelSerializer):
 # but this is array_field of files. there's no way to link back to a
 # single protein, I can only do target now
 class ProtMapInfoSerializer(serializers.ModelSerializer):
-
     map_data = serializers.SerializerMethodField()
 
     def get_map_data(self, obj):
@@ -376,12 +398,10 @@ class ProtMapInfoSerializer(serializers.ModelSerializer):
 
 
 class ProtPDBInfoSerializer(serializers.ModelSerializer):
-
     pdb_data = serializers.SerializerMethodField()
 
     def get_pdb_data(self, obj):
         return open(obj.experiment.pdb_info.path, encoding='utf-8').read()
-
 
     class Meta:
         model = models.SiteObservation
@@ -389,7 +409,6 @@ class ProtPDBInfoSerializer(serializers.ModelSerializer):
 
 
 class ProtPDBBoundInfoSerializer(serializers.ModelSerializer):
-
     bound_pdb_data = serializers.SerializerMethodField()
     target = serializers.IntegerField()
 
@@ -405,7 +424,6 @@ class ProtPDBBoundInfoSerializer(serializers.ModelSerializer):
 
 
 class VectorsSerializer(serializers.ModelSerializer):
-
     vectors = serializers.SerializerMethodField()
 
     def get_vectors(self, obj):
@@ -424,7 +442,6 @@ class VectorsSerializer(serializers.ModelSerializer):
 
 
 class MolpropsSerializer(serializers.ModelSerializer):
-
     props = serializers.SerializerMethodField()
 
     def get_props(self, obj):
@@ -453,14 +470,14 @@ class MolpropsSerializer(serializers.ModelSerializer):
 
 
 class GraphSerializer(serializers.ModelSerializer):
-
     graph = serializers.SerializerMethodField()
     graph_choice = os.environ.get("NEO4J_QUERY", "neo4j")
     graph_auth = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
 
     def get_graph(self, obj):
-        return get_full_graph(obj.smiles, self.graph_choice, self.graph_auth,
-                              isomericSmiles=True)
+        return get_full_graph(
+            obj.smiles, self.graph_choice, self.graph_auth, isomericSmiles=True
+        )
 
     class Meta:
         model = models.SiteObservation
@@ -490,13 +507,24 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
     session_project_tags = serializers.SerializerMethodField()
 
     def get_session_project_tags(self, obj):
-        sp_tags = models.SessionProjectTag.objects.filter(session_projects=obj.id).values()
+        sp_tags = models.SessionProjectTag.objects.filter(
+            session_projects=obj.id
+        ).values()
         return sp_tags
 
     class Meta:
         model = models.SessionProject
-        fields = ('id', 'title', 'init_date', 'description',
-                  'target', 'project', 'author', 'tags', 'session_project_tags')
+        fields = (
+            'id',
+            'title',
+            'init_date',
+            'description',
+            'target',
+            'project',
+            'author',
+            'tags',
+            'session_project_tags',
+        )
 
 
 # (POST, PUT, PATCH)
@@ -509,6 +537,7 @@ class SessionProjectWriteSerializer(serializers.ModelSerializer):
 # (GET, POST, PUT, PATCH)
 class SessionActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
+
     class Meta:
         model = models.SessionActions
         fields = '__all__'
@@ -516,25 +545,49 @@ class SessionActionsSerializer(serializers.ModelSerializer):
 
 # GET
 class SnapshotReadSerializer(serializers.ModelSerializer):
-    author  = UserSerializer()
-    session_project  = SessionProjectWriteSerializer()
+    author = UserSerializer()
+    session_project = SessionProjectWriteSerializer()
+
     class Meta:
         model = models.Snapshot
-        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data',
-                  'session_project', 'parent', 'children', 'additional_info')
+        fields = (
+            'id',
+            'type',
+            'title',
+            'author',
+            'description',
+            'created',
+            'data',
+            'session_project',
+            'parent',
+            'children',
+            'additional_info',
+        )
 
 
 # (POST, PUT, PATCH)
 class SnapshotWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Snapshot
-        fields = ('id', 'type', 'title', 'author', 'description', 'created', 'data',
-                  'session_project', 'parent', 'children', 'additional_info')
+        fields = (
+            'id',
+            'type',
+            'title',
+            'author',
+            'description',
+            'created',
+            'data',
+            'session_project',
+            'parent',
+            'children',
+            'additional_info',
+        )
 
 
 # (GET, POST, PUT, PATCH)
 class SnapshotActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
+
     class Meta:
         model = models.SnapshotActions
         fields = '__all__'
@@ -562,6 +615,7 @@ class ScoreDescriptionSerializer(serializers.ModelSerializer):
 
 class NumericalScoreSerializer(serializers.ModelSerializer):
     score = ScoreDescriptionSerializer(read_only=True)
+
     class Meta:
         model = models.NumericalScoreValues
         fields = '__all__'
@@ -569,6 +623,7 @@ class NumericalScoreSerializer(serializers.ModelSerializer):
 
 class TextScoreSerializer(serializers.ModelSerializer):
     score = ScoreDescriptionSerializer(read_only=True)
+
     class Meta:
         model = models.TextScoreValues
         fields = '__all__'
@@ -627,7 +682,9 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
 # Class for customer Discourse API
 class DiscoursePostWriteSerializer(serializers.Serializer):
     category_name = serializers.CharField(max_length=200)
-    parent_category_name = serializers.CharField(max_length=200, initial=settings.DISCOURSE_PARENT_CATEGORY)
+    parent_category_name = serializers.CharField(
+        max_length=200, initial=settings.DISCOURSE_PARENT_CATEGORY
+    )
     category_colour = serializers.CharField(max_length=10, initial="0088CC")
     category_text_colour = serializers.CharField(max_length=10, initial="FFFFFF")
     post_title = serializers.CharField(max_length=200)
@@ -647,10 +704,8 @@ class TagCategorySerializer(serializers.ModelSerializer):
 
 
 class SiteObservationTagSerializer(serializers.ModelSerializer):
-
     site_observations = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=models.SiteObservation.objects.all()
+        many=True, queryset=models.SiteObservation.objects.all()
     )
 
     class Meta:
@@ -669,7 +724,7 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
     zip_archive = serializers.SerializerMethodField()
     metadata = serializers.SerializerMethodField()
     sequences = serializers.SerializerMethodField()
-    molecules  = serializers.SerializerMethodField()
+    molecules = serializers.SerializerMethodField()
     tags_info = serializers.SerializerMethodField()
     tag_categories = serializers.SerializerMethodField()
 
@@ -705,41 +760,64 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
             lig_id=F('seq_id'),
             tags_set=ArrayAgg("siteobservationtag__pk"),
         )
-        fields = [ "id", "smiles", "cmpd", "protein_code",
-                   "molecule_protein", "lig_id", "chain_id",
-                   "sdf_info", "tags_set",
-                  ]
+        fields = [
+            "id",
+            "smiles",
+            "cmpd",
+            "protein_code",
+            "molecule_protein",
+            "lig_id",
+            "chain_id",
+            "sdf_info",
+            "tags_set",
+        ]
 
         logger.debug("%s", mols)
         logger.debug("%s", mols.values(*fields))
 
-        molecules = [{'data': k, 'tags_set': k['tags_set']} for k in mols.values(*fields) ]
+        molecules = [
+            {'data': k, 'tags_set': k['tags_set']} for k in mols.values(*fields)
+        ]
 
         return molecules
-
 
     def get_tags_info(self, obj):
         tags = models.SiteObservationTag.objects.filter(target_id=obj.id)
         tags_info = []
         for tag in tags:
             tag_data = models.SiteObservationTag.objects.filter(id=tag.id).values()
-            tag_coords = \
-                SiteObservationGroup.objects.filter(id=tag.mol_group_id).values('x_com','y_com','z_com' )
+            tag_coords = SiteObservationGroup.objects.filter(
+                id=tag.mol_group_id
+            ).values('x_com', 'y_com', 'z_com')
             tag_dict = {'data': tag_data, 'coords': tag_coords}
             tags_info.append(tag_dict)
 
         return tags_info
 
     def get_tag_categories(self, obj):
-        tag_categories = models.TagCategory.objects.filter(siteobservationtag__target_id=obj.id).distinct().\
-            values()
+        tag_categories = (
+            models.TagCategory.objects.filter(siteobservationtag__target_id=obj.id)
+            .distinct()
+            .values()
+        )
         return tag_categories
 
     class Meta:
         model = models.Target
-        fields = ("id", "title", "project_id", "default_squonk_project", "template_protein",
-                  "metadata", "zip_archive", "upload_status", "sequences",
-                  "molecules", "tags_info", "tag_categories")
+        fields = (
+            "id",
+            "title",
+            "project_id",
+            "default_squonk_project",
+            "template_protein",
+            "metadata",
+            "zip_archive",
+            "upload_status",
+            "sequences",
+            "molecules",
+            "tags_info",
+            "tag_categories",
+        )
 
 
 class DownloadStructuresSerializer(serializers.Serializer):
@@ -773,8 +851,7 @@ class JobFileTransferReadSerializer(serializers.ModelSerializer):
 class JobFileTransferWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.JobFileTransfer
-        fields = ("snapshot", "target", "squonk_project",
-                  "proteins", "compounds")
+        fields = ("snapshot", "target", "squonk_project", "proteins", "compounds")
 
 
 # (GET)
@@ -788,15 +865,25 @@ class JobRequestReadSerializer(serializers.ModelSerializer):
 class JobRequestWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.JobRequest
-        fields = ("squonk_job_name", "snapshot", "target", "squonk_project",
-                  "squonk_job_spec")
+        fields = (
+            "squonk_job_name",
+            "snapshot",
+            "target",
+            "squonk_project",
+            "squonk_job_spec",
+        )
 
 
 class JobCallBackReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.JobRequest
-        fields = ("job_status", "job_status_datetime",
-                  "squonk_job_name", "squonk_job_spec", "upload_status")
+        fields = (
+            "job_status",
+            "job_status_datetime",
+            "squonk_job_name",
+            "squonk_job_spec",
+            "upload_status",
+        )
 
 
 class JobCallBackWriteSerializer(serializers.ModelSerializer):
@@ -821,7 +908,11 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.ExperimentUpload
-        fields = ('proposal_ref', 'contact_email', 'file',)
+        fields = (
+            'proposal_ref',
+            'contact_email',
+            'file',
+        )
 
 
 class TargetExperimentDownloadSerializer(serializers.ModelSerializer):
@@ -829,7 +920,11 @@ class TargetExperimentDownloadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.ExperimentUpload
-        fields = ('project', 'target', 'filename',)
+        fields = (
+            'project',
+            'target',
+            'filename',
+        )
 
 
 class JobOverrideReadSerializer(serializers.ModelSerializer):

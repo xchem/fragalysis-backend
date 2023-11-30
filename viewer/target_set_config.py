@@ -2,6 +2,8 @@
 Target configuration functions for uploading a Target Dataset to Fragalysis.
 This was originally sourced from loader/config.py
 """
+
+
 def _mol_choices():
     """
     Get the data for the molecule choices
@@ -40,7 +42,7 @@ def _prot_choices():
         (STRIPPED, "Stripped", "_no_buffer_altlocs.pdb", "STRIPPED"),
         (TLEAPED, "Tleaped", "_tleap.pdb", "TLEAP"),
         (CHUNKED, "Chunked", "_chunk.pdb", "CHUNK"),
-        (BOUND, "Bound", '_bound.pdb', "BOUND")
+        (BOUND, "Bound", '_bound.pdb', "BOUND"),
     )
     return prot_choices, APO
 

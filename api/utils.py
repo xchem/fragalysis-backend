@@ -76,7 +76,11 @@ def highlight_diff(prb_mol, ref_mol, width, height):
     match = Chem.rdFMCS.FindMCS(mols, ringMatchesRingOnly=True, completeRingsOnly=True)
     match_mol = Chem.MolFromSmarts(match.smartsString)
     rdDepictor.Compute2DCoords(mols[0])
-    unconserved = [i for i in range(mols[0].GetNumAtoms()) if i not in mols[0].GetSubstructMatch(match_mol)]
+    unconserved = [
+        i
+        for i in range(mols[0].GetNumAtoms())
+        if i not in mols[0].GetSubstructMatch(match_mol)
+    ]
 
     drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
     drawer.DrawMolecule(mols[0], highlightAtoms=unconserved)
@@ -122,8 +126,19 @@ def calc_dims(x, y):
     return xd, yd
 
 
-def draw_mol(smiles, height=49, width=150, bondWidth=1, scaling=1.0, img_type=None,
-             highlightAtoms=[], atomcolors=[], highlightBonds=[], bondcolors={}, mol=None):
+def draw_mol(
+    smiles,
+    height=49,
+    width=150,
+    bondWidth=1,
+    scaling=1.0,
+    img_type=None,
+    highlightAtoms=[],
+    atomcolors=[],
+    highlightBonds=[],
+    bondcolors={},
+    mol=None,
+):
     """
     Generate a SVG image of a molecule specified as SMILES
     :param smiles: The molecuels as SMILES
@@ -150,7 +165,7 @@ def draw_mol(smiles, height=49, width=150, bondWidth=1, scaling=1.0, img_type=No
         idx = AllChem.Compute2DCoords(mol)
         conformer = mol.GetConformer(idx)
     else:
-        conformer = mol.GetConformer(-1) # the default conformer
+        conformer = mol.GetConformer(-1)  # the default conformer
 
     # Do some maths to determine the optimal font.
     # If you want to influence this use the scaling parameter.
@@ -312,7 +327,11 @@ def get_highlighted_diffs(request):
         height = int(request.GET["height"])
     if "width" in request.GET:
         width = int(request.GET["width"])
-    return HttpResponse(highlight_diff(prb_mol=prb_smiles, ref_mol=ref_smiles, height=height, width=width))
+    return HttpResponse(
+        highlight_diff(
+            prb_mol=prb_smiles, ref_mol=ref_smiles, height=height, width=width
+        )
+    )
 
 
 def mol_view(request):
@@ -337,7 +356,7 @@ def pretty_request(request, *, tag='', print_body=False):
         user_text += str(request.user)
     else:
         user_text += '(-)'
-    
+
     # Load the body but cater for problems, like
     #   django.http.request.RawPostDataException:
     #   You cannot access body after reading from request's data stream
@@ -347,11 +366,13 @@ def pretty_request(request, *, tag='', print_body=False):
             body = request.body
         except Exception:
             pass
-    
-    return f'{tag_text}' \
-            '+ REQUEST BEGIN\n' \
-           f'{user_text}\n' \
-           f'{request.method} HTTP/1.1\n' \
-           f'{headers}\n\n' \
-           f'{body}\n' \
-            '- REQUEST END'
+
+    return (
+        f'{tag_text}'
+        '+ REQUEST BEGIN\n'
+        f'{user_text}\n'
+        f'{request.method} HTTP/1.1\n'
+        f'{headers}\n\n'
+        f'{body}\n'
+        '- REQUEST END'
+    )

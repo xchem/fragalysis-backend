@@ -14,42 +14,36 @@ relay = graphene.relay
 
 
 class Vector3D(SerializerMutation):
-
     class Meta:
         serializer_class = Vector3DSerializer
         interfaces = (relay.Node,)
 
 
 class Vector(SerializerMutation):
-
     class Meta:
         serializer_class = VectorSerializer
         interfaces = (relay.Node,)
 
 
 class InteractionPoint(SerializerMutation):
-
     class Meta:
         serializer_class = InteractionPointSerializer
         interfaces = (relay.Node,)
 
 
 class Interaction(SerializerMutation):
-
     class Meta:
         serializer_class = InteractionSerializer
         interfaces = (relay.Node,)
 
 
 class ProteinResidue(SerializerMutation):
-
     class Meta:
         serializer_class = ProteinResidueSerialzier
         interfaces = (relay.Node,)
 
 
 class TargetResidue(SerializerMutation):
-
     class Meta:
         serializer_class = TargetResidueSerialzier
         interfaces = (relay.Node,)

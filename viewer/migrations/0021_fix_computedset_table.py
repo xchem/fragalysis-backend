@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0020_remove_jobfiletransfer_transfer_spec'),
     ]
@@ -22,11 +21,17 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='computedset',
             name='spec_version',
-            field=models.FloatField(help_text='The version of the SDF file format specification'),
+            field=models.FloatField(
+                help_text='The version of the SDF file format specification'
+            ),
         ),
         migrations.AlterField(
             model_name='computedset',
             name='submitted_sdf',
-            field=models.FileField(help_text='The SDF file containing the computed set', max_length=255, upload_to='computed_set_sdfs/'),
+            field=models.FileField(
+                help_text='The SDF file containing the computed set',
+                max_length=255,
+                upload_to='computed_set_sdfs/',
+            ),
         ),
     ]

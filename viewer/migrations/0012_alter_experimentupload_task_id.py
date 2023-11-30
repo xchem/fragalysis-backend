@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0011_auto_20230830_1112'),
     ]
@@ -13,6 +12,10 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='experimentupload',
             name='task_id',
-            field=models.CharField(help_text='Celery task ID responsible for the upload', max_length=50, null=True),
+            field=models.CharField(
+                help_text='Celery task ID responsible for the upload',
+                max_length=50,
+                null=True,
+            ),
         ),
     ]

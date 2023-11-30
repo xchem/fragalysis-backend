@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0013_auto_20230921_1417'),
         ('scoring', '0002_auto_20230818_1532'),
@@ -15,13 +14,36 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='SiteObvsSiteObservationGroup',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('site_observation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='viewer.siteobservation')),
-                ('site_obvs_group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='scoring.siteobservationgroup')),
+                (
+                    'id',
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name='ID',
+                    ),
+                ),
+                (
+                    'site_observation',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to='viewer.siteobservation',
+                    ),
+                ),
+                (
+                    'site_obvs_group',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to='scoring.siteobservationgroup',
+                    ),
+                ),
             ],
         ),
         migrations.AddConstraint(
             model_name='siteobvssiteobservationgroup',
-            constraint=models.UniqueConstraint(fields=('site_observation', 'site_obvs_group'), name='unique_siteobservationgroupcontents'),
+            constraint=models.UniqueConstraint(
+                fields=('site_observation', 'site_obvs_group'),
+                name='unique_siteobservationgroupcontents',
+            ),
         ),
     ]

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0014_auto_20231023_1048'),
     ]
@@ -17,6 +16,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='siteobservationtag',
             name='site_observations',
-            field=models.ManyToManyField(through='viewer.SiteObvsSiteObservationTag', to='viewer.SiteObservation'),
+            field=models.ManyToManyField(
+                through='viewer.SiteObvsSiteObservationTag', to='viewer.SiteObservation'
+            ),
         ),
     ]

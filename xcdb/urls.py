@@ -3,9 +3,17 @@ from django.urls import path
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 
-from xcdb.views import CrystalView, DataProcessingView, \
-    DimpleView, LabView, RefinementView, PanddaEventView, \
-    ProasisOutView, PanddaEventStatsView, FragspectCrystalView
+from xcdb.views import (
+    CrystalView,
+    DataProcessingView,
+    DimpleView,
+    LabView,
+    RefinementView,
+    PanddaEventView,
+    ProasisOutView,
+    PanddaEventStatsView,
+    FragspectCrystalView,
+)
 
 router = DefaultRouter()
 

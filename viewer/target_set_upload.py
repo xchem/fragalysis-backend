@@ -7,8 +7,10 @@ functions.py
 """
 import logging
 import sys
+
 # import json
 import os
+
 # import shutil
 # import datetime
 
@@ -39,12 +41,12 @@ from rdkit.Chem import Lipinski, AllChem
 from scoring.models import SiteObservationGroup
 from frag.alysis.run_clustering import run_lig_cluster
 from frag.network.decorate import get_3d_vects_for_mol
+
 # from viewer.target_set_config import get_dict
 import numpy as np
 import pandas as pd
 
 from django.conf import settings
-
 
 
 logger = logging.getLogger(__name__)
@@ -166,7 +168,9 @@ def get_create_target(title):
     :return: the created target
     """
     new_target = Target.objects.get_or_create(title=title)
-    logger.debug("Target created new_target='%s'", Target.objects.get_or_create(title=title)[1])
+    logger.debug(
+        "Target created new_target='%s'", Target.objects.get_or_create(title=title)[1]
+    )
     return new_target[0]
 
 
@@ -204,7 +208,12 @@ def calc_cpd(cpd_object, mol, projects):
     len_smiles = len(smiles)
     # Rather than using the protected member,
     # why not introduce constants in the model?
-    if len_smiles > Compound._meta.get_field("smiles").max_length:  # pylint: disable=protected-access
+    if (
+        len_smiles
+        > Compound._meta.get_field(  # pylint: disable=protected-access
+            "smiles"
+        ).max_length
+    ):
         logger.warning("SMILES too long (%s) [%d]", smiles, len_smiles)
         return None
     len_inchi = len(inchi)
@@ -346,7 +355,9 @@ def add_map(new_prot, new_target, map_path, map_type):
     hotspot_map = HotspotMap.objects.get_or_create(
         map_type=map_type, target_id=new_target, prot_id=new_prot
     )[0]
-    hotspot_map.map_info.save(os.path.basename(map_path), File(open(map_path, encoding='utf-8')))
+    hotspot_map.map_info.save(
+        os.path.basename(map_path), File(open(map_path, encoding='utf-8'))
+    )
     return hotspot_map
 
 
@@ -472,10 +483,15 @@ def search_for_molgroup_by_coords(coords, target):
         lower, upper = get_coord_limits(coord)
         limit_list.append([lower, upper])
 
-    search = SiteObservationGroup.objects.filter(target_id__title=target, x_com__gte=limit_list[0][0], x_com__lte=limit_list[0][1],
-                                     y_com__gte=limit_list[1][0], y_com__lte=limit_list[1][1],
-                                     z_com__gte=limit_list[2][0],
-                                     z_com__lte=limit_list[2][1])
+    search = SiteObservationGroup.objects.filter(
+        target_id__title=target,
+        x_com__gte=limit_list[0][0],
+        x_com__lte=limit_list[0][1],
+        y_com__gte=limit_list[1][0],
+        y_com__lte=limit_list[1][1],
+        z_com__gte=limit_list[2][0],
+        z_com__lte=limit_list[2][1],
+    )
 
     if len(search) == 1:
         mol_group = search[0]
@@ -498,10 +514,14 @@ def cluster_mols(rd_mols, mols, target):
     for clust_type in out_data:
         for cluster in out_data[clust_type]:
             # look for molgroup with same coords - need to implement tolerance?
-            mol_group = search_for_molgroup_by_coords(coords=[out_data[clust_type][cluster]["centre_of_mass"][0],
-                                                              out_data[clust_type][cluster]["centre_of_mass"][1],
-                                                              out_data[clust_type][cluster]["centre_of_mass"][2]],
-                                                      target=target.title)
+            mol_group = search_for_molgroup_by_coords(
+                coords=[
+                    out_data[clust_type][cluster]["centre_of_mass"][0],
+                    out_data[clust_type][cluster]["centre_of_mass"][1],
+                    out_data[clust_type][cluster]["centre_of_mass"][2],
+                ],
+                target=target.title,
+            )
             if not mol_group:
                 mol_group = SiteObservationGroup()
             if clust_type != "c_of_m":
@@ -518,6 +538,7 @@ def cluster_mols(rd_mols, mols, target):
                 if mol_id not in [a['id'] for a in mol_group.mol_id.values()]:
                     this_mol = SiteObservation.objects.get(id=mol_id)
                     mol_group.mol_id.add(this_mol)
+
 
 def centre_of_points(list_of_points):
     """average list of points"""
@@ -538,7 +559,9 @@ def centre_of_mass(mol):
     atoms = [atom for atom in mol.GetAtoms()]
     mass = Descriptors.MolWt(mol)
     # get center of mass
-    center_of_mass = np.array(np.sum(atoms[i].GetMass() * pts[i] for i in range(numatoms))) / mass
+    center_of_mass = (
+        np.array(np.sum(atoms[i].GetMass() * pts[i] for i in range(numatoms))) / mass
+    )
     return center_of_mass
 
 
@@ -554,7 +577,9 @@ def calc_site_centre(rd_mols):
 def get_coord_limits(coord):
     """get cooordinate limits"""
 
-    lower_limit = float('.'.join([str(coord).split('.')[0], str(coord).split('.')[1][:2]]))
+    lower_limit = float(
+        '.'.join([str(coord).split('.')[0], str(coord).split('.')[1][:2]])
+    )
     if lower_limit > 0:
         upper_limit = lower_limit + 0.01
     else:
@@ -564,11 +589,12 @@ def get_coord_limits(coord):
     return lower_limit, upper_limit
 
 
-
 def search_for_site_obvsgroup_by_description(description, target):
     """search for a molgroup by description"""
 
-    search = SiteObservationGroup.objects.filter(target_id__title=target, description=description)
+    search = SiteObservationGroup.objects.filter(
+        target_id__title=target, description=description
+    )
     logger.debug("len(search)=%d", search.count())
     if search.count() == 1:
         site_obvs_group = search[0]
@@ -583,7 +609,7 @@ def search_for_site_obvsgroup_by_description(description, target):
 
 
 def specifc_site(rd_mols, site_observations, target, site_description=None):
-    """ Update/Create mol_groups and molecule_tags with site information
+    """Update/Create mol_groups and molecule_tags with site information
     :param rd_mols: the molecules to add to the site (rd form)
     :param site_observations: the site_observations to add to the site
     :param target: the Django target
@@ -592,8 +618,9 @@ def specifc_site(rd_mols, site_observations, target, site_description=None):
     """
 
     # look for molgroup with same target and description
-    site_obvs_group = search_for_site_obvsgroup_by_description(target=target.title,
-                                                   description=site_description)
+    site_obvs_group = search_for_site_obvsgroup_by_description(
+        target=target.title, description=site_description
+    )
 
     if not site_obvs_group:
         site_obvs_group = SiteObservationGroup()
@@ -611,8 +638,9 @@ def specifc_site(rd_mols, site_observations, target, site_description=None):
     # target is loaded.
 
     try:
-        site_obvs_tag = SiteObservationTag.objects.get(tag=site_description,
-                                          target_id=target.id)
+        site_obvs_tag = SiteObservationTag.objects.get(
+            tag=site_description, target_id=target.id
+        )
     except SiteObservationTag.DoesNotExist:
         site_obvs_tag = None
 
@@ -666,7 +694,6 @@ def relative_to_media_root(filepath, media_root=settings.MEDIA_ROOT):
 
 
 def add_tset_warning(validate_dict, location, error, line_number):
-
     validate_dict['Location'].append(location)
     validate_dict['Error'].append(error)
     validate_dict['Line number'].append(line_number)
@@ -691,13 +718,25 @@ def check_meatadata_row(validated, input_validate_dict, row, idx):
     """
 
     if row['RealCrystalName'].isspace() or row['RealCrystalName'] == 'nan':
-        add_tset_warning(input_validate_dict, 'Metadata.csv', 'RealCrystalName spaces or null', idx + 2)
+        add_tset_warning(
+            input_validate_dict,
+            'Metadata.csv',
+            'RealCrystalName spaces or null',
+            idx + 2,
+        )
         validated = False
     if row['crystal_name'].isspace() or row['RealCrystalName'] == 'nan':
-        add_tset_warning(input_validate_dict, 'Metadata.csv', 'Crystal name spaces or null', idx + 2)
+        add_tset_warning(
+            input_validate_dict, 'Metadata.csv', 'Crystal name spaces or null', idx + 2
+        )
         validated = False
     if row['RealCrystalName'] not in row['crystal_name']:
-        add_tset_warning(input_validate_dict, 'Metadata.csv', 'Crystal name does not contain RealCrystalName', idx + 2)
+        add_tset_warning(
+            input_validate_dict,
+            'Metadata.csv',
+            'Crystal name does not contain RealCrystalName',
+            idx + 2,
+        )
         validated = False
     if row['smiles'] == 'nan':
         add_tset_warning(input_validate_dict, 'Metadata.csv', 'Smiles null', idx + 2)
@@ -730,8 +769,12 @@ def check_metadata(metadata_file, input_validate_dict):
     if meta_sites.isnull().values.all() or meta_sites.notnull().values.all():
         pass
     else:
-        add_tset_warning(input_validate_dict, 'Metadata.csv',
-                    'site_name column should either be completely filled or completely null', 0)
+        add_tset_warning(
+            input_validate_dict,
+            'Metadata.csv',
+            'site_name column should either be completely filled or completely null',
+            0,
+        )
         validated = False
 
     meta_dataframe['crystal_name'] = meta_dataframe['crystal_name'].astype(str)
@@ -740,7 +783,9 @@ def check_metadata(metadata_file, input_validate_dict):
 
     # Loop through metadata doing basic checks on each row
     for idx, (_, row) in enumerate(meta_dataframe.iterrows()):
-        validated, input_validate_dict = check_meatadata_row(validated, input_validate_dict, row, idx)
+        validated, input_validate_dict = check_meatadata_row(
+            validated, input_validate_dict, row, idx
+        )
 
     return validated, input_validate_dict
 
@@ -766,10 +811,14 @@ def validate_target(new_data_folder, target_name, proposal_ref):
 
     # A target directory must exist
     if not os.path.isdir(target_path):
-        validate_dict = add_tset_warning(validate_dict, 'Folder',
-                                         'Folder does not match target name.'
-                                         f' Expected "{target_name}".'
-                                         f' Is the upload called "{target_name}.zip"?', 0)
+        validate_dict = add_tset_warning(
+            validate_dict,
+            'Folder',
+            'Folder does not match target name.'
+            f' Expected "{target_name}".'
+            f' Is the upload called "{target_name}.zip"?',
+            0,
+        )
         # No point in checking anything else if this check fails
         validated = False
 
@@ -777,9 +826,13 @@ def validate_target(new_data_folder, target_name, proposal_ref):
         # An 'aligned' directory must exist
         aligned_path = os.path.join(target_path, 'aligned')
         if not os.path.isdir(aligned_path):
-            validate_dict = add_tset_warning(validate_dict, 'Folder',
-                                         'No aligned folder present.'
-                                         f' Expected "{target_name}/{aligned_path}"', 0)
+            validate_dict = add_tset_warning(
+                validate_dict,
+                'Folder',
+                'No aligned folder present.'
+                f' Expected "{target_name}/{aligned_path}"',
+                0,
+            )
             # No point in checking anything else if this check fails
             ok_so_far = False
 
@@ -789,9 +842,13 @@ def validate_target(new_data_folder, target_name, proposal_ref):
         if os.path.isfile(metadata_file):
             validated, validate_dict = check_metadata(metadata_file, validate_dict)
         else:
-            validate_dict = add_tset_warning(validate_dict, 'File',
-                                             'No metedata file present.'
-                                             f' Expected "{target_name}/{aligned_path}/{metadata_file}"', 0)
+            validate_dict = add_tset_warning(
+                validate_dict,
+                'File',
+                'No metedata file present.'
+                f' Expected "{target_name}/{aligned_path}/{metadata_file}"',
+                0,
+            )
             validated = False
 
     return validated, validate_dict

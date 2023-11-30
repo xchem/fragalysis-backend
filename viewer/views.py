@@ -61,16 +61,18 @@ from .tasks import (
     validate_compound_set,
     task_load_target,
 )
-from .discourse import create_discourse_post, list_discourse_posts_for_topic, check_discourse_user
+from .discourse import (
+    create_discourse_post,
+    list_discourse_posts_for_topic,
+    check_discourse_user,
+)
 from .download_structures import (
     check_download_links,
     recreate_static_file,
-    maintain_download_links
+    maintain_download_links,
 )
 
-from .squonk_job_file_transfer import (
-    validate_file_transfer_files
-)
+from .squonk_job_file_transfer import validate_file_transfer_files
 
 from .squonk_job_request import (
     check_squonk_active,
@@ -104,8 +106,8 @@ class CompoundIdentifierView(viewsets.ModelViewSet):
 
 
 class VectorsView(ISpyBSafeQuerySet):
-    """Vectors (api/vector)
-    """
+    """Vectors (api/vector)"""
+
     queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.VectorsSerializer
     filterset_class = filters.VectorFilter
@@ -114,6 +116,7 @@ class VectorsView(ISpyBSafeQuerySet):
 
 class MolecularPropertiesView(ISpyBSafeQuerySet):
     """Molecular properties (api/molprops)"""
+
     queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.MolpropsSerializer
     filterset_class = filters.MolpropsFilter
@@ -121,8 +124,8 @@ class MolecularPropertiesView(ISpyBSafeQuerySet):
 
 
 class GraphView(ISpyBSafeQuerySet):
-    """Graph (api/graph)
-    """
+    """Graph (api/graph)"""
+
     queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.GraphSerializer
     filterset_class = filters.GraphFilter
@@ -130,8 +133,8 @@ class GraphView(ISpyBSafeQuerySet):
 
 
 class MolImageView(ISpyBSafeQuerySet):
-    """Molecule images (api/molimg)
-    """
+    """Molecule images (api/molimg)"""
+
     queryset = models.SiteObservation.objects.filter()
     serializer_class = serializers.MolImageSerializer
     filterset_class = filters.MolImgFilter
@@ -139,8 +142,8 @@ class MolImageView(ISpyBSafeQuerySet):
 
 
 class CompoundImageView(ISpyBSafeQuerySet):
-    """Compound images (api/cmpdimg)
-    """
+    """Compound images (api/cmpdimg)"""
+
     queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CmpdImageSerializer
     filter_permissions = "project_id"
@@ -148,35 +151,47 @@ class CompoundImageView(ISpyBSafeQuerySet):
 
 
 class ProteinMapInfoView(ISpyBSafeQuerySet):
-    """Protein map info (file) (api/protmap)
-    """
+    """Protein map info (file) (api/protmap)"""
+
     queryset = models.SiteObservation.objects.all()
     serializer_class = serializers.ProtMapInfoSerializer
     filter_permissions = "experiment__experiment_upload__target__project_id"
-    filterset_fields = ("code", "experiment__experiment_upload__target", "experiment__experiment_upload__target__title")
+    filterset_fields = (
+        "code",
+        "experiment__experiment_upload__target",
+        "experiment__experiment_upload__target__title",
+    )
 
 
 class ProteinPDBInfoView(ISpyBSafeQuerySet):
-    """Protein apo pdb info (file) (api/protpdb)
-    """
+    """Protein apo pdb info (file) (api/protpdb)"""
+
     queryset = models.SiteObservation.objects.all()
     serializer_class = serializers.ProtPDBInfoSerializer
     filter_permissions = "experiment__experiment_upload__target__project_id"
-    filterset_fields = ("code", "experiment__experiment_upload__target", "experiment__experiment_upload__target__title")
+    filterset_fields = (
+        "code",
+        "experiment__experiment_upload__target",
+        "experiment__experiment_upload__target__title",
+    )
 
 
 class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
-    """Protein bound pdb info (file) (api/protpdbbound)
-    """
+    """Protein bound pdb info (file) (api/protpdbbound)"""
+
     queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.ProtPDBBoundInfoSerializer
     filter_permissions = "experiment__experiment_upload__target__project_id"
-    filterset_fields = ("code", "experiment__experiment_upload__target", "experiment__experiment_upload__target__title")
+    filterset_fields = (
+        "code",
+        "experiment__experiment_upload__target",
+        "experiment__experiment_upload__target__title",
+    )
 
 
 class ProjectView(ISpyBSafeQuerySet):
-    """Projects (api/project)
-    """
+    """Projects (api/project)"""
+
     queryset = models.Project.objects.filter()
     serializer_class = serializers.ProjectSerializer
     # Special case - Project filter permissions is blank.
@@ -184,8 +199,8 @@ class ProjectView(ISpyBSafeQuerySet):
 
 
 class TargetView(ISpyBSafeQuerySet):
-    """Targets (api/targets)
-    """
+    """Targets (api/targets)"""
+
     queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
@@ -193,8 +208,8 @@ class TargetView(ISpyBSafeQuerySet):
 
 
 class CompoundView(ISpyBSafeQuerySet):
-    """Compounds (api/compounds)
-    """
+    """Compounds (api/compounds)"""
+
     queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CompoundSerializer
     filter_permissions = "project_id"
@@ -202,8 +217,7 @@ class CompoundView(ISpyBSafeQuerySet):
 
 
 def react(request):
-    """We "START HERE". This is the first API call that the front-end calls.
-    """
+    """We "START HERE". This is the first API call that the front-end calls."""
 
     discourse_api_key = settings.DISCOURSE_API_KEY
 
@@ -262,7 +276,10 @@ def save_pdb_zip(pdb_file):
             save_path = os.path.join(settings.MEDIA_ROOT, 'tmp', f)
             if default_storage.exists(f):
                 rand_str = uuid.uuid4().hex
-                pdb_path = default_storage.save(save_path.replace('.pdb', f'-{rand_str}.pdb'), ContentFile(zf.read(filename)))
+                pdb_path = default_storage.save(
+                    save_path.replace('.pdb', f'-{rand_str}.pdb'),
+                    ContentFile(zf.read(filename)),
+                )
             # Test if Protein object already exists
             # code = filename.split('/')[-1].replace('.pdb', '')
             # test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
@@ -279,7 +296,9 @@ def save_pdb_zip(pdb_file):
             # pdb_path = default_storage.save('tmp/' + fn,
             #                                 ContentFile(zf.read(filename)))
             else:
-                pdb_path = default_storage.save(save_path, ContentFile(zf.read(filename)))
+                pdb_path = default_storage.save(
+                    save_path, ContentFile(zf.read(filename))
+                )
             test_pdb_code = pdb_path.split('/')[-1].replace('.pdb', '')
             zfile[test_pdb_code] = pdb_path
 
@@ -291,8 +310,7 @@ def save_pdb_zip(pdb_file):
 
 
 def save_tmp_file(myfile):
-    """ Save file in temporary location for validation/upload processing
-    """
+    """Save file in temporary location for validation/upload processing"""
 
     name = myfile.name
     path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
@@ -308,11 +326,10 @@ class UploadCSet(APIView):
     """
 
     def get(self, request):
-
         tag = '+ UploadCSet GET'
         logger.info('%s', pretty_request(request, tag=tag))
         logger.info('User=%s', str(request.user))
-#        logger.info('Auth=%s', str(request.auth))
+        #        logger.info('Auth=%s', str(request.auth))
 
         # Any messages passed to us via the session?
         # Maybe from a redirect?
@@ -331,39 +348,41 @@ class UploadCSet(APIView):
         user = self.request.user
         if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
             context = {}
-            context['error_message'] \
-                = 'Only authenticated users can upload files' \
-                  ' - please navigate to landing page and Login'
+            context['error_message'] = (
+                'Only authenticated users can upload files'
+                ' - please navigate to landing page and Login'
+            )
             return render(request, 'viewer/upload-cset.html', context)
 
         form = CSetForm()
         existing_sets = models.ComputedSet.objects.all()
-        context = {'form': form,
-                   'sets': existing_sets,
-                   _SESSION_ERROR: session_error,
-                   _SESSION_MESSAGE: session_message}
+        context = {
+            'form': form,
+            'sets': existing_sets,
+            _SESSION_ERROR: session_error,
+            _SESSION_MESSAGE: session_message,
+        }
         return render(request, 'viewer/upload-cset.html', context)
 
     def post(self, request):
-
         tag = '+ UploadCSet POST'
         logger.info('%s', pretty_request(request, tag=tag))
         logger.info('User=%s', str(request.user))
-#        logger.info('Auth=%s', str(request.auth))
+        #        logger.info('Auth=%s', str(request.auth))
 
         # Only authenticated users can upload files
         # - this can be switched off in settings.py.
         user = self.request.user
         if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
             context = {}
-            context['error_message'] \
-                = 'Only authenticated users can upload files' \
-                  ' - please navigate to landing page and Login'
+            context['error_message'] = (
+                'Only authenticated users can upload files'
+                ' - please navigate to landing page and Login'
+            )
             return render(request, 'viewer/upload-cset.html', context)
 
         form = CSetForm(request.POST, request.FILES)
         if form.is_valid():
-
             # Get all the variables needed from the form.
             # The fields we use will be based on the 'submit_choice',
             # expected to be one of V (validate), U (upload) or D delete
@@ -377,35 +396,52 @@ class UploadCSet(APIView):
             target = request.POST.get('target_name')
             update_set = request.POST.get('update_set')
 
-            logger.info('+ UploadCSet POST choice="%s" target="%s" update_set="%s"', choice, target, update_set)
+            logger.info(
+                '+ UploadCSet POST choice="%s" target="%s" update_set="%s"',
+                choice,
+                target,
+                update_set,
+            )
 
             # If a set is named the ComputedSet cannot be 'Anonymous'
             # and the user has to be the owner.
             selected_set = None
             if update_set and update_set != 'None':
-                computed_set_query = models.ComputedSet.objects.filter(unique_name=update_set)
+                computed_set_query = models.ComputedSet.objects.filter(
+                    unique_name=update_set
+                )
                 if computed_set_query:
                     selected_set = computed_set_query[0]
                 else:
-                    request.session[_SESSION_ERROR] = \
-                        'The set could not be found'
-                    logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
+                    request.session[_SESSION_ERROR] = 'The set could not be found'
+                    logger.warning(
+                        '- UploadCSet POST error_msg="%s"',
+                        request.session[_SESSION_ERROR],
+                    )
                     return redirect('viewer:upload_cset')
 
             # If validating or uploading we need a Target and SDF file.
             # If updating or deleting we need an update set (that's not 'None')
             if choice in ['V', 'U']:
                 if sdf_file is None or target is None:
-                    request.session[_SESSION_ERROR] = \
-                        'To Validate or Upload' \
+                    request.session[_SESSION_ERROR] = (
+                        'To Validate or Upload'
                         ' you must provide a Target and SDF file'
-                    logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
+                    )
+                    logger.warning(
+                        '- UploadCSet POST error_msg="%s"',
+                        request.session[_SESSION_ERROR],
+                    )
                     return redirect('viewer:upload_cset')
             elif choice in ['D']:
                 if update_set == 'None':
-                    request.session[_SESSION_ERROR] = \
-                        'To Delete you must select an existing set'
-                    logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
+                    request.session[
+                        _SESSION_ERROR
+                    ] = 'To Delete you must select an existing set'
+                    logger.warning(
+                        '- UploadCSet POST error_msg="%s"',
+                        request.session[_SESSION_ERROR],
+                    )
                     return redirect('viewer:upload_cset')
 
             # If uploading (updating) or deleting
@@ -413,15 +449,20 @@ class UploadCSet(APIView):
             # and the user needs to be the owner
             if choice in ['U', 'D'] and selected_set:
                 if selected_set.owner_user.id == settings.ANONYMOUS_USER:
-                    request.session[_SESSION_ERROR] = \
-                        'You cannot Update or Delete Anonymous sets'
+                    request.session[
+                        _SESSION_ERROR
+                    ] = 'You cannot Update or Delete Anonymous sets'
                 elif selected_set.owner_user != user:
-                    request.session[_SESSION_ERROR] = \
-                        'You can only Update or Delete sets you own'
+                    request.session[
+                        _SESSION_ERROR
+                    ] = 'You can only Update or Delete sets you own'
                 # Something wrong?
                 # If so redirect...
                 if _SESSION_ERROR in request.session:
-                    logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
+                    logger.warning(
+                        '- UploadCSet POST error_msg="%s"',
+                        request.session[_SESSION_ERROR],
+                    )
                     return redirect('viewer:upload_cset')
 
             # Save uploaded sdf and zip to tmp storage
@@ -430,21 +471,26 @@ class UploadCSet(APIView):
             if 'pdb_zip' in list(request.FILES.keys()):
                 # In the first stage (green release) of the XCA-based Fragalysis Stack
                 # we do not support PDB files.
-                request.session[_SESSION_ERROR] = \
-                        'This release does not support the inclusion of PDB file.'
-                logger.warning('- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR])
+                request.session[
+                    _SESSION_ERROR
+                ] = 'This release does not support the inclusion of PDB file.'
+                logger.warning(
+                    '- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR]
+                )
                 return redirect('viewer:upload_cset')
-#                pdb_file = request.FILES['pdb_zip']
-#                tmp_pdb_file = save_tmp_file(pdb_file)
+            #                pdb_file = request.FILES['pdb_zip']
+            #                tmp_pdb_file = save_tmp_file(pdb_file)
             if sdf_file:
                 tmp_sdf_file = save_tmp_file(sdf_file)
 
             if choice == 'V':
                 # Validate
                 # Start celery task
-                task_params = {'user_id': user.id,
-                               'sdf_file': tmp_sdf_file,
-                               'target': target}
+                task_params = {
+                    'user_id': user.id,
+                    'sdf_file': tmp_sdf_file,
+                    'target': target,
+                }
                 if tmp_pdb_file:
                     task_params['zfile'] = tmp_pdb_file
                 if update_set:
@@ -453,54 +499,68 @@ class UploadCSet(APIView):
 
                 task_id = task_validate.id
                 task_status = task_validate.status
-                logger.info('+ UploadCSet POST "Validate" task underway'
-                            ' (validate_task_id=%s (%s) validate_task_status=%s)',
-                            task_id, type(task_id), task_status)
+                logger.info(
+                    '+ UploadCSet POST "Validate" task underway'
+                    ' (validate_task_id=%s (%s) validate_task_status=%s)',
+                    task_id,
+                    type(task_id),
+                    task_status,
+                )
 
                 # Update client side with task id and status
-                context = {'validate_task_id': task_id,
-                           'validate_task_status': task_status}
+                context = {
+                    'validate_task_id': task_id,
+                    'validate_task_status': task_status,
+                }
                 return render(request, 'viewer/upload-cset.html', context)
 
             elif choice == 'U':
                 # Upload
                 # Start chained celery tasks. NB first function passes tuple
                 # to second function - see tasks.py
-                task_params = {'user_id': user.id,
-                               'sdf_file': tmp_sdf_file,
-                               'target': target}
+                task_params = {
+                    'user_id': user.id,
+                    'sdf_file': tmp_sdf_file,
+                    'target': target,
+                }
                 if tmp_pdb_file:
                     task_params['zfile'] = tmp_pdb_file
                 if update_set:
                     task_params['update'] = update_set
                 task_upload = (
-                        validate_compound_set.s(task_params) |
-                        process_compound_set.s()).apply_async()
+                    validate_compound_set.s(task_params) | process_compound_set.s()
+                ).apply_async()
 
                 task_id = task_upload.id
                 task_status = task_upload.status
-                logger.info('+ UploadCSet POST "Upload" task underway'
-                            ' (upload_task_id=%s (%s) upload_task_status=%s)',
-                            task_id, type(task_id), task_status)
+                logger.info(
+                    '+ UploadCSet POST "Upload" task underway'
+                    ' (upload_task_id=%s (%s) upload_task_status=%s)',
+                    task_id,
+                    type(task_id),
+                    task_status,
+                )
 
                 # Update client side with task id and status
-                context = {'upload_task_id': task_id,
-                           'upload_task_status': task_status}
+                context = {'upload_task_id': task_id, 'upload_task_status': task_status}
                 return render(request, 'viewer/upload-cset.html', context)
 
             elif choice == 'D':
                 # Delete
                 selected_set.delete()
 
-                request.session[_SESSION_MESSAGE] = \
-                    f'Compound set "{selected_set.unique_name}" deleted'
+                request.session[
+                    _SESSION_MESSAGE
+                ] = f'Compound set "{selected_set.unique_name}" deleted'
 
                 logger.info('+ UploadCSet POST "Delete" done')
 
                 return redirect('viewer:upload_cset')
 
             else:
-                logger.warning('+ UploadCSet POST unsupported submit_choice value (%s)', choice)
+                logger.warning(
+                    '+ UploadCSet POST unsupported submit_choice value (%s)', choice
+                )
 
         else:
             logger.warning('- UploadCSet POST form.is_valid() returned False')
@@ -511,9 +571,10 @@ class UploadCSet(APIView):
         return render(request, 'viewer/upload-cset.html', context)
 
 
-def email_task_completion(contact_email, message_type, target_name, target_path=None, task_id=None):
-    """Notify user of upload completion
-    """
+def email_task_completion(
+    contact_email, message_type, target_name, target_path=None, task_id=None
+):
+    """Notify user of upload completion"""
 
     logger.info('+ email_notify_task_completion: ' + message_type + ' ' + target_name)
     email_from = settings.EMAIL_HOST_USER
@@ -523,33 +584,44 @@ def email_task_completion(contact_email, message_type, target_name, target_path=
         return
 
     if message_type == 'upload-success':
-        subject = 'Fragalysis: Target: '+target_name+' Uploaded'
-        message = 'The upload of your target data is complete. Your target is available at: ' \
-                  + str(target_path)
+        subject = 'Fragalysis: Target: ' + target_name + ' Uploaded'
+        message = (
+            'The upload of your target data is complete. Your target is available at: '
+            + str(target_path)
+        )
     elif message_type == 'validate-success':
-        subject = 'Fragalysis: Target: '+target_name+' Validation'
-        message = 'Your data was validated. It can now be uploaded using the upload option.'
+        subject = 'Fragalysis: Target: ' + target_name + ' Validation'
+        message = (
+            'Your data was validated. It can now be uploaded using the upload option.'
+        )
     else:
         # Validation failure
         subject = 'Fragalysis: Target: ' + target_name + ' Validation/Upload Failed'
-        message = 'The validation/upload of your target data did not complete successfully. ' \
-                  'Please navigate the following link to check the errors: validate_task/' + str(task_id)
+        message = (
+            'The validation/upload of your target data did not complete successfully. '
+            'Please navigate the following link to check the errors: validate_task/'
+            + str(task_id)
+        )
 
-    recipient_list = [contact_email, ]
-    logger.info('+ email_notify_task_completion email_from: %s', email_from )
-    logger.info('+ email_notify_task_completion subject: %s',  subject )
-    logger.info('+ email_notify_task_completion message: %s',  message )
-    logger.info('+ email_notify_task_completion contact_email: %s', contact_email )
+    recipient_list = [
+        contact_email,
+    ]
+    logger.info('+ email_notify_task_completion email_from: %s', email_from)
+    logger.info('+ email_notify_task_completion subject: %s', subject)
+    logger.info('+ email_notify_task_completion message: %s', message)
+    logger.info('+ email_notify_task_completion contact_email: %s', contact_email)
 
     # Send email - this should not prevent returning to the screen in the case of error.
     send_mail(subject, message, email_from, recipient_list, fail_silently=True)
     logger.info('- email_notify_task_completion')
     return
 
+
 class ValidateTaskView(View):
     """View to handle dynamic loading of validation results from `viewer.tasks.validate`.
     The validation of files uploaded to viewer/upload_cset.
     """
+
     def get(self, request, validate_task_id):
         """Get method for `ValidateTaskView`. Takes a validate task id, checks its
         status and returns the status, and result if the task is complete
@@ -575,8 +647,10 @@ class ValidateTaskView(View):
         validate_task_id_str = str(validate_task_id)
 
         task = AsyncResult(validate_task_id_str)
-        response_data = {'validate_task_status': task.status,
-                         'validate_task_id': task.id}
+        response_data = {
+            'validate_task_status': task.status,
+            'validate_task_id': task.id,
+        }
 
         if task.status == 'FAILURE':
             logger.info('+ ValidateTaskView.get.FAILURE')
@@ -593,7 +667,9 @@ class ValidateTaskView(View):
             validate_dict = results[1]
             validated = results[2]
             if validated:
-                response_data['html'] = 'Your data was validated. \n It can now be uploaded using the upload option.'
+                response_data[
+                    'html'
+                ] = 'Your data was validated. \n It can now be uploaded using the upload option.'
                 response_data['validated'] = 'Validated'
                 return JsonResponse(response_data)
 
@@ -614,12 +690,10 @@ class ValidateTaskView(View):
 
 
 class UpdateTaskView(View):
-
     def get(self, request, update_task_id):
         update_task_id_str = str(update_task_id)
         task = AsyncResult(update_task_id_str)
-        response_data = {'update_task_status': task.status,
-                         'update_task_id': task.id}
+        response_data = {'update_task_status': task.status, 'update_task_id': task.id}
 
         result = 'Running...'
 
@@ -639,6 +713,7 @@ class UploadTaskView(View):
     """View to handle dynamic loading of upload results from `viewer.tasks.process_compound_set`.
     The upload of files for a computed set by a user at viewer/upload_cset.
     """
+
     def get(self, request, upload_task_id):
         """Get method for `UploadTaskView`. Takes an upload task id, checks its
         status and returns the status, and result if the task is complete
@@ -673,8 +748,7 @@ class UploadTaskView(View):
         logger.debug('+ UploadTaskView.get')
         upload_task_id_str = str(upload_task_id)
         task = AsyncResult(upload_task_id_str)
-        response_data = {'upload_task_status': task.status,
-                         'upload_task_id': task.id}
+        response_data = {'upload_task_status': task.status, 'upload_task_id': task.id}
 
         if task.status == 'FAILURE':
             result = task.traceback
@@ -684,9 +758,12 @@ class UploadTaskView(View):
 
         logger.debug('+ UploadTaskView.get() task.status=%s', task.status)
         if task.status == 'SUCCESS':
-
             results = task.get()
-            logger.debug('+ UploadTaskView.get() SUCCESS task.get()=%s (%s)', results, type(results))
+            logger.debug(
+                '+ UploadTaskView.get() SUCCESS task.get()=%s (%s)',
+                results,
+                type(results),
+            )
 
             # Was the task about validation or processing (an actual upload)?
             # We receive a list with the first value being 'validate' or 'process'
@@ -711,8 +788,12 @@ class UploadTaskView(View):
                     cset = models.ComputedSet.objects.get(name=cset_name)
                     name = cset.unique_name
                     response_data['results'] = {}
-                    response_data['results']['cset_download_url'] = '/viewer/compound_set/%s' % name
-                    response_data['results']['pset_download_url'] = '/viewer/protein_set/%s' % name
+                    response_data['results']['cset_download_url'] = (
+                        '/viewer/compound_set/%s' % name
+                    )
+                    response_data['results']['pset_download_url'] = (
+                        '/viewer/protein_set/%s' % name
+                    )
 
                     return JsonResponse(response_data)
 
@@ -727,8 +808,7 @@ class UploadTaskView(View):
 
 
 def img_from_smiles(request):
-    """Generate a 2D molecule image for a given smiles string
-    """
+    """Generate a 2D molecule image for a given smiles string"""
     if "smiles" in request.GET:
         smiles = request.GET["smiles"]
         if smiles:
@@ -771,8 +851,7 @@ def similarity_search(request):
 
 
 def get_open_targets(request):
-    """Return a list of all open targets (viewer/open_targets)
-    """
+    """Return a list of all open targets (viewer/open_targets)"""
     targets = models.Target.objects.all()
     target_names = []
     target_ids = []
@@ -783,7 +862,9 @@ def get_open_targets(request):
                 target_names.append(t.title)
                 target_ids.append(t.id)
 
-    return HttpResponse(json.dumps({'target_names': target_names, 'target_ids': target_ids}))
+    return HttpResponse(
+        json.dumps({'target_names': target_names, 'target_ids': target_ids})
+    )
 
 
 def cset_download(request, name):
@@ -796,7 +877,9 @@ def cset_download(request, name):
         data = fp.read()
     filename = 'computed-set_' + name + '.sdf'
     response = HttpResponse(content_type='text/plain')
-    response['Content-Disposition'] = 'attachment; filename=%s' % filename  # force browser to download file
+    response['Content-Disposition'] = (
+        'attachment; filename=%s' % filename
+    )  # force browser to download file
     response.write(data)
     return response
 
@@ -804,26 +887,28 @@ def cset_download(request, name):
 def pset_download(request, name):
     """View to download a zip file of all protein structures (apo) for a computed set
     (viewer/compound_set/(<name>))
-     """
+    """
     response = HttpResponse(content_type='application/zip')
     filename = 'protein-set_' + name + '.zip'
-    response['Content-Disposition'] = 'filename=%s' % filename  # force browser to download file
+    response['Content-Disposition'] = (
+        'filename=%s' % filename
+    )  # force browser to download file
 
     # For the first stage (green release) of the XCA-based Fragalysis Stack
     # there are no PDB files.
-#    compound_set = models.ComputedSet.objects.get(unique_name=name)
-#    computed_molecules = models.ComputedMolecule.objects.filter(computed_set=compound_set)
-#    pdb_filepaths = list(set([c.pdb_info.path for c in computed_molecules]))
-#    buff = StringIO()
-#    zip_obj = zipfile.ZipFile(buff, 'w')
-#    zip_obj.writestr('')
-#    for fp in pdb_filepaths:
-#        data = open(fp, 'r', encoding='utf-8').read()
-#        zip_obj.writestr(fp.split('/')[-1], data)
-#    zip_obj.close()
-#    buff.flush()
-#    ret_zip = buff.getvalue()
-#    buff.close()
+    #    compound_set = models.ComputedSet.objects.get(unique_name=name)
+    #    computed_molecules = models.ComputedMolecule.objects.filter(computed_set=compound_set)
+    #    pdb_filepaths = list(set([c.pdb_info.path for c in computed_molecules]))
+    #    buff = StringIO()
+    #    zip_obj = zipfile.ZipFile(buff, 'w')
+    #    zip_obj.writestr('')
+    #    for fp in pdb_filepaths:
+    #        data = open(fp, 'r', encoding='utf-8').read()
+    #        zip_obj.writestr(fp.split('/')[-1], data)
+    #    zip_obj.close()
+    #    buff.flush()
+    #    ret_zip = buff.getvalue()
+    #    buff.close()
 
     # ...instead we just create an empty file...
     with zipfile.ZipFile('dummy.zip', 'w') as pdb_file:
@@ -838,6 +923,7 @@ class ActionTypeView(viewsets.ModelViewSet):
     """View to retrieve information about action types available to users (GET).
     (api/action-types).
     """
+
     queryset = models.ActionType.objects.filter()
     serializer_class = serializers.ActionTypeSerializer
 
@@ -855,6 +941,7 @@ class SessionProjectsView(viewsets.ModelViewSet):
     Also used for saving project information (PUT, POST, PATCH).
     (api/session-projects).
     """
+
     queryset = models.SessionProject.objects.filter()
 
     def get_serializer_class(self):
@@ -880,7 +967,8 @@ class SessionActionsView(viewsets.ModelViewSet):
     """View to retrieve information about actions relating to sessions_project (GET).
     Also used for saving project action information (PUT, POST, PATCH).
     (api/session-actions).
-     """
+    """
+
     queryset = models.SessionActions.objects.filter()
     serializer_class = serializers.SessionActionsSerializer
 
@@ -892,6 +980,7 @@ class SnapshotsView(viewsets.ModelViewSet):
     """View to retrieve information about user sessions (snapshots) (GET).
     Also used for saving session information (PUT, POST, PATCH). (api/snapshots)
     """
+
     queryset = models.Snapshot.objects.filter()
 
     def get_serializer_class(self):
@@ -915,11 +1004,18 @@ class SnapshotActionsView(viewsets.ModelViewSet):
     Also used for saving snapshot action information (PUT, POST, PATCH).
     (api/snapshot-actions).
     """
+
     queryset = models.SnapshotActions.objects.filter()
     serializer_class = serializers.SnapshotActionsSerializer
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
-    filterset_fields = ('id', 'author', 'session_project', 'snapshot', 'last_update_date')
+    filterset_fields = (
+        'id',
+        'author',
+        'session_project',
+        'snapshot',
+        'last_update_date',
+    )
 
 
 class DSetCSVParser(BaseParser):
@@ -927,17 +1023,17 @@ class DSetCSVParser(BaseParser):
     CSV parser class specific to design set csv spec -
     sets media_type for DSetUploadView to text/csv
     """
+
     media_type = 'text/csv'
 
 
 class DSetUploadView(APIView):
-    """Upload a design set (PUT) from a csv file
-    """
+    """Upload a design set (PUT) from a csv file"""
+
     parser_class = (DSetCSVParser,)
 
     def put(self, request, format=None):  # pylint: disable=redefined-builtin
-        """Method to handle PUT request and upload a design set
-        """
+        """Method to handle PUT request and upload a design set"""
         # Don't need...
         del format
 
@@ -955,7 +1051,9 @@ class DSetUploadView(APIView):
         actual_cols = df.columns
         for col in mandatory_cols:
             if col not in actual_cols:
-                raise ParseError("The 4 following columns are mandatory: set_name, smiles, identifier, inspirations")
+                raise ParseError(
+                    "The 4 following columns are mandatory: set_name, smiles, identifier, inspirations"
+                )
 
         set_names, compounds = process_design_sets(df, set_type, set_description)
 
@@ -964,14 +1062,21 @@ class DSetUploadView(APIView):
         length = len(set_names)
         string += str(length) + '; '
         for i in range(0, length):
-            string += str(i + 1) + ' - ' + set_names[i] + ') number of compounds = ' + str(len(compounds[i])) + '; '
+            string += (
+                str(i + 1)
+                + ' - '
+                + set_names[i]
+                + ') number of compounds = '
+                + str(len(compounds[i]))
+                + '; '
+            )
 
         return HttpResponse(json.dumps(string))
 
 
 class ComputedSetView(viewsets.ModelViewSet):
-    """Retrieve information about and delete computed sets.
-    """
+    """Retrieve information about and delete computed sets."""
+
     queryset = models.ComputedSet.objects.filter()
     serializer_class = serializers.ComputedSetSerializer
     filter_permissions = "project_id"
@@ -989,8 +1094,8 @@ class ComputedSetView(viewsets.ModelViewSet):
 
 
 class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
-    """Retrieve information about computed molecules - 3D info (api/compound-molecules).
-    """
+    """Retrieve information about computed molecules - 3D info (api/compound-molecules)."""
+
     queryset = models.ComputedMolecule.objects.all()
     serializer_class = serializers.ComputedMoleculeSerializer
     filter_permissions = "project_id"
@@ -1001,6 +1106,7 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve information about numerical computed molecule scores
     (api/numerical-scores).
     """
+
     queryset = models.NumericalScoreValues.objects.all()
     serializer_class = serializers.NumericalScoreSerializer
     filter_permissions = "project_id"
@@ -1008,8 +1114,8 @@ class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
 
 
 class TextScoresView(viewsets.ReadOnlyModelViewSet):
-    """View to retrieve information about text computed molecule scores (api/text-scores).
-    """
+    """View to retrieve information about text computed molecule scores (api/text-scores)."""
+
     queryset = models.TextScoreValues.objects.all()
     serializer_class = serializers.TextScoreSerializer
     filter_permissions = "project_id"
@@ -1017,8 +1123,8 @@ class TextScoresView(viewsets.ReadOnlyModelViewSet):
 
 
 class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
-    """View to retrieve descriptions of scores for a given name or computed set.
-    """
+    """View to retrieve descriptions of scores for a given name or computed set."""
+
     queryset = models.ScoreDescription.objects.all()
     serializer_class = serializers.ScoreDescriptionSerializer
     filter_permissions = "project_id"
@@ -1029,6 +1135,7 @@ class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
     """View to retrieve all information about molecules from a computed set
     along with all of their scores.
     """
+
     queryset = models.ComputedMolecule.objects.all()
     serializer_class = serializers.ComputedMolAndScoreSerializer
     filter_permissions = "project_id"
@@ -1057,11 +1164,11 @@ class DiscoursePostView(viewsets.ViewSet):
         "post_content": "This is a second post to New Topic Title 1", "post_tags" :"[]"}
 
     """
+
     serializer_class = serializers.DiscoursePostWriteSerializer
 
     def create(self, request):
-        """Method to handle POST request and call discourse to create the post
-        """
+        """Method to handle POST request and call discourse to create the post"""
         logger.info('+ DiscoursePostView.post')
         data = request.data
 
@@ -1069,19 +1176,25 @@ class DiscoursePostView(viewsets.ViewSet):
         if data['category_name'] == '':
             category_details = None
         else:
-            category_details = {'category_name': data['category_name'],
-                                'parent_name': data['parent_category_name'],
-                                'category_colour': data['category_colour'],
-                                'category_text_colour': data['category_text_colour']}
+            category_details = {
+                'category_name': data['category_name'],
+                'parent_name': data['parent_category_name'],
+                'category_colour': data['category_colour'],
+                'category_text_colour': data['category_text_colour'],
+            }
 
         if data['post_title'] == '':
             post_details = None
         else:
-            post_details = {'title': data['post_title'],
-                            'content': data['post_content'],
-                            'tags': json.loads(data['post_tags'])}
+            post_details = {
+                'title': data['post_title'],
+                'content': data['post_content'],
+                'tags': json.loads(data['post_tags']),
+            }
 
-        error, post_url, error_message = create_discourse_post(request.user, category_details, post_details)
+        error, post_url, error_message = create_discourse_post(
+            request.user, category_details, post_details
+        )
 
         logger.info('- DiscoursePostView.post')
         if error:
@@ -1090,8 +1203,7 @@ class DiscoursePostView(viewsets.ViewSet):
             return Response({"Post url": post_url})
 
     def list(self, request):
-        """Method to handle GET request and call discourse to list posts for a topic
-        """
+        """Method to handle GET request and call discourse to list posts for a topic"""
         logger.info('+ DiscoursePostView.get')
         query_params = request.query_params
         logger.info('+ DiscoursePostView.get %s', json.dumps(query_params))
@@ -1103,7 +1215,9 @@ class DiscoursePostView(viewsets.ViewSet):
             error, posts = list_discourse_posts_for_topic(post_title)
         else:
             logger.info('- DiscoursePostView.no key')
-            return Response({"message": "Discourse Not Available - No API key supplied"})
+            return Response(
+                {"message": "Discourse Not Available - No API key supplied"}
+            )
 
         logger.info('- DiscoursePostView.get')
         if error:
@@ -1143,13 +1257,12 @@ def create_csv_from_dict(input_dict, title=None, filename=None):
 
 
 class DictToCsv(viewsets.ViewSet):
-    """Takes a dictionary and returns a download link to a CSV file with the data.
-    """
+    """Takes a dictionary and returns a download link to a CSV file with the data."""
+
     serializer_class = serializers.DictToCsvSerializer
 
     def list(self, request):
-        """Method to handle GET request
-        """
+        """Method to handle GET request"""
         file_url = request.GET.get('file_url')
 
         if file_url and os.path.isfile(file_url):
@@ -1163,8 +1276,7 @@ class DictToCsv(viewsets.ViewSet):
             return Response("Please provide file_url parameter")
 
     def create(self, request):
-        """Method to handle POST request
-        """
+        """Method to handle POST request"""
         logger.info('+ DictToCsv.post')
         input_dict = request.data['dict']
         input_title = request.data['title']
@@ -1179,24 +1291,31 @@ class DictToCsv(viewsets.ViewSet):
 
 # Classes Relating to Tags
 class TagCategoryView(viewsets.ModelViewSet):
-    """Set up and retrieve information about tag categories (api/tag_category).
-    """
+    """Set up and retrieve information about tag categories (api/tag_category)."""
+
     queryset = models.TagCategory.objects.all()
     serializer_class = serializers.TagCategorySerializer
     filterset_fields = ('id', 'category')
 
 
 class SiteObservationTagView(viewsets.ModelViewSet):
-    """Set up/retrieve information about tags relating to Molecules (api/molecule_tag)
-    """
+    """Set up/retrieve information about tags relating to Molecules (api/molecule_tag)"""
+
     queryset = models.SiteObservationTag.objects.all()
     serializer_class = serializers.SiteObservationTagSerializer
-    filterset_fields = ('id', 'tag', 'category', 'target', 'site_observations', 'mol_group')
+    filterset_fields = (
+        'id',
+        'tag',
+        'category',
+        'target',
+        'site_observations',
+        'mol_group',
+    )
 
 
 class SessionProjectTagView(viewsets.ModelViewSet):
-    """Set up/retrieve information about tags relating to Session Projects.
-    """
+    """Set up/retrieve information about tags relating to Session Projects."""
+
     queryset = models.SessionProjectTag.objects.all()
     serializer_class = serializers.SessionProjectTagSerializer
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
@@ -1207,6 +1326,7 @@ class TargetMoleculesView(ISpyBSafeQuerySet):
     to a Target. The idea is that a single call can return all target related
     information needed by the React front end in a single call.
     """
+
     queryset = models.Target.objects.all()
     serializer_class = serializers.TargetMoleculesSerializer
     filter_permissions = "project_id"
@@ -1220,43 +1340,42 @@ class DownloadStructures(ISpyBSafeQuerySet):
 
     Note that old zip files are removed after one hour.
     """
+
     queryset = models.Target.objects.all()
     serializer_class = serializers.DownloadStructuresSerializer
     filter_permissions = "project_id"
-    filterset_fields = ('title','id')
+    filterset_fields = ('title', 'id')
 
     def list(self, request):
-        """Method to handle GET request
-        """
+        """Method to handle GET request"""
         file_url = request.GET.get('file_url')
 
         if file_url:
             link = models.DownloadLinks.objects.filter(file_url=file_url)
-            if (link and link[0].zip_file
-                    and os.path.isfile(link[0].file_url)):
+            if link and link[0].zip_file and os.path.isfile(link[0].file_url):
                 logger.info('zip_file: %s', link[0].zip_file)
 
                 # return file and tidy up.
                 file_name = os.path.basename(file_url)
                 wrapper = FileWrapper(open(file_url, 'rb'))
-                response = FileResponse(wrapper,
-                                        content_type='application/zip')
-                response[
-                    'Content-Disposition'] = \
+                response = FileResponse(wrapper, content_type='application/zip')
+                response['Content-Disposition'] = (
                     'attachment; filename="%s"' % file_name
+                )
                 response['Content-Length'] = os.path.getsize(file_url)
                 return response
             elif link:
-                content = {'message': 'Zip file no longer present - '
-                                      'please recreate by calling '
-                                      'POST/Prepare download'}
+                content = {
+                    'message': 'Zip file no longer present - '
+                    'please recreate by calling '
+                    'POST/Prepare download'
+                }
                 return Response(content, status=status.HTTP_404_NOT_FOUND)
 
             content = {'message': 'File_url is not found'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        content = {'message': 'Please provide file_url parameter from '
-                              'post response'}
+        content = {'message': 'Please provide file_url parameter from ' 'post response'}
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
     def create(self, request):
@@ -1286,25 +1405,28 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 # If the zip file is present, return it
                 # Note that don't depend 100% on the zip_file flag as the
                 # file might have been deleted from the media server.
-                if (existing_link[0].zip_file and
-                        os.path.isfile(existing_link[0].file_url)):
+                if existing_link[0].zip_file and os.path.isfile(
+                    existing_link[0].file_url
+                ):
                     logger.info('Download is Ready!')
-                    return Response({"file_url": existing_link[0].file_url},
-                                    status=status.HTTP_200_OK)
+                    return Response(
+                        {"file_url": existing_link[0].file_url},
+                        status=status.HTTP_200_OK,
+                    )
                 elif os.path.isfile(existing_link[0].file_url):
                     # If the file is there but zip_file is false, then it is
                     # probably being rebuilt by a parallel process.
                     logger.info('Download is under construction')
-                    content = {'message': 'Zip being rebuilt - '
-                                          'please try later'}
-                    return Response(content,
-                                    status=status.HTTP_208_ALREADY_REPORTED)
+                    content = {'message': 'Zip being rebuilt - ' 'please try later'}
+                    return Response(content, status=status.HTTP_208_ALREADY_REPORTED)
                 else:
                     # Otherwise re-create the file.
                     logger.info('Recreating download...')
-                    recreate_static_file (existing_link[0], request.get_host())
-                    return Response({"file_url": existing_link[0].file_url},
-                                    status=status.HTTP_200_OK)
+                    recreate_static_file(existing_link[0], request.get_host())
+                    return Response(
+                        {"file_url": existing_link[0].file_url},
+                        status=status.HTTP_200_OK,
+                    )
 
             msg = 'file_url should only be provided for static files'
             logger.warning(msg)
@@ -1314,7 +1436,9 @@ class DownloadStructures(ISpyBSafeQuerySet):
         # Dynamic files
 
         if 'target_name' not in request.data:
-            content = {'message': 'If no file_url, a target_name (title) must be provided'}
+            content = {
+                'message': 'If no file_url, a target_name (title) must be provided'
+            }
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         target_name = request.data['target_name']
@@ -1338,11 +1462,11 @@ class DownloadStructures(ISpyBSafeQuerySet):
         site_obvs = models.SiteObservation.objects.none()
         proteins_list = []
         if request.data['proteins']:
-
             logger.info('Given Proteins in request')
             # Get first part of protein code
-            proteins_list = [p.strip().split(":")[0]
-                             for p in request.data['proteins'].split(',')]
+            proteins_list = [
+                p.strip().split(":")[0] for p in request.data['proteins'].split(',')
+            ]
             logger.info('Given %s Proteins %s', len(proteins_list), proteins_list)
 
             logger.info('Looking for SiteObservation records for given Proteins...')
@@ -1350,24 +1474,30 @@ class DownloadStructures(ISpyBSafeQuerySet):
             for code_first_part in proteins_list:
                 # prot = models.Protein.objects.filter(code__contains=code_first_part).values()
                 # I don't see why I need to drop out of django objects here
-                prot = models.SiteObservation.objects.filter(code__contains=code_first_part)
+                prot = models.SiteObservation.objects.filter(
+                    code__contains=code_first_part
+                )
                 if prot.exists():
                     site_obvs = prot[0:1]
                 else:
-                    logger.warning('Could not find SiteObservation record for "%s"', code_first_part)
+                    logger.warning(
+                        'Could not find SiteObservation record for "%s"',
+                        code_first_part,
+                    )
 
         else:
-
             logger.info('Request had no Proteins')
             logger.info('Looking for Protein records for %r...', target)
             # proteins = models.Protein.objects.filter(target_id=target.id).values()
             site_obvs = models.SiteObservation.objects.filter(
-                experiment__experiment_upload__target=target)
+                experiment__experiment_upload__target=target
+            )
 
         if not site_obvs.exists():
-            content = {'message': 'Please enter list of valid protein codes '
-                                  'for target: {}, proteins: {}'
-                .format(target.title, proteins_list) }
+            content = {
+                'message': 'Please enter list of valid protein codes '
+                'for target: {}, proteins: {}'.format(target.title, proteins_list)
+            }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         protein_repr = ""
@@ -1375,15 +1505,12 @@ class DownloadStructures(ISpyBSafeQuerySet):
             protein_repr += "%r " % protein
         logger.info('Collected %s Protein records: %r', site_obvs.count(), protein_repr)
 
-        filename_url, file_exists = check_download_links(request,
-                                                         target,
-                                                         site_obvs)
+        filename_url, file_exists = check_download_links(request, target, site_obvs)
         if file_exists:
             return Response({"file_url": filename_url})
         else:
             content = {'message': 'Zip being rebuilt - please try later'}
-            return Response(content,
-                            status=status.HTTP_208_ALREADY_REPORTED)
+            return Response(content, status=status.HTTP_208_ALREADY_REPORTED)
 
 
 class UploadTargetExperiments(viewsets.ModelViewSet):
@@ -1424,7 +1551,9 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
                 contact_email=contact_email,
                 user_id=request.user.pk,
             )
-            logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
+            logger.info(
+                "+ UploadTargetExperiments.create  got Celery id %s", task.task_id
+            )
 
             url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
             # as it launches task, I think 202 is more appropriate
@@ -1494,11 +1623,10 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
             source_dir = Path(settings.MEDIA_ROOT).joinpath('tmp')
             file_path = source_dir.joinpath(filename)
             wrapper = FileWrapper(open(file_path, 'rb'))
-            response = FileResponse(wrapper,
-                                        content_type='application/zip')
-            response[
-                'Content-Disposition'] = \
-                    'attachment; filename="%s"' % file_path.name
+            response = FileResponse(wrapper, content_type='application/zip')
+            response['Content-Disposition'] = (
+                'attachment; filename="%s"' % file_path.name
+            )
             response['Content-Length'] = os.path.getsize(file_path)
             return response
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1511,7 +1639,6 @@ class TargetExperimentUploads(ISpyBSafeQuerySet):
     filterset_fields = ("target", "project")
     filter_permissions = "target__project_id"
     http_method_names = ('get',)
-
 
 
 class SiteObservations(viewsets.ModelViewSet):
@@ -1548,12 +1675,18 @@ class XtalformSites(viewsets.ModelViewSet):
 
 
 class JobFileTransferView(viewsets.ModelViewSet):
-    """Squonk Job file transfer (api/job_file_transfer)
-    """
+    """Squonk Job file transfer (api/job_file_transfer)"""
+
     queryset = models.JobFileTransfer.objects.filter()
     filter_permissions = "target__project_id"
-    filterset_fields = ('id', 'snapshot', 'target', 'user',
-                        'squonk_project', 'transfer_status')
+    filterset_fields = (
+        'id',
+        'snapshot',
+        'target',
+        'user',
+        'squonk_project',
+        'transfer_status',
+    )
 
     def get_serializer_class(self):
         if self.request.method in ['GET']:
@@ -1562,8 +1695,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         return serializers.JobFileTransferWriteSerializer
 
     def create(self, request):
-        """Method to handle POST request
-        """
+        """Method to handle POST request"""
         logger.info('+ JobFileTransfer.post')
         # Only authenticated users can transfer files to sqonk
         user = self.request.user
@@ -1591,12 +1723,15 @@ class JobFileTransferView(viewsets.ModelViewSet):
 
         # Check the user can use this Squonk2 facility.
         # To do this we need to setup a couple of API parameter objects.
-        sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
-                                                        access_id=access_id,
-                                                        session_id=session_project_id,
-                                                        target_id=target_id)
-        sq2a_send_params: SendParams = SendParams(common=sq2a_common_params,
-                                                  snapshot_id=snapshot_id)
+        sq2a_common_params: CommonParams = CommonParams(
+            user_id=user.id,
+            access_id=access_id,
+            session_id=session_project_id,
+            target_id=target_id,
+        )
+        sq2a_send_params: SendParams = SendParams(
+            common=sq2a_common_params, snapshot_id=snapshot_id
+        )
         sq2a_rv: Squonk2AgentRv = _SQ2A.can_send(sq2a_send_params)
         if not sq2a_rv.success:
             content = {f'You cannot do this ({sq2a_rv.msg})'}
@@ -1612,17 +1747,21 @@ class JobFileTransferView(viewsets.ModelViewSet):
 
         # This requires a Squonk2 Project (created by the Squonk2Agent).
         # It may be an existing project, or it might be a new project.
-        common_params = CommonParams(user_id=user.id,
-                                     access_id=access_id,
-                                     target_id=target_id,
-                                     session_id=session_project_id)
+        common_params = CommonParams(
+            user_id=user.id,
+            access_id=access_id,
+            target_id=target_id,
+            session_id=session_project_id,
+        )
         sq2_rv = _SQ2A.ensure_project(common_params)
         if not sq2_rv.success:
-            msg = f'Failed to get/create a Squonk2 Project' \
-                    f' for User "{user.username}", Access ID {access_id},' \
-                    f' Target ID {target_id}, and SessionProject ID {session_project_id}.' \
-                    f' Got "{sq2_rv.msg}".' \
-                    ' Cannot continue'
+            msg = (
+                f'Failed to get/create a Squonk2 Project'
+                f' for User "{user.username}", Access ID {access_id},'
+                f' Target ID {target_id}, and SessionProject ID {session_project_id}.'
+                f' Got "{sq2_rv.msg}".'
+                ' Cannot continue'
+            )
             content = {'message': msg}
             logger.error(msg)
             return Response(content, status=status.HTTP_404_NOT_FOUND)
@@ -1631,8 +1770,12 @@ class JobFileTransferView(viewsets.ModelViewSet):
         squonk2_project_uuid = sq2_rv.msg.uuid
         squonk2_unit_name = sq2_rv.msg.unit.name
         squonk2_unit_uuid = sq2_rv.msg.unit.uuid
-        logger.info('+ ensure_project() returned Project uuid=%s (unit="%s" unit_uuid=%s)',
-                    squonk2_project_uuid, squonk2_unit_name, squonk2_unit_uuid)
+        logger.info(
+            '+ ensure_project() returned Project uuid=%s (unit="%s" unit_uuid=%s)',
+            squonk2_project_uuid,
+            squonk2_unit_name,
+            squonk2_unit_uuid,
+        )
 
         job_transfer = models.JobFileTransfer()
         job_transfer.user = request.user
@@ -1663,27 +1806,33 @@ class JobFileTransferView(viewsets.ModelViewSet):
         # This will be something "${SQUONK2_MEDIA_DIRECTORY}/hjyx", where "hjyx" is
         # a randomly-generated 4-character sequence for the given transfer assigned
         # when the JobFileTransfer record is created.
-        transfer_root = os.path.join(settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path)
-        logger.info('+ Starting transfer (celery) (job_transfer.id=%s transfer_root=%s)...',
-                    job_transfer.id, transfer_root)
-        job_transfer_task = process_job_file_transfer.delay(request.session['oidc_access_token'],
-                                                            job_transfer.id)
+        transfer_root = os.path.join(
+            settings.SQUONK2_MEDIA_DIRECTORY, job_transfer.sub_path
+        )
+        logger.info(
+            '+ Starting transfer (celery) (job_transfer.id=%s transfer_root=%s)...',
+            job_transfer.id,
+            transfer_root,
+        )
+        job_transfer_task = process_job_file_transfer.delay(
+            request.session['oidc_access_token'], job_transfer.id
+        )
 
-        content = {'id' : job_transfer.id,
-                   'transfer_root': transfer_root,
-                   'transfer_target': transfer_target,
-                   'transfer_status': job_transfer.transfer_status,
-                   'transfer_task_id': str(job_transfer_task)}
-        return Response(content,
-                        status=status.HTTP_200_OK)
+        content = {
+            'id': job_transfer.id,
+            'transfer_root': transfer_root,
+            'transfer_target': transfer_target,
+            'transfer_status': job_transfer.transfer_status,
+            'transfer_task_id': str(job_transfer_task),
+        }
+        return Response(content, status=status.HTTP_200_OK)
 
 
 class JobConfigView(viewsets.ReadOnlyModelViewSet):
-    """Calls Squonk to get a requested job configuration
-    """
+    """Calls Squonk to get a requested job configuration"""
+
     def list(self, request):
-        """Method to handle GET request
-        """
+        """Method to handle GET request"""
         query_params = request.query_params
         logger.info('+ JobConfigView.get: %s', json.dumps(query_params))
 
@@ -1707,10 +1856,12 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
             content = {'Please provide job_collection, job_name and job_version'}
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
-        content = get_squonk_job_config(request,
-                                        job_collection=job_collection,
-                                        job_name=job_name,
-                                        job_version=job_version)
+        content = get_squonk_job_config(
+            request,
+            job_collection=job_collection,
+            job_name=job_name,
+            job_version=job_version,
+        )
 
         return Response(content)
 
@@ -1762,7 +1913,6 @@ class JobOverrideView(viewsets.ModelViewSet):
 
 
 class JobRequestView(APIView):
-
     def get(self, request):
         logger.info('+ JobRequest.get')
 
@@ -1793,33 +1943,52 @@ class JobRequestView(APIView):
 
         for jr in job_requests:
             if not jr.job_has_finished():
-                logger.info('+ JobRequest.get (id=%s) has not finished (job_status=%s)',
-                            jr.id, jr.job_status)
+                logger.info(
+                    '+ JobRequest.get (id=%s) has not finished (job_status=%s)',
+                    jr.id,
+                    jr.job_status,
+                )
 
                 # Job's not finished, an opportunity to call into Squonk
                 # To get the current status. To do this we'll need
                 # the 'callback context' we supplied when launching the Job.
-                logger.info('+ JobRequest.get (id=%s, code=%s) getting update from Squonk...',
-                            jr.id, jr.code)
+                logger.info(
+                    '+ JobRequest.get (id=%s, code=%s) getting update from Squonk...',
+                    jr.id,
+                    jr.code,
+                )
                 sq2a_rv = _SQ2A.get_instance_execution_status(jr.code)
                 # If the job's now finished, update the record.
                 # If the call was successful we'll get None (not finished),
                 # 'LOST', 'SUCCESS' or 'FAILURE'
                 if not sq2a_rv.success:
-                    logger.warning('+ JobRequest.get (id=%s, code=%s) check failed (%s)',
-                                    jr.id, jr.code, sq2a_rv.msg)
+                    logger.warning(
+                        '+ JobRequest.get (id=%s, code=%s) check failed (%s)',
+                        jr.id,
+                        jr.code,
+                        sq2a_rv.msg,
+                    )
                 elif sq2a_rv.success and sq2a_rv.msg:
-                    logger.info('+ JobRequest.get (id=%s, code=%s) new status is (%s)',
-                                jr.id, jr.code, sq2a_rv.msg)
+                    logger.info(
+                        '+ JobRequest.get (id=%s, code=%s) new status is (%s)',
+                        jr.id,
+                        jr.code,
+                        sq2a_rv.msg,
+                    )
                     transition_time = str(datetime.utcnow())
-                    transition_time_utc = parse(transition_time).replace(tzinfo=pytz.UTC)
+                    transition_time_utc = parse(transition_time).replace(
+                        tzinfo=pytz.UTC
+                    )
                     jr.job_status = sq2a_rv.msg
                     jr.job_status_datetime = transition_time_utc
                     jr.job_finish_datetime = transition_time_utc
                     jr.save()
                 else:
-                    logger.info('+ JobRequest.get (id=%s, code=%s) is (probably) still running',
-                                jr.id, jr.code)
+                    logger.info(
+                        '+ JobRequest.get (id=%s, code=%s) is (probably) still running',
+                        jr.id,
+                        jr.code,
+                    )
 
             serializer = serializers.JobRequestReadSerializer(jr)
             results.append(serializer.data)
@@ -1828,10 +1997,12 @@ class JobRequestView(APIView):
         logger.info('+ JobRequest.get num_results=%s', num_results)
 
         # Simulate the original paged API response...
-        content = {'count': num_results,
-                   'next': None,
-                   'previous': None,
-                   'results': results}
+        content = {
+            'count': num_results,
+            'next': None,
+            'previous': None,
+            'results': results,
+        }
         return Response(content, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -1863,13 +2034,15 @@ class JobRequestView(APIView):
         # Check the user can use this Squonk2 facility.
         # To do this we need to setup a couple of API parameter objects.
         # We don't (at this point) care about the Job spec or callback URL.
-        sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
-                                                        access_id=access_id,
-                                                        session_id=session_project_id,
-                                                        target_id=target_id)
-        sq2a_run_job_params: RunJobParams = RunJobParams(common=sq2a_common_params,
-                                                         job_spec=None,
-                                                         callback_url=None)
+        sq2a_common_params: CommonParams = CommonParams(
+            user_id=user.id,
+            access_id=access_id,
+            session_id=session_project_id,
+            target_id=target_id,
+        )
+        sq2a_run_job_params: RunJobParams = RunJobParams(
+            common=sq2a_common_params, job_spec=None, callback_url=None
+        )
         sq2a_rv: Squonk2AgentRv = _SQ2A.can_run_job(sq2a_run_job_params)
         if not sq2a_rv.success:
             content = {f'You cannot do this ({sq2a_rv.msg})'}
@@ -1880,20 +2053,19 @@ class JobRequestView(APIView):
         except ValueError as error:
             logger.info('Job Request failed: %s', error)
             content = {'error': str(error)}
-            return Response(content,
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         logger.info('SUCCESS (job_id=%s squonk_url_ext=%s)', job_id, squonk_url_ext)
 
         content = {'id': job_id, 'squonk_url_ext': squonk_url_ext}
-        return Response(content,
-                        status=status.HTTP_200_OK)
+        return Response(content, status=status.HTTP_200_OK)
 
 
 class JobCallBackView(viewsets.ModelViewSet):
     """View to allow the Squonk system to update the status and job information for a
     specific job identified by a UUID.
     """
+
     queryset = models.JobRequest.objects.all()
     lookup_field = "code"
     http_method_names = ['get', 'head', 'put']
@@ -1936,7 +2108,11 @@ class JobCallBackView(viewsets.ModelViewSet):
                 break
 
         if not status_changed:
-            logger.info('+ JobCallBackView.update(code=%s) status=%s ignoring (no status change)', code, status)
+            logger.info(
+                '+ JobCallBackView.update(code=%s) status=%s ignoring (no status change)',
+                code,
+                status,
+            )
             return HttpResponse(status=204)
 
         # This is now a chance to safely set the squonk_url_ext using the instance ID
@@ -1945,34 +2121,54 @@ class JobCallBackView(viewsets.ModelViewSet):
         # by process_compound_set_file() which loads the output file back
         # into Fragalysis
         if not jr.squonk_url_ext:
-            jr.squonk_url_ext = create_squonk_job_request_url(request.data['instance_id'])
-            logger.info("+ JobCallBackView.update(code=%s) jr.squonk_url_ext='%s'", code, jr.squonk_url_ext)
+            jr.squonk_url_ext = create_squonk_job_request_url(
+                request.data['instance_id']
+            )
+            logger.info(
+                "+ JobCallBackView.update(code=%s) jr.squonk_url_ext='%s'",
+                code,
+                jr.squonk_url_ext,
+            )
 
         # Update the state transition time,
         # assuming UTC.
         transition_time = request.data.get('state_transition_time')
         if not transition_time:
             transition_time = str(datetime.utcnow())
-            logger.warning("+ JobCallBackView.update(code=%s) callback is missing state_transition_time"
-                           " (using '%s')", code, transition_time)
+            logger.warning(
+                "+ JobCallBackView.update(code=%s) callback is missing state_transition_time"
+                " (using '%s')",
+                code,
+                transition_time,
+            )
         transition_time_utc = parse(transition_time).replace(tzinfo=pytz.UTC)
         jr.job_status_datetime = transition_time_utc
 
-        logger.info('+ JobCallBackView.update(code=%s) status=%s transition_time=%s (new status)',
-                    code, status, transition_time)
+        logger.info(
+            '+ JobCallBackView.update(code=%s) status=%s transition_time=%s (new status)',
+            code,
+            status,
+            transition_time,
+        )
 
         # If the Job's start-time is not set, set it.
         if not jr.job_start_datetime:
-            logger.info('+ JobCallBackView.update(code=%s) setting job START datetime (%s)',
-                        code, transition_time)
+            logger.info(
+                '+ JobCallBackView.update(code=%s) setting job START datetime (%s)',
+                code,
+                transition_time,
+            )
             jr.job_start_datetime = transition_time_utc
 
         # Set the Job's finish time (once) if it looks lie the Job's finished.
         # We can assume the Job's finished if the status is one of a number
         # of values...
         if not jr.job_finish_datetime and status in ('SUCCESS', 'FAILURE', 'REVOKED'):
-            logger.info('+ JobCallBackView.update(code=%s) Setting job FINISH datetime (%s)',
-                        code, transition_time)
+            logger.info(
+                '+ JobCallBackView.update(code=%s) Setting job FINISH datetime (%s)',
+                code,
+                transition_time,
+            )
             jr.job_finish_datetime = transition_time_utc
 
         # Save the JobRequest record before going further.
@@ -1982,8 +2178,11 @@ class JobCallBackView(viewsets.ModelViewSet):
             # Go no further unless SUCCESS
             return HttpResponse(status=204)
 
-        logger.info('+ JobCallBackView.update(code=%s) job finished (SUCCESS).'
-                    ' Can we upload the results?', code)
+        logger.info(
+            '+ JobCallBackView.update(code=%s) job finished (SUCCESS).'
+            ' Can we upload the results?',
+            code,
+        )
 
         # SUCCESS ... automatic upload?
         #
@@ -1997,32 +2196,53 @@ class JobCallBackView(viewsets.ModelViewSet):
         command = jr_job_info_msg.get('command')
         command_parts = shlex.split(command)
         outfile_index = 0
-        while outfile_index < len(command_parts)\
-                and command_parts[outfile_index] != '--outfile':
+        while (
+            outfile_index < len(command_parts)
+            and command_parts[outfile_index] != '--outfile'
+        ):
             outfile_index += 1
         # Found '--command'?
-        if command_parts[outfile_index] == '--outfile'\
-                and outfile_index < len(command_parts) - 1:
+        if (
+            command_parts[outfile_index] == '--outfile'
+            and outfile_index < len(command_parts) - 1
+        ):
             # Yes ... the filename is the next item in the list
             job_output = command_parts[outfile_index + 1]
         job_output_path = '/' + os.path.dirname(job_output)
         job_output_filename = os.path.basename(job_output)
 
-        logging.info('+ JobCallBackView.update(code=%s) job_output_path="%s"', code, job_output_path)
-        logging.info('+ JobCallBackView.update(code=%s) job_output_filename="%s"', code, job_output_filename)
+        logging.info(
+            '+ JobCallBackView.update(code=%s) job_output_path="%s"',
+            code,
+            job_output_path,
+        )
+        logging.info(
+            '+ JobCallBackView.update(code=%s) job_output_filename="%s"',
+            code,
+            job_output_filename,
+        )
 
         # If it's not suitably named, leave
         expected_squonk_filename = 'merged.sdf'
         if job_output_filename != expected_squonk_filename:
             # Incorrectly named file - nothing to get/upload.
-            logger.info('+ JobCallBackView.update(code=%s) SUCCESS but not uploading.'
-                        ' Expected "%s" as job_output_filename.'
-                        ' Found "%s"', code, expected_squonk_filename, job_output_filename)
+            logger.info(
+                '+ JobCallBackView.update(code=%s) SUCCESS but not uploading.'
+                ' Expected "%s" as job_output_filename.'
+                ' Found "%s"',
+                code,
+                expected_squonk_filename,
+                job_output_filename,
+            )
             return HttpResponse(status=204)
 
         if jr.upload_status != 'PENDING':
-            logger.warning('+ JobCallBackView.update(code=%s) SUCCESS but ignoring.'
-                           ' upload_status=%s (already uploading?)', code, jr.upload_status)
+            logger.warning(
+                '+ JobCallBackView.update(code=%s) SUCCESS but ignoring.'
+                ' upload_status=%s (already uploading?)',
+                code,
+                jr.upload_status,
+            )
             return HttpResponse(status=204)
 
         # Change of status and SUCCESS
@@ -2034,22 +2254,29 @@ class JobCallBackView(viewsets.ModelViewSet):
         # Which requires the linking of several tasks.
         # We star the process with 'process_compound_set_job_file'
         # with the path and filename already discoverd...
-        task_params = {'jr_id': jr.id,
-                       'transition_time': transition_time,
-                       'job_output_path': job_output_path,
-                       'job_output_filename': job_output_filename}
+        task_params = {
+            'jr_id': jr.id,
+            'transition_time': transition_time,
+            'job_output_path': job_output_path,
+            'job_output_filename': job_output_filename,
+        }
         task_upload = (
-             process_compound_set_job_file.s(task_params) |
-             validate_compound_set.s() |
-             process_compound_set.s() |
-             erase_compound_set_job_material.s(job_request_id=jr.id)
+            process_compound_set_job_file.s(task_params)
+            | validate_compound_set.s()
+            | process_compound_set.s()
+            | erase_compound_set_job_material.s(job_request_id=jr.id)
         ).apply_async()
 
-        logger.info('+ JobCallBackView.update(code=%s)'
-                    ' started process_job_file_upload(%s) task_upload=%s',
-                    code, jr.id, task_upload)
+        logger.info(
+            '+ JobCallBackView.update(code=%s)'
+            ' started process_job_file_upload(%s) task_upload=%s',
+            code,
+            jr.id,
+            task_upload,
+        )
 
         return HttpResponse(status=204)
+
 
 class JobAccessView(APIView):
     """JobAccess (api/job_access)
@@ -2059,9 +2286,9 @@ class JobAccessView(APIView):
     must have access to the corresponding Fragalysis Project. This can be called by
     the Job 'owner', who always has access.
     """
+
     def get(self, request):
-        """Method to handle GET request
-        """
+        """Method to handle GET request"""
         query_params = request.query_params
         logger.info('+ JobAccessView/GET %s', json.dumps(query_params))
 
@@ -2071,8 +2298,10 @@ class JobAccessView(APIView):
         # Only authenticated users can have squonk jobs
         user = self.request.user
         if not user.is_authenticated:
-            content = {'accessible': False,
-                       'error': 'Only authenticated users can access Squonk Jobs'}
+            content = {
+                'accessible': False,
+                'error': 'Only authenticated users can access Squonk Jobs',
+            }
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Can't use this method if the squonk variables are not set!
@@ -2099,7 +2328,9 @@ class JobAccessView(APIView):
 
         # JobRequest must have a Squonk Project value
         if not jr.squonk_project:
-            err_response['error'] = f'The JobRequest ({jr_id}) has no Squonk Project value'
+            err_response[
+                'error'
+            ] = f'The JobRequest ({jr_id}) has no Squonk Project value'
             return Response(err_response, status=status.HTTP_403_FORBIDDEN)
 
         # User must have access to the Job's Project.
@@ -2109,45 +2340,61 @@ class JobAccessView(APIView):
         # If the Job has no Project (Jobs created before this change will not have a Project)
         # or the user is the owner of the Job we skip this check.
         if user.id != jr.user.id:
-            logger.info('+ JobAccessView/GET Checking access to JobRequest %s for "%s" (%s)',
-                        jr_id, user.username, jr.squonk_project)
+            logger.info(
+                '+ JobAccessView/GET Checking access to JobRequest %s for "%s" (%s)',
+                jr_id,
+                user.username,
+                jr.squonk_project,
+            )
             if not jr.project or not jr.project.title:
-                logger.warning('+ JobAccessView/GET No Fragalysis Project (or title)'
-                               ' for JobRequest %s - granting access',
-                               jr_id)
+                logger.warning(
+                    '+ JobAccessView/GET No Fragalysis Project (or title)'
+                    ' for JobRequest %s - granting access',
+                    jr_id,
+                )
             else:
                 # The project is the Job's access ID.
                 # To check access we need this and the User's ID
                 access_id = jr.project.id
                 access_string = jr.project.title
-                sq2a_common_params: CommonParams = CommonParams(user_id=user.id,
-                                                                access_id=access_id,
-                                                                session_id=None,
-                                                                target_id=None)
-                sq2a_run_job_params: RunJobParams = RunJobParams(common=sq2a_common_params,
-                                                                 job_spec=None,
-                                                                 callback_url=None)
+                sq2a_common_params: CommonParams = CommonParams(
+                    user_id=user.id,
+                    access_id=access_id,
+                    session_id=None,
+                    target_id=None,
+                )
+                sq2a_run_job_params: RunJobParams = RunJobParams(
+                    common=sq2a_common_params, job_spec=None, callback_url=None
+                )
                 sq2a_rv: Squonk2AgentRv = _SQ2A.can_run_job(sq2a_run_job_params)
                 if not sq2a_rv.success:
-                    err_response['error'] = f'Access to the Job for {access_id} ({access_string}) is denied. {sq2a_rv.msg}'
+                    err_response[
+                        'error'
+                    ] = f'Access to the Job for {access_id} ({access_string}) is denied. {sq2a_rv.msg}'
                     return Response(err_response, status=status.HTTP_403_FORBIDDEN)
 
             # All checks passed ... grant access for this user
-            sq2a_access_params: AccessParams = AccessParams(username=user.username,
-                                                            project_uuid=jr.squonk_project)
+            sq2a_access_params: AccessParams = AccessParams(
+                username=user.username, project_uuid=jr.squonk_project
+            )
             sqa_rv = _SQ2A.grant_access(sq2a_access_params)
             if not sqa_rv.success:
                 err_response['error'] = f'Squonk failed to grant access ({sqa_rv.msg})'
                 logger.warning('+ JobAccessView/GET error=%s', content['error'])
-                return Response(err_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    err_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-        logger.info('+ JobAccessView/GET Success for %s/"%s" on %s',
-                    jr_id, user.username, jr.squonk_project)
+        logger.info(
+            '+ JobAccessView/GET Success for %s/"%s" on %s',
+            jr_id,
+            user.username,
+            jr.squonk_project,
+        )
         return Response(ok_response)
 
 
 class ServiceState(View):
-
     def get(self, *args, **kwargs):
         """Poll external service status.
 
@@ -2164,7 +2411,7 @@ class ServiceState(View):
         service_string = os.environ.get("ENABLE_SERVICE_STATUS", "")
         logger.debug("Service string: %s", service_string)
 
-        services = [k for k in service_string.split(":") if k !=  ""]
+        services = [k for k in service_string.split(":") if k != ""]
         logger.debug("Services ordered: %s", services)
 
         service_states = get_service_state(services)

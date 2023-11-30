@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -16,16 +15,50 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='HotspotMap',
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('map_type', models.CharField(choices=[('AC', 'Acceptor'), ('AP', 'Apolar'), ('DO', 'Donor')], max_length=2)),
-                ('map_info', models.FileField(max_length=255, null=True, upload_to='maps/')),
-                ('compressed_map_info', models.FileField(max_length=255, null=True, upload_to='maps/')),
-                ('site_observation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='viewer.siteobservation')),
-                ('target', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='viewer.target')),
+                (
+                    'id',
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name='ID',
+                    ),
+                ),
+                (
+                    'map_type',
+                    models.CharField(
+                        choices=[('AC', 'Acceptor'), ('AP', 'Apolar'), ('DO', 'Donor')],
+                        max_length=2,
+                    ),
+                ),
+                (
+                    'map_info',
+                    models.FileField(max_length=255, null=True, upload_to='maps/'),
+                ),
+                (
+                    'compressed_map_info',
+                    models.FileField(max_length=255, null=True, upload_to='maps/'),
+                ),
+                (
+                    'site_observation',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to='viewer.siteobservation',
+                    ),
+                ),
+                (
+                    'target',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, to='viewer.target'
+                    ),
+                ),
             ],
         ),
         migrations.AddConstraint(
             model_name='hotspotmap',
-            constraint=models.UniqueConstraint(fields=('map_type', 'target', 'site_observation'), name='unique_maptype_target_siteobvs'),
+            constraint=models.UniqueConstraint(
+                fields=('map_type', 'target', 'site_observation'),
+                name='unique_maptype_target_siteobvs',
+            ),
         ),
     ]

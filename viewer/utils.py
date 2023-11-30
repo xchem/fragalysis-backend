@@ -19,8 +19,7 @@ SDF_VERSION = 'ver_1.2'
 
 
 def create_squonk_job_request_url(instance_id):
-    """Creates the Squonk Instance API url from an instance ID (UUID).
-    """
+    """Creates the Squonk Instance API url from an instance ID (UUID)."""
     return settings.SQUONK2_INSTANCE_API + str(instance_id)
 
 
@@ -42,8 +41,9 @@ def delete_media_sub_directory(sub_directory):
     if not os.path.isdir(directory):
         # No such directory!
         return
-    if not directory.startswith(settings.MEDIA_ROOT) or \
-            os.path.samefile(directory, settings.MEDIA_ROOT):
+    if not directory.startswith(settings.MEDIA_ROOT) or os.path.samefile(
+        directory, settings.MEDIA_ROOT
+    ):
         # Danger!
         return
 
@@ -102,9 +102,10 @@ def clean_filename(filepath):
     """
     file_split = os.path.splitext(os.path.basename(filepath))
     if fnmatch.fnmatch(
-            file_split[0],
-            '*_[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9]'+
-            '[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9]'):
+        file_split[0],
+        '*_[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9]'
+        + '[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9]',
+    ):
         cleaned_filename = file_split[0][:-8] + file_split[1]
     else:
         cleaned_filename = os.path.basename(filepath)
