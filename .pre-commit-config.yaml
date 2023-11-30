@@ -33,6 +33,16 @@ repos:
 #    - types-pytz
 #    - types-requests
 
+# Black (uncompromising) Python code formatter
+- repo: https://github.com/psf/black
+  rev: 23.11.0
+  hooks:
+  - id: black
+    args:
+    - --skip-string-normalization
+    - --target-version
+    - py311
+
 # Pylint
 # To check import errors we need to install every package
 # used by the DM. This is often impractical on the client,
