@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0013_auto_20230921_1417'),
     ]
@@ -14,13 +13,36 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='SiteObvsSiteObservationTag',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('site_observation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='viewer.siteobservation')),
-                ('site_obvs_tag', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='viewer.siteobservationtag')),
+                (
+                    'id',
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name='ID',
+                    ),
+                ),
+                (
+                    'site_observation',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to='viewer.siteobservation',
+                    ),
+                ),
+                (
+                    'site_obvs_tag',
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to='viewer.siteobservationtag',
+                    ),
+                ),
             ],
         ),
         migrations.AddConstraint(
             model_name='siteobvssiteobservationtag',
-            constraint=models.UniqueConstraint(fields=('site_observation', 'site_obvs_tag'), name='unique_siteobservationtagcontents'),
+            constraint=models.UniqueConstraint(
+                fields=('site_observation', 'site_obvs_tag'),
+                name='unique_siteobservationtagcontents',
+            ),
         ),
     ]

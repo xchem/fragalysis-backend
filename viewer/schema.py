@@ -9,14 +9,12 @@ relay = graphene.relay
 
 
 class Compound(SerializerMutation):
-
     class Meta:
         serializer_class = CompoundSerializer
         interfaces = (relay.Node,)
 
 
 class Target(SerializerMutation):
-
     class Meta:
         serializer_class = TargetSerializer
         interfaces = (relay.Node,)

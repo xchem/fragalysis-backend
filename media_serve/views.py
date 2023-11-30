@@ -42,7 +42,9 @@ def file_download(request, file_path):
     ispy_b_static.request = request
     # ispy_b_static.permission_string = "target_id__project_id"
     # the following 2 aren't used atm
-    ispy_b_static.permission_string = "experiment__experiment_upload__target__project_id"
+    ispy_b_static.permission_string = (
+        "experiment__experiment_upload__target__project_id"
+    )
     # ispy_b_static.field_name = "pdb_info"
     ispy_b_static.field_name = "apo_file"
     ispy_b_static.content_type = "application/x-pilot"
@@ -68,7 +70,9 @@ def tld_download(request, file_path):
     ispy_b_static.request = request
     # ispy_b_static.permission_string = "target_id__project_id"
     # the following 2 aren't used atm
-    ispy_b_static.permission_string = "experiment__experiment_upload__target__project_id"
+    ispy_b_static.permission_string = (
+        "experiment__experiment_upload__target__project_id"
+    )
     # ispy_b_static.field_name = "pdb_info"
     ispy_b_static.field_name = "apo_file"
     ispy_b_static.content_type = "application/x-pilot"
@@ -119,9 +123,7 @@ def map_download(request, file_path):
 
     # TODO: remove/add map_info (was used for hotspots but not currently used)
 
-    exts = {'sigmaa_info': '2fofc',
-            'diff_info': 'fofc',
-            'event_info': 'event'}
+    exts = {'sigmaa_info': '2fofc', 'diff_info': 'fofc', 'event_info': 'event'}
 
     field_name = None
 

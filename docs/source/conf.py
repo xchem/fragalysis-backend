@@ -60,6 +60,7 @@ html_static_path = ['_static']
 
 master_doc = 'index'
 
+
 # A function that extracts documentation from the Django model classes.
 # Field documentation is extracted from the model's help_text or verbose_name
 # along with automated docs for the type.
@@ -68,11 +69,10 @@ master_doc = 'index'
 def process_docstring(app, what, name, obj, options, lines):
     # This causes import errors if left outside the function
     from django.db import models
-    
+
     # Only look at objects that inherit from Django's base model class
     if inspect.isclass(obj) and issubclass(obj, models.Model):
         for field in obj._meta.get_fields():
-
             # Try the column's help text or the verbose name
             text = ""
             if hasattr(field, "help_text"):
@@ -82,8 +82,9 @@ def process_docstring(app, what, name, obj, options, lines):
             if text:
                 lines.append(u':param %s: %s' % (field.attname, text))
                 lines.append(u':type %s: %s' % (field.attname, type(field).__name__))
-   
-    return lines  
+
+    return lines
+
 
 # Register the docstring processor with sphinx
 def setup(app):

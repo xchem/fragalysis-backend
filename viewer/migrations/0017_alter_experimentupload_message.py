@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0016_add_jobfiletransfer_sub_path'),
     ]
@@ -14,6 +13,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='experimentupload',
             name='message',
-            field=models.JSONField(blank=True, encoder=django.core.serializers.json.DjangoJSONEncoder, help_text='Any message or task info associated with the upload. Used for upload audit trail', null=True),
+            field=models.JSONField(
+                blank=True,
+                encoder=django.core.serializers.json.DjangoJSONEncoder,
+                help_text='Any message or task info associated with the upload. Used for upload audit trail',
+                null=True,
+            ),
         ),
     ]

@@ -3,7 +3,6 @@ from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 
 
 class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
-
     # Overrides Authentication Backend so that Django users are created with the keycloak preferred_username
     def create_user(self, claims):
         user = super(KeycloakOIDCAuthenticationBackend, self).create_user(claims)
@@ -15,8 +14,8 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         return user
 
     def filter_users_by_claims(self, claims):
-        """ Return all users matching the specified email.
-            If nothing found matching the email, then try the username
+        """Return all users matching the specified email.
+        If nothing found matching the email, then try the username
         """
         email = claims.get('email')
         preferred_username = claims.get('preferred_username')

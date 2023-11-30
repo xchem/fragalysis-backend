@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0012_alter_experimentupload_task_id'),
     ]

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0010_remove_xtalform_xtalform_id'),
     ]
@@ -16,6 +15,9 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='xtalformquatassembly',
-            constraint=models.UniqueConstraint(fields=('xtalform', 'quat_assembly', 'assembly_id'), name='unique_xtalformquatassembly'),
+            constraint=models.UniqueConstraint(
+                fields=('xtalform', 'quat_assembly', 'assembly_id'),
+                name='unique_xtalformquatassembly',
+            ),
         ),
     ]

@@ -24,7 +24,6 @@ from graphene_django.views import GraphQLView
 
 urlpatterns = [
     re_path(r"^$", RedirectView.as_view(url="/viewer/react/landing")),
-
     path("version/", fragalysis.views.version, name="version"),
     path("admin/", admin.site.urls),
     path("viewer/", include("viewer.urls")),
@@ -35,7 +34,19 @@ urlpatterns = [
     path("xcdb/", include("xcdb.urls")),
     path("graphql/", GraphQLView.as_view(graphiql=True)),
     path('oidc/', include('mozilla_django_oidc.urls')),
-    path("accounts/login/", mozilla_django_oidc.views.OIDCAuthenticationRequestView.as_view(), name="keylcoak_login"),
-    path("accounts/logout/", fragalysis.views.LogoutView.as_view(), name="keycloak_logout"),
-    path("oidc/callback/", mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(), name="keycloak_callback"),
+    path(
+        "accounts/login/",
+        mozilla_django_oidc.views.OIDCAuthenticationRequestView.as_view(),
+        name="keylcoak_login",
+    ),
+    path(
+        "accounts/logout/",
+        fragalysis.views.LogoutView.as_view(),
+        name="keycloak_logout",
+    ),
+    path(
+        "oidc/callback/",
+        mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(),
+        name="keycloak_callback",
+    ),
 ]

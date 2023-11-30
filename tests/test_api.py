@@ -30,26 +30,19 @@ from viewer.models import (
     SessionProject,
     TagCategory,
     MoleculeTag,
-    SessionProjectTag
+    SessionProjectTag,
 )
 
 # Target upload functions
-from viewer.target_set_upload import (
-    validate_target,
-    process_target
-)
+from viewer.target_set_upload import validate_target, process_target
 
 # Compound set upload functions
-from viewer.tasks import (
-    validate_compound_set,
-    process_compound_set
-)
+from viewer.tasks import validate_compound_set, process_compound_set
 
 # Test all these functions
 
 
 class APIUtilsTestCase(APITestCase):
-
     def setUp(self):
         self.factory = RequestFactory()
         self.user = User.objects.create(username="DUMMY", password="DUMMY")
@@ -74,9 +67,8 @@ class APIUtilsTestCase(APITestCase):
         self.assertNotEqual(token_two, "")
         self.assertTrue(type(token_two) == str)
 
-
     def test_generate_csv(self):
-        #Check api/dicttocsv/ is available.
+        # Check api/dicttocsv/ is available.
         response_data_get = "Please provide file_url parameter"
 
         response = self.client.get(self.url_base + "/dicttocsv/")
@@ -96,7 +88,6 @@ class APIUtilsTestCase(APITestCase):
 
 
 class APIUrlsTestCase(APITestCase):
-
     def setUp(self):
         self.maxDiff = None
         self.factory = APIRequestFactory()
@@ -117,7 +108,7 @@ class APIUrlsTestCase(APITestCase):
         self.cmpd = Compound.objects.create(
             id=1,
             inchi="DUM_INCH",
-            long_inchi = "DUM_L_INCHI",
+            long_inchi="DUM_L_INCHI",
             smiles="DUM_SMI",
             current_identifier='DUMM',
             all_identifiers='DUMM',
@@ -238,42 +229,40 @@ class APIUrlsTestCase(APITestCase):
 
         # MoleculeTag
         self.moltag = MoleculeTag.objects.create(
-            id = 1,
-            tag = "A9 - XChem screen - covalent hits",
-            create_date = "2021-04-20T14:16:46.850313Z",
-            colour = "FFFFFF",
-            discourse_url = "www.discoursesite.com/t/1234",
-            help_text = "Some help text to display as a tooltip",
-            additional_info = "{'key', 'value'}",
-            category = self.tagcategory,
-            target = self.target,
+            id=1,
+            tag="A9 - XChem screen - covalent hits",
+            create_date="2021-04-20T14:16:46.850313Z",
+            colour="FFFFFF",
+            discourse_url="www.discoursesite.com/t/1234",
+            help_text="Some help text to display as a tooltip",
+            additional_info="{'key', 'value'}",
+            category=self.tagcategory,
+            target=self.target,
         )
         self.moltag.molecules.add(self.mol)
 
         # SessionProject created for SessionProjectTag
         self.sp = SessionProject.objects.create(
-            id = 1,
-            title = 'test session project',
-            target = self.target
+            id=1, title='test session project', target=self.target
         )
 
         # SessionProjectTag
         self.sptag = SessionProjectTag.objects.create(
-            id = 1,
-            tag = "Session Project Tag",
-            create_date = "2021-04-20T14:16:46.850313Z",
-            colour = "FFFFFF",
-            discourse_url = "www.discoursesite.com/t/1234",
-            help_text = "Some help text to display as a tooltip",
-            additional_info = "{'key', 'value'}",
-            category = self.tagcategory,
-            target = self.target,
+            id=1,
+            tag="Session Project Tag",
+            create_date="2021-04-20T14:16:46.850313Z",
+            colour="FFFFFF",
+            discourse_url="www.discoursesite.com/t/1234",
+            help_text="Some help text to display as a tooltip",
+            additional_info="{'key', 'value'}",
+            category=self.tagcategory,
+            target=self.target,
         )
         self.sptag.session_projects.add(self.sp)
 
         self.url_base = "/api"
 
-        self.get_types = ["targets"] #, "molecules"]
+        self.get_types = ["targets"]  # , "molecules"]
 
         self.secret_target_data = {
             "targets": {
@@ -291,7 +280,7 @@ class APIUrlsTestCase(APITestCase):
                         "metadata": None,
                         "upload_status": None,
                         "zip_archive": None,
-                        "sequences": [{'chain': '', 'sequence': ''}]
+                        "sequences": [{'chain': '', 'sequence': ''}],
                     },
                     {
                         "id": 1,
@@ -303,7 +292,7 @@ class APIUrlsTestCase(APITestCase):
                         "metadata": None,
                         "upload_status": None,
                         "zip_archive": None,
-                        "sequences": [{'chain': '', 'sequence': ''}]
+                        "sequences": [{'chain': '', 'sequence': ''}],
                     },
                 ],
             },
@@ -334,7 +323,7 @@ class APIUrlsTestCase(APITestCase):
                         "hdon": 6,
                         "rots": 8,
                         "rings": 10,
-                        "velec": 9
+                        "velec": 9,
                     },
                     {
                         "id": 2,
@@ -358,7 +347,7 @@ class APIUrlsTestCase(APITestCase):
                         "hdon": 6,
                         "rots": 8,
                         "rings": 10,
-                        "velec": 9
+                        "velec": 9,
                     },
                 ],
             },
@@ -432,7 +421,7 @@ class APIUrlsTestCase(APITestCase):
                         "event_info": None,
                         "aligned": None,
                         "has_eds": None,
-                        "aligned_to": None
+                        "aligned_to": None,
                     },
                     {
                         "id": 2,
@@ -449,7 +438,7 @@ class APIUrlsTestCase(APITestCase):
                         "event_info": None,
                         "aligned": None,
                         "has_eds": None,
-                        "aligned_to": None
+                        "aligned_to": None,
                     },
                 ],
             },
@@ -470,7 +459,7 @@ class APIUrlsTestCase(APITestCase):
                         "metadata": None,
                         'upload_status': None,
                         "zip_archive": None,
-                        "sequences": [{'chain': '', 'sequence': ''}]
+                        "sequences": [{'chain': '', 'sequence': ''}],
                     }
                 ],
             },
@@ -501,7 +490,7 @@ class APIUrlsTestCase(APITestCase):
                         "hdon": 6,
                         "rots": 8,
                         "rings": 10,
-                        "velec": 9
+                        "velec": 9,
                     }
                 ],
             },
@@ -554,7 +543,7 @@ class APIUrlsTestCase(APITestCase):
                         "event_info": None,
                         "aligned": None,
                         "has_eds": None,
-                        "aligned_to": None
+                        "aligned_to": None,
                     }
                 ],
             },
@@ -601,7 +590,7 @@ class APIUrlsTestCase(APITestCase):
                 "hdon": 6,
                 "rots": 8,
                 "rings": 10,
-                "velec": 9
+                "velec": 9,
             },
             {
                 "id": 1,
@@ -634,7 +623,7 @@ class APIUrlsTestCase(APITestCase):
                 "metadata": None,
                 "upload_status": None,
                 "zip_archive": None,
-                "sequences": [{'chain': '', 'sequence': ''}]
+                "sequences": [{'chain': '', 'sequence': ''}],
             },
             {
                 "id": 1,
@@ -656,8 +645,7 @@ class APIUrlsTestCase(APITestCase):
                 "aligned": None,
                 "has_eds": None,
                 "aligned_to": None,
-                "experiment": None
-
+                "experiment": None,
             },
             {"id": 1, "cmpd_id": 1, "smiles": "DUMMY", "type": "DE"},
             {
@@ -742,18 +730,9 @@ class APIUrlsTestCase(APITestCase):
         when budget/opportunity allows.
         :return:
         """
-        urls = [
-            "tag_category",
-            "molecule_tag",
-            "session_project_tag"
-        ]
+        urls = ["tag_category", "molecule_tag", "session_project_tag"]
         response_data = [
-            {
-                "id": 1,
-                "category": "Sites",
-                "colour": "00CC00",
-                "description": None
-            },
+            {"id": 1, "category": "Sites", "colour": "00CC00", "description": None},
             {
                 "id": 1,
                 "tag": "A9 - XChem screen - covalent hits",
@@ -766,7 +745,7 @@ class APIUrlsTestCase(APITestCase):
                 "additional_info": "{'key', 'value'}",
                 "category": 1,
                 "target": 1,
-                "molecules": [1]
+                "molecules": [1],
             },
             {
                 "id": 1,
@@ -779,7 +758,7 @@ class APIUrlsTestCase(APITestCase):
                 "additional_info": "{'key', 'value'}",
                 "category": 1,
                 "target": 1,
-                "session_projects": [1]
+                "session_projects": [1],
             },
         ]
         self.client.login(username=self.user.username, password=self.user.password)
@@ -790,7 +769,6 @@ class APIUrlsTestCase(APITestCase):
             self.assertEqual(response.data, response_data[i])
 
     def test_validate_target(self):
-
         target_zip = '/code/tests/test_data/TESTTARGET.zip'
         new_data_folder = '/code/tests/output/new_data'
         target = 'TESTTARGET'
@@ -800,22 +778,28 @@ class APIUrlsTestCase(APITestCase):
         with zipfile.ZipFile(target_zip, 'r') as zip_ref:
             zip_ref.extractall(new_data_folder)
 
-        validated, validate_dict = validate_target(new_data_folder,
-                                                   target,
-                                                   proposal)
+        validated, validate_dict = validate_target(new_data_folder, target, proposal)
         self.assertEqual(validated, True)
-        self.assertEqual(validate_dict, {'Location': [], 'Error': [], 'Line number': []})
+        self.assertEqual(
+            validate_dict, {'Location': [], 'Error': [], 'Line number': []}
+        )
         # Tidy up data if not validated
         if not validated:
             shutil.rmtree(new_data_folder)
 
-
     def test_process_target(self):
-
         # Reset the autoincrement keys from the tests above so the target
         # can be loaded.
-        models = [Target, Project, Molecule, Protein,
-                  Compound, MoleculeTag, Vector, Vector3D]
+        models = [
+            Target,
+            Project,
+            Molecule,
+            Protein,
+            Compound,
+            MoleculeTag,
+            Vector,
+            Vector3D,
+        ]
         sequence_sql = connection.ops.sequence_reset_sql(no_style(), models)
 
         with connection.cursor() as cursor:
@@ -831,18 +815,16 @@ class APIUrlsTestCase(APITestCase):
         with zipfile.ZipFile(target_zip, 'r') as zip_ref:
             zip_ref.extractall(new_data_folder)
 
-        mols_loaded, mols_processed = process_target(new_data_folder,
-                                                     target,
-                                                     proposal)
+        mols_loaded, mols_processed = process_target(new_data_folder, target, proposal)
 
         # Improve checks as we understand more how it works.
         self.assertEqual(mols_loaded, 8)
         self.assertEqual(mols_processed, 7)
-        target =  Target.objects.filter(title='TESTTARGET').values()
+        target = Target.objects.filter(title='TESTTARGET').values()
         self.assertEqual(len(target), 1)
         # Check finished successfully.
         self.assertEqual(target[0]['upload_status'], 'SUCCESS')
-        proteins =  Protein.objects.filter(target_id__title='TESTTARGET').values()
+        proteins = Protein.objects.filter(target_id__title='TESTTARGET').values()
         self.assertEqual(len(proteins), 7)
         # Selection of files are currently saved.
         for protein in proteins:
@@ -853,7 +835,9 @@ class APIUrlsTestCase(APITestCase):
             self.assertEqual(protein['pdb_header_info'], '')
 
         # Matches the number of proteins
-        molecules =  Molecule.objects.filter(prot_id__target_id__title='TESTTARGET').values()
+        molecules = Molecule.objects.filter(
+            prot_id__target_id__title='TESTTARGET'
+        ).values()
         self.assertEqual(len(molecules), 7)
 
         # Matches the number of sites in Metadata.csv
@@ -862,7 +846,6 @@ class APIUrlsTestCase(APITestCase):
 
         # Tidy up data
         shutil.rmtree(new_data_folder)
-
 
     # def test_computed_set(self):
     #     # NOTE THIS IS COMMENTED OUT BECAUSE compund-set_test.sdf DOES NOT YET HAVE CORRECT

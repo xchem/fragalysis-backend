@@ -1,7 +1,9 @@
 import os
 import datetime
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
+
 django.setup()
 from django.conf import settings
 
@@ -10,8 +12,10 @@ from viewer.models import (
     ScoreDescription,
     SiteObservation,
     Target,
-    ComputedSetSubmitter)
+    ComputedSetSubmitter,
+)
 import os.path
+
 
 def get_inspiration_frags(cpd, compound_set):
     # Don't need...
@@ -61,13 +65,17 @@ def get_prot(mol, target, compound_set, zfile, zfile_hashvals=None):
     pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
 
     if zfile:
-        pdb_code = pdb_fn.replace('.pdb','')
-        site_obvs = process_pdb(pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals)
+        pdb_code = pdb_fn.replace('.pdb', '')
+        site_obvs = process_pdb(
+            pdb_code=pdb_code, target=target, zfile=zfile, zfile_hashvals=zfile_hashvals
+        )
         field = site_obvs.pdb_info
 
     else:
         name = compound_set.target.title + '-' + pdb_fn
-        site_obvs = SiteObservation.objects.get(code__contains=name.split(':')[0].split('_')[0])
+        site_obvs = SiteObservation.objects.get(
+            code__contains=name.split(':')[0].split('_')[0]
+        )
         field = site_obvs.pdb_info
 
     return field
@@ -76,11 +84,13 @@ def get_prot(mol, target, compound_set, zfile, zfile_hashvals=None):
 def get_submission_info(description_mol):
     y_m_d = description_mol.GetProp('generation_date').split('-')
 
-    submitter = ComputedSetSubmitter.objects.get_or_create(name=description_mol.GetProp('submitter_name'),
-                                                           method=description_mol.GetProp('method'),
-                                                           email=description_mol.GetProp('submitter_email'),
-                                                           institution=description_mol.GetProp('submitter_institution'),
-                                                           generation_date=datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])))[0]
+    submitter = ComputedSetSubmitter.objects.get_or_create(
+        name=description_mol.GetProp('submitter_name'),
+        method=description_mol.GetProp('method'),
+        email=description_mol.GetProp('submitter_email'),
+        institution=description_mol.GetProp('submitter_institution'),
+        generation_date=datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
+    )[0]
 
     return submitter
 
@@ -93,16 +103,27 @@ def get_additional_mols(filename, compound_set):
         mols.append(suppl[i])
 
     descriptions_list = list(
-        set([item for sublist in [list(m.GetPropsAsDict().keys()) for m in mols] for item in sublist]))
+        set(
+            [
+                item
+                for sublist in [list(m.GetPropsAsDict().keys()) for m in mols]
+                for item in sublist
+            ]
+        )
+    )
 
     missing = []
 
     for desc in descriptions_list:
         existing = ScoreDescription.objects.filter(computed_set=compound_set, name=desc)
-        if len(existing)==0 and desc not in ['original SMILES', 'ref_mols', 'ref_pdb']:
+        if len(existing) == 0 and desc not in [
+            'original SMILES',
+            'ref_mols',
+            'ref_pdb',
+        ]:
             missing.append(desc)
 
-    if len(missing)>0:
+    if len(missing) > 0:
         return f"Missing score descriptions for: {', '.join(missing)}, please re-upload"
 
     return mols

@@ -5,7 +5,6 @@ import shortuuid.django_fields
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0015_auto_20231023_1049'),
     ]
@@ -14,6 +13,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='jobfiletransfer',
             name='sub_path',
-            field=shortuuid.django_fields.ShortUUIDField(alphabet='abcdefghijklmnopqrstuvwxyz', length=4, max_length=4, null=True, prefix=''),
+            field=shortuuid.django_fields.ShortUUIDField(
+                alphabet='abcdefghijklmnopqrstuvwxyz',
+                length=4,
+                max_length=4,
+                null=True,
+                prefix='',
+            ),
         ),
     ]

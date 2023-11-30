@@ -7,15 +7,17 @@ from django.conf import settings
 
 
 def keycloak_logout(request):
-    """ Ths method is used to retrieve logout endpoint to also end the keycloak session as well as the Django session.
-    """
+    """Ths method is used to retrieve logout endpoint to also end the keycloak session as well as the Django session."""
     logout_endpoint = settings.OIDC_OP_LOGOUT_ENDPOINT
-    return logout_endpoint + "?redirect_uri=" + request.build_absolute_uri(settings.LOGOUT_REDIRECT_URL)
+    return (
+        logout_endpoint
+        + "?redirect_uri="
+        + request.build_absolute_uri(settings.LOGOUT_REDIRECT_URL)
+    )
 
 
 class LogoutView(OIDCLogoutView):
-    """ Extend standard logout view to include get method (called from URL)
-    """
+    """Extend standard logout view to include get method (called from URL)"""
 
     def get(self, request):
         return self.post(request)
@@ -59,7 +61,11 @@ def version(request):
     if not stack_version:
         stack_version = undefined_value
 
-    version_response = {'version': {'backend': f'{be_namespace}:{be_image_tag}',
-                                    'frontend': f'{fe_namespace}:{fe_branch}',
-                                    'stack': f'{stack_namespace}:{stack_version}'}}
+    version_response = {
+        'version': {
+            'backend': f'{be_namespace}:{be_image_tag}',
+            'frontend': f'{fe_namespace}:{fe_branch}',
+            'stack': f'{stack_namespace}:{stack_version}',
+        }
+    }
     return JsonResponse(version_response)

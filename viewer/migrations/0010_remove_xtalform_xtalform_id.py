@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0009_remove_canonsite_canon_site_id'),
     ]
