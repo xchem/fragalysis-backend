@@ -41,8 +41,10 @@ class LoaderTests(TestCase):
         # because I know where it is
         upload_root = Path(cls.target_loader.target_root).joinpath("upload_1")
 
-        cls.assemblies = cls.target_loader._load_yaml(  # pylint: disable=protected-access
-            upload_root.joinpath(ASSEMBLIES_FILE)
+        cls.assemblies = (
+            cls.target_loader._load_yaml(  # pylint: disable=protected-access
+                upload_root.joinpath(ASSEMBLIES_FILE)
+            )
         )  # pylint: disable=protected-access
 
     @classmethod

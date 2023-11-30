@@ -32,8 +32,10 @@ file_struct_nested = {
 
 class FileValidationTests(TestCase):
     def test__calculate_sha256_positive(self):
-        calculated_hash = TargetLoader._calculate_sha256(  # pylint: disable=protected-access
-            test_file1_path
+        calculated_hash = (
+            TargetLoader._calculate_sha256(  # pylint: disable=protected-access
+                test_file1_path
+            )
         )  # pylint: disable=protected-access
 
         self.assertEqual(
@@ -44,8 +46,10 @@ class FileValidationTests(TestCase):
 
     def test__calculate_sha256_negative(self):
         incorrect_hash = "imagine if this were the actual hash"
-        calculated_hash = TargetLoader._calculate_sha256(  # pylint: disable=protected-access
-            test_file1_path
+        calculated_hash = (
+            TargetLoader._calculate_sha256(  # pylint: disable=protected-access
+                test_file1_path
+            )
         )  # pylint: disable=protected-access
 
         self.assertNotEqual(

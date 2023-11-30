@@ -209,8 +209,11 @@ def calc_cpd(cpd_object, mol, projects):
     # Rather than using the protected member,
     # why not introduce constants in the model?
     if (
-        len_smiles > Compound._meta.get_field("smiles").max_length  # pylint: disable=protected-access
-    ):  # pylint: disable=protected-access
+        len_smiles
+        > Compound._meta.get_field(  # pylint: disable=protected-access
+            "smiles"
+        ).max_length
+    ):
         logger.warning("SMILES too long (%s) [%d]", smiles, len_smiles)
         return None
     len_inchi = len(inchi)
