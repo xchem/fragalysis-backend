@@ -65,7 +65,7 @@ available to the Fragalysis Stack container: -
 .. list-table:: Stack Playbook Variables
    :widths: 30 70
    :header-rows: 1
-   
+
    * - Variable
      - Description
    * - ``stack_oidc_as_client_id``

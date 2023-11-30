@@ -16,7 +16,7 @@ _Download snapshot_:  https://https://fragalysis.xchem.diamond.ac.uk/viewer/reac
 
 ### Download options selected
 (** Note to be added**)
-The following options were checked in the download dialogue: 
+The following options were checked in the download dialogue:
 * Selected: All structures
 * Selected: PanDDA Event maps - primary evidence
 * Selected: Incremental - always up-to-date with latest structures
@@ -24,19 +24,19 @@ The following options were checked in the download dialogue:
 
 [use actual words in the modal - just type them across if necessary]
 
-### Download command (JSON)   
+### Download command (JSON)  
 JSON command sent from front-end to backend to generate the download.  This can be reused programmatically as a POST command
 
 The actual JSON (**Note: To be updated currently taken from request, but should be taken from front end**)
 
-## Directory structure  [subheading] 
+## Directory structure  [subheading]
 `[The text from download_readme_template.md.]`
 
 ## Files included
 `[Bulleted List of files in zip]`
 
 
- 
+
 - The Download URL
 - The API parameters used
 - A list of the files in the zip file.

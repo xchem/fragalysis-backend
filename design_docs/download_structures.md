@@ -1,9 +1,9 @@
 # Download Structures Notes
 
-Firstly, note that everything comes from the aligned path. 
+Firstly, note that everything comes from the aligned path.
 The original plan was for the contents of the zip file to come from the links that are currently stored in the Fragalysis database, so I did the design based on this.
 
-The extra work for the crystalographic path is detailed in https://github.com/m2ms/fragalysis-frontend/issues/673. This needs updating I think based on what we know now. 
+The extra work for the crystalographic path is detailed in https://github.com/m2ms/fragalysis-frontend/issues/673. This needs updating I think based on what we know now.
 
 The mapping for the aligned files stored in the database (the ones we currently output) is as follows:
 

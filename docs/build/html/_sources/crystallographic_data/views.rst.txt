@@ -72,4 +72,3 @@ View details
 
 .. autoclass:: viewer.views.CompoundImageView
     :members:
-
