@@ -11,10 +11,10 @@ They are defined in the various views.py files, with the key one being
 | Relative URL  | Prod site URL                                  | Description |
 | ------------- | ---------------------------------------------- | ----------- |
 | /api/         | https://fragalysis.diamond.ac.uk/api/          | Django API endpoints |
-| /api/swagger  | https://fragalysis.diamond.ac.uk/api/swagger   | API endpoints as Swagger | 
+| /api/swagger  | https://fragalysis.diamond.ac.uk/api/swagger   | API endpoints as Swagger |
 
 **NOTE:** the Swagger implementation is currently not working fully as some endpoints are
-using HTTP not HTTPS which blocks the Swagger web UI. 
+using HTTP not HTTPS which blocks the Swagger web UI.
 
 Examples:
 * Get all targets: https://fragalysis.diamond.ac.uk/api/targets/
@@ -23,5 +23,5 @@ Examples:
 ## TODO
 
 * Get Swagger working fully
-* Fully document API endpoints and their parameters 
+* Fully document API endpoints and their parameters
 * Describe how to authenticate

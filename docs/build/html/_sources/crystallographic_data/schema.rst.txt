@@ -22,4 +22,3 @@ Model details
 .. autoclass:: viewer.models.Compound
 
 .. autoclass:: viewer.models.Molecule
-
