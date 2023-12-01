@@ -397,7 +397,8 @@ class UploadCSet(APIView):
             update_set = request.POST.get('update_set')
 
             logger.info(
-                '+ UploadCSet POST choice="%s" target="%s" update_set="%s"',
+                '+ UploadCSet POST user.id=%s choice="%s" target="%s" update_set="%s"',
+                user.id,
                 choice,
                 target,
                 update_set,

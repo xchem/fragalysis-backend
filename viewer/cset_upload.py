@@ -445,7 +445,6 @@ class MolOps:
         return mols
 
     def task(self) -> ComputedSet:
-        user = User.objects.get(id=self.user_id)
         sdf_filename = str(self.sdf_filename)
 
         set_name = ''.join(
@@ -493,7 +492,12 @@ class MolOps:
             + '-'
             + "".join(self.submitter_method.split())
         )
-        computed_set.owner_user = user
+        if self.user_id:
+            computed_set.owner_user = User.objects.get(id=self.user_id)
+        else:
+            # The User ID may only be None if AUTHENTICATE_UPLOAD is False.
+            # Here the ComputedSet owner will take on a default (anonymous) value.
+            assert settings.AUTHENTICATE_UPLOAD is False
         computed_set.save()
 
         # set descriptions and get all other mols back
@@ -502,7 +506,7 @@ class MolOps:
         )
 
         # process every other mol
-        for i in range(0, len(mols_to_process)):
+        for i in range(len(mols_to_process)):
             self.process_mol(
                 mols_to_process[i],
                 self.target,
