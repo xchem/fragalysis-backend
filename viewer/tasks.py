@@ -103,6 +103,8 @@ def process_compound_set(validate_output):
     for cset in csets:
         cset.delete()
 
+    # We expect a User ID, but it may be None.
+    # If AUTHENTICATE_UPLOAD is False the User ID will be None.
     save_mols = MolOps(
         user_id=params['user_id'],
         sdf_filename=params['sdf'],
