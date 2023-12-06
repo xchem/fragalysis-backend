@@ -51,6 +51,8 @@ gunicorn fragalysis.wsgi:application \
     --log-file=/srv/logs/gunicorn.log \
     --access-logfile=/srv/logs/access.log
 
+echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER};"  >> /etc/nginx/frag_proxy_params
+
 echo "Testing nginx config..."
 nginx -tq
 

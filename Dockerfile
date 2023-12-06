@@ -32,6 +32,7 @@ COPY django_nginx.conf /etc/nginx/sites-available/default.conf
 COPY proxy_params /etc/nginx/frag_proxy_params
 COPY requirements.txt ./
 
+
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled && \
     pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --requirement requirements.txt
