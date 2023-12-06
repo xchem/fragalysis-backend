@@ -666,10 +666,15 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
         return score_dict
 
     def get_pdb_info(self, obj):
-        if obj.pdb:
-            return obj.pdb.pdb_info.url
-        else:
-            return None
+        # For this (new XCA) Fragalysis phase we do not support
+        # PDB material in the ComputedMolecule. So instead of this (original code)
+        # we now return a constant 'None'
+        #        if obj.pdb:
+        #            return obj.pdb.pdb_info.url
+        #        else:
+        #            return None
+
+        return None
 
     # def get_score_descriptions(self, obj):
     #     descriptions = ScoreDescription.objects.filter(computed_set=obj.computed_set)
