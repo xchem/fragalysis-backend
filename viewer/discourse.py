@@ -152,7 +152,7 @@ def process_post(category_id, post_details, user):
             post_url = os.path.join(settings.DISCOURSE_HOST, 't', str(topic_id))
         else:
             # Create post for topic
-            error, error_message, null_id, post_url = create_post(
+            error, error_message, _, post_url = create_post(
                 user, post_details, topic_id=topic_id
             )
     except DiscourseTopic.DoesNotExist:
@@ -210,7 +210,7 @@ def create_discourse_post(user, category_details=None, post_details=None):
 
     # If post details exist then create the post
     if post_details:
-        error, error_message, topic_id, post_url = process_post(
+        error, error_message, _, post_url = process_post(
             category_id, post_details, user
         )
 

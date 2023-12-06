@@ -21,6 +21,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **kwargs):
+        # Unused args
+        del args
+
         tags_existing = 0
         tags_to_be_created = 0
         tags_created = 0

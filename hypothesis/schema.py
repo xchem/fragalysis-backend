@@ -6,7 +6,6 @@ from hypothesis.serializers import (
     VectorSerializer,
     InteractionPointSerializer,
     InteractionSerializer,
-    ProteinResidueSerialzier,
     TargetResidueSerialzier,
 )
 
@@ -37,12 +36,6 @@ class Interaction(SerializerMutation):
         interfaces = (relay.Node,)
 
 
-class ProteinResidue(SerializerMutation):
-    class Meta:
-        serializer_class = ProteinResidueSerialzier
-        interfaces = (relay.Node,)
-
-
 class TargetResidue(SerializerMutation):
     class Meta:
         serializer_class = TargetResidueSerialzier
@@ -54,7 +47,6 @@ class Query(graphene.ObjectType):
     vector = graphene.List(Vector)
     interaction_point = graphene.List(InteractionPoint)
     interaction = graphene.List(Interaction)
-    protein_residue = graphene.List(ProteinResidue)
     target_residue = graphene.List(TargetResidue)
 
 

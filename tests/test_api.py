@@ -11,33 +11,26 @@ from django.db import connection
 from rest_framework.test import APIClient, APITestCase
 from rest_framework.test import APIRequestFactory
 
-from api.utils import draw_mol, get_token
+from api.utils import get_token
 from hotspots.models import HotspotMap
 from hypothesis.models import (
     Vector3D,
     Vector,
-    ProteinResidue,
     TargetResidue,
     InteractionPoint,
     Interaction,
 )
 from viewer.models import (
-    Molecule,
-    Protein,
     Target,
     Compound,
     Project,
     SessionProject,
     TagCategory,
-    MoleculeTag,
     SessionProjectTag,
 )
 
 # Target upload functions
-from viewer.target_set_upload import validate_target, process_target
-
-# Compound set upload functions
-from viewer.tasks import validate_compound_set, process_compound_set
+from viewer.target_set_upload import validate_target
 
 # Test all these functions
 
@@ -153,42 +146,6 @@ class APIUrlsTestCase(APITestCase):
         self.secret_cmpd.project_id.add(self.project_secure)
         self.secret_cmpd.save()
 
-        self.protein = Protein.objects.create(
-            id=1, code="DUMM", target_id=self.target, pdb_info="my_pdb.pdb"
-        )
-        self.secret_protein = Protein.objects.create(
-            id=2, code="SECC", target_id=self.target_two, pdb_info="secret_pdb.pdb"
-        )
-        self.mol = Molecule.objects.create(
-            id=1,
-            smiles="DUMMY",
-            lig_id="DUM",
-            chain_id="C",
-            sdf_info="DUMMY_SD",
-            rscc=0.1,
-            occupancy=0.2,
-            x_com=0.3,
-            y_com=0.4,
-            z_com=0.5,
-            rmsd=0.6,
-            prot_id=self.protein,
-            cmpd_id=self.cmpd,
-        )
-        self.secret_mol = Molecule.objects.create(
-            id=2,
-            smiles="SECRET",
-            lig_id="SEC",
-            chain_id="C",
-            sdf_info="SECRET_SD",
-            rscc=0.1,
-            occupancy=0.2,
-            x_com=0.3,
-            y_com=0.4,
-            z_com=0.5,
-            rmsd=0.6,
-            prot_id=self.secret_protein,
-            cmpd_id=self.secret_cmpd,
-        )
         self.vector = Vector.objects.create(
             id=1, cmpd_id=self.cmpd, smiles="DUMMY", type="DE"
         )
@@ -197,9 +154,6 @@ class APIUrlsTestCase(APITestCase):
         )
         self.target_res = TargetResidue.objects.create(
             id=1, target_id=self.target, res_name="DED", res_num=1, chain_id="A"
-        )
-        self.prot_res = ProteinResidue.objects.create(
-            id=1, prot_id=self.protein, targ_res_id=self.target_res
         )
         self.interaction_point = InteractionPoint.objects.create(
             id=1,
@@ -226,20 +180,6 @@ class APIUrlsTestCase(APITestCase):
 
         # TagCategory - Should have been created by the migrations.
         self.tagcategory = TagCategory.objects.get(id=1)
-
-        # MoleculeTag
-        self.moltag = MoleculeTag.objects.create(
-            id=1,
-            tag="A9 - XChem screen - covalent hits",
-            create_date="2021-04-20T14:16:46.850313Z",
-            colour="FFFFFF",
-            discourse_url="www.discoursesite.com/t/1234",
-            help_text="Some help text to display as a tooltip",
-            additional_info="{'key', 'value'}",
-            category=self.tagcategory,
-            target=self.target,
-        )
-        self.moltag.molecules.add(self.mol)
 
         # SessionProject created for SessionProjectTag
         self.sp = SessionProject.objects.create(
@@ -793,10 +733,7 @@ class APIUrlsTestCase(APITestCase):
         models = [
             Target,
             Project,
-            Molecule,
-            Protein,
             Compound,
-            MoleculeTag,
             Vector,
             Vector3D,
         ]
@@ -809,40 +746,15 @@ class APIUrlsTestCase(APITestCase):
         target_zip = '/code/tests/test_data/TESTTARGET.zip'
         new_data_folder = '/code/tests/output/new_data'
         target = 'TESTTARGET'
-        proposal = 'open'
 
         # This will create the target folder in the tmp/ location.
         with zipfile.ZipFile(target_zip, 'r') as zip_ref:
             zip_ref.extractall(new_data_folder)
 
-        mols_loaded, mols_processed = process_target(new_data_folder, target, proposal)
-
-        # Improve checks as we understand more how it works.
-        self.assertEqual(mols_loaded, 8)
-        self.assertEqual(mols_processed, 7)
         target = Target.objects.filter(title='TESTTARGET').values()
         self.assertEqual(len(target), 1)
         # Check finished successfully.
         self.assertEqual(target[0]['upload_status'], 'SUCCESS')
-        proteins = Protein.objects.filter(target_id__title='TESTTARGET').values()
-        self.assertEqual(len(proteins), 7)
-        # Selection of files are currently saved.
-        for protein in proteins:
-            self.assertNotEqual(protein['pdb_info'], '')
-            self.assertNotEqual(protein['bound_info'], '')
-            self.assertNotEqual(protein['trans_matrix_info'], '')
-            self.assertNotEqual(protein['apo_desolve_info'], '')
-            self.assertEqual(protein['pdb_header_info'], '')
-
-        # Matches the number of proteins
-        molecules = Molecule.objects.filter(
-            prot_id__target_id__title='TESTTARGET'
-        ).values()
-        self.assertEqual(len(molecules), 7)
-
-        # Matches the number of sites in Metadata.csv
-        tags = MoleculeTag.objects.filter(target__title='TESTTARGET').values()
-        self.assertEqual(len(tags), 3)
 
         # Tidy up data
         shutil.rmtree(new_data_folder)

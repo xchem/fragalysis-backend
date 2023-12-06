@@ -23,6 +23,9 @@ _SQ2A: Squonk2Agent = get_squonk2_agent()
 
 def check_squonk_active(request):
     """Call the Squonk2 Agent to check that Squonk2 can be reached."""
+    # Unused arguments
+    del request
+
     logger.info('+ Squonk2Agent.ping()')
 
     ping_rv = _SQ2A.ping()

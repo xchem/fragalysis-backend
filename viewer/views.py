@@ -10,7 +10,7 @@ from wsgiref.util import FileWrapper
 from dateutil.parser import parse
 import pytz
 from pathlib import Path
-
+from typing import Any, Dict
 
 import pandas as pd
 
@@ -250,7 +250,7 @@ def react(request):
         # see if user is set up and set up flag in context.
         if discourse_api_key:
             context['discourse_host'] = settings.DISCOURSE_HOST
-            error, error_message, user_id = check_discourse_user(user)
+            _, _, user_id = check_discourse_user(user)
             if user_id:
                 context['user_present_on_discourse'] = 'true'
 
@@ -644,6 +644,9 @@ class ValidateTaskView(View):
                     - html (str): html of task outcome - success message or html table of errors & fail message
 
         """
+        # Unused arguments
+        del request
+
         logger.info('+ ValidateTaskView.get')
         validate_task_id_str = str(validate_task_id)
 
@@ -692,6 +695,9 @@ class ValidateTaskView(View):
 
 class UpdateTaskView(View):
     def get(self, request, update_task_id):
+        # Unused arguments
+        del request
+
         update_task_id_str = str(update_task_id)
         task = AsyncResult(update_task_id_str)
         response_data = {'update_task_status': task.status, 'update_task_id': task.id}
@@ -746,6 +752,9 @@ class UploadTaskView(View):
                         - processed (str): 'None'
                         - html (str): message to tell the user their data was not processed
         """
+        # Unused arguments
+        del request
+
         logger.debug('+ UploadTaskView.get')
         upload_task_id_str = str(upload_task_id)
         task = AsyncResult(upload_task_id_str)
@@ -853,6 +862,9 @@ def similarity_search(request):
 
 def get_open_targets(request):
     """Return a list of all open targets (viewer/open_targets)"""
+    # Unused arguments
+    del request
+
     targets = models.Target.objects.all()
     target_names = []
     target_ids = []
@@ -872,6 +884,9 @@ def cset_download(request, name):
     """View to download an SDF file of a ComputedSet by name
     (viewer/compound_set/(<name>)).
     """
+    # Unused arguments
+    del request
+
     computed_set = models.ComputedSet.objects.get(unique_name=name)
     filepath = computed_set.submitted_sdf
     with open(filepath.path, 'r', encoding='utf-8') as fp:
@@ -889,6 +904,9 @@ def pset_download(request, name):
     """View to download a zip file of all protein structures (apo) for a computed set
     (viewer/compound_set/(<name>))
     """
+    # Unused arguments
+    del request
+
     response = HttpResponse(content_type='application/zip')
     filename = 'protein-set_' + name + '.zip'
     response['Content-Disposition'] = (
@@ -1089,6 +1107,9 @@ class ComputedSetView(viewsets.ModelViewSet):
         """User provides the name of the ComputedSet (that's its primary key).
         We simply look it up and delete it, returning a standard 204 on success.
         """
+        # Unused arguments
+        del request
+
         computed_set = get_object_or_404(models.ComputedSet, pk=pk)
         computed_set.delete()
         return HttpResponse(status=204)
@@ -1569,6 +1590,9 @@ class TaskStatus(APIView):
         string as a Task ID. To know it's a real task takes a lot of work, or you can
         simply interpret a 'PENDING' state as "unknown task".
         """
+        # Unused arguments
+        del request, args, kwargs
+
         logger.debug("+ TaskStatus.get called task_id='%s'", task_id)
 
         # task_id is (will be) a UUID, but Celery expects a string
@@ -1612,6 +1636,9 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
         return "Download Target Experiments"
 
     def create(self, request, *args, **kwargs):
+        # Unused arguments
+        del args, kwargs
+
         logger.info("+ DownloadTargetExperiments.create called")
 
         serializer = self.get_serializer_class()(data=request.data)
@@ -1733,7 +1760,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         sq2a_send_params: SendParams = SendParams(
             common=sq2a_common_params, snapshot_id=snapshot_id
         )
-        sq2a_rv: Squonk2AgentRv = _SQ2A.can_send(sq2a_send_params)
+        sq2a_rv = _SQ2A.can_send(sq2a_send_params)
         if not sq2a_rv.success:
             content = {f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
@@ -2044,7 +2071,7 @@ class JobRequestView(APIView):
         sq2a_run_job_params: RunJobParams = RunJobParams(
             common=sq2a_common_params, job_spec=None, callback_url=None
         )
-        sq2a_rv: Squonk2AgentRv = _SQ2A.can_run_job(sq2a_run_job_params)
+        sq2a_rv = _SQ2A.can_run_job(sq2a_run_job_params)
         if not sq2a_rv.success:
             content = {f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
@@ -2293,7 +2320,7 @@ class JobAccessView(APIView):
         query_params = request.query_params
         logger.info('+ JobAccessView/GET %s', json.dumps(query_params))
 
-        err_response = {'accessible': False}
+        err_response: Dict[str, Any] = {'accessible': False}
         ok_response = {'accessible': True, 'error': ''}
 
         # Only authenticated users can have squonk jobs
@@ -2408,6 +2435,9 @@ class ServiceState(View):
 
         ENABLE_SERVICE_STATUS returns colon-separated id's for services
         """
+        # Unused arguments
+        del args, kwargs
+
         logger.debug("+ ServiceServiceState.State.get called")
         service_string = os.environ.get("ENABLE_SERVICE_STATUS", "")
         logger.debug("Service string: %s", service_string)

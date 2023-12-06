@@ -922,6 +922,9 @@ class ComputedSet(models.Model):
         including the method to auto-generate the unique name:
         unique_name = "".join(self.submitter.name.split()) + '-' + "".join(self.submitter.method.split())
         """
+        # Unused arguments
+        del kwargs
+
         if not self.submitter:
             super(ComputedSet, self).save()
         if not self.unique_name:

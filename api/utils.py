@@ -4,12 +4,10 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from rdkit import Chem
-from rdkit.Chem import AllChem, Draw, Atom, rdFMCS, rdDepictor
-import re
-from rdkit.Chem.Draw.MolDrawing import DrawingOptions
+from rdkit.Chem import AllChem, Atom, rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
 from rest_framework.authtoken.models import Token
-from frag.utils.network_utils import get_fragments, canon_input
+from frag.utils.network_utils import canon_input
 
 
 ISO_COLOUR_MAP = {
@@ -33,7 +31,7 @@ def get_token(request):
     """
     try:
         user = User.objects.get(username=request.user)
-        token, created = Token.objects.get_or_create(user=user)
+        token, _ = Token.objects.get_or_create(user=user)
         return token.key
     except ObjectDoesNotExist:
         return ""
@@ -72,7 +70,8 @@ def highlight_diff(prb_mol, ref_mol, width, height):
         height = 200
 
     mols = [Chem.MolFromSmiles(prb_mol), Chem.MolFromSmiles(ref_mol)]
-    [Chem.Kekulize(m) for m in mols]
+    for m in mols:
+        Chem.Kekulize(m)
     match = Chem.rdFMCS.FindMCS(mols, ringMatchesRingOnly=True, completeRingsOnly=True)
     match_mol = Chem.MolFromSmarts(match.smartsString)
     rdDepictor.Compute2DCoords(mols[0])
@@ -133,10 +132,10 @@ def draw_mol(
     bondWidth=1,
     scaling=1.0,
     img_type=None,
-    highlightAtoms=[],
-    atomcolors=[],
-    highlightBonds=[],
-    bondcolors={},
+    highlightAtoms=None,
+    atomcolors=None,
+    highlightBonds=None,
+    bondcolors=None,
     mol=None,
 ):
     """
@@ -154,6 +153,16 @@ def draw_mol(
     :param mol: an optional mol to use instead of the smiles. Kept for now for backwards compatibility
     :return:
     """
+    del img_type
+
+    if highlightAtoms is None:
+        highlightAtoms = []
+    if atomcolors is None:
+        atomcolors = []
+    if highlightBonds is None:
+        highlightBonds = []
+    if bondcolors is None:
+        bondcolors = {}
 
     if not mol:
         mol = Chem.MolFromSmiles(smiles)
@@ -227,7 +236,7 @@ def parse_atom_ids(input_list, mol):
     bond_ids = []
     atom_ids = []
     bond_colours = {}
-    for i, data in enumerate(spl_list):
+    for i, _ in enumerate(spl_list):
         list_len = 4
         if i % list_len in [0, 1]:
             atom_ids.append(int(spl_list[i]))

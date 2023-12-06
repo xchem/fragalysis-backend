@@ -89,7 +89,7 @@ def neutralise_charges(smiles, reactions=None):
         reactions = _reactions
     mol = Chem.MolFromSmiles(smiles)
     replaced = False
-    for i, (reactant, product) in enumerate(reactions):
+    for _, (reactant, product) in enumerate(reactions):
         while mol.HasSubstructMatch(reactant):
             replaced = True
             rms = AllChem.ReplaceSubstructs(mol, reactant, product)
@@ -833,8 +833,6 @@ def validate_target(new_data_folder, target_name, proposal_ref):
                 f' Expected "{target_name}/{aligned_path}"',
                 0,
             )
-            # No point in checking anything else if this check fails
-            ok_so_far = False
 
     if validated:
         # A metadata.csv file must exist

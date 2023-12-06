@@ -12,5 +12,3 @@ disable = C, F, R,
           fixme,
           import-error,
           imported-auth-user,
-          unused-variable,
-          unused-argument

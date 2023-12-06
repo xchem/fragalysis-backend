@@ -1287,6 +1287,9 @@ def load_target(
     user_id=None,
     task=None,
 ):
+    # Unused args
+    del contact_email
+
     # TODO: do I need to sniff out correct archive format?
     with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
         target_loader = TargetLoader(

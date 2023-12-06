@@ -1,6 +1,6 @@
 import filecmp
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from django.test import SimpleTestCase, tag
 

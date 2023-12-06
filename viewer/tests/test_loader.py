@@ -56,11 +56,6 @@ class LoaderTests(TestCase):
         idx = next(iter(self.assemblies))
         data = self.assemblies[idx]
 
-        quat_assembly = QuatAssembly(
-            chains=data["chains"],
-            name=idx,
-        )
-
         result = self.target_loader._process_quat_assembly(  # pylint: disable=protected-access
             QuatAssembly.objects.none(), idx, data
         )  # pylint: disable=protected-access
