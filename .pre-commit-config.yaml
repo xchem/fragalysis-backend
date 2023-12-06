@@ -42,14 +42,14 @@ repos:
     - py311
 
 # Pylint
-#- repo: https://github.com/pycqa/pylint
-#  rev: v3.0.2
-#  hooks:
-#  - id: pylint
-#    additional_dependencies:
-#    - pylint-django
-#    args:
-#    - --load-plugins
-#    - pylint_django,pylint_django.checkers.migrations
-#    - --django-settings-module
-#    - fragalysis.settings
+- repo: https://github.com/pycqa/pylint
+  rev: v3.0.2
+  hooks:
+  - id: pylint
+    additional_dependencies:
+    - pylint-django
+    args:
+    - --load-plugins
+    - pylint_django,pylint_django.checkers.migrations
+    - --django-settings-module
+    - fragalysis.settings
