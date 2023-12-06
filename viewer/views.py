@@ -10,7 +10,7 @@ from wsgiref.util import FileWrapper
 from dateutil.parser import parse
 import pytz
 from pathlib import Path
-
+from typing import Any, Dict
 
 import pandas as pd
 
@@ -1760,7 +1760,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         sq2a_send_params: SendParams = SendParams(
             common=sq2a_common_params, snapshot_id=snapshot_id
         )
-        sq2a_rv: Squonk2AgentRv = _SQ2A.can_send(sq2a_send_params)
+        sq2a_rv = _SQ2A.can_send(sq2a_send_params)
         if not sq2a_rv.success:
             content = {f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
@@ -2071,7 +2071,7 @@ class JobRequestView(APIView):
         sq2a_run_job_params: RunJobParams = RunJobParams(
             common=sq2a_common_params, job_spec=None, callback_url=None
         )
-        sq2a_rv: Squonk2AgentRv = _SQ2A.can_run_job(sq2a_run_job_params)
+        sq2a_rv = _SQ2A.can_run_job(sq2a_run_job_params)
         if not sq2a_rv.success:
             content = {f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
@@ -2320,7 +2320,7 @@ class JobAccessView(APIView):
         query_params = request.query_params
         logger.info('+ JobAccessView/GET %s', json.dumps(query_params))
 
-        err_response = {'accessible': False}
+        err_response: Dict[str, Any] = {'accessible': False}
         ok_response = {'accessible': True, 'error': ''}
 
         # Only authenticated users can have squonk jobs

@@ -38,17 +38,19 @@ CommonParams: namedtuple = namedtuple(
 
 # Named tuples are used to pass parameters to the agent methods.
 # RunJob, used in run_job()
-RunJobParams: namedtuple = namedtuple("RunJob", ["common", "job_spec", "callback_url"])
+RunJobParams: namedtuple = namedtuple(
+    "RunJobParams", ["common", "job_spec", "callback_url"]
+)
 
 # Send, used in send()
 # Access ID is the Fragalysis Project record ID
 # Session ID is the Fragalysis SessionProject record ID
 # Target ID is the Fragalysis Target record ID
 # Snapshot ID is the Fragalysis Snapshot record ID
-SendParams: namedtuple = namedtuple("Send", ["common", "snapshot_id"])
+SendParams: namedtuple = namedtuple("SendParams", ["common", "snapshot_id"])
 
 # Parameters for the grant_access() method.
-AccessParams: namedtuple = namedtuple("Access", ["username", "project_uuid"])
+AccessParams: namedtuple = namedtuple("AccessParams", ["username", "project_uuid"])
 
 _SUPPORTED_PRODUCT_FLAVOURS: List[str] = ["BRONZE", "SILVER", "GOLD"]
 
@@ -163,7 +165,7 @@ class Squonk2Agent:
                 'Caution - in TEST mode, using __DUMMY_USER (%s)', self.__DUMMY_USER
             )
 
-        user_name: str = self.__DUMMY_USER
+        user_name: Optional[str] = self.__DUMMY_USER
         if user_id:
             user: User = User.objects.filter(id=user_id).first()
             assert user
@@ -181,7 +183,7 @@ class Squonk2Agent:
             )
 
         # Get the "target access string" (test mode or otherwise)
-        target_access_string: str = self.__DUMMY_TAS
+        target_access_string: Optional[str] = self.__DUMMY_TAS
         if access_id:
             project: Optional[Project] = Project.objects.filter(id=access_id).first()
             assert project
@@ -199,7 +201,7 @@ class Squonk2Agent:
                 self.__DUMMY_TARGET_TITLE,
             )
 
-        target_title: str = self.__DUMMY_TARGET_TITLE
+        target_title: Optional[str] = self.__DUMMY_TARGET_TITLE
         if target_id:
             target: Target = Target.objects.filter(id=target_id).first()
             assert target
@@ -367,6 +369,8 @@ class Squonk2Agent:
         returning its UUID as the msg content.
         """
         # Get existing Units for our Organisation
+        assert self.__org_record
+        assert self.__org_record.uuid
         org_uuid: str = self.__org_record.uuid
         as_rv: AsApiRv = AsApi.get_units(self.__org_owner_as_token, org_id=org_uuid)
         if not as_rv.success:
@@ -491,7 +495,7 @@ class Squonk2Agent:
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
-        project_uuid: str = dm_rv.msg['project_id']
+        project_uuid = dm_rv.msg['project_id']
         msg = f'Created NEW DM Project {project_uuid}...'
         return Squonk2AgentRv(success=True, msg=project_uuid)
 
@@ -559,9 +563,7 @@ class Squonk2Agent:
         msg = f'Continuing by creating DM Project "{name_truncated}"...'
         _LOGGER.info(msg)
 
-        sq2_rv: Squonk2AgentRv = self._get_or_create_project(
-            name_truncated, product_uuid
-        )
+        sq2_rv = self._get_or_create_project(name_truncated, product_uuid)
         if not sq2_rv.success:
             msg = f'Failed to create DM Project ({sq2_rv.msg})'
             _LOGGER.error(msg)
@@ -600,7 +602,7 @@ class Squonk2Agent:
         }
         return Squonk2AgentRv(success=True, msg=response_msg)
 
-    def _ensure_unit(self, target_access_string: int) -> Squonk2AgentRv:
+    def _ensure_unit(self, target_access_string: str) -> Squonk2AgentRv:
         """Gets or creates a Squonk2 Unit based on a customer's "target access string"
         (TAS). If a Unit is created its name will begin with the text "Fragalysis "
         followed by the configured 'SQUONK2_SLUG' (chosen to be unique between all
@@ -794,6 +796,7 @@ class Squonk2Agent:
 
         # Is the slug too long?
         # Limited to 10 characters
+        assert self.__CFG_SQUONK2_SLUG
         if len(self.__CFG_SQUONK2_SLUG) > _MAX_SLUG_LENGTH:
             msg = (
                 f'Slug is longer than {_MAX_SLUG_LENGTH} characters'
@@ -806,11 +809,14 @@ class Squonk2Agent:
         # Extract hostname and realm from the legacy variable
         # i.e. we need 'example.com' and 'xchem'
         # from 'https://example.com/auth/realms/xchem'
+        assert self.__CFG_OIDC_KEYCLOAK_REALM
         url: ParseResult = urlparse(self.__CFG_OIDC_KEYCLOAK_REALM)
+        assert url.hostname
         self.__keycloak_hostname = url.hostname
         self.__keycloak_realm = os.path.split(url.path)[1]
 
         # Can we translate the billing day to an integer?
+        assert self.__CFG_SQUONK2_UNIT_BILLING_DAY
         if not self.__CFG_SQUONK2_UNIT_BILLING_DAY.isdigit():
             msg = (
                 'SQUONK2_UNIT_BILLING_DAY is set'
@@ -874,9 +880,10 @@ class Squonk2Agent:
         # Check the UI, DM and AS...
 
         resp: Optional[Response] = None
+        assert self.__CFG_SQUONK2_UI_URL
         url: str = self.__CFG_SQUONK2_UI_URL
         try:
-            resp: Response = requests.head(url, verify=self.__verify_certificates)
+            resp = requests.head(url, verify=self.__verify_certificates)
         except:
             _LOGGER.error('Exception checking UI at %s', url)
         if resp is None or resp.status_code != 200:
