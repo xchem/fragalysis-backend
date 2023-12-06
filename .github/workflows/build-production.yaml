@@ -57,7 +57,7 @@ jobs:
       trigger: ${{ steps.vars.outputs.trigger }}
     steps:
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@v3.x
+      uses: rlespinasse/github-slug-action@v4
     - name: Initialise workflow variables
       id: vars
       env:
@@ -114,15 +114,19 @@ jobs:
         echo trigger=${{ env.TRIGGER_DOWNSTREAM == 'yes' }}
         echo "trigger=${{ env.TRIGGER_DOWNSTREAM == 'yes' }}" >> $GITHUB_OUTPUT
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Lint Dockerfile
       uses: hadolint/hadolint-action@v3.1.0
       with:
         dockerfile: Dockerfile
     - name: Set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: '3.11'
+    - name: Run pre-commit (all files)
+      run: |
+        pip install --requirement build-requirements.txt
+        pre-commit run --all-files
     - name: Compile requirements.txt
       run: |
         pip install --upgrade pip
