@@ -51,7 +51,14 @@ gunicorn fragalysis.wsgi:application \
     --log-file=/srv/logs/gunicorn.log \
     --access-logfile=/srv/logs/access.log
 
-echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER};"  >> /etc/nginx/frag_proxy_params
+# added as a fix to #1215, mixing http and https requests to enable
+# local development with http. Need to set the env variable in compose
+# file or .env.
+
+# NB! this is probably a workaround for some other issue we haven't
+# discovered yet. It suddenly broke but right now seems to work in
+# firefox. Hopefully won't be necessary soon
+echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER:-https};"  >> /etc/nginx/frag_proxy_params
 
 echo "Testing nginx config..."
 nginx -tq
