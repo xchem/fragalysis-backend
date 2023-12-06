@@ -5,6 +5,8 @@ from network.functions import add_keys, add_empty, order_structures
 
 @tag("nodb")
 class NetworkFunctionsTestCase(SimpleTestCase):
+    maxDiff = None
+
     def test_can_add_key(self):
         test_d = {"D_ONE": {"TYPE_ONE": {}}}
         out_d = {}
@@ -33,7 +35,6 @@ class NetworkFunctionsTestCase(SimpleTestCase):
         results = {"ONE_DEPTH_TYPEONE": "SMILES"}
         decoration_list = ["ONE_ME", "TWO_ME", "THREE_ME"]
         out_json = order_structures(results, decoration_list)
-        self.maxDiff = None
         self.assertEqual(
             out_json,
             test_json,

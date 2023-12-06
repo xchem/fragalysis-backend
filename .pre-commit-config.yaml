@@ -22,13 +22,13 @@ repos:
 
 # MyPy
 #- repo: https://github.com/pre-commit/mirrors-mypy
-#  rev: v1.1.1
+#  rev: v1.7.1
 #  hooks:
 #  - id: mypy
 #    additional_dependencies:
 #    - types-PyYAML
-#    - types-python-dateutil
 #    - types-pytz
+#    - types-python-dateutil
 #    - types-requests
 
 # Black (uncompromising) Python code formatter
@@ -42,13 +42,6 @@ repos:
     - py311
 
 # Pylint
-# To check import errors we need to install every package
-# used by the DM. This is often impractical on the client,
-# and so we disable import errors on pre-commit and rely
-# on this category of test in the CI stage. Consequently,
-# pylint may pass on pre-commit but fail in CI - but at least
-# the user has done 90% of the lint checks before the code
-# hits the server.
 #- repo: https://github.com/pycqa/pylint
 #  rev: v3.0.2
 #  hooks:

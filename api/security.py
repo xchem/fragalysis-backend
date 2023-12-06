@@ -3,6 +3,7 @@ import os
 import time
 
 from pathlib import Path
+from typing import Any
 
 from wsgiref.util import FileWrapper
 from django.http import Http404
@@ -101,6 +102,12 @@ def get_conn():
 
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.request = None
+        self.filter_permissions = None
+        self.queryset = None
+
     def get_queryset(self):
         """
         Optionally restricts the returned purchases to a given proposals
@@ -156,8 +163,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         It's simple, we just record the last collected timestamp and consider it
         'out of date' (i.e. more than an hour old).
         """
-        global USER_LIST_DICT
-
         update_window = 3600
         if user.username not in USER_LIST_DICT:
             USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": 0}
@@ -182,8 +187,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_proposals_for_user_from_ispyb(self, user):
         # First check if it's updated in the past 1 hour
-        global USER_LIST_DICT
-
         needs_updating = self.needs_updating(user)
         logger.info("user=%s needs_updating=%s", user.username, needs_updating)
 

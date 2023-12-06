@@ -1,14 +1,13 @@
 import threading
-import mysql.connector
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from ispyb.exception import (
     ISPyBConnectionException,
     ISPyBNoResultException,
     ISPyBRetrieveFailed,
-    ISPyBWriteFailed,
 )
 import sshtunnel
 import time
+import traceback
 import pymysql
 
 
@@ -28,9 +27,13 @@ class SSHConnector(Connector):
         ssh_host=None,
         conn_inactivity=360,
     ):
+        # Unused arguments
+        del reconn_attempts, reconn_delay
+
         self.conn_inactivity = conn_inactivity
         self.lock = threading.Lock()
         self.server = None
+        self.last_activity_ts = None
 
         if remote:
             creds = {
@@ -108,10 +111,10 @@ class SSHConnector(Connector):
             cursor = self.create_cursor()
             try:
                 cursor.callproc(procname=procname, args=args)
-            except DataError as e:
+            except self.conn.DataError as e:
                 raise ISPyBRetrieveFailed(
                     "DataError({0}): {1}".format(e.errno, traceback.format_exc())
-                )
+                ) from e
 
             result = cursor.fetchall()
 

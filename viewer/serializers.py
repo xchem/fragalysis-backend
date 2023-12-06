@@ -89,7 +89,7 @@ def get_protein_sequences(pdb_block):
                     if not current_number == 0:
                         gap = n - current_number
                         gap_str = ''
-                        for i in range(0, gap):
+                        for _ in range(gap):
                             gap_str += 'X'
                         current_sequence += gap_str
             current_number = n
@@ -673,6 +673,9 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
         #            return obj.pdb.pdb_info.url
         #        else:
         #            return None
+
+        # Unused arguments
+        del obj
 
         return None
 

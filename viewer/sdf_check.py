@@ -138,14 +138,15 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
 
     pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
 
+    # No support for PDB atm
     # Check if pdb filename given and exists
-    if zfile:
-        pdb_code = pdb_fn.replace('.pdb', '')
-        # if pdb_code not in zfile:
-        #     validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-        #                                 field='ref_pdb',
-        #                                 warning_string="path " + str(pdb_fn) + " can't be found in uploaded zip file",
-        #                                 validate_dict=validate_dict)
+    #    if zfile:
+    #        pdb_code = pdb_fn.replace('.pdb', '')
+    # if pdb_code not in zfile:
+    #     validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
+    #                                 field='ref_pdb',
+    #                                 warning_string="path " + str(pdb_fn) + " can't be found in uploaded zip file",
+    #                                 validate_dict=validate_dict)
 
     # Custom pdb added but no zfile - double check if pdb does exist before throwing error
     if pdb_fn.endswith(".pdb") and not zfile:

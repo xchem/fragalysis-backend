@@ -4,9 +4,6 @@ from xchem_db.models import (
     Dimple,
     Lab,
     Refinement,
-    PanddaAnalysis,
-    PanddaRun,
-    PanddaSite,
     PanddaEvent,
     ProasisOut,
     PanddaEventStats,
@@ -17,16 +14,11 @@ from xchem_db.serializers import (
     DimpleSerializer,
     LabSerializer,
     RefinementSerializer,
-    PanddaAnalysisSerializer,
-    PanddaRunSerializer,
-    PanddaSiteSerializer,
     PanddaEventSerializer,
     ProasisOutSerializer,
     PanddaEventStatsSerializer,
     FragspectCrystalSerializer,
 )
-
-from rest_framework import viewsets
 
 from api.security import ISpyBSafeQuerySet
 

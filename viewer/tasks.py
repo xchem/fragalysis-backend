@@ -387,17 +387,21 @@ def create_mol(inchi, long_inchi=None, name=None):
 def process_design_compound(compound_row):
     # sanitize, generate mol and inchi
     smiles = compound_row['smiles']
-    name = compound_row['identifier']
     mol = Chem.MolFromSmiles(smiles, sanitize=True)
     sanitized_mol_smiles = Chem.MolToSmiles(mol, canonical=True)
     sanitized_mol = Chem.MolFromSmiles(sanitized_mol_smiles)
     inchi = Chem.inchi.MolToInchi(sanitized_mol)
-    long_inchi = None
 
     if len(inchi) > 255:
         # TODO: get_inchi in model
-        inchi = str(inchi)[0:255]
         long_inchi = inchi
+        inchi = str(long_inchi)[:255]
+        logger.warning(
+            'inchi too long, truncating to 255 characters (original inchi=%s, sanitized_mol=%s, new inchi=%s)',
+            long_inchi,
+            sanitized_mol,
+            inchi,
+        )
 
     new_mol = create_mol(inchi)
 

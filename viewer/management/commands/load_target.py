@@ -12,6 +12,9 @@ class Command(BaseCommand):
         parser.add_argument('data_bundle', type=str, help='Data archive to be loaded')
 
     def handle(self, *args, **kwargs):
+        # Unused args
+        del args
+
         try:
             load_target(kwargs["data_bundle"])
             self.stdout.write(self.style.SUCCESS("Data imported"))

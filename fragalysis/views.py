@@ -31,6 +31,9 @@ def version(request):
     the TAG used to create an official build. For unofficial builds
     the version is likely to contain a CI reference.
     """
+    # Unused args
+    del request
+
     undefined_value = "undefined"
 
     # b/e, f/e and stack origin comes form container environment variables.

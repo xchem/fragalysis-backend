@@ -146,12 +146,18 @@ def service_query(func):
 
 @service_query
 def ispyb(func_id, name, ispyb_host=None):
+    # Unused arguments
+    del func_id, name, ispyb_host
+
     logger.debug("+ ispyb")
     return security.get_conn()
 
 
 @service_query
 def discourse(func_id, name, key=None, url=None, user=None):
+    # Unused arguments
+    del func_id, name
+
     logger.debug("+ discourse")
     client = DiscourseClient(
         os.environ.get(url, None),
@@ -164,12 +170,18 @@ def discourse(func_id, name, key=None, url=None, user=None):
 
 @service_query
 def squonk(func_id, name, squonk_pwd=None):
+    # Unused arguments
+    del func_id, name, squonk_pwd
+
     logger.debug("+ squonk")
     return get_squonk2_agent().configured().success
 
 
 @service_query
 def fragmentation_graph(func_id, name, url=None):
+    # Unused arguments
+    del func_id, name, url
+
     logger.debug("+ fragmentation_graph")
     # graph_driver = get_driver(url='neo4j', neo4j_auth='neo4j/password')
     graph_driver = get_driver()
@@ -184,6 +196,9 @@ def fragmentation_graph(func_id, name, url=None):
 
 @service_query
 def keycloak(func_id, name, url=None, secret=None):
+    # Unused arguments
+    del func_id, name, secret
+
     logger.debug("+ keycloak")
     keycloak_realm = os.environ.get(url, None)
     response = requests.get(keycloak_realm)
