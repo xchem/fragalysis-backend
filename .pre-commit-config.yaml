@@ -6,6 +6,9 @@ repos:
 # pre-commit hooks
 # ----------
 
+# Hooks that actively "change" files (formatters etc.)
+# ----------------------------------
+
 # Standard pre-commit rules
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.4.0
@@ -39,6 +42,9 @@ repos:
     - --skip-string-normalization
     - --target-version
     - py311
+
+# Hooks that do not "change" files (linters etc.)
+# --------------------------------
 
 # MyPy
 #- repo: https://github.com/pre-commit/mirrors-mypy
