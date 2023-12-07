@@ -2,9 +2,9 @@ import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
 
 from scoring.serializers import (
-    ViewSceneSerializer,
     CmpdChoiceSerializer,
     ScoreChoiceSerializer,
+    ViewSceneSerializer,
 )
 
 relay = graphene.relay

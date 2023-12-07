@@ -1,22 +1,21 @@
 import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
-
 from xchem_db.serializers import (
-    TargetSerializer,
     CompoundsSerializer,
-    ReferenceSerializer,
-    SoakdbFilesSerializer,
     CrystalSerializer,
     DataProcessingSerializer,
     DimpleSerializer,
+    FragspectCrystalSerializer,
     LabSerializer,
-    RefinementSerializer,
     PanddaAnalysisSerializer,
+    PanddaEventSerializer,
     PanddaRunSerializer,
     PanddaSiteSerializer,
-    PanddaEventSerializer,
     ProasisOutSerializer,
-    FragspectCrystalSerializer,
+    ReferenceSerializer,
+    RefinementSerializer,
+    SoakdbFilesSerializer,
+    TargetSerializer,
 )
 
 relay = graphene.relay

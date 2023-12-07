@@ -1,11 +1,7 @@
 import logging
 
 from django.apps import apps
-
-from django.db.models import QuerySet
-from django.db.models import Manager
-from django.db.models import F
-
+from django.db.models import F, Manager, QuerySet
 
 logger = logging.getLogger(__name__)
 

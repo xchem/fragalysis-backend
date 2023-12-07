@@ -6,11 +6,9 @@ Collection of technical methods tidied up in one location.
 import fnmatch
 import os
 import shutil
-
 from pathlib import Path
 
 from django.conf import settings
-
 from rdkit import Chem
 
 # Set .sdf file format version

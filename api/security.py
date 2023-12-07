@@ -2,19 +2,18 @@
 import logging
 import os
 import time
-
 from pathlib import Path
-
 from wsgiref.util import FileWrapper
-from django.http import Http404
-from django.http import HttpResponse
+
 from django.db.models import Q
+from django.http import Http404, HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from ispyb.connector.mysqlsp.main import ISPyBNoResultException
 from rest_framework import viewsets
-from .remote_ispyb_connector import SSHConnector
 
 from viewer.models import Project
+
+from .remote_ispyb_connector import SSHConnector
 
 logger = logging.getLogger(__name__)
 

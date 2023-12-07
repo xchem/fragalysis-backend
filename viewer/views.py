@@ -1,83 +1,74 @@
-import logging
 import json
+import logging
 import os
-import zipfile
-import uuid
 import shlex
 import shutil
+import uuid
+import zipfile
 from datetime import datetime
-from wsgiref.util import FileWrapper
-from dateutil.parser import parse
-import pytz
 from pathlib import Path
 from typing import Any, Dict
+from wsgiref.util import FileWrapper
 
 import pandas as pd
-
-from django.db import connections
-from django.http import HttpResponse, FileResponse
-from django.shortcuts import render, redirect, get_object_or_404
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-from django.core.mail import send_mail
+import pytz
+from celery.result import AsyncResult
+from dateutil.parser import parse
 from django.conf import settings
-from django.http import JsonResponse
-from django.views import View
-
-
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.core.mail import send_mail
+from django.db import connections
+from django.http import FileResponse, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-
-from rest_framework import status, viewsets, permissions
+from django.views import View
+from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-
-from celery.result import AsyncResult
-
 from api.security import ISpyBSafeQuerySet
-
-from api.utils import get_params, get_highlighted_diffs, pretty_request
-from viewer.utils import create_squonk_job_request_url
-from viewer.utils import handle_uploaded_file
-
-from viewer import filters
-from viewer import models
-from viewer import serializers
-from viewer.squonk2_agent import Squonk2AgentRv, Squonk2Agent, get_squonk2_agent
-from viewer.squonk2_agent import AccessParams, CommonParams, SendParams, RunJobParams
-
+from api.utils import get_highlighted_diffs, get_params, pretty_request
+from viewer import filters, models, serializers
 from viewer.services import get_service_state
-
-
-from .forms import CSetForm
-from .tasks import (
-    erase_compound_set_job_material,
-    process_compound_set,
-    process_design_sets,
-    process_job_file_transfer,
-    process_compound_set_job_file,
-    validate_compound_set,
-    task_load_target,
+from viewer.squonk2_agent import (
+    AccessParams,
+    CommonParams,
+    RunJobParams,
+    SendParams,
+    Squonk2Agent,
+    Squonk2AgentRv,
+    get_squonk2_agent,
 )
+from viewer.utils import create_squonk_job_request_url, handle_uploaded_file
+
 from .discourse import (
+    check_discourse_user,
     create_discourse_post,
     list_discourse_posts_for_topic,
-    check_discourse_user,
 )
 from .download_structures import (
     check_download_links,
-    recreate_static_file,
     maintain_download_links,
+    recreate_static_file,
 )
-
+from .forms import CSetForm
 from .squonk_job_file_transfer import validate_file_transfer_files
-
 from .squonk_job_request import (
     check_squonk_active,
-    get_squonk_job_config,
     create_squonk_job,
+    get_squonk_job_config,
+)
+from .tasks import (
+    erase_compound_set_job_material,
+    process_compound_set,
+    process_compound_set_job_file,
+    process_design_sets,
+    process_job_file_transfer,
+    task_load_target,
+    validate_compound_set,
 )
 
 logger = logging.getLogger(__name__)

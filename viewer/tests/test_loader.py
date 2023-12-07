@@ -1,22 +1,16 @@
+import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import tarfile
-
 
 from django.conf import settings
-
 
 # from django.db import IntegrityError
 from django.test import TestCase
 
-# from viewer import target_loader
-
-from viewer.target_loader import TargetLoader
-from viewer.target_loader import MetadataObjects
-from viewer.target_loader import ASSEMBLIES_FILE
-
-
 from viewer.models import QuatAssembly
+from viewer.target_loader import ASSEMBLIES_FILE, MetadataObjects, TargetLoader
+
+# from viewer import target_loader
 
 
 test_mpro_v1 = str(Path(__file__).absolute().parent.joinpath("Mpro-v1-zero.tgz"))

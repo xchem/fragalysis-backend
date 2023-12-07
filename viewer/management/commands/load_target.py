@@ -1,5 +1,4 @@
 from django.core.management.base import BaseCommand
-
 from django.db import IntegrityError
 
 from viewer.target_loader import load_target

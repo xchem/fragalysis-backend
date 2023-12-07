@@ -2,19 +2,18 @@
 squonk_job_file_request Functions for creating squonk Jobs.
 
 """
-from urllib.parse import urljoin
-import os
+import datetime
 import json
 import logging
-import datetime
+import os
+from urllib.parse import urljoin
 
 import shortuuid
-
 from squonk2.dm_api import DmApi
 
-from viewer.models import Project, Target, Snapshot, JobRequest, JobFileTransfer
-from viewer.utils import create_squonk_job_request_url, get_https_host
+from viewer.models import JobFileTransfer, JobRequest, Project, Snapshot, Target
 from viewer.squonk2_agent import CommonParams, Squonk2Agent, get_squonk2_agent
+from viewer.utils import create_squonk_job_request_url, get_https_host
 
 logger = logging.getLogger(__name__)
 

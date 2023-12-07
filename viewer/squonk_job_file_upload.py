@@ -11,12 +11,12 @@ that contains an 'outfile' declaration (e.g. "abc-molecules.sdf".).
 import json
 import os
 
+from celery.utils.log import get_task_logger
 from squonk2.dm_api import DmApi
 
-from celery.utils.log import get_task_logger
 from viewer.models import JobRequest
-from viewer.utils import SDF_VERSION, add_prop_to_sdf, create_media_sub_directory
 from viewer.squonk2_agent import Squonk2Agent, get_squonk2_agent
+from viewer.utils import SDF_VERSION, add_prop_to_sdf, create_media_sub_directory
 
 logger = get_task_logger(__name__)
 

@@ -1,23 +1,24 @@
 import json
+
 from django.http import HttpResponse
 from frag.conf.functions import generate_confs_for_vector
 from rest_framework import viewsets
 
 from scoring.models import (
-    ViewScene,
     CmpdChoice,
-    SiteObservationChoice,
-    SiteObservationAnnotation,
     ScoreChoice,
+    SiteObservationAnnotation,
+    SiteObservationChoice,
     SiteObservationGroup,
+    ViewScene,
 )
 from scoring.serializers import (
-    ViewSceneSerializer,
     CmpdChoiceSerializer,
-    SiteObservationChoiceSerializer,
-    SiteObservationAnnotationSerializer,
     ScoreChoiceSerializer,
+    SiteObservationAnnotationSerializer,
+    SiteObservationChoiceSerializer,
     SiteObservationGroupSerializer,
+    ViewSceneSerializer,
 )
 
 

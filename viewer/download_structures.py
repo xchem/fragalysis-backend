@@ -4,20 +4,17 @@ download_structures.py
 Methods for downloading a Target Zip file used by the download_structure API.
 """
 
-import os
-import zipfile
-import datetime
-import uuid
-import shutil
-import logging
 import copy
+import datetime
 import json
-
+import logging
+import os
+import shutil
+import uuid
+import zipfile
 from pathlib import Path
 
 import pandoc
-
-
 from django.conf import settings
 
 from viewer.models import DownloadLinks

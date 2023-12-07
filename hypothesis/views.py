@@ -1,13 +1,9 @@
 from rest_framework import viewsets
 
-from hypothesis.models import (
-    Interaction,
-    InteractionPoint,
-    TargetResidue,
-)
+from hypothesis.models import Interaction, InteractionPoint, TargetResidue
 from hypothesis.serializers import (
-    InteractionSerializer,
     InteractionPointSerializer,
+    InteractionSerializer,
     TargetResidueSerialzier,
 )
 

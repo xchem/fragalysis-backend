@@ -1,6 +1,6 @@
 from django.db import models
 
-from viewer.models import Target, SiteObservation
+from viewer.models import SiteObservation, Target
 
 
 class HotspotMap(models.Model):

@@ -5,12 +5,13 @@ Created on Wed Apr 22 13:19:51 2020
 @author: Warren
 Script to check sdf file format for Fragalysis upload
 """
+import datetime
 import logging
 
-from rdkit import Chem
 import validators
-from viewer.models import SiteObservation, ComputedSet
-import datetime
+from rdkit import Chem
+
+from viewer.models import ComputedSet, SiteObservation
 
 logger = logging.getLogger(__name__)
 

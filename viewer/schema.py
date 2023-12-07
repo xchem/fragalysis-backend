@@ -1,9 +1,7 @@
 import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
-from viewer.serializers import (
-    CompoundSerializer,
-    TargetSerializer,
-)
+
+from viewer.serializers import CompoundSerializer, TargetSerializer
 
 relay = graphene.relay
 

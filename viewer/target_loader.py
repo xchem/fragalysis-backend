@@ -1,15 +1,39 @@
-import os
-from dataclasses import dataclass
-from typing import Any
-import logging
-from pathlib import Path
 import hashlib
-import yaml
+import logging
+import os
 import tarfile
 import uuid
+from dataclasses import dataclass
+from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any
 
+import yaml
 from celery import Task
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.exceptions import MultipleObjectsReturned
+from django.db import IntegrityError, transaction
+from django.utils import timezone
+
+from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
+from scoring.models import SiteObservationGroup
+from viewer.models import (
+    CanonSite,
+    CanonSiteConf,
+    Compound,
+    Experiment,
+    ExperimentUpload,
+    Project,
+    QuatAssembly,
+    SiteObservation,
+    SiteObservationTag,
+    TagCategory,
+    Target,
+    Xtalform,
+    XtalformQuatAssembly,
+    XtalformSite,
+)
 
 # from hypothesis.definitions import VectTypes
 
@@ -18,38 +42,6 @@ from celery import Task
 
 # from frag.network.decorate import get_3d_vects_for_mol
 
-from django.core.exceptions import MultipleObjectsReturned
-
-from django.utils import timezone
-
-from django.db import IntegrityError
-from django.db import transaction
-
-
-from django.contrib.auth import get_user_model
-
-from scoring.models import SiteObservationGroup
-
-from viewer.models import (
-    Compound,
-    Project,
-    Xtalform,
-    XtalformSite,
-    QuatAssembly,
-    CanonSite,
-    CanonSiteConf,
-    SiteObservation,
-    Experiment,
-    ExperimentUpload,
-    XtalformQuatAssembly,
-    Target,
-    SiteObservationTag,
-    TagCategory,
-)
-
-from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
-
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 

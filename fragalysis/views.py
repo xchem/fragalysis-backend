@@ -1,9 +1,9 @@
 # Classes/Methods to override default OIDC Views (Keycloak authentication)
 import os
 
-from mozilla_django_oidc.views import OIDCLogoutView
-from django.http import JsonResponse
 from django.conf import settings
+from django.http import JsonResponse
+from mozilla_django_oidc.views import OIDCLogoutView
 
 
 def keycloak_logout(request):

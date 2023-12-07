@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 
-from viewer.models import SiteObservation, Compound, Target, Snapshot
+from viewer.models import Compound, SiteObservation, Snapshot, Target
 
 from .managers import ScoreChoiceDataManager
 

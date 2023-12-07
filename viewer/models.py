@@ -1,36 +1,33 @@
-from dataclasses import dataclass
-import uuid
 import logging
+import uuid
+from dataclasses import dataclass
 from typing import List
 
+from django.conf import settings
 from django.contrib.auth.models import User
-from django.db import models
-from django.utils import timezone
+from django.contrib.postgres.fields import ArrayField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
-from django.conf import settings
-
+from django.db import models
+from django.utils import timezone
+from frag.network.decorate import get_3d_vects_for_mol
 from shortuuid.django_fields import ShortUUIDField
-
-from django.contrib.postgres.fields import ArrayField
-
 from simple_history.models import HistoricalRecords
 
+from fragalysis.settings import COMPUTED_SET_SDF_ROOT
 from hypothesis.definitions import VectTypes
 
-from frag.network.decorate import get_3d_vects_for_mol
-
-from .managers import SiteObservationDataManager
-from .managers import ExperimentDataManager
-from .managers import CompoundDataManager
-from .managers import XtalformDataManager
-from .managers import XtalformQuatAssemblyDataManager
-from .managers import QuatAssemblyDataManager
-from .managers import XtalformSiteDataManager
-from .managers import CanonSiteDataManager
-from .managers import CanonSiteConfDataManager
-
-from fragalysis.settings import COMPUTED_SET_SDF_ROOT
+from .managers import (
+    CanonSiteConfDataManager,
+    CanonSiteDataManager,
+    CompoundDataManager,
+    ExperimentDataManager,
+    QuatAssemblyDataManager,
+    SiteObservationDataManager,
+    XtalformDataManager,
+    XtalformQuatAssemblyDataManager,
+    XtalformSiteDataManager,
+)
 
 logger = logging.getLogger(__name__)
 

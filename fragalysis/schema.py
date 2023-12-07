@@ -1,7 +1,8 @@
 import graphene
+import pandda.schema
+
 import hotspots.schema
 import hypothesis.schema
-import pandda.schema
 import scoring.schema
 import viewer.schema
 import xcdb.schema

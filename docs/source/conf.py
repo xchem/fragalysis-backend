@@ -11,12 +11,12 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import inspect
-import sys
 import os
+import sys
 
 import django
-from django.utils.html import strip_tags
 from django.utils.encoding import force_text
+from django.utils.html import strip_tags
 
 sys.path.insert(0, os.path.abspath('../..'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'fragalysis.settings'

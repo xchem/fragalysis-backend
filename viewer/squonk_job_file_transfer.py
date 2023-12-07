@@ -1,16 +1,16 @@
 """Functions (for the celery tasks) that transfer (download) files from
 Fragalysis to Squonk.
 """
-import urllib.parse
 import os
+import urllib.parse
 from typing import Dict, List, Tuple
 
+from celery.utils.log import get_task_logger
 from django.conf import settings
 from rest_framework import status
 from squonk2.dm_api import DmApi
 
-from celery.utils.log import get_task_logger
-from viewer.models import SiteObservation, ComputedMolecule, JobFileTransfer
+from viewer.models import ComputedMolecule, JobFileTransfer, SiteObservation
 
 logger = get_task_logger(__name__)
 

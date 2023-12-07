@@ -1,17 +1,16 @@
-import os
-import logging
-from enum import Enum
-
 import asyncio
 import functools
-import requests
+import logging
+import os
 from concurrent import futures
+from enum import Enum
 
+import requests
+from frag.utils.network_utils import get_driver
 from pydiscourse import DiscourseClient
 
-from viewer.squonk2_agent import get_squonk2_agent
-from frag.utils.network_utils import get_driver
 from api import security
+from viewer.squonk2_agent import get_squonk2_agent
 
 logger = logging.getLogger(__name__)
 

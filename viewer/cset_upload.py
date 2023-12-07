@@ -1,10 +1,10 @@
+import ast
+import datetime
 import logging
 import os
-import datetime
-import ast
 import shutil
-import zipfile
 import uuid
+import zipfile
 from typing import Any, Dict, List, Optional, Tuple
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
@@ -15,9 +15,8 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
-
+from django.core.files.storage import default_storage
 from rdkit import Chem
 from rdkit.Chem import Crippen, Descriptors
 
@@ -27,8 +26,8 @@ from viewer.models import (
     ComputedSet,
     ComputedSetSubmitter,
     NumericalScoreValues,
-    SiteObservation,
     ScoreDescription,
+    SiteObservation,
     Target,
     TextScoreValues,
     User,

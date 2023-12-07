@@ -1,10 +1,8 @@
-from pathlib import Path
 import copy
-
+from pathlib import Path
 from unittest import TestCase
 
 from viewer.target_loader import TargetLoader
-
 
 test_file1_path = Path(__file__).absolute().parent.joinpath("hash_test_file1.txt")
 test_file1_hash = "35360b39bff52650367f7d2c08e29fa00a63a374c777b4055c75e4f97b173271"

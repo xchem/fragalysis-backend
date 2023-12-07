@@ -2,11 +2,11 @@ import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
 
 from hypothesis.serializers import (
-    Vector3DSerializer,
-    VectorSerializer,
     InteractionPointSerializer,
     InteractionSerializer,
     TargetResidueSerialzier,
+    Vector3DSerializer,
+    VectorSerializer,
 )
 
 relay = graphene.relay

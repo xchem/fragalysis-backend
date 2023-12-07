@@ -1,11 +1,6 @@
 from rest_framework import serializers
 
-from hypothesis.models import (
-    Vector,
-    Interaction,
-    InteractionPoint,
-    TargetResidue,
-)
+from hypothesis.models import Interaction, InteractionPoint, TargetResidue, Vector
 
 
 class Vector3DSerializer(serializers.Serializer):

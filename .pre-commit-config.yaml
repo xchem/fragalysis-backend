@@ -20,6 +20,26 @@ repos:
     args:
     - --markdown-linebreak-ext=md
 
+# isort (in black-compatibility mode)
+- repo: https://github.com/pycqa/isort
+  rev: 5.12.0
+  hooks:
+  - id: isort
+    args:
+    - --profile
+    - black
+    - --filter-files
+
+# Black (uncompromising) Python code formatter
+- repo: https://github.com/psf/black
+  rev: 23.11.0
+  hooks:
+  - id: black
+    args:
+    - --skip-string-normalization
+    - --target-version
+    - py311
+
 # MyPy
 #- repo: https://github.com/pre-commit/mirrors-mypy
 #  rev: v1.7.1
@@ -31,16 +51,6 @@ repos:
 #    - types-pytz
 #    - types-python-dateutil
 #    - types-requests
-
-# Black (uncompromising) Python code formatter
-- repo: https://github.com/psf/black
-  rev: 23.11.0
-  hooks:
-  - id: black
-    args:
-    - --skip-string-normalization
-    - --target-version
-    - py311
 
 # Pylint
 - repo: https://github.com/pycqa/pylint
