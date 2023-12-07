@@ -1,7 +1,7 @@
-from api.security import ISpyBSafeStaticFiles
-from api.security import ISpyBSafeStaticFiles2
-from viewer.models import SiteObservation, Target
 import logging
+
+from api.security import ISpyBSafeStaticFiles, ISpyBSafeStaticFiles2
+from viewer.models import SiteObservation, Target
 
 logger = logging.getLogger(__name__)
 

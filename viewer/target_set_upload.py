@@ -6,48 +6,45 @@ loaders.py
 functions.py
 """
 import logging
-import sys
-from typing import Any, Dict
 
 # import json
 import os
-
-# import shutil
-# import datetime
-
-
-from django.contrib.auth.models import User
-from viewer.models import (
-    Target,
-    Compound,
-    Project,
-    SiteObservationTag,
-    SiteObservation,
-    TagCategory,
-)
-from hypothesis.models import (
-    Vector3D,
-    Vector,
-    InteractionPoint,
-    TargetResidue,
-    Interaction,
-)
-from hypothesis.definitions import VectTypes, IntTypes
-from hotspots.models import HotspotMap
-from django.core.exceptions import ValidationError
-from django.core.files import File
-from rdkit import Chem
-from rdkit.Chem import Descriptors
-from rdkit.Chem import Lipinski, AllChem
-from scoring.models import SiteObservationGroup
-from frag.alysis.run_clustering import run_lig_cluster
-from frag.network.decorate import get_3d_vects_for_mol
+import sys
+from typing import Any, Dict
 
 # from viewer.target_set_config import get_dict
 import numpy as np
 import pandas as pd
-
 from django.conf import settings
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.core.files import File
+from frag.alysis.run_clustering import run_lig_cluster
+from frag.network.decorate import get_3d_vects_for_mol
+from rdkit import Chem
+from rdkit.Chem import AllChem, Descriptors, Lipinski
+
+from hotspots.models import HotspotMap
+from hypothesis.definitions import IntTypes, VectTypes
+from hypothesis.models import (
+    Interaction,
+    InteractionPoint,
+    TargetResidue,
+    Vector,
+    Vector3D,
+)
+from scoring.models import SiteObservationGroup
+from viewer.models import (
+    Compound,
+    Project,
+    SiteObservation,
+    SiteObservationTag,
+    TagCategory,
+    Target,
+)
+
+# import shutil
+# import datetime
 
 
 logger = logging.getLogger(__name__)

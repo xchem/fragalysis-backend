@@ -14,13 +14,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 import mozilla_django_oidc.views
-import fragalysis.views
 from django.conf.urls import include
-from django.urls import path, re_path
 from django.contrib import admin
+from django.urls import path, re_path
 from django.views.generic.base import RedirectView
 from graphene_django.views import GraphQLView
 
+import fragalysis.views
 
 urlpatterns = [
     re_path(r"^$", RedirectView.as_view(url="/viewer/react/landing")),

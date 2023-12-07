@@ -5,24 +5,23 @@ This module 'simplifies' the use of the Squonk2 Python client package.
 # Refer to the accompanying low-level-design document: -
 # https://docs.google.com/document/d/1lFpN29dK1luz80lwSGi0Rnj1Rqula2_CTRuyWDUBu14
 
-from collections import namedtuple
 import logging
 import os
+from collections import namedtuple
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import ParseResult, urlparse
-from urllib3.exceptions import InsecureRequestWarning
-from urllib3 import disable_warnings
 
-from squonk2.auth import Auth
-from squonk2.as_api import AsApi, AsApiRv
-from squonk2.dm_api import DmApi, DmApiRv
 import requests
 from requests import Response
+from squonk2.as_api import AsApi, AsApiRv
+from squonk2.auth import Auth
+from squonk2.dm_api import DmApi, DmApiRv
+from urllib3 import disable_warnings
+from urllib3.exceptions import InsecureRequestWarning
 from wrapt import synchronized
 
 from api.security import ISpyBSafeQuerySet
-from viewer.models import User, Project, Target
-from viewer.models import Squonk2Project, Squonk2Org, Squonk2Unit
+from viewer.models import Project, Squonk2Org, Squonk2Project, Squonk2Unit, Target, User
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
 

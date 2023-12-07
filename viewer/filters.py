@@ -1,12 +1,14 @@
 import django_filters
 from django_filters import rest_framework as filters
 
-from viewer.models import Snapshot
-from viewer.models import SiteObservation
-from viewer.models import CanonSite
-from viewer.models import CanonSiteConf
-from viewer.models import XtalformSite
-from viewer.models import Compound
+from viewer.models import (
+    CanonSite,
+    CanonSiteConf,
+    Compound,
+    SiteObservation,
+    Snapshot,
+    XtalformSite,
+)
 
 
 class SnapshotFilter(filters.FilterSet):

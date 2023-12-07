@@ -1,31 +1,23 @@
-import os
 import logging
+import os
 from urllib.parse import urljoin
 
-from django.db.models import F
-
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.contrib.postgres.aggregates import ArrayAgg
-
+from django.db.models import F
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
-
 from rdkit import Chem
 from rdkit.Chem import Descriptors
+from rest_framework import serializers
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import draw_mol
-
-from viewer import models
-from viewer.utils import get_https_host
-
 from scoring.models import SiteObservationGroup
-
-from django.contrib.auth.models import User
-from django.conf import settings
-
-from rest_framework import serializers
-
+from viewer import models
 from viewer.target_set_upload import sanitize_mol
+from viewer.utils import get_https_host
 
 logger = logging.getLogger(__name__)
 

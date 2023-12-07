@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase, tag
 
-from network.functions import add_keys, add_empty, order_structures
+from network.functions import add_empty, add_keys, order_structures
 
 
 @tag("nodb")

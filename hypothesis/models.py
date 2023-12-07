@@ -1,7 +1,7 @@
 from django.db import models
 
 from hypothesis.definitions import IntTypes, VectTypes
-from viewer.models import SiteObservation, Target, Compound
+from viewer.models import Compound, SiteObservation, Target
 
 
 class TargetResidue(models.Model):

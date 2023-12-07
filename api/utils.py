@@ -3,12 +3,11 @@ import xml.etree.ElementTree as ET
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
+from frag.utils.network_utils import canon_input
 from rdkit import Chem
 from rdkit.Chem import AllChem, Atom, rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
 from rest_framework.authtoken.models import Token
-from frag.utils.network_utils import canon_input
-
 
 ISO_COLOUR_MAP = {
     100: (1, 0, 0),

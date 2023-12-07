@@ -1,5 +1,5 @@
-import logging
 import datetime
+import logging
 import os
 import shutil
 
@@ -11,39 +11,36 @@ import django
 
 django.setup()
 
-from django.conf import settings
-from celery import shared_task
-from fragalysis.celery import app as celery_app
-from celery.utils.log import get_task_logger
-import numpy as np
-
-from rdkit import Chem
-from rdkit.Chem import Descriptors
-from viewer.models import Compound, DesignSet
 import zipfile
 
+import numpy as np
+from celery import shared_task
+from celery.utils.log import get_task_logger
+from django.conf import settings
+from rdkit import Chem
+from rdkit.Chem import Descriptors
+
+from fragalysis.celery import app as celery_app
+from viewer.models import Compound, DesignSet
 from viewer.target_loader import load_target
 
-
+from .cset_upload import MolOps, PdbOps, blank_mol_vals
+from .models import ComputedSet, JobFileTransfer, JobRequest, SiteObservation
 from .sdf_check import (
     add_warning,
-    check_SMILES,
-    check_ver_name,
     check_blank_mol_props,
     check_blank_prop,
+    check_compound_set,
+    check_field_populated,
     check_mol_props,
     check_name_characters,
     check_refmol,
-    check_field_populated,
-    check_compound_set,
+    check_SMILES,
+    check_ver_name,
 )
-from .target_set_upload import validate_target
-from .cset_upload import blank_mol_vals, MolOps, PdbOps
-from .squonk_job_file_transfer import (
-    process_file_transfer,
-)
+from .squonk_job_file_transfer import process_file_transfer
 from .squonk_job_file_upload import get_upload_sub_directory, process_compound_set_file
-from .models import ComputedSet, JobRequest, JobFileTransfer, SiteObservation
+from .target_set_upload import validate_target
 from .utils import SDF_VERSION, delete_media_sub_directory
 
 # If Celery configured to always run 'synchronously' (eager),

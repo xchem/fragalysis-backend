@@ -1,20 +1,21 @@
-import os
 import datetime
+import os
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
 
 django.setup()
-from django.conf import settings
+import os.path
 
+from django.conf import settings
 from rdkit import Chem
+
 from viewer.models import (
+    ComputedSetSubmitter,
     ScoreDescription,
     SiteObservation,
     Target,
-    ComputedSetSubmitter,
 )
-import os.path
 
 
 def get_inspiration_frags(cpd, compound_set):

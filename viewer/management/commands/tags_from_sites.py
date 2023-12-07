@@ -3,10 +3,10 @@ import os
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from viewer.models import Target, SiteObservation, SiteObservationTag, TagCategory
 
 # from scoring.models import MolGroup
 from scoring.models import SiteObservationGroup
+from viewer.models import SiteObservation, SiteObservationTag, TagCategory, Target
 
 
 class Command(BaseCommand):

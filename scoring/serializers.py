@@ -1,12 +1,12 @@
 from rest_framework import serializers
 
 from scoring.models import (
-    ViewScene,
     CmpdChoice,
-    SiteObservationChoice,
     ScoreChoice,
-    SiteObservationGroup,
     SiteObservationAnnotation,
+    SiteObservationChoice,
+    SiteObservationGroup,
+    ViewScene,
 )
 
 

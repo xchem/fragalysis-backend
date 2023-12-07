@@ -7,12 +7,12 @@ from xcdb.views import (
     CrystalView,
     DataProcessingView,
     DimpleView,
+    FragspectCrystalView,
     LabView,
-    RefinementView,
+    PanddaEventStatsView,
     PanddaEventView,
     ProasisOutView,
-    PanddaEventStatsView,
-    FragspectCrystalView,
+    RefinementView,
 )
 
 router = DefaultRouter()

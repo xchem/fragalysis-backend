@@ -5,11 +5,11 @@ from unittest.mock import Mock
 from django.test import SimpleTestCase, tag
 
 from viewer.utils import (
-    create_squonk_job_request_url,
-    create_media_sub_directory,
-    delete_media_sub_directory,
     add_prop_to_sdf,
     clean_filename,
+    create_media_sub_directory,
+    create_squonk_job_request_url,
+    delete_media_sub_directory,
     get_https_host,
 )
 

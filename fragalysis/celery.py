@@ -21,6 +21,7 @@ def config_loggers(*args, **kwargs):
     del args, kwargs
 
     from logging.config import dictConfig  # noqa
+
     from django.conf import settings  # noqa
 
     dictConfig(settings.LOGGING)

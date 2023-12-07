@@ -1,13 +1,14 @@
 """
 discourse.py Functions for to send and retrieve posts to/fraom the discourse platform.
 """
+import logging
 import os
 from typing import Tuple
 
-from pydiscourse import DiscourseClient
 from django.conf import settings
+from pydiscourse import DiscourseClient
+
 from viewer.models import DiscourseCategory, DiscourseTopic
-import logging
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,7 @@
 import logging
 
 from django.apps import apps
-
-from django.db.models import QuerySet
-from django.db.models import OuterRef
-from django.db.models import Manager
-from django.db.models import F
-from django.db.models import Subquery
-
+from django.db.models import F, Manager, OuterRef, QuerySet, Subquery
 
 logger = logging.getLogger(__name__)
 

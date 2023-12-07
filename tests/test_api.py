@@ -1,32 +1,30 @@
 import json
-import zipfile
 import shutil
+import zipfile
 
 from deepdiff import DeepDiff
 from django.contrib.auth.models import AnonymousUser, User
-from django.test import RequestFactory
 from django.core.management.color import no_style
 from django.db import connection
-
-from rest_framework.test import APIClient, APITestCase
-from rest_framework.test import APIRequestFactory
+from django.test import RequestFactory
+from rest_framework.test import APIClient, APIRequestFactory, APITestCase
 
 from api.utils import get_token
 from hotspots.models import HotspotMap
 from hypothesis.models import (
-    Vector3D,
-    Vector,
-    TargetResidue,
-    InteractionPoint,
     Interaction,
+    InteractionPoint,
+    TargetResidue,
+    Vector,
+    Vector3D,
 )
 from viewer.models import (
-    Target,
     Compound,
     Project,
     SessionProject,
-    TagCategory,
     SessionProjectTag,
+    TagCategory,
+    Target,
 )
 
 # Target upload functions
