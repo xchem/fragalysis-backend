@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import shutil
+from typing import Any, Dict
 
 from django.db import IntegrityError
 
@@ -178,7 +179,11 @@ def validate_compound_set(task_params):
     logger.info('validate_compound_set() update=%s', update)
 
     validated = True
-    validate_dict = {'molecule_name': [], 'field': [], 'warning_string': []}
+    validate_dict: Dict[str, Any] = {
+        'molecule_name': [],
+        'field': [],
+        'warning_string': [],
+    }
 
     # params = {
     #     'sdf': 'tests/test_data/test_chodera/test_0_2.sdf',
