@@ -3,6 +3,7 @@ Fragalysis to Squonk.
 """
 import urllib.parse
 import os
+from typing import Dict, List, Tuple
 
 from django.conf import settings
 from rest_framework import status
@@ -109,7 +110,9 @@ def process_file_transfer(auth_token, job_transfer_id):
             raise RuntimeError(msg)
 
 
-def validate_file_transfer_files(request):
+def validate_file_transfer_files(
+    request,
+) -> Tuple[Dict[str, str], List[SiteObservation], List[ComputedMolecule]]:
     """Check the request and return a list of proteins and/or computed molecule objects
 
     Args:
@@ -119,9 +122,9 @@ def validate_file_transfer_files(request):
         list of validated proteins (SiteObservation)
         list of validated computed molecules (ComputedMolecule)
     """
-    error = {}
-    proteins = []
-    compounds = []
+    error: Dict[str, str] = {}
+    proteins: List[SiteObservation] = []
+    compounds: List[ComputedMolecule] = []
 
     if request.data['proteins']:
         # Get first part of protein code

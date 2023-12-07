@@ -2,6 +2,8 @@
 discourse.py Functions for to send and retrieve posts to/fraom the discourse platform.
 """
 import os
+from typing import Tuple
+
 from pydiscourse import DiscourseClient
 from django.conf import settings
 from viewer.models import DiscourseCategory, DiscourseTopic
@@ -10,15 +12,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def get_user(client, username):
-    """Call discourse API users to retreive user by username."""
+def get_user(client, username) -> Tuple[bool, str, int]:
+    """Call discourse API users to retrieve user by username."""
     logger.info('+ discourse.get_user')
-    error = False
-    error_message = ''
-    user = 0
+
+    error: bool = False
+    error_message: str = ''
+    user: int = 0
 
     try:
-        user = client.user(username)
+        user_record = client.user(username)
     except Exception as e:
         # User is not known in Discourse or there is a failure accessing Discourse.
         logger.error('discourse.get_user', exc_info=e)
@@ -33,7 +36,7 @@ def get_user(client, username):
         else:
             error_message = 'Please check Discourse Host parameter for Fragalysis'
     else:
-        user = user['id']
+        user = user_record['id']
 
     logger.info('- discourse.get_user')
     return error, error_message, user

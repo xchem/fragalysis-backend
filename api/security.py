@@ -1,9 +1,9 @@
+# pylint: skip-file
 import logging
 import os
 import time
 
 from pathlib import Path
-from typing import Any
 
 from wsgiref.util import FileWrapper
 from django.http import Http404
@@ -102,12 +102,6 @@ def get_conn():
 
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.request = None
-        self.filter_permissions = None
-        self.queryset = None
-
     def get_queryset(self):
         """
         Optionally restricts the returned purchases to a given proposals

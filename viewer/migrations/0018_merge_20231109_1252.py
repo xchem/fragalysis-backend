@@ -8,4 +8,4 @@ class Migration(migrations.Migration):
         ('viewer', '0017_alter_experimentupload_message'),
     ]
 
-    operations = []
+    operations = []  # type: ignore

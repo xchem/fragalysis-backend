@@ -19,8 +19,8 @@ from viewer.target_loader import ASSEMBLIES_FILE
 from viewer.models import QuatAssembly
 
 
-test_mpro_v1 = Path(__file__).absolute().parent.joinpath("Mpro-v1-zero.tgz")
-test_mpro_v2 = Path(__file__).absolute().parent.joinpath("Mpro-v2-zero.tgz")
+test_mpro_v1 = str(Path(__file__).absolute().parent.joinpath("Mpro-v1-zero.tgz"))
+test_mpro_v2 = str(Path(__file__).absolute().parent.joinpath("Mpro-v2-zero.tgz"))
 
 
 class LoaderTests(TestCase):

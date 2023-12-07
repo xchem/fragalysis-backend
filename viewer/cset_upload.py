@@ -37,16 +37,13 @@ from viewer.models import (
 
 def dataType(a_str: str) -> str:
     lean_str = a_str.strip()
-    if len(lean_str) == 0:
+    if not lean_str:
         return 'BLANK'
+
     try:
         t = ast.literal_eval(lean_str)
-
-    except ValueError:
+    except (ValueError, SyntaxError):
         return 'TEXT'
-    except SyntaxError:
-        return 'TEXT'
-
     else:
         if type(t) in [int, int, float, bool]:
             if t in [
@@ -72,6 +69,9 @@ def dataType(a_str: str) -> str:
                 return 'INT'
             if type(t) is float:
                 return 'FLOAT'
+
+            # Can't get here?
+            assert False
         else:
             return 'TEXT'
 
