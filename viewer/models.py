@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import uuid
 import logging
+from typing import List
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -457,13 +458,13 @@ class SiteObservation(models.Model):
         cmpd_id=None,
         vector_type=None,
         number=None,
-    ):
+    ) -> List[Vector3d]:
         """Get the vectors for a given molecule
 
         :param mols: the Django molecules to get them from
         :return: None
         """
-        result = []
+        result: List[Vector3d] = []
         # pk checks and later continure statements are doing filtering
         # - as this is not going through the usual django_filter
         # machinery, it needs a different approach

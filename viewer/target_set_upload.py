@@ -7,6 +7,7 @@ functions.py
 """
 import logging
 import sys
+from typing import Any, Dict
 
 # import json
 import os
@@ -801,7 +802,7 @@ def validate_target(new_data_folder, target_name, proposal_ref):
     # Don't need
     del proposal_ref
 
-    validate_dict = {'Location': [], 'Error': [], 'Line number': []}
+    validate_dict: Dict[str, Any] = {'Location': [], 'Error': [], 'Line number': []}
 
     # Check if there is any data to process
     target_path = os.path.join(new_data_folder, target_name)
