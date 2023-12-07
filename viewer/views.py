@@ -7,7 +7,7 @@ import uuid
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from wsgiref.util import FileWrapper
 
 import pandas as pd
@@ -258,7 +258,7 @@ def save_pdb_zip(pdb_file):
     zf = zipfile.ZipFile(pdb_file)
     zip_lst = zf.namelist()
     zfile = {}
-    zfile_hashvals = {}
+    zfile_hashvals: Dict[str, str] = {}
     print(zip_lst)
     for filename in zip_lst:
         # only handle pdb files
@@ -338,11 +338,9 @@ class UploadCSet(APIView):
         # - this can be switched off in settings.py.
         user = self.request.user
         if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
-            context = {}
-            context['error_message'] = (
-                'Only authenticated users can upload files'
-                ' - please navigate to landing page and Login'
-            )
+            context: Dict[str, Any] = {
+                'error_message': 'Only authenticated users can upload files - please navigate to landing page and Login'
+            }
             return render(request, 'viewer/upload-cset.html', context)
 
         form = CSetForm()
@@ -397,7 +395,7 @@ class UploadCSet(APIView):
 
             # If a set is named the ComputedSet cannot be 'Anonymous'
             # and the user has to be the owner.
-            selected_set = None
+            selected_set: Optional[models.ComputedSet] = None
             if update_set and update_set != 'None':
                 computed_set_query = models.ComputedSet.objects.filter(
                     unique_name=update_set
@@ -539,6 +537,7 @@ class UploadCSet(APIView):
 
             elif choice == 'D':
                 # Delete
+                assert selected_set
                 selected_set.delete()
 
                 request.session[
@@ -1719,13 +1718,15 @@ class JobFileTransferView(viewsets.ModelViewSet):
         # Only authenticated users can transfer files to sqonk
         user = self.request.user
         if not user.is_authenticated:
-            content = {'Only authenticated users can transfer files'}
+            content: Dict[str, Any] = {
+                'error': 'Only authenticated users can transfer files'
+            }
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Can't use this method if the Squonk2 agent is not configured
         sq2a_rv = _SQ2A.configured()
         if not sq2a_rv.success:
-            content = {f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
+            content = {'error': f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Collect expected API parameters....
@@ -1753,7 +1754,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         )
         sq2a_rv = _SQ2A.can_send(sq2a_send_params)
         if not sq2a_rv.success:
-            content = {f'You cannot do this ({sq2a_rv.msg})'}
+            content = {'error': f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Check the existence of the files that are expected to be transferred
@@ -1898,7 +1899,9 @@ class JobOverrideView(viewsets.ModelViewSet):
         # Only authenticated users can transfer files to sqonk
         user = self.request.user
         if not user.is_authenticated:
-            content = {'Only authenticated users can provide Job overrides'}
+            content: Dict[str, Any] = {
+                'error': 'Only authenticated users can provide Job overrides'
+            }
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Override is expected to be a JSON string,
@@ -1937,13 +1940,15 @@ class JobRequestView(APIView):
 
         user = self.request.user
         if not user.is_authenticated:
-            content = {'Only authenticated users can access squonk jobs'}
+            content: Dict[str, Any] = {
+                'error': 'Only authenticated users can access squonk jobs'
+            }
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Can't use this method if the Squonk2 agent is not configured
         sq2a_rv = _SQ2A.configured()
         if not sq2a_rv.success:
-            content = {f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
+            content = {'error': f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Iterate through each record, for JobRequests that are not 'finished'
@@ -2029,13 +2034,13 @@ class JobRequestView(APIView):
         # Only authenticated users can create squonk job requests.
         user = self.request.user
         if not user.is_authenticated:
-            content = {'Only authenticated users can run jobs'}
+            content: Dict[str, Any] = {'error': 'Only authenticated users can run jobs'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Can't use this method if the Squonk2 agent is not configured
         sq2a_rv = _SQ2A.configured()
         if not sq2a_rv.success:
-            content = {f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
+            content = {'error': f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Collect expected API parameters....
@@ -2064,7 +2069,7 @@ class JobRequestView(APIView):
         )
         sq2a_rv = _SQ2A.can_run_job(sq2a_run_job_params)
         if not sq2a_rv.success:
-            content = {f'You cannot do this ({sq2a_rv.msg})'}
+            content = {'error': f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         try:

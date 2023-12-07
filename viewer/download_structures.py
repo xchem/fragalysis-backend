@@ -13,6 +13,7 @@ import shutil
 import uuid
 import zipfile
 from pathlib import Path
+from typing import Any, Dict
 
 import pandoc
 from django.conf import settings
@@ -557,7 +558,7 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
     """
     logger.info('+ _create_structures_dict')
 
-    zip_contents = copy.deepcopy(zip_template)
+    zip_contents: Dict[str, Any] = copy.deepcopy(zip_template)
 
     logger.info(
         'Expecting %d molecules from %d proteins', site_obvs.count(), site_obvs.count()

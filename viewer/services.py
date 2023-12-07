@@ -200,6 +200,8 @@ def keycloak(func_id, name, url=None, secret=None):
 
     logger.debug("+ keycloak")
     keycloak_realm = os.environ.get(url, None)
+    if not keycloak_realm:
+        return False
     response = requests.get(keycloak_realm)
     logger.debug("keycloak response: %s", response)
     return response.ok

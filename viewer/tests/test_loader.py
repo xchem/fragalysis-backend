@@ -43,13 +43,15 @@ class LoaderTests(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.tempdir.cleanup()
+        if cls.tempdir:
+            cls.tempdir.cleanup()
         super().tearDownClass()
 
     def test__process_quat_assembly_positive(self):
         idx = next(iter(self.assemblies))
         data = self.assemblies[idx]
 
+        assert self.target_loader
         result = self.target_loader._process_quat_assembly(  # pylint: disable=protected-access
             QuatAssembly.objects.none(), idx, data
         )  # pylint: disable=protected-access
