@@ -2,7 +2,7 @@ import filecmp
 import os
 from unittest.mock import Mock
 
-from django.test import SimpleTestCase, tag
+from django.test import SimpleTestCase
 
 from viewer.utils import (
     add_prop_to_sdf,
@@ -14,7 +14,6 @@ from viewer.utils import (
 )
 
 
-@tag("nodb")
 class ViewerUtilsTestCase(SimpleTestCase):
     def test_create_squonk_job_request_url(self):
         result = create_squonk_job_request_url("instance-0000")
