@@ -139,15 +139,15 @@ jobs:
         tags: |
           ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
           ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:stable
-#    - name: Test
-#      run: >
-#        docker-compose -f docker-compose.test.yml up
-#        --build
-#        --exit-code-from tests
-#        --abort-on-container-exit
-#      env:
-#        BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
-#        BE_IMAGE_TAG: ${{ steps.vars.outputs.tag }}
+    - name: Test
+      run: >
+        docker-compose -f docker-compose.test.yml up
+        --build
+        --exit-code-from tests
+        --abort-on-container-exit
+      env:
+        BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
+        BE_IMAGE_TAG: ${{ steps.vars.outputs.tag }}
     - name: Login to DockerHub
       if: steps.vars.outputs.push == 'true'
       uses: docker/login-action@v2

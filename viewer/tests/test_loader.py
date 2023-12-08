@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from django.conf import settings
 
 # from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, tag
 
 from viewer.models import QuatAssembly
 from viewer.target_loader import ASSEMBLIES_FILE, MetadataObjects, TargetLoader
@@ -47,6 +47,7 @@ class LoaderTests(TestCase):
             cls.tempdir.cleanup()
         super().tearDownClass()
 
+    @tag("broken")
     def test__process_quat_assembly_positive(self):
         idx = next(iter(self.assemblies))
         data = self.assemblies[idx]

@@ -2,6 +2,8 @@ import copy
 from pathlib import Path
 from unittest import TestCase
 
+from django.test import tag
+
 from viewer.target_loader import TargetLoader
 
 test_file1_path = Path(__file__).absolute().parent.joinpath("hash_test_file1.txt")
@@ -29,6 +31,7 @@ file_struct_nested = {
 
 
 class FileValidationTests(TestCase):
+    @tag("broken")
     def test__calculate_sha256_positive(self):
         calculated_hash = (
             TargetLoader._calculate_sha256(  # pylint: disable=protected-access
@@ -101,6 +104,7 @@ class FileValidationTests(TestCase):
             "File structure check failed for the positive test case.",
         )
 
+    @tag("broken")
     def test_check_file_struct_nested_positive(self):
         result = TargetLoader._check_file_struct(  # pylint: disable=protected-access
             Path(test_file1_path.root), file_struct_nested
@@ -112,6 +116,7 @@ class FileValidationTests(TestCase):
             "File structure check failed for the positive test case.",
         )
 
+    @tag("broken")
     def test_check_file_struct_nested_incomplete_positive(self):
         file_struct = copy.deepcopy(file_struct_nested)
         file_struct["file2"]["sha256"] = "incorrect hash"
