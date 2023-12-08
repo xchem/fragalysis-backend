@@ -950,6 +950,16 @@ class ComputedMolecule(models.Model):
     name = models.CharField(max_length=50)
     smiles = models.CharField(max_length=255)
     computed_inspirations = models.ManyToManyField(SiteObservation, blank=True)
+    ref_url = models.TextField(
+        null=True,
+        blank=True,
+        help_text="An optional url linking to the reference for this molecule",
+    )
+    rationale = models.TextField(
+        null=True,
+        blank=True,
+        help_text="An optional rationale for this molecule",
+    )
 
     def __str__(self) -> str:
         return f"{self.smiles}"
