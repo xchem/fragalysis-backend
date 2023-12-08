@@ -210,7 +210,7 @@ for the viewer's model run the following: -
 
     docker-compose -f docker-compose-migrate.yml up -d
 
-# Then enter the backend container with: -
+Then enter the backend container with: -
 
 Then from within the backend container make the migrations
 (in this case for the `viewer`)...
