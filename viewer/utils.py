@@ -22,7 +22,7 @@ def is_url(url: Optional[str]) -> bool:
     try:
         result = urlparse(url)
         return all([result.scheme, result.netloc])
-    except ValueError:
+    except (ValueError, AttributeError):
         return False
 
 

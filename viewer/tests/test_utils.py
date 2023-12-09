@@ -92,6 +92,6 @@ class ViewerUtilsTestCase(SimpleTestCase):
 
     def test_word_count(self):
         self.assertEquals(2, word_count("Hello world"))
-        self.assertEquals(1, word_count("Hello") == 1)
-        self.assertEquals(0, word_count("") == 0)
-        self.assertEquals(0, word_count(None) == 0)
+        self.assertEquals(1, word_count("Hello"))
+        self.assertEquals(0, word_count(""))
+        self.assertEquals(0, word_count(None))
