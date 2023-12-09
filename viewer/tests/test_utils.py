@@ -11,6 +11,8 @@ from viewer.utils import (
     create_squonk_job_request_url,
     delete_media_sub_directory,
     get_https_host,
+    is_url,
+    word_count,
 )
 
 
@@ -66,3 +68,30 @@ class ViewerUtilsTestCase(SimpleTestCase):
         request_mock.get_host.return_value = "example.com"
         result = get_https_host(request_mock)
         self.assertEqual(result, "https://example.com")
+
+    def test_is_url(self):
+        self.assertTrue(is_url("https://example.com"))
+        self.assertTrue(is_url("http://example.com"))
+        self.assertTrue(is_url("ftp://example.com"))
+        self.assertTrue(is_url("ftps://example.com"))
+        self.assertTrue(is_url("sftp://example.com"))
+        self.assertTrue(is_url("ssh://example.com"))
+        self.assertTrue(is_url("file://example.com"))
+        self.assertTrue(is_url("mailto://example.com"))
+        self.assertTrue(is_url("telnet://example.com"))
+        self.assertTrue(is_url("gopher://example.com"))
+        self.assertTrue(is_url("wais://example.com"))
+        self.assertTrue(is_url("ldap://example.com"))
+        self.assertTrue(is_url("news://example.com"))
+        self.assertTrue(is_url("nntp://example.com"))
+        self.assertTrue(is_url("prospero://example.com"))
+        # SOme failures...
+        self.assertFalse(is_url("/data/blob.html"))
+        self.assertFalse(is_url(532))
+        self.assertFalse(is_url(None))
+
+    def test_word_count(self):
+        self.assertEquals(2, word_count("Hello world"))
+        self.assertEquals(1, word_count("Hello") == 1)
+        self.assertEquals(0, word_count("") == 0)
+        self.assertEquals(0, word_count(None) == 0)

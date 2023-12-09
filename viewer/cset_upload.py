@@ -32,6 +32,7 @@ from viewer.models import (
     TextScoreValues,
     User,
 )
+from viewer.utils import is_url, word_count
 
 
 def dataType(a_str: str) -> str:
@@ -381,12 +382,15 @@ class MolOps:
         computed_molecule.name = name
         computed_molecule.smiles = smiles
         # Extract possible reference URL and Rationale
-        computed_molecule.ref_url = (
+        # URLs have to be valid URLs and rationals must contain more than one word
+        ref_url: Optional[str] = (
             mol.GetProp('ref_url') if mol.HasProp('ref_url') else None
         )
-        computed_molecule.rationale = (
+        computed_molecule.ref_url = ref_url if is_url(ref_url) else None
+        rationale: Optional[str] = (
             mol.GetProp('rationale') if mol.HasProp('rationale') else None
         )
+        computed_molecule.rationale = rationale if word_count(rationale) > 1 else None
         # To void the error
         #   needs to have a value for field "id"
         #   before this many-to-many relationship can be used.

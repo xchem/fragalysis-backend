@@ -7,6 +7,8 @@ import fnmatch
 import os
 import shutil
 from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
 
 from django.conf import settings
 from rdkit import Chem
@@ -14,6 +16,19 @@ from rdkit import Chem
 # Set .sdf file format version
 # Used at the start of every SDF file.
 SDF_VERSION = 'ver_1.2'
+
+
+def is_url(url: Optional[str]) -> bool:
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
+
+
+def word_count(text: Optional[str]) -> int:
+    """Returns an 'approximate' word count."""
+    return len(text.split()) if text else 0
 
 
 def create_squonk_job_request_url(instance_id):
