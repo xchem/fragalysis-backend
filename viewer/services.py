@@ -11,7 +11,7 @@ from frag.utils.network_utils import get_driver
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from pydiscourse import DiscourseClient
 
-from api import security
+from api.security import get_configured_connector
 from viewer.squonk2_agent import get_squonk2_agent
 
 logger = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ def ispyb(func_id, name, ispyb_host=None) -> Optional[Connector]:
     del func_id, name, ispyb_host
 
     logger.debug("+ ispyb")
-    return security.get_conn()
+    return get_configured_connector()
 
 
 @service_query
