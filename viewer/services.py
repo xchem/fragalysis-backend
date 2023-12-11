@@ -4,11 +4,9 @@ import logging
 import os
 from concurrent import futures
 from enum import Enum
-from typing import Optional
 
 import requests
 from frag.utils.network_utils import get_driver
-from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from pydiscourse import DiscourseClient
 
 from api.security import get_configured_connector
@@ -150,16 +148,16 @@ def service_query(func):
 
 
 @service_query
-def ispyb(func_id, name, ispyb_host=None) -> Optional[Connector]:
+def ispyb(func_id, name, ispyb_host=None) -> bool:
     # Unused arguments
     del func_id, name, ispyb_host
 
     logger.debug("+ ispyb")
-    return get_configured_connector()
+    return get_configured_connector() != None
 
 
 @service_query
-def discourse(func_id, name, key=None, url=None, user=None) -> DiscourseClient:
+def discourse(func_id, name, key=None, url=None, user=None) -> bool:
     # Unused arguments
     del func_id, name
 
@@ -170,7 +168,7 @@ def discourse(func_id, name, key=None, url=None, user=None) -> DiscourseClient:
         api_key=os.environ.get(key, None),
     )
     # TODO: some action on client?
-    return client
+    return client != None
 
 
 @service_query
