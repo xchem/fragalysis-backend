@@ -17,6 +17,8 @@ from viewer.squonk2_agent import get_squonk2_agent
 logger = logging.getLogger(__name__)
 
 DELAY = 10
+# Default timeout for any request calls
+REQUEST_TIMEOUT_S = 5
 
 
 class State(str, Enum):
@@ -206,6 +208,6 @@ def keycloak(func_id, name, url=None, secret=None) -> bool:
     keycloak_realm = os.environ.get(url, None)
     if not keycloak_realm:
         return False
-    response = requests.get(keycloak_realm)
+    response = requests.get(keycloak_realm, timeout=REQUEST_TIMEOUT_S)
     logger.debug("keycloak response: %s", response)
     return response.ok
