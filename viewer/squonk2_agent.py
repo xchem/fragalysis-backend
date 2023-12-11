@@ -69,6 +69,9 @@ _SQ2_PRODUCT_TYPE: str = 'DATA_MANAGER_PROJECT_TIER_SUBSCRIPTION'
 # True if the code's in Test Mode
 _TEST_MODE: bool = False
 
+# Default timeout for any request calls
+REQUEST_TIMEOUT_S: int = 5
+
 
 class Squonk2Agent:
     """Helper class that simplifies access to the Squonk2 Python client.
@@ -882,8 +885,10 @@ class Squonk2Agent:
         assert self.__CFG_SQUONK2_UI_URL
         url: str = self.__CFG_SQUONK2_UI_URL
         try:
-            resp = requests.head(url, verify=self.__verify_certificates)
-        except:
+            resp = requests.head(
+                url, verify=self.__verify_certificates, timeout=REQUEST_TIMEOUT_S
+            )
+        except Exception:
             _LOGGER.error('Exception checking UI at %s', url)
         if resp is None or resp.status_code != 200:
             msg = f'Squonk2 UI is not responding from {url}'
@@ -893,8 +898,10 @@ class Squonk2Agent:
         resp = None
         url = f'{self.__CFG_SQUONK2_DMAPI_URL}/api'
         try:
-            resp = requests.head(url, verify=self.__verify_certificates)
-        except Exception:  # pylint: disable=broad-except
+            resp = requests.head(
+                url, verify=self.__verify_certificates, timeout=REQUEST_TIMEOUT_S
+            )
+        except Exception:
             _LOGGER.error('Exception checking DM at %s', url)
         if resp is None or resp.status_code != 308:
             msg = f'Squonk2 DM is not responding from {url}'
@@ -904,8 +911,10 @@ class Squonk2Agent:
         resp = None
         url = f'{self.__CFG_SQUONK2_ASAPI_URL}/api'
         try:
-            resp = requests.head(url, verify=self.__verify_certificates)
-        except:
+            resp = requests.head(
+                url, verify=self.__verify_certificates, timeout=REQUEST_TIMEOUT_S
+            )
+        except Exception:
             _LOGGER.error('Exception checking AS at %s', url)
         if resp is None or resp.status_code != 308:
             msg = f'Squonk2 AS is not responding from {url}'

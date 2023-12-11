@@ -3,6 +3,7 @@ import logging
 import os
 import time
 from pathlib import Path
+from typing import Optional, Union
 from wsgiref.util import FileWrapper
 
 from django.db.models import Q
@@ -37,7 +38,7 @@ connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 # response = view(request)
 
 
-def get_remote_conn():
+def get_remote_conn() -> Optional[SSHConnector]:
     ispyb_credentials = {
         "user": os.environ.get("ISPYB_USER"),
         "pw": os.environ.get("ISPYB_PASSWORD"),
@@ -64,17 +65,20 @@ def get_remote_conn():
         return None
 
     # Try to get an SSH connection (aware that it might fail)
-    conn = None
+    conn: SSHConnector = None
     try:
         conn = SSHConnector(**ispyb_credentials)
-    except:
-        logger.info("ispyb_credentials=%s", ispyb_credentials)
-        logger.exception("Exception creating SSHConnector")
+    except Exception:
+        # Log the exception if DEBUG level or lower/finer?
+        # The following wil not log if the level is set to INFO for example.
+        if logging.DEBUG >= logger.level:
+            logger.info("ispyb_credentials=%s", ispyb_credentials)
+            logger.exception("Got the following exception creating SSHConnector...")
 
     return conn
 
 
-def get_conn():
+def get_conn() -> Optional[Connector]:
     credentials = {
         "user": os.environ.get("ISPYB_USER"),
         "pw": os.environ.get("ISPYB_PASSWORD"),
@@ -83,9 +87,8 @@ def get_conn():
         "db": "ispyb",
         "conn_inactivity": 360,
     }
-
-    # Caution: Credentials may not be set in the environment.
-    #          Assume the credentials are invalid if there is no password
+    # Caution: Credentials may not have been set in the environment.
+    #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
     if not credentials["host"]:
         return None
@@ -93,9 +96,12 @@ def get_conn():
     conn = None
     try:
         conn = Connector(**credentials)
-    except:
-        logger.info("credentials=%s", credentials)
-        logger.exception("Exception creating Connector")
+    except Exception:
+        # Log the exception if DEBUG level or lower/finer?
+        # The following wil not log if the level is set to INFO for example.
+        if logging.DEBUG >= logger.level:
+            logger.info("credentials=%s", credentials)
+            logger.exception("Got the following exception creating Connector...")
 
     return conn
 
@@ -184,7 +190,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         logger.info("user=%s needs_updating=%s", user.username, needs_updating)
 
         if needs_updating:
-            conn = None
+            conn: Optional[Union[Connector, SSHConnector]] = None
             if connector == 'ispyb':
                 conn = get_conn()
             elif connector == 'ssh_ispyb':

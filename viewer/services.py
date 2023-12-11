@@ -4,9 +4,11 @@ import logging
 import os
 from concurrent import futures
 from enum import Enum
+from typing import Optional
 
 import requests
 from frag.utils.network_utils import get_driver
+from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from pydiscourse import DiscourseClient
 
 from api import security
@@ -15,6 +17,8 @@ from viewer.squonk2_agent import get_squonk2_agent
 logger = logging.getLogger(__name__)
 
 DELAY = 10
+# Default timeout for any request calls
+REQUEST_TIMEOUT_S = 5
 
 
 class State(str, Enum):
@@ -127,7 +131,9 @@ def service_query(func):
                         state = State.OK
 
             except TimeoutError:
-                logger.error("Service query '%s' timed out", func.__name__)
+                # Timeout is an "expected" condition for a service that's expected
+                # to be running but may be degraded so we don't log it unless debugging.
+                logger.debug("Service query '%s' timed out", func.__name__)
                 state = State.TIMEOUT
             except Exception as exc:
                 # unknown error with the query
@@ -144,7 +150,7 @@ def service_query(func):
 
 
 @service_query
-def ispyb(func_id, name, ispyb_host=None):
+def ispyb(func_id, name, ispyb_host=None) -> Optional[Connector]:
     # Unused arguments
     del func_id, name, ispyb_host
 
@@ -153,7 +159,7 @@ def ispyb(func_id, name, ispyb_host=None):
 
 
 @service_query
-def discourse(func_id, name, key=None, url=None, user=None):
+def discourse(func_id, name, key=None, url=None, user=None) -> DiscourseClient:
     # Unused arguments
     del func_id, name
 
@@ -168,7 +174,7 @@ def discourse(func_id, name, key=None, url=None, user=None):
 
 
 @service_query
-def squonk(func_id, name, squonk_pwd=None):
+def squonk(func_id, name, squonk_pwd=None) -> bool:
     # Unused arguments
     del func_id, name, squonk_pwd
 
@@ -177,7 +183,7 @@ def squonk(func_id, name, squonk_pwd=None):
 
 
 @service_query
-def fragmentation_graph(func_id, name, url=None):
+def fragmentation_graph(func_id, name, url=None) -> bool:
     # Unused arguments
     del func_id, name, url
 
@@ -194,7 +200,7 @@ def fragmentation_graph(func_id, name, url=None):
 
 
 @service_query
-def keycloak(func_id, name, url=None, secret=None):
+def keycloak(func_id, name, url=None, secret=None) -> bool:
     # Unused arguments
     del func_id, name, secret
 
@@ -202,6 +208,6 @@ def keycloak(func_id, name, url=None, secret=None):
     keycloak_realm = os.environ.get(url, None)
     if not keycloak_realm:
         return False
-    response = requests.get(keycloak_realm)
+    response = requests.get(keycloak_realm, timeout=REQUEST_TIMEOUT_S)
     logger.debug("keycloak response: %s", response)
     return response.ok
