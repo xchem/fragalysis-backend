@@ -17,6 +17,8 @@ RUN apt-get update -y && \
       nginx \
       pandoc \
       texlive-latex-base \
+      texlive-latex-recommended \
+      lmodern \
       texlive-fonts-recommended && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -27,7 +29,9 @@ WORKDIR /code
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY django_nginx.conf /etc/nginx/sites-available/default.conf
+COPY proxy_params /etc/nginx/frag_proxy_params
 COPY requirements.txt ./
+
 
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled && \
     pip install --no-cache-dir --upgrade pip && \

@@ -3,11 +3,11 @@
 # You typically create .env file to populate the
 # sensitive variables for the backend deployment.
 # Then bring the containers up with: -
-#   docker-compose up -d
+#   docker-compose -f docker-compose-migrate.yml up -d
 # Then enter the backend container with: -
 #   docker-compose exec backend bash
-# Where you should then find the back end at http://localhost:8080/api/
-# and logs in /code/logs/backend.log and on your local machine in ../data/logs/backend.log
+# Then run the migrations with: -
+#   python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
 
 version: '3'
 
@@ -30,46 +30,6 @@ services:
       interval: 10s
       timeout: 2s
       retries: 5
-      start_period: 10s
-
-  # Redis (Celery/Worker Broker)
-  redis:
-    image: redis:7.2.3-alpine3.18
-    container_name: redis
-    volumes:
-    - ./data/redis/data:/data
-    ports:
-    - "6379:6379"
-    healthcheck:
-      test: redis-cli ping
-      interval: 10s
-      timeout: 2s
-      retries: 5
-      start_period: 10s
-
-  # The graph
-  graph:
-    image: neo4j:4.4.2
-    container_name: graph
-    ports:
-    # These are not used in production
-    - "7474:7474"
-    - "7687:7687"
-    ulimits:
-      nofile:
-        soft: 40000
-        hard: 40000
-    volumes:
-    - ./data/neo4j/data:/data
-    - ./data/neo4j/logs:/logs
-    environment:
-    - NEO4J_AUTH=none
-    - NEO4J_dbms_memory_pagecache_size=4G
-    healthcheck:
-      test: wget http://localhost:7474 || exit 1
-      interval: 10s
-      timeout: 10s
-      retries: 20
       start_period: 10s
 
   # The stack backend
@@ -110,13 +70,8 @@ services:
       SQUONK2_UI_URL: ${SQUONK2_UI_URL}
       SQUONK2_DMAPI_URL: ${SQUONK2_DMAPI_URL}
       SQUONK2_ASAPI_URL: ${SQUONK2_ASAPI_URL}
-      PROXY_FORWARDED_PROTO_HEADER: ${PROXY_FORWARDED_PROTO_HEADER:-http}
     ports:
     - "8080:80"
     depends_on:
       database:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      graph:
         condition: service_healthy

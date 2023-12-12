@@ -14,17 +14,16 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 import mozilla_django_oidc.views
-import fragalysis.views
 from django.conf.urls import include
-from django.urls import path, re_path
 from django.contrib import admin
+from django.urls import path, re_path
 from django.views.generic.base import RedirectView
 from graphene_django.views import GraphQLView
 
+import fragalysis.views
 
 urlpatterns = [
     re_path(r"^$", RedirectView.as_view(url="/viewer/react/landing")),
-
     path("version/", fragalysis.views.version, name="version"),
     path("admin/", admin.site.urls),
     path("viewer/", include("viewer.urls")),
@@ -35,7 +34,19 @@ urlpatterns = [
     path("xcdb/", include("xcdb.urls")),
     path("graphql/", GraphQLView.as_view(graphiql=True)),
     path('oidc/', include('mozilla_django_oidc.urls')),
-    path("accounts/login/", mozilla_django_oidc.views.OIDCAuthenticationRequestView.as_view(), name="keylcoak_login"),
-    path("accounts/logout/", fragalysis.views.LogoutView.as_view(), name="keycloak_logout"),
-    path("oidc/callback/", mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(), name="keycloak_callback"),
+    path(
+        "accounts/login/",
+        mozilla_django_oidc.views.OIDCAuthenticationRequestView.as_view(),
+        name="keylcoak_login",
+    ),
+    path(
+        "accounts/logout/",
+        fragalysis.views.LogoutView.as_view(),
+        name="keycloak_logout",
+    ),
+    path(
+        "oidc/callback/",
+        mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(),
+        name="keycloak_callback",
+    ),
 ]

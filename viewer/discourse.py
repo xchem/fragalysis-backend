@@ -1,83 +1,107 @@
 """
 discourse.py Functions for to send and retrieve posts to/fraom the discourse platform.
 """
-import os
-from pydiscourse import DiscourseClient
-from django.conf import settings
-from viewer.models import DiscourseCategory, DiscourseTopic
 import logging
+import os
+from typing import Tuple
+
+from django.conf import settings
+from pydiscourse import DiscourseClient
+
+from viewer.models import DiscourseCategory, DiscourseTopic
+
 logger = logging.getLogger(__name__)
 
-def get_user(client, username):
-    """Call discourse API users to retreive user by username.
-    """
+
+def get_user(client, username) -> Tuple[bool, str, int]:
+    """Call discourse API users to retrieve user by username."""
     logger.info('+ discourse.get_user')
-    error = False
-    error_message = ''
-    user = 0
+
+    error: bool = False
+    error_message: str = ''
+    user: int = 0
 
     try:
-        user = client.user(username)
+        user_record = client.user(username)
     except Exception as e:
         # User is not known in Discourse or there is a failure accessing Discourse.
         logger.error('discourse.get_user', exc_info=e)
         error = True
         if settings.DISCOURSE_HOST:
-            error_message = 'Error validating user in Discourse. If this is your first post ' \
-                            + 'please log on to ' \
-                            + 'Discourse once to create a User. URL is: ' + settings.DISCOURSE_HOST
+            error_message = (
+                'Error validating user in Discourse. If this is your first post '
+                + 'please log on to '
+                + 'Discourse once to create a User. URL is: '
+                + settings.DISCOURSE_HOST
+            )
         else:
             error_message = 'Please check Discourse Host parameter for Fragalysis'
     else:
-        user = user['id']
+        user = user_record['id']
 
     logger.info('- discourse.get_user')
     return error, error_message, user
 
 
-def create_category(client, category_name, parent_name, category_colour='0088CC', category_text_colour='FFFFFF'):
-    """Call discourse API categories.json to create a new (sub)category.
-    """
+def create_category(
+    client,
+    category_name,
+    parent_name,
+    category_colour='0088CC',
+    category_text_colour='FFFFFF',
+):
+    """Call discourse API categories.json to create a new (sub)category."""
     logger.info('+ discourse.create_category')
-    category = client.create_category(category_name, color=category_colour,
-                                      text_color=category_text_colour, parent=parent_name)
-    topic_url = os.path.join(settings.DISCOURSE_HOST, 'c',  str(category['category']['id']))
+    category = client.create_category(
+        category_name,
+        color=category_colour,
+        text_color=category_text_colour,
+        parent=parent_name,
+    )
+    topic_url = os.path.join(
+        settings.DISCOURSE_HOST, 'c', str(category['category']['id'])
+    )
     logger.info('- discourse.create_category')
 
     return category['category']['id'], topic_url
 
 
-def process_category (category_details):
-    """Check category is present in Table - If not create it in Discourse and store the id returned..
-    """
+def process_category(category_details):
+    """Check category is present in Table - If not create it in Discourse and store the id returned.."""
 
     # DISCOURSE_DEV_POST_SUFFIX is used to differentiate the same target name from different dev systems in Discourse
     # It is not intended to be used for production when there is a dedicated Discourse.
-    category_name = category_details['category_name'] + settings.DISCOURSE_DEV_POST_SUFFIX
+    category_name = (
+        category_details['category_name'] + settings.DISCOURSE_DEV_POST_SUFFIX
+    )
 
     # Create Discourse client for fragalysis user
     client = DiscourseClient(
         settings.DISCOURSE_HOST,
         api_username=settings.DISCOURSE_USER,
-        api_key=settings.DISCOURSE_API_KEY)
+        api_key=settings.DISCOURSE_API_KEY,
+    )
 
     try:
         category = DiscourseCategory.objects.get(category_name=category_name)
         category_id = category.discourse_category_id
         post_url = os.path.join(settings.DISCOURSE_HOST, 'c', str(category_id))
     except DiscourseCategory.DoesNotExist:
-        category_id, post_url = create_category(client, category_name,
-                                                category_details['parent_name'],
-                                                category_details['category_colour'],
-                                                category_details['category_text_colour'])
-        DiscourseCategory.objects.create(category_name=category_name,
-                                         discourse_category_id=category_id)
+        category_id, post_url = create_category(
+            client,
+            category_name,
+            category_details['parent_name'],
+            category_details['category_colour'],
+            category_details['category_text_colour'],
+        )
+        DiscourseCategory.objects.create(
+            category_name=category_name, discourse_category_id=category_id
+        )
     return category_id, post_url
 
 
 def create_post(user, post_details, category_id=None, topic_id=None):
-    """Call discourse API posts.json to create a new Topic or Post within a topic
-    """
+    """Call discourse API posts.json to create a new Topic or Post within a topic"""
 
     logger.info('+ discourse.create_post')
     if not user.is_authenticated:
@@ -87,7 +111,8 @@ def create_post(user, post_details, category_id=None, topic_id=None):
     client = DiscourseClient(
         settings.DISCOURSE_HOST,
         api_username=user.username,
-        api_key=settings.DISCOURSE_API_KEY)
+        api_key=settings.DISCOURSE_API_KEY,
+    )
 
     # Check user is present in Discourse
     error, error_message, user_id = get_user(client, user.username)
@@ -106,15 +131,16 @@ def create_post(user, post_details, category_id=None, topic_id=None):
 
     post = client.create_post(content, category_id, topic_id, title, tags)
     # posts url = / t / {topic_id} / {post_number}
-    post_url = os.path.join(settings.DISCOURSE_HOST, 't',  str(post['topic_id']),  str(post['post_number']))
+    post_url = os.path.join(
+        settings.DISCOURSE_HOST, 't', str(post['topic_id']), str(post['post_number'])
+    )
     logger.info('- discourse.create_post')
 
     return error, error_message, post['topic_id'], post_url
 
 
 def process_post(category_id, post_details, user):
-    """Check topic is present in Discourse. IF exists then post, otherwise create new topic for category
-    """
+    """Check topic is present in Discourse. IF exists then post, otherwise create new topic for category"""
     error = False
     error_message = ''
 
@@ -130,20 +156,25 @@ def process_post(category_id, post_details, user):
             post_url = os.path.join(settings.DISCOURSE_HOST, 't', str(topic_id))
         else:
             # Create post for topic
-            error, error_message, null_id, post_url = create_post(user, post_details, topic_id=topic_id)
+            error, error_message, _, post_url = create_post(
+                user, post_details, topic_id=topic_id
+            )
     except DiscourseTopic.DoesNotExist:
         # Create Topic for Category
-        error, error_message, topic_id, post_url = create_post(user, post_details, category_id=category_id)
+        error, error_message, topic_id, post_url = create_post(
+            user, post_details, category_id=category_id
+        )
         if not error:
-            DiscourseTopic.objects.create(topic_title=post_details['title'],
-                                          author=user,
-                                          discourse_topic_id=topic_id)
+            DiscourseTopic.objects.create(
+                topic_title=post_details['title'],
+                author=user,
+                discourse_topic_id=topic_id,
+            )
     return error, error_message, topic_id, post_url
 
 
 def topic_posts(client, topic_id):
-    """Gets posts for a given topic_id
-    """
+    """Gets posts for a given topic_id"""
     logger.info('+ discourse.topic_posts')
 
     posts = client.topic_posts(topic_id)
@@ -183,7 +214,9 @@ def create_discourse_post(user, category_details=None, post_details=None):
 
     # If post details exist then create the post
     if post_details:
-        error, error_message, topic_id, post_url = process_post(category_id, post_details, user)
+        error, error_message, _, post_url = process_post(
+            category_id, post_details, user
+        )
 
     logger.info('- discourse.create_discourse_post')
     return error, post_url, error_message
@@ -217,7 +250,8 @@ def list_discourse_posts_for_topic(topic_title):
         client = DiscourseClient(
             settings.DISCOURSE_HOST,
             api_username=settings.DISCOURSE_USER,
-            api_key=settings.DISCOURSE_API_KEY)
+            api_key=settings.DISCOURSE_API_KEY,
+        )
         posts = topic_posts(client, topic.discourse_topic_id)
     else:
         error = True
@@ -227,14 +261,14 @@ def list_discourse_posts_for_topic(topic_title):
 
 
 def check_discourse_user(user):
-    """Call discourse API to check discourse user exists
-    """
+    """Call discourse API to check discourse user exists"""
 
     # Create Discourse client for user
     client = DiscourseClient(
         settings.DISCOURSE_HOST,
         api_username=user.username,
-        api_key=settings.DISCOURSE_API_KEY)
+        api_key=settings.DISCOURSE_API_KEY,
+    )
 
     # Check user is present in Discourse
     error, error_message, user_id = get_user(client, user.username)

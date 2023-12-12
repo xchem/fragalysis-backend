@@ -1,12 +1,13 @@
 ---
 minimum_pre_commit_version: 3.1.1
-# It's a legacy project and likely to be noisy - limit to key directories...
-files: ^viewer/
 
 repos:
 
 # pre-commit hooks
 # ----------
+
+# Hooks that actively "change" files (formatters etc.)
+# ----------------------------------
 
 # Standard pre-commit rules
 - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -22,27 +23,44 @@ repos:
     args:
     - --markdown-linebreak-ext=md
 
+# isort (in black-compatibility mode)
+- repo: https://github.com/pycqa/isort
+  rev: 5.12.0
+  hooks:
+  - id: isort
+    args:
+    - --profile
+    - black
+    - --filter-files
+
+# Black (uncompromising) Python code formatter
+- repo: https://github.com/psf/black
+  rev: 23.11.0
+  hooks:
+  - id: black
+    args:
+    - --skip-string-normalization
+    - --target-version
+    - py311
+
+# Hooks that do not "change" files (linters etc.)
+# --------------------------------
+
 # MyPy
 #- repo: https://github.com/pre-commit/mirrors-mypy
-#  rev: v1.1.1
+#  rev: v1.7.1
 #  hooks:
 #  - id: mypy
 #    additional_dependencies:
 #    - types-PyYAML
-#    - types-python-dateutil
+#    - types-pymysql
 #    - types-pytz
+#    - types-python-dateutil
 #    - types-requests
 
 # Pylint
-# To check import errors we need to install every package
-# used by the DM. This is often impractical on the client,
-# and so we disable import errors on pre-commit and rely
-# on this category of test in the CI stage. Consequently,
-# pylint may pass on pre-commit but fail in CI - but at least
-# the user has done 90% of the lint checks before the code
-# hits the server.
 - repo: https://github.com/pycqa/pylint
-  rev: v2.17.0
+  rev: v2.17.7
   hooks:
   - id: pylint
     additional_dependencies:

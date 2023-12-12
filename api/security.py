@@ -1,19 +1,20 @@
+# pylint: skip-file
 import logging
 import os
 import time
-
 from pathlib import Path
-
+from typing import Optional, Union
 from wsgiref.util import FileWrapper
-from django.http import Http404
-from django.http import HttpResponse
+
 from django.db.models import Q
+from django.http import Http404, HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
 from ispyb.connector.mysqlsp.main import ISPyBNoResultException
 from rest_framework import viewsets
-from .remote_ispyb_connector import SSHConnector
 
 from viewer.models import Project
+
+from .remote_ispyb_connector import SSHConnector
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +38,7 @@ connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 # response = view(request)
 
 
-def get_remote_conn():
-
+def get_remote_conn() -> Optional[SSHConnector]:
     ispyb_credentials = {
         "user": os.environ.get("ISPYB_USER"),
         "pw": os.environ.get("ISPYB_PASSWORD"),
@@ -52,7 +52,7 @@ def get_remote_conn():
         'ssh_host': os.environ.get("SSH_HOST"),
         'ssh_user': os.environ.get("SSH_USER"),
         'ssh_password': os.environ.get("SSH_PASSWORD"),
-        'remote': True
+        'remote': True,
     }
 
     ispyb_credentials.update(**ssh_credentials)
@@ -65,17 +65,20 @@ def get_remote_conn():
         return None
 
     # Try to get an SSH connection (aware that it might fail)
-    conn = None
+    conn: SSHConnector = None
     try:
         conn = SSHConnector(**ispyb_credentials)
-    except:
-        logger.info("ispyb_credentials=%s", ispyb_credentials)
-        logger.exception("Exception creating SSHConnector")
+    except Exception:
+        # Log the exception if DEBUG level or lower/finer?
+        # The following wil not log if the level is set to INFO for example.
+        if logging.DEBUG >= logger.level:
+            logger.info("ispyb_credentials=%s", ispyb_credentials)
+            logger.exception("Got the following exception creating SSHConnector...")
 
     return conn
 
 
-def get_conn():
+def get_conn() -> Optional[Connector]:
     credentials = {
         "user": os.environ.get("ISPYB_USER"),
         "pw": os.environ.get("ISPYB_PASSWORD"),
@@ -84,9 +87,8 @@ def get_conn():
         "db": "ispyb",
         "conn_inactivity": 360,
     }
-
-    # Caution: Credentials may not be set in the environment.
-    #          Assume the credentials are invalid if there is no password
+    # Caution: Credentials may not have been set in the environment.
+    #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
     if not credentials["host"]:
         return None
@@ -94,15 +96,26 @@ def get_conn():
     conn = None
     try:
         conn = Connector(**credentials)
-    except:
-        logger.info("credentials=%s", credentials)
-        logger.exception("Exception creating Connector")
+    except Exception:
+        # Log the exception if DEBUG level or lower/finer?
+        # The following wil not log if the level is set to INFO for example.
+        if logging.DEBUG >= logger.level:
+            logger.info("credentials=%s", credentials)
+            logger.exception("Got the following exception creating Connector...")
 
     return conn
 
 
-class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+def get_configured_connector() -> Optional[Union[Connector, SSHConnector]]:
+    if connector == 'ispyb':
+        return get_conn()
+    elif connector == 'ssh_ispyb':
+        return get_remote_conn()
+    else:
+        return None
 
+
+class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """
         Optionally restricts the returned purchases to a given proposals
@@ -115,8 +128,11 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             if open_proposal not in proposal_list:
                 proposal_list.append(open_proposal)
 
-        logger.debug('is_authenticated=%s, proposal_list=%s',
-                     self.request.user.is_authenticated, proposal_list)
+        logger.debug(
+            'is_authenticated=%s, proposal_list=%s',
+            self.request.user.is_authenticated,
+            proposal_list,
+        )
 
         # Must have a foreign key to a Project for this filter to work.
         # get_q_filter() returns a Q expression for filtering
@@ -130,7 +146,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         if os.environ.get("TEST_SECURITY_FLAG", False):
             return ["lb00000"]
         else:
-            # All of well-known (built-in) public Projects (Proposals/Visits)
+            # All of well-known (built-in) public Projects (Proposals/Visits)
             return ["lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
@@ -142,8 +158,12 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             prop_ids = list(
                 Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
             )
-            logger.debug("Got %s proposals for user %s: %s",
-                         len(prop_ids), user.username, prop_ids)
+            logger.debug(
+                "Got %s proposals for user %s: %s",
+                len(prop_ids),
+                user.username,
+                prop_ids,
+            )
             return prop_ids
 
     def needs_updating(self, user):
@@ -151,8 +171,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         It's simple, we just record the last collected timestamp and consider it
         'out of date' (i.e. more than an hour old).
         """
-        global USER_LIST_DICT
-
         update_window = 3600
         if user.username not in USER_LIST_DICT:
             USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": 0}
@@ -163,7 +181,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return False
 
     def run_query_with_connector(self, conn, user):
-
         core = conn.core
         try:
             rs = core.retrieve_sessions_for_person_login(user.username)
@@ -178,17 +195,11 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_proposals_for_user_from_ispyb(self, user):
         # First check if it's updated in the past 1 hour
-        global USER_LIST_DICT
-
         needs_updating = self.needs_updating(user)
         logger.info("user=%s needs_updating=%s", user.username, needs_updating)
 
         if needs_updating:
-            conn = None
-            if connector == 'ispyb':
-                conn = get_conn()
-            elif connector == 'ssh_ispyb':
-                conn = get_remote_conn()
+            conn: Optional[Union[Connector, SSHConnector]] = get_configured_connector()
 
             # If there is no connection (ISPyB credentials may be missing)
             # then there's nothing we can do except return an empty list.
@@ -242,8 +253,13 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
             # Always display the collected results for the user.
             # These will be cached.
-            logger.info("Got %s proposals from %s records for user %s: %s",
-                        len(prop_id_set), len(rs), user.username, prop_id_set)
+            logger.info(
+                "Got %s proposals from %s records for user %s: %s",
+                len(prop_id_set),
+                len(rs),
+                user.username,
+                prop_id_set,
+            )
 
             # Cache the result and return the result for the user
             USER_LIST_DICT[user.username]["RESULTS"] = list(prop_id_set)
@@ -251,13 +267,16 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         else:
             # Return the previous query (cached for an hour)
             cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
-            logger.info("Got %s cached proposals for user %s: %s",
-                        len(cached_prop_ids), user.username, cached_prop_ids)
+            logger.info(
+                "Got %s cached proposals for user %s: %s",
+                len(cached_prop_ids),
+                user.username,
+                cached_prop_ids,
+            )
             return cached_prop_ids
 
     def get_proposals_for_user(self, user):
-        """Returns a list of proposals (public and private) that the user has access to.
-        """
+        """Returns a list of proposals (public and private) that the user has access to."""
         assert user
 
         ispyb_user = os.environ.get("ISPYB_USER")
@@ -267,21 +286,23 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
                 logger.info("Getting proposals from ISPyB...")
                 return self.get_proposals_for_user_from_ispyb(user)
             else:
-                logger.info("No proposals (user %s is not authenticated)", user.username)
+                logger.info(
+                    "No proposals (user %s is not authenticated)", user.username
+                )
                 return []
         else:
             logger.info("Getting proposals from Django...")
             return self.get_proposals_for_user_from_django(user)
 
     def get_q_filter(self, proposal_list):
-        """Returns a Q expression representing a (potentially complex) table filter.
-        """
+        """Returns a Q expression representing a (potentially complex) table filter."""
         if self.filter_permissions:
             # Q-filter is based on the filter_permissions string
-            # whether the resultant Project title in the proposal list
+            # whether the resultant Project title in the proposal list
             # OR where the Project is 'open_to_public'
-            return Q(**{self.filter_permissions + "__title__in": proposal_list}) |\
-                Q(**{self.filter_permissions + "__open_to_public": True})
+            return Q(**{self.filter_permissions + "__title__in": proposal_list}) | Q(
+                **{self.filter_permissions + "__open_to_public": True}
+            )
         else:
             # No filter permission?
             # Assume this QuerySet is used for the Project model.
@@ -293,7 +314,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
 
 class ISpyBSafeStaticFiles:
-
     def get_queryset(self):
         query = ISpyBSafeQuerySet()
         query.request = self.request
@@ -318,12 +338,16 @@ class ISpyBSafeStaticFiles:
             logger.info("Path to pass to nginx: %s", self.prefix + file_name)
 
             if hasattr(self, 'file_format'):
-                if self.file_format=='raw':
+                if self.file_format == 'raw':
                     file_field = getattr(object, self.field_name)
                     filepath = file_field.path
                     zip_file = open(filepath, 'rb')
-                    response = HttpResponse(FileWrapper(zip_file), content_type='application/zip')
-                    response['Content-Disposition'] = 'attachment; filename="%s"' % file_name
+                    response = HttpResponse(
+                        FileWrapper(zip_file), content_type='application/zip'
+                    )
+                    response['Content-Disposition'] = (
+                        'attachment; filename="%s"' % file_name
+                    )
 
             else:
                 response = HttpResponse()
@@ -338,7 +362,6 @@ class ISpyBSafeStaticFiles:
 
 
 class ISpyBSafeStaticFiles2(ISpyBSafeStaticFiles):
-
     def get_response(self):
         logger.info("+ get_response called with: %s", self.input_string)
         # it wasn't working because found two objects with test file name

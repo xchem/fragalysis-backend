@@ -25,7 +25,7 @@ elif [ "${CONTAINER_ROLE,,}" = "stack" ]; then
   /code/launch-stack.sh
 
 else
-  
+
   # Unsupported Role! (this should never happen)
   echo "+> CONTAINER_ROLE is not supported!"
 

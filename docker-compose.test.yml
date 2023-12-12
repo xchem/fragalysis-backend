@@ -4,7 +4,7 @@ version: '3'
 services:
 
   database:
-    image: postgres:12.2
+    image: postgres:12.16-alpine3.18
     volumes:
     - ../django_data:/var/lib/postgresql/data
     environment:
@@ -21,7 +21,7 @@ services:
       start_period: 10s
 
   tests:
-    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_TAG:-latest}
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
     command:
     - /bin/bash
     - /code/test-entry.sh

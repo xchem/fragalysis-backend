@@ -1,11 +1,12 @@
 from django.db import models
 
 from hypothesis.definitions import IntTypes, VectTypes
-from viewer.models import SiteObservation, Target, Compound
+from viewer.models import Compound, SiteObservation, Target
 
 
 class TargetResidue(models.Model):
     """Model to store residue information - to curate the probes"""
+
     # The target it relates to
     target_id = models.ForeignKey(Target, on_delete=models.CASCADE)
     # The residue name
@@ -37,14 +38,18 @@ class InteractionPoint(models.Model):
                 ],
                 name="unique_siteobvs_protatom_molatom",
             ),
-        ]        
-        
+        ]
+
 
 class Interaction(models.Model):
     """Model to store the interaction information."""
-    int_ver_choices, default_int_ver, int_type_choices, default_int_type = (
-        IntTypes().define_int_types()
-    )
+
+    (
+        int_ver_choices,
+        default_int_ver,
+        int_type_choices,
+        default_int_type,
+    ) = IntTypes().define_int_types()
     interaction_version = models.CharField(
         choices=int_ver_choices, max_length=2, default=default_int_ver
     )

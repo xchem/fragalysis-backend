@@ -1,22 +1,18 @@
 import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
-from viewer.serializers import (
-    CompoundSerializer,
-    TargetSerializer,
-)
+
+from viewer.serializers import CompoundSerializer, TargetSerializer
 
 relay = graphene.relay
 
 
 class Compound(SerializerMutation):
-
     class Meta:
         serializer_class = CompoundSerializer
         interfaces = (relay.Node,)
 
 
 class Target(SerializerMutation):
-
     class Meta:
         serializer_class = TargetSerializer
         interfaces = (relay.Node,)

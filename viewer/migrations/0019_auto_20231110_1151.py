@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0018_merge_20231109_1252'),
     ]
@@ -18,6 +17,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='siteobservation',
             name='xmap_fofc_file',
-            field=models.FileField(max_length=255, null=True, upload_to='target_loader_data/'),
+            field=models.FileField(
+                max_length=255, null=True, upload_to='target_loader_data/'
+            ),
         ),
     ]

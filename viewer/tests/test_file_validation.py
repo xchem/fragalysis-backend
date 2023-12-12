@@ -1,11 +1,10 @@
 from pathlib import Path
-# import copy
-
 from unittest import TestCase
 
 # from viewer.target_loader import TargetLoader
 from viewer.target_loader import calculate_sha256
 
+# import copy
 
 
 test_file1_path = Path(__file__).absolute().parent.joinpath("hash_test_file1.txt")

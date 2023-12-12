@@ -14,10 +14,10 @@ import os
 from datetime import timedelta
 
 import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.redis import RedisIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.excepthook import ExcepthookIntegration
+from sentry_sdk.integrations.redis import RedisIntegration
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -48,11 +48,15 @@ if SENTRY_DNS:
     # By default only call sentry in staging/production
     sentry_sdk.init(
         dsn=SENTRY_DNS,
-        integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration(), ExcepthookIntegration(always_run=True)],
-
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+            RedisIntegration(),
+            ExcepthookIntegration(always_run=True),
+        ],
         # If you wish to associate users to errors (assuming you are using
         # django.contrib.auth) you may enable sending PII data.
-        send_default_pii=True
+        send_default_pii=True,
     )
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -95,7 +99,9 @@ CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
 CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
 CELERY_RESULT_EXPIRES = timedelta(days=15)
-CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False').lower() in ['true', 'yes']
+CELERY_TASK_ALWAYS_EAGER = os.environ.get(
+    'CELERY_TASK_ALWAYS_EAGER', 'False'
+).lower() in ['true', 'yes']
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 
 # This can be injected as an ENV var
@@ -183,19 +189,30 @@ STATICFILES_FINDERS = (
 # from keyclaok (openid provider = OP) - NB these should be environment variables - not checked in
 OIDC_RP_CLIENT_ID = os.environ.get("OIDC_RP_CLIENT_ID", "fragalysis-local")
 OIDC_RP_CLIENT_SECRET = os.environ.get('OIDC_RP_CLIENT_SECRET')
-OIDC_KEYCLOAK_REALM = os.environ.get("OIDC_KEYCLOAK_REALM",
-                                     "https://keycloak.xchem-dev.diamond.ac.uk/auth/realms/xchem")
+OIDC_KEYCLOAK_REALM = os.environ.get(
+    "OIDC_KEYCLOAK_REALM", "https://keycloak.xchem-dev.diamond.ac.uk/auth/realms/xchem"
+)
 
 # OIDC_OP_AUTHORIZATION_ENDPOINT = "<URL of the OIDC OP authorization endpoint>"
-OIDC_OP_AUTHORIZATION_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/auth")
+OIDC_OP_AUTHORIZATION_ENDPOINT = os.path.join(
+    OIDC_KEYCLOAK_REALM, "protocol/openid-connect/auth"
+)
 # OIDC_OP_TOKEN_ENDPOINT = "<URL of the OIDC OP token endpoint>"
-OIDC_OP_TOKEN_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/token")
+OIDC_OP_TOKEN_ENDPOINT = os.path.join(
+    OIDC_KEYCLOAK_REALM, "protocol/openid-connect/token"
+)
 # OIDC_OP_USER_ENDPOINT = "<URL of the OIDC OP userinfo endpoint>"
-OIDC_OP_USER_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/userinfo")
+OIDC_OP_USER_ENDPOINT = os.path.join(
+    OIDC_KEYCLOAK_REALM, "protocol/openid-connect/userinfo"
+)
 # OIDC_OP_JWKS_ENDPOINT = "<URL of the OIDC OP certs endpoint>" - This is required when using RS256.
-OIDC_OP_JWKS_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/certs")
+OIDC_OP_JWKS_ENDPOINT = os.path.join(
+    OIDC_KEYCLOAK_REALM, "protocol/openid-connect/certs"
+)
 # OIDC_OP_LOGOUT_ENDPOINT = "<URL of the OIDC OP certs endpoint>" - This is required when using RS256.
-OIDC_OP_LOGOUT_ENDPOINT = os.path.join(OIDC_KEYCLOAK_REALM, "protocol/openid-connect/logout")
+OIDC_OP_LOGOUT_ENDPOINT = os.path.join(
+    OIDC_KEYCLOAK_REALM, "protocol/openid-connect/logout"
+)
 
 # Override method to also log user out from Keycloak as well as Django.
 # If desired, this should be set to "fragalysis.views.keycloak_logout"
@@ -263,11 +280,11 @@ DATABASES = {
 if os.environ.get("BUILD_XCDB") == 'yes':
     DATABASES["xchem_db"] = {
         "ENGINE": 'django.db.backends.postgresql',
-        "NAME": os.environ.get("XCHEM_NAME"),
-        "USER": os.environ.get("XCHEM_USER"),
-        "PASSWORD": os.environ.get("XCHEM_PASSWORD"),
-        "HOST": os.environ.get("XCHEM_HOST"),
-        "PORT": os.environ.get("XCHEM_PORT")
+        "NAME": os.environ.get("XCHEM_NAME", ""),
+        "USER": os.environ.get("XCHEM_USER", ""),
+        "PASSWORD": os.environ.get("XCHEM_PASSWORD", ""),
+        "HOST": os.environ.get("XCHEM_HOST", ""),
+        "PORT": os.environ.get("XCHEM_PORT", ""),
     }
 
 if CHEMCENTRAL_DB_NAME != "UNKOWN":
@@ -354,10 +371,29 @@ DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
 
+# Where all the computed set SDF files are hosted (relative to the MEDIA_ROOT).
+# Used primarily by the Computed-Set upload logic.
+COMPUTED_SET_SDF_ROOT = "computed_set_sdfs/"
+
+# An optional URL that identifies the URL to a prior stack.
+# If set, it's typically something like "https://fragalysis.diamond.ac.uk".
+# It can be blank, indicating there is no legacy service.
+LEGACY_URL = os.environ.get("LEGACY_URL", "")
+
 SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 
 TARGET_LOADER_MEDIA_DIRECTORY = "target_loader_data"
+
+# A list of identifiers of messages generated by the system check framework
+# that we wish to permanently acknowledge and ignore.
+# Silenced checks will not be output to the console.
+#
+# fields.W342   Is issued for the xchem-db package.
+#               The hint is "ForeignKey(unique=True) is usually better served by a OneToOneField."
+SILENCED_SYSTEM_CHECKS = [
+    "fields.W342",
+]
 
 # Configure django logging.
 # We provide a standard formatter that emits a timestamp, the module issuing the log
@@ -368,7 +404,11 @@ TARGET_LOADER_MEDIA_DIRECTORY = "target_loader_data"
 # We provide a console and rotating file handler
 # (50Mi of logging in 10 files of 5M each),
 # with the rotating file handler typically used for everything.
-DISABLE_LOGGING_FRAMEWORK = True if os.environ.get("DISABLE_LOGGING_FRAMEWORK", "no").lower() in ["yes"] else False
+DISABLE_LOGGING_FRAMEWORK = (
+    True
+    if os.environ.get("DISABLE_LOGGING_FRAMEWORK", "no").lower() in ["yes"]
+    else False
+)
 LOGGING_FRAMEWORK_ROOT_LEVEL = os.environ.get("LOGGING_FRAMEWORK_ROOT_LEVEL", "DEBUG")
 if not DISABLE_LOGGING_FRAMEWORK:
     LOGGING = {
@@ -377,34 +417,35 @@ if not DISABLE_LOGGING_FRAMEWORK:
         'formatters': {
             'simple': {
                 'format': '%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s',
-                'datefmt': '%Y-%m-%dT%H:%M:%S%z'}},
+                'datefmt': '%Y-%m-%dT%H:%M:%S%z',
+            }
+        },
         'handlers': {
             'console': {
                 'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
-                'formatter': 'simple'},
+                'formatter': 'simple',
+            },
             'rotating': {
                 'level': 'DEBUG',
                 'class': 'logging.handlers.RotatingFileHandler',
                 'maxBytes': 5_000_000,
                 'backupCount': 10,
                 'filename': os.path.join(BASE_DIR, 'logs/backend.log'),
-                'formatter': 'simple'}},
+                'formatter': 'simple',
+            },
+        },
         'loggers': {
-            'api.security': {
-                'level': 'INFO'},
-            'asyncio': {
-                'level': 'WARNING'},
-            'celery': {
-                'level': 'INFO'},
-            'django': {
-                'level': 'INFO'},
-            'mozilla_django_oidc': {
-                'level': 'INFO'},
-            'urllib3': {
-                'level': 'INFO'},
-            'paramiko': {
-                'level': 'WARNING'}},
+            'api.security': {'level': 'INFO'},
+            'asyncio': {'level': 'WARNING'},
+            'celery': {'level': 'INFO'},
+            'django': {'level': 'INFO'},
+            'mozilla_django_oidc': {'level': 'INFO'},
+            'urllib3': {'level': 'INFO'},
+            'paramiko': {'level': 'WARNING'},
+        },
         'root': {
             'level': LOGGING_FRAMEWORK_ROOT_LEVEL,
-            'handlers': ['console', 'rotating']}}
+            'handlers': ['console', 'rotating'],
+        },
+    }

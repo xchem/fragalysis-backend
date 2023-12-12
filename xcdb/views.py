@@ -3,30 +3,22 @@ from xchem_db.models import (
     DataProcessing,
     Dimple,
     Lab,
-    Refinement,
-    PanddaAnalysis,
-    PanddaRun,
-    PanddaSite,
     PanddaEvent,
-    ProasisOut,
     PanddaEventStats,
+    ProasisOut,
+    Refinement,
 )
 from xchem_db.serializers import (
     CrystalSerializer,
     DataProcessingSerializer,
     DimpleSerializer,
-    LabSerializer,
-    RefinementSerializer,
-    PanddaAnalysisSerializer,
-    PanddaRunSerializer,
-    PanddaSiteSerializer,
-    PanddaEventSerializer,
-    ProasisOutSerializer,
-    PanddaEventStatsSerializer,
     FragspectCrystalSerializer,
+    LabSerializer,
+    PanddaEventSerializer,
+    PanddaEventStatsSerializer,
+    ProasisOutSerializer,
+    RefinementSerializer,
 )
-
-from rest_framework import viewsets
 
 from api.security import ISpyBSafeQuerySet
 
@@ -178,7 +170,13 @@ class ProasisOutView(ISpyBSafeQuerySet):
 
 class FragspectCrystalView(ISpyBSafeQuerySet):
     queryset = PanddaEvent.objects.filter().prefetch_related(
-        'crystal__target', 'crystal__compound', 'crystal', 'site', 'refinement', 'data_proc')
+        'crystal__target',
+        'crystal__compound',
+        'crystal',
+        'site',
+        'refinement',
+        'data_proc',
+    )
     serializer_class = FragspectCrystalSerializer
     filter_fields = {'crystal__target__target_name': ['iexact']}
     filter_permissions = "crystal__visit__proposal"

@@ -1,12 +1,13 @@
 from django.db import models
 
-from viewer.models import Target, SiteObservation
+from viewer.models import SiteObservation, Target
 
 
 class HotspotMap(models.Model):
     """
     Django model for Hotspot Maps
     """
+
     # The site
     # prot_id = models.ForeignKey(Protein, on_delete=models.CASCADE)
     site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
@@ -26,7 +27,11 @@ class HotspotMap(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["map_type", "target", "site_observation",],
+                fields=[
+                    "map_type",
+                    "target",
+                    "site_observation",
+                ],
                 name="unique_maptype_target_siteobvs",
             ),
-        ]        
+        ]

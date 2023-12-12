@@ -1,7 +1,9 @@
 from django.contrib.auth.models import User
 from django.db import models
 
-from viewer.models import SiteObservation, Compound, Target, Snapshot
+from viewer.models import Compound, SiteObservation, Snapshot, Target
+
+from .managers import ScoreChoiceDataManager
 
 
 class ViewScene(models.Model):
@@ -10,6 +12,7 @@ class ViewScene(models.Model):
     This probably needs cleaning up - linking
 
     """
+
     # The user who made the scene
     user_id = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     # The uuid that will enable this to be shared
@@ -31,6 +34,7 @@ class SiteObservationChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     DEFAULT = "DE"
@@ -52,13 +56,14 @@ class SiteObservationChoice(models.Model):
                 fields=["user_id", "site_observation", "choice_type"],
                 name="unique_siteobvs_choice",
             ),
-        ]         
-        
+        ]
+
 
 class SiteObservationAnnotation(models.Model):
     """
     A Django model to annotate a molecule with free text
     """
+
     site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     annotation_type = models.CharField(max_length=50)
     annotation_text = models.CharField(max_length=100)
@@ -69,13 +74,14 @@ class SiteObservationAnnotation(models.Model):
                 fields=["site_observation", "annotation_type"],
                 name="unique_siteobvs_anntype",
             ),
-        ]         
+        ]
 
 
 class ScoreChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
+
     # IN THIS CASE THIS WOULD INDICATE THE SOFTWARE USED - WE WILL GENERATE DIFFERENT USERS FOR EACH SOFTWARE
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
@@ -94,19 +100,23 @@ class ScoreChoice(models.Model):
     # Any score
     score = models.FloatField(null=True)
 
+    objects = models.Manager()
+    filter_manager = ScoreChoiceDataManager()
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=["user", "site_observation", "choice_type"],
                 name="unique_user_siteobvs_dockchoice",
             ),
-        ]        
+        ]
 
 
 class CmpdChoice(models.Model):
     """
     A Django model to store a selection from a user
     """
+
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     cmpd_id = models.ForeignKey(Compound, on_delete=models.CASCADE)
     DEFAULT = "DE"
@@ -127,6 +137,7 @@ class SiteObservationGroup(models.Model):
     A Django model for a group of molecules.
     No unique set - so needs to be deleted for a type before re-running.
     """
+
     PANDDA = "PA"
     DEFAULT = "DE"
     MOL_CLUSTER = "MC"
@@ -169,14 +180,20 @@ class SiteObservationGroup(models.Model):
 
 
 class SiteObvsSiteObservationGroup(models.Model):
-    site_obvs_group = models.ForeignKey(SiteObservationGroup, null=False, on_delete=models.CASCADE)
-    site_observation = models.ForeignKey(SiteObservation, null=False, on_delete=models.CASCADE)
+    site_obvs_group = models.ForeignKey(
+        SiteObservationGroup, null=False, on_delete=models.CASCADE
+    )
+    site_observation = models.ForeignKey(
+        SiteObservation, null=False, on_delete=models.CASCADE
+    )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["site_observation", "site_obvs_group",],
+                fields=[
+                    "site_observation",
+                    "site_obvs_group",
+                ],
                 name="unique_siteobservationgroupcontents",
             ),
-        ]    
-    
+        ]

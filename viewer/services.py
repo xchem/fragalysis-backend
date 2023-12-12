@@ -1,21 +1,22 @@
-import os
-import logging
-from enum import Enum
-
 import asyncio
 import functools
-import requests
+import logging
+import os
 from concurrent import futures
+from enum import Enum
 
+import requests
+from frag.utils.network_utils import get_driver
 from pydiscourse import DiscourseClient
 
+from api.security import get_configured_connector
 from viewer.squonk2_agent import get_squonk2_agent
-from frag.utils.network_utils import get_driver
-from api import security
 
 logger = logging.getLogger(__name__)
 
 DELAY = 10
+# Default timeout for any request calls
+REQUEST_TIMEOUT_S = 5
 
 
 class State(str, Enum):
@@ -128,7 +129,9 @@ def service_query(func):
                         state = State.OK
 
             except TimeoutError:
-                logger.error("Service query '%s' timed out", func.__name__)
+                # Timeout is an "expected" condition for a service that's expected
+                # to be running but may be degraded so we don't log it unless debugging.
+                logger.debug("Service query '%s' timed out", func.__name__)
                 state = State.TIMEOUT
             except Exception as exc:
                 # unknown error with the query
@@ -145,13 +148,19 @@ def service_query(func):
 
 
 @service_query
-def ispyb(func_id, name, ispyb_host=None):
+def ispyb(func_id, name, ispyb_host=None) -> bool:
+    # Unused arguments
+    del func_id, name, ispyb_host
+
     logger.debug("+ ispyb")
-    return security.get_conn()
+    return get_configured_connector() != None
 
 
 @service_query
-def discourse(func_id, name, key=None, url=None, user=None):
+def discourse(func_id, name, key=None, url=None, user=None) -> bool:
+    # Unused arguments
+    del func_id, name
+
     logger.debug("+ discourse")
     client = DiscourseClient(
         os.environ.get(url, None),
@@ -159,17 +168,23 @@ def discourse(func_id, name, key=None, url=None, user=None):
         api_key=os.environ.get(key, None),
     )
     # TODO: some action on client?
-    return client
+    return client != None
 
 
 @service_query
-def squonk(func_id, name, squonk_pwd=None):
+def squonk(func_id, name, squonk_pwd=None) -> bool:
+    # Unused arguments
+    del func_id, name, squonk_pwd
+
     logger.debug("+ squonk")
     return get_squonk2_agent().configured().success
 
 
 @service_query
-def fragmentation_graph(func_id, name, url=None):
+def fragmentation_graph(func_id, name, url=None) -> bool:
+    # Unused arguments
+    del func_id, name, url
+
     logger.debug("+ fragmentation_graph")
     # graph_driver = get_driver(url='neo4j', neo4j_auth='neo4j/password')
     graph_driver = get_driver()
@@ -183,9 +198,14 @@ def fragmentation_graph(func_id, name, url=None):
 
 
 @service_query
-def keycloak(func_id, name, url=None, secret=None):
+def keycloak(func_id, name, url=None, secret=None) -> bool:
+    # Unused arguments
+    del func_id, name, secret
+
     logger.debug("+ keycloak")
     keycloak_realm = os.environ.get(url, None)
-    response = requests.get(keycloak_realm)
+    if not keycloak_realm:
+        return False
+    response = requests.get(keycloak_realm, timeout=REQUEST_TIMEOUT_S)
     logger.debug("keycloak response: %s", response)
     return response.ok

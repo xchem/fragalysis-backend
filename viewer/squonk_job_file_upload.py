@@ -11,16 +11,12 @@ that contains an 'outfile' declaration (e.g. "abc-molecules.sdf".).
 import json
 import os
 
+from celery.utils.log import get_task_logger
 from squonk2.dm_api import DmApi
 
-from celery.utils.log import get_task_logger
 from viewer.models import JobRequest
-from viewer.utils import (
-    SDF_VERSION,
-    add_prop_to_sdf,
-    create_media_sub_directory
-)
 from viewer.squonk2_agent import Squonk2Agent, get_squonk2_agent
+from viewer.utils import SDF_VERSION, add_prop_to_sdf, create_media_sub_directory
 
 logger = get_task_logger(__name__)
 
@@ -66,7 +62,6 @@ _JOB_PARAM_FILE_SUFFIX = '.meta.json'
 
 
 def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
-
     # Do nothing if the first line of the file matches the version we're about to set.
     blank_present = False
     with open(sdf_filename, 'r', encoding='utf-8') as in_file:
@@ -95,12 +90,14 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
     # The transition time is an ISO8601 string,
     # with the date on the left of the 'T'
 
-    variables = {'sdf_version': SDF_VERSION,
-                 'submitter_name': job_request.user.username,
-                 'submitter_email': job_request.user.email,
-                 'generation_date': transition_time.split('T')[0],
-                 'method': method,
-                 'ref_url': ref_url}
+    variables = {
+        'sdf_version': SDF_VERSION,
+        'submitter_name': job_request.user.username,
+        'submitter_email': job_request.user.email,
+        'generation_date': transition_time.split('T')[0],
+        'method': method,
+        'ref_url': ref_url,
+    }
     blank_mol = _SDF_BLANK_MOL_TEMPLATE.format(**variables)
     tmp_filename = sdf_filename + '.tmp'
     with open(tmp_filename, 'w', encoding='utf-8') as tmp_file:
@@ -113,15 +110,13 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
 
 
 def get_upload_sub_directory(job_request):
-    """Returns the media-relative directory for the upload job data.
-    """
+    """Returns the media-relative directory for the upload job data."""
     return os.path.join('squonk_upload', str(job_request.code))
 
 
-def process_compound_set_file(jr_id,
-                              transition_time,
-                              job_output_path,
-                              job_output_filename):
+def process_compound_set_file(
+    jr_id, transition_time, job_output_path, job_output_filename
+):
     """Check the DM project for the expected file(s) and upload them.
     This code also applies the parameters to the uploaded compound set file.
     The full path to the uploaded/modified file is returned.
@@ -176,49 +171,61 @@ def process_compound_set_file(jr_id,
 
     # Get the parameter file...
     #         --------------
-    job_output_param_filename = os.path\
-        .splitext(job_output_filename)[0] + _JOB_PARAM_FILE_SUFFIX
-    logger.info("Expecting Squonk job_output_param_filename='%s'...",
-                job_output_param_filename)
+    job_output_param_filename = (
+        os.path.splitext(job_output_filename)[0] + _JOB_PARAM_FILE_SUFFIX
+    )
+    logger.info(
+        "Expecting Squonk job_output_param_filename='%s'...", job_output_param_filename
+    )
     result = DmApi.get_unmanaged_project_file_with_token(
         token=callback_token,
         project_id=jr.squonk_project,
         project_path=job_output_path,
         project_file=job_output_param_filename,
         local_file=tmp_param_filename,
-        timeout_s=20)
+        timeout_s=20,
+    )
     if not result.success:
-        logger.warning('Failed to get SDF parameter file (path=%s filename=%s)',
-                       job_output_path, job_output_param_filename)
+        logger.warning(
+            'Failed to get SDF parameter file (path=%s filename=%s)',
+            job_output_path,
+            job_output_param_filename,
+        )
     else:
         # Got the parameter file so now get the SDF...
         #                               -----------
-        logger.info("Expecting Squonk job_output_filename='%s'...",
-                    job_output_filename)
+        logger.info("Expecting Squonk job_output_filename='%s'...", job_output_filename)
         result = DmApi.get_unmanaged_project_file_with_token(
             token=callback_token,
             project_id=jr.squonk_project,
             project_path=job_output_path,
             project_file=job_output_filename,
             local_file=tmp_sdf_filename,
-            timeout_s=120)
+            timeout_s=120,
+        )
         if not result.success:
-            logger.warning('Failed to get SDF (path=%s filename=%s)',
-                           job_output_path, job_output_filename)
+            logger.warning(
+                'Failed to get SDF (path=%s filename=%s)',
+                job_output_path,
+                job_output_filename,
+            )
         else:
             # Both files pulled back.
             got_all_files = True
-#            if instance_id:
-#                # Delete the callback token, which is no-longer needed.
-#                # Don't care if this fails - the token will expire automatically
-#                # after a period of time.
-#                _ = DmApi.delete_instance_token(
-#                    instance_id=instance_id,
-#                    token=callback_token)
+    #            if instance_id:
+    #                # Delete the callback token, which is no-longer needed.
+    #                # Don't care if this fails - the token will expire automatically
+    #                # after a period of time.
+    #                _ = DmApi.delete_instance_token(
+    #                    instance_id=instance_id,
+    #                    token=callback_token)
 
     if not got_all_files:
-        logger.warning('Not processing. Either %s or %s is missing',
-                       tmp_sdf_filename, tmp_param_filename)
+        logger.warning(
+            'Not processing. Either %s or %s is missing',
+            tmp_sdf_filename,
+            tmp_param_filename,
+        )
         return sdf_filename
 
     param_size = os.path.getsize(tmp_param_filename)
@@ -266,21 +273,27 @@ def process_compound_set_file(jr_id,
     with open(tmp_param_filename, 'r', encoding='utf-8') as param_file:
         meta = json.loads(param_file.read())
         if 'annotations' not in meta or len(meta['annotations']) == 0:
-            logger.warning('Not processing. No annotations in %s',
-                           tmp_param_filename)
+            logger.warning('Not processing. No annotations in %s', tmp_param_filename)
             return sdf_filename
         for annotation in meta['annotations']:
             if 'fields' in annotation:
                 for key, value in annotation['fields'].items():
                     if 'description' not in value:
-                        logger.warning('Annotation field %s in %s has no "description"',
-                                       key, tmp_param_filename)
+                        logger.warning(
+                            'Annotation field %s in %s has no "description"',
+                            key,
+                            tmp_param_filename,
+                        )
                     else:
                         params[key] = value['description']
 
     if params:
-        logger.info('Extracted %s from %s - adding to %s...',
-                    params, tmp_param_filename, tmp_sdf_filename)
+        logger.info(
+            'Extracted %s from %s - adding to %s...',
+            params,
+            tmp_param_filename,
+            tmp_sdf_filename,
+        )
         add_prop_to_sdf(tmp_sdf_filename, sdf_filename, params)
         logger.info('Generated job compound file %s (%s)', sdf_filename, jr_id)
     else:

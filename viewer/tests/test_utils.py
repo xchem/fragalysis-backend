@@ -1,22 +1,22 @@
 import filecmp
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-from django.test import SimpleTestCase, tag
+from django.test import SimpleTestCase
 
 from viewer.utils import (
-    create_squonk_job_request_url,
-    create_media_sub_directory,
-    delete_media_sub_directory,
     add_prop_to_sdf,
     clean_filename,
+    create_media_sub_directory,
+    create_squonk_job_request_url,
+    delete_media_sub_directory,
     get_https_host,
+    is_url,
+    word_count,
 )
 
 
-@tag("nodb")
 class ViewerUtilsTestCase(SimpleTestCase):
-
     def test_create_squonk_job_request_url(self):
         result = create_squonk_job_request_url("instance-0000")
         self.assertEqual(result, "data-manager-ui/results/instance/instance-0000")
@@ -40,9 +40,15 @@ class ViewerUtilsTestCase(SimpleTestCase):
     def test_add_prop_to_sdf(self):
         expected_file = "./tests/_test.sdf"
         self.assertFalse(os.path.isfile(expected_file))
-        add_prop_to_sdf("tests/test_data/viewer-utils-test-in.sdf", expected_file, {"TransFSScore": "0.115601"})
+        add_prop_to_sdf(
+            "tests/test_data/viewer-utils-test-in.sdf",
+            expected_file,
+            {"TransFSScore": "0.115601"},
+        )
         self.assertTrue(os.path.isfile(expected_file))
-        self.assertTrue(filecmp.cmp("tests/test_data/viewer-utils-test-out.sdf", expected_file))
+        self.assertTrue(
+            filecmp.cmp("tests/test_data/viewer-utils-test-out.sdf", expected_file)
+        )
         os.remove("./tests/_test.sdf")
 
     def test_clean_filename_a(self):
@@ -62,3 +68,30 @@ class ViewerUtilsTestCase(SimpleTestCase):
         request_mock.get_host.return_value = "example.com"
         result = get_https_host(request_mock)
         self.assertEqual(result, "https://example.com")
+
+    def test_is_url(self):
+        self.assertTrue(is_url("https://example.com"))
+        self.assertTrue(is_url("http://example.com"))
+        self.assertTrue(is_url("ftp://example.com"))
+        self.assertTrue(is_url("ftps://example.com"))
+        self.assertTrue(is_url("sftp://example.com"))
+        self.assertTrue(is_url("ssh://example.com"))
+        self.assertTrue(is_url("file://example.com"))
+        self.assertTrue(is_url("mailto://example.com"))
+        self.assertTrue(is_url("telnet://example.com"))
+        self.assertTrue(is_url("gopher://example.com"))
+        self.assertTrue(is_url("wais://example.com"))
+        self.assertTrue(is_url("ldap://example.com"))
+        self.assertTrue(is_url("news://example.com"))
+        self.assertTrue(is_url("nntp://example.com"))
+        self.assertTrue(is_url("prospero://example.com"))
+        # SOme failures...
+        self.assertFalse(is_url("/data/blob.html"))
+        self.assertFalse(is_url(532))
+        self.assertFalse(is_url(None))
+
+    def test_word_count(self):
+        self.assertEquals(2, word_count("Hello world"))
+        self.assertEquals(1, word_count("Hello"))
+        self.assertEquals(0, word_count(""))
+        self.assertEquals(0, word_count(None))

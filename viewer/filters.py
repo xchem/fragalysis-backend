@@ -1,12 +1,14 @@
 import django_filters
 from django_filters import rest_framework as filters
 
-from viewer.models import Snapshot
-from viewer.models import SiteObservation
-from viewer.models import CanonSite
-from viewer.models import CanonSiteConf
-from viewer.models import XtalformSite
-from viewer.models import Compound
+from viewer.models import (
+    CanonSite,
+    CanonSiteConf,
+    Compound,
+    SiteObservation,
+    Snapshot,
+    XtalformSite,
+)
 
 
 class SnapshotFilter(filters.FilterSet):
@@ -86,3 +88,15 @@ class MolImgFilter(TargetFilterMixin):
     class Meta:
         model = SiteObservation
         fields = ("target", "cmpd_id", "smiles", "site_observation_groups")
+
+
+class CmpdImgFilter(TargetFilterMixin):
+    class Meta:
+        model = Compound
+        fields = ("target", "smiles")
+
+
+class CompoundFilter(TargetFilterMixin):
+    class Meta:
+        model = Compound
+        fields = ("smiles", "current_identifier", "inchi")

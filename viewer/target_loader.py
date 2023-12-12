@@ -1,64 +1,44 @@
-import os
-import math
-from dataclasses import dataclass
-from dataclasses import field
-
-
-from enum import Enum
-
-from typing import Any
-
-from typing import Optional
-from typing import Iterable
-from typing import TypeVar
-
-import logging
-from pathlib import Path
+import functools
 import hashlib
-import yaml
+import logging
+import math
+import os
 import tarfile
 import uuid
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any, Iterable, Optional, TypeVar
 
-import functools
-
+import yaml
 from celery import Task
-
-
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import MultipleObjectsReturned
-
+from django.db import IntegrityError, transaction
+from django.db.models import Model
+from django.db.models.base import ModelBase
 from django.utils import timezone
 
-from django.db import IntegrityError
-from django.db import transaction
-from django.db.models.base import ModelBase
-from django.db.models import Model
-
-
-from django.contrib.auth import get_user_model
-
+from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 from scoring.models import SiteObservationGroup
-
 from viewer.models import (
-    Compound,
-    Project,
-    Xtalform,
-    XtalformSite,
-    QuatAssembly,
     CanonSite,
     CanonSiteConf,
-    SiteObservation,
+    Compound,
     Experiment,
     ExperimentUpload,
-    XtalformQuatAssembly,
-    Target,
+    Project,
+    QuatAssembly,
+    SiteObservation,
     SiteObservationTag,
     TagCategory,
+    Target,
+    Xtalform,
+    XtalformQuatAssembly,
+    XtalformSite,
 )
-
-from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
-
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +247,6 @@ def create_objects(func=None, *, depth=math.inf):
         # logger.debug("args passed: %s", args)
         logger.debug("kwargs passed: %s", kwargs)
 
-        # flattened_data = flatten_dict(kwargs["yaml_data"], depth=depth)
         flattened_data = flatten_dict(yaml_data, depth=depth)
         result = {}
         created, existing, failed = 0, 0, 0
@@ -558,6 +537,7 @@ class TargetLoader:
 
         This is enough to save full instance
         """
+        del kwargs
         logger.debug("incoming data: %s", item_data)
         experiment_name, data = item_data
 
@@ -659,6 +639,7 @@ class TargetLoader:
 
         NB! After creation, many2many with project needs to be populated
         """
+        del kwargs
         logger.debug("incoming data: %s", item_data)
         protein_name, data = item_data
         if (
@@ -715,6 +696,7 @@ class TargetLoader:
 
         Saves all references to other tables (QuatAssembly and Experiment).
         """
+        del kwargs
         # weirdly, none of the fields is mandatory in Xtalform
         xtalform_name, data = item_data
 
@@ -757,6 +739,7 @@ class TargetLoader:
 
         No references to other models.
         """
+        del kwargs
         assembly_name, data = item_data
 
         extract = functools.partial(
@@ -795,6 +778,7 @@ class TargetLoader:
             chains: <str>
 
         """
+        del kwargs
         xtalform_id, _, _, data = item_data
 
         # hm.. doesn't reflect the fact that it's from a different
@@ -843,6 +827,7 @@ class TargetLoader:
         - CanonSiteConf (ref_conf_site)
 
         """
+        del kwargs
         canon_site_id, data = item_data
 
         extract = functools.partial(
@@ -893,6 +878,7 @@ class TargetLoader:
         Unable to add references to:
         - SiteObservation (ref_site_observation)
         """
+        del kwargs
         conf_site_name, data = item_data
         canon_site = canon_sites[conf_site_name]
 
@@ -946,6 +932,7 @@ class TargetLoader:
 
         Saves references to all other tables (Xtalform and CanonSite).
         """
+        del kwargs
         xtalform_site_name, data = item_data
 
         extract = functools.partial(
@@ -1013,6 +1000,7 @@ class TargetLoader:
           ligand_smiles: <smiles>,
         }
         """
+        del kwargs
         try:
             experiment_id, _, chain, ligand, idx, data = item_data
         except ValueError:
@@ -1308,12 +1296,15 @@ class TargetLoader:
         except StopIteration as exc:
             msg = "Upload directory missing from uploaded file!"
             self.report.log(Level.FATAL, msg)
-            raise StopIteration(msg) from exc
+            # what do you mean unused?!
+            raise StopIteration(
+                msg
+            ) from exc  # pylint: disable=# pylint: disable=protected-access
 
         try:
             upload_dir = next(up_iter)
             self.report.log(Level.WARNING, "Multiple upload directories in archive!")
-        except StopIteration as exc:
+        except StopIteration:
             # just a warning, ignoring the second one
             pass
 
@@ -1543,6 +1534,7 @@ def load_target(
     task=None,
 ):
     # TODO: do I need to sniff out correct archive format?
+    del contact_email
     with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
         target_loader = TargetLoader(
             data_bundle, proposal_ref, tempdir, user_id=user_id, task=task

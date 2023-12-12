@@ -4,10 +4,8 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('viewer', '0017_alter_experimentupload_message'),
     ]
 
-    operations = [
-    ]
+    operations = []  # type: ignore
