@@ -24,12 +24,6 @@ import functools
 
 from celery import Task
 
-# from hypothesis.definitions import VectTypes
-
-# from hypothesis.models import Vector3D
-# from hypothesis.models import Vector
-
-# from frag.network.decorate import get_3d_vects_for_mol
 
 from django.core.exceptions import MultipleObjectsReturned
 
@@ -71,9 +65,6 @@ logger = logging.getLogger(__name__)
 # data that goes to tables are in the following files
 # assemblies and xtalforms
 XTALFORMS_FILE = "crystalforms.yaml"
-
-# # xtalform-experiment mapping
-# ASSIGNED_XTALFORMS_FILE = "assigned_xtalforms.yaml"
 
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
@@ -175,6 +166,21 @@ class UploadReport:
             logger.info(msg)
 
         self.stack.append(UploadReportEntry(level=level, message=message))
+        self._update_task(message)
+
+    def final(self, level: Level = Level.INFO, message: str = ""):
+        if self.upload_state == UploadState.PROCESSING:
+            self.upload_state = UploadState.SUCCESS
+        else:
+            self.upload_state = UploadState.FAILED
+
+        self.stack.append(UploadReportEntry(level=level, message=message))
+        self._update_task(self.json())
+
+    def json(self):
+        return [str(k) for k in self.stack]
+
+    def _update_task(self, message: str | list):
         try:
             self.task.update_state(
                 state=self.upload_state,
@@ -185,29 +191,6 @@ class UploadReport:
         except AttributeError:
             # no task passed to method, nothing to do
             pass
-
-    def json(self):
-        return [str(k) for k in self.stack]
-
-    # standardized logging when processing metadata file
-    # def _log_msg(self, obj_dict):
-    #     new_obj = sum([1 for k in obj_dict.values() if k.new])
-    #     item = next(iter(obj_dict.values()))
-    #     msg = f"{len(obj_dict.keys())} {item.instance._meta.model} objects processed, {new_obj} created"  # pylint: disable=protected-access
-    #     update_task(self.task, "PROCESSING", msg)
-    #     logger.info("%s%s", self.task_id, msg)
-    #     return f"{self.bundle_name} {self.version_dir}: {msg}"
-
-
-# ok, let's think..
-# * logging to logs, report and task
-# * logger needs access to TargetLoader data (target_name, etc)
-#   so putting this to separate class is dubious
-# * filterable list seems advantageous. have correct order and can select message types
-
-# reasons I like having Report object:
-# * can have logging/reporting functionality separated. seems neater
-#   but.. is it worth it? is it even necessary?
 
 
 def _flatten_dict_gen(d: dict, parent_key: tuple | str | int, depth: int):
@@ -262,74 +245,6 @@ def calculate_sha256(filepath):
     return sha256_hash.hexdigest()
 
 
-# def create_object(func):
-#     """Wrapper function for saving database objects.
-
-#     Handles common part of saving model instances, actual saving,
-#     logging, reporting and error handling.
-
-#     Inner functions are yaml data processing functions that return
-#     the model class and the data to pass to model's get_or_create
-#     function.
-
-#     """
-
-#     @functools.wraps(func)
-#     def wrapper_create_object(self, *args, **kwargs) -> tuple[MetadataObject, bool | None]:
-#         logger.debug("+ wrapper_service_query")
-#         logger.debug("args passed: %s", args)
-#         logger.debug("kwargs passed: %s", kwargs)
-
-#         data = kwargs["data"]
-
-#         instance_data = func(self, *args, **kwargs)
-#         logger.debug("Instance data returned: %s", instance_data)
-
-#         new = None
-#         if not self.failed:
-#             try:
-#                 obj, new = instance_data.model_class.filter_manager.by_target(
-#                     self.target
-#                 ).get_or_create(
-#                     **instance_data.fields,
-#                     defaults=instance_data.defaults,
-#                 )
-#                 logger.debug(
-#                     "%s object %s created",
-#                     instance_data.model_class._meta.object_name,
-#                     obj,
-#                 )
-#             except MultipleObjectsReturned:
-#                 msg = "{}.get_or_create returned multiple objects for {}".format(
-#                     instance_data.model_class._meta.object_name,
-#                     instance_data.fields,
-#                 )
-#                 self.report.log(Level.FATAL, msg)
-#                 new = True
-#             except IntegrityError:
-#                 msg = "{} object {} failed to save".format(
-#                     instance_data.model_class._meta.object_name,
-#                     instance_data.identifier,
-#                 )
-#                 self.report.log(Level.FATAL, msg)
-#                 new = True
-
-#         if self.failed:
-#             # create fake object so I can just push through the upload
-#             obj = instance_data.model_class(
-#                 **instance_data.fields | instance_data.defaults
-#             )
-#             logger.debug(
-#                 "Fake %s object created: %s",
-#                 instance_data.model_class._meta.object_name,
-#                 obj,
-#             )
-
-#         return MetadataObject(instance=obj, data=data), new
-
-#     return wrapper_create_object
-
-
 def create_objects(func=None, *, depth=math.inf):
     """Wrapper function for saving database objects.
 
@@ -348,7 +263,6 @@ def create_objects(func=None, *, depth=math.inf):
     def wrapper_create_objects(
         self, *args, yaml_data: dict, **kwargs
     ) -> dict[int | str, MetadataObject]:
-        # ) -> dict[int | str, MetadataObject]:
         logger.debug("+ wrapper_service_query")
         # logger.debug("args passed: %s", args)
         logger.debug("kwargs passed: %s", kwargs)
@@ -374,7 +288,7 @@ def create_objects(func=None, *, depth=math.inf):
                 )
                 logger.debug(
                     "%s object %s created",
-                    instance_data.model_class._meta.object_name,
+                    instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     obj,
                 )
                 if new:
@@ -383,14 +297,14 @@ def create_objects(func=None, *, depth=math.inf):
                     existing = existing + 1
             except MultipleObjectsReturned:
                 msg = "{}.get_or_create returned multiple objects for {}".format(
-                    instance_data.model_class._meta.object_name,
+                    instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     instance_data.fields,
                 )
                 self.report.log(Level.FATAL, msg)
                 failed = failed + 1
             except IntegrityError:
                 msg = "{} object {} failed to save".format(
-                    instance_data.model_class._meta.object_name,
+                    instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     instance_data.key,
                 )
                 self.report.log(Level.FATAL, msg)
@@ -404,7 +318,7 @@ def create_objects(func=None, *, depth=math.inf):
                 )
                 logger.warning(
                     "Fake %s object created: %s",
-                    instance_data.model_class._meta.object_name,
+                    instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     obj,
                 )
 
@@ -414,7 +328,9 @@ def create_objects(func=None, *, depth=math.inf):
 
         msg = "{} {} objects processed, {} created, {} fetched from database".format(
             created + existing + failed,
-            next(iter(result.values())).instance._meta.model,
+            next(  # pylint: disable=protected-access
+                iter(result.values())
+            ).instance._meta.model,
             created,
             existing,
         )  # pylint: disable=protected-access
@@ -725,108 +641,6 @@ class TargetLoader:
             index_data=index_fields,
         )
 
-    # def _process_experiment(self, existing_objects=None, protein_name=None, data=None):
-    #     """Create Experiment model instance from data.
-
-    #     Incoming data format:
-    #     last_updated: <datetime>
-    #     crystallographic_files:
-    #       xtal_pdb: {file: <file path>, sha256: <hash>}
-    #       xtal_mtz: {file: <file path>, sha256: <hash>}
-    #       ligand_cif: {file: <file path>, sha256: <hash>, smiles: <smiles>}
-    #       panddas_event_files:
-    #       - {file: <file path>, sha256: <hash>,
-    #         model: <int>, chain: <char[1]>, res: <int>, index: <int>, bdc: <float>}
-    #       - {file: <file path>, sha256: <hash>,
-    #         model: <int>, chain: <char[1]>, res: <int>, index: <int>, bdc: <float>}
-    #     status: <status>
-    #     assigned_xtalform: <str>
-    #     aligned_files: [...]
-
-    #     Manages to save all references to other tables
-    #     """
-    #     logger.debug("Creating experiment object: %s", protein_name)
-
-    #     try:
-    #         experiment = existing_objects.get(code=protein_name)
-    #         new = False
-    #     except Experiment.DoesNotExist:
-    #         new = True
-    #         files = self._check_file_struct(
-    #             self.target_root, data["crystallographic_files"]
-    #         )
-    #         experiment = Experiment(
-    #             experiment_upload=self.experiment_upload,
-    #             code=protein_name,
-    #             status=1,
-    #             version=1,
-    #             type=1 if data["type"] == "manual" else 0,  # FIXME
-    #             pdb_info=str(self._get_final_path(files["xtal_pdb"])),
-    #             mtz_info=str(self._get_final_path(files["xtal_mtz"])),
-    #             # this may be missing from the struct
-    #             cif_info=str(self._get_final_path(files.get("cif_info", None))),
-    #             # this doesn't seem to be present
-    #             # pdb_sha256=
-    #         )
-    #         try:
-    #             experiment.save()
-    #         except IntegrityError as exc:
-    #             msg = f"Failed to save Experiment: {protein_name}"
-    #             update_task(self.task, "ERROR", msg)
-    #             logger.error("%s%s", self.task_id, msg)
-    #             raise IntegrityError(msg) from exc
-    #         except ValueError as exc:
-    #             update_task(self.task, "ERROR", exc.args[0])
-    #             raise ValueError(exc.args[0]) from exc
-
-    #     return MetadataObject(
-    #         instance=experiment, data=data.get("aligned_files", None), new=new
-    #     )
-
-    # def _process_compound(self, existing_objects=None, protein_name=None, data=None):
-    #     """Create Compound model instance from data.
-
-    #     Incoming data format:
-    #     xtal_pdb: {file: <file path>, sha256: <hash>}
-    #     xtal_mtz: {file: <file path>, sha256: <hash>}
-    #     ligand_cif: {file: <file path>, sha256: <hash>, smiles: <smiles>}
-    #     panddas_event_files:
-    #     - {file: <file path>, sha256: <hash>,
-    #       model: <int>, chain: <char[1]>, res: <int>, index: <int>, bdc: <float>}
-    #     - {file: <file path>, sha256: <hash>,
-    #       model: <int>, chain: <char[1]>, res: <int>, index: <int>, bdc: <float>}
-    #     """
-
-    #     # TODO: there's a method, calc_cpd, could I use that? as I
-    #     # understand, they don't need to be unique anymore, so I can
-    #     # just remove the uniqueness validation?
-
-    #     smiles = data["ligand_cif"]["smiles"]
-    #     try:
-    #         compound = existing_objects.get(smiles=smiles)
-    #         new = False
-    #     except Compound.DoesNotExist:
-    #         new = True
-
-    #         compound = Compound(smiles=smiles)
-
-    #         try:
-    #             compound.save()
-    #         except IntegrityError as exc:
-    #             msg = f"Failed to save Compound: {protein_name}"
-    #             update_task(self.task, "ERROR", msg)
-    #             logger.error("%s%s", self.task_id, msg)
-    #             raise IntegrityError(msg) from exc
-    #         except KeyError as exc:
-    #             # this means ligand info missing
-    #             raise KeyError from exc
-
-    #         compound.project_id.add(self.experiment_upload.project)
-
-    #     # data basically just contains file locations, need to copy them
-    #     # later
-    #     return MetadataObject(instance=compound, data=data, new=new)
-
     @create_objects(depth=1)
     def process_compound(
         self, item_data: tuple[str, dict] | None = None, **kwargs
@@ -929,82 +743,6 @@ class TargetLoader:
             defaults=defaults,
         )
 
-    # def _process_xtalform(self, existing_objects=None, idx=None, data=None):
-    #     """Create Xtalform model instance from data.
-
-    #     Incoming data format (from meta_aligner.yaml):
-    #     <name>:
-    #       xtalform_ref: <ref>
-    #       xtalform_space_group: <space group>
-    #       xtalform_cell: <cell info>
-
-    #     and (from xtalforms.yaml):
-    #     <name>:
-    #         reference: <ref>
-    #         assemblies:
-    #             <idx>:
-    #                 assembly: <assembly_id>
-    #                 chains: <chains>
-
-    #     Saves all references to other tables (QuatAssembly and Experiment).
-    #     """
-    #     logger.debug("Creating Xtalform object: %s", data["xtalform_ref"])
-    #     try:
-    #         xtalform = existing_objects.get(name=idx)
-    #         new = False
-    #     except Xtalform.DoesNotExist:
-    #         new = True
-    #         xtalform = Xtalform(
-    #             name=idx,
-    #             space_group=data["xtalform_space_group"],
-    #             unit_cell_info=data["xtalform_cell"],
-    #         )
-    #         try:
-    #             xtalform.save()
-    #         except IntegrityError as exc:
-    #             msg = f"Failed to save Xtalform: {data['xtalform_ref']}"
-    #             update_task(self.task, "ERROR", msg)
-    #             logger.error("%s%s", self.task_id, msg)
-    #             raise IntegrityError(msg) from exc
-
-    #     return MetadataObject(instance=xtalform, data=None, new=new)
-
-    # def _process_quat_assembly(self, existing_objects=None, idx=None, data=None):
-    #     """Create QuatAssemblylform model instance from data.
-
-    #     Incoming data format:
-    #     <idx>:
-    #         reference: <name>
-    #         biomol: <biomol: str>
-    #         chains: <chain info: str>
-
-    #     No references to other models.
-    #     """
-    #     logger.debug("Creating QuatAssembly object: %d", idx)
-    #     try:
-    #         quat_assembly = existing_objects.get(chains=data["chains"])
-    #         new = False
-    #     except QuatAssembly.DoesNotExist:
-    #         new = True
-
-    #         quat_assembly = QuatAssembly(
-    #             chains=data["chains"],
-    #             name=idx,
-    #         )
-    #         try:
-    #             quat_assembly.save()
-    #         except IntegrityError as exc:
-    #             msg = f"Failed to save QuatAssembly: {idx}"
-    #             # update_task(self.task, "ERROR", msg)
-    #             # logger.error("%s%s", self.task_id, msg)
-    #             raise IntegrityError(msg) from exc
-
-    #     return MetadataObject(
-    #         instance=quat_assembly,
-    #         data=None,
-    #         new=new,
-    #     )
-
     @create_objects(depth=1)
     def process_quat_assembly(
         self, item_data: tuple[str, dict] | None = None, **kwargs
@@ -1040,53 +778,6 @@ class TargetLoader:
             fields=fields,
             key=assembly_name,
         )
-
-    # def _process_xtalform_quatassembly(
-    #     self,
-    #     existing_objects=None,
-    #     xtalform=None,
-    #     quat_assembly=None,
-    #     idx=None,
-    #     data=None,
-    # ):
-    #     """Create XtalformQuatAssembly model instance from data.
-
-    #     Incoming data format:
-    #     <idx>:
-    #         assembly: <assembly id: int>
-    #         chains: <str>
-
-    #     """
-    #     logger.debug("Creating XtalformQuatAssembly object: %d", idx)
-    #     try:
-    #         xtal_quat = existing_objects.get(
-    #             xtalform=xtalform,
-    #             quat_assembly=quat_assembly,
-    #             assembly_id=idx,
-    #         )
-    #         new = False
-    #     except XtalformQuatAssembly.DoesNotExist:
-    #         new = True
-
-    #         xtal_quat = XtalformQuatAssembly(
-    #             xtalform=xtalform,
-    #             quat_assembly=quat_assembly,
-    #             chains=data["chains"],
-    #             assembly_id=idx,
-    #         )
-    #         try:
-    #             xtal_quat.save()
-    #         except IntegrityError as exc:
-    #             msg = f"Failed to save XtalformQuatAssembly: {idx}"
-    #             # update_task(self.task, "ERROR", msg)
-    #             # logger.error("%s%s", self.task_id, msg)
-    #             raise IntegrityError(msg) from exc
-
-    #     return MetadataObject(
-    #         instance=xtal_quat,
-    #         data=data,
-    #         new=new,
-    #     )
 
     @create_objects(depth=3)
     def process_xtalform_quatassembly(
@@ -1134,45 +825,6 @@ class TargetLoader:
             fields=fields,
             key=xtalform_id,
         )
-
-    # def _process_canon_site(self, existing_objects=None, idx=None, data=None):
-    #     """Create CanonSite model instance from data.
-
-    #     Incoming data format:
-    #     <id: str>:
-    #         conformer_site_ids: <array[str]>
-    #         global_reference_dtag: <str>
-    #         reference_conformer_site_id: <str>
-    #         residues: <array[str]>
-
-    #     Unable to add references to:
-    #     - CanonSiteConf (ref_conf_site)
-
-    #     """
-    #     logger.debug("Creating CanonSite object: %d", idx)
-    #     try:
-    #         canon_site = existing_objects.get(name=idx)
-    #         new = False
-    #     except CanonSite.DoesNotExist:
-    #         new = True
-
-    #         canon_site = CanonSite(
-    #             name=idx,
-    #             residues=data["residues"],
-    #         )
-    #         try:
-    #             canon_site.save()
-    #         except IntegrityError as exc:
-    #             msg = f"Failed to save CanonSite: {idx}"
-    #             # update_task(self.task, "ERROR", msg)
-    #             # logger.error("%s%s", self.task_id, msg)
-    #             raise IntegrityError(msg) from exc
-
-    #     return MetadataObject(
-    #         instance=canon_site,
-    #         data=data,
-    #         new=new,
-    #     )
 
     @create_objects(depth=1)
     def process_canon_site(
@@ -1275,90 +927,6 @@ class TargetLoader:
             key=conf_site_name,
         )
 
-    # def _process_canon_site_conf(
-    #     self, existing_objects=None, canon_site=None, idx=None, data=None
-    # ):
-    #     """Create Xtalform model instance from data.
-
-    #     Incoming data format:
-    #     <idx: str>:
-    #       reference_ligand_id: <lig_ref>
-    #       residues: <array[char]>
-    #       members: <array[char]>
-
-    #     Unable to add references to:
-    #     - SiteObservation (ref_site_observation)
-    #     """
-    #     logger.debug("Creating CanonSiteConf object: %s", idx)
-    #     try:
-    #         canon_site_conf = existing_objects.get(name=idx)
-    #         new = False
-    #     except CanonSiteConf.DoesNotExist:
-    #         new = True
-
-    #         canon_site_conf = CanonSiteConf(
-    #             name=idx,
-    #             residues=data["residues"],
-    #             canon_site=canon_site,
-    #         )
-
-    #         try:
-    #             canon_site_conf.save()
-    #         except IntegrityError as exc:
-    #             msg = f"Failed to save CanonSiteConf: {data['name']}"
-    #             # update_task(self.task, "ERROR", msg)
-    #             # logger.error("%s%s", self.task_id, msg)
-    #             raise IntegrityError(msg) from exc
-
-    #     return MetadataObject(
-    #         instance=canon_site_conf,
-    #         data=data["reference_ligand_id"],
-    #         new=new,
-    #     )
-
-    # def _process_xtalform_site(
-    #     self, existing_objects=None, xtalform=None, canon_site=None, idx=None, data=None
-    # ):
-    #     """Create Xtalform model instance from data.
-
-    #     Incoming data format:
-    #     <idx>:
-    #       xtalform_id: <str>
-    #       canonical_site_id: <str>
-    #       crystallographic_chain: A
-    #       members: <array[str]>
-
-    #     Saves references to all other tables (Xtalform and CanonSite).
-    #     """
-    #     logger.debug("Creating XtalformSite object: %d", idx)
-    #     try:
-    #         xtalform_site = existing_objects.get(xtalform_site_id=idx)
-    #         new = False
-    #     except XtalformSite.DoesNotExist:
-    #         new = True
-
-    #         xtalform_site = XtalformSite(
-    #             xtalform=xtalform,
-    #             canon_site=canon_site,
-    #             lig_chain=data["crystallographic_chain"],
-    #             residues=data["members"],
-    #             xtalform_site_id=idx,
-    #         )
-
-    #         try:
-    #             xtalform_site.save()
-    #         except IntegrityError as exc:
-    #             msg = f"Failed to save Xtalform: {idx}"
-    #             # update_task(self.task, "ERROR", msg)
-    #             # logger.error("%s%s", self.task_id, msg)
-    #             raise IntegrityError(msg) from exc
-
-    #     return MetadataObject(
-    #         instance=xtalform_site,
-    #         data=data["members"],
-    #         new=new,
-    #     )
-
     @create_objects(depth=1)
     def process_xtalform_site(
         self,
@@ -1414,105 +982,6 @@ class TargetLoader:
             defaults=defaults,
             key=xtalform_site_name,
         )
-
-    # def _process_site_observation(
-    #     self,
-    #     existing_objects=None,
-    #     experiment=None,
-    #     compound=None,
-    #     xtalform_site=None,
-    #     canon_site_conf=None,
-    #     chain=None,
-    #     ligand=None,
-    #     idx=None,
-    #     data=None,
-    # ):
-    #     """Create SiteObservation model instance from data.
-
-    #     Incoming data format:
-    #     <idx (apparently canon_site_conf id)>: {
-    #       structure: <file path>,
-    #       artefacts:  <file path>,
-    #       event_map:  <file path>,
-    #       x_map:  <file path>,
-    #       pdb_apo:  <file path>,
-    #       pdb_apo_solv:  <file path>,
-    #       pdb_apo_desolv:  <file path>,
-    #       ligand_mol:  <file path>,
-    #       ligand_pdb:  <file path>,
-    #       ligand_smiles: <smiles>,
-    #     }
-    #     """
-    #     code = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
-    #     logger.debug("Creating SiteObservation object: %s", code)
-    #     try:
-    #         site_observation = existing_objects.get(code=code)
-    #         new = False
-    #     except SiteObservation.DoesNotExist:
-    #         new = True
-
-    #         files = self._check_file_struct(self.target_root, data)
-
-    #         mol_data = None
-    #         with open(
-    #             self.target_root.joinpath(files["ligand_mol"]),
-    #             "r",
-    #             encoding="utf-8",
-    #         ) as f:
-    #             mol_data = f.read()
-
-    #         try:
-    #             site_observation = SiteObservation(
-    #                 # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
-    #                 code=code,
-    #                 experiment=experiment,
-    #                 cmpd=compound,
-    #                 xtalform_site=xtalform_site,
-    #                 canon_site_conf=canon_site_conf,
-    #                 bound_file=str(self._get_final_path(files["structure"])),
-    #                 apo_solv_file=str(self._get_final_path(files["pdb_apo_solv"])),
-    #                 apo_desolv_file=str(self._get_final_path(files["pdb_apo_desolv"])),
-    #                 apo_file=str(self._get_final_path(files["pdb_apo"])),
-    #                 xmap_2fofc_file=str(self._get_final_path(files["2Fo-Fc_map"])),
-    #                 xmap_fofc_file=str(self._get_final_path(files["Fo-Fc_map"])),
-    #                 event_file=str(self._get_final_path(files["event_map"])),
-    #                 # artefacts file currently missing, hence the get
-    #                 artefacts_file=str(
-    #                     self._get_final_path(files.get("artefacts", None))
-    #                 ),
-    #                 pdb_header_file="currently missing",
-    #                 smiles=data["ligand_smiles"],
-    #                 seq_id=ligand,
-    #                 chain_id=chain,
-    #                 ligand_mol_file=mol_data,
-    #             )
-    #         except KeyError as exc:
-    #             logger.debug("exc: %s", exc)
-    #             msg = (
-    #                 f"Reference to {exc} file missing from aligned_files/"
-    #                 + f"{experiment.code}/{chain}/{str(ligand)}/{str(idx)}"
-    #             )
-    #             # update_task(self.task, "ERROR", msg)
-    #             # logger.error("%s%s", self.task_id, msg)
-    #             raise KeyError(msg) from exc
-
-    #         try:
-    #             site_observation.save()
-    #         except IntegrityError as exc:
-    #             msg = f"Failed to save SiteObservation: {site_observation.code}"
-    #             # update_task(self.task, "ERROR", msg)
-    #             # logger.error("%s%s", self.task_id, msg)
-    #             raise IntegrityError(msg) from exc
-
-    #         # TODO: may have to implement KeyError, in case file is
-    #         # missing. but that's only when it's guaranteed that it
-    #         # should exist.
-
-    #     return MetadataObject(
-    #         instance=site_observation,
-    #         data=None,
-    #         new=new,
-    #     )
 
     @create_objects(depth=5)
     def process_site_observation(
@@ -1689,10 +1158,6 @@ class TargetLoader:
         self.experiment_upload.committer = committer
         self.experiment_upload.save()
 
-        # xtalform_assemblies = self._load_yaml(
-        #     Path(upload_root).joinpath(XTALFORMS_FILE)
-        # )
-
         (  # pylint: disable=unbalanced-tuple-unpacking
             assemblies,
             xtalform_assemblies,
@@ -1702,36 +1167,13 @@ class TargetLoader:
         )
 
         meta = self._load_yaml(Path(upload_root).joinpath(METADATA_FILE))
-        # assigned_xtalforms = self._load_yaml(
-        #     Path(upload_root).joinpath(ASSIGNED_XTALFORMS_FILE)
-        # )
 
         # collect top level info
         self.version_number = meta["version_number"]
         self.version_dir = meta["version_dir"]
         self.previous_version_dirs = meta["previous_version_dirs"]
 
-        # blocks = [
-        #     "crystals",
-        #     "xtalforms",
-        #     "canon_sites",
-        #     "conformer_sites",
-        #     "xtalform_sites",
-        # ]
-        # try:
-        #     (  # pylint: disable=unbalanced-tuple-unpacking
-        #         crystals,
-        #         xtalforms,
-        #         canon_sites,
-        #         conformer_sites,
-        #         xtalform_sites,
-        #     ) = self._get_yaml_blocks(yaml=meta, blocks)
-        # except FileNotFoundError as exc:
-        #     raise FileNotFoundError(exc.args[0]) from exc
-        # except KeyError as exc:
-        #     raise KeyError(exc.args[0]) from exc
-
-        (
+        (  # pylint: disable=unbalanced-tuple-unpacking
             crystals,
             xtalforms,
             canon_sites,
@@ -1752,8 +1194,8 @@ class TargetLoader:
         compound_objects = self.process_compound(yaml_data=crystals)
 
         # save components manytomany to experiment
-        # TODO: is it 1:1 relationship? looking at the meta_align it seems to be,
-        # but why the m2m then?
+        # TODO: is it 1:1 relationship? looking at the meta_align it
+        # seems to be, but why the m2m then?
         for (
             comp_code,
             comp_meta,
@@ -1776,31 +1218,6 @@ class TargetLoader:
                 logger.warning(msg)
 
         quat_assembly_objects = self.process_quat_assembly(yaml_data=assemblies)
-        # for idx, obj in assemblies.items():
-        #     try:
-        #         quat_assembly_objects[idx] = self._process_quat_assembly(
-        #             existing_objects=old_quatassemblies,
-        #             idx=idx,
-        #             data=obj,
-        #         )
-        #     except IntegrityError as exc:
-        #         raise IntegrityError(exc.args[0]) from exc
-
-        # this is used just for logging, no other function
-        # xtalform_quat_assembly_objects = {}
-        # for xtalform_id, data in xtalform_assemblies.items():
-        #     xtalform = xtalform_objects[xtalform_id].instance
-        #     for idx, obj in data["assemblies"].items():
-        #         quat_assembly = quat_assembly_objects[obj["assembly"]].instance
-        #         key = f"{xtalform_id} {quat_assembly.id} {idx}"
-        #         xtalform_quat_assembly_objects[
-        #             key
-        #         ] = self._process_xtalform_quatassembly(
-        #             xtalform=xtalform,
-        #             quat_assembly=quat_assembly,
-        #             idx=idx,
-        #             data=obj,
-        #         )
 
         _ = self.process_xtalform_quatassembly(
             yaml_data=xtalform_assemblies,
@@ -1809,15 +1226,6 @@ class TargetLoader:
         )
 
         canon_site_objects = self.process_canon_site(yaml_data=canon_sites)
-        # for idx, obj in canon_sites.items():
-        #     try:
-        #         canon_site_objects[idx] = self._process_canon_site(
-        #             existing_objects=old_canonsites,
-        #             idx=idx,
-        #             data=obj,
-        #         )
-        #     except IntegrityError as exc:
-        #         raise IntegrityError(exc.args[0]) from exc
         # NB! missing fk's:
         # - ref_conf_site
         # - quat_assembly
@@ -1833,16 +1241,6 @@ class TargetLoader:
         canon_site_conf_objects = self.process_canon_site_conf(
             yaml_data=conformer_sites, canon_sites=canon_sites_by_conf_sites
         )
-        # for idx, obj in conformer_sites.items():
-        #     try:
-        #         canon_site_conf_objects[idx] = self._process_canon_site_conf(
-        #             existing_objects=old_canonsiteconfs,
-        #             canon_site=canon_sites_by_conf_sites[idx],
-        #             idx=idx,
-        #             data=obj,
-        #         )
-        #     except IntegrityError as exc:
-        #         raise IntegrityError(exc.args[0]) from exc
         # NB! missing fk's:
         # - site_observation
 
@@ -1851,16 +1249,6 @@ class TargetLoader:
             canon_sites=canon_sites_by_conf_sites,
             xtalforms=xtalform_objects,
         )
-        # for idx, obj in xtalform_sites.items():
-        #     try:
-        #         xtalform_sites_objects[idx] = self._process_xtalform_site(
-        #             existing_objects=old_xtalformsites,
-        #             xtalform=xtalform_objects[obj["xtalform_id"]].instance,
-        #             canon_site=canon_site_objects[obj["canonical_site_id"]].instance,
-        #             idx=idx,
-        #             data=obj,
-        #         )
-        #     except IntegrityError as exc:
 
         # now can update CanonSite with ref_conf_site
         for val in canon_site_objects.values():  # pylint: disable=no-member
@@ -1887,34 +1275,6 @@ class TargetLoader:
             xtalform_sites=xtalform_site_by_tag,
             canon_site_confs=canon_site_conf_objects,
         )
-
-        # site_observation_objects = {}
-        # TODO: would be nice to get rid of quadruple for
-        # for experiment_meta in experiment_objects.values():
-        #     if experiment_meta.data is None:
-        #         continue
-        #     for chain, ligand in experiment_meta.data.items():
-        #         for ligand, ligand_data in ligand.items():
-        #             for idx, obj in ligand_data.items():
-        #                 key = f"{experiment_meta.instance.code}/{chain}/{ligand}"
-        #                 try:
-        #                     site_observation_objects[
-        #                         key
-        #                     ] = self._process_site_observation(
-        #                         existing_objects=old_siteobservations,
-        #                         experiment=experiment_meta.instance,
-        #                         compound=compound_objects[
-        #                             experiment_meta.instance.code
-        #                         ].instance,
-        #                         xtalform_site=xtalform_site_by_tag[key],
-        #                         canon_site_conf=canon_site_conf_objects[idx].instance,
-        #                         chain=chain,
-        #                         ligand=ligand,
-        #                         idx=idx,
-        #                         data=obj,
-        #                     )
-        #                 except IntegrityError as exc:
-        #                     raise IntegrityError(exc.args[0]) from exc
 
         tag_categories = (
             "ConformerSites",
@@ -2234,7 +1594,7 @@ def load_target(
 
         set_directory_permissions(target_loader.abs_final_path, 0o755)
 
-        # update_task(task, "SUCCESS", upload_report)
+        target_loader.report.final()
         target_loader.experiment_upload.message = target_loader.report.json()
 
         # logger.debug("%s", upload_report)
