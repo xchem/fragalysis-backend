@@ -312,7 +312,7 @@ def create_objects(func=None, *, depth=math.inf):
             created + existing + failed,
             next(  # pylint: disable=protected-access
                 iter(result.values())
-            ).instance._meta.model,
+            ).instance._meta.model._meta.object_name,  # pylint: disable=protected-access
             created,
             existing,
         )  # pylint: disable=protected-access
@@ -458,9 +458,7 @@ class TargetLoader:
                     # this is rather unexpected, haven't seen it yet
                     logfunc(
                         key,
-                        "{}: malformed dict, key 'file' missing!".format(
-                            obj_identifier
-                        ),
+                        "{}: malformed dict, key 'file' missing".format(obj_identifier),
                     )
 
                     # unable to extract file from dict, no point to
@@ -484,11 +482,11 @@ class TargetLoader:
             file_path = self.raw_data.joinpath(filename)
             if file_path.is_file():
                 if file_hash and file_hash != calculate_sha256(file_path):
-                    logfunc(key, "Invalid hash for file {}!".format(filename))
+                    logfunc(key, "Invalid hash for file {}".format(filename))
             else:
                 logfunc(
                     key,
-                    "{} referenced in {}: {} but not found in archive!".format(
+                    "{} referenced in {}: {} but not found in archive".format(
                         key,
                         METADATA_FILE,
                         obj_identifier,
@@ -502,7 +500,7 @@ class TargetLoader:
             except KeyError:
                 logfunc(
                     f,
-                    "{}: file {} expected but not found in {} file!".format(
+                    "{}: file {} expected but not found in {} file".format(
                         obj_identifier,
                         f,
                         METADATA_FILE,
@@ -1303,7 +1301,7 @@ class TargetLoader:
         try:
             upload_dir = next(up_iter)
         except StopIteration as exc:
-            msg = "Upload directory missing from uploaded file!"
+            msg = "Upload directory missing from uploaded file"
             self.report.log(Level.FATAL, msg)
             # what do you mean unused?!
             raise StopIteration(
@@ -1312,7 +1310,7 @@ class TargetLoader:
 
         try:
             upload_dir = next(up_iter)
-            self.report.log(Level.WARNING, "Multiple upload directories in archive!")
+            self.report.log(Level.WARNING, "Multiple upload directories in archive")
         except StopIteration:
             # just a warning, ignoring the second one
             pass
@@ -1335,7 +1333,7 @@ class TargetLoader:
         try:
             self.target_name = config["target_name"]
         except KeyError as exc:
-            raise KeyError("target_name missing in config file!") from exc
+            raise KeyError("target_name missing in config file") from exc
 
         self.process_metadata(
             upload_root=upload_dir,
@@ -1346,7 +1344,7 @@ class TargetLoader:
             with open(yaml_file, "r", encoding="utf-8") as file:
                 contents = yaml.safe_load(file)
         except FileNotFoundError as exc:
-            msg = f"{yaml_file.stem} file not found in data archive!"
+            msg = f"{yaml_file.stem} file not found in data archive"
             # logger.error("%s%s", self.task_id, msg)
             self.report.log(Level.FATAL, msg)
             raise FileNotFoundError(msg) from exc
@@ -1537,7 +1535,7 @@ def load_target(
                 msg = f"Data extraction complete: {data_bundle}"
                 logger.info("%s%s", target_loader.report.task_id, msg)
         except FileNotFoundError as exc:
-            msg = f"{data_bundle} file does not exist!"
+            msg = f"{data_bundle} file does not exist"
             logger.exception("%s%s", target_loader.report.task_id, msg)
             target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(msg) from exc
