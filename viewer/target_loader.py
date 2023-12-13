@@ -4,6 +4,7 @@ import logging
 import math
 import os
 import tarfile
+import traceback
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -116,11 +117,11 @@ class ProcessedObject:
 
 @dataclass
 class UploadReportEntry:
-    level: Level
     message: str
+    level: Level | None = None
 
     def __str__(self):
-        return ": ".join([self.level, self.message])
+        return ": ".join([k for k in (self.level, self.message) if k])
 
 
 @dataclass
@@ -148,13 +149,15 @@ class UploadReport:
         self.stack.append(UploadReportEntry(level=level, message=message))
         self._update_task(message)
 
-    def final(self, level: Level = Level.INFO, message: str = ""):
+    def final(self, archive_name):
         if self.upload_state == UploadState.PROCESSING:
             self.upload_state = UploadState.SUCCESS
+            message = f"{archive_name} uploaded successfully."
         else:
             self.upload_state = UploadState.FAILED
+            message = f"Uploading {archive_name} failed."
 
-        self.stack.append(UploadReportEntry(level=level, message=message))
+        self.stack.append(UploadReportEntry(message=message))
         self._update_task(self.json())
 
     def json(self):
@@ -431,17 +434,12 @@ class TargetLoader:
         - dictionary in unexpected format, unable to extract filename
 
         """
-        # TODO: don't like that I have to provide protein_name solely
-        # for error logging purposes
 
-        def logfunc(key, logstr, *args):
+        def logfunc(key, message):
             if key in required:
-                logger.error(logstr, *args)
-                # add msg to record
-                # don't i want something on class level? and maybe just override here?
-
+                self.report.log(Level.FATAL, message)
             else:
-                logger.warning(logstr, *args)
+                self.report.log(Level.WARNING, message)
 
         result = {}
         for key, value in file_struct.items():
@@ -459,7 +457,10 @@ class TargetLoader:
                 except KeyError:
                     # this is rather unexpected, haven't seen it yet
                     logfunc(
-                        key, "%s: malformed dict, key 'file' missing!", obj_identifier
+                        key,
+                        "{}: malformed dict, key 'file' missing!".format(
+                            obj_identifier
+                        ),
                     )
 
                     # unable to extract file from dict, no point to
@@ -483,13 +484,15 @@ class TargetLoader:
             file_path = self.raw_data.joinpath(filename)
             if file_path.is_file():
                 if file_hash and file_hash != calculate_sha256(file_path):
-                    logfunc(key, "Invalid hash for file %s!", filename)
+                    logfunc(key, "Invalid hash for file {}!".format(filename))
             else:
                 logfunc(
                     key,
-                    "% referenced in %s but not found in archive!",
-                    key,
-                    METADATA_FILE,
+                    "{} referenced in {}: {} but not found in archive!".format(
+                        key,
+                        METADATA_FILE,
+                        obj_identifier,
+                    ),
                 )
 
         files = []
@@ -499,10 +502,11 @@ class TargetLoader:
             except KeyError:
                 logfunc(
                     f,
-                    "%: file %s expected but not found in %s file!",
-                    obj_identifier,
-                    f,
-                    METADATA_FILE,
+                    "{}: file {} expected but not found in {} file!".format(
+                        obj_identifier,
+                        f,
+                        METADATA_FILE,
+                    ),
                 )
                 files.append(None)
 
@@ -558,8 +562,11 @@ class TargetLoader:
         ) = self.validate_files(
             obj_identifier=experiment_name,
             file_struct=data["crystallographic_files"],
-            required=("xtal_pdb", "xtal_mtz"),
-            recommended=("ligand_cif",),
+            required=("xtal_pdb",),
+            recommended=(
+                "xtal_mtz",
+                "ligand_cif",
+            ),
         )
 
         dtype = extract(key="type")
@@ -1012,7 +1019,7 @@ class TargetLoader:
             data=data,
             section_name="crystals",
             item_name=experiment_id,
-            level=Level.INFO,
+            level=Level.WARNING,
         )
 
         experiment = experiments[experiment_id].instance
@@ -1029,11 +1036,11 @@ class TargetLoader:
             apo_solv_file,
             apo_desolv_file,
             apo_file,
+            artefacts_file,
+            ligand_mol,
             xmap_2fofc_file,
             xmap_fofc_file,
             event_file,
-            artefacts_file,
-            ligand_mol,
         ) = self.validate_files(
             obj_identifier=experiment_id,
             file_struct=data,
@@ -1042,13 +1049,13 @@ class TargetLoader:
                 "pdb_apo_solv",
                 "pdb_apo_desolv",
                 "pdb_apo",
-                "2Fo-Fc_map",
-                "Fo-Fc_map",
-                "event_map",
             ),
             recommended=(
                 "artefacts",
                 "ligand_mol",
+                "2Fo-Fc_map",
+                "Fo-Fc_map",
+                "event_map",
             ),
         )
 
@@ -1132,7 +1139,9 @@ class TargetLoader:
         if self._is_already_uploaded(target_created, project_created):
             # remove uploaded file
             Path(self.bundle_path).unlink()
-            raise FileExistsError(f"{self.bundle_name} already uploaded, skipping.")
+            msg = f"{self.bundle_name} already uploaded, skipping."
+            self.report.log(Level.INFO, msg)
+            raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
             self.project.open_to_public = True
@@ -1316,7 +1325,9 @@ class TargetLoader:
         try:
             config_file = next(config_it)
         except StopIteration as exc:
-            raise StopIteration(f"config file missing from {str(upload_dir)}") from exc
+            msg = f"config file missing from {str(upload_dir)}"
+            self.report.log(Level.FATAL, msg)
+            raise StopIteration() from exc
 
         config = self._load_yaml(config_file)
         logger.debug("config: %s", config)
@@ -1326,24 +1337,9 @@ class TargetLoader:
         except KeyError as exc:
             raise KeyError("target_name missing in config file!") from exc
 
-        try:
-            self.process_metadata(
-                upload_root=upload_dir,
-            )
-        except FileNotFoundError as exc:
-            # result.append(exc.args[0])
-            raise FileNotFoundError(exc.args[0]) from exc
-        except IntegrityError as exc:
-            # result.append(exc.args[0])
-            raise IntegrityError(exc.args[0]) from exc
-        except ValueError as exc:
-            # result.append(exc.args[0])
-            raise ValueError(exc.args[0]) from exc
-        except FileExistsError as exc:
-            # this target has been uploaded at- least once and
-            # this upload already exists. skip
-            # result.append(exc.args[0])
-            raise FileExistsError(exc.args[0]) from exc
+        self.process_metadata(
+            upload_root=upload_dir,
+        )
 
     def _load_yaml(self, yaml_file: Path) -> dict:
         try:
@@ -1352,6 +1348,7 @@ class TargetLoader:
         except FileNotFoundError as exc:
             msg = f"{yaml_file.stem} file not found in data archive!"
             # logger.error("%s%s", self.task_id, msg)
+            self.report.log(Level.FATAL, msg)
             raise FileNotFoundError(msg) from exc
 
         return contents
@@ -1359,7 +1356,6 @@ class TargetLoader:
     # TODOL error handling. what's the correct response when
     # something's missing? push through and compile report?
     def _get_yaml_blocks(self, yaml_data: dict, blocks: Iterable) -> list[dict]:
-        validation_errors = []
         error_text = "'{}' section missing in input file"
         result = []
         for block in blocks:
@@ -1367,15 +1363,7 @@ class TargetLoader:
                 result.append(yaml_data[block])
             except KeyError:
                 msg = error_text.format(block)
-                validation_errors.append(msg)
-                # update_task(self.task, "ERROR", msg)
-                # logger.error("%s%s", self.task_id, msg)
-
-        # wonder if it's worth throwing a custom exception here.. easier
-        # to scan the logs. then again, if errors are passed to user,
-        # inspecting logs isn't really necessary?
-        if validation_errors:
-            raise KeyError(validation_errors)
+                self.report.log(Level.FATAL, msg)
 
         return result
 
@@ -1557,25 +1545,25 @@ def load_target(
         try:
             with transaction.atomic():
                 target_loader.process_bundle()
-        except FileNotFoundError as exc:
-            logger.error(exc.args[0])
-            target_loader.experiment_upload.message = exc.args[0]
-            raise FileNotFoundError(exc.args[0]) from exc
+                if target_loader.report.failed:
+                    # need to trigger transaction failure
+                    raise IntegrityError(
+                        f"Uploading {target_loader.data_bundle} failed"
+                    )
         except IntegrityError as exc:
             logger.error(exc, exc_info=True)
-            target_loader.experiment_upload.message = exc.args[0]
-            raise IntegrityError(exc.args[0]) from exc
-        except ValueError as exc:
+            target_loader.report.final(target_loader.data_bundle)
+            target_loader.experiment_upload.message = target_loader.report.json()
+            raise IntegrityError from exc
+
+        except (FileExistsError, FileNotFoundError, StopIteration) as exc:
+            raise Exception from exc
+
+        except Exception as exc:
+            # catching and logging any other error
             logger.error(exc, exc_info=True)
-            raise IntegrityError(exc.args[0]) from exc
-        except FileExistsError as exc:
-            logger.error(exc.args[0])
-            target_loader.experiment_upload.message = exc.args[0]
-            raise FileExistsError(exc.args[0]) from exc
-        except AssertionError as exc:
-            logger.error(exc.args[0])
-            target_loader.experiment_upload.message = exc.args[0]
-            raise AssertionError(exc.args[0]) from exc
+            target_loader.report.log(Level.FATAL, traceback.format_exc())
+            raise Exception from exc
 
         # move to final location
         target_loader.abs_final_path.mkdir(parents=True)
@@ -1586,7 +1574,7 @@ def load_target(
 
         set_directory_permissions(target_loader.abs_final_path, 0o755)
 
-        target_loader.report.final()
+        target_loader.report.final(target_loader.data_bundle)
         target_loader.experiment_upload.message = target_loader.report.json()
 
         # logger.debug("%s", upload_report)
