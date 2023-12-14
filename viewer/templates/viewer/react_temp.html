@@ -15,7 +15,8 @@
 
  {% if user.is_authenticated %}
      var DJANGO_CONTEXT ={
-         username: '{{user.username}}',
+         legacy_url: '{{ legacy_url }}',
+         username: '{{ user.username }}',
          email: '{{ user.email|default:"noemail" }}',
          pk: {{user.pk|default:-1}},
          authenticated: true,
@@ -27,6 +28,7 @@
      }
  {% else %}
      var DJANGO_CONTEXT = {
+         legacy_url: '{{ legacy_url }}',
          username: 'NOT_LOGGED_IN',
          email: "noemail",
          pk: undefined,

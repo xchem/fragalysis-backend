@@ -106,6 +106,15 @@ def get_conn() -> Optional[Connector]:
     return conn
 
 
+def get_configured_connector() -> Optional[Union[Connector, SSHConnector]]:
+    if connector == 'ispyb':
+        return get_conn()
+    elif connector == 'ssh_ispyb':
+        return get_remote_conn()
+    else:
+        return None
+
+
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """
@@ -190,11 +199,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         logger.info("user=%s needs_updating=%s", user.username, needs_updating)
 
         if needs_updating:
-            conn: Optional[Union[Connector, SSHConnector]] = None
-            if connector == 'ispyb':
-                conn = get_conn()
-            elif connector == 'ssh_ispyb':
-                conn = get_remote_conn()
+            conn: Optional[Union[Connector, SSHConnector]] = get_configured_connector()
 
             # If there is no connection (ISPyB credentials may be missing)
             # then there's nothing we can do except return an empty list.
