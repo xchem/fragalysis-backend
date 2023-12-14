@@ -337,7 +337,7 @@ class MolOps:
                     )
 
                 if qs.count() > 1:
-                    ids = [m.cmpd_id.id for m in qs]
+                    ids = [m.cmpd.id for m in qs]
                     ind = ids.index(max(ids))
                     ref = qs[ind]
                 elif qs.count() == 1:
