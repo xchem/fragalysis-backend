@@ -28,6 +28,7 @@
      }
  {% else %}
      var DJANGO_CONTEXT = {
+         legacy_url: '{{ legacy_url }}',
          username: 'NOT_LOGGED_IN',
          email: "noemail",
          pk: undefined,
