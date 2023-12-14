@@ -69,13 +69,13 @@ class XtalformSiteFilter(TargetFilterMixin):
 class VectorFilter(TargetFilterMixin):
     class Meta:
         model = SiteObservation
-        fields = ("id", "target", "cmpd_id", "smiles", "site_observation_groups")
+        fields = ("id", "target", "cmpd", "smiles", "site_observation_groups")
 
 
 class GraphFilter(TargetFilterMixin):
     class Meta:
         model = SiteObservation
-        fields = ("target", "cmpd_id", "smiles", "site_observation_groups")
+        fields = ("target", "cmpd", "smiles", "site_observation_groups")
 
 
 class MolpropsFilter(TargetFilterMixin):
@@ -87,7 +87,7 @@ class MolpropsFilter(TargetFilterMixin):
 class MolImgFilter(TargetFilterMixin):
     class Meta:
         model = SiteObservation
-        fields = ("target", "cmpd_id", "smiles", "site_observation_groups")
+        fields = ("target", "cmpd", "smiles", "site_observation_groups")
 
 
 class CmpdImgFilter(TargetFilterMixin):

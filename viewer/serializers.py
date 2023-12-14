@@ -420,12 +420,17 @@ class VectorsSerializer(serializers.ModelSerializer):
 
     def get_vectors(self, obj):
         out_data = {}
-        try:
-            out_data["3d"] = get_3d_vects_for_mol(obj.ligand_mol_file, iso_labels=False)
-        # temporary patch
-        except IndexError:
-            out_data["3d"] = get_3d_vects_for_mol(obj.ligand_mol_file, iso_labels=True)
-        out_data["indices"] = get_vect_indices_for_mol(obj.ligand_mol_file)
+        if obj.ligand_mol_file:
+            try:
+                out_data["3d"] = get_3d_vects_for_mol(
+                    obj.ligand_mol_file, iso_labels=False
+                )
+            # temporary patch
+            except IndexError:
+                out_data["3d"] = get_3d_vects_for_mol(
+                    obj.ligand_mol_file, iso_labels=True
+                )
+            out_data["indices"] = get_vect_indices_for_mol(obj.ligand_mol_file)
         return out_data
 
     class Meta:
