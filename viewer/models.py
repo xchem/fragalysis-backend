@@ -947,8 +947,24 @@ class ComputedMolecule(models.Model):
     compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
     sdf_info = models.TextField(help_text="The 3D coordinates for the molecule")
     computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE)
-    name = models.CharField(max_length=50)
+    name = models.CharField(
+        max_length=50, help_text="A combination of Target and Identifier"
+    )
+    molecule_name = models.CharField(
+        max_length=50,
+        help_text="Set from the _Name property of the underlying Molecule",
+        null=True,
+        blank=True,
+    )
     smiles = models.CharField(max_length=255)
+    identifier = ShortUUIDField(
+        length=4,
+        alphabet="ACDEFGHJKLMNPRSTUVWXYZ23456789",
+        null=True,
+        blank=True,
+        help_text="A four character string of non-confusing uppercase letters and digits for easy reference."
+        " This is combined with the Target to form the ComputedMolecule's name",
+    )
     computed_inspirations = models.ManyToManyField(SiteObservation, blank=True)
     ref_url = models.TextField(
         null=True,
@@ -1052,7 +1068,7 @@ class DiscourseCategory(models.Model):
     )
 
     def __str__(self):
-        return self.author
+        return self.author.username
 
     def __repr__(self) -> str:
         return "<DiscourseCategory %r %r %r>" % (
@@ -1083,7 +1099,7 @@ class DiscourseTopic(models.Model):
     discourse_topic_id = models.IntegerField()
 
     def __str__(self):
-        return self.author
+        return self.author.username
 
     def __repr__(self) -> str:
         return "<DiscourseTopic %r %r %r>" % (self.id, self.author, self.topic_title)

@@ -300,13 +300,15 @@ class MolOps:
 
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
-        name = mol.GetProp('_Name')
+        molecule_name = mol.GetProp('_Name')
         long_inchi = None
         if len(inchi) > 255:
             long_inchi = inchi
             inchi = inchi[:254]
 
-        ref_cpd: Compound = self.create_mol(inchi, name=name, long_inchi=long_inchi)
+        ref_cpd: Compound = self.create_mol(
+            inchi, name=molecule_name, long_inchi=long_inchi
+        )
 
         mol_block = Chem.MolToMolBlock(mol)
 
@@ -356,7 +358,7 @@ class MolOps:
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
         existing_computed_molecules = ComputedMolecule.objects.filter(
-            name=name, smiles=smiles, computed_set=compound_set
+            molecule_name=molecule_name, smiles=smiles, computed_set=compound_set
         )
 
         computed_molecule: Optional[ComputedMolecule] = None
@@ -379,7 +381,8 @@ class MolOps:
         computed_molecule.compound = ref_cpd
         computed_molecule.computed_set = compound_set
         computed_molecule.sdf_info = mol_block
-        computed_molecule.name = name
+        computed_molecule.molecule_name = molecule_name
+        computed_molecule.name = f"{target}-{computed_molecule.identifier}"
         computed_molecule.smiles = smiles
         # Extract possible reference URL and Rationale
         # URLs have to be valid URLs and rationals must contain more than one word
@@ -391,10 +394,11 @@ class MolOps:
             mol.GetProp('rationale') if mol.HasProp('rationale') else None
         )
         computed_molecule.rationale = rationale if word_count(rationale) > 1 else None
-        # To void the error
+        # To avoid the error...
         #   needs to have a value for field "id"
         #   before this many-to-many relationship can be used.
-        # We must save this ComputedMolecule before adding inspirations
+        # We must save this ComputedMolecule to generate an "id"
+        # before adding inspirations
         computed_molecule.save()
         for insp_frag in insp_frags:
             computed_molecule.computed_inspirations.add(insp_frag)

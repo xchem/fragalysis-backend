@@ -91,7 +91,7 @@ class ViewerUtilsTestCase(SimpleTestCase):
         self.assertFalse(is_url(None))
 
     def test_word_count(self):
-        self.assertEquals(2, word_count("Hello world"))
-        self.assertEquals(1, word_count("Hello"))
-        self.assertEquals(0, word_count(""))
-        self.assertEquals(0, word_count(None))
+        self.assertEqual(2, word_count("Hello world"))
+        self.assertEqual(1, word_count("Hello"))
+        self.assertEqual(0, word_count(""))
+        self.assertEqual(0, word_count(None))
