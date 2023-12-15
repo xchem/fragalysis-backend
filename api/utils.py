@@ -1,5 +1,8 @@
+import re
 import xml.etree.ElementTree as ET
+from typing import Optional, Tuple
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
@@ -20,6 +23,9 @@ ISO_COLOUR_MAP = {
     107: (1, 0.5, 1),
 }
 
+# Target Access String (TAS) regular expression.
+TAS_REGEX_RE: re.Pattern = re.compile(settings.TAS_REGEX)
+
 
 def get_token(request):
     """
@@ -34,6 +40,15 @@ def get_token(request):
         return token.key
     except ObjectDoesNotExist:
         return ""
+
+
+def validate_tas(tas: str) -> Tuple[bool, Optional[str]]:
+    """Validate a Target Access String against the defined regular expression.
+    If the match fails the TAS_ERROR_MSG is returned.
+    """
+    if TAS_REGEX_RE.match(tas):
+        return True, None
+    return False, settings.TAS_ERROR_MSG
 
 
 def _transparentsvg(svg):
