@@ -47,16 +47,16 @@ repos:
 # --------------------------------
 
 # MyPy
-#- repo: https://github.com/pre-commit/mirrors-mypy
-#  rev: v1.7.1
-#  hooks:
-#  - id: mypy
-#    additional_dependencies:
-#    - types-PyYAML
-#    - types-pymysql
-#    - types-pytz
-#    - types-python-dateutil
-#    - types-requests
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v1.7.1
+  hooks:
+  - id: mypy
+    additional_dependencies:
+    - types-PyYAML
+    - types-pymysql
+    - types-pytz
+    - types-python-dateutil
+    - types-requests
 
 # Pylint
 - repo: https://github.com/pycqa/pylint

@@ -54,10 +54,6 @@ CONFIG_FILE = "config*.yaml"
 METADATA_FILE = "meta_aligner.yaml"
 
 
-# type hint for Djanog model instance
-ModelInstance = TypeVar("ModelInstance", bound=Model)
-
-
 class UploadState(str, Enum):
     """Target loader progress state.
 
@@ -91,7 +87,7 @@ class MetadataObject:
     dicts with key that are needed.
     """
 
-    instance: ModelInstance
+    instance: Model
     index_data: dict = field(default_factory=dict)
 
 
@@ -875,7 +871,7 @@ class TargetLoader:
     @create_objects(depth=1)
     def process_canon_site_conf(
         self,
-        canon_sites: dict[str, ModelInstance],
+        canon_sites: dict[str, Model],
         item_data: tuple[str, dict] | None = None,
         **kwargs,
     ) -> ProcessedObject | None:
@@ -930,7 +926,7 @@ class TargetLoader:
     def process_xtalform_site(
         self,
         xtalforms: dict[int | str, MetadataObject],
-        canon_sites: dict[str, ModelInstance],
+        canon_sites: dict[str, Model],
         item_data: tuple[str, dict] | None = None,
         **kwargs,
     ) -> ProcessedObject | None:
@@ -989,7 +985,7 @@ class TargetLoader:
         self,
         experiments: dict[int | str, MetadataObject],
         compounds: dict[int | str, MetadataObject],
-        xtalform_sites: dict[str, ModelInstance],
+        xtalform_sites: dict[str, Model],
         canon_site_confs: dict[int | str, MetadataObject],
         item_data: tuple[str, str, str, int | str, int | str, dict] | None = None,
         # chain: str,
@@ -1068,17 +1064,18 @@ class TargetLoader:
         )
 
         mol_data = None
-        try:
-            with open(
-                self.raw_data.joinpath(ligand_mol),
-                "r",
-                encoding="utf-8",
-            ) as f:
-                mol_data = f.read()
-        except TypeError:
-            # this site observation doesn't have a ligand. perfectly
-            # legitimate case
-            pass
+        if ligand_mol:
+            try:
+                with open(
+                    self.raw_data.joinpath(ligand_mol),
+                    "r",
+                    encoding="utf-8",
+                ) as f:
+                    mol_data = f.read()
+            except TypeError:
+                # this site observation doesn't have a ligand. perfectly
+                # legitimate case
+                pass
 
         smiles = extract(key="ligand_smiles")
 
