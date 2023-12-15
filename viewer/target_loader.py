@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Iterable, Optional, TypeVar
+from typing import Any, Dict, Iterable, Optional, TypeVar
 
 import yaml
 from celery import Task
@@ -163,17 +163,18 @@ class UploadReport:
     def json(self):
         return [str(k) for k in self.stack]
 
-    def _update_task(self, message: str | list):
-        try:
-            self.task.update_state(
-                state=self.upload_state,
-                meta={
-                    "description": message,
-                },
-            )
-        except AttributeError:
-            # no task passed to method, nothing to do
-            pass
+    def _update_task(self, message: str | list) -> None:
+        if self.task:
+            try:
+                self.task.update_state(
+                    state=self.upload_state,
+                    meta={
+                        "description": message,
+                    },
+                )
+            except AttributeError:
+                # no task passed to method, nothing to do
+                pass
 
 
 def _flatten_dict_gen(d: dict, parent_key: tuple | str | int, depth: int):
@@ -205,7 +206,7 @@ def flatten_dict(d: dict, parent_key: tuple | int | str = "", depth: int = 1):
     return _flatten_dict_gen(d, parent_key, depth)
 
 
-def set_directory_permissions(path, permissions):
+def set_directory_permissions(path, permissions) -> None:
     for root, dirs, files in os.walk(path):
         # Set permissions for directories
         for directory in dirs:
@@ -219,7 +220,7 @@ def set_directory_permissions(path, permissions):
 
 
 # borrowed from SO
-def calculate_sha256(filepath):
+def calculate_sha256(filepath) -> str:
     sha256_hash = hashlib.sha256()
     with open(filepath, "rb") as f:
         # Read the file in chunks of 4096 bytes
@@ -540,6 +541,7 @@ class TargetLoader:
         This is enough to save full instance
         """
         del kwargs
+        assert item_data
         logger.debug("incoming data: %s", item_data)
         experiment_name, data = item_data
 
@@ -645,6 +647,7 @@ class TargetLoader:
         NB! After creation, many2many with project needs to be populated
         """
         del kwargs
+        assert item_data
         logger.debug("incoming data: %s", item_data)
         protein_name, data = item_data
         if (
@@ -702,6 +705,7 @@ class TargetLoader:
         Saves all references to other tables (QuatAssembly and Experiment).
         """
         del kwargs
+        assert item_data
         # weirdly, none of the fields is mandatory in Xtalform
         xtalform_name, data = item_data
 
@@ -745,6 +749,7 @@ class TargetLoader:
         No references to other models.
         """
         del kwargs
+        assert item_data
         assembly_name, data = item_data
 
         extract = functools.partial(
@@ -784,6 +789,7 @@ class TargetLoader:
 
         """
         del kwargs
+        assert item_data
         xtalform_id, _, _, data = item_data
 
         # hm.. doesn't reflect the fact that it's from a different
@@ -833,6 +839,7 @@ class TargetLoader:
 
         """
         del kwargs
+        assert item_data
         canon_site_id, data = item_data
 
         extract = functools.partial(
@@ -884,6 +891,7 @@ class TargetLoader:
         - SiteObservation (ref_site_observation)
         """
         del kwargs
+        assert item_data
         conf_site_name, data = item_data
         canon_site = canon_sites[conf_site_name]
 
@@ -938,6 +946,7 @@ class TargetLoader:
         Saves references to all other tables (Xtalform and CanonSite).
         """
         del kwargs
+        assert item_data
         xtalform_site_name, data = item_data
 
         extract = functools.partial(
@@ -1006,6 +1015,7 @@ class TargetLoader:
         }
         """
         del kwargs
+        assert item_data
         try:
             experiment_id, _, chain, ligand, idx, data = item_data
         except ValueError:
@@ -1142,10 +1152,12 @@ class TargetLoader:
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
+            assert self.project
             self.project.open_to_public = True
             self.project.save()
 
         # populate m2m field
+        assert self.target
         self.target.project_id.add(self.project)
 
         self.experiment_upload.project = self.project
@@ -1402,7 +1414,7 @@ class TargetLoader:
         # use the same functions..
 
         logger.debug("Getting category %s", category)
-        groups = {}
+        groups: Dict[str, Any] = {}
         for _, obj in site_observation_objects.items():
             if category == "ConformerSites":
                 tags = [
@@ -1456,13 +1468,15 @@ class TargetLoader:
                     target=self.target, description=tag
                 )
             except SiteObservationGroup.DoesNotExist:
-                so_group = SiteObservationGroup(target_id=self.target.pk)
+                assert self.target
+                so_group = SiteObservationGroup.objects.get(target_id=self.target.pk)
                 so_group.save()
             except MultipleObjectsReturned:
                 SiteObservationGroup.objects.filter(
                     target=self.target, description=tag
                 ).delete()
-                so_group = SiteObservationGroup(target_id=self.target.pk)
+                assert self.target
+                so_group = SiteObservationGroup.objects.get(target_id=self.target.pk)
                 so_group.save()
 
             try:
@@ -1507,7 +1521,7 @@ class TargetLoader:
         database tables.
         """
         try:
-            return self.final_path.joinpath(path)
+            return self.final_path.joinpath(path)  # type: ignore[arg-type]
         except TypeError:
             # received invalid path
             return None

@@ -3,7 +3,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 from wsgiref.util import FileWrapper
 
 from django.db.models import Q
@@ -16,11 +16,11 @@ from viewer.models import Project
 
 from .remote_ispyb_connector import SSHConnector
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-USER_LIST_DICT = {}
+USER_LIST_DICT: Dict[str, Any] = {}
 
-connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
+connector: str = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 
 # example test:
 # from rest_framework.test import APIRequestFactory
@@ -39,7 +39,7 @@ connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 
 
 def get_remote_conn() -> Optional[SSHConnector]:
-    ispyb_credentials = {
+    ispyb_credentials: Dict[str, Any] = {
         "user": os.environ.get("ISPYB_USER"),
         "pw": os.environ.get("ISPYB_PASSWORD"),
         "host": os.environ.get("ISPYB_HOST"),
@@ -48,7 +48,7 @@ def get_remote_conn() -> Optional[SSHConnector]:
         "conn_inactivity": 360,
     }
 
-    ssh_credentials = {
+    ssh_credentials: Dict[str, Any] = {
         'ssh_host': os.environ.get("SSH_HOST"),
         'ssh_user': os.environ.get("SSH_USER"),
         'ssh_password': os.environ.get("SSH_PASSWORD"),
@@ -65,7 +65,7 @@ def get_remote_conn() -> Optional[SSHConnector]:
         return None
 
     # Try to get an SSH connection (aware that it might fail)
-    conn: SSHConnector = None
+    conn: Optional[SSHConnector] = None
     try:
         conn = SSHConnector(**ispyb_credentials)
     except Exception:
@@ -79,7 +79,7 @@ def get_remote_conn() -> Optional[SSHConnector]:
 
 
 def get_conn() -> Optional[Connector]:
-    credentials = {
+    credentials: Dict[str, Any] = {
         "user": os.environ.get("ISPYB_USER"),
         "pw": os.environ.get("ISPYB_PASSWORD"),
         "host": os.environ.get("ISPYB_HOST"),
@@ -93,7 +93,7 @@ def get_conn() -> Optional[Connector]:
     if not credentials["host"]:
         return None
 
-    conn = None
+    conn: Optional[Connector] = None
     try:
         conn = Connector(**credentials)
     except Exception:
@@ -111,8 +111,7 @@ def get_configured_connector() -> Optional[Union[Connector, SSHConnector]]:
         return get_conn()
     elif connector == 'ssh_ispyb':
         return get_remote_conn()
-    else:
-        return None
+    return None
 
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):

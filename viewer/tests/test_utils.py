@@ -87,7 +87,7 @@ class ViewerUtilsTestCase(SimpleTestCase):
         self.assertTrue(is_url("prospero://example.com"))
         # SOme failures...
         self.assertFalse(is_url("/data/blob.html"))
-        self.assertFalse(is_url(532))
+        self.assertFalse(is_url(532))  # type: ignore[arg-type]
         self.assertFalse(is_url(None))
 
     def test_word_count(self):
