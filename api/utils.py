@@ -48,7 +48,7 @@ def validate_tas(tas: str) -> Tuple[bool, Optional[str]]:
     """
     if TAS_REGEX_RE.match(tas):
         return True, None
-    return False, settings.TAS_ERROR_MSG
+    return False, settings.TAS_REGEX_ERROR_MSG
 
 
 def _transparentsvg(svg):
