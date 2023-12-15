@@ -18,6 +18,9 @@ DELAY = 10
 # Default timeout for any request calls
 REQUEST_TIMEOUT_S = 5
 
+_NEO4J_LOCATION: str = os.environ.get("NEO4J_QUERY", "neo4j")
+_NEO4J_AUTH: str = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
+
 
 class State(str, Enum):
     NOT_CONFIGURED = "NOT_CONFIGURED"
@@ -186,8 +189,7 @@ def fragmentation_graph(func_id, name, url=None) -> bool:
     del func_id, name, url
 
     logger.debug("+ fragmentation_graph")
-    # graph_driver = get_driver(url='neo4j', neo4j_auth='neo4j/password')
-    graph_driver = get_driver()
+    graph_driver = get_driver(url=_NEO4J_LOCATION, neo4j_auth=_NEO4J_AUTH)
     with graph_driver.session() as session:
         try:
             _ = session.run("match (n) return count (n);")
