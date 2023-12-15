@@ -1543,7 +1543,7 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
 
         logger.debug("Serializer validated_data=%s", serializer.validated_data)
 
-        proposal_ref = serializer.validated_data['proposal_ref']
+        target_access_string = serializer.validated_data['target_access_string']
         contact_email = serializer.validated_data['contact_email']
         filename = serializer.validated_data['file']
 
@@ -1558,7 +1558,7 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
 
         task = task_load_target.delay(
             data_bundle=str(target_file),
-            proposal_ref=proposal_ref,
+            proposal_ref=target_access_string,
             contact_email=contact_email,
             user_id=request.user.pk,
         )
