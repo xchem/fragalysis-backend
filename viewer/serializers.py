@@ -13,7 +13,7 @@ from rdkit.Chem import Descriptors
 from rest_framework import serializers
 
 from api.security import ISpyBSafeQuerySet
-from api.utils import draw_mol
+from api.utils import draw_mol, validate_tas
 from scoring.models import SiteObservationGroup
 from viewer import models
 from viewer.target_set_upload import sanitize_mol
@@ -903,13 +903,20 @@ class TargetExperimentReadSerializer(serializers.ModelSerializer):
 
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
-    proposal_ref = serializers.CharField(label='Proposal Ref.')
+    target_access_string = serializers.CharField(label='Target Access String')
     contact_email = serializers.EmailField(required=False, default=None)
+
+    def validate(self, data):
+        """Verify TAS is correctly formed."""
+        success, error_msg = validate_tas(data['target_access_string'])
+        if not success:
+            raise serializers.ValidationError({"target_access_string": error_msg})
+        return data
 
     class Meta:
         model = models.ExperimentUpload
         fields = (
-            'proposal_ref',
+            'target_access_string',
             'contact_email',
             'file',
         )

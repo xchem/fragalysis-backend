@@ -30,7 +30,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.security import ISpyBSafeQuerySet
-from api.utils import get_highlighted_diffs, get_params, pretty_request, validate_tas
+from api.utils import get_highlighted_diffs, get_params, pretty_request
 from viewer import filters, models, serializers
 from viewer.services import get_service_state
 from viewer.squonk2_agent import (
@@ -1544,10 +1544,6 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
         logger.debug("Serializer validated_data=%s", serializer.validated_data)
 
         proposal_ref = serializer.validated_data['proposal_ref']
-        success, error_msg = validate_tas(proposal_ref)
-        if not success:
-            return Response({'error': error_msg}, status=status.HTTP_400_BAD_REQUEST)
-
         contact_email = serializer.validated_data['contact_email']
         filename = serializer.validated_data['file']
 
