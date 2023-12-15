@@ -383,8 +383,8 @@ LEGACY_URL = os.environ.get("LEGACY_URL", "")
 SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
 SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
 
-# The Target Access String (TAS) regular expression.
-# If set the Project title (the TAS) must match this expression to be valid.
+# The Target Access String (TAS) Python regular expression.
+# The Project title (the TAS) must match this expression to be valid.
 # See api/utils.py validate_tas() for the current implementation.
 # To simplify error messages when the match fails you can also
 # add an error message.

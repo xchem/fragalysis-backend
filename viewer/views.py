@@ -30,7 +30,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.security import ISpyBSafeQuerySet
-from api.utils import get_highlighted_diffs, get_params, pretty_request
+from api.utils import get_highlighted_diffs, get_params, pretty_request, validate_tas
 from viewer import filters, models, serializers
 from viewer.services import get_service_state
 from viewer.squonk2_agent import (
@@ -1538,39 +1538,39 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
         del args, kwargs
 
         serializer = self.get_serializer_class()(data=request.data)
-        if serializer.is_valid():
-            logger.debug("Serializer valid: %s", serializer)
-            logger.debug("Serializer valid: %s", serializer.validated_data)
-            # User must have access to the Project
-            # and the Target must be in the Project.
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            contact_email = serializer.validated_data['contact_email']
-            proposal_ref = serializer.validated_data['proposal_ref']
-            filename = serializer.validated_data['file']
+        logger.debug("Serializer validated_data=%s", serializer.validated_data)
 
-            # I'm not creating ExperimentUpload object here, so I
-            # suppose there's no point in keeping this as ModelViewSet
+        proposal_ref = serializer.validated_data['proposal_ref']
+        success, error_msg = validate_tas(proposal_ref)
+        if not success:
+            return Response({'error': error_msg}, status=status.HTTP_400_BAD_REQUEST)
 
-            # memo to self: cannot use TemporaryDirectory here because task
-            temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
-            temp_path.mkdir(exist_ok=True)
-            target_file = temp_path.joinpath(filename.name)
-            handle_uploaded_file(target_file, filename)
+        contact_email = serializer.validated_data['contact_email']
+        filename = serializer.validated_data['file']
 
-            task = task_load_target.delay(
-                data_bundle=str(target_file),
-                proposal_ref=proposal_ref,
-                contact_email=contact_email,
-                user_id=request.user.pk,
-            )
-            logger.info(
-                "+ UploadTargetExperiments.create  got Celery id %s", task.task_id
-            )
+        # I'm not creating ExperimentUpload object here, so I
+        # suppose there's no point in keeping this as ModelViewSet
 
-            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
-            # as it launches task, I think 202 is more appropriate
-            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # memo to self: cannot use TemporaryDirectory here because task
+        temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
+        temp_path.mkdir(exist_ok=True)
+        target_file = temp_path.joinpath(filename.name)
+        handle_uploaded_file(target_file, filename)
+
+        task = task_load_target.delay(
+            data_bundle=str(target_file),
+            proposal_ref=proposal_ref,
+            contact_email=contact_email,
+            user_id=request.user.pk,
+        )
+        logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
+
+        url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+        # as it launches task, I think 202 is more appropriate
+        return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
 class TaskStatus(APIView):
