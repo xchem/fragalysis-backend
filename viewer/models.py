@@ -468,7 +468,7 @@ class SiteObservation(models.Model):
         if site_observation and int(site_observation) != self.pk:
             return result
 
-        if cmpd_id and int(cmpd_id) != self.cmpd_id:
+        if cmpd_id and int(cmpd_id) != self.cmpd:
             return result
 
         if "." in self.smiles:

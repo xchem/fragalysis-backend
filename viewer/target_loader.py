@@ -1209,6 +1209,7 @@ class TargetLoader:
         ) in compound_objects.items():  # pylint: disable=no-member
             experiment = experiment_objects[comp_code].instance
             experiment.compounds.add(comp_meta.instance)
+            comp_meta.instance.project_id.add(self.experiment_upload.project)
 
         xtalform_objects = self.process_xtalform(yaml_data=xtalforms)
 
