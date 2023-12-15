@@ -866,7 +866,7 @@ class ComputedSet(models.Model):
         (REVOKED, 'REVOKED'),
     )
 
-    name = models.CharField(max_length=50, unique=True, primary_key=True)
+    name = models.CharField(max_length=101, unique=True, primary_key=True)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
     submitted_sdf = models.FileField(
         upload_to=COMPUTED_SET_SDF_ROOT,
@@ -882,19 +882,30 @@ class ComputedSet(models.Model):
         help_text="A url linking to a write-up of the methodology used to create the"
         " computed set",
     )
-    submitter = models.ForeignKey(
-        ComputedSetSubmitter, null=True, on_delete=models.CASCADE
+    submitter_name = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
     )
-    unique_name = models.CharField(
-        max_length=101,
-        help_text="A unique name for the computed set,"
-        " generated but the custom save() method",
+    method = models.CharField(
+        max_length=80,
+        null=True,
+        blank=True,
+        help_text="The name of the algorithmic method used to generate the compounds (e.g. Fragmenstein)",
     )
-
+    upload_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="The date the set was uploaded",
+    )
+    md_ordinal = models.SmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="The ordinal distinguishing between uploads using the same method and date",
+    )
     owner_user = models.ForeignKey(
         User, on_delete=models.CASCADE, default=settings.ANONYMOUS_USER
     )
-
     # The following fields will be used to track the computed set upload
     upload_task_id = models.CharField(
         null=True, max_length=50, help_text="The task ID of the upload Celery task"
@@ -915,30 +926,11 @@ class ComputedSet(models.Model):
         null=True, help_text="The datetime the upload was completed"
     )
 
-    def save(self, **kwargs):
-        """Custom save method for the ComputedSet model,
-        including the method to auto-generate the unique name:
-        unique_name = "".join(self.submitter.name.split()) + '-' + "".join(self.submitter.method.split())
-        """
-        # Unused arguments
-        del kwargs
-
-        if not self.submitter:
-            super(ComputedSet, self).save()
-        if not self.unique_name:
-            unique_name = (
-                "".join(self.submitter.name.split())
-                + '-'
-                + "".join(self.submitter.method.split())
-            )
-            self.unique_name = unique_name
-        super(ComputedSet, self).save()
-
     def __str__(self) -> str:
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return "<ComputedSet %r %r %r>" % (self.name, self.target, self.submitter)
+        return "<ComputedSet %r %r %r>" % (self.name, self.unique_name, self.target)
 
 
 class ComputedMolecule(models.Model):

@@ -465,36 +465,37 @@ class MolOps:
         return mols
 
     def task(self) -> ComputedSet:
-        sdf_filename = str(self.sdf_filename)
-
-        set_name = ''.join(
-            sdf_filename.split('/')[-1].replace('.sdf', '').split('_')[1:]
-        )
-        unique_name = (
-            "".join(self.submitter_name.split())
-            + '-'
-            + "".join(self.submitter_method.split())
-        )
-
-        existing = ComputedSet.objects.filter(unique_name=unique_name)
-        len_existing = len(existing)
-        logger.info(
-            'Existing ComputedSet.unique_name=%s len(existing)=%s',
-            unique_name,
-            len_existing,
-        )
-
-        if len_existing == 1:
-            logger.info('Using existing ComputedSet')
-            computed_set = existing[0]
-        elif len_existing > 1:
-            raise Exception(
-                'Too many ComputedSet instances exist'
-                f' (unique_name="{unique_name}" len_existing={len_existing})'
+        # Do we have any existing ComputedSets?
+        # Ones with the same method and upload date?
+        today: datetime.date = datetime.date.today()
+        existing_sets: List[ComputedSet] = ComputedSet.objects.filter(
+            method=self.submitter_method, upload_date=today
+        ).all()
+        # If so, find the one with the highest ordinal.
+        latest_ordinal: int = -1
+        for exiting_set in existing_sets:
+            if exiting_set.ordinal > latest_ordinal:
+                latest_ordinal = exiting_set.ordinal
+        if latest_ordinal:
+            logger.info(
+                'Found existing ComputedSets for method "%s" on %s (%d) latest ordinal=%d',
+                self.submitter_method,
+                str(today),
+                len(existing_sets),
+                latest_ordinal,
             )
-        else:
-            logger.info('Creating new ComputedSet')
-            computed_set = ComputedSet()
+        new_ordinal: int = latest_ordinal + 1
+
+        logger.info(
+            'Creating new ComputedSet %s-%s-%d',
+            self.submitter_method,
+            str(today),
+            new_ordinal,
+        )
+        computed_set: ComputedSet = ComputedSet()
+        computed_set.md_ordinal = new_ordinal
+        computed_set.upload_date = today
+        computed_set.method = self.submitter_method
 
         text_scores = TextScoreValues.objects.filter(score__computed_set=computed_set)
         num_scores = NumericalScoreValues.objects.filter(
@@ -504,15 +505,14 @@ class MolOps:
         old_mols = [o.compound for o in text_scores]
         old_mols.extend([o.compound for o in num_scores])
 
-        computed_set.name = set_name
-        matching_target = Target.objects.get(title=self.target)
-        computed_set.target = matching_target
+        # The computed set "name" consists of the "method",
+        # today's date and a number (ordinal). The ordinal
+        # is used to distinguish between computed sets uploaded
+        # with the same method on the same day.
+        computed_set.name = f"{computed_set.method}-{str(today)}-{new_ordinal}"
+        computed_set.target = Target.objects.get(title=self.target)
         computed_set.spec_version = float(self.version.strip('ver_'))
-        computed_set.unique_name = (
-            "".join(self.submitter_name.split())
-            + '-'
-            + "".join(self.submitter_method.split())
-        )
+        computed_set.submitter_name = self.submitter_name
         if self.user_id:
             computed_set.owner_user = User.objects.get(id=self.user_id)
         else:
@@ -523,6 +523,7 @@ class MolOps:
         logger.info('%s', computed_set)
 
         # set descriptions and get all other mols back
+        sdf_filename = str(self.sdf_filename)
         mols_to_process = self.set_descriptions(
             filename=sdf_filename, computed_set=computed_set
         )
