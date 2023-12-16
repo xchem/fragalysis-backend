@@ -1098,7 +1098,8 @@ class DiscourseTopic(models.Model):
     discourse_topic_id = models.IntegerField()
 
     def __str__(self):
-        return self.author.username
+        author: str = self.author.username if self.author else "None"
+        return f"{author} '{self.topic_title}'"
 
     def __repr__(self) -> str:
         return "<DiscourseTopic %r %r %r>" % (self.id, self.author, self.topic_title)
