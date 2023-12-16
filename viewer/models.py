@@ -866,29 +866,32 @@ class ComputedSet(models.Model):
         (REVOKED, 'REVOKED'),
     )
 
-    name = models.CharField(max_length=101, unique=True, primary_key=True)
+    LENGTH_SUBMITTER_NAME: int = 50
+    LENGTH_METHOD_NAME: int = 20
+    LENGTH_METHOD_URL: int = 1000
+    LENGTH_SUBMITTED_SDF: int = 255
+
+    name = models.CharField(max_length=50, unique=True, primary_key=True)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
     submitted_sdf = models.FileField(
         upload_to=COMPUTED_SET_SDF_ROOT,
-        max_length=255,
+        max_length=LENGTH_SUBMITTED_SDF,
         help_text="The SDF file containing the computed set",
     )
     spec_version = models.FloatField(
         help_text="The version of the SDF file format specification"
     )
     method_url = models.TextField(
-        max_length=1000,
+        max_length=LENGTH_METHOD_URL,
         null=True,
         help_text="A url linking to a write-up of the methodology used to create the"
         " computed set",
     )
-    submitter_name = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
+    submitter = models.ForeignKey(
+        ComputedSetSubmitter, null=True, on_delete=models.CASCADE
     )
     method = models.CharField(
-        max_length=80,
+        max_length=LENGTH_METHOD_NAME,
         null=True,
         blank=True,
         help_text="The name of the algorithmic method used to generate the compounds (e.g. Fragmenstein)",
@@ -927,14 +930,18 @@ class ComputedSet(models.Model):
     )
 
     def __str__(self) -> str:
-        return f"{self.name}"
+        target_title: str = self.target.title if self.target else "None"
+        return f"{self.name} {target_title}"
 
     def __repr__(self) -> str:
-        return "<ComputedSet %r %r %r>" % (self.name, self.unique_name, self.target)
+        return "<ComputedSet %r %r>" % (self.name, self.target)
 
 
 class ComputedMolecule(models.Model):
     """The 3D information for a computed set molecule"""
+
+    MOLECULE_NAME_LENGTH: int = 50
+    SHORT_UUID_LENGTH: int = 4
 
     compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
     sdf_info = models.TextField(help_text="The 3D coordinates for the molecule")
@@ -943,14 +950,14 @@ class ComputedMolecule(models.Model):
         max_length=50, help_text="A combination of Target and Identifier"
     )
     molecule_name = models.CharField(
-        max_length=50,
+        max_length=MOLECULE_NAME_LENGTH,
         help_text="Set from the _Name property of the underlying Molecule",
         null=True,
         blank=True,
     )
     smiles = models.CharField(max_length=255)
     identifier = ShortUUIDField(
-        length=4,
+        length=SHORT_UUID_LENGTH,
         alphabet="ACDEFGHJKLMNPRSTUVWXYZ23456789",
         null=True,
         blank=True,

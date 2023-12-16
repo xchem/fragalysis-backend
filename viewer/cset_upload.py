@@ -439,15 +439,12 @@ class MolOps:
             }
         )
 
-        submitter = self.get_submission_info(description_mol)
-        description_dict = description_mol.GetPropsAsDict()
-        version = description_mol.GetProp('_Name')
-        computed_set.spec_version = version.split('_')[-1]
-        method = description_mol.GetProp('ref_url')
-        computed_set.method_url = method
-        computed_set.submitter = submitter
+        computed_set.submitter = self.get_submission_info(description_mol)
+        if description_mol.HasProp('ref_url'):
+            computed_set.method_url = description_mol.GetProp('ref_url')
         computed_set.save()
 
+        description_dict = description_mol.GetPropsAsDict()
         for key in list(description_dict.keys()):
             if key in descriptions_needed and key not in [
                 'ref_mols',
@@ -465,54 +462,52 @@ class MolOps:
         return mols
 
     def task(self) -> ComputedSet:
+        # Truncate submitted method?
+        truncated_submitter_method: str = self.submitter_method[
+            : ComputedSet.LENGTH_METHOD_NAME
+        ]
+        if len(self.submitter_method) > len(truncated_submitter_method):
+            logger.warning(
+                'ComputedSet submitter method is too long (%s). Truncated to "%s"',
+                self.submitter_method,
+                truncated_submitter_method,
+            )
+
         # Do we have any existing ComputedSets?
         # Ones with the same method and upload date?
         today: datetime.date = datetime.date.today()
         existing_sets: List[ComputedSet] = ComputedSet.objects.filter(
-            method=self.submitter_method, upload_date=today
+            method=truncated_submitter_method, upload_date=today
         ).all()
         # If so, find the one with the highest ordinal.
         latest_ordinal: int = -1
         for exiting_set in existing_sets:
-            if exiting_set.ordinal > latest_ordinal:
-                latest_ordinal = exiting_set.ordinal
+            if exiting_set.md_ordinal > latest_ordinal:
+                latest_ordinal = exiting_set.md_ordinal
         if latest_ordinal:
             logger.info(
                 'Found existing ComputedSets for method "%s" on %s (%d) latest ordinal=%d',
-                self.submitter_method,
+                truncated_submitter_method,
                 str(today),
                 len(existing_sets),
                 latest_ordinal,
             )
         new_ordinal: int = latest_ordinal + 1
 
-        logger.info(
-            'Creating new ComputedSet %s-%s-%d',
-            self.submitter_method,
-            str(today),
-            new_ordinal,
-        )
-        computed_set: ComputedSet = ComputedSet()
-        computed_set.md_ordinal = new_ordinal
-        computed_set.upload_date = today
-        computed_set.method = self.submitter_method
-
-        text_scores = TextScoreValues.objects.filter(score__computed_set=computed_set)
-        num_scores = NumericalScoreValues.objects.filter(
-            score__computed_set=computed_set
-        )
-
-        old_mols = [o.compound for o in text_scores]
-        old_mols.extend([o.compound for o in num_scores])
-
         # The computed set "name" consists of the "method",
-        # today's date and a number (ordinal). The ordinal
+        # today's date and a 2-digit ordinal. The ordinal
         # is used to distinguish between computed sets uploaded
         # with the same method on the same day.
-        computed_set.name = f"{computed_set.method}-{str(today)}-{new_ordinal}"
+        cs_name: str = f"{truncated_submitter_method}-{str(today)}-{new_ordinal:0>2}"
+        logger.info('Creating new ComputedSet %s', cs_name)
+
+        computed_set: ComputedSet = ComputedSet()
+        computed_set.name = f"{computed_set.method}-{str(today)}-{new_ordinal:0>2}"
+        computed_set.md_ordinal = new_ordinal
+        computed_set.upload_date = today
+        computed_set.method = truncated_submitter_method
         computed_set.target = Target.objects.get(title=self.target)
         computed_set.spec_version = float(self.version.strip('ver_'))
-        computed_set.submitter_name = self.submitter_name
         if self.user_id:
             computed_set.owner_user = User.objects.get(id=self.user_id)
         else:
@@ -520,15 +515,16 @@ class MolOps:
             # Here the ComputedSet owner will take on a default (anonymous) value.
             assert settings.AUTHENTICATE_UPLOAD is False
         computed_set.save()
-        logger.info('%s', computed_set)
 
-        # set descriptions and get all other mols back
+        # Set descriptions in return for the Molecules.
+        # This also sets the submitter and method URL properties of the computed set
+        # while also saving it.
         sdf_filename = str(self.sdf_filename)
         mols_to_process = self.set_descriptions(
             filename=sdf_filename, computed_set=computed_set
         )
 
-        # process every other mol
+        # Process the molecules
         logger.info('%s mols_to_process=%s', computed_set, len(mols_to_process))
         for i in range(len(mols_to_process)):
             _ = self.process_mol(
@@ -551,17 +547,10 @@ class MolOps:
             f'{settings.MEDIA_ROOT}compound_sets/' + sdf_filename.split('/')[-1]
         )
         shutil.copy(sdf_filename, new_filename)
-        # os.renames(sdf_filename, new_filename)
         computed_set.submitted_sdf = new_filename
         computed_set.save()
 
-        # old_mols = [o.compound for o in old_s2]
-        # old_mols.extend([o.compound for o in old_s1])
-        # print(list(set(old_mols)))
-
-        for old_mol in old_mols:
-            logger.info('Deleting old molecule %s', old_mol)
-            old_mol.delete()
+        logger.info('Created %s', computed_set)
 
         return computed_set
 
