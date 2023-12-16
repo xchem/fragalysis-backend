@@ -471,7 +471,7 @@ class SiteObservation(models.Model):
         if cmpd_id and int(cmpd_id) != self.cmpd:
             return result
 
-        if "." in self.smiles:
+        if "." in str(self.smiles):
             logger.debug("SKIPPING - FRAGMENT: %s", self.smiles)
             return result
 
@@ -1157,7 +1157,7 @@ class DownloadLinks(models.Model):
     original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
     def __str__(self):
-        return self.file_url
+        return str(self.file_url)
 
     def __repr__(self) -> str:
         return "<DownloadLinks %r %r %r %r>" % (
@@ -1181,7 +1181,7 @@ class TagCategory(models.Model):
     description = models.CharField(max_length=200, null=True)
 
     def __str__(self):
-        return self.category
+        return str(self.category)
 
     def __repr__(self) -> str:
         return "<TagCategory %r %r>" % (self.id, self.category)
