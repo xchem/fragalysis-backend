@@ -69,7 +69,7 @@ In the :code:`fragalysis/` directory run script to create data directory structu
     mkdir -p data/neo4j/logs
     mkdir -p data/stack/media
     mkdir -p data/stack/logs
-    mkdir -p data/media/compound_sets
+    mkdir -p data/media/computed_set_data
     mkdir -p data/postgre/data
 
 **4. Build images locally**

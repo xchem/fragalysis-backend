@@ -397,9 +397,7 @@ class UploadCSet(APIView):
             # and the user has to be the owner.
             selected_set: Optional[models.ComputedSet] = None
             if update_set and update_set != 'None':
-                computed_set_query = models.ComputedSet.objects.filter(
-                    unique_name=update_set
-                )
+                computed_set_query = models.ComputedSet.objects.filter(name=update_set)
                 if computed_set_query:
                     selected_set = computed_set_query[0]
                 else:
@@ -536,13 +534,18 @@ class UploadCSet(APIView):
                 return render(request, 'viewer/upload-cset.html', context)
 
             elif choice == 'D':
-                # Delete
+                # Delete the object
                 assert selected_set
+                written_sdf_filename = selected_set.written_sdf_filename
+                selected_set_name = selected_set.name
                 selected_set.delete()
+                # ...and the original (expected) file
+                if os.path.isfile(written_sdf_filename):
+                    os.remove(written_sdf_filename)
 
                 request.session[
                     _SESSION_MESSAGE
-                ] = f'Compound set "{selected_set.unique_name}" deleted'
+                ] = f'Compound set "{selected_set_name}" deleted'
 
                 logger.info('+ UploadCSet POST "Delete" done')
 
@@ -786,7 +789,7 @@ class UploadTaskView(View):
                     response_data['validated'] = 'Validated'
                     cset_name = results[1]
                     cset = models.ComputedSet.objects.get(name=cset_name)
-                    name = cset.unique_name
+                    name = cset.name
                     response_data['results'] = {}
                     response_data['results']['cset_download_url'] = (
                         '/viewer/compound_set/%s' % name
@@ -877,15 +880,14 @@ def cset_download(request, name):
     # Unused arguments
     del request
 
-    computed_set = models.ComputedSet.objects.get(unique_name=name)
-    filepath = computed_set.submitted_sdf
-    with open(filepath.path, 'r', encoding='utf-8') as fp:
-        data = fp.read()
-    filename = 'computed-set_' + name + '.sdf'
+    computed_set = models.ComputedSet.objects.get(name=name)
+    written_filename = computed_set.written_sdf_filename
+    with open(written_filename, 'r', encoding='utf-8') as wf:
+        data = wf.read()
     response = HttpResponse(content_type='text/plain')
-    response['Content-Disposition'] = (
-        'attachment; filename=%s' % filename
-    )  # force browser to download file
+    response[
+        'Content-Disposition'
+    ] = f'attachment; filename={name}.sdf'  # force browser to download file
     response.write(data)
     return response
 
@@ -905,7 +907,7 @@ def pset_download(request, name):
 
     # For the first stage (green release) of the XCA-based Fragalysis Stack
     # there are no PDB files.
-    #    compound_set = models.ComputedSet.objects.get(unique_name=name)
+    #    compound_set = models.ComputedSet.objects.get(name=name)
     #    computed_molecules = models.ComputedMolecule.objects.filter(computed_set=compound_set)
     #    pdb_filepaths = list(set([c.pdb_info.path for c in computed_molecules]))
     #    buff = StringIO()

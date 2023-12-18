@@ -1,7 +1,6 @@
 import logging
 import uuid
 from dataclasses import dataclass
-from typing import List
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -10,12 +9,8 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils import timezone
-from frag.network.decorate import get_3d_vects_for_mol
 from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
-
-from fragalysis.settings import COMPUTED_SET_SDF_ROOT
-from hypothesis.definitions import VectTypes
 
 from .managers import (
     CanonSiteConfDataManager,
@@ -448,77 +443,6 @@ class SiteObservation(models.Model):
     history = HistoricalRecords()
     filter_manager = SiteObservationDataManager()
 
-    def get_vectors(
-        self,
-        site_observation=None,
-        smiles=None,
-        cmpd_id=None,
-        vector_type=None,
-        number=None,
-    ) -> List[Vector3d]:
-        """Get the vectors for a given molecule
-
-        :param mols: the Django molecules to get them from
-        :return: None
-        """
-        result: List[Vector3d] = []
-        # pk checks and later continure statements are doing filtering
-        # - as this is not going through the usual django_filter
-        # machinery, it needs a different approach
-        if site_observation and int(site_observation) != self.pk:
-            return result
-
-        if cmpd_id and int(cmpd_id) != self.cmpd:
-            return result
-
-        if "." in str(self.smiles):
-            logger.debug("SKIPPING - FRAGMENT: %s", self.smiles)
-            return result
-
-        vect_types = VectTypes()
-
-        vectors = get_3d_vects_for_mol(self.ligand_mol_file)
-        for vect_type in vectors:
-            vect_choice = vect_types.translate_vect_types(vect_type)
-
-            # filter by vector type
-            if vector_type and vector_type != vect_choice:
-                continue
-
-            for vector in vectors[vect_type]:
-                spl_vect = vector.split("__")
-                smi = spl_vect[0]
-
-                # filter by smiles
-                if smiles and smiles != smi:
-                    continue
-
-                if len(spl_vect) > 1:
-                    vect_ind = int(spl_vect[1])
-                else:
-                    vect_ind = 0
-
-                # filter by number
-                if number and int(number) != vect_ind:
-                    continue
-
-                vect3d = Vector3d(
-                    start_x=float(vectors[vect_type][vector][0][0]),
-                    start_y=float(vectors[vect_type][vector][0][1]),
-                    start_z=float(vectors[vect_type][vector][0][2]),
-                    end_x=float(vectors[vect_type][vector][1][0]),
-                    end_y=float(vectors[vect_type][vector][1][1]),
-                    end_z=float(vectors[vect_type][vector][1][2]),
-                    number=vect_ind,
-                    vector_type=vect_choice,
-                    smiles=smi,
-                    site_observation=self.pk,
-                    cmpd_id=self.cmpd_id,
-                )
-                result.append(vect3d)
-
-        return result
-
     def __str__(self) -> str:
         return f"{self.code}"
 
@@ -874,9 +798,14 @@ class ComputedSet(models.Model):
     name = models.CharField(max_length=50, unique=True, primary_key=True)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
     submitted_sdf = models.FileField(
-        upload_to=COMPUTED_SET_SDF_ROOT,
+        upload_to='computed_set_data/',
         max_length=LENGTH_SUBMITTED_SDF,
-        help_text="The SDF file containing the computed set",
+        help_text="The original SDF containing the ComputedSet",
+    )
+    written_sdf_filename = models.TextField(
+        max_length=LENGTH_METHOD_URL,
+        null=True,
+        help_text="The written ComputedSet filename",
     )
     spec_version = models.FloatField(
         help_text="The version of the SDF file format specification"

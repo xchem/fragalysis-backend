@@ -462,14 +462,21 @@ class MolOps:
         return mols
 
     def task(self) -> ComputedSet:
-        # Truncate submitted method?
-        truncated_submitter_method: str = self.submitter_method[
-            : ComputedSet.LENGTH_METHOD_NAME
-        ]
-        if len(self.submitter_method) > len(truncated_submitter_method):
+        # Truncate submitted method (lower-case)?
+        truncated_submitter_method: str = 'unspecified'
+        if self.submitter_method:
+            truncated_submitter_method = self.submitter_method[
+                : ComputedSet.LENGTH_METHOD_NAME
+            ]
+            if len(self.submitter_method) > len(truncated_submitter_method):
+                logger.warning(
+                    'ComputedSet submitter method is too long (%s). Truncated to "%s"',
+                    self.submitter_method,
+                    truncated_submitter_method,
+                )
+        else:
             logger.warning(
-                'ComputedSet submitter method is too long (%s). Truncated to "%s"',
-                self.submitter_method,
+                'ComputedSet submitter method is not set. Using "%s"',
                 truncated_submitter_method,
             )
 
@@ -480,13 +487,14 @@ class MolOps:
             method=truncated_submitter_method, upload_date=today
         ).all()
         # If so, find the one with the highest ordinal.
-        latest_ordinal: int = -1
+        latest_ordinal: int = 0
         for exiting_set in existing_sets:
+            assert exiting_set.md_ordinal > 0
             if exiting_set.md_ordinal > latest_ordinal:
                 latest_ordinal = exiting_set.md_ordinal
         if latest_ordinal:
             logger.info(
-                'Found existing ComputedSets for method "%s" on %s (%d) latest ordinal=%d',
+                'Found existing ComputedSets for method "%s" on %s (%d) with ordinal=%d',
                 truncated_submitter_method,
                 str(today),
                 len(existing_sets),
@@ -499,10 +507,12 @@ class MolOps:
         # is used to distinguish between computed sets uploaded
         # with the same method on the same day.
         cs_name: str = f"{truncated_submitter_method}-{str(today)}-{new_ordinal:0>2}"
-        logger.info('Creating new ComputedSet %s', cs_name)
+        logger.info('Creating new ComputedSet "%s"', cs_name)
 
         computed_set: ComputedSet = ComputedSet()
-        computed_set.name = f"{computed_set.method}-{str(today)}-{new_ordinal:0>2}"
+        computed_set.name = (
+            f"{truncated_submitter_method}-{str(today)}-{new_ordinal:0>2}"
+        )
         computed_set.md_ordinal = new_ordinal
         computed_set.upload_date = today
         computed_set.method = truncated_submitter_method
@@ -537,17 +547,18 @@ class MolOps:
             )
 
         # check compound set folder exists.
-        cmp_set_folder = os.path.join(settings.MEDIA_ROOT, 'compound_sets')
+        cmp_set_folder = os.path.join(
+            settings.MEDIA_ROOT, settings.COMPUTED_SET_MEDIA_DIRECTORY
+        )
         if not os.path.isdir(cmp_set_folder):
             logger.info('Making ComputedSet folder (%s)', cmp_set_folder)
             os.mkdir(cmp_set_folder)
 
         # move and save the compound set
-        new_filename = (
-            f'{settings.MEDIA_ROOT}compound_sets/' + sdf_filename.split('/')[-1]
-        )
-        shutil.copy(sdf_filename, new_filename)
-        computed_set.submitted_sdf = new_filename
+        new_filename = f'{settings.MEDIA_ROOT}{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{computed_set.name}.sdf'
+        os.rename(sdf_filename, new_filename)
+        computed_set.submitted_sdf = sdf_filename
+        computed_set.written_sdf_filename = new_filename
         computed_set.save()
 
         logger.info('Created %s', computed_set)
