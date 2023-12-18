@@ -7,6 +7,8 @@ import uuid
 import zipfile
 from typing import Any, Dict, List, Optional, Tuple
 
+from openpyxl.utils import get_column_letter
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
 
@@ -500,19 +502,19 @@ class MolOps:
                 len(existing_sets),
                 latest_ordinal,
             )
+        # ordinals are 1-based
         new_ordinal: int = latest_ordinal + 1
 
         # The computed set "name" consists of the "method",
         # today's date and a 2-digit ordinal. The ordinal
         # is used to distinguish between computed sets uploaded
         # with the same method on the same day.
-        cs_name: str = f"{truncated_submitter_method}-{str(today)}-{new_ordinal:0>2}"
+        assert new_ordinal > 0
+        cs_name: str = f"{truncated_submitter_method}-{str(today)}-{get_column_letter(new_ordinal)}"
         logger.info('Creating new ComputedSet "%s"', cs_name)
 
         computed_set: ComputedSet = ComputedSet()
-        computed_set.name = (
-            f"{truncated_submitter_method}-{str(today)}-{new_ordinal:0>2}"
-        )
+        computed_set.name = cs_name
         computed_set.md_ordinal = new_ordinal
         computed_set.upload_date = today
         computed_set.method = truncated_submitter_method

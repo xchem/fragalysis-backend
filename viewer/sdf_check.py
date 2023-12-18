@@ -5,13 +5,12 @@ Created on Wed Apr 22 13:19:51 2020
 @author: Warren
 Script to check sdf file format for Fragalysis upload
 """
-import datetime
 import logging
 
 import validators
 from rdkit import Chem
 
-from viewer.models import ComputedSet, SiteObservation
+from viewer.models import SiteObservation
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +23,8 @@ def check_property_descriptions():
 
 
 def check_compound_set(description_mol, validate_dict, update=None):
+    del update
+
     # Must have a 'generation_date'
     if not description_mol.HasProp('generation_date'):
         validate_dict = add_warning(
@@ -44,28 +45,6 @@ def check_compound_set(description_mol, validate_dict, update=None):
             validate_dict=validate_dict,
         )
         return validate_dict
-
-    submitter_dict = {
-        'submitter__name': description_mol.GetProp('submitter_name'),
-        'submitter__email': description_mol.GetProp('submitter_email'),
-        'submitter__institution': description_mol.GetProp('submitter_institution'),
-        'submitter__generation_date': datetime.date(
-            int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])
-        ),
-        'submitter__method': description_mol.GetProp('method'),
-    }
-
-    query = ComputedSet.objects.filter(**submitter_dict)
-
-    if len(query) != 0 and not update:
-        validate_dict = add_warning(
-            molecule_name='File error',
-            field='compound set',
-            warning_string="A ComputedSet with the name "
-            + query[0].name
-            + " already exists (change method name in blank mol method field)",
-            validate_dict=validate_dict,
-        )
 
     return validate_dict
 
