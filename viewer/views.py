@@ -1527,7 +1527,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
             return Response(content, status=status.HTTP_208_ALREADY_REPORTED)
 
 
-class UploadTargetExperiments(viewsets.ModelViewSet):
+class UploadTargetExperiments(ISpyBSafeQuerySet):
     serializer_class = serializers.TargetExperimentWriteSerializer
     permission_class = [permissions.IsAuthenticated]
     http_method_names = ('post',)
@@ -1549,8 +1549,20 @@ class UploadTargetExperiments(viewsets.ModelViewSet):
         contact_email = serializer.validated_data['contact_email']
         filename = serializer.validated_data['file']
 
-        # I'm not creating ExperimentUpload object here, so I
-        # suppose there's no point in keeping this as ModelViewSet
+        if settings.AUTHENTICATE_UPLOAD:
+            user = self.request.user
+            if not user.is_authenticated:
+                return redirect(settings.LOGIN_URL)
+            else:
+                if target_access_string not in self.get_proposals_for_user(user):
+                    return Response(
+                        {
+                            "target_access_string": [
+                                f"User {user} is not authorized to upload data to {target_access_string}"
+                            ]
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
         # memo to self: cannot use TemporaryDirectory here because task
         temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
