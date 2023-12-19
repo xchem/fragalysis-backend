@@ -791,9 +791,11 @@ class ComputedSet(models.Model):
     )
 
     LENGTH_SUBMITTER_NAME: int = 50
-    LENGTH_METHOD_NAME: int = 20
+    LENGTH_METHOD: int = 50
     LENGTH_METHOD_URL: int = 1000
     LENGTH_SUBMITTED_SDF: int = 255
+
+    LENGTH_METHOD_IN_NAME: int = 20
 
     name = models.CharField(max_length=50, unique=True, primary_key=True)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
@@ -820,7 +822,7 @@ class ComputedSet(models.Model):
         ComputedSetSubmitter, null=True, on_delete=models.CASCADE
     )
     method = models.CharField(
-        max_length=LENGTH_METHOD_NAME,
+        max_length=LENGTH_METHOD,
         null=True,
         blank=True,
         help_text="The name of the algorithmic method used to generate the compounds (e.g. Fragmenstein)",
@@ -887,7 +889,7 @@ class ComputedMolecule(models.Model):
     smiles = models.CharField(max_length=255)
     identifier = ShortUUIDField(
         length=SHORT_UUID_LENGTH,
-        alphabet="ACDEFGHJKLMNPRSTUVWXYZ23456789",
+        alphabet="ACDEFGHJKLMNPRSTUVWXYZ345679",
         null=True,
         blank=True,
         help_text="A four character string of non-confusing uppercase letters and digits for easy reference."

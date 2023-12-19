@@ -473,7 +473,7 @@ class MolOps:
         truncated_submitter_method: str = 'unspecified'
         if self.submitter_method:
             truncated_submitter_method = self.submitter_method[
-                : ComputedSet.LENGTH_METHOD_NAME
+                : ComputedSet.LENGTH_METHOD_IN_NAME
             ]
             if len(self.submitter_method) > len(truncated_submitter_method):
                 logger.warning(
@@ -522,7 +522,7 @@ class MolOps:
         computed_set.name = cs_name
         computed_set.md_ordinal = new_ordinal
         computed_set.upload_date = today
-        computed_set.method = truncated_submitter_method
+        computed_set.method = self.submitter_method[: ComputedSet.LENGTH_METHOD]
         computed_set.target = Target.objects.get(title=self.target)
         computed_set.spec_version = float(self.version.strip('ver_'))
         if self.user_id:
