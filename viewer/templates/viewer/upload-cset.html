@@ -38,7 +38,7 @@
                         <select name="update_set" class="form-control">
                           <option value="None" selected>None</option>
                           {% for set in sets %}
-                          <option value="{{ set.unique_name }}">{{ set.unique_name }}</option>
+                          <option value="{{ set.name }}">{{ set.name }}</option>
                           {% endfor %}
                         </select>
                       </div>

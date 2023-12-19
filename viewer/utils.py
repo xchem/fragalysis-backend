@@ -6,8 +6,9 @@ Collection of technical methods tidied up in one location.
 import fnmatch
 import os
 import shutil
+import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -16,6 +17,8 @@ from rdkit import Chem
 # Set .sdf file format version
 # Used at the start of every SDF file.
 SDF_VERSION = 'ver_1.2'
+
+SDF_RECORD_SEPARATOR = '$$$$\n'
 
 
 def is_url(url: Optional[str]) -> bool:
@@ -74,15 +77,13 @@ def add_prop_to_sdf(sdf_file_in, sdf_file_out, properties):
     In this case we'd provide the following properties dictionary...
         {"TransFSScore": "0.115601"}
     """
-    _REC_SEPARATOR = '$$$$\n'
 
     found_separator = False
     with open(sdf_file_out, 'a', encoding='utf-8') as sdf_out:
         with open(sdf_file_in, 'r', encoding='utf-8') as sdf_in:
             while True:
-                line = sdf_in.readline()
-                if line:
-                    if not found_separator and line == _REC_SEPARATOR:
+                if line := sdf_in.readline():
+                    if not found_separator and line == SDF_RECORD_SEPARATOR:
                         # Found first separator
                         # dump the parameters now
                         found_separator = True
@@ -90,12 +91,46 @@ def add_prop_to_sdf(sdf_file_in, sdf_file_out, properties):
                             sdf_out.write(f'>  <{name}>  (1)\n')
                             sdf_out.write(f'{value}\n')
                             sdf_out.write('\n')
-                        # Follow with separator
-                        sdf_out.write(line)
-                    else:
-                        sdf_out.write(line)
+                    sdf_out.write(line)
                 else:
                     break
+
+
+def add_props_to_sdf_molecule(
+    *, sdf_file: str, properties: Dict[str, str], molecule: str
+):
+    """Given an input SDF, a dictionary of string properties and a molecule
+    this function inserts the properties at the end of the molecule's record,
+    just before the record separator. A temporary file is used that then replaces the
+    input file.
+    """
+    # Strategy...
+    # Search the file for the Molecule.
+    # Then move to the end of record, and insert the properties.
+    found_molecule: bool = False
+    written_properties: bool = False
+    with tempfile.NamedTemporaryFile(mode='a', encoding='utf-8') as temp:
+        with open(sdf_file, 'r', encoding='utf-8') as sdf_in:
+            while True:
+                if line := sdf_in.readline():
+                    if not found_molecule:
+                        if line.strip() == molecule:
+                            found_molecule = True
+                    elif line == SDF_RECORD_SEPARATOR and not written_properties:
+                        # Found end of molecule
+                        # dump the parameters now
+                        for name, value in properties.items():
+                            temp.write(f'>  <{name}>\n')
+                            temp.write(f'{value}\n')
+                            temp.write('\n')
+                        written_properties = True
+                    # Write the original line
+                    temp.write(line)
+                else:
+                    break
+        # Flush the temporary file and replace the original file
+        temp.flush()
+        shutil.copy(temp.name, sdf_file)
 
 
 def add_prop_to_mol(mol_field, mol_file_out, value):

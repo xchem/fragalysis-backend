@@ -91,16 +91,6 @@ def process_compound_set(validate_output):
     submitter_name, submitter_method, blank_version = blank_mol_vals(params['sdf'])
     zfile, zfile_hashvals = PdbOps().run(params)
 
-    # This used to be in 'validate' (incorrectly), and is now here.
-    # Create a unique name and remove any that existing set with that name.
-    # Basically uploading erases any prior set.
-    unique_name = (
-        "".join(submitter_name.split()) + '-' + "".join(submitter_method.split())
-    )
-    csets = ComputedSet.objects.filter(unique_name=unique_name)
-    for cset in csets:
-        cset.delete()
-
     # We expect a User ID, but it may be None.
     # If AUTHENTICATE_UPLOAD is False the User ID will be None.
     save_mols = MolOps(
@@ -256,9 +246,7 @@ def validate_compound_set(task_params):
     else:
         validate_dict = check_compound_set(blank_mol, validate_dict, update=update)
 
-    other_mols = []
-    for i in range(1, len(suppl)):
-        other_mols.append(suppl[i])
+    other_mols = [suppl[i] for i in range(1, len(suppl))]
 
     # all mol checks
     # Check if all mols can be read by rdkit
@@ -353,12 +341,7 @@ def create_mol(inchi, long_inchi=None, name=None):
         cpd = Compound.objects.filter(inchi=inchi)
         sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
 
-    if len(cpd) != 0:
-        new_mol = cpd[0]
-    else:
-        # add molecule and return the object
-        new_mol = Compound()
-
+    new_mol = cpd[0] if len(cpd) != 0 else Compound()
     new_mol.smiles = Chem.MolToSmiles(sanitized_mol)
     new_mol.inchi = inchi
     if long_inchi:
@@ -433,13 +416,10 @@ def process_one_set(set_df, name, set_type=None, set_description=None):
     new_set.set_type = set_type
     new_set.set_description = set_description
     new_set.save()
-    compounds = []
-    for _, row in set_df.iterrows():
-        compounds.append(process_design_compound(row))
 
+    compounds = [process_design_compound(row) for _, row in set_df.iterrows()]
     for compound in compounds:
         new_set.compounds.add(compound)
-
     new_set.save()
 
     return compounds
@@ -536,7 +516,6 @@ def task_load_target(
             user_id=user_id,
             task=self,
         )
-
     except (IntegrityError, Exception):
         # everything regarding logging and reporting has already been done
         pass

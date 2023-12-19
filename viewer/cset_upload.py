@@ -7,6 +7,8 @@ import uuid
 import zipfile
 from typing import Any, Dict, List, Optional, Tuple
 
+from openpyxl.utils import get_column_letter
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
 
@@ -32,7 +34,7 @@ from viewer.models import (
     TextScoreValues,
     User,
 )
-from viewer.utils import is_url, word_count
+from viewer.utils import add_props_to_sdf_molecule, is_url, word_count
 
 
 def dataType(a_str: str) -> str:
@@ -292,21 +294,21 @@ class MolOps:
         self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
     ) -> ComputedMolecule:
         # Don't need...
-        del filename
-
         assert mol
         assert target
         assert compound_set
 
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
-        name = mol.GetProp('_Name')
+        molecule_name = mol.GetProp('_Name')
         long_inchi = None
         if len(inchi) > 255:
             long_inchi = inchi
             inchi = inchi[:254]
 
-        ref_cpd: Compound = self.create_mol(inchi, name=name, long_inchi=long_inchi)
+        ref_cpd: Compound = self.create_mol(
+            inchi, name=molecule_name, long_inchi=long_inchi
+        )
 
         mol_block = Chem.MolToMolBlock(mol)
 
@@ -335,7 +337,7 @@ class MolOps:
                     )
 
                 if qs.count() > 1:
-                    ids = [m.cmpd_id.id for m in qs]
+                    ids = [m.cmpd.id for m in qs]
                     ind = ids.index(max(ids))
                     ref = qs[ind]
                 elif qs.count() == 1:
@@ -356,7 +358,7 @@ class MolOps:
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
         existing_computed_molecules = ComputedMolecule.objects.filter(
-            name=name, smiles=smiles, computed_set=compound_set
+            molecule_name=molecule_name, smiles=smiles, computed_set=compound_set
         )
 
         computed_molecule: Optional[ComputedMolecule] = None
@@ -379,7 +381,8 @@ class MolOps:
         computed_molecule.compound = ref_cpd
         computed_molecule.computed_set = compound_set
         computed_molecule.sdf_info = mol_block
-        computed_molecule.name = name
+        computed_molecule.molecule_name = molecule_name
+        computed_molecule.name = f"{target}-{computed_molecule.identifier}"
         computed_molecule.smiles = smiles
         # Extract possible reference URL and Rationale
         # URLs have to be valid URLs and rationals must contain more than one word
@@ -391,15 +394,23 @@ class MolOps:
             mol.GetProp('rationale') if mol.HasProp('rationale') else None
         )
         computed_molecule.rationale = rationale if word_count(rationale) > 1 else None
-        # To void the error
+        # To avoid the error...
         #   needs to have a value for field "id"
         #   before this many-to-many relationship can be used.
-        # We must save this ComputedMolecule before adding inspirations
+        # We must save this ComputedMolecule to generate an "id"
+        # before adding inspirations
         computed_molecule.save()
         for insp_frag in insp_frags:
             computed_molecule.computed_inspirations.add(insp_frag)
         # Done
         computed_molecule.save()
+
+        # No update the molecule in the original file...
+        add_props_to_sdf_molecule(
+            sdf_file=filename,
+            molecule=molecule_name,
+            properties={"target_identifier": computed_molecule.name},
+        )
 
         return computed_molecule
 
@@ -435,15 +446,12 @@ class MolOps:
             }
         )
 
-        submitter = self.get_submission_info(description_mol)
-        description_dict = description_mol.GetPropsAsDict()
-        version = description_mol.GetProp('_Name')
-        computed_set.spec_version = version.split('_')[-1]
-        method = description_mol.GetProp('ref_url')
-        computed_set.method_url = method
-        computed_set.submitter = submitter
+        computed_set.submitter = self.get_submission_info(description_mol)
+        if description_mol.HasProp('ref_url'):
+            computed_set.method_url = description_mol.GetProp('ref_url')
         computed_set.save()
 
+        description_dict = description_mol.GetPropsAsDict()
         for key in list(description_dict.keys()):
             if key in descriptions_needed and key not in [
                 'ref_mols',
@@ -461,54 +469,62 @@ class MolOps:
         return mols
 
     def task(self) -> ComputedSet:
-        sdf_filename = str(self.sdf_filename)
-
-        set_name = ''.join(
-            sdf_filename.split('/')[-1].replace('.sdf', '').split('_')[1:]
-        )
-        unique_name = (
-            "".join(self.submitter_name.split())
-            + '-'
-            + "".join(self.submitter_method.split())
-        )
-
-        existing = ComputedSet.objects.filter(unique_name=unique_name)
-        len_existing = len(existing)
-        logger.info(
-            'Existing ComputedSet.unique_name=%s len(existing)=%s',
-            unique_name,
-            len_existing,
-        )
-
-        if len_existing == 1:
-            logger.info('Using existing ComputedSet')
-            computed_set = existing[0]
-        elif len_existing > 1:
-            raise Exception(
-                'Too many ComputedSet instances exist'
-                f' (unique_name="{unique_name}" len_existing={len_existing})'
-            )
+        # Truncate submitted method (lower-case)?
+        truncated_submitter_method: str = 'unspecified'
+        if self.submitter_method:
+            truncated_submitter_method = self.submitter_method[
+                : ComputedSet.LENGTH_METHOD_NAME
+            ]
+            if len(self.submitter_method) > len(truncated_submitter_method):
+                logger.warning(
+                    'ComputedSet submitter method is too long (%s). Truncated to "%s"',
+                    self.submitter_method,
+                    truncated_submitter_method,
+                )
         else:
-            logger.info('Creating new ComputedSet')
-            computed_set = ComputedSet()
+            logger.warning(
+                'ComputedSet submitter method is not set. Using "%s"',
+                truncated_submitter_method,
+            )
 
-        text_scores = TextScoreValues.objects.filter(score__computed_set=computed_set)
-        num_scores = NumericalScoreValues.objects.filter(
-            score__computed_set=computed_set
-        )
+        # Do we have any existing ComputedSets?
+        # Ones with the same method and upload date?
+        today: datetime.date = datetime.date.today()
+        existing_sets: List[ComputedSet] = ComputedSet.objects.filter(
+            method=truncated_submitter_method, upload_date=today
+        ).all()
+        # If so, find the one with the highest ordinal.
+        latest_ordinal: int = 0
+        for exiting_set in existing_sets:
+            assert exiting_set.md_ordinal > 0
+            if exiting_set.md_ordinal > latest_ordinal:
+                latest_ordinal = exiting_set.md_ordinal
+        if latest_ordinal:
+            logger.info(
+                'Found existing ComputedSets for method "%s" on %s (%d) with ordinal=%d',
+                truncated_submitter_method,
+                str(today),
+                len(existing_sets),
+                latest_ordinal,
+            )
+        # ordinals are 1-based
+        new_ordinal: int = latest_ordinal + 1
 
-        old_mols = [o.compound for o in text_scores]
-        old_mols.extend([o.compound for o in num_scores])
+        # The computed set "name" consists of the "method",
+        # today's date and a 2-digit ordinal. The ordinal
+        # is used to distinguish between computed sets uploaded
+        # with the same method on the same day.
+        assert new_ordinal > 0
+        cs_name: str = f"{truncated_submitter_method}-{str(today)}-{get_column_letter(new_ordinal)}"
+        logger.info('Creating new ComputedSet "%s"', cs_name)
 
-        computed_set.name = set_name
-        matching_target = Target.objects.get(title=self.target)
-        computed_set.target = matching_target
+        computed_set: ComputedSet = ComputedSet()
+        computed_set.name = cs_name
+        computed_set.md_ordinal = new_ordinal
+        computed_set.upload_date = today
+        computed_set.method = truncated_submitter_method
+        computed_set.target = Target.objects.get(title=self.target)
         computed_set.spec_version = float(self.version.strip('ver_'))
-        computed_set.unique_name = (
-            "".join(self.submitter_name.split())
-            + '-'
-            + "".join(self.submitter_method.split())
-        )
         if self.user_id:
             computed_set.owner_user = User.objects.get(id=self.user_id)
         else:
@@ -516,14 +532,16 @@ class MolOps:
             # Here the ComputedSet owner will take on a default (anonymous) value.
             assert settings.AUTHENTICATE_UPLOAD is False
         computed_set.save()
-        logger.info('%s', computed_set)
 
-        # set descriptions and get all other mols back
+        # Set descriptions in return for the Molecules.
+        # This also sets the submitter and method URL properties of the computed set
+        # while also saving it.
+        sdf_filename = str(self.sdf_filename)
         mols_to_process = self.set_descriptions(
             filename=sdf_filename, computed_set=computed_set
         )
 
-        # process every other mol
+        # Process the molecules
         logger.info('%s mols_to_process=%s', computed_set, len(mols_to_process))
         for i in range(len(mols_to_process)):
             _ = self.process_mol(
@@ -536,27 +554,21 @@ class MolOps:
             )
 
         # check compound set folder exists.
-        cmp_set_folder = os.path.join(settings.MEDIA_ROOT, 'compound_sets')
+        cmp_set_folder = os.path.join(
+            settings.MEDIA_ROOT, settings.COMPUTED_SET_MEDIA_DIRECTORY
+        )
         if not os.path.isdir(cmp_set_folder):
             logger.info('Making ComputedSet folder (%s)', cmp_set_folder)
             os.mkdir(cmp_set_folder)
 
         # move and save the compound set
-        new_filename = (
-            f'{settings.MEDIA_ROOT}compound_sets/' + sdf_filename.split('/')[-1]
-        )
-        shutil.copy(sdf_filename, new_filename)
-        # os.renames(sdf_filename, new_filename)
-        computed_set.submitted_sdf = new_filename
+        new_filename = f'{settings.MEDIA_ROOT}{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{computed_set.name}.sdf'
+        os.rename(sdf_filename, new_filename)
+        computed_set.submitted_sdf = sdf_filename
+        computed_set.written_sdf_filename = new_filename
         computed_set.save()
 
-        # old_mols = [o.compound for o in old_s2]
-        # old_mols.extend([o.compound for o in old_s1])
-        # print(list(set(old_mols)))
-
-        for old_mol in old_mols:
-            logger.info('Deleting old molecule %s', old_mol)
-            old_mol.delete()
+        logger.info('Created %s', computed_set)
 
         return computed_set
 

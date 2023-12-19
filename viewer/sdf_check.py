@@ -5,13 +5,12 @@ Created on Wed Apr 22 13:19:51 2020
 @author: Warren
 Script to check sdf file format for Fragalysis upload
 """
-import datetime
 import logging
 
 import validators
 from rdkit import Chem
 
-from viewer.models import ComputedSet, SiteObservation
+from viewer.models import SiteObservation
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +18,9 @@ logger = logging.getLogger(__name__)
 version = 'ver_1.2'
 
 
-def check_property_descriptions():
-    pass
-
-
 def check_compound_set(description_mol, validate_dict, update=None):
+    del update
+
     # Must have a 'generation_date'
     if not description_mol.HasProp('generation_date'):
         validate_dict = add_warning(
@@ -44,28 +41,6 @@ def check_compound_set(description_mol, validate_dict, update=None):
             validate_dict=validate_dict,
         )
         return validate_dict
-
-    submitter_dict = {
-        'submitter__name': description_mol.GetProp('submitter_name'),
-        'submitter__email': description_mol.GetProp('submitter_email'),
-        'submitter__institution': description_mol.GetProp('submitter_institution'),
-        'submitter__generation_date': datetime.date(
-            int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])
-        ),
-        'submitter__method': description_mol.GetProp('method'),
-    }
-
-    query = ComputedSet.objects.filter(**submitter_dict)
-
-    if len(query) != 0 and not update:
-        validate_dict = add_warning(
-            molecule_name='File error',
-            field='compound set',
-            warning_string="A ComputedSet with the auto_generated name "
-            + query[0].unique_name
-            + " already exists (change method name in blank mol method field)",
-            validate_dict=validate_dict,
-        )
 
     return validate_dict
 
@@ -92,7 +67,7 @@ def check_sdf(sdf_file, validate_dict):
         validate_dict = add_warning(
             molecule_name='File error',
             field='_File_name',
-            warning_string="Illegal filename: " + str(sdf_file) + " found",
+            warning_string=f"Illegal filename: {str(sdf_file)} found",
             validate_dict=validate_dict,
         )
 
@@ -102,7 +77,7 @@ def check_sdf(sdf_file, validate_dict):
 def check_refmol(mol, validate_dict, target=None):
     if target:
         try:
-            refmols = mol.GetProp('ref_mols').split(',')
+            ref_mols = mol.GetProp('ref_mols').split(',')
         except KeyError:
             validate_dict = add_warning(
                 molecule_name=mol.GetProp('_Name'),
@@ -112,19 +87,19 @@ def check_refmol(mol, validate_dict, target=None):
             )
             return validate_dict
 
-        for ref in refmols:
-            ref_strip = ref.strip()
-            query_string = target + '-' + ref_strip.split(':')[0].split('_')[0]
+        for ref_mol in ref_mols:
+            ref_strip = ref_mol.strip()
+            query_string = f'{target}-' + ref_strip.split(':')[0].split('_')[0]
             query = SiteObservation.objects.filter(code__contains=query_string)
             if len(query) == 0:
-                msg = f"SiteObservation for '{ref_strip}' does not exist"
+                msg = f"No SiteObservation code contains '{query_string}'"
                 validate_dict = add_warning(
                     molecule_name=mol.GetProp('_Name'),
                     field='ref_mol',
                     warning_string=msg,
                     validate_dict=validate_dict,
                 )
-                logger.warning("%s (query_string=%s)", msg, query_string)
+                logger.warning(msg)
 
     return validate_dict
 
@@ -163,13 +138,13 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
     # If anything else given example x1408
     if target and not pdb_fn.endswith(".pdb"):
         query = SiteObservation.objects.filter(
-            code__contains=str(target + '-' + pdb_fn.split(':')[0].split('_')[0])
+            code__contains=str(f'{target}-' + pdb_fn.split(':')[0].split('_')[0])
         )
         if len(query) == 0:
             validate_dict = add_warning(
                 molecule_name=mol.GetProp('_Name'),
                 field='ref_pdb',
-                warning_string="PDB for " + str(pdb_fn) + " does not exist",
+                warning_string=f"PDB for {str(pdb_fn)} does not exist",
                 validate_dict=validate_dict,
             )
 
@@ -200,7 +175,7 @@ def check_SMILES(mol, validate_dict):
         validate_dict = add_warning(
             molecule_name=mol.GetProp('_Name'),
             field='original SMILES',
-            warning_string="Invalid SMILES %s" % (smi_check,),
+            warning_string=f"Invalid SMILES {smi_check}",
             validate_dict=validate_dict,
         )
 
@@ -222,8 +197,7 @@ def check_ver_name(blank_mol, check_version, validate_dict):
         validate_dict = add_warning(
             molecule_name=blank_mol.GetProp('_Name'),
             field='_Name',
-            warning_string='Illegal version: %s found. Should be %s'
-            % (ver_name, check_version),
+            warning_string=f'Illegal version: {ver_name} found. Should be {check_version}',
             validate_dict=validate_dict,
         )
 
@@ -265,14 +239,14 @@ def check_blank_prop(blank_mol, validate_dict):
             validate_dict = add_warning(
                 molecule_name=blank_mol.GetProp('_Name'),
                 field=key,
-                warning_string='Description for %s missing' % (key,),
+                warning_string=f'Description for {key} missing',
                 validate_dict=validate_dict,
             )
         if key == 'ref_url' and check_url(value) is False:
             validate_dict = add_warning(
                 molecule_name=blank_mol.GetProp('_Name'),
                 field=key,
-                warning_string='Illegal URL %s provided' % (value,),
+                warning_string=f'Illegal URL {value} provided',
                 validate_dict=validate_dict,
             )
 
@@ -301,7 +275,7 @@ def check_field_populated(mol, validate_dict):
             validate_dict = add_warning(
                 molecule_name=mol.GetProp('_Name'),
                 field=key,
-                warning_string='Value for %s missing' % (key,),
+                warning_string=f'Value for {key} missing',
                 validate_dict=validate_dict,
             )
 
@@ -329,7 +303,7 @@ def check_name_characters(name, validate_dict):
             validate_dict = add_warning(
                 molecule_name=name,
                 field='_Name',
-                warning_string='Illegal character %s found' % (char,),
+                warning_string=f'Illegal character {char} found',
                 validate_dict=validate_dict,
             )
 
@@ -338,11 +312,11 @@ def check_name_characters(name, validate_dict):
 
 def missing_field_check(mol, field, validate_dict):
     props_dict = mol.GetPropsAsDict()
-    if not field in list(props_dict.keys()):
+    if field not in list(props_dict.keys()):
         validate_dict = add_warning(
             molecule_name=mol.GetProp('_Name'),
             field=field,
-            warning_string='Field %s not found!' % (field,),
+            warning_string=f'Field {field} not found!',
             validate_dict=validate_dict,
         )
 

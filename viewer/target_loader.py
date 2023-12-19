@@ -1466,14 +1466,14 @@ class TargetLoader:
                 )
             except SiteObservationGroup.DoesNotExist:
                 assert self.target
-                so_group = SiteObservationGroup.objects.get(target_id=self.target.pk)
+                so_group = SiteObservationGroup(target=self.target)
                 so_group.save()
             except MultipleObjectsReturned:
                 SiteObservationGroup.objects.filter(
                     target=self.target, description=tag
                 ).delete()
                 assert self.target
-                so_group = SiteObservationGroup.objects.get(target_id=self.target.pk)
+                so_group = SiteObservationGroup(target=self.target)
                 so_group.save()
 
             try:

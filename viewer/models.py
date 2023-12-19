@@ -1,7 +1,6 @@
 import logging
 import uuid
 from dataclasses import dataclass
-from typing import List
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -10,12 +9,8 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils import timezone
-from frag.network.decorate import get_3d_vects_for_mol
 from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
-
-from fragalysis.settings import COMPUTED_SET_SDF_ROOT
-from hypothesis.definitions import VectTypes
 
 from .managers import (
     CanonSiteConfDataManager,
@@ -448,77 +443,6 @@ class SiteObservation(models.Model):
     history = HistoricalRecords()
     filter_manager = SiteObservationDataManager()
 
-    def get_vectors(
-        self,
-        site_observation=None,
-        smiles=None,
-        cmpd_id=None,
-        vector_type=None,
-        number=None,
-    ) -> List[Vector3d]:
-        """Get the vectors for a given molecule
-
-        :param mols: the Django molecules to get them from
-        :return: None
-        """
-        result: List[Vector3d] = []
-        # pk checks and later continure statements are doing filtering
-        # - as this is not going through the usual django_filter
-        # machinery, it needs a different approach
-        if site_observation and int(site_observation) != self.pk:
-            return result
-
-        if cmpd_id and int(cmpd_id) != self.cmpd:
-            return result
-
-        if "." in self.smiles:
-            logger.debug("SKIPPING - FRAGMENT: %s", self.smiles)
-            return result
-
-        vect_types = VectTypes()
-
-        vectors = get_3d_vects_for_mol(self.ligand_mol_file)
-        for vect_type in vectors:
-            vect_choice = vect_types.translate_vect_types(vect_type)
-
-            # filter by vector type
-            if vector_type and vector_type != vect_choice:
-                continue
-
-            for vector in vectors[vect_type]:
-                spl_vect = vector.split("__")
-                smi = spl_vect[0]
-
-                # filter by smiles
-                if smiles and smiles != smi:
-                    continue
-
-                if len(spl_vect) > 1:
-                    vect_ind = int(spl_vect[1])
-                else:
-                    vect_ind = 0
-
-                # filter by number
-                if number and int(number) != vect_ind:
-                    continue
-
-                vect3d = Vector3d(
-                    start_x=float(vectors[vect_type][vector][0][0]),
-                    start_y=float(vectors[vect_type][vector][0][1]),
-                    start_z=float(vectors[vect_type][vector][0][2]),
-                    end_x=float(vectors[vect_type][vector][1][0]),
-                    end_y=float(vectors[vect_type][vector][1][1]),
-                    end_z=float(vectors[vect_type][vector][1][2]),
-                    number=vect_ind,
-                    vector_type=vect_choice,
-                    smiles=smi,
-                    site_observation=self.pk,
-                    cmpd_id=self.cmpd_id,
-                )
-                result.append(vect3d)
-
-        return result
-
     def __str__(self) -> str:
         return f"{self.code}"
 
@@ -866,18 +790,28 @@ class ComputedSet(models.Model):
         (REVOKED, 'REVOKED'),
     )
 
+    LENGTH_SUBMITTER_NAME: int = 50
+    LENGTH_METHOD_NAME: int = 20
+    LENGTH_METHOD_URL: int = 1000
+    LENGTH_SUBMITTED_SDF: int = 255
+
     name = models.CharField(max_length=50, unique=True, primary_key=True)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
     submitted_sdf = models.FileField(
-        upload_to=COMPUTED_SET_SDF_ROOT,
-        max_length=255,
-        help_text="The SDF file containing the computed set",
+        upload_to='computed_set_data/',
+        max_length=LENGTH_SUBMITTED_SDF,
+        help_text="The original SDF containing the ComputedSet",
+    )
+    written_sdf_filename = models.TextField(
+        max_length=LENGTH_METHOD_URL,
+        null=True,
+        help_text="The written ComputedSet filename",
     )
     spec_version = models.FloatField(
         help_text="The version of the SDF file format specification"
     )
     method_url = models.TextField(
-        max_length=1000,
+        max_length=LENGTH_METHOD_URL,
         null=True,
         help_text="A url linking to a write-up of the methodology used to create the"
         " computed set",
@@ -885,16 +819,25 @@ class ComputedSet(models.Model):
     submitter = models.ForeignKey(
         ComputedSetSubmitter, null=True, on_delete=models.CASCADE
     )
-    unique_name = models.CharField(
-        max_length=101,
-        help_text="A unique name for the computed set,"
-        " generated but the custom save() method",
+    method = models.CharField(
+        max_length=LENGTH_METHOD_NAME,
+        null=True,
+        blank=True,
+        help_text="The name of the algorithmic method used to generate the compounds (e.g. Fragmenstein)",
     )
-
+    upload_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="The date the set was uploaded",
+    )
+    md_ordinal = models.SmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="The ordinal distinguishing between uploads using the same method and date",
+    )
     owner_user = models.ForeignKey(
         User, on_delete=models.CASCADE, default=settings.ANONYMOUS_USER
     )
-
     # The following fields will be used to track the computed set upload
     upload_task_id = models.CharField(
         null=True, max_length=50, help_text="The task ID of the upload Celery task"
@@ -915,40 +858,41 @@ class ComputedSet(models.Model):
         null=True, help_text="The datetime the upload was completed"
     )
 
-    def save(self, **kwargs):
-        """Custom save method for the ComputedSet model,
-        including the method to auto-generate the unique name:
-        unique_name = "".join(self.submitter.name.split()) + '-' + "".join(self.submitter.method.split())
-        """
-        # Unused arguments
-        del kwargs
-
-        if not self.submitter:
-            super(ComputedSet, self).save()
-        if not self.unique_name:
-            unique_name = (
-                "".join(self.submitter.name.split())
-                + '-'
-                + "".join(self.submitter.method.split())
-            )
-            self.unique_name = unique_name
-        super(ComputedSet, self).save()
-
     def __str__(self) -> str:
-        return f"{self.name}"
+        target_title: str = self.target.title if self.target else "None"
+        return f"{self.name} {target_title}"
 
     def __repr__(self) -> str:
-        return "<ComputedSet %r %r %r>" % (self.name, self.target, self.submitter)
+        return "<ComputedSet %r %r>" % (self.name, self.target)
 
 
 class ComputedMolecule(models.Model):
     """The 3D information for a computed set molecule"""
 
+    MOLECULE_NAME_LENGTH: int = 50
+    SHORT_UUID_LENGTH: int = 4
+
     compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
     sdf_info = models.TextField(help_text="The 3D coordinates for the molecule")
     computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE)
-    name = models.CharField(max_length=50)
+    name = models.CharField(
+        max_length=50, help_text="A combination of Target and Identifier"
+    )
+    molecule_name = models.CharField(
+        max_length=MOLECULE_NAME_LENGTH,
+        help_text="Set from the _Name property of the underlying Molecule",
+        null=True,
+        blank=True,
+    )
     smiles = models.CharField(max_length=255)
+    identifier = ShortUUIDField(
+        length=SHORT_UUID_LENGTH,
+        alphabet="ACDEFGHJKLMNPRSTUVWXYZ23456789",
+        null=True,
+        blank=True,
+        help_text="A four character string of non-confusing uppercase letters and digits for easy reference."
+        " This is combined with the Target to form the ComputedMolecule's name",
+    )
     computed_inspirations = models.ManyToManyField(SiteObservation, blank=True)
     ref_url = models.TextField(
         null=True,
@@ -1052,7 +996,7 @@ class DiscourseCategory(models.Model):
     )
 
     def __str__(self):
-        return self.author
+        return self.author.username
 
     def __repr__(self) -> str:
         return "<DiscourseCategory %r %r %r>" % (
@@ -1083,7 +1027,8 @@ class DiscourseTopic(models.Model):
     discourse_topic_id = models.IntegerField()
 
     def __str__(self):
-        return self.author
+        author: str = self.author.username if self.author else "None"
+        return f"{author} '{self.topic_title}'"
 
     def __repr__(self) -> str:
         return "<DiscourseTopic %r %r %r>" % (self.id, self.author, self.topic_title)
@@ -1141,7 +1086,7 @@ class DownloadLinks(models.Model):
     original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
     def __str__(self):
-        return self.file_url
+        return str(self.file_url)
 
     def __repr__(self) -> str:
         return "<DownloadLinks %r %r %r %r>" % (
@@ -1165,7 +1110,7 @@ class TagCategory(models.Model):
     description = models.CharField(max_length=200, null=True)
 
     def __str__(self):
-        return self.category
+        return str(self.category)
 
     def __repr__(self) -> str:
         return "<TagCategory %r %r>" % (self.id, self.category)
