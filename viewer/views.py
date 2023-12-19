@@ -1556,9 +1556,7 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
                     return Response(
                         {
                             "target_access_string": [
-                                "User {} is not authorized to upload data to {}".format(
-                                    user, target_access_string
-                                )
+                                f"User {user} is not authorized to upload data to {target_access_string}"
                             ]
                         },
                         status=status.HTTP_400_BAD_REQUEST,
