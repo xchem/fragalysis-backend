@@ -34,7 +34,7 @@ from viewer.models import (
     TextScoreValues,
     User,
 )
-from viewer.utils import is_url, word_count
+from viewer.utils import add_props_to_sdf_molecule, is_url, word_count
 
 
 def dataType(a_str: str) -> str:
@@ -294,8 +294,6 @@ class MolOps:
         self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
     ) -> ComputedMolecule:
         # Don't need...
-        del filename
-
         assert mol
         assert target
         assert compound_set
@@ -406,6 +404,13 @@ class MolOps:
             computed_molecule.computed_inspirations.add(insp_frag)
         # Done
         computed_molecule.save()
+
+        # No update the molecule in the original file...
+        add_props_to_sdf_molecule(
+            sdf_file=filename,
+            molecule=molecule_name,
+            properties={"target_identifier": computed_molecule.name},
+        )
 
         return computed_molecule
 

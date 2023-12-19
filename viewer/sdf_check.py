@@ -18,10 +18,6 @@ logger = logging.getLogger(__name__)
 version = 'ver_1.2'
 
 
-def check_property_descriptions():
-    pass
-
-
 def check_compound_set(description_mol, validate_dict, update=None):
     del update
 

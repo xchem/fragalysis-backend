@@ -39,4 +39,20 @@ class Migration(migrations.Migration):
                 blank=True, help_text='The date the set was uploaded', null=True
             ),
         ),
+        migrations.AddField(
+            model_name='computedset',
+            name='written_sdf_filename',
+            field=models.TextField(
+                help_text='The written ComputedSet filename', max_length=1000, null=True
+            ),
+        ),
+        migrations.AlterField(
+            model_name='computedset',
+            name='submitted_sdf',
+            field=models.FileField(
+                help_text='The original SDF containing the ComputedSet',
+                max_length=255,
+                upload_to='computed_set_data/',
+            ),
+        ),
     ]
