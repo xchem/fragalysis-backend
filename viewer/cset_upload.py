@@ -306,11 +306,9 @@ class MolOps:
             long_inchi = inchi
             inchi = inchi[:254]
 
-        ref_cpd: Compound = self.create_mol(
+        compound: Compound = self.create_mol(
             inchi, name=molecule_name, long_inchi=long_inchi
         )
-
-        mol_block = Chem.MolToMolBlock(mol)
 
         insp = mol.GetProp('ref_mols')
         insp = insp.split(',')
@@ -345,8 +343,6 @@ class MolOps:
 
             insp_frags.append(ref)
 
-        _ = mol.GetProp('original SMILES')
-
         # Try to get the SiteObservation.
         # This may fail.
         prot = self.get_site_observation(
@@ -377,10 +373,17 @@ class MolOps:
             logger.info('Creating new ComputedMolecule')
             computed_molecule = ComputedMolecule()
 
+        lhs_pdb = None
+        if mol.HasProp('lhs_pdb'):
+            lhs_pdb = mol.GetProp('lhs_pdb')
+        elif mol.HasProp('ref_pdb'):
+            lhs_pdb = mol.GetProp('ref_pdb')
+
         assert computed_molecule
-        computed_molecule.compound = ref_cpd
+        computed_molecule.compound = compound
         computed_molecule.computed_set = compound_set
-        computed_molecule.sdf_info = mol_block
+        computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
+        computed_molecule.lhs_pdb = lhs_pdb
         computed_molecule.molecule_name = molecule_name
         computed_molecule.name = f"{target}-{computed_molecule.identifier}"
         computed_molecule.smiles = smiles
