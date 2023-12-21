@@ -876,6 +876,12 @@ class ComputedMolecule(models.Model):
 
     compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
     sdf_info = models.TextField(help_text="The 3D coordinates for the molecule")
+    lhs_pdb = models.TextField(
+        max_length=MOLECULE_NAME_LENGTH,
+        help_text="Set from the lhs_pdb or ref_pdb property of the underlying Molecule",
+        null=True,
+        blank=True,
+    )
     computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE)
     name = models.CharField(
         max_length=50, help_text="A combination of Target and Identifier"
@@ -911,11 +917,12 @@ class ComputedMolecule(models.Model):
         return f"{self.smiles}"
 
     def __repr__(self) -> str:
-        return "<ComputedMolecule %r %r %r %r>" % (
+        return "<ComputedMolecule %r %r %r %r %r>" % (
             self.id,
             self.smiles,
             self.name,
             self.compound,
+            self.lhs_pdb,
         )
 
 
