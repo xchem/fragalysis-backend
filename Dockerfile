@@ -25,10 +25,10 @@ FROM python-base AS poetry-base
 
 ENV POETRY_VERSION=1.7.1
 
-RUN pip install poetry==${POETRY_VERSION}
+RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
 
-
-COPY poetry.lock pyproject.toml ./
+WORKDIR /
+COPY poetry.lock pyproject.toml /
 
 
 # POETRY_VIRTUALENVS_IN_PROJECT tells poetry to create the venv to
