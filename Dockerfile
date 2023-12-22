@@ -23,7 +23,7 @@ RUN apt-get update -y && \
 # up in final image where it's not needed
 FROM python-base AS poetry-base
 
-ENV POETRY_VERSION=1.7.1
+ARG POETRY_VERSION=1.7.1
 
 RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
 
@@ -42,7 +42,7 @@ FROM python-base as final
 
 COPY --from=poetry-base /.venv /.venv
 
-ENV PYTHONPATH="${PYTHONPATH}:/.venv/lib/python3.11/site-packages/"
+ENV PYTHONPATH="${PYTHONPATH}:/.venv/lib/python${echo $PYTHON_VERSION | cut -d. -f 1-2"/site-packages/"
 ENV PATH=/.venv/bin:$PATH
 
 
