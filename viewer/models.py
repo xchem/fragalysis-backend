@@ -921,7 +921,7 @@ class ComputedMolecule(models.Model):
             self.smiles,
             self.name,
             self.compound,
-            self.lhs_pdb,
+            self.site_observation_code,
         )
 
 
