@@ -349,7 +349,12 @@ class MolOps:
             mol, target, compound_set, zfile, zfile_hashvals=zfile_hashvals
         )
         if not prot:
-            logger.warning('get_prot() failed to return a SiteObservation object')
+            logger.warning(
+                'Failed to get a SiteObservation for %s, %s, %s',
+                mol,
+                target,
+                compound_set,
+            )
 
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
@@ -373,17 +378,11 @@ class MolOps:
             logger.info('Creating new ComputedMolecule')
             computed_molecule = ComputedMolecule()
 
-        lhs_pdb = None
-        if mol.HasProp('lhs_pdb'):
-            lhs_pdb = mol.GetProp('lhs_pdb')
-        elif mol.HasProp('ref_pdb'):
-            lhs_pdb = mol.GetProp('ref_pdb')
-
         assert computed_molecule
         computed_molecule.compound = compound
         computed_molecule.computed_set = compound_set
         computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
-        computed_molecule.lhs_pdb = lhs_pdb
+        computed_molecule.site_observation_code = prot.code if prot else None
         computed_molecule.molecule_name = molecule_name
         computed_molecule.name = f"{target}-{computed_molecule.identifier}"
         computed_molecule.smiles = smiles
