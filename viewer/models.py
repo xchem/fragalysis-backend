@@ -876,9 +876,8 @@ class ComputedMolecule(models.Model):
 
     compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
     sdf_info = models.TextField(help_text="The 3D coordinates for the molecule")
-    lhs_pdb = models.TextField(
-        max_length=MOLECULE_NAME_LENGTH,
-        help_text="Set from the lhs_pdb or ref_pdb property of the underlying Molecule",
+    site_observation_code = models.TextField(
+        help_text="The LHS SiteObservation for this molecule",
         null=True,
         blank=True,
     )
