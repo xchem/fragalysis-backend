@@ -42,7 +42,7 @@ FROM python-base as final
 
 COPY --from=poetry-base /.venv /.venv
 
-ENV PYTHONPATH="${PYTHONPATH}:/.venv/lib/python${echo $PYTHON_VERSION | cut -d. -f 1-2"/site-packages/"
+ENV PYTHONPATH="${PYTHONPATH}:/.venv/lib/python3.11/site-packages/"
 ENV PATH=/.venv/bin:$PATH
 
 
