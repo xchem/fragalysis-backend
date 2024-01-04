@@ -28,15 +28,14 @@ logger = logging.getLogger(__name__)
 # the protein code subdirectory of the aligned directory
 # (as for the target upload).
 _ZIP_FILEPATHS = {
-    'pdb_info': ('aligned'),
-    'bound_info': ('aligned'),
+    'apo_file': ('aligned'),
+    'bound_file': ('aligned'),
     'cif_info': ('aligned'),
     'mtz_info': ('aligned'),
-    'map_info': ('aligned'),
-    # 'sigmaa_info': ('aligned'),
-    # 'diff_info': ('aligned'),
-    'event_info': ('aligned'),
-    # 'trans_matrix_info': ('aligned'),
+    # 'map_info': ('aligned'),
+    'xmap_2fofc_file': ('aligned'),
+    'xmap_fofc_file': ('aligned'),
+    'event_file': ('aligned'),
     'sdf_info': ('aligned'),
     'single_sdf_file': (''),
     'metadata_info': (''),
@@ -49,14 +48,13 @@ _ZIP_FILEPATHS = {
 # NB you may need to add a version number to this at some point...
 zip_template = {
     'proteins': {
-        'pdb_info': {},  # from experiment
+        'apo_file': {},  # from experiment
         'bound_file': {},  # x
         'cif_info': {},  # from experiment
         'mtz_info': {},  # from experiment
         'event_file': {},  # x
-        # 'diff_info': {}, # next 3, not collected anymore
-        # 'sigmaa_info': {},
-        # 'trans_matrix_info': {}
+        'xmap_fofc_file': {},  # renamed from xmap_fofc_file and xmap_2fofc_file
+        'xmap_2fofc_file': {},
     },
     'molecules': {
         'sdf_files': {},
@@ -228,7 +226,7 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
         filepath = str(Path(settings.MEDIA_ROOT).joinpath(filepath))
 
     if Path(filepath).is_file():
-        archive_path = str(Path('aligned').joinpath(code).joinpath(filepath))
+        archive_path = str(Path(*Path(filepath).parts[7:]))
         if _is_mol_or_sdf(filepath):
             # It's a MOL or SD file.
             # Read and (potentially) adjust the file
@@ -651,11 +649,13 @@ def get_download_params(request):
         protein_params, other_params
     """
     protein_param_flags = [
-        'pdb_info',
+        'apo_file',
         'bound_file',
         'cif_info',
         'mtz_info',
         'event_file',
+        'xmap_2fofc_file',
+        'xmap_fofc_file',
     ]
 
     other_param_flags = ['sdf_info', 'single_sdf_file', 'metadata_info', 'smiles_info']
@@ -797,10 +797,7 @@ def check_download_links(request, target, site_observations):
     zip_contents = _create_structures_dict(
         target, site_observations, protein_params, other_params
     )
-
     _create_structures_zip(target, zip_contents, file_url, original_search, host)
-
-    logger.debug('zip_contents: %s', zip_contents)
 
     download_link = DownloadLinks()
     download_link.file_url = file_url
