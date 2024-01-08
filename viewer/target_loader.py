@@ -1042,8 +1042,8 @@ class TargetLoader:
             apo_file,
             artefacts_file,
             ligand_mol,
-            xmap_2fofc_file,
-            xmap_fofc_file,
+            sigmaa_file,
+            diff_file,
             event_file,
         ) = self.validate_files(
             obj_identifier=experiment_id,
@@ -1057,8 +1057,8 @@ class TargetLoader:
             recommended=(
                 "artefacts",
                 "ligand_mol",
-                "2Fo-Fc_map",
-                "Fo-Fc_map",
+                "2Fo-Fc_map",  # NB! keys in meta_aligner not yet updated
+                "Fo-Fc_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
             ),
         )
@@ -1096,8 +1096,8 @@ class TargetLoader:
             "apo_solv_file": str(self._get_final_path(apo_solv_file)),
             "apo_desolv_file": str(self._get_final_path(apo_desolv_file)),
             "apo_file": str(self._get_final_path(apo_file)),
-            "xmap_2fofc_file": str(self._get_final_path(xmap_2fofc_file)),
-            "xmap_fofc_file": str(self._get_final_path(xmap_fofc_file)),
+            "sigmaa_file": str(self._get_final_path(sigmaa_file)),
+            "diff_file": str(self._get_final_path(diff_file)),
             "event_file": str(self._get_final_path(event_file)),
             "artefacts_file": str(self._get_final_path(artefacts_file)),
             "pdb_header_file": "currently missing",

@@ -33,8 +33,8 @@ _ZIP_FILEPATHS = {
     'cif_info': ('aligned'),
     'mtz_info': ('aligned'),
     # 'map_info': ('aligned'),
-    'xmap_2fofc_file': ('aligned'),
-    'xmap_fofc_file': ('aligned'),
+    'sigmaa_file': ('aligned'),
+    'diff_file': ('aligned'),
     'event_file': ('aligned'),
     'sdf_info': ('aligned'),
     'single_sdf_file': (''),
@@ -53,8 +53,8 @@ zip_template = {
         'cif_info': {},  # from experiment
         'mtz_info': {},  # from experiment
         'event_file': {},  # x
-        'xmap_fofc_file': {},  # renamed from xmap_fofc_file and xmap_2fofc_file
-        'xmap_2fofc_file': {},
+        'diff_file': {},  # renamed from diff_file and sigmaa_file
+        'sigmaa_file': {},
     },
     'molecules': {
         'sdf_files': {},
@@ -654,8 +654,8 @@ def get_download_params(request):
         'cif_info',
         'mtz_info',
         'event_file',
-        'xmap_2fofc_file',
-        'xmap_fofc_file',
+        'sigmaa_file',
+        'diff_file',
     ]
 
     other_param_flags = ['sdf_info', 'single_sdf_file', 'metadata_info', 'smiles_info']
