@@ -419,10 +419,10 @@ class SiteObservation(models.Model):
     apo_file = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
-    xmap_2fofc_file = models.FileField(
+    sigmaa_file = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
-    xmap_fofc_file = models.FileField(
+    diff_file = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
     event_file = models.FileField(
