@@ -1126,7 +1126,8 @@ class TargetLoader:
 
         # moved this bit from init
         self.target, target_created = Target.objects.get_or_create(
-            title=self.target_name
+            title=self.target_name,
+            display_name=self.target_name,
         )
 
         # TODO: original target loader's function get_create_projects
