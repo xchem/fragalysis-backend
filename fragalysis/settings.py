@@ -389,6 +389,10 @@ TAS_REGEX_ERROR_MSG = os.environ.get(
     "TAS_REGEX_ERROR_MSG",
     "Must begin 'lb' followed by 5 digits, optionally followed by a hyphen and a number.",
 )
+# Are any public target access strings defined?
+# If so they'll be in the PUBLIC_TAS variable as a comma separated list.
+PUBLIC_TAS = os.environ.get("PUBLIC_TAS", "")
+PUBLIC_TAS_LIST = PUBLIC_TAS.split(",") if PUBLIC_TAS else []
 
 COMPUTED_SET_MEDIA_DIRECTORY = "computed_set_data"
 TARGET_LOADER_MEDIA_DIRECTORY = "target_loader_data"

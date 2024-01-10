@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union
 from wsgiref.util import FileWrapper
 
+from django.conf import settings
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
@@ -121,12 +122,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user(self.request.user)
-        # Add in the ones everyone has access to
-        # (unless we already have it)
-        for open_proposal in self.get_open_proposals():
-            if open_proposal not in proposal_list:
-                proposal_list.append(open_proposal)
-
         logger.debug(
             'is_authenticated=%s, proposal_list=%s',
             self.request.user.is_authenticated,
@@ -141,12 +136,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_open_proposals(self):
         """
         Returns the list of proposals anybody can access.
+        They are defined via an environment variable
+        and are made available as a list of strings (Project titles)
         """
-        if os.environ.get("TEST_SECURITY_FLAG", False):
-            return ["lb00000"]
-        else:
-            # All of well-known (built-in) public Projects (Proposals/Visits)
-            return ["lb27156"]
+        return settings.PUBLIC_TAS_LIST
 
     def get_proposals_for_user_from_django(self, user):
         # Get the list of proposals for the user
@@ -278,20 +271,28 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """Returns a list of proposals (public and private) that the user has access to."""
         assert user
 
+        proposals = []
         ispyb_user = os.environ.get("ISPYB_USER")
         logger.debug("ispyb_user=%s", ispyb_user)
         if ispyb_user:
             if user.is_authenticated:
                 logger.info("Getting proposals from ISPyB...")
-                return self.get_proposals_for_user_from_ispyb(user)
+                proposals = self.get_proposals_for_user_from_ispyb(user)
             else:
                 logger.info(
                     "No proposals (user %s is not authenticated)", user.username
                 )
-                return []
         else:
             logger.info("Getting proposals from Django...")
-            return self.get_proposals_for_user_from_django(user)
+            proposals = self.get_proposals_for_user_from_django(user)
+
+        # Now add in Target Access Strings that everyone has access to
+        # (unless we already have them)
+        for open_proposal in self.get_open_proposals():
+            if open_proposal not in proposals:
+                proposals.append(open_proposal)
+
+        return proposals
 
     def get_q_filter(self, proposal_list):
         """Returns a Q expression representing a (potentially complex) table filter."""
