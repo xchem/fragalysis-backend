@@ -324,9 +324,18 @@ def missing_field_check(mol, field, validate_dict):
 
 
 def check_mol_props(mol, validate_dict):
-    # check for missing fields
-    fields = ['ref_pdb', 'ref_mols', 'original SMILES']
+    # Check for (mandatory, isolated) missing fields
+    fields = ['ref_mols', 'original SMILES']
     for field in fields:
         validate_dict = missing_field_check(mol, field, validate_dict)
+    # More complex checks?
+    # One of ref_pdb and lhs_pdb must be set
+    if not (mol.HasProp('ref_pdb') or mol.HasProp('lhs_pdb')):
+        validate_dict = add_warning(
+            molecule_name=mol.GetProp('_Name'),
+            field='ref_pdb/lhs_pdb',
+            warning_string="Molecule has neither 'ref_pdb' nor 'lhs_pdb' property",
+            validate_dict=validate_dict,
+        )
 
     return validate_dict
