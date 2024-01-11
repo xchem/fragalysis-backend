@@ -197,6 +197,26 @@ class TargetView(ISpyBSafeQuerySet):
     filter_permissions = "project_id"
     filterset_fields = ("title",)
 
+    def patch(self, request, pk):
+        try:
+            target = self.queryset.get(pk=pk)
+        except models.Target.DoesNotExist:
+            return Response(
+                {"message": f"Target pk={pk} does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = self.serializer_class(target, data=request.data, partial=True)
+        if serializer.is_valid():
+            logger.debug("serializer data: %s", serializer.validated_data)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            logger.debug("serializer error: %s", serializer.errors)
+            return Response(
+                {"message": "wrong parameters"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
 
 class CompoundView(ISpyBSafeQuerySet):
     """Compounds (api/compounds)"""

@@ -162,13 +162,11 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Target
-        # fields = ("id", "title", "project_id", "protein_set", "default_squonk_project",
-        #           "template_protein", "metadata", "zip_archive", "upload_status", "sequences")
-
         # TODO: it's missing protein_set. is it necessary anymore?
         fields = (
             "id",
             "title",
+            "display_name",
             "project_id",
             "default_squonk_project",
             "template_protein",
@@ -177,6 +175,17 @@ class TargetSerializer(serializers.ModelSerializer):
             "upload_status",
             "sequences",
         )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "title": {"read_only": True},
+            "project_id": {"read_only": True},
+            "default_squonk_project": {"read_only": True},
+            "template_protein": {"read_only": True},
+            "metadata": {"read_only": True},
+            "zip_archive": {"read_only": True},
+            "upload_status": {"read_only": True},
+            "sequences": {"read_only": True},
+        }
 
 
 class CompoundSerializer(serializers.ModelSerializer):

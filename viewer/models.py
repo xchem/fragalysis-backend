@@ -74,6 +74,8 @@ class Target(models.Model):
     title = models.CharField(
         unique=True, max_length=200, help_text="A title, i.e. Mpro"
     )
+    display_name = models.TextField(null=False, blank=True)
+
     init_date = models.DateTimeField(auto_now_add=True)
     project_id = models.ManyToManyField(Project)
     uniprot_id = models.CharField(
