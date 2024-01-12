@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('viewer', '0028_auto_20240108_1114'),
+        ('viewer', '0029_target_display_name'),
     ]
 
     operations = [
