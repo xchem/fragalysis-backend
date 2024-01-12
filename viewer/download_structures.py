@@ -469,7 +469,7 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
         )
         logger.info('combined_sdf_file=%s', combined_sdf_file)
 
-    with zipfile.ZipFile(file_url, 'w') as ziparchive:
+    with zipfile.ZipFile(file_url, 'w', zipfile.ZIP_DEFLATED) as ziparchive:
         # Read through zip_contents to compile the file
         errors += _protein_files_zip(zip_contents, ziparchive, error_file)
         if errors > 0:
