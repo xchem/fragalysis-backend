@@ -131,22 +131,25 @@ def _add_file_to_zip(ziparchive, param, filepath):
         filepath: filepath from record
 
     Returns:
-        [boolean]: [True of record added to error file]
+        [boolean]: [True of record added]
     """
-    media_root = settings.MEDIA_ROOT
     if not filepath:
-        return False
+        # Odd - assume success
+        logger.error('No filepath value')
+        return True
 
-    fullpath = os.path.join(media_root, filepath)
+    fullpath = os.path.join(settings.MEDIA_ROOT, filepath)
 
     if os.path.isfile(fullpath):
         cleaned_filename = clean_filename(filepath)
         ziparchive.write(
             fullpath, os.path.join(_ZIP_FILEPATHS[param], cleaned_filename)
         )
-        return False
+        return True
+    else:
+        logger.warning('filepath "%s" is not a file', filepath)
 
-    return True
+    return False
 
 
 def _is_mol_or_sdf(path):
@@ -212,14 +215,14 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
         filepath: filepath from record
 
     Returns:
-        [boolean]: [True of record added to error file]
+        [boolean]: [True of record added to archive]
     """
     if not filepath:
-        return False
+        # Odd - assume success
+        logger.error('No filepath value')
+        return True
 
-    logger.debug('+ _add_file_to_zip_aligned, filepath: %s', filepath)
-
-    # apparently incoming filepath can be both str and FieldFile
+    # Incoming filepath can be both str and FieldFile
     try:
         filepath = filepath.path
     except AttributeError:
@@ -236,9 +239,11 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
         else:
             # Copy the file without modification
             ziparchive.write(filepath, archive_path)
-        return False
+        return True
+    else:
+        logger.warning('filepath "%s" is not a file', filepath)
 
-    return True
+    return False
 
 
 def _add_file_to_sdf(combined_sdf_file, filepath):
@@ -249,22 +254,25 @@ def _add_file_to_sdf(combined_sdf_file, filepath):
         filepath: filepath from record
 
     Returns:
-        [boolean]: [True of record added to error file]
+        [boolean]: [True of record added]
     """
     media_root = settings.MEDIA_ROOT
 
     if not filepath:
-        return False
+        # Odd - assume success
+        logger.error('No filepath value')
+        return True
 
     fullpath = os.path.join(media_root, filepath)
-
     if os.path.isfile(fullpath):
         with open(combined_sdf_file, 'a', encoding='utf-8') as f_out:
             patched_sdf_content = _read_and_patch_molecule_name(fullpath)
             f_out.write(patched_sdf_content)
-        return False
+        return True
+    else:
+        logger.warning('filepath "%s" is not a file', filepath)
 
-    return True
+    return False
 
 
 def _protein_files_zip(zip_contents, ziparchive, error_file):
@@ -277,10 +285,10 @@ def _protein_files_zip(zip_contents, ziparchive, error_file):
             continue
 
         for prot, prot_file in files.items():
-            logger.debug('%s: %s', prot, prot_file)
-            if _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], prot_file):
-                error_file.write('{},{},{}\n'.format(param, prot, prot_file))
+            if not _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], prot_file):
+                error_file.write(f'{param},{prot},{prot_file}\n')
                 prot_errors += 1
+
     return prot_errors
 
 
@@ -296,21 +304,24 @@ def _molecule_files_zip(zip_contents, ziparchive, combined_sdf_file, error_file)
     for file, prot in zip_contents['molecules']['sdf_files'].items():
         # Do not try and process any missing SD files.
         if not file:
-            error_file.write('{},{},{}\n'.format('sdf_files', prot, 'missing'))
+            error_file.write(f'sdf_files,{prot},missing\n')
             mol_errors += 1
             continue
 
-        if zip_contents['molecules']['sdf_info'] is True:
-            # Add sdf file on the Molecule record to the archive folder.
-            if _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], file):
-                error_file.write('{},{},{}\n'.format('sdf_info', prot, file))
-                mol_errors += 1
+        if zip_contents['molecules'][
+            'sdf_info'
+        ] is True and not _add_file_to_zip_aligned(
+            ziparchive, prot.split(":")[0], file
+        ):
+            error_file.write(f'sdf_info,{prot},{file}\n')
+            mol_errors += 1
 
         # Append sdf file on the Molecule record to the combined_sdf_file.
-        if zip_contents['molecules']['single_sdf_file'] is True:
-            if _add_file_to_sdf(combined_sdf_file, file):
-                error_file.write('{},{},{}\n'.format('single_sdf_file', prot, file))
-                mol_errors += 1
+        if zip_contents['molecules'][
+            'single_sdf_file'
+        ] is True and not _add_file_to_sdf(combined_sdf_file, file):
+            error_file.write(f'single_sdf_file,{prot},{file}\n')
+            mol_errors += 1
 
     return mol_errors
 
@@ -324,7 +335,7 @@ def _smiles_files_zip(zip_contents, ziparchive, download_path):
     with open(smiles_filename, 'w', encoding='utf-8') as smilesfile:
         for smi in zip_contents['molecules']['smiles_info']:
             logger.debug('Adding "%s"...', smi)
-            smilesfile.write(smi + ',')
+            smilesfile.write(f'{smi},')
             num_smiles += 1
 
     logger.info('Added %s SMILES', num_smiles)
@@ -505,17 +516,14 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
             _smiles_files_zip(zip_contents, ziparchive, download_path)
 
         # Add the metadata file from the target
-        if zip_contents['metadata_info']:
-            if _add_file_to_zip(
-                ziparchive, 'metadata_info', zip_contents['metadata_info']
-            ):
-                error_file.write(
-                    '{},{},{}\n'.format(
-                        'metadata_info', target, zip_contents['metadata_info']
-                    )
-                )
-                errors += 1
-                logger.warning('After _add_file_to_zip() errors=%s', errors)
+        if zip_contents['metadata_info'] and not _add_file_to_zip(
+            ziparchive, 'metadata_info', zip_contents['metadata_info']
+        ):
+            error_file.write(
+                f"metadata_info,{target},{zip_contents['metadata_info']}\n"
+            )
+            errors += 1
+            logger.warning('After _add_file_to_zip() errors=%s', errors)
 
         _extra_files_zip(ziparchive, target)
 
@@ -554,15 +562,10 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
     Returns:
         [dict]: [dictionary containing the file contents]
     """
-    logger.info('+ _create_structures_dict')
-
-    zip_contents: Dict[str, Any] = copy.deepcopy(zip_template)
-
-    logger.info(
-        'Expecting %d molecules from %d proteins', site_obvs.count(), site_obvs.count()
-    )
+    logger.info('Processing %d SiteObservations', site_obvs.count())
 
     # Read through zip_params to compile the parameters
+    zip_contents: Dict[str, Any] = copy.deepcopy(zip_template)
     for so in site_obvs:
         for param in protein_params:
             if protein_params[param] is True:
@@ -585,8 +588,8 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
         zip_contents['molecules']['sdf_info'] = True
 
     # sdf information is held as a file on the Molecule record.
-    num_molecules_collected = 0
     if other_params['sdf_info'] or other_params['single_sdf_file']:
+        num_molecules_collected = 0
         num_missing_sd_files = 0
         for so in site_obvs:
             rel_sd_file = None
@@ -597,16 +600,12 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
             else:
                 # No file value (odd).
                 logger.warning(
-                    "SiteObservation record's 'ligand_mol_file' isn't set (protein.code=%s).",
-                    so.code,
-                )
-                logger.error(
-                    "Molecule record's 'sdf_info' isn't set (protein.code=%s).", so.code
+                    "SiteObservation record's 'ligand_mol_file' isn't set (%s)", so
                 )
                 num_missing_sd_files += 1
 
             if rel_sd_file:
-                logger.debug('rel_sd_file=%s protein.code=%s', rel_sd_file, so.code)
+                logger.debug('rel_sd_file=%s code=%s', rel_sd_file, so.code)
                 zip_contents['molecules']['sdf_files'].update({rel_sd_file: so.code})
                 num_molecules_collected += 1
 
@@ -617,10 +616,12 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
             logger.info('%s SD files collected', num_molecules_collected)
 
         if site_obvs.count() != num_molecules_collected:
-            logger.error('Expected %d files', site_obvs.count())
+            logger.warning(
+                'Expected %d files, got %d', site_obvs.count(), num_molecules_collected
+            )
 
         if num_missing_sd_files > 0:
-            logger.error('%d missing files', num_missing_sd_files)
+            logger.warning('%d missing files', num_missing_sd_files)
 
     # The smiles at molecule level may not be unique.
     if other_params['smiles_info'] is True:
@@ -710,15 +711,23 @@ def check_download_links(request, target, site_observations):
     logger.info('+ check_download_links(%s)', target.title)
     host = request.get_host()
 
+    # Log the provided SiteObservations
+    num_given_site_obs = site_observations.count()
+    site_ob_repr = ""
+    for site_ob in site_observations:
+        site_ob_repr += "%r " % site_ob
+    logger.debug(
+        'Given %s SiteObservation records: %r', num_given_site_obs, site_ob_repr
+    )
+
     protein_params, other_params, static_link = get_download_params(request)
     logger.debug('proteins_params: %s', protein_params)
     logger.debug('other_params: %s', other_params)
     logger.debug('static_link: %s', static_link)
 
     # Remove 'references_' from protein list if present.
-    num_given_proteins = site_observations.count()
     site_observations = _protein_garbage_filter(site_observations)
-    num_removed = num_given_proteins - site_observations.count()
+    num_removed = num_given_site_obs - num_given_site_obs
     if num_removed:
         logger.warning('Removed %d "references_" proteins from download', num_removed)
 
@@ -798,7 +807,7 @@ def check_download_links(request, target, site_observations):
 
     # No existing Download record - create a new link for this user,
     # which we'll locate in <MEDIA_ROOT>/downloads/<download_uuid>/<filename>.
-    filename = target.title + '.zip'
+    filename = f'{target.title}.zip'
     file_url = os.path.join(
         settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
     )
@@ -811,24 +820,20 @@ def check_download_links(request, target, site_observations):
 
     download_link = DownloadLinks()
     download_link.file_url = file_url
-    if request.user.is_authenticated:
-        download_link.user = request.user
-    else:
-        download_link.user = None
+    download_link.user = request.user if request.user.is_authenticated else None
     download_link.target = target
     download_link.proteins = proteins_list
     download_link.protein_params = protein_params
     download_link.other_params = other_params
     download_link.static_link = static_link
-    if static_link:
-        download_link.zip_contents = zip_contents
+    download_link.zip_contents = zip_contents if static_link else None
     download_link.create_date = datetime.datetime.now(datetime.timezone.utc)
     download_link.keep_zip_until = get_keep_until()
     download_link.zip_file = True
     download_link.original_search = original_search
     download_link.save()
 
-    logger.info('- Download record saved %s (file_url=%s)', download_link, file_url)
+    logger.info('- Download record saved %s', repr(download_link))
     return file_url, True
 
 
