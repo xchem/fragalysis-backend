@@ -1104,8 +1104,9 @@ class DownloadLinks(models.Model):
         return str(self.file_url)
 
     def __repr__(self) -> str:
-        return "<DownloadLinks %r %r %r %r>" % (
+        return "<DownloadLinks %r %r %r %r %r>" % (
             self.id,
+            self.zip_file,
             self.file_url,
             self.user,
             self.target,
