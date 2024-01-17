@@ -734,7 +734,7 @@ def check_download_links(request, target, site_observations):
         del original_search['csrfmiddlewaretoken']
 
     # For dynamic files, if the target, proteins, protein_params and other_params
-    # are in an existing record then this is a repeat search .
+    # are in an existing record then this is a repeat search.
     # If the zip is there, then we can just return the file_url.
     # If the record is there but the zip file isn't, then regenerate the zip file.
     # from the search, to contain the latest information.
@@ -746,24 +746,32 @@ def check_download_links(request, target, site_observations):
         protein_params=protein_params,
         other_params=other_params,
         static_link=False,
-    )
+    ).first()
 
-    if existing_link.exists():
-        if (
-            existing_link[0].zip_file
-            and os.path.isfile(existing_link[0].file_url)
-            and not static_link
-        ):
-            logger.info('Existing link (%s)', existing_link[0].file_url)
-            return existing_link[0].file_url, True
+    if existing_link:
+        linked_file_exists = os.path.isfile(existing_link.file_url)
+        logger.info(
+            'Found existing download link (%s) linked_file_exists=%s',
+            existing_link,
+            linked_file_exists,
+        )
 
-        if os.path.isfile(existing_link[0].file_url) and not static_link:
-            logger.info('Existing link in progress (%s)', existing_link[0].file_url)
+        file_url = existing_link.file_url
+        if existing_link.zip_file and linked_file_exists and not static_link:
+            logger.info('- Returning existing download (file_url=%s)', file_url)
+            return file_url, True
+
+        if linked_file_exists and not static_link:
+            # The file exists but it is not marked as being 'valid' (i.e. zip_file is False).
+            # If it was our process then it would have been marked as valid and
+            # we would have returned it above.
+            logger.warning(
+                '- Download exists. From another progress? (file_url=%s)', file_url
+            )
             # Repeat call, file is currently being created by another process.
-            return existing_link[0].file_url, False
+            return file_url, False
 
-        # Recreate file.
-        #
+        logger.info('Download file is lost (file_url=%s). Recreating...', file_url)
         # This step can result in references to missing SD Files (see FE issue 907).
         # If so the missing file will have a file reference of 'MISSING/<filename>'
         # in the corresponding ['molecules']['sdf_files'] entry.
@@ -773,26 +781,28 @@ def check_download_links(request, target, site_observations):
         _create_structures_zip(
             target,
             zip_contents,
-            existing_link[0].file_url,
-            existing_link[0].original_search,
+            file_url,
+            existing_link.original_search,
             host,
         )
-        existing_link[0].keep_zip_until = get_keep_until()
-        existing_link[0].zip_file = True
+        existing_link.keep_zip_until = get_keep_until()
+        existing_link.zip_file = True
         if static_link:
             # Changing from a dynamic to a static link
-            existing_link[0].static_link = static_link
-            existing_link[0].zip_contents = zip_contents
-        existing_link[0].save()
-        logger.info('Link saved (%s)', existing_link[0].file_url)
+            existing_link.static_link = static_link
+            existing_link.zip_contents = zip_contents
+        existing_link.save()
 
-        return existing_link[0].file_url, True
+        logger.info('- Recreated download and saved (file_url=%s)', file_url)
+        return file_url, True
 
-    # Create a new link for this user
-    # /code/media/downloads/<download_uuid>
+    # No existing Download record - create a new link for this user,
+    # which we'll locate in <MEDIA_ROOT>/downloads/<download_uuid>/<filename>.
     filename = target.title + '.zip'
-    media_root = settings.MEDIA_ROOT
-    file_url = os.path.join(media_root, 'downloads', str(uuid.uuid4()), filename)
+    file_url = os.path.join(
+        settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
+    )
+    logger.info('Creating new download (file_url=%s)...', file_url)
 
     zip_contents = _create_structures_dict(
         target, site_observations, protein_params, other_params
@@ -818,12 +828,14 @@ def check_download_links(request, target, site_observations):
     download_link.original_search = original_search
     download_link.save()
 
+    logger.info('- Download record saved %s (file_url=%s)', download_link, file_url)
     return file_url, True
 
 
 def recreate_static_file(existing_link, host):
     """Recreate static file for existing link"""
     target = existing_link.target
+    logger.info('+ recreate_static_file(%s)', target.title)
 
     _create_structures_zip(
         target,
@@ -836,19 +848,38 @@ def recreate_static_file(existing_link, host):
     existing_link.zip_file = True
     existing_link.save()
 
+    logger.info('- Existing download link saved %s', existing_link)
+
 
 def maintain_download_links():
-    """Maintain zip files
+    """Physical zip files are removed after 1 hour (or when the next POST call
+    is made) for security reasons and to conserve memory space.Only if the file can
+    be deleted do we reset the 'zip-file' flag. So, if there are any problems
+    with the file-system the model should continue to reflect the current state
+    of the world.
 
-    Physical zip files are removed after 1 hour (or when the next POST call
-    is made) for security reasons and to conserve memory space.
-
+    'zip_file' records whether the file should be present.
+    For every record that has this set (and is too old), we remove the file directory
+    and then clear the flag.
     """
-
-    old_links = DownloadLinks.objects.filter(
+    out_of_date_links = DownloadLinks.objects.filter(
         keep_zip_until__lt=datetime.datetime.now(datetime.timezone.utc)
     ).filter(zip_file=True)
-    for old_link in old_links:
-        old_link.zip_file = False
-        old_link.save()
-        shutil.rmtree(os.path.dirname(old_link.file_url), ignore_errors=True)
+    for out_of_date_link in out_of_date_links:
+        if os.path.isfile(out_of_date_link.file_url):
+            dir_name = os.path.dirname(out_of_date_link.file_url)
+            logger.info('Removing file_url directory (%s)...', dir_name)
+            shutil.rmtree(dir_name, ignore_errors=True)
+
+        # Does the file exist now?
+        if os.path.isfile(out_of_date_link.file_url):
+            logger.warning(
+                'Failed removal of file_url directory (%s), not clearing zip_file flag',
+                dir_name,
+            )
+        else:
+            logger.info(
+                'Removed file_url directory (%s), clearing zip_file flag', dir_name
+            )
+            out_of_date_link.zip_file = False
+            out_of_date_link.save()
