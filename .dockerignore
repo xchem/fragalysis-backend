@@ -2,7 +2,6 @@
 .git/
 venv/
 docs/
-doc_templates/
 design_docs/
 logs/
 media/

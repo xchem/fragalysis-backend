@@ -1534,11 +1534,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
             }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        protein_repr = ""
-        for protein in site_obvs:
-            protein_repr += "%r " % protein
-        logger.info('Collected %s Protein records: %r', site_obvs.count(), protein_repr)
-
         filename_url, file_exists = check_download_links(request, target, site_obvs)
         if file_exists:
             return Response({"file_url": filename_url})
