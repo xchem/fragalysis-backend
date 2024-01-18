@@ -50,9 +50,8 @@ from .discourse import (
     list_discourse_posts_for_topic,
 )
 from .download_structures import (
-    check_download_links,
-    maintain_download_links,
-    recreate_static_file,
+    create_or_return_download_link,
+    erase_out_of_date_download_records,
 )
 from .forms import CSetForm
 from .squonk_job_file_transfer import validate_file_transfer_files
@@ -1385,11 +1384,10 @@ class DownloadStructures(ISpyBSafeQuerySet):
         file_url = request.GET.get('file_url')
 
         if file_url:
-            link = models.DownloadLinks.objects.filter(file_url=file_url)
-            if link and link[0].zip_file and os.path.isfile(link[0].file_url):
-                logger.info('zip_file: %s', link[0].zip_file)
+            if models.DownloadLinks.objects.filter(file_url=file_url).first():
+                logger.info('Found %s', file_url)
+                assert os.path.isfile(file_url)
 
-                # return file and tidy up.
                 file_name = os.path.basename(file_url)
                 wrapper = FileWrapper(open(file_url, 'rb'))
                 response = FileResponse(wrapper, content_type='application/zip')
@@ -1398,69 +1396,41 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 )
                 response['Content-Length'] = os.path.getsize(file_url)
                 return response
-            elif link:
-                content = {
-                    'message': 'Zip file no longer present - '
-                    'please recreate by calling '
-                    'POST/Prepare download'
-                }
+            else:
+                content = {'message': 'file_url is not found'}
                 return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-            content = {'message': 'File_url is not found'}
-            return Response(content, status=status.HTTP_404_NOT_FOUND)
-
-        content = {'message': 'Please provide file_url parameter from ' 'post response'}
+        content = {'message': 'Please provide file_url parameter from post response'}
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
     def create(self, request):
-        """Method to handle POST request that's use to initiate a target download.\
+        """Method to handle POST requests that are used to initiate a target download.
 
-        The user is permitted to download Targets they have ascess to (whether
-        authenticated or not), and this is hadled by the queryset logic later in
+        The user is permitted to download Targets they have access to (whether
+        authenticated or not), and this is handled by the queryset logic later in
         this method.
         """
         logger.info('+ DownloadStructures.post')
 
-        # Clear up old existing files
-        maintain_download_links()
+        erase_out_of_date_download_records()
 
-        # Static files
-        # For static files, the contents of the zip file at the time of the search
-        # are stored in the zip_contents field. These are used to reconstruct the
-        # zip file from the time of the request.
+        # Static files (i.e. links not removed)
         if request.data['file_url']:
-            # This is a static link - the contents are stored in the database
-            # if required.
             file_url = request.data['file_url']
             logger.info('Given file_url "%s"', file_url)
-            existing_link = models.DownloadLinks.objects.filter(file_url=file_url)
+            existing_link = models.DownloadLinks.objects.filter(
+                file_url=file_url
+            ).first()
 
-            if existing_link and existing_link[0].static_link:
-                # If the zip file is present, return it
-                # Note that don't depend 100% on the zip_file flag as the
-                # file might have been deleted from the media server.
-                if existing_link[0].zip_file and os.path.isfile(
-                    existing_link[0].file_url
-                ):
-                    logger.info('Download is Ready!')
-                    return Response(
-                        {"file_url": existing_link[0].file_url},
-                        status=status.HTTP_200_OK,
-                    )
-                elif os.path.isfile(existing_link[0].file_url):
-                    # If the file is there but zip_file is false, then it is
-                    # probably being rebuilt by a parallel process.
-                    logger.info('Download is under construction')
-                    content = {'message': 'Zip being rebuilt - ' 'please try later'}
-                    return Response(content, status=status.HTTP_208_ALREADY_REPORTED)
-                else:
-                    # Otherwise re-create the file.
-                    logger.info('Recreating download...')
-                    recreate_static_file(existing_link[0], request.get_host())
-                    return Response(
-                        {"file_url": existing_link[0].file_url},
-                        status=status.HTTP_200_OK,
-                    )
+            if existing_link and existing_link.static_link:
+                # A record exists, the file _must_ exist.
+                file_url = existing_link.file_url
+                logger.info('Existing static link found for file_url "%s"', file_url)
+                assert os.path.isfile(file_url)
+                return Response(
+                    {"file_url": file_url},
+                    status=status.HTTP_200_OK,
+                )
 
             msg = 'file_url should only be provided for static files'
             logger.warning(msg)
@@ -1468,7 +1438,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         # Dynamic files
-
         if 'target_name' not in request.data:
             content = {
                 'message': 'If no file_url, a target_name (title) must be provided'
@@ -1534,12 +1503,9 @@ class DownloadStructures(ISpyBSafeQuerySet):
             }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        filename_url, file_exists = check_download_links(request, target, site_obvs)
-        if file_exists:
-            return Response({"file_url": filename_url})
-        else:
-            content = {'message': 'Zip being rebuilt - please try later'}
-            return Response(content, status=status.HTTP_208_ALREADY_REPORTED)
+        filename_url = create_or_return_download_link(request, target, site_obvs)
+        assert filename_url is not None
+        return Response({"file_url": filename_url})
 
 
 class UploadTargetExperiments(ISpyBSafeQuerySet):
