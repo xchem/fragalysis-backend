@@ -53,6 +53,11 @@ CONFIG_FILE = "config*.yaml"
 # everything else
 METADATA_FILE = "meta_aligner.yaml"
 
+# transformation matrices
+TRANS_NEIGHBOURHOOD = "neighbourhood_transforms.yaml"
+TRANS_CONF_SITE = "conformer_site_transforms.yaml"
+TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
+
 
 class UploadState(str, Enum):
     """Target loader progress state.
@@ -1160,9 +1165,42 @@ class TargetLoader:
         assert self.target
         self.target.project_id.add(self.project)
 
+        meta = self._load_yaml(Path(upload_root).joinpath(METADATA_FILE))
+
+        # collect top level info
+        self.version_number = meta["version_number"]
+        self.version_dir = meta["version_dir"]
+        self.previous_version_dirs = meta["previous_version_dirs"]
+
+        # check tranformation matrix files
+        (  # pylint: disable=unbalanced-tuple-unpacking
+            trans_neighbourhood,
+            trans_conf_site,
+            trans_ref_struct,
+        ) = self.validate_files(
+            obj_identifier="trans_matrices",
+            # since the paths are given if file as strings, I think I
+            # can get away with compiling them as strings here
+            file_struct={
+                TRANS_NEIGHBOURHOOD: f"{self.version_dir}/{TRANS_NEIGHBOURHOOD}",
+                TRANS_CONF_SITE: f"{self.version_dir}/{TRANS_CONF_SITE}",
+                TRANS_REF_STRUCT: f"{self.version_dir}/{TRANS_REF_STRUCT}",
+            },
+            required=(TRANS_NEIGHBOURHOOD, TRANS_CONF_SITE, TRANS_REF_STRUCT),
+        )
+
         self.experiment_upload.project = self.project
         self.experiment_upload.target = self.target
         self.experiment_upload.committer = committer
+        self.experiment_upload.neighbourhood_transforms = str(
+            self._get_final_path(trans_neighbourhood)
+        )
+        self.experiment_upload.conformer_site_transforms = str(
+            self._get_final_path(trans_conf_site)
+        )
+        self.experiment_upload.reference_structure_transforms = str(
+            self._get_final_path(trans_ref_struct)
+        )
         self.experiment_upload.save()
 
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -1172,13 +1210,6 @@ class TargetLoader:
             yaml_data=self._load_yaml(Path(upload_root).joinpath(XTALFORMS_FILE)),
             blocks=("assemblies", "xtalforms"),
         )
-
-        meta = self._load_yaml(Path(upload_root).joinpath(METADATA_FILE))
-
-        # collect top level info
-        self.version_number = meta["version_number"]
-        self.version_dir = meta["version_dir"]
-        self.previous_version_dirs = meta["previous_version_dirs"]
 
         (  # pylint: disable=unbalanced-tuple-unpacking
             crystals,
