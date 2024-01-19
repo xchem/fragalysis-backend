@@ -177,15 +177,12 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
 
     logger.debug('Patching MOL/SDF "%s" molecule_name=%s', path, molecule_name)
 
-    name = molecule_name
-    if not name:
-        # No molecule name provided.
-        # The name will be set from file name
-        # (without path prefix and the extension)
-        # of the cleaned-up name.
-        # e.g. the name of 'media/sdfs/Mpro-x3351_0A_rtEVbqf.sdf'
-        # is 'Mpro-x3351_0A'.
-        name = os.path.splitext(clean_filename(path))[0]
+    # The name will be set from file name
+    # (without path prefix and the extension)
+    # of the cleaned-up name.
+    # e.g. the name of 'media/sdfs/Mpro-x3351_0A_rtEVbqf.sdf'
+    # is 'Mpro-x3351_0A'.
+    name = molecule_name or os.path.splitext(clean_filename(path))[0]
 
     # Now read the file, checking the first line
     # and setting it to the molecule name if it's blank.
@@ -193,9 +190,7 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     # which we eventually return to the caller.
     content = ''
     with open(path, 'r', encoding='utf-8') as f_in:
-        # First line (stripped)
-        first_line = f_in.readline().strip()
-        if first_line:
+        if first_line := f_in.readline().strip():
             content += first_line + '\n'
         else:
             content += name + '\n'
@@ -478,9 +473,7 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
     # add sdf files to a file called {target}_combined.sdf.
     combined_sdf_file = None
     if zip_contents['molecules']['single_sdf_file'] is True:
-        combined_sdf_file = os.path.join(
-            download_path, '{}_combined.sdf'.format(target.title)
-        )
+        combined_sdf_file = os.path.join(download_path, f'{target.title}_combined.sdf')
         logger.info('combined_sdf_file=%s', combined_sdf_file)
 
     with zipfile.ZipFile(file_url, 'w', zipfile.ZIP_DEFLATED) as ziparchive:
@@ -671,9 +664,8 @@ def get_download_params(request):
     protein_params = {}
     for param in protein_param_flags:
         protein_params[param] = False
-        if param in request.data:
-            if request.data[param] == True or request.data[param] == 'true':
-                protein_params[param] = True
+        if param in request.data and request.data[param] in [True, 'true']:
+            protein_params[param] = True
 
     # other_params = {'sdf_info': request.data['sdf_info'],
     #                 'single_sdf_file': request.data['single_sdf_file'],
@@ -682,14 +674,14 @@ def get_download_params(request):
     other_params = {}
     for param in other_param_flags:
         other_params[param] = False
-        if param in request.data:
-            if request.data[param] == True or request.data[param] == 'true':
-                other_params[param] = True
+        if param in request.data and request.data[param] in [True, 'true']:
+            other_params[param] = True
 
     static_link = False
-    if 'static_link' in request.data:
-        if request.data['static_link'] is True or request.data['static_link'] == 'true':
-            static_link = True
+    if 'static_link' in request.data and (
+        request.data['static_link'] is True or request.data['static_link'] == 'true'
+    ):
+        static_link = True
 
     return protein_params, other_params, static_link
 
@@ -716,9 +708,7 @@ def create_or_return_download_link(request, target, site_observations):
 
     # Log the provided SiteObservations
     num_given_site_obs = site_observations.count()
-    site_ob_repr = ""
-    for site_ob in site_observations:
-        site_ob_repr += "%r " % site_ob
+    site_ob_repr = "".join("%r " % site_ob for site_ob in site_observations)
     logger.debug(
         'Given %s SiteObservation records: %r', num_given_site_obs, site_ob_repr
     )
