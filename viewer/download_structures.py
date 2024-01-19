@@ -376,23 +376,6 @@ def _extra_files_zip(ziparchive, target):
         logger.info('Processed %s extra files', num_processed)
 
 
-# def _get_external_download_url(download_path, host):
-#     """Returns the external download URL from the internal url for
-#     the documentation.
-#     This a bit messy but requirements change and this should be replaced
-#     by data from the frontend in a future issue.
-#     """
-#
-#     download_base = os.path.join(settings.MEDIA_ROOT, 'downloads')
-#     download_uuid = download_path.replace(download_base, "")
-#     external_path = os.path.join(
-#         settings.SECURE_PROXY_SSL_HEADER[1] + '://' + host,
-#         'viewer/react/download/tag')
-#     external_path = external_path+download_uuid
-#
-#     return external_path
-
-
 def _document_file_zip(ziparchive, download_path, original_search, host):
     """Create the document file
     This consists of a template plus an added contents description.
@@ -403,51 +386,53 @@ def _document_file_zip(ziparchive, download_path, original_search, host):
     logger.info('Creating documentation...')
 
     template_file = os.path.join("/code/doc_templates", "download_readme_template.md")
-
     readme_filepath = os.path.join(download_path, 'Readme.md')
-    pdf_filepath = os.path.join(download_path, 'Readme.pdf')
-
     with open(readme_filepath, "a", encoding="utf-8") as readme:
-        readme.write("# Documentation for the downloaded zipfile\n")
-        # Download links
-        readme.write("## Download details\n")
-        # Removed as the URL wasn't being generated correctly.
-        # readme.write("### Download URLs\n")
-        # readme.write("- Download URL: <")
-        # ext_url = _get_external_download_url(download_path, host)
-        # readme.write(ext_url+">\n")
-
-        # Original Search
-        readme.write("\n### Download command (JSON)\n")
-        readme.write(
-            "JSON command sent from front-end to backend "
-            "to generate the download. This can be reused "
-            "programmatically as a POST command:\n\n"
-        )
-        readme.write("```" + json.dumps(original_search) + "```\n\n")
-
-        # Download Structure from the template
-        # (but prepare for the template file not existing)?
-        if os.path.isfile(template_file):
-            with open(template_file, "r", encoding="utf-8") as template:
-                readme.write(template.read())
-        else:
-            logger.warning('Could not find template file (%s)', template_file)
-
-        # Files Included
-        list_of_files = ziparchive.namelist()
-        readme.write("\n## Files included\n")
-        list_of_files.sort()
-        for filename in list_of_files:
-            readme.write('- ' + filename + '\n')
+        _build_readme(readme, original_search, template_file, ziparchive)
 
     # Convert markdown to pdf file
+    pdf_filepath = os.path.join(download_path, 'Readme.pdf')
     doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8").read())
     pandoc.write(doc, file=pdf_filepath, format='latex', options=["--columns=72"])
 
     ziparchive.write(pdf_filepath, os.path.join(_ZIP_FILEPATHS['readme'], 'README.pdf'))
     os.remove(readme_filepath)
     os.remove(pdf_filepath)
+
+
+def _build_readme(readme, original_search, template_file, ziparchive):
+    readme.write("# Documentation for the downloaded zipfile\n")
+    # Download links
+    readme.write("## Download details\n")
+    # Removed as the URL wasn't being generated correctly.
+    # readme.write("### Download URLs\n")
+    # readme.write("- Download URL: <")
+    # ext_url = _get_external_download_url(download_path, host)
+    # readme.write(ext_url+">\n")
+
+    # Original Search
+    readme.write("\n### Download command (JSON)\n")
+    readme.write(
+        "JSON command sent from front-end to backend "
+        "to generate the download. This can be reused "
+        "programmatically as a POST command:\n\n"
+    )
+    readme.write(f"```{json.dumps(original_search)}" + "```\n\n")
+
+    # Download Structure from the template
+    # (but prepare for the template file not existing)?
+    if os.path.isfile(template_file):
+        with open(template_file, "r", encoding="utf-8") as template:
+            readme.write(template.read())
+    else:
+        logger.warning('Could not find template file (%s)', template_file)
+
+    # Files Included
+    list_of_files = ziparchive.namelist()
+    readme.write("\n## Files included\n")
+    list_of_files.sort()
+    for filename in list_of_files:
+        readme.write(f'- {filename}' + '\n')
 
 
 def _create_structures_zip(target, zip_contents, file_url, original_search, host):
