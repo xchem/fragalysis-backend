@@ -73,7 +73,7 @@ zip_template = {
 # where missing SD files are written.
 # The SD files are constructed from the molecule 'sdf_info' field
 # (essentially MOL-file text) when the 'sdf_file' field is blank.
-_MISSING_SDF_DIRECTORY = 'missing-sdfs'
+_MISSING_SDF_DIRECTORY = 'missing_sdfs'
 _MISSING_SDF_PATH = os.path.join(settings.MEDIA_ROOT, _MISSING_SDF_DIRECTORY)
 
 _ERROR_FILE = 'errors.csv'
