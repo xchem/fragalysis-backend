@@ -279,9 +279,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
                 logger.info("Getting proposals from ISPyB...")
                 proposals = self.get_proposals_for_user_from_ispyb(user)
             else:
-                logger.info(
-                    "No proposals (user %s is not authenticated)", user.username
-                )
+                username = user.username or "UNKNOWN"
+                logger.info("No proposals (user '%s' is not authenticated)", username)
         else:
             logger.info("Getting proposals from Django...")
             proposals = self.get_proposals_for_user_from_django(user)
