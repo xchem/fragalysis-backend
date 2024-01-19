@@ -12,6 +12,7 @@ from wsgiref.util import FileWrapper
 
 import pandas as pd
 import pytz
+from celery import Celery
 from celery.result import AsyncResult
 from dateutil.parser import parse
 from django.conf import settings
@@ -1617,15 +1618,39 @@ class TaskStatus(APIView):
 
         # task_id is (will be) a UUID, but Celery expects a string
         task_id_str = str(task_id)
-        try:
-            result = AsyncResult(task_id_str)
-        except TimeoutError:
-            error = {'error': 'Task result query timed out'}
-            return Response(error, status=status.HTTP_408_REQUEST_TIMEOUT)
 
-        if result.state == 'PENDING':
-            error = {'error': 'Unknown task'}
-            return Response(error, status=status.HTTP_400_BAD_REQUEST)
+        celery_app = Celery("fragalysis")
+        inspect = celery_app.control.inspect()
+        ping = inspect.ping()
+
+        if ping:
+            active_tasks = inspect.active()
+
+            # active_tasks.values is a list of tasks for every worker
+            if task_id_str in [
+                k['id'] for worker in active_tasks.values() for k in worker
+            ]:
+                # celery confirms task exists
+                try:
+                    result = AsyncResult(task_id_str)
+                except TimeoutError:
+                    error = {'error': 'Task result query timed out'}
+                    return Response(error, status=status.HTTP_408_REQUEST_TIMEOUT)
+            else:
+                # no such task
+                error = {'error': 'Unknown task'}
+                return Response(error, status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            # task scheduler not running. This may be the case in local
+            # development, but this means there's really no way to
+            # validate whether the task exists
+            logger.warning('Celery not running!')
+            try:
+                result = AsyncResult(task_id_str)
+            except TimeoutError:
+                error = {'error': 'Task result query timed out'}
+                return Response(error, status=status.HTTP_408_REQUEST_TIMEOUT)
 
         # Extract messages (from task info)
         # Assuming the task has some info.
