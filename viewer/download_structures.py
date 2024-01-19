@@ -672,24 +672,18 @@ def get_download_params(request):
 
 
 def create_or_return_download_link(request, target, site_observations):
-    """Check/create the download zip file for dynamic links.
+    """Check/create a download zip file.
+
     Downloads are located in <MEDIA_ROOT>/downloads/ using a subdirectory
     using a UUID-4 value, with the file located in it, using the target title.
     For example: "/code/media/downloads/4c3afc69-bca9-4fb1-a76e-56c85a85899f/XX01ZVNS2B.zip".
 
     This function constructs the download file or returns a download form an exiting record.
 
-    Args:
-        request
-        target
-        site_observations
-
     Returns:
         [file]: [URL to the file in the media directory]
     """
-
-    logger.info('+ check_download_links(%s)', target.title)
-    host = request.get_host()
+    logger.info('+ Handling download for Target "%s"', target.title)
 
     # Log the provided SiteObservations
     num_given_site_obs = site_observations.count()
@@ -734,13 +728,14 @@ def create_or_return_download_link(request, target, site_observations):
         # Now return the file...
         file_url = existing_link.file_url
         assert os.path.isfile(file_url)
-        logger.info('- Returning existing download (file_url=%s)', file_url)
+        logger.info('- Handled existing download (file_url=%s)', file_url)
         return file_url
 
     # No existing Download record - create one,
     # which requires construction of the file prior to creating the record.
     # A record indicates the file is present. It is removed
     # when "out of date".
+    host = request.get_host()
     filename = f'{target.title}.zip'
     file_url = os.path.join(
         settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
@@ -769,7 +764,7 @@ def create_or_return_download_link(request, target, site_observations):
     download_link.keep_zip_until = download_link.create_date + KEEP_UNTIL_DURATION
     download_link.save()
 
-    logger.info('- Download record saved %s', repr(download_link))
+    logger.info('- Handled new record (file_url=%s)', file_url)
     return file_url
 
 
@@ -786,10 +781,12 @@ def erase_out_of_date_download_records():
         keep_zip_until__lt=datetime.now(timezone.utc)
     ).filter(static_link=False)
     for out_of_date_dynamic_record in out_of_date_dynamic_records:
-        record_repr = repr(out_of_date_dynamic_record)
-        logger.info('+ Attempting to removing record (%s)...', record_repr)
+        file_url = out_of_date_dynamic_record.file_url
+        logger.info(
+            '+ Attempting to remove download link record (file_url=%s)...', file_url
+        )
 
-        dir_name = os.path.dirname(out_of_date_dynamic_record.file_url)
+        dir_name = os.path.dirname(file_url)
         if os.path.isdir(dir_name):
             logger.debug('Removing file_url directory (%s)...', dir_name)
             shutil.rmtree(dir_name, ignore_errors=True)
@@ -799,14 +796,12 @@ def erase_out_of_date_download_records():
         # only delete the originating record if the file has been removed.
         if os.path.isdir(dir_name):
             logger.warning(
-                '- Failed removal of file_url directory (%s), not removing record (%s)',
+                '- Failed removal of file_url directory (%s), not removing record',
                 dir_name,
-                record_repr,
             )
         else:
             logger.info(
-                '- Removed file_url directory (%s), removing DownloadLinks record (%s)',
+                '- Removed file_url directory (%s), removing DownloadLinks record',
                 dir_name,
-                record_repr,
             )
             out_of_date_dynamic_record.delete()
