@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 import traceback
@@ -64,6 +65,7 @@ class SSHConnector(Connector):
     ):
         sshtunnel.SSH_TIMEOUT = 10.0
         sshtunnel.TUNNEL_TIMEOUT = 10.0
+        sshtunnel.DEFAULT_LOGLEVEL = logging.CRITICAL
         self.conn_inactivity = int(self.conn_inactivity)
 
         self.server = sshtunnel.SSHTunnelForwarder(
