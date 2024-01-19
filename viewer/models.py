@@ -1083,6 +1083,7 @@ class DownloadLinks(models.Model):
     static_link = models.BooleanField(
         default=False, help_text="This preserves the proteins from the previous search"
     )
+    # TODO - zip_contents is no longer Used (A.Christie 2024-01-19)
     zip_contents = models.JSONField(
         encoder=DjangoJSONEncoder,
         null=True,
@@ -1097,6 +1098,7 @@ class DownloadLinks(models.Model):
         " plus the retention time"
         " (1 hour at the time of writing)",
     )
+    # TODO - zip_file is no longer Used (A.Christie 2024-01-19)
     zip_file = models.BooleanField(default=False)
     original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
