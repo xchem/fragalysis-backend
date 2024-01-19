@@ -671,10 +671,12 @@ class TargetLoader:
         fields = {
             "smiles": smiles,
         }
+        defaults = {"compound_code": data.get("compound_code", None)}
 
         return ProcessedObject(
             model_class=Compound,
             fields=fields,
+            defaults=defaults,
             key=protein_name,
         )
 
