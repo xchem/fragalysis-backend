@@ -210,6 +210,7 @@ class Compound(models.Model):
 
     inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
+    compound_code = models.TextField(null=True)
     current_identifier = models.CharField(
         max_length=255,
         db_index=True,
