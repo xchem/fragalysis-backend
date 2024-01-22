@@ -819,6 +819,7 @@ def erase_out_of_date_download_records():
     with the file-system the model should continue to reflect the current state
     of the world.
     """
+    num_removed = 0
     out_of_date_dynamic_records = DownloadLinks.objects.filter(
         keep_zip_until__lt=datetime.now(timezone.utc)
     ).filter(static_link=False)
@@ -832,18 +833,22 @@ def erase_out_of_date_download_records():
         if os.path.isdir(dir_name):
             logger.debug('Removing file_url directory (%s)...', dir_name)
             shutil.rmtree(dir_name, ignore_errors=True)
+            logger.debug('Removed (%s)', dir_name)
 
         # Does the file exist now?
         # Hopefully not - but cater for 'cosmic-ray-effect' and
         # only delete the originating record if the file has been removed.
         if os.path.isdir(dir_name):
             logger.warning(
-                '- Failed removal of file_url directory (%s), not removing record',
+                'Failed removal of file_url directory (%s), leaving record',
                 dir_name,
             )
         else:
             logger.info(
-                '- Removed file_url directory (%s), removing DownloadLinks record',
+                'Removed file_url directory (%s), removing DownloadLinks record...',
                 dir_name,
             )
             out_of_date_dynamic_record.delete()
+            num_removed += 1
+
+    logger.info('Erased %d', num_removed)
