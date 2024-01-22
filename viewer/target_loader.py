@@ -72,6 +72,7 @@ class UploadState(str, Enum):
     REPORTING = "REPORTING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+    CANCELED = "CANCELED"
 
 
 class Level(str, Enum):
@@ -150,13 +151,14 @@ class UploadReport:
         self.stack.append(UploadReportEntry(level=level, message=message))
         self._update_task(message)
 
-    def final(self, archive_name):
-        if self.upload_state == UploadState.PROCESSING:
-            self.upload_state = UploadState.SUCCESS
-            message = f"{archive_name} uploaded successfully."
+    def final(self, message, upload_state=None):
+        if upload_state:
+            self.upload_state = upload_state
         else:
-            self.upload_state = UploadState.FAILED
-            message = f"Uploading {archive_name} failed."
+            if self.upload_state == UploadState.PROCESSING:
+                self.upload_state = UploadState.SUCCESS
+            else:
+                self.upload_state = UploadState.FAILED
 
         self.stack.append(UploadReportEntry(message=message))
         self._update_task(self.json())
@@ -167,6 +169,7 @@ class UploadReport:
     def _update_task(self, message: str | list) -> None:
         if self.task:
             try:
+                logger.debug("taskstuff %s", dir(self.task))
                 self.task.update_state(
                     state=self.upload_state,
                     meta={
@@ -1134,7 +1137,9 @@ class TargetLoader:
         # moved this bit from init
         self.target, target_created = Target.objects.get_or_create(
             title=self.target_name,
-            display_name=self.target_name,
+            defaults={
+                "display_name": self.target_name,
+            },
         )
 
         # TODO: original target loader's function get_create_projects
@@ -1153,7 +1158,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded, skipping."
-            self.report.log(Level.INFO, msg)
+            self.report.final(msg, upload_state=UploadState.CANCELED)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1596,7 +1601,7 @@ def load_target(
                     )
         except IntegrityError as exc:
             logger.error(exc, exc_info=True)
-            target_loader.report.final(target_loader.data_bundle)
+            target_loader.report.final(f"Uploading {target_loader.data_bundle} failed")
             target_loader.experiment_upload.message = target_loader.report.json()
             raise IntegrityError from exc
 
@@ -1618,7 +1623,7 @@ def load_target(
 
         set_directory_permissions(target_loader.abs_final_path, 0o755)
 
-        target_loader.report.final(target_loader.data_bundle)
+        target_loader.report.final(f"{target_loader.data_bundle} uploaded successfully")
         target_loader.experiment_upload.message = target_loader.report.json()
 
         # logger.debug("%s", upload_report)
