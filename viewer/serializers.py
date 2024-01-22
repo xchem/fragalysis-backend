@@ -850,6 +850,7 @@ class DownloadStructuresSerializer(serializers.Serializer):
     smiles_info = serializers.BooleanField(default=False)
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200)
+    trans_matrix_info = serializers.BooleanField(default=False)
 
 
 # Start of Serializers for Squonk Jobs

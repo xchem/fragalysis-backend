@@ -162,6 +162,15 @@ class ExperimentUpload(models.Model):
         help_text="Any message or task info associated with the upload."
         " Used for upload audit trail",
     )
+    neighbourhood_transforms = models.FileField(
+        upload_to="experiment-upload/", max_length=255
+    )
+    conformer_site_transforms = models.FileField(
+        upload_to="experiment-upload/", max_length=255
+    )
+    reference_structure_transforms = models.FileField(
+        upload_to="experiment-upload/", max_length=255
+    )
 
     def __str__(self) -> str:
         return f"{self.project}"
