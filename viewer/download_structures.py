@@ -383,13 +383,26 @@ def _extra_files_zip(ziparchive, target):
     preserved searches.
     """
 
-    num_processed = 0
-    extra_files = os.path.join(
-        settings.MEDIA_ROOT, 'targets', target.title, 'extra_files'
+    experiment_upload = target.experimentupload_set.order_by('commit_datetime').last()
+    extra_files = (
+        Path(settings.MEDIA_ROOT)
+        .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+        .joinpath(experiment_upload.task_id)
     )
+
+    # taking the latest upload for now
+    # add unpacked zip directory
+    extra_files = [d for d in list(extra_files.glob("*")) if d.is_dir()][0]
+
+    # add upload_[d] dir
+    extra_files = next(extra_files.glob("upload_*"))
+    extra_files = extra_files.joinpath('extra_files')
+
+    logger.debug('extra_files path 2: %s', extra_files)
+    num_processed = 0
     logger.info('Processing extra files (%s)...', extra_files)
 
-    if os.path.isdir(extra_files):
+    if extra_files.is_dir():
         for dirpath, _, files in os.walk(extra_files):
             for file in files:
                 filepath = os.path.join(dirpath, file)
@@ -537,8 +550,10 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
             errors += 1
             logger.warning('After _add_file_to_zip() errors=%s', errors)
 
+        if zip_contents['metadata_info']:
+            _trans_matrix_files_zip(ziparchive, target)
+
         _extra_files_zip(ziparchive, target)
-        _trans_matrix_files_zip(ziparchive, target)
 
         _document_file_zip(ziparchive, download_path, original_search, host)
 
