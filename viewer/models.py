@@ -162,6 +162,15 @@ class ExperimentUpload(models.Model):
         help_text="Any message or task info associated with the upload."
         " Used for upload audit trail",
     )
+    neighbourhood_transforms = models.FileField(
+        upload_to="experiment-upload/", max_length=255
+    )
+    conformer_site_transforms = models.FileField(
+        upload_to="experiment-upload/", max_length=255
+    )
+    reference_structure_transforms = models.FileField(
+        upload_to="experiment-upload/", max_length=255
+    )
 
     def __str__(self) -> str:
         return f"{self.project}"
@@ -210,6 +219,7 @@ class Compound(models.Model):
 
     inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
+    compound_code = models.TextField(null=True)
     current_identifier = models.CharField(
         max_length=255,
         db_index=True,

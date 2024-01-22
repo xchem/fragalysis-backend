@@ -43,6 +43,7 @@ _ZIP_FILEPATHS = {
     'single_sdf_file': (''),
     'metadata_info': (''),
     'smiles_info': (''),
+    'trans_matrix_info': (''),
     'extra_files': ('extra_files'),
     'readme': (''),
 }
@@ -66,6 +67,7 @@ zip_template = {
         'smiles_info': {},
     },
     'metadata_info': None,
+    'trans_matrix_info': None,
 }
 
 
@@ -345,6 +347,35 @@ def _smiles_files_zip(zip_contents, ziparchive, download_path):
     os.remove(smiles_filename)
 
 
+def _trans_matrix_files_zip(ziparchive, target):
+    """Add transformation matrices to archive.
+
+    Note that this will always be the latest information - even for
+    preserved searches.
+    """
+    logger.info('+ Processing trans matrix files')
+
+    # grab the last set of files for this target
+    experiment_upload = target.experimentupload_set.order_by('commit_datetime').last()
+
+    trans_matrix_files = (
+        experiment_upload.neighbourhood_transforms,
+        experiment_upload.conformer_site_transforms,
+        experiment_upload.reference_structure_transforms,
+    )
+    for tmf in trans_matrix_files:
+        if tmf:
+            ziparchive.write(
+                Path(settings.MEDIA_ROOT).joinpath(str(tmf)),
+                os.path.join(
+                    _ZIP_FILEPATHS['trans_matrix_info'],
+                    Path(str(tmf)).name,
+                ),
+            )
+        else:
+            logger.info('File %s does not exist', Path(str(tmf)).name)
+
+
 def _extra_files_zip(ziparchive, target):
     """If an extra info folder exists at the target root level, then
     copy the contents to the output file as is.
@@ -507,6 +538,7 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
             logger.warning('After _add_file_to_zip() errors=%s', errors)
 
         _extra_files_zip(ziparchive, target)
+        _trans_matrix_files_zip(ziparchive, target)
 
         _document_file_zip(ziparchive, download_path, original_search, host)
 
@@ -613,6 +645,10 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
     if other_params['metadata_info'] is True:
         zip_contents['metadata_info'] = target.metadata.name
 
+    # Add the metadata file from the target
+    if other_params['trans_matrix_info'] is True:
+        zip_contents['trans_matrix_info'] = True
+
     return zip_contents
 
 
@@ -635,7 +671,13 @@ def get_download_params(request):
         'diff_file',
     ]
 
-    other_param_flags = ['sdf_info', 'single_sdf_file', 'metadata_info', 'smiles_info']
+    other_param_flags = [
+        'sdf_info',
+        'single_sdf_file',
+        'metadata_info',
+        'smiles_info',
+        'trans_matrix_info',
+    ]
 
     # protein_params = {'pdb_info': request.data['pdb_info'],
     #               'bound_info': request.data['bound_info'],

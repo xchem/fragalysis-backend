@@ -53,6 +53,11 @@ CONFIG_FILE = "config*.yaml"
 # everything else
 METADATA_FILE = "meta_aligner.yaml"
 
+# transformation matrices
+TRANS_NEIGHBOURHOOD = "neighbourhood_transforms.yaml"
+TRANS_CONF_SITE = "conformer_site_transforms.yaml"
+TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
+
 
 class UploadState(str, Enum):
     """Target loader progress state.
@@ -67,6 +72,7 @@ class UploadState(str, Enum):
     REPORTING = "REPORTING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+    CANCELED = "CANCELED"
 
 
 class Level(str, Enum):
@@ -145,13 +151,14 @@ class UploadReport:
         self.stack.append(UploadReportEntry(level=level, message=message))
         self._update_task(message)
 
-    def final(self, archive_name):
-        if self.upload_state == UploadState.PROCESSING:
-            self.upload_state = UploadState.SUCCESS
-            message = f"{archive_name} uploaded successfully."
+    def final(self, message, upload_state=None):
+        if upload_state:
+            self.upload_state = upload_state
         else:
-            self.upload_state = UploadState.FAILED
-            message = f"Uploading {archive_name} failed."
+            if self.upload_state == UploadState.PROCESSING:
+                self.upload_state = UploadState.SUCCESS
+            else:
+                self.upload_state = UploadState.FAILED
 
         self.stack.append(UploadReportEntry(message=message))
         self._update_task(self.json())
@@ -162,6 +169,7 @@ class UploadReport:
     def _update_task(self, message: str | list) -> None:
         if self.task:
             try:
+                logger.debug("taskstuff %s", dir(self.task))
                 self.task.update_state(
                     state=self.upload_state,
                     meta={
@@ -671,10 +679,12 @@ class TargetLoader:
         fields = {
             "smiles": smiles,
         }
+        defaults = {"compound_code": data.get("compound_code", None)}
 
         return ProcessedObject(
             model_class=Compound,
             fields=fields,
+            defaults=defaults,
             key=protein_name,
         )
 
@@ -1127,7 +1137,9 @@ class TargetLoader:
         # moved this bit from init
         self.target, target_created = Target.objects.get_or_create(
             title=self.target_name,
-            display_name=self.target_name,
+            defaults={
+                "display_name": self.target_name,
+            },
         )
 
         # TODO: original target loader's function get_create_projects
@@ -1146,7 +1158,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded, skipping."
-            self.report.log(Level.INFO, msg)
+            self.report.final(msg, upload_state=UploadState.CANCELED)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1158,9 +1170,42 @@ class TargetLoader:
         assert self.target
         self.target.project_id.add(self.project)
 
+        meta = self._load_yaml(Path(upload_root).joinpath(METADATA_FILE))
+
+        # collect top level info
+        self.version_number = meta["version_number"]
+        self.version_dir = meta["version_dir"]
+        self.previous_version_dirs = meta["previous_version_dirs"]
+
+        # check tranformation matrix files
+        (  # pylint: disable=unbalanced-tuple-unpacking
+            trans_neighbourhood,
+            trans_conf_site,
+            trans_ref_struct,
+        ) = self.validate_files(
+            obj_identifier="trans_matrices",
+            # since the paths are given if file as strings, I think I
+            # can get away with compiling them as strings here
+            file_struct={
+                TRANS_NEIGHBOURHOOD: f"{self.version_dir}/{TRANS_NEIGHBOURHOOD}",
+                TRANS_CONF_SITE: f"{self.version_dir}/{TRANS_CONF_SITE}",
+                TRANS_REF_STRUCT: f"{self.version_dir}/{TRANS_REF_STRUCT}",
+            },
+            required=(TRANS_NEIGHBOURHOOD, TRANS_CONF_SITE, TRANS_REF_STRUCT),
+        )
+
         self.experiment_upload.project = self.project
         self.experiment_upload.target = self.target
         self.experiment_upload.committer = committer
+        self.experiment_upload.neighbourhood_transforms = str(
+            self._get_final_path(trans_neighbourhood)
+        )
+        self.experiment_upload.conformer_site_transforms = str(
+            self._get_final_path(trans_conf_site)
+        )
+        self.experiment_upload.reference_structure_transforms = str(
+            self._get_final_path(trans_ref_struct)
+        )
         self.experiment_upload.save()
 
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -1170,13 +1215,6 @@ class TargetLoader:
             yaml_data=self._load_yaml(Path(upload_root).joinpath(XTALFORMS_FILE)),
             blocks=("assemblies", "xtalforms"),
         )
-
-        meta = self._load_yaml(Path(upload_root).joinpath(METADATA_FILE))
-
-        # collect top level info
-        self.version_number = meta["version_number"]
-        self.version_dir = meta["version_dir"]
-        self.previous_version_dirs = meta["previous_version_dirs"]
 
         (  # pylint: disable=unbalanced-tuple-unpacking
             crystals,
@@ -1563,7 +1601,7 @@ def load_target(
                     )
         except IntegrityError as exc:
             logger.error(exc, exc_info=True)
-            target_loader.report.final(target_loader.data_bundle)
+            target_loader.report.final(f"Uploading {target_loader.data_bundle} failed")
             target_loader.experiment_upload.message = target_loader.report.json()
             raise IntegrityError from exc
 
@@ -1585,7 +1623,7 @@ def load_target(
 
         set_directory_permissions(target_loader.abs_final_path, 0o755)
 
-        target_loader.report.final(target_loader.data_bundle)
+        target_loader.report.final(f"{target_loader.data_bundle} uploaded successfully")
         target_loader.experiment_upload.message = target_loader.report.json()
 
         # logger.debug("%s", upload_report)
