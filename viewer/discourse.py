@@ -38,7 +38,9 @@ def _get_user_client(user):
 
 def get_user(client, username) -> Tuple[bool, str, int]:
     """Call discourse API users to retrieve user by username."""
-    logger.info('+ discourse.get_user')
+    assert client
+
+    logger.info('+ discourse.get_user(%s)', username)
 
     error: bool = False
     error_message: str = ''
@@ -62,7 +64,12 @@ def get_user(client, username) -> Tuple[bool, str, int]:
     else:
         user = user_record['id']
 
-    logger.info('- discourse.get_user')
+    logger.info(
+        '- discourse.get_user(%s) error=%s error_message="%s"',
+        username,
+        error,
+        error_message,
+    )
     return error, error_message, user
 
 
@@ -74,7 +81,10 @@ def create_category(
     category_text_colour='FFFFFF',
 ):
     """Call discourse API categories.json to create a new (sub)category."""
-    logger.info('+ discourse.create_category')
+    assert client
+
+    logger.info('+ discourse.create_category(%s)', category_name)
+
     category = client.create_category(
         category_name,
         color=category_colour,
@@ -84,8 +94,10 @@ def create_category(
     topic_url = os.path.join(
         settings.DISCOURSE_HOST, 'c', str(category['category']['id'])
     )
-    logger.info('- discourse.create_category')
 
+    logger.info(
+        '- discourse.create_category(%s) topic_url=%s', category_name, topic_url
+    )
     return category['category']['id'], topic_url
 
 
@@ -123,8 +135,12 @@ def process_category(category_details):
 
 def create_post(user, post_details, category_id=None, topic_id=None):
     """Call discourse API posts.json to create a new Topic or Post within a topic"""
+    assert user
+    assert 'title' in post_details
 
-    logger.info('+ discourse.create_post')
+    title = post_details['title']
+    logger.info('+ discourse.create_post(%s, %s)', user.username, title)
+
     if not user.is_authenticated:
         return True, 'Please logon to Post to Discourse', 0, ''
 
@@ -134,7 +150,6 @@ def create_post(user, post_details, category_id=None, topic_id=None):
     if user_id == 0:
         return error, error_message, 0, ''
 
-    title = post_details['title']
     content = post_details['content']
     tags = post_details['tags'] if 'tags' in post_details else []
 
@@ -154,7 +169,9 @@ def create_post(user, post_details, category_id=None, topic_id=None):
         settings.DISCOURSE_HOST, 't', str(post['topic_id']), str(post['post_number'])
     )
 
-    logger.info('- discourse.create_post')
+    logger.info(
+        '- discourse.create_post(%s, %s) post_url=%s', user.username, title, post_url
+    )
     return error, error_message, post['topic_id'], post_url
 
 
@@ -202,11 +219,11 @@ def process_post(category_id, post_details, user):
 
 def topic_posts(client, topic_id):
     """Gets posts for a given topic_id"""
-    logger.info('+ discourse.topic_posts')
+    logger.info('+ discourse.topic_posts(%s)', topic_id)
 
     posts = client.topic_posts(topic_id)
 
-    logger.info('- discourse.topic_posts posts=%s', posts)
+    logger.info('- discourse.topic_posts(%s) posts=%s', topic_id, posts)
     return posts
 
 
@@ -224,7 +241,7 @@ def create_discourse_post(user, category_details=None, post_details=None):
     """
     assert user
 
-    logger.info('+ discourse.create_discourse_post')
+    logger.info('+ discourse.create_discourse_post(%s)', user.username)
 
     error = False
     error_message = ''
@@ -247,7 +264,13 @@ def create_discourse_post(user, category_details=None, post_details=None):
             category_id, post_details, user
         )
 
-    logger.info('- discourse.create_discourse_post')
+    logger.info(
+        '- discourse.create_discourse_post(%s) error=%s error_message="%s" post_url=%s',
+        user.username,
+        error,
+        error_message,
+        post_url,
+    )
     return error, post_url, error_message
 
 
@@ -259,7 +282,7 @@ def list_discourse_posts_for_topic(topic_title):
     :param topic_title
     :return: error or json of posts.
     """
-    print('+ discourse.get_discourse_posts_for_topic')
+    print('+ discourse.get_discourse_posts_for_topic(%s)', topic_title)
     posts = ''
     error = False
 
@@ -276,7 +299,7 @@ def list_discourse_posts_for_topic(topic_title):
     else:
         error = True
 
-    print('- discourse.get_discourse_posts_for_topic')
+    print('- discourse.get_discourse_posts_for_topic(%s) error=%s', topic_title, error)
     return error, posts
 
 
