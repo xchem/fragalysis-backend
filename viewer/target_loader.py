@@ -670,11 +670,12 @@ class TargetLoader:
                 else "ligand_cif"
             )
             self.report.log(
-                Level.FATAL,
+                Level.WARNING,
                 "{} missing from {} in '{}' experiment section".format(
                     exc, smiles, protein_name
                 ),
             )
+            return None
 
         fields = {
             "smiles": smiles,
@@ -796,7 +797,7 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        xtalform_id, _, _, data = item_data
+        xtalform_id, _, assembly_id, data = item_data
 
         # hm.. doesn't reflect the fact that it's from a different
         # file.. and the message should perhaps be a bit different
@@ -809,10 +810,10 @@ class TargetLoader:
 
         xtalform = xtalforms[xtalform_id].instance
 
-        assembly_id = extract(key="assembly")
+        quat_assembly_id = extract(key="assembly")
 
         # TODO: need to key check these as well..
-        assembly = quat_assemblies[assembly_id].instance
+        assembly = quat_assemblies[quat_assembly_id].instance
 
         fields = {
             "assembly_id": assembly_id,
@@ -1041,7 +1042,12 @@ class TargetLoader:
         code = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
 
-        compound = compounds[experiment_id].instance
+        try:
+            compound = compounds[experiment_id].instance
+        except KeyError:
+            # compound missing, fine
+            compound = None
+
         canon_site_conf = canon_site_confs[idx].instance
         xtalform_site = xtalform_sites[key]
 
@@ -1121,25 +1127,56 @@ class TargetLoader:
             key=key,
         )
 
-    def process_metadata(
-        self,
-        upload_root: Path,
-    ):
-        """Extract model instances from metadata file and save them to db."""
-        # TODO: this method is quite long and should perhaps be broken
-        # apart. then again, it just keeps calling other methods to
-        # create model instances, so logically it's just doing the
-        # same thing.
+    def process_bundle(self):
+        """Resolves subdirs in uploaded data bundle.
 
-        # update_task(task, "PROCESSING", "Processing metadata")
-        logger.info("%sProcessing %s", self.report.task_id, upload_root)
+        If called from task, takes task as a parameter for status updates.
+        """
+
+        # by now I should have archive unpacked, get target name from
+        # config.yaml
+        up_iter = self.raw_data.glob("upload_*")
+        try:
+            upload_dir = next(up_iter)
+        except StopIteration as exc:
+            msg = "Upload directory missing from uploaded file"
+            self.report.log(Level.FATAL, msg)
+            # what do you mean unused?!
+            raise StopIteration(
+                msg
+            ) from exc  # pylint: disable=# pylint: disable=protected-access
+
+        try:
+            upload_dir = next(up_iter)
+            self.report.log(Level.WARNING, "Multiple upload directories in archive")
+        except StopIteration:
+            # just a warning, ignoring the second one
+            pass
+
+        # now that target name is not included in path, I don't need
+        # it here, need it just before creating target object. Also,
+        # there's probably no need to throw a fatal here, I can
+        # reasonably well deduce it from meta (I think)
+        config_it = upload_dir.glob(CONFIG_FILE)
+        try:
+            config_file = next(config_it)
+        except StopIteration as exc:
+            msg = f"config file missing from {str(upload_dir)}"
+            self.report.log(Level.FATAL, msg)
+            raise StopIteration() from exc
+
+        config = self._load_yaml(config_file)
+        logger.debug("config: %s", config)
+
+        try:
+            self.target_name = config["target_name"]
+        except KeyError as exc:
+            raise KeyError("target_name missing in config file") from exc
 
         # moved this bit from init
         self.target, target_created = Target.objects.get_or_create(
             title=self.target_name,
-            defaults={
-                "display_name": self.target_name,
-            },
+            display_name=self.target_name,
         )
 
         # TODO: original target loader's function get_create_projects
@@ -1158,7 +1195,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded, skipping."
-            self.report.final(msg, upload_state=UploadState.CANCELED)
+            self.report.log(Level.INFO, msg)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1170,7 +1207,7 @@ class TargetLoader:
         assert self.target
         self.target.project_id.add(self.project)
 
-        meta = self._load_yaml(Path(upload_root).joinpath(METADATA_FILE))
+        meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
 
         # collect top level info
         self.version_number = meta["version_number"]
@@ -1208,11 +1245,21 @@ class TargetLoader:
         )
         self.experiment_upload.save()
 
+        xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
+
+        # this is the last file to load. if any of the files missing, don't continue
+        if not meta or not config or not xtalforms_yaml:
+            self.report.final(
+                "Missing files in uploaded data, aborting",
+                Level.FATAL,
+            )
+            return
+
         (  # pylint: disable=unbalanced-tuple-unpacking
             assemblies,
             xtalform_assemblies,
         ) = self._get_yaml_blocks(
-            yaml_data=self._load_yaml(Path(upload_root).joinpath(XTALFORMS_FILE)),
+            yaml_data=xtalforms_yaml,
             blocks=("assemblies", "xtalforms"),
         )
 
@@ -1337,56 +1384,6 @@ class TargetLoader:
                 val.index_data["reference_ligands"]
             ].instance
             val.instance.save()
-
-    def process_bundle(self):
-        """Resolves subdirs in uploaded data bundle.
-
-        If called from task, takes task as a parameter for status updates.
-        """
-
-        # by now I should have archive unpacked, get target name from
-        # config.yaml
-        up_iter = self.raw_data.glob("upload_*")
-        try:
-            upload_dir = next(up_iter)
-        except StopIteration as exc:
-            msg = "Upload directory missing from uploaded file"
-            self.report.log(Level.FATAL, msg)
-            # what do you mean unused?!
-            raise StopIteration(
-                msg
-            ) from exc  # pylint: disable=# pylint: disable=protected-access
-
-        try:
-            upload_dir = next(up_iter)
-            self.report.log(Level.WARNING, "Multiple upload directories in archive")
-        except StopIteration:
-            # just a warning, ignoring the second one
-            pass
-
-        # now that target name is not included in path, I don't need
-        # it here, need it just before creating target object. Also,
-        # there's probably no need to throw a fatal here, I can
-        # reasonably well deduce it from meta (I think)
-        config_it = upload_dir.glob(CONFIG_FILE)
-        try:
-            config_file = next(config_it)
-        except StopIteration as exc:
-            msg = f"config file missing from {str(upload_dir)}"
-            self.report.log(Level.FATAL, msg)
-            raise StopIteration() from exc
-
-        config = self._load_yaml(config_file)
-        logger.debug("config: %s", config)
-
-        try:
-            self.target_name = config["target_name"]
-        except KeyError as exc:
-            raise KeyError("target_name missing in config file") from exc
-
-        self.process_metadata(
-            upload_root=upload_dir,
-        )
 
     def _load_yaml(self, yaml_file: Path) -> dict:
         try:

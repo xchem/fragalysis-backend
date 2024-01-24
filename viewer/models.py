@@ -416,7 +416,7 @@ class CanonSiteConf(models.Model):
 class SiteObservation(models.Model):
     code = models.TextField()
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
-    cmpd = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    cmpd = models.ForeignKey(Compound, null=True, on_delete=models.CASCADE)
     xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
     canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
     bound_file = models.FileField(
