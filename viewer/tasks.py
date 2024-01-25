@@ -4,8 +4,6 @@ import os
 import shutil
 from typing import Any, Dict
 
-from django.db import IntegrityError
-
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 
 import django
@@ -508,22 +506,16 @@ def task_load_target(
     logger.info(
         'TASK %s load_target launched, target_zip=%s', self.request.id, data_bundle
     )
-    try:
-        load_target(
-            data_bundle,
-            proposal_ref=proposal_ref,
-            contact_email=contact_email,
-            user_id=user_id,
-            task=self,
-        )
-    except (IntegrityError, Exception):
-        # everything regarding logging and reporting has already been done
-        pass
-
+    load_target(
+        data_bundle,
+        proposal_ref=proposal_ref,
+        contact_email=contact_email,
+        user_id=user_id,
+        task=self,
+    )
     logger.info(
         'TASK %s load_target completed, target_zip=%s', self.request.id, data_bundle
     )
-    # TODO: send email
 
 
 @shared_task

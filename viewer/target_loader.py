@@ -4,7 +4,6 @@ import logging
 import math
 import os
 import tarfile
-import traceback
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -151,16 +150,15 @@ class UploadReport:
         self.stack.append(UploadReportEntry(level=level, message=message))
         self._update_task(message)
 
-    def final(self, message, upload_state=None):
-        if upload_state:
-            self.upload_state = upload_state
-        else:
-            if self.upload_state == UploadState.PROCESSING:
-                self.upload_state = UploadState.SUCCESS
-            else:
-                self.upload_state = UploadState.FAILED
+    def final(self, message, success=True):
+        self.upload_state = UploadState.SUCCESS
 
+        # This is (expected to be) the last message for the upload.
+        # Add the user-supplied message and then add a string indicating success or failure.
         self.stack.append(UploadReportEntry(message=message))
+        status_line = 'SUCCESS' if success else 'FAILED'
+        self.stack.append(UploadReportEntry(message=status_line))
+
         self._update_task(self.json())
 
     def json(self):
@@ -1165,8 +1163,15 @@ class TargetLoader:
             self.report.log(Level.FATAL, msg)
             raise StopIteration() from exc
 
+        # load necessary files
         config = self._load_yaml(config_file)
-        logger.debug("config: %s", config)
+        meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
+        xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
+
+        # this is the last file to load. if any of the files missing, don't continue
+        if not meta or not config or not xtalforms_yaml:
+            msg = "Missing files in uploaded data, aborting"
+            raise FileNotFoundError(msg)
 
         try:
             self.target_name = config["target_name"]
@@ -1195,7 +1200,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded, skipping."
-            self.report.log(Level.INFO, msg)
+            self.report.final(msg, success=False)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1206,8 +1211,6 @@ class TargetLoader:
         # populate m2m field
         assert self.target
         self.target.project_id.add(self.project)
-
-        meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
 
         # collect top level info
         self.version_number = meta["version_number"]
@@ -1244,16 +1247,6 @@ class TargetLoader:
             self._get_final_path(trans_ref_struct)
         )
         self.experiment_upload.save()
-
-        xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
-
-        # this is the last file to load. if any of the files missing, don't continue
-        if not meta or not config or not xtalforms_yaml:
-            self.report.final(
-                "Missing files in uploaded data, aborting",
-                Level.FATAL,
-            )
-            return
 
         (  # pylint: disable=unbalanced-tuple-unpacking
             assemblies,
@@ -1385,15 +1378,15 @@ class TargetLoader:
             ].instance
             val.instance.save()
 
-    def _load_yaml(self, yaml_file: Path) -> dict:
+    def _load_yaml(self, yaml_file: Path) -> dict | None:
+        contents = None
         try:
             with open(yaml_file, "r", encoding="utf-8") as file:
                 contents = yaml.safe_load(file)
-        except FileNotFoundError as exc:
-            msg = f"{yaml_file.stem} file not found in data archive"
-            # logger.error("%s%s", self.task_id, msg)
-            self.report.log(Level.FATAL, msg)
-            raise FileNotFoundError(msg) from exc
+        except FileNotFoundError:
+            self.report.log(
+                Level.FATAL, f"File {yaml_file.name} not found in data archive"
+            )
 
         return contents
 
@@ -1578,7 +1571,6 @@ def load_target(
             with tarfile.open(target_loader.bundle_path, "r") as archive:
                 msg = f"Extracting bundle: {data_bundle}"
                 logger.info("%s%s", target_loader.report.task_id, msg)
-                # update_task(task, "PROCESSING", msg)
                 archive.extractall(target_loader.raw_data)
                 msg = f"Data extraction complete: {data_bundle}"
                 logger.info("%s%s", target_loader.report.task_id, msg)
@@ -1596,33 +1588,30 @@ def load_target(
                     raise IntegrityError(
                         f"Uploading {target_loader.data_bundle} failed"
                     )
-        except IntegrityError as exc:
-            logger.error(exc, exc_info=True)
-            target_loader.report.final(f"Uploading {target_loader.data_bundle} failed")
-            target_loader.experiment_upload.message = target_loader.report.json()
-            raise IntegrityError from exc
-
-        except (FileExistsError, FileNotFoundError, StopIteration) as exc:
-            raise Exception from exc
-
         except Exception as exc:
-            # catching and logging any other error
-            logger.error(exc, exc_info=True)
-            target_loader.report.log(Level.FATAL, traceback.format_exc())
-            raise Exception from exc
+            # Handle _any_ underlying problem.
+            # These are errors processing the data, which we handle gracefully.
+            # The task should _always_ end successfully.
+            # Any problem with the underlying data is transmitted in the report.
+            logger.debug(exc, exc_info=True)
+            target_loader.report.final(
+                f"Uploading {target_loader.data_bundle} failed", success=False
+            )
+            return
 
-        # move to final location
-        target_loader.abs_final_path.mkdir(parents=True)
-        target_loader.raw_data.rename(target_loader.abs_final_path)
-        Path(target_loader.bundle_path).rename(
-            target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
-        )
+        else:
+            # Move the uploaded file to its final location
+            target_loader.abs_final_path.mkdir(parents=True)
+            target_loader.raw_data.rename(target_loader.abs_final_path)
+            Path(target_loader.bundle_path).rename(
+                target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
+            )
 
-        set_directory_permissions(target_loader.abs_final_path, 0o755)
+            set_directory_permissions(target_loader.abs_final_path, 0o755)
 
-        target_loader.report.final(f"{target_loader.data_bundle} uploaded successfully")
-        target_loader.experiment_upload.message = target_loader.report.json()
+            target_loader.report.final(
+                f"{target_loader.data_bundle} uploaded successfully"
+            )
+            target_loader.experiment_upload.message = target_loader.report.json()
 
-        # logger.debug("%s", upload_report)
-
-        target_loader.experiment_upload.save()
+            target_loader.experiment_upload.save()
