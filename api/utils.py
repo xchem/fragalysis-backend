@@ -399,3 +399,7 @@ def pretty_request(request, *, tag='', print_body=False):
         f'{body}\n'
         '- REQUEST END'
     )
+
+
+def deployment_mode_is_production():
+    return settings.DEPLOYMENT_MODE == "PRODUCTION"

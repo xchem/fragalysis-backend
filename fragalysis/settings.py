@@ -237,6 +237,11 @@ TOKEN_EXPIRY_MINUTES = os.environ.get("OIDC_RENEW_ID_TOKEN_EXPIRY_MINUTES", "15"
 OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = int(TOKEN_EXPIRY_MINUTES) * 60
 # Keycloak mozilla_django_oidc - Settings - End
 
+# The deployment mode.
+# Controls the behaviour of the application (it's strictness to errors etc).
+# Typically one of "DEVELOPMENT" or "PRODUCTION".
+DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "production").upper()
+
 ROOT_URLCONF = "fragalysis.urls"
 
 STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
