@@ -4,7 +4,6 @@ import logging
 import math
 import os
 import tarfile
-import traceback
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -153,16 +152,20 @@ class UploadReport:
 
     def final(self, message, upload_state=None):
         if upload_state:
+            # User has provided an over-ride for the upload state.
             self.upload_state = upload_state
+        elif self.upload_state == UploadState.PROCESSING:
+            self.upload_state = UploadState.SUCCESS
+            logger.info(message)
         else:
-            if self.upload_state == UploadState.PROCESSING:
-                self.upload_state = UploadState.SUCCESS
-                logger.info(message)
-            else:
-                self.upload_state = UploadState.FAILED
-                logger.error(message)
+            self.upload_state = UploadState.FAILED
+            logger.error(message)
 
+        # This is (expected to be) the last message for the upload.
+        # Add the user-supplied message and then add the string representation
+        # of the upload state.
         self.stack.append(UploadReportEntry(message=message))
+        self.stack.append(UploadReportEntry(message=self.upload_state.name))
         self._update_task(self.json())
 
     def json(self):
@@ -1175,10 +1178,6 @@ class TargetLoader:
         # this is the last file to load. if any of the files missing, don't continue
         if not meta or not config or not xtalforms_yaml:
             msg = "Missing files in uploaded data, aborting"
-            self.report.final(
-                msg,
-                Level.FATAL,
-            )
             raise FileNotFoundError(msg)
 
         try:
@@ -1596,22 +1595,20 @@ def load_target(
                     raise IntegrityError(
                         f"Uploading {target_loader.data_bundle} failed"
                     )
-        except IntegrityError as exc:
-            logger.error(exc, exc_info=True)
-            target_loader.report.final(f"Uploading {target_loader.data_bundle} failed")
-            raise IntegrityError from exc
-
-        except (FileExistsError, FileNotFoundError, StopIteration) as exc:
-            raise Exception from exc
-
         except Exception as exc:
-            # catching and logging any other error
-            logger.error(exc, exc_info=True)
-            target_loader.report.log(Level.FATAL, traceback.format_exc())
-            raise Exception from exc
+            # Handle _any_ underlying problem.
+            # These are errors processing the data, which we handle gracefully.
+            # The task should _always_ end successfully.
+            # Any problem with the underlying data is transmitted in the report.
+            logger.debug(exc, exc_info=True)
+            target_loader.report.final(
+                f"Uploading {target_loader.data_bundle} failed",
+                upload_state=UploadState.SUCCESS,
+            )
+            return
 
         else:
-            # move to final location
+            # Move the uploaded file to its final location
             target_loader.abs_final_path.mkdir(parents=True)
             target_loader.raw_data.rename(target_loader.abs_final_path)
             Path(target_loader.bundle_path).rename(
@@ -1621,7 +1618,8 @@ def load_target(
             set_directory_permissions(target_loader.abs_final_path, 0o755)
 
             target_loader.report.final(
-                f"{target_loader.data_bundle} uploaded successfully"
+                f"{target_loader.data_bundle} uploaded successfully",
+                upload_state=UploadState.SUCCESS,
             )
             target_loader.experiment_upload.message = target_loader.report.json()
 

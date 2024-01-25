@@ -1578,14 +1578,12 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
 class TaskStatus(APIView):
     def get(self, request, task_id, *args, **kwargs):
         """Given a task_id (a string) we try to return the status of the task,
-        trying to handle unknown tasks as best we can. Celery is happy to accept any
-        string as a Task ID. To know it's a real task takes a lot of work, or you can
-        simply interpret a 'PENDING' state as "unknown task".
+        trying to handle unknown tasks as best we can.
         """
         # Unused arguments
         del request, args, kwargs
 
-        logger.info("task_id=%s", task_id)
+        logger.debug("task_id=%s", task_id)
 
         # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
@@ -1609,11 +1607,13 @@ class TaskStatus(APIView):
             elif isinstance(result.info, list):
                 messages = result.info
 
+        # The task is considered to have failed
+        # if the word 'FAILED' is in the last line of the message (regardless of case)
         task_status = "UNKNOWN"
-        if result.ready():
-            task_status = "SUCCESS" if result.successful() else "FAILED"
+        if result.ready() and messages:
+            task_status = "FAILED" if 'failed' in messages[-1].lower() else "SUCCESS"
+
         data = {
-            'id': result.id,
             'started': result.state != 'PENDING',
             'finished': result.ready(),
             'status': task_status,
