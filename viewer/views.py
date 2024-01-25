@@ -1585,67 +1585,38 @@ class TaskStatus(APIView):
         # Unused arguments
         del request, args, kwargs
 
-        logger.debug("+ TaskStatus.get called task_id='%s'", task_id)
+        logger.info("task_id=%s", task_id)
 
-        # task_id is (will be) a UUID, but Celery expects a string
+        # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
+        result = None
+        try:
+            result = AsyncResult(task_id_str)
+        except TimeoutError:
+            error = {'error': 'Task query timed out. Try again later'}
+            return Response(error, status=status.HTTP_408_REQUEST_TIMEOUT)
+        # Handle failure cases
+        if not result:
+            error = {'error': 'Task query returned nothing, contact your administrator'}
+            return Response(error, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        celery_app = Celery("fragalysis")
-        celery_app.config_from_object("django.conf:settings", namespace="CELERY")
-        inspect = celery_app.control.inspect()
-        ping = inspect.ping()
-
-        if ping:
-            active_tasks = inspect.active()
-
-            # active_tasks.values is a list of tasks for every worker
-            if task_id_str in [
-                k['id'] for worker in active_tasks.values() for k in worker
-            ]:
-                # celery confirms task exists
-                try:
-                    result = AsyncResult(task_id_str)
-                except TimeoutError:
-                    error = {'error': 'Task result query timed out'}
-                    return Response(error, status=status.HTTP_408_REQUEST_TIMEOUT)
-            else:
-                # no such task
-                error = {'error': 'Unknown task'}
-
-                result = AsyncResult(task_id_str)
-                logger.debug('trying result anyway: %s', result)
-                logger.debug('trying result anyway: %s', result.ready())
-                logger.debug('trying result anyway: %s', result.result)
-                logger.debug('trying result anyway: %s', result.info)
-                logger.debug('trying result anyway: %s', dir(result))
-                return Response(error, status=status.HTTP_400_BAD_REQUEST)
-
-        else:
-            # task scheduler not running. This may be the case in local
-            # development, but this means there's really no way to
-            # validate whether the task exists
-            logger.warning('Celery not running!')
-            try:
-                result = AsyncResult(task_id_str)
-            except TimeoutError:
-                error = {'error': 'Task result query timed out'}
-                return Response(error, status=status.HTTP_408_REQUEST_TIMEOUT)
-
-        # Extract messages (from task info)
-        # Assuming the task has some info.
+        # Extract messages from result's info attribute
+        # (if it has an info attribute)
         messages = []
-        if result.info:
+        if hasattr(result, 'info'):
             if isinstance(result.info, dict):
                 messages = result.info.get('description', [])
             elif isinstance(result.info, list):
                 messages = result.info
 
+        task_status = "UNKNOWN"
+        if result.ready():
+            task_status = "SUCCESS" if result.successful() else "FAILED"
         data = {
-            'task_id': result.id,
-            'status': result.state,
-            'ready': result.ready(),
-            'successful': result.successful(),
-            'failed': result.failed(),
+            'id': result.id,
+            'started': result.state != 'PENDING',
+            'finished': result.ready(),
+            'status': task_status,
             'messages': messages,
         }
         return JsonResponse(data)
