@@ -150,22 +150,15 @@ class UploadReport:
         self.stack.append(UploadReportEntry(level=level, message=message))
         self._update_task(message)
 
-    def final(self, message, upload_state=None):
-        if upload_state:
-            # User has provided an over-ride for the upload state.
-            self.upload_state = upload_state
-        elif self.upload_state == UploadState.PROCESSING:
-            self.upload_state = UploadState.SUCCESS
-            logger.info(message)
-        else:
-            self.upload_state = UploadState.FAILED
-            logger.error(message)
+    def final(self, message, success=True):
+        self.upload_state = UploadState.SUCCESS
 
         # This is (expected to be) the last message for the upload.
-        # Add the user-supplied message and then add the string representation
-        # of the upload state.
+        # Add the user-supplied message and then add a string indicating success or failure.
         self.stack.append(UploadReportEntry(message=message))
-        self.stack.append(UploadReportEntry(message=self.upload_state.name))
+        status_line = 'SUCCESS' if success else 'FAILED'
+        self.stack.append(UploadReportEntry(message=status_line))
+
         self._update_task(self.json())
 
     def json(self):
@@ -1207,7 +1200,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded, skipping."
-            self.report.final(msg, upload_state=UploadState.CANCELED)
+            self.report.final(msg, success=False)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1602,8 +1595,7 @@ def load_target(
             # Any problem with the underlying data is transmitted in the report.
             logger.debug(exc, exc_info=True)
             target_loader.report.final(
-                f"Uploading {target_loader.data_bundle} failed",
-                upload_state=UploadState.SUCCESS,
+                f"Uploading {target_loader.data_bundle} failed", success=False
             )
             return
 
@@ -1618,8 +1610,7 @@ def load_target(
             set_directory_permissions(target_loader.abs_final_path, 0o755)
 
             target_loader.report.final(
-                f"{target_loader.data_bundle} uploaded successfully",
-                upload_state=UploadState.SUCCESS,
+                f"{target_loader.data_bundle} uploaded successfully"
             )
             target_loader.experiment_upload.message = target_loader.report.json()
 
