@@ -1552,6 +1552,16 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
         target_file = temp_path.joinpath(filename.name)
         handle_uploaded_file(target_file, filename)
 
+        celery_app = Celery("fragalysis")
+        celery_app.config_from_object("django.conf:settings", namespace="CELERY")
+        inspect = celery_app.control.inspect()
+        ping = inspect.ping()
+
+        if not ping:
+            # celery not active in local development. log a warning
+            # and try to run the task anyway
+            logger.warning('Celery not running!')
+
         task = task_load_target.delay(
             data_bundle=str(target_file),
             proposal_ref=target_access_string,
@@ -1581,6 +1591,7 @@ class TaskStatus(APIView):
         task_id_str = str(task_id)
 
         celery_app = Celery("fragalysis")
+        celery_app.config_from_object("django.conf:settings", namespace="CELERY")
         inspect = celery_app.control.inspect()
         ping = inspect.ping()
 
@@ -1600,6 +1611,13 @@ class TaskStatus(APIView):
             else:
                 # no such task
                 error = {'error': 'Unknown task'}
+
+                result = AsyncResult(task_id_str)
+                logger.debug('trying result anyway: %s', result)
+                logger.debug('trying result anyway: %s', result.ready())
+                logger.debug('trying result anyway: %s', result.result)
+                logger.debug('trying result anyway: %s', result.info)
+                logger.debug('trying result anyway: %s', dir(result))
                 return Response(error, status=status.HTTP_400_BAD_REQUEST)
 
         else:

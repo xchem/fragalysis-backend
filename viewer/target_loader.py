@@ -157,8 +157,10 @@ class UploadReport:
         else:
             if self.upload_state == UploadState.PROCESSING:
                 self.upload_state = UploadState.SUCCESS
+                logger.info(message)
             else:
                 self.upload_state = UploadState.FAILED
+                logger.error(message)
 
         self.stack.append(UploadReportEntry(message=message))
         self._update_task(self.json())
@@ -1165,8 +1167,19 @@ class TargetLoader:
             self.report.log(Level.FATAL, msg)
             raise StopIteration() from exc
 
+        # load necessary files
         config = self._load_yaml(config_file)
-        logger.debug("config: %s", config)
+        meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
+        xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
+
+        # this is the last file to load. if any of the files missing, don't continue
+        if not meta or not config or not xtalforms_yaml:
+            msg = "Missing files in uploaded data, aborting"
+            self.report.final(
+                msg,
+                Level.FATAL,
+            )
+            raise FileNotFoundError(msg)
 
         try:
             self.target_name = config["target_name"]
@@ -1195,7 +1208,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded, skipping."
-            self.report.log(Level.INFO, msg)
+            self.report.final(msg, upload_state=UploadState.CANCELED)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1206,8 +1219,6 @@ class TargetLoader:
         # populate m2m field
         assert self.target
         self.target.project_id.add(self.project)
-
-        meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
 
         # collect top level info
         self.version_number = meta["version_number"]
@@ -1244,16 +1255,6 @@ class TargetLoader:
             self._get_final_path(trans_ref_struct)
         )
         self.experiment_upload.save()
-
-        xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
-
-        # this is the last file to load. if any of the files missing, don't continue
-        if not meta or not config or not xtalforms_yaml:
-            self.report.final(
-                "Missing files in uploaded data, aborting",
-                Level.FATAL,
-            )
-            return
 
         (  # pylint: disable=unbalanced-tuple-unpacking
             assemblies,
@@ -1385,15 +1386,15 @@ class TargetLoader:
             ].instance
             val.instance.save()
 
-    def _load_yaml(self, yaml_file: Path) -> dict:
+    def _load_yaml(self, yaml_file: Path) -> dict | None:
+        contents = None
         try:
             with open(yaml_file, "r", encoding="utf-8") as file:
                 contents = yaml.safe_load(file)
-        except FileNotFoundError as exc:
-            msg = f"{yaml_file.stem} file not found in data archive"
-            # logger.error("%s%s", self.task_id, msg)
-            self.report.log(Level.FATAL, msg)
-            raise FileNotFoundError(msg) from exc
+        except FileNotFoundError:
+            self.report.log(
+                Level.FATAL, f"File {yaml_file.name} not found in data archive"
+            )
 
         return contents
 
@@ -1578,7 +1579,6 @@ def load_target(
             with tarfile.open(target_loader.bundle_path, "r") as archive:
                 msg = f"Extracting bundle: {data_bundle}"
                 logger.info("%s%s", target_loader.report.task_id, msg)
-                # update_task(task, "PROCESSING", msg)
                 archive.extractall(target_loader.raw_data)
                 msg = f"Data extraction complete: {data_bundle}"
                 logger.info("%s%s", target_loader.report.task_id, msg)
@@ -1599,7 +1599,6 @@ def load_target(
         except IntegrityError as exc:
             logger.error(exc, exc_info=True)
             target_loader.report.final(f"Uploading {target_loader.data_bundle} failed")
-            target_loader.experiment_upload.message = target_loader.report.json()
             raise IntegrityError from exc
 
         except (FileExistsError, FileNotFoundError, StopIteration) as exc:
@@ -1611,18 +1610,19 @@ def load_target(
             target_loader.report.log(Level.FATAL, traceback.format_exc())
             raise Exception from exc
 
-        # move to final location
-        target_loader.abs_final_path.mkdir(parents=True)
-        target_loader.raw_data.rename(target_loader.abs_final_path)
-        Path(target_loader.bundle_path).rename(
-            target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
-        )
+        else:
+            # move to final location
+            target_loader.abs_final_path.mkdir(parents=True)
+            target_loader.raw_data.rename(target_loader.abs_final_path)
+            Path(target_loader.bundle_path).rename(
+                target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
+            )
 
-        set_directory_permissions(target_loader.abs_final_path, 0o755)
+            set_directory_permissions(target_loader.abs_final_path, 0o755)
 
-        target_loader.report.final(f"{target_loader.data_bundle} uploaded successfully")
-        target_loader.experiment_upload.message = target_loader.report.json()
+            target_loader.report.final(
+                f"{target_loader.data_bundle} uploaded successfully"
+            )
+            target_loader.experiment_upload.message = target_loader.report.json()
 
-        # logger.debug("%s", upload_report)
-
-        target_loader.experiment_upload.save()
+            target_loader.experiment_upload.save()
