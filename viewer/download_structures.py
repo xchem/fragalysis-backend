@@ -383,36 +383,41 @@ def _extra_files_zip(ziparchive, target):
     preserved searches.
     """
 
-    experiment_upload = target.experimentupload_set.order_by('commit_datetime').last()
-    extra_files = (
-        Path(settings.MEDIA_ROOT)
-        .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-        .joinpath(experiment_upload.task_id)
-    )
-
-    # taking the latest upload for now
-    # add unpacked zip directory
-    extra_files = [d for d in list(extra_files.glob("*")) if d.is_dir()][0]
-
-    # add upload_[d] dir
-    extra_files = next(extra_files.glob("upload_*"))
-    extra_files = extra_files.joinpath('extra_files')
-
-    logger.debug('extra_files path 2: %s', extra_files)
     num_processed = 0
-    logger.info('Processing extra files (%s)...', extra_files)
+    num_extra_dir = 0
+    for experiment_upload in target.experimentupload_set.order_by('commit_datetime'):
+        extra_files = (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(experiment_upload.task_id)
+        )
 
-    if extra_files.is_dir():
-        for dirpath, _, files in os.walk(extra_files):
-            for file in files:
-                filepath = os.path.join(dirpath, file)
-                logger.info('Adding extra file "%s"...', filepath)
-                ziparchive.write(
-                    filepath, os.path.join(_ZIP_FILEPATHS['extra_files'], file)
-                )
-                num_processed += 1
-    else:
-        logger.info('Directory does not exist (%s)...', extra_files)
+        # taking the latest upload for now
+        # add unpacked zip directory
+        extra_files = [d for d in list(extra_files.glob("*")) if d.is_dir()][0]
+
+        # add upload_[d] dir
+        extra_files = next(extra_files.glob("upload_*"))
+        extra_files = extra_files.joinpath('extra_files')
+
+        logger.debug('extra_files path 2: %s', extra_files)
+        logger.info('Processing extra files (%s)...', extra_files)
+
+        if extra_files.is_dir():
+            num_extra_dir = num_extra_dir + 1
+            for dirpath, _, files in os.walk(extra_files):
+                for file in files:
+                    filepath = os.path.join(dirpath, file)
+                    logger.info('Adding extra file "%s"...', filepath)
+                    ziparchive.write(
+                        filepath,
+                        os.path.join(
+                            _ZIP_FILEPATHS[f'extra_files_{num_extra_dir + 1}'], file
+                        ),
+                    )
+                    num_processed += 1
+        else:
+            logger.info('Directory does not exist (%s)...', extra_files)
 
     if num_processed == 0:
         logger.info('No extra files found')
