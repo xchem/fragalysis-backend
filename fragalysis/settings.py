@@ -240,6 +240,7 @@ OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = int(TOKEN_EXPIRY_MINUTES) * 60
 # The deployment mode.
 # Controls the behaviour of the application (it's strictness to errors etc).
 # Typically one of "DEVELOPMENT" or "PRODUCTION".
+# see api.utils for the 'deployment_mode_is_production()' function.
 DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "production").upper()
 
 ROOT_URLCONF = "fragalysis.urls"
@@ -456,9 +457,9 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'api.security': {'level': 'INFO'},
             'asyncio': {'level': 'WARNING'},
             'celery': {'level': 'INFO'},
-            'django': {'level': 'INFO'},
-            'mozilla_django_oidc': {'level': 'INFO'},
-            'urllib3': {'level': 'INFO'},
+            'django': {'level': 'WARNING'},
+            'mozilla_django_oidc': {'level': 'WARNING'},
+            'urllib3': {'level': 'WARNING'},
             'paramiko': {'level': 'WARNING'},
         },
         'root': {

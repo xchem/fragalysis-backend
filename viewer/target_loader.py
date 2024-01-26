@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Iterable, Optional, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, TypeVar
 
 import yaml
 from celery import Task
@@ -21,6 +21,7 @@ from django.db.models import Model
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
+from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 from scoring.models import SiteObservationGroup
 from viewer.models import (
@@ -177,6 +178,51 @@ class UploadReport:
             except AttributeError:
                 # no task passed to method, nothing to do
                 pass
+
+
+def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
+    """Inspects the meta to ensure it is supported by the MODE this stack is in.
+    Mode is (typically) one of DEVELOPER or PRODUCTION.
+    """
+    assert config_yaml
+    if not deployment_mode_is_production():
+        # We're not in production mode - no bundle checks
+        return None
+
+    # PRODUCTION mode (strict)
+
+    # Initial concern - the 'xca_version'.
+    # It must not be 'dirty' and must have a valid 'tag'.
+    base_error_msg = "Stack is in PRODUCTION mode - and "
+    try:
+        xca_version = config_yaml["xca_version"]
+    except KeyError:
+        return f"{base_error_msg} 'xca_version' is a required configuration property"
+
+    logger.info("xca_version: %s", xca_version)
+
+    if "dirty" not in xca_version:
+        return f"{base_error_msg} 'xca_version' is missing the 'dirty' property"
+    if xca_version["dirty"]:
+        return f"{base_error_msg} 'xca_version->dirty' must be False"
+
+    if "tag" not in xca_version:
+        return f"{base_error_msg} 'xca_version' is missing the 'tag' property"
+    xca_version_tag: str = str(xca_version["tag"])
+    tag_parts: List[str] = xca_version_tag.split(".")
+    tag_valid: bool = True
+    if len(tag_parts) in {2, 3}:
+        for tag_part in tag_parts:
+            if not tag_part.isdigit():
+                tag_valid = False
+                break
+    else:
+        tag_valid = False
+    if not tag_valid:
+        return f"{base_error_msg} 'xca_version->tag' must be 'N.N[.N]'. Got '{xca_version_tag}'"
+
+    # OK if we get here
+    return None
 
 
 def _flatten_dict_gen(d: dict, parent_key: tuple | str | int, depth: int):
@@ -1173,10 +1219,19 @@ class TargetLoader:
             msg = "Missing files in uploaded data, aborting"
             raise FileNotFoundError(msg)
 
+        # Validate the upload's XCA version information against any MODE-based conditions.
+        # An error message is returned if the bundle is not supported.
+        if vb_err_msg := _validate_bundle_against_mode(config):
+            self.report.log(Level.FATAL, vb_err_msg)
+            raise AssertionError(vb_err_msg)
+
+        # Target (very least) is required
         try:
             self.target_name = config["target_name"]
         except KeyError as exc:
-            raise KeyError("target_name missing in config file") from exc
+            msg = "target_name missing in config file"
+            self.report.log(Level.FATAL, msg)
+            raise KeyError(msg) from exc
 
         # moved this bit from init
         self.target, target_created = Target.objects.get_or_create(
@@ -1199,7 +1254,7 @@ class TargetLoader:
         if self._is_already_uploaded(target_created, project_created):
             # remove uploaded file
             Path(self.bundle_path).unlink()
-            msg = f"{self.bundle_name} already uploaded, skipping."
+            msg = f"{self.bundle_name} already uploaded"
             self.report.final(msg, success=False)
             raise FileExistsError(msg)
 
@@ -1217,7 +1272,7 @@ class TargetLoader:
         self.version_dir = meta["version_dir"]
         self.previous_version_dirs = meta["previous_version_dirs"]
 
-        # check tranformation matrix files
+        # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
             trans_neighbourhood,
             trans_conf_site,
