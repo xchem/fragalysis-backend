@@ -149,7 +149,7 @@ class UploadReport:
             logger.info(msg)
 
         self.stack.append(UploadReportEntry(level=level, message=message))
-        self._update_task(message)
+        self._update_task(self.json())
 
     def final(self, message, success=True):
         self.upload_state = UploadState.SUCCESS
@@ -166,18 +166,19 @@ class UploadReport:
         return [str(k) for k in self.stack]
 
     def _update_task(self, message: str | list) -> None:
-        if self.task:
-            try:
-                logger.debug("taskstuff %s", dir(self.task))
-                self.task.update_state(
-                    state=self.upload_state,
-                    meta={
-                        "description": message,
-                    },
-                )
-            except AttributeError:
-                # no task passed to method, nothing to do
-                pass
+        if not self.task:
+            return
+        try:
+            logger.debug("taskstuff %s", dir(self.task))
+            self.task.update_state(
+                state=self.upload_state,
+                meta={
+                    "description": message,
+                },
+            )
+        except AttributeError:
+            # no task passed to method, nothing to do
+            pass
 
 
 def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
@@ -440,6 +441,12 @@ class TargetLoader:
         self._target_root = None
         self.target = None
         self.project = None
+
+        # Initial (reassuring message)
+        bundle_filename = os.path.basename(self.bundle_path)
+        self.report.log(
+            Level.INFO, f"Loading '{bundle_filename}' proposal_ref='{proposal_ref}'"
+        )
 
     @property
     def final_path(self) -> Path:
@@ -1256,7 +1263,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded"
-            self.report.final(msg, success=False)
+            self.report.log(Level.WARNING, msg)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
