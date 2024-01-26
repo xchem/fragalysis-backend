@@ -1482,7 +1482,11 @@ class DownloadStructures(ISpyBSafeQuerySet):
                     code__contains=code_first_part
                 )
                 if prot.exists():
-                    site_obvs = prot[0:1]
+                    # even more than just django object, I need an
+                    # unevaluated queryset down the line
+                    site_obvs = models.SiteObservation.objects.filter(
+                        pk=prot.first().pk,
+                    )
                 else:
                     logger.warning(
                         'Could not find SiteObservation record for "%s"',
