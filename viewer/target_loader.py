@@ -191,24 +191,25 @@ def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
 
     # PRODUCTION mode (strict)
 
-    # Initial concern - the 'xca_version'.
+    # Initial concern - the loader's git information.
     # It must not be 'dirty' and must have a valid 'tag'.
+    xca_git_info_key = "xca_git_info"
     base_error_msg = "Stack is in PRODUCTION mode - and "
     try:
-        xca_version = config_yaml["xca_version"]
+        xca_git_info = config_yaml[xca_git_info_key]
     except KeyError:
-        return f"{base_error_msg} 'xca_version' is a required configuration property"
+        return f"{base_error_msg} '{xca_git_info_key}' is a required configuration property"
 
-    logger.info("xca_version: %s", xca_version)
+    logger.info("%s: %s", xca_git_info_key, xca_git_info)
 
-    if "dirty" not in xca_version:
-        return f"{base_error_msg} 'xca_version' is missing the 'dirty' property"
-    if xca_version["dirty"]:
-        return f"{base_error_msg} 'xca_version->dirty' must be False"
+    if "dirty" not in xca_git_info:
+        return f"{base_error_msg} '{xca_git_info_key}' has no 'dirty' property"
+    if xca_git_info["dirty"]:
+        return f"{base_error_msg} '{xca_git_info_key}->dirty' must be False"
 
-    if "tag" not in xca_version:
-        return f"{base_error_msg} 'xca_version' is missing the 'tag' property"
-    xca_version_tag: str = str(xca_version["tag"])
+    if "tag" not in xca_git_info:
+        return f"{base_error_msg} '{xca_git_info_key}' has no 'tag' property"
+    xca_version_tag: str = str(xca_git_info["tag"])
     tag_parts: List[str] = xca_version_tag.split(".")
     tag_valid: bool = True
     if len(tag_parts) in {2, 3}:
@@ -219,7 +220,7 @@ def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
     else:
         tag_valid = False
     if not tag_valid:
-        return f"{base_error_msg} 'xca_version->tag' must be 'N.N[.N]'. Got '{xca_version_tag}'"
+        return f"{base_error_msg} '{xca_git_info_key}->tag' must be 'N.N[.N]'. Got '{xca_version_tag}'"
 
     # OK if we get here
     return None
