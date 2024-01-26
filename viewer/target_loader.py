@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 # data that goes to tables are in the following files
 # assemblies and xtalforms
-XTALFORMS_FILE = "crystalforms.yaml"
+XTALFORMS_FILE = "assemblies.yaml"
 
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
@@ -167,7 +167,6 @@ class UploadReport:
     def _update_task(self, message: str | list) -> None:
         if self.task:
             try:
-                logger.debug("taskstuff %s", dir(self.task))
                 self.task.update_state(
                     state=self.upload_state,
                     meta={
@@ -265,12 +264,20 @@ def create_objects(func=None, *, depth=math.inf):
 
             obj = None
             try:
-                obj, new = instance_data.model_class.filter_manager.by_target(
-                    self.target
-                ).get_or_create(
-                    **instance_data.fields,
-                    defaults=instance_data.defaults,
-                )
+                if instance_data.fields:
+                    obj, new = instance_data.model_class.filter_manager.by_target(
+                        self.target
+                    ).get_or_create(
+                        **instance_data.fields,
+                        defaults=instance_data.defaults,
+                    )
+                else:
+                    # no unique field requirements, just create new object
+                    obj = instance_data.model_class(
+                        **instance_data.defaults,
+                    )
+                    obj.save()
+                    new = True
                 logger.debug(
                     "%s object %s created",
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
@@ -281,8 +288,9 @@ def create_objects(func=None, *, depth=math.inf):
                 else:
                     existing = existing + 1
             except MultipleObjectsReturned:
-                msg = "{}.get_or_create returned multiple objects for {}".format(
+                msg = "{}.get_or_create in {} returned multiple objects for {}".format(
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
+                    instance_data.key,
                     instance_data.fields,
                 )
                 self.report.log(Level.FATAL, msg)
@@ -534,9 +542,15 @@ class TargetLoader:
                     'xtal_mtz': {
                         'file': 'upload_1/crystallographic_files/5rgs/5rgs.mtz',
                         'sha256': sha <str>,
-                    }
-                },
+                    },
+                    'panddas_event_files': {
+                        'file': <path>.ccp4,
+                        'sha256': sha <str>,
+                        'model': '1', chain: B, res: 203, index: 1, bdc: 0.23
+                    },
                 'status': 'new',
+                },
+
             }
         )
 
@@ -564,8 +578,8 @@ class TargetLoader:
         ) = self.validate_files(
             obj_identifier=experiment_name,
             file_struct=data["crystallographic_files"],
-            required=("xtal_pdb",),
             recommended=(
+                "xtal_pdb",
                 "xtal_mtz",
                 "ligand_cif",
             ),
@@ -585,13 +599,16 @@ class TargetLoader:
 
         dstatus = extract(key="status")
 
-        if dstatus == "new":
-            status = 0
-        elif dstatus == "deprecated":
-            status = 1
-        elif dstatus == "superseded":
-            status = 2
-        else:
+        status_codes = {
+            "new": 0,
+            "deprecated": 1,
+            "superseded": 2,
+            "unchanged": 3,
+        }
+
+        try:
+            status = status_codes[dstatus]
+        except KeyError:
             status = -1
             self.report.log(
                 Level.FATAL, f"Unexpected status '{dstatus}' for {experiment_name}"
@@ -675,14 +692,14 @@ class TargetLoader:
             )
             return None
 
-        fields = {
+        defaults = {
             "smiles": smiles,
+            "compound_code": data.get("compound_code", None),
         }
-        defaults = {"compound_code": data.get("compound_code", None)}
 
         return ProcessedObject(
             model_class=Compound,
-            fields=fields,
+            fields={},
             defaults=defaults,
             key=protein_name,
         )
@@ -982,11 +999,16 @@ class TargetLoader:
             "residues": residues,
         }
 
+        index_data = {
+            "residues": residues,
+        }
+
         return ProcessedObject(
             model_class=XtalformSite,
             fields=fields,
             defaults=defaults,
             key=xtalform_site_name,
+            index_data=index_data,
         )
 
     @create_objects(depth=5)
@@ -1077,6 +1099,7 @@ class TargetLoader:
             ),
         )
 
+        logger.debug('looking for ligand_mol: %s', ligand_mol)
         mol_data = None
         if ligand_mol:
             try:
@@ -1086,7 +1109,7 @@ class TargetLoader:
                     encoding="utf-8",
                 ) as f:
                     mol_data = f.read()
-            except TypeError:
+            except (TypeError, FileNotFoundError):
                 # this site observation doesn't have a ligand. perfectly
                 # legitimate case
                 pass
@@ -1349,7 +1372,7 @@ class TargetLoader:
         # key for xtal sites objects?
         xtalform_site_by_tag = {}
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
-            for k in val.instance.residues:
+            for k in val.index_data["residues"]:
                 xtalform_site_by_tag[k] = val.instance
 
         site_observation_objects = self.process_site_observation(

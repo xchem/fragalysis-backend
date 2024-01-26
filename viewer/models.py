@@ -194,6 +194,9 @@ class Experiment(models.Model):
         upload_to="target_loader_data/", null=True, max_length=255
     )
     event_map_info = ArrayField(models.FileField(), null=True)
+    map_info = models.FileField(
+        upload_to="target_loader_data/", null=True, max_length=255
+    )
     type = models.PositiveSmallIntegerField(null=True)
     pdb_sha256 = models.TextField(null=True)
     compounds = models.ManyToManyField(
