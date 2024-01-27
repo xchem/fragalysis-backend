@@ -445,7 +445,8 @@ class TargetLoader:
         # Initial (reassuring message)
         bundle_filename = os.path.basename(self.bundle_path)
         self.report.log(
-            Level.INFO, f"Loading '{bundle_filename}' proposal_ref='{proposal_ref}'"
+            Level.INFO,
+            f"Created TargetLoader for '{bundle_filename}' proposal_ref='{proposal_ref}'",
         )
 
     @property
@@ -1263,7 +1264,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded"
-            self.report.log(Level.WARNING, msg)
+            self.report.log(Level.FATAL, msg)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1629,6 +1630,11 @@ def load_target(
         target_loader = TargetLoader(
             data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
         )
+
+        # Decompression can take some time, so we want to report progress
+        bundle_filename = os.path.basename(data_bundle)
+        target_loader.report.log(Level.INFO, f"Decompressing '{bundle_filename}'")
+
         try:
             # archive is first extracted to temporary dir and moved later
             with tarfile.open(target_loader.bundle_path, "r") as archive:
@@ -1642,6 +1648,8 @@ def load_target(
             logger.exception("%s%s", target_loader.report.task_id, msg)
             target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(msg) from exc
+
+        target_loader.report.log(Level.INFO, f"Decompressed '{bundle_filename}'")
 
         try:
             with transaction.atomic():
