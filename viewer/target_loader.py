@@ -149,7 +149,7 @@ class UploadReport:
             logger.info(msg)
 
         self.stack.append(UploadReportEntry(level=level, message=message))
-        self._update_task(message)
+        self._update_task(self.json())
 
     def final(self, message, success=True):
         self.upload_state = UploadState.SUCCESS
@@ -166,18 +166,19 @@ class UploadReport:
         return [str(k) for k in self.stack]
 
     def _update_task(self, message: str | list) -> None:
-        if self.task:
-            try:
-                logger.debug("taskstuff %s", dir(self.task))
-                self.task.update_state(
-                    state=self.upload_state,
-                    meta={
-                        "description": message,
-                    },
-                )
-            except AttributeError:
-                # no task passed to method, nothing to do
-                pass
+        if not self.task:
+            return
+        try:
+            logger.debug("taskstuff %s", dir(self.task))
+            self.task.update_state(
+                state=self.upload_state,
+                meta={
+                    "description": message,
+                },
+            )
+        except AttributeError:
+            # no task passed to method, nothing to do
+            pass
 
 
 def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
@@ -440,6 +441,13 @@ class TargetLoader:
         self._target_root = None
         self.target = None
         self.project = None
+
+        # Initial (reassuring message)
+        bundle_filename = os.path.basename(self.bundle_path)
+        self.report.log(
+            Level.INFO,
+            f"Created TargetLoader for '{bundle_filename}' proposal_ref='{proposal_ref}'",
+        )
 
     @property
     def final_path(self) -> Path:
@@ -1256,7 +1264,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded"
-            self.report.final(msg, success=False)
+            self.report.log(Level.FATAL, msg)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1622,6 +1630,11 @@ def load_target(
         target_loader = TargetLoader(
             data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
         )
+
+        # Decompression can take some time, so we want to report progress
+        bundle_filename = os.path.basename(data_bundle)
+        target_loader.report.log(Level.INFO, f"Decompressing '{bundle_filename}'")
+
         try:
             # archive is first extracted to temporary dir and moved later
             with tarfile.open(target_loader.bundle_path, "r") as archive:
@@ -1635,6 +1648,8 @@ def load_target(
             logger.exception("%s%s", target_loader.report.task_id, msg)
             target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(msg) from exc
+
+        target_loader.report.log(Level.INFO, f"Decompressed '{bundle_filename}'")
 
         try:
             with transaction.atomic():
