@@ -749,7 +749,13 @@ def create_or_return_download_link(request, target, site_observations):
 
     # Log the provided SiteObservations
     num_given_site_obs = site_observations.count()
-    site_ob_repr = "".join("%r " % site_ob for site_ob in site_observations)
+    site_ob_repr = "".join(
+        # & syntax copies the queryset without evaluating it. this way
+        # I have an unsliced queryset for later for protein_garbage
+        # filter method (this is what gave sliced queryset error)
+        "%r " % site_ob
+        for site_ob in site_observations & site_observations
+    )
     logger.debug(
         'Given %s SiteObservation records: %r', num_given_site_obs, site_ob_repr
     )
@@ -761,8 +767,11 @@ def create_or_return_download_link(request, target, site_observations):
 
     # Remove 'references_' from protein list if present.
     site_observations = _protein_garbage_filter(site_observations)
-    if num_removed := num_given_site_obs - num_given_site_obs:
-        logger.warning('Removed %d "references_" proteins from download', num_removed)
+    if num_given_site_obs > site_observations.count():
+        logger.warning(
+            'Removed %d "references_" proteins from download',
+            num_given_site_obs - site_observations.count(),
+        )
 
     # Save the list of protein codes - this is the ispybsafe set for this user.
     proteins_list = list(site_observations.values_list('code', flat=True))

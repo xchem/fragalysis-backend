@@ -1482,7 +1482,11 @@ class DownloadStructures(ISpyBSafeQuerySet):
                     code__contains=code_first_part
                 )
                 if prot.exists():
-                    site_obvs = prot[0:1]
+                    # even more than just django object, I need an
+                    # unevaluated queryset down the line
+                    site_obvs = models.SiteObservation.objects.filter(
+                        pk=prot.first().pk,
+                    )
                 else:
                     logger.warning(
                         'Could not find SiteObservation record for "%s"',
@@ -1607,15 +1611,19 @@ class TaskStatus(APIView):
             elif isinstance(result.info, list):
                 messages = result.info
 
-        # The task is considered to have failed
-        # if the word 'FAILED' is in the last line of the message (regardless of case)
+        started = result.state != 'PENDING'
+        finished = result.ready()
         task_status = "UNKNOWN"
-        if result.ready() and messages:
+        if finished and messages:
+            # The task is considered to have failed if the word 'FAILED'
+            # is in the last line of the message (regardless of case)
             task_status = "FAILED" if 'failed' in messages[-1].lower() else "SUCCESS"
+        elif started:
+            task_status = "RUNNING"
 
         data = {
-            'started': result.state != 'PENDING',
-            'finished': result.ready(),
+            'started': started,
+            'finished': finished,
             'status': task_status,
             'messages': messages,
         }
