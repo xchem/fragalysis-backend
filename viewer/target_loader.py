@@ -5,11 +5,12 @@ import math
 import os
 import tarfile
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Iterable, List, Optional, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import yaml
 from celery import Task
@@ -45,7 +46,8 @@ logger = logging.getLogger(__name__)
 
 # data that goes to tables are in the following files
 # assemblies and xtalforms
-XTALFORMS_FILE = "assemblies.yaml"
+# XTALFORMS_FILE = "assemblies.yaml"
+XTALFORMS_FILE = "crystalforms.yaml"
 
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
@@ -466,6 +468,32 @@ class TargetLoader:
     def abs_final_path(self) -> Path:
         return self._abs_final_path
 
+    def validate_map_files(
+        self,
+        key: str,
+        obj_identifier: str,
+        file_struct: list,
+    ) -> list[str]:
+        """Validate list of panddas event files.
+
+        Special case of file validation, too complex to squeeze into
+        the main validation method (mainly because of typing).
+        """
+
+        def logfunc(_, message):
+            self.report.log(Level.WARNING, message)
+
+        result = []
+        for item in file_struct:
+            fname, file_hash = self._check_file(item, obj_identifier, key, logfunc)
+            if not fname:
+                continue
+
+            self._check_file_hash(obj_identifier, key, fname, file_hash, logfunc)
+            result.append(fname)
+
+        return result
+
     def validate_files(
         self,
         obj_identifier: str,
@@ -518,47 +546,25 @@ class TargetLoader:
 
             # sort out the filename
             if isinstance(value, dict):
-                file_hash = value.get("sha256", None)
-                try:
-                    filename = value["file"]
-                except KeyError:
-                    # this is rather unexpected, haven't seen it yet
-                    logfunc(
-                        key,
-                        "{}: malformed dict, key 'file' missing".format(obj_identifier),
-                    )
-
-                    # unable to extract file from dict, no point to
-                    # continue with hash checking
+                filename, file_hash = self._check_file(
+                    value, obj_identifier, key, logfunc
+                )
+                if not filename:
                     continue
+
+                self._check_file_hash(obj_identifier, key, filename, file_hash, logfunc)
 
             elif isinstance(value, str):
                 filename = value
+                self._check_file_hash(obj_identifier, key, filename, file_hash, logfunc)
+
             else:
-                # this is probably the list of panddas event files, don't
-                # need them here
-                # although.. should i validate them here nevertheless?
-                # i'd have to do this on copy otherwise..
+                # probably panddas files here
                 continue
 
             # file key should go to result dict no matter what
             result[key] = filename
             logger.debug("Adding key %s: %s", key, filename)
-
-            # filename resolved, check if exists and if given, hash
-            file_path = self.raw_data.joinpath(filename)
-            if file_path.is_file():
-                if file_hash and file_hash != calculate_sha256(file_path):
-                    logfunc(key, "Invalid hash for file {}".format(filename))
-            else:
-                logfunc(
-                    key,
-                    "{} referenced in {}: {} but not found in archive".format(
-                        key,
-                        METADATA_FILE,
-                        obj_identifier,
-                    ),
-                )
 
         files = []
         for f in list(required) + list(recommended):
@@ -573,11 +579,59 @@ class TargetLoader:
                         METADATA_FILE,
                     ),
                 )
-                files.append(None)
+                files.append(None)  # type: ignore [arg-type]
 
         logger.debug("Returning files: %s", files)
 
-        return files
+        # memo to self: added type ignore directives to return line
+        # below and append line above because after small refactoring,
+        # mypy all of the sudden started throwing errors on bothe or
+        # these. the core of it's grievance is that it expects the
+        # return type to be list[str]. no idea why, function signature
+        # clearly defines it as list[str | None]
+
+        return files  # type: ignore [return-value]
+
+    def _check_file(
+        self,
+        value: dict,
+        obj_identifier: str,
+        key: str,
+        logfunc: Callable,
+    ) -> Tuple[str | None, str | None]:
+        file_hash = value.get("sha256", None)
+        try:
+            filename = value["file"]
+        except KeyError:
+            # this is rather unexpected, haven't seen it yet
+            filename = None
+            logfunc(
+                key,
+                "{}: malformed dict, key 'file' missing".format(obj_identifier),
+            )
+        return filename, file_hash
+
+    def _check_file_hash(
+        self,
+        obj_identifier: str,
+        key: str,
+        filename: str,
+        file_hash: str | None,
+        logfunc: Callable,
+    ) -> None:
+        file_path = self.raw_data.joinpath(filename)
+        if file_path.is_file():
+            if file_hash and file_hash != calculate_sha256(file_path):
+                logfunc(key, "Invalid hash for file {}".format(filename))
+        else:
+            logfunc(
+                key,
+                "{} referenced in {}: {} but not found in archive".format(
+                    key,
+                    METADATA_FILE,
+                    obj_identifier,
+                ),
+            )
 
     @create_objects(depth=1)
     def process_experiment(
@@ -641,6 +695,19 @@ class TargetLoader:
             ),
         )
 
+        try:
+            panddas_files = data["crystallographic_files"]["panddas_event_files"]
+        except KeyError:
+            panddas_files = []
+
+        map_info_files = self.validate_map_files(
+            key="panddas_event_files",
+            obj_identifier=experiment_name,
+            file_struct=panddas_files,
+        )
+
+        logger.debug("map_info_files: %s", map_info_files)
+
         dtype = extract(key="type")
 
         if dtype == "manual":
@@ -678,6 +745,13 @@ class TargetLoader:
             "experiment_upload": self.experiment_upload,
             "code": experiment_name,
         }
+
+        map_info_paths = []
+        if map_info_files:
+            map_info_paths = [str(self._get_final_path(k)) for k in map_info_files]
+
+        logger.debug("map_info_paths: %s", map_info_paths)
+
         defaults = {
             "status": status,
             "version": version,
@@ -685,6 +759,7 @@ class TargetLoader:
             "pdb_info": str(self._get_final_path(pdb_info)),
             "mtz_info": str(self._get_final_path(mtz_info)),
             "cif_info": str(self._get_final_path(cif_info)),
+            "map_info": map_info_paths,
             # this doesn't seem to be present
             # pdb_sha256:
         }
