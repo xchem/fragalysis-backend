@@ -35,7 +35,7 @@ _ZIP_FILEPATHS = {
     'bound_file': ('aligned'),
     'cif_info': ('aligned'),
     'mtz_info': ('aligned'),
-    # 'map_info': ('aligned'),
+    'map_info': ('aligned'),
     'sigmaa_file': ('aligned'),
     'diff_file': ('aligned'),
     'event_file': ('aligned'),
@@ -56,8 +56,9 @@ zip_template = {
         'bound_file': {},  # x
         'cif_info': {},  # from experiment
         'mtz_info': {},  # from experiment
+        'map_info': {},  # from experiment
         'event_file': {},  # x
-        'diff_file': {},  # renamed from diff_file and sigmaa_file
+        'diff_file': {},
         'sigmaa_file': {},
     },
     'molecules': {
@@ -229,6 +230,7 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
         filepath = str(Path(settings.MEDIA_ROOT).joinpath(filepath))
 
     if Path(filepath).is_file():
+        # strip off the leading parts of path
         archive_path = str(Path(*Path(filepath).parts[7:]))
         if _is_mol_or_sdf(filepath):
             # It's a MOL or SD file.
@@ -285,9 +287,13 @@ def _protein_files_zip(zip_contents, ziparchive, error_file):
             continue
 
         for prot, prot_file in files.items():
-            if not _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], prot_file):
-                error_file.write(f'{param},{prot},{prot_file}\n')
-                prot_errors += 1
+            # if it's a list of files (map_info) instead of single file
+            if not isinstance(prot_file, list):
+                prot_file = [prot_file]
+            for f in prot_file:
+                if not _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], f):
+                    error_file.write(f'{param},{prot},{f}\n')
+                    prot_errors += 1
 
     return prot_errors
 
@@ -606,10 +612,14 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
                     # getting the param from experiment. more data are
                     # coming from there, that's why this is in try
                     # block
-                    # getattr retrieves FieldFile object, hance the .name
-                    zip_contents['proteins'][param][so.code] = getattr(
-                        so.experiment, param
-                    ).name
+                    model_attr = getattr(so.experiment, param)
+                    # getattr retrieves FieldFile object, hence the .name
+                    if isinstance(model_attr, list):
+                        # except map_files, this returns a list of files
+                        zip_contents['proteins'][param][so.code] = model_attr
+                    else:
+                        zip_contents['proteins'][param][so.code] = model_attr.name
+
                 except AttributeError:
                     # on the off chance that the data are in site_observation model
                     zip_contents['proteins'][param][so.code] = getattr(so, param).name
@@ -686,6 +696,7 @@ def get_download_params(request):
         'bound_file',
         'cif_info',
         'mtz_info',
+        'map_info',
         'event_file',
         'sigmaa_file',
         'diff_file',
