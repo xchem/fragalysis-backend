@@ -46,8 +46,7 @@ logger = logging.getLogger(__name__)
 
 # data that goes to tables are in the following files
 # assemblies and xtalforms
-# XTALFORMS_FILE = "assemblies.yaml"
-XTALFORMS_FILE = "crystalforms.yaml"
+XTALFORMS_FILE = "assemblies.yaml"
 
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
@@ -706,8 +705,6 @@ class TargetLoader:
             file_struct=panddas_files,
         )
 
-        logger.debug("map_info_files: %s", map_info_files)
-
         dtype = extract(key="type")
 
         if dtype == "manual":
@@ -749,8 +746,6 @@ class TargetLoader:
         map_info_paths = []
         if map_info_files:
             map_info_paths = [str(self._get_final_path(k)) for k in map_info_files]
-
-        logger.debug("map_info_paths: %s", map_info_paths)
 
         defaults = {
             "status": status,

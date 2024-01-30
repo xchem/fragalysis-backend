@@ -832,6 +832,7 @@ class DownloadStructuresSerializer(serializers.Serializer):
     diff_file = serializers.BooleanField(default=False)
     event_file = serializers.BooleanField(default=False)
     sigmaa_file = serializers.BooleanField(default=False)
+    map_info = serializers.BooleanField(default=False)
     sdf_info = serializers.BooleanField(default=False)
     single_sdf_file = serializers.BooleanField(default=False)
     metadata_info = serializers.BooleanField(default=False)
