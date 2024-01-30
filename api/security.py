@@ -92,6 +92,7 @@ def get_conn() -> Optional[Connector]:
     #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
     if not credentials["host"]:
+        logger.debug("No ISPyB host - cannot return a connector")
         return None
 
     conn: Optional[Connector] = None
