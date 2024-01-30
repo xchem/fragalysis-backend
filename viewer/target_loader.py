@@ -1219,8 +1219,8 @@ class TargetLoader:
             recommended=(
                 "artefacts",
                 "ligand_mol",
-                "2Fo-Fc_map",  # NB! keys in meta_aligner not yet updated
-                "Fo-Fc_map",  # NB! keys in meta_aligner not yet updated
+                "sigmaa_map",  # NB! keys in meta_aligner not yet updated
+                "diff_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
             ),
         )
