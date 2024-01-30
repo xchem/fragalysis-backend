@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os
+import sys
 from datetime import timedelta
 
 import sentry_sdk
@@ -31,13 +32,6 @@ if os.environ.get("DEBUG_FRAGALYSIS") == True:
 # N                  | N                 | Not Shown
 PROPOSAL_SUPPORTED = True
 PROPOSAL_REQUIRED = True
-
-# Authentication check when uploading files.
-# This can be switched off to simplify development testing if required.
-# Should always be True on production.
-AUTHENTICATE_UPLOAD = True
-if os.environ.get("AUTHENTICATE_UPLOAD") == 'False':
-    AUTHENTICATE_UPLOAD = False
 
 # AnonymousUser should be the first record inserted into the auth_user table.
 ANONYMOUS_USER = 1
@@ -243,6 +237,14 @@ OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = int(TOKEN_EXPIRY_MINUTES) * 60
 # see api.utils for the 'deployment_mode_is_production()' function.
 DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "production").upper()
 
+# Authentication check when uploading files.
+# This can be switched off to simplify development testing if required.
+# It's asserted as True for 'production' mode.
+AUTHENTICATE_UPLOAD = True
+if os.environ.get("AUTHENTICATE_UPLOAD") == 'False':
+    assert DEPLOYMENT_MODE != "PRODUCTION"
+    AUTHENTICATE_UPLOAD = False
+
 ROOT_URLCONF = "fragalysis.urls"
 
 STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
@@ -442,6 +444,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'console': {
                 'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
+                'stream': sys.stdout,
                 'formatter': 'simple',
             },
             'rotating': {
