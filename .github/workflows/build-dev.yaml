@@ -80,14 +80,6 @@ jobs:
       run: |
         pip install --requirement build-requirements.txt
         pre-commit run --all-files
-    - name: Compile requirements.txt
-      # We need to put the file in $HOME
-      # - a simple way to ensure it's
-      # available between steps in the same job.
-      run: |
-        pip install --upgrade pip
-        pip install poetry==1.7.1
-        poetry export --without-hashes --without dev --output requirements.txt
     - name: Docker build
       uses: docker/build-push-action@v4
       with:
