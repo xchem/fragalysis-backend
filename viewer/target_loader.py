@@ -195,7 +195,7 @@ def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
     # Initial concern - the loader's git information.
     # It must not be 'dirty' and must have a valid 'tag'.
     xca_git_info_key = "xca_git_info"
-    base_error_msg = "Stack is in PRODUCTION mode - and "
+    base_error_msg = "Stack is in PRODUCTION mode - and"
     try:
         xca_git_info = config_yaml[xca_git_info_key]
     except KeyError:
