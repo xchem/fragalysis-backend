@@ -116,6 +116,21 @@ def get_configured_connector() -> Optional[Union[Connector, SSHConnector]]:
     return None
 
 
+def ping_configured_connector() -> bool:
+    """Pings the connector. If a connection can be obtained it is immediately closed.
+    The ping simply provides a way to check the credentials are valid and
+    a connection can be made.
+    """
+    conn: Optional[Union[Connector, SSHConnector]] = None
+    if connector == 'ispyb':
+        conn = get_conn()
+    elif connector == 'ssh_ispyb':
+        conn = get_remote_conn()
+        if conn is not None:
+            conn.stop()
+    return conn is not None
+
+
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """

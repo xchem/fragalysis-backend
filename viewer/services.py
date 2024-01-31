@@ -9,7 +9,7 @@ import requests
 from frag.utils.network_utils import get_driver
 from pydiscourse import DiscourseClient
 
-from api.security import get_configured_connector
+from api.security import ping_configured_connector
 from viewer.squonk2_agent import get_squonk2_agent
 
 logger = logging.getLogger(__name__)
@@ -156,7 +156,7 @@ def ispyb(func_id, name, ispyb_host=None) -> bool:
     del func_id, name, ispyb_host
 
     logger.debug("+ ispyb")
-    return get_configured_connector() != None
+    return ping_configured_connector()
 
 
 @service_query
