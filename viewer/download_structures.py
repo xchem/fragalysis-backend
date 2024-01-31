@@ -12,6 +12,7 @@ import shutil
 import uuid
 import zipfile
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict
 
@@ -35,7 +36,7 @@ _ZIP_FILEPATHS = {
     'bound_file': ('aligned'),
     'cif_info': ('aligned'),
     'mtz_info': ('aligned'),
-    # 'map_info': ('aligned'),
+    'map_info': ('aligned'),
     'sigmaa_file': ('aligned'),
     'diff_file': ('aligned'),
     'event_file': ('aligned'),
@@ -56,8 +57,9 @@ zip_template = {
         'bound_file': {},  # x
         'cif_info': {},  # from experiment
         'mtz_info': {},  # from experiment
+        'map_info': {},  # from experiment
         'event_file': {},  # x
-        'diff_file': {},  # renamed from diff_file and sigmaa_file
+        'diff_file': {},
         'sigmaa_file': {},
     },
     'molecules': {
@@ -138,21 +140,21 @@ def _add_file_to_zip(ziparchive, param, filepath):
     Returns:
         [boolean]: [True of record added]
     """
+    logger.debug('+_add_file_to_zip: %s, %s', param, filepath)
     if not filepath:
         # Odd - assume success
         logger.error('No filepath value')
         return True
 
     fullpath = os.path.join(settings.MEDIA_ROOT, filepath)
-
+    cleaned_filename = clean_filename(filepath)
+    archive_path = os.path.join(_ZIP_FILEPATHS[param], cleaned_filename)
     if os.path.isfile(fullpath):
-        cleaned_filename = clean_filename(filepath)
-        ziparchive.write(
-            fullpath, os.path.join(_ZIP_FILEPATHS[param], cleaned_filename)
-        )
+        ziparchive.write(fullpath, archive_path)
         return True
     else:
         logger.warning('filepath "%s" is not a file', filepath)
+        _add_empty_file(ziparchive, archive_path)
 
     return False
 
@@ -162,6 +164,17 @@ def _is_mol_or_sdf(path):
     It does this by simply checking the file's extension.
     """
     return Path(path).suffix.lower() in ('.sdf', '.mol')
+
+
+def _add_empty_file(ziparchive, archive_path):
+    """When file is missing, add an empty file to the archive.
+
+
+    Used to send an explicit signal to the downloader that the file is
+    missing.
+    """
+    logger.debug('+_add_empty_file: %s', archive_path)
+    ziparchive.writestr(f'{archive_path}_FILE_NOT_IN_UPLOAD', BytesIO(b'').getvalue())
 
 
 def _read_and_patch_molecule_name(path, molecule_name=None):
@@ -217,6 +230,7 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
     Returns:
         [boolean]: [True of record added to archive]
     """
+    logger.debug('+_add_file_to_zip_aligned: %s, %s', code, filepath)
     if not filepath:
         # Odd - assume success
         logger.error('No filepath value')
@@ -228,8 +242,9 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
     except AttributeError:
         filepath = str(Path(settings.MEDIA_ROOT).joinpath(filepath))
 
+    # strip off the leading parts of path
+    archive_path = str(Path(*Path(filepath).parts[7:]))
     if Path(filepath).is_file():
-        archive_path = str(Path(*Path(filepath).parts[7:]))
         if _is_mol_or_sdf(filepath):
             # It's a MOL or SD file.
             # Read and (potentially) adjust the file
@@ -242,6 +257,7 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
         return True
     else:
         logger.warning('filepath "%s" is not a file', filepath)
+        _add_empty_file(ziparchive, archive_path)
 
     return False
 
@@ -285,9 +301,13 @@ def _protein_files_zip(zip_contents, ziparchive, error_file):
             continue
 
         for prot, prot_file in files.items():
-            if not _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], prot_file):
-                error_file.write(f'{param},{prot},{prot_file}\n')
-                prot_errors += 1
+            # if it's a list of files (map_info) instead of single file
+            if not isinstance(prot_file, list):
+                prot_file = [prot_file]
+            for f in prot_file:
+                if not _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], f):
+                    error_file.write(f'{param},{prot},{f}\n')
+                    prot_errors += 1
 
     return prot_errors
 
@@ -364,16 +384,19 @@ def _trans_matrix_files_zip(ziparchive, target):
         experiment_upload.reference_structure_transforms,
     )
     for tmf in trans_matrix_files:
-        if tmf:
+        filepath = Path(settings.MEDIA_ROOT).joinpath(str(tmf))
+        archive_path = os.path.join(
+            _ZIP_FILEPATHS['trans_matrix_info'],
+            Path(str(tmf)).name,
+        )
+        if filepath.is_file():
             ziparchive.write(
-                Path(settings.MEDIA_ROOT).joinpath(str(tmf)),
-                os.path.join(
-                    _ZIP_FILEPATHS['trans_matrix_info'],
-                    Path(str(tmf)).name,
-                ),
+                filepath,
+                archive_path,
             )
         else:
-            logger.info('File %s does not exist', Path(str(tmf)).name)
+            logger.warning('File %s does not exist', Path(str(tmf)).name)
+            _add_empty_file(ziparchive, archive_path)
 
 
 def _extra_files_zip(ziparchive, target):
@@ -555,7 +578,7 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
             errors += 1
             logger.warning('After _add_file_to_zip() errors=%s', errors)
 
-        if zip_contents['metadata_info']:
+        if zip_contents['trans_matrix_info']:
             _trans_matrix_files_zip(ziparchive, target)
 
         _extra_files_zip(ziparchive, target)
@@ -606,10 +629,14 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
                     # getting the param from experiment. more data are
                     # coming from there, that's why this is in try
                     # block
-                    # getattr retrieves FieldFile object, hance the .name
-                    zip_contents['proteins'][param][so.code] = getattr(
-                        so.experiment, param
-                    ).name
+                    model_attr = getattr(so.experiment, param)
+                    # getattr retrieves FieldFile object, hence the .name
+                    if isinstance(model_attr, list):
+                        # except map_files, this returns a list of files
+                        zip_contents['proteins'][param][so.code] = model_attr
+                    else:
+                        zip_contents['proteins'][param][so.code] = model_attr.name
+
                 except AttributeError:
                     # on the off chance that the data are in site_observation model
                     zip_contents['proteins'][param][so.code] = getattr(so, param).name
@@ -686,6 +713,7 @@ def get_download_params(request):
         'bound_file',
         'cif_info',
         'mtz_info',
+        'map_info',
         'event_file',
         'sigmaa_file',
         'diff_file',
