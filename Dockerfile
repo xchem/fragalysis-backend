@@ -47,7 +47,6 @@ WORKDIR /code
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY django_nginx.conf /etc/nginx/sites-available/default.conf
 COPY proxy_params /etc/nginx/frag_proxy_params
-
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled
 
 COPY . ./

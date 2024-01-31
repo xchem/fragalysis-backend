@@ -171,11 +171,22 @@ class MolOps:
 
     # use zfile object for pdb files uploaded in zip
     def get_site_observation(
-        self, mol, target, compound_set, zfile, zfile_hashvals
+        self, property_name, mol, target, compound_set, zfile, zfile_hashvals
     ) -> Optional[SiteObservation]:
-        # The returned protein object may be None
+        # Get a SiteObservation from the molecule using
+        # a named property (i.e. lhs_pdb or ref_pdb for example)
 
-        pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
+        if not mol.HasProp(property_name):
+            logger.warning(
+                'Molecule %s has no "%s" property (%s, %s)',
+                mol,
+                property_name,
+                target,
+                compound_set,
+            )
+            return None
+
+        pdb_fn = mol.GetProp(property_name).split('/')[-1]
         site_obvs = None
 
         if zfile:
@@ -294,7 +305,6 @@ class MolOps:
         self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
     ) -> ComputedMolecule:
         # Don't need...
-        assert mol
         assert target
         assert compound_set
 
@@ -343,13 +353,56 @@ class MolOps:
 
             insp_frags.append(ref)
 
-        # Try to get the SiteObservation.
+        # Try to get the LHS SiteObservation,
+        # This will be used to set the ComputedMolecule.site_observation_code.
         # This may fail.
-        prot = self.get_site_observation(
-            mol, target, compound_set, zfile, zfile_hashvals=zfile_hashvals
+        lhs_property = 'lhs_pdb'
+        lhs_so = self.get_site_observation(
+            lhs_property,
+            mol,
+            target,
+            compound_set,
+            zfile,
+            zfile_hashvals=zfile_hashvals,
         )
-        if not prot:
-            logger.warning('get_prot() failed to return a SiteObservation object')
+        if not lhs_so:
+            logger.warning(
+                'Failed to get a LHS SiteObservation (%s) for %s, %s, %s',
+                lhs_property,
+                mol,
+                target,
+                compound_set,
+            )
+
+        # Try to get the reference SiteObservation,
+        # This will be used to set the ComputedMolecule.reference_code.
+        # This may fail.
+        ref_property = 'ref_pdb'
+        ref_so = self.get_site_observation(
+            ref_property,
+            mol,
+            target,
+            compound_set,
+            zfile,
+            zfile_hashvals=zfile_hashvals,
+        )
+        if not ref_so:
+            logger.warning(
+                'Failed to get a Reference SiteObservation (%s) for %s, %s, %s',
+                ref_property,
+                mol,
+                target,
+                compound_set,
+            )
+
+        # A LHS or Reference protein must be provided.
+        # (Part of "Fix behaviour of RHS [P] button - also RHS upload change", issue #1249)
+        if not lhs_so and not ref_so:
+            logger.error(
+                'ComputedMolecule has no LHS (%s) or Reference (%s) property',
+                lhs_property,
+                ref_property,
+            )
 
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
@@ -373,17 +426,12 @@ class MolOps:
             logger.info('Creating new ComputedMolecule')
             computed_molecule = ComputedMolecule()
 
-        lhs_pdb = None
-        if mol.HasProp('lhs_pdb'):
-            lhs_pdb = mol.GetProp('lhs_pdb')
-        elif mol.HasProp('ref_pdb'):
-            lhs_pdb = mol.GetProp('ref_pdb')
-
         assert computed_molecule
         computed_molecule.compound = compound
         computed_molecule.computed_set = compound_set
         computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
-        computed_molecule.lhs_pdb = lhs_pdb
+        computed_molecule.site_observation_code = lhs_so.code if lhs_so else None
+        computed_molecule.reference_code = ref_so.code if ref_so else None
         computed_molecule.molecule_name = molecule_name
         computed_molecule.name = f"{target}-{computed_molecule.identifier}"
         computed_molecule.smiles = smiles

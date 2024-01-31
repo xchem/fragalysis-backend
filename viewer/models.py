@@ -74,6 +74,8 @@ class Target(models.Model):
     title = models.CharField(
         unique=True, max_length=200, help_text="A title, i.e. Mpro"
     )
+    display_name = models.TextField(null=False, blank=True)
+
     init_date = models.DateTimeField(auto_now_add=True)
     project_id = models.ManyToManyField(Project)
     uniprot_id = models.CharField(
@@ -160,6 +162,15 @@ class ExperimentUpload(models.Model):
         help_text="Any message or task info associated with the upload."
         " Used for upload audit trail",
     )
+    neighbourhood_transforms = models.FileField(
+        upload_to="experiment-upload/", max_length=255
+    )
+    conformer_site_transforms = models.FileField(
+        upload_to="experiment-upload/", max_length=255
+    )
+    reference_structure_transforms = models.FileField(
+        upload_to="experiment-upload/", max_length=255
+    )
 
     def __str__(self) -> str:
         return f"{self.project}"
@@ -182,7 +193,7 @@ class Experiment(models.Model):
     cif_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
-    event_map_info = ArrayField(models.FileField(), null=True)
+    map_info = ArrayField(models.FileField(max_length=255), null=True)
     type = models.PositiveSmallIntegerField(null=True)
     pdb_sha256 = models.TextField(null=True)
     compounds = models.ManyToManyField(
@@ -208,6 +219,7 @@ class Compound(models.Model):
 
     inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
+    compound_code = models.TextField(null=True)
     current_identifier = models.CharField(
         max_length=255,
         db_index=True,
@@ -404,7 +416,7 @@ class CanonSiteConf(models.Model):
 class SiteObservation(models.Model):
     code = models.TextField()
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
-    cmpd = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    cmpd = models.ForeignKey(Compound, null=True, on_delete=models.CASCADE)
     xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
     canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
     bound_file = models.FileField(
@@ -419,10 +431,10 @@ class SiteObservation(models.Model):
     apo_file = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
-    xmap_2fofc_file = models.FileField(
+    sigmaa_file = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
-    xmap_fofc_file = models.FileField(
+    diff_file = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
     event_file = models.FileField(
@@ -876,9 +888,13 @@ class ComputedMolecule(models.Model):
 
     compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
     sdf_info = models.TextField(help_text="The 3D coordinates for the molecule")
-    lhs_pdb = models.TextField(
-        max_length=MOLECULE_NAME_LENGTH,
-        help_text="Set from the lhs_pdb or ref_pdb property of the underlying Molecule",
+    site_observation_code = models.TextField(
+        help_text="The LHS SiteObservation (the corresponding lhs_pdb value if it has one)",
+        null=True,
+        blank=True,
+    )
+    reference_code = models.TextField(
+        help_text="The computed reference SiteObservation (the corresponding ref_pdb value if it has one)",
         null=True,
         blank=True,
     )
@@ -922,7 +938,7 @@ class ComputedMolecule(models.Model):
             self.smiles,
             self.name,
             self.compound,
-            self.lhs_pdb,
+            self.site_observation_code,
         )
 
 
@@ -1077,6 +1093,7 @@ class DownloadLinks(models.Model):
     static_link = models.BooleanField(
         default=False, help_text="This preserves the proteins from the previous search"
     )
+    # TODO - zip_contents is no longer Used (A.Christie 2024-01-19)
     zip_contents = models.JSONField(
         encoder=DjangoJSONEncoder,
         null=True,
@@ -1091,6 +1108,7 @@ class DownloadLinks(models.Model):
         " plus the retention time"
         " (1 hour at the time of writing)",
     )
+    # TODO - zip_file is no longer Used (A.Christie 2024-01-19)
     zip_file = models.BooleanField(default=False)
     original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
@@ -1098,8 +1116,9 @@ class DownloadLinks(models.Model):
         return str(self.file_url)
 
     def __repr__(self) -> str:
-        return "<DownloadLinks %r %r %r %r>" % (
+        return "<DownloadLinks %r %r %r %r %r>" % (
             self.id,
+            self.zip_file,
             self.file_url,
             self.user,
             self.target,

@@ -4,13 +4,13 @@ import logging
 import math
 import os
 import tarfile
-import traceback
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Iterable, Optional, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import yaml
 from celery import Task
@@ -22,6 +22,7 @@ from django.db.models import Model
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
+from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 from scoring.models import SiteObservationGroup
 from viewer.models import (
@@ -45,13 +46,18 @@ logger = logging.getLogger(__name__)
 
 # data that goes to tables are in the following files
 # assemblies and xtalforms
-XTALFORMS_FILE = "crystalforms.yaml"
+XTALFORMS_FILE = "assemblies.yaml"
 
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
 
 # everything else
 METADATA_FILE = "meta_aligner.yaml"
+
+# transformation matrices
+TRANS_NEIGHBOURHOOD = "neighbourhood_transforms.yaml"
+TRANS_CONF_SITE = "conformer_site_transforms.yaml"
+TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
 
 
 class UploadState(str, Enum):
@@ -67,6 +73,7 @@ class UploadState(str, Enum):
     REPORTING = "REPORTING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+    CANCELED = "CANCELED"
 
 
 class Level(str, Enum):
@@ -143,34 +150,82 @@ class UploadReport:
             logger.info(msg)
 
         self.stack.append(UploadReportEntry(level=level, message=message))
-        self._update_task(message)
+        self._update_task(self.json())
 
-    def final(self, archive_name):
-        if self.upload_state == UploadState.PROCESSING:
-            self.upload_state = UploadState.SUCCESS
-            message = f"{archive_name} uploaded successfully."
-        else:
-            self.upload_state = UploadState.FAILED
-            message = f"Uploading {archive_name} failed."
+    def final(self, message, success=True):
+        self.upload_state = UploadState.SUCCESS
 
+        # This is (expected to be) the last message for the upload.
+        # Add the user-supplied message and then add a string indicating success or failure.
         self.stack.append(UploadReportEntry(message=message))
+        status_line = 'SUCCESS' if success else 'FAILED'
+        self.stack.append(UploadReportEntry(message=status_line))
+
         self._update_task(self.json())
 
     def json(self):
         return [str(k) for k in self.stack]
 
     def _update_task(self, message: str | list) -> None:
-        if self.task:
-            try:
-                self.task.update_state(
-                    state=self.upload_state,
-                    meta={
-                        "description": message,
-                    },
-                )
-            except AttributeError:
-                # no task passed to method, nothing to do
-                pass
+        if not self.task:
+            return
+        try:
+            logger.debug("taskstuff %s", dir(self.task))
+            self.task.update_state(
+                state=self.upload_state,
+                meta={
+                    "description": message,
+                },
+            )
+        except AttributeError:
+            # no task passed to method, nothing to do
+            pass
+
+
+def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
+    """Inspects the meta to ensure it is supported by the MODE this stack is in.
+    Mode is (typically) one of DEVELOPER or PRODUCTION.
+    """
+    assert config_yaml
+    if not deployment_mode_is_production():
+        # We're not in production mode - no bundle checks
+        return None
+
+    # PRODUCTION mode (strict)
+
+    # Initial concern - the loader's git information.
+    # It must not be 'dirty' and must have a valid 'tag'.
+    xca_git_info_key = "xca_git_info"
+    base_error_msg = "Stack is in PRODUCTION mode - and "
+    try:
+        xca_git_info = config_yaml[xca_git_info_key]
+    except KeyError:
+        return f"{base_error_msg} '{xca_git_info_key}' is a required configuration property"
+
+    logger.info("%s: %s", xca_git_info_key, xca_git_info)
+
+    if "dirty" not in xca_git_info:
+        return f"{base_error_msg} '{xca_git_info_key}' has no 'dirty' property"
+    if xca_git_info["dirty"]:
+        return f"{base_error_msg} '{xca_git_info_key}->dirty' must be False"
+
+    if "tag" not in xca_git_info:
+        return f"{base_error_msg} '{xca_git_info_key}' has no 'tag' property"
+    xca_version_tag: str = str(xca_git_info["tag"])
+    tag_parts: List[str] = xca_version_tag.split(".")
+    tag_valid: bool = True
+    if len(tag_parts) in {2, 3}:
+        for tag_part in tag_parts:
+            if not tag_part.isdigit():
+                tag_valid = False
+                break
+    else:
+        tag_valid = False
+    if not tag_valid:
+        return f"{base_error_msg} '{xca_git_info_key}->tag' must be 'N.N[.N]'. Got '{xca_version_tag}'"
+
+    # OK if we get here
+    return None
 
 
 def _flatten_dict_gen(d: dict, parent_key: tuple | str | int, depth: int):
@@ -259,12 +314,20 @@ def create_objects(func=None, *, depth=math.inf):
 
             obj = None
             try:
-                obj, new = instance_data.model_class.filter_manager.by_target(
-                    self.target
-                ).get_or_create(
-                    **instance_data.fields,
-                    defaults=instance_data.defaults,
-                )
+                if instance_data.fields:
+                    obj, new = instance_data.model_class.filter_manager.by_target(
+                        self.target
+                    ).get_or_create(
+                        **instance_data.fields,
+                        defaults=instance_data.defaults,
+                    )
+                else:
+                    # no unique field requirements, just create new object
+                    obj = instance_data.model_class(
+                        **instance_data.defaults,
+                    )
+                    obj.save()
+                    new = True
                 logger.debug(
                     "%s object %s created",
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
@@ -275,8 +338,9 @@ def create_objects(func=None, *, depth=math.inf):
                 else:
                     existing = existing + 1
             except MultipleObjectsReturned:
-                msg = "{}.get_or_create returned multiple objects for {}".format(
+                msg = "{}.get_or_create in {} returned multiple objects for {}".format(
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
+                    instance_data.key,
                     instance_data.fields,
                 )
                 self.report.log(Level.FATAL, msg)
@@ -388,6 +452,13 @@ class TargetLoader:
         self.target = None
         self.project = None
 
+        # Initial (reassuring message)
+        bundle_filename = os.path.basename(self.bundle_path)
+        self.report.log(
+            Level.INFO,
+            f"Created TargetLoader for '{bundle_filename}' proposal_ref='{proposal_ref}'",
+        )
+
     @property
     def final_path(self) -> Path:
         return self._final_path
@@ -395,6 +466,32 @@ class TargetLoader:
     @property
     def abs_final_path(self) -> Path:
         return self._abs_final_path
+
+    def validate_map_files(
+        self,
+        key: str,
+        obj_identifier: str,
+        file_struct: list,
+    ) -> list[str]:
+        """Validate list of panddas event files.
+
+        Special case of file validation, too complex to squeeze into
+        the main validation method (mainly because of typing).
+        """
+
+        def logfunc(_, message):
+            self.report.log(Level.WARNING, message)
+
+        result = []
+        for item in file_struct:
+            fname, file_hash = self._check_file(item, obj_identifier, key, logfunc)
+            if not fname:
+                continue
+
+            self._check_file_hash(obj_identifier, key, fname, file_hash, logfunc)
+            result.append(fname)
+
+        return result
 
     def validate_files(
         self,
@@ -448,47 +545,25 @@ class TargetLoader:
 
             # sort out the filename
             if isinstance(value, dict):
-                file_hash = value.get("sha256", None)
-                try:
-                    filename = value["file"]
-                except KeyError:
-                    # this is rather unexpected, haven't seen it yet
-                    logfunc(
-                        key,
-                        "{}: malformed dict, key 'file' missing".format(obj_identifier),
-                    )
-
-                    # unable to extract file from dict, no point to
-                    # continue with hash checking
+                filename, file_hash = self._check_file(
+                    value, obj_identifier, key, logfunc
+                )
+                if not filename:
                     continue
+
+                self._check_file_hash(obj_identifier, key, filename, file_hash, logfunc)
 
             elif isinstance(value, str):
                 filename = value
+                self._check_file_hash(obj_identifier, key, filename, file_hash, logfunc)
+
             else:
-                # this is probably the list of panddas event files, don't
-                # need them here
-                # although.. should i validate them here nevertheless?
-                # i'd have to do this on copy otherwise..
+                # probably panddas files here
                 continue
 
             # file key should go to result dict no matter what
             result[key] = filename
             logger.debug("Adding key %s: %s", key, filename)
-
-            # filename resolved, check if exists and if given, hash
-            file_path = self.raw_data.joinpath(filename)
-            if file_path.is_file():
-                if file_hash and file_hash != calculate_sha256(file_path):
-                    logfunc(key, "Invalid hash for file {}".format(filename))
-            else:
-                logfunc(
-                    key,
-                    "{} referenced in {}: {} but not found in archive".format(
-                        key,
-                        METADATA_FILE,
-                        obj_identifier,
-                    ),
-                )
 
         files = []
         for f in list(required) + list(recommended):
@@ -503,11 +578,59 @@ class TargetLoader:
                         METADATA_FILE,
                     ),
                 )
-                files.append(None)
+                files.append(None)  # type: ignore [arg-type]
 
         logger.debug("Returning files: %s", files)
 
-        return files
+        # memo to self: added type ignore directives to return line
+        # below and append line above because after small refactoring,
+        # mypy all of the sudden started throwing errors on bothe or
+        # these. the core of it's grievance is that it expects the
+        # return type to be list[str]. no idea why, function signature
+        # clearly defines it as list[str | None]
+
+        return files  # type: ignore [return-value]
+
+    def _check_file(
+        self,
+        value: dict,
+        obj_identifier: str,
+        key: str,
+        logfunc: Callable,
+    ) -> Tuple[str | None, str | None]:
+        file_hash = value.get("sha256", None)
+        try:
+            filename = value["file"]
+        except KeyError:
+            # this is rather unexpected, haven't seen it yet
+            filename = None
+            logfunc(
+                key,
+                "{}: malformed dict, key 'file' missing".format(obj_identifier),
+            )
+        return filename, file_hash
+
+    def _check_file_hash(
+        self,
+        obj_identifier: str,
+        key: str,
+        filename: str,
+        file_hash: str | None,
+        logfunc: Callable,
+    ) -> None:
+        file_path = self.raw_data.joinpath(filename)
+        if file_path.is_file():
+            if file_hash and file_hash != calculate_sha256(file_path):
+                logfunc(key, "Invalid hash for file {}".format(filename))
+        else:
+            logfunc(
+                key,
+                "{} referenced in {}: {} but not found in archive".format(
+                    key,
+                    METADATA_FILE,
+                    obj_identifier,
+                ),
+            )
 
     @create_objects(depth=1)
     def process_experiment(
@@ -528,9 +651,15 @@ class TargetLoader:
                     'xtal_mtz': {
                         'file': 'upload_1/crystallographic_files/5rgs/5rgs.mtz',
                         'sha256': sha <str>,
-                    }
-                },
+                    },
+                    'panddas_event_files': {
+                        'file': <path>.ccp4,
+                        'sha256': sha <str>,
+                        'model': '1', chain: B, res: 203, index: 1, bdc: 0.23
+                    },
                 'status': 'new',
+                },
+
             }
         )
 
@@ -558,11 +687,22 @@ class TargetLoader:
         ) = self.validate_files(
             obj_identifier=experiment_name,
             file_struct=data["crystallographic_files"],
-            required=("xtal_pdb",),
             recommended=(
+                "xtal_pdb",
                 "xtal_mtz",
                 "ligand_cif",
             ),
+        )
+
+        try:
+            panddas_files = data["crystallographic_files"]["panddas_event_files"]
+        except KeyError:
+            panddas_files = []
+
+        map_info_files = self.validate_map_files(
+            key="panddas_event_files",
+            obj_identifier=experiment_name,
+            file_struct=panddas_files,
         )
 
         dtype = extract(key="type")
@@ -579,13 +719,16 @@ class TargetLoader:
 
         dstatus = extract(key="status")
 
-        if dstatus == "new":
-            status = 0
-        elif dstatus == "deprecated":
-            status = 1
-        elif dstatus == "superseded":
-            status = 2
-        else:
+        status_codes = {
+            "new": 0,
+            "deprecated": 1,
+            "superseded": 2,
+            "unchanged": 3,
+        }
+
+        try:
+            status = status_codes[dstatus]
+        except KeyError:
             status = -1
             self.report.log(
                 Level.FATAL, f"Unexpected status '{dstatus}' for {experiment_name}"
@@ -599,6 +742,11 @@ class TargetLoader:
             "experiment_upload": self.experiment_upload,
             "code": experiment_name,
         }
+
+        map_info_paths = []
+        if map_info_files:
+            map_info_paths = [str(self._get_final_path(k)) for k in map_info_files]
+
         defaults = {
             "status": status,
             "version": version,
@@ -606,6 +754,7 @@ class TargetLoader:
             "pdb_info": str(self._get_final_path(pdb_info)),
             "mtz_info": str(self._get_final_path(mtz_info)),
             "cif_info": str(self._get_final_path(cif_info)),
+            "map_info": map_info_paths,
             # this doesn't seem to be present
             # pdb_sha256:
         }
@@ -662,19 +811,22 @@ class TargetLoader:
                 else "ligand_cif"
             )
             self.report.log(
-                Level.FATAL,
+                Level.WARNING,
                 "{} missing from {} in '{}' experiment section".format(
                     exc, smiles, protein_name
                 ),
             )
+            return None
 
-        fields = {
+        defaults = {
             "smiles": smiles,
+            "compound_code": data.get("compound_code", None),
         }
 
         return ProcessedObject(
             model_class=Compound,
-            fields=fields,
+            fields={},
+            defaults=defaults,
             key=protein_name,
         )
 
@@ -786,7 +938,7 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        xtalform_id, _, _, data = item_data
+        xtalform_id, _, assembly_id, data = item_data
 
         # hm.. doesn't reflect the fact that it's from a different
         # file.. and the message should perhaps be a bit different
@@ -799,10 +951,10 @@ class TargetLoader:
 
         xtalform = xtalforms[xtalform_id].instance
 
-        assembly_id = extract(key="assembly")
+        quat_assembly_id = extract(key="assembly")
 
         # TODO: need to key check these as well..
-        assembly = quat_assemblies[assembly_id].instance
+        assembly = quat_assemblies[quat_assembly_id].instance
 
         fields = {
             "assembly_id": assembly_id,
@@ -973,11 +1125,16 @@ class TargetLoader:
             "residues": residues,
         }
 
+        index_data = {
+            "residues": residues,
+        }
+
         return ProcessedObject(
             model_class=XtalformSite,
             fields=fields,
             defaults=defaults,
             key=xtalform_site_name,
+            index_data=index_data,
         )
 
     @create_objects(depth=5)
@@ -1031,7 +1188,12 @@ class TargetLoader:
         code = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
 
-        compound = compounds[experiment_id].instance
+        try:
+            compound = compounds[experiment_id].instance
+        except KeyError:
+            # compound missing, fine
+            compound = None
+
         canon_site_conf = canon_site_confs[idx].instance
         xtalform_site = xtalform_sites[key]
 
@@ -1042,8 +1204,8 @@ class TargetLoader:
             apo_file,
             artefacts_file,
             ligand_mol,
-            xmap_2fofc_file,
-            xmap_fofc_file,
+            sigmaa_file,
+            diff_file,
             event_file,
         ) = self.validate_files(
             obj_identifier=experiment_id,
@@ -1057,12 +1219,13 @@ class TargetLoader:
             recommended=(
                 "artefacts",
                 "ligand_mol",
-                "2Fo-Fc_map",
-                "Fo-Fc_map",
+                "sigmaa_map",  # NB! keys in meta_aligner not yet updated
+                "diff_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
             ),
         )
 
+        logger.debug('looking for ligand_mol: %s', ligand_mol)
         mol_data = None
         if ligand_mol:
             try:
@@ -1072,7 +1235,7 @@ class TargetLoader:
                     encoding="utf-8",
                 ) as f:
                     mol_data = f.read()
-            except TypeError:
+            except (TypeError, FileNotFoundError):
                 # this site observation doesn't have a ligand. perfectly
                 # legitimate case
                 pass
@@ -1096,8 +1259,8 @@ class TargetLoader:
             "apo_solv_file": str(self._get_final_path(apo_solv_file)),
             "apo_desolv_file": str(self._get_final_path(apo_desolv_file)),
             "apo_file": str(self._get_final_path(apo_file)),
-            "xmap_2fofc_file": str(self._get_final_path(xmap_2fofc_file)),
-            "xmap_fofc_file": str(self._get_final_path(xmap_fofc_file)),
+            "sigmaa_file": str(self._get_final_path(sigmaa_file)),
+            "diff_file": str(self._get_final_path(diff_file)),
             "event_file": str(self._get_final_path(event_file)),
             "artefacts_file": str(self._get_final_path(artefacts_file)),
             "pdb_header_file": "currently missing",
@@ -1111,22 +1274,72 @@ class TargetLoader:
             key=key,
         )
 
-    def process_metadata(
-        self,
-        upload_root: Path,
-    ):
-        """Extract model instances from metadata file and save them to db."""
-        # TODO: this method is quite long and should perhaps be broken
-        # apart. then again, it just keeps calling other methods to
-        # create model instances, so logically it's just doing the
-        # same thing.
+    def process_bundle(self):
+        """Resolves subdirs in uploaded data bundle.
 
-        # update_task(task, "PROCESSING", "Processing metadata")
-        logger.info("%sProcessing %s", self.report.task_id, upload_root)
+        If called from task, takes task as a parameter for status updates.
+        """
+
+        # by now I should have archive unpacked, get target name from
+        # config.yaml
+        up_iter = self.raw_data.glob("upload_*")
+        try:
+            upload_dir = next(up_iter)
+        except StopIteration as exc:
+            msg = "Upload directory missing from uploaded file"
+            self.report.log(Level.FATAL, msg)
+            # what do you mean unused?!
+            raise StopIteration(
+                msg
+            ) from exc  # pylint: disable=# pylint: disable=protected-access
+
+        try:
+            upload_dir = next(up_iter)
+            self.report.log(Level.WARNING, "Multiple upload directories in archive")
+        except StopIteration:
+            # just a warning, ignoring the second one
+            pass
+
+        # now that target name is not included in path, I don't need
+        # it here, need it just before creating target object. Also,
+        # there's probably no need to throw a fatal here, I can
+        # reasonably well deduce it from meta (I think)
+        config_it = upload_dir.glob(CONFIG_FILE)
+        try:
+            config_file = next(config_it)
+        except StopIteration as exc:
+            msg = f"config file missing from {str(upload_dir)}"
+            self.report.log(Level.FATAL, msg)
+            raise StopIteration() from exc
+
+        # load necessary files
+        config = self._load_yaml(config_file)
+        meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
+        xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
+
+        # this is the last file to load. if any of the files missing, don't continue
+        if not meta or not config or not xtalforms_yaml:
+            msg = "Missing files in uploaded data, aborting"
+            raise FileNotFoundError(msg)
+
+        # Validate the upload's XCA version information against any MODE-based conditions.
+        # An error message is returned if the bundle is not supported.
+        if vb_err_msg := _validate_bundle_against_mode(config):
+            self.report.log(Level.FATAL, vb_err_msg)
+            raise AssertionError(vb_err_msg)
+
+        # Target (very least) is required
+        try:
+            self.target_name = config["target_name"]
+        except KeyError as exc:
+            msg = "target_name missing in config file"
+            self.report.log(Level.FATAL, msg)
+            raise KeyError(msg) from exc
 
         # moved this bit from init
         self.target, target_created = Target.objects.get_or_create(
-            title=self.target_name
+            title=self.target_name,
+            display_name=self.target_name,
         )
 
         # TODO: original target loader's function get_create_projects
@@ -1144,8 +1357,8 @@ class TargetLoader:
         if self._is_already_uploaded(target_created, project_created):
             # remove uploaded file
             Path(self.bundle_path).unlink()
-            msg = f"{self.bundle_name} already uploaded, skipping."
-            self.report.log(Level.INFO, msg)
+            msg = f"{self.bundle_name} already uploaded"
+            self.report.log(Level.FATAL, msg)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1157,25 +1370,49 @@ class TargetLoader:
         assert self.target
         self.target.project_id.add(self.project)
 
+        # collect top level info
+        self.version_number = meta["version_number"]
+        self.version_dir = meta["version_dir"]
+        self.previous_version_dirs = meta["previous_version_dirs"]
+
+        # check transformation matrix files
+        (  # pylint: disable=unbalanced-tuple-unpacking
+            trans_neighbourhood,
+            trans_conf_site,
+            trans_ref_struct,
+        ) = self.validate_files(
+            obj_identifier="trans_matrices",
+            # since the paths are given if file as strings, I think I
+            # can get away with compiling them as strings here
+            file_struct={
+                TRANS_NEIGHBOURHOOD: f"{self.version_dir}/{TRANS_NEIGHBOURHOOD}",
+                TRANS_CONF_SITE: f"{self.version_dir}/{TRANS_CONF_SITE}",
+                TRANS_REF_STRUCT: f"{self.version_dir}/{TRANS_REF_STRUCT}",
+            },
+            required=(TRANS_NEIGHBOURHOOD, TRANS_CONF_SITE, TRANS_REF_STRUCT),
+        )
+
         self.experiment_upload.project = self.project
         self.experiment_upload.target = self.target
         self.experiment_upload.committer = committer
+        self.experiment_upload.neighbourhood_transforms = str(
+            self._get_final_path(trans_neighbourhood)
+        )
+        self.experiment_upload.conformer_site_transforms = str(
+            self._get_final_path(trans_conf_site)
+        )
+        self.experiment_upload.reference_structure_transforms = str(
+            self._get_final_path(trans_ref_struct)
+        )
         self.experiment_upload.save()
 
         (  # pylint: disable=unbalanced-tuple-unpacking
             assemblies,
             xtalform_assemblies,
         ) = self._get_yaml_blocks(
-            yaml_data=self._load_yaml(Path(upload_root).joinpath(XTALFORMS_FILE)),
+            yaml_data=xtalforms_yaml,
             blocks=("assemblies", "xtalforms"),
         )
-
-        meta = self._load_yaml(Path(upload_root).joinpath(METADATA_FILE))
-
-        # collect top level info
-        self.version_number = meta["version_number"]
-        self.version_dir = meta["version_dir"]
-        self.previous_version_dirs = meta["previous_version_dirs"]
 
         (  # pylint: disable=unbalanced-tuple-unpacking
             crystals,
@@ -1270,7 +1507,7 @@ class TargetLoader:
         # key for xtal sites objects?
         xtalform_site_by_tag = {}
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
-            for k in val.instance.residues:
+            for k in val.index_data["residues"]:
                 xtalform_site_by_tag[k] = val.instance
 
         site_observation_objects = self.process_site_observation(
@@ -1299,65 +1536,15 @@ class TargetLoader:
             ].instance
             val.instance.save()
 
-    def process_bundle(self):
-        """Resolves subdirs in uploaded data bundle.
-
-        If called from task, takes task as a parameter for status updates.
-        """
-
-        # by now I should have archive unpacked, get target name from
-        # config.yaml
-        up_iter = self.raw_data.glob("upload_*")
-        try:
-            upload_dir = next(up_iter)
-        except StopIteration as exc:
-            msg = "Upload directory missing from uploaded file"
-            self.report.log(Level.FATAL, msg)
-            # what do you mean unused?!
-            raise StopIteration(
-                msg
-            ) from exc  # pylint: disable=# pylint: disable=protected-access
-
-        try:
-            upload_dir = next(up_iter)
-            self.report.log(Level.WARNING, "Multiple upload directories in archive")
-        except StopIteration:
-            # just a warning, ignoring the second one
-            pass
-
-        # now that target name is not included in path, I don't need
-        # it here, need it just before creating target object. Also,
-        # there's probably no need to throw a fatal here, I can
-        # reasonably well deduce it from meta (I think)
-        config_it = upload_dir.glob(CONFIG_FILE)
-        try:
-            config_file = next(config_it)
-        except StopIteration as exc:
-            msg = f"config file missing from {str(upload_dir)}"
-            self.report.log(Level.FATAL, msg)
-            raise StopIteration() from exc
-
-        config = self._load_yaml(config_file)
-        logger.debug("config: %s", config)
-
-        try:
-            self.target_name = config["target_name"]
-        except KeyError as exc:
-            raise KeyError("target_name missing in config file") from exc
-
-        self.process_metadata(
-            upload_root=upload_dir,
-        )
-
-    def _load_yaml(self, yaml_file: Path) -> dict:
+    def _load_yaml(self, yaml_file: Path) -> dict | None:
+        contents = None
         try:
             with open(yaml_file, "r", encoding="utf-8") as file:
                 contents = yaml.safe_load(file)
-        except FileNotFoundError as exc:
-            msg = f"{yaml_file.stem} file not found in data archive"
-            # logger.error("%s%s", self.task_id, msg)
-            self.report.log(Level.FATAL, msg)
-            raise FileNotFoundError(msg) from exc
+        except FileNotFoundError:
+            self.report.log(
+                Level.FATAL, f"File {yaml_file.name} not found in data archive"
+            )
 
         return contents
 
@@ -1537,12 +1724,16 @@ def load_target(
         target_loader = TargetLoader(
             data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
         )
+
+        # Decompression can take some time, so we want to report progress
+        bundle_filename = os.path.basename(data_bundle)
+        target_loader.report.log(Level.INFO, f"Decompressing '{bundle_filename}'")
+
         try:
             # archive is first extracted to temporary dir and moved later
             with tarfile.open(target_loader.bundle_path, "r") as archive:
                 msg = f"Extracting bundle: {data_bundle}"
                 logger.info("%s%s", target_loader.report.task_id, msg)
-                # update_task(task, "PROCESSING", msg)
                 archive.extractall(target_loader.raw_data)
                 msg = f"Data extraction complete: {data_bundle}"
                 logger.info("%s%s", target_loader.report.task_id, msg)
@@ -1552,6 +1743,8 @@ def load_target(
             target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(msg) from exc
 
+        target_loader.report.log(Level.INFO, f"Decompressed '{bundle_filename}'")
+
         try:
             with transaction.atomic():
                 target_loader.process_bundle()
@@ -1560,33 +1753,30 @@ def load_target(
                     raise IntegrityError(
                         f"Uploading {target_loader.data_bundle} failed"
                     )
-        except IntegrityError as exc:
-            logger.error(exc, exc_info=True)
-            target_loader.report.final(target_loader.data_bundle)
-            target_loader.experiment_upload.message = target_loader.report.json()
-            raise IntegrityError from exc
-
-        except (FileExistsError, FileNotFoundError, StopIteration) as exc:
-            raise Exception from exc
-
         except Exception as exc:
-            # catching and logging any other error
-            logger.error(exc, exc_info=True)
-            target_loader.report.log(Level.FATAL, traceback.format_exc())
-            raise Exception from exc
+            # Handle _any_ underlying problem.
+            # These are errors processing the data, which we handle gracefully.
+            # The task should _always_ end successfully.
+            # Any problem with the underlying data is transmitted in the report.
+            logger.debug(exc, exc_info=True)
+            target_loader.report.final(
+                f"Uploading {target_loader.data_bundle} failed", success=False
+            )
+            return
 
-        # move to final location
-        target_loader.abs_final_path.mkdir(parents=True)
-        target_loader.raw_data.rename(target_loader.abs_final_path)
-        Path(target_loader.bundle_path).rename(
-            target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
-        )
+        else:
+            # Move the uploaded file to its final location
+            target_loader.abs_final_path.mkdir(parents=True)
+            target_loader.raw_data.rename(target_loader.abs_final_path)
+            Path(target_loader.bundle_path).rename(
+                target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
+            )
 
-        set_directory_permissions(target_loader.abs_final_path, 0o755)
+            set_directory_permissions(target_loader.abs_final_path, 0o755)
 
-        target_loader.report.final(target_loader.data_bundle)
-        target_loader.experiment_upload.message = target_loader.report.json()
+            target_loader.report.final(
+                f"{target_loader.data_bundle} uploaded successfully"
+            )
+            target_loader.experiment_upload.message = target_loader.report.json()
 
-        # logger.debug("%s", upload_report)
-
-        target_loader.experiment_upload.save()
+            target_loader.experiment_upload.save()

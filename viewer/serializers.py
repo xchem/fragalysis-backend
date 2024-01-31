@@ -162,13 +162,11 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Target
-        # fields = ("id", "title", "project_id", "protein_set", "default_squonk_project",
-        #           "template_protein", "metadata", "zip_archive", "upload_status", "sequences")
-
         # TODO: it's missing protein_set. is it necessary anymore?
         fields = (
             "id",
             "title",
+            "display_name",
             "project_id",
             "default_squonk_project",
             "template_protein",
@@ -177,6 +175,17 @@ class TargetSerializer(serializers.ModelSerializer):
             "upload_status",
             "sequences",
         )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "title": {"read_only": True},
+            "project_id": {"read_only": True},
+            "default_squonk_project": {"read_only": True},
+            "template_protein": {"read_only": True},
+            "metadata": {"read_only": True},
+            "zip_archive": {"read_only": True},
+            "upload_status": {"read_only": True},
+            "sequences": {"read_only": True},
+        }
 
 
 class CompoundSerializer(serializers.ModelSerializer):
@@ -189,19 +198,7 @@ class CompoundSerializer(serializers.ModelSerializer):
             "current_identifier",
             "all_identifiers",
             "project_id",
-            # "mol_log_p",
-            # "mol_wt",
-            # "tpsa",
-            # "heavy_atom_count",
-            # "heavy_atom_mol_wt",
-            # "nhoh_count",
-            # "no_count",
-            # "num_h_acceptors",
-            # "num_h_donors",
-            # "num_het_atoms",
-            # "num_rot_bonds",
-            # "num_val_electrons",
-            # "ring_count",
+            "compound_code",
             "inspirations",
             "description",
             "comments",
@@ -832,16 +829,17 @@ class DownloadStructuresSerializer(serializers.Serializer):
     bound_file = serializers.BooleanField(default=False)
     cif_info = serializers.BooleanField(default=False)
     mtz_info = serializers.BooleanField(default=False)
-    # diff_info = serializers.BooleanField(default=False)
+    diff_file = serializers.BooleanField(default=False)
     event_file = serializers.BooleanField(default=False)
-    # sigmaa_info = serializers.BooleanField(default=False)
+    sigmaa_file = serializers.BooleanField(default=False)
+    map_info = serializers.BooleanField(default=False)
     sdf_info = serializers.BooleanField(default=False)
     single_sdf_file = serializers.BooleanField(default=False)
-    # trans_matrix_info = serializers.BooleanField(default=False)
     metadata_info = serializers.BooleanField(default=False)
     smiles_info = serializers.BooleanField(default=False)
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200)
+    trans_matrix_info = serializers.BooleanField(default=False)
 
 
 # Start of Serializers for Squonk Jobs

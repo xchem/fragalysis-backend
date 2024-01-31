@@ -12,6 +12,7 @@ from wsgiref.util import FileWrapper
 
 import pandas as pd
 import pytz
+from celery import Celery
 from celery.result import AsyncResult
 from dateutil.parser import parse
 from django.conf import settings
@@ -50,9 +51,8 @@ from .discourse import (
     list_discourse_posts_for_topic,
 )
 from .download_structures import (
-    check_download_links,
-    maintain_download_links,
-    recreate_static_file,
+    create_or_return_download_link,
+    erase_out_of_date_download_records,
 )
 from .forms import CSetForm
 from .squonk_job_file_transfer import validate_file_transfer_files
@@ -196,6 +196,26 @@ class TargetView(ISpyBSafeQuerySet):
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
     filterset_fields = ("title",)
+
+    def patch(self, request, pk):
+        try:
+            target = self.queryset.get(pk=pk)
+        except models.Target.DoesNotExist:
+            return Response(
+                {"message": f"Target pk={pk} does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = self.serializer_class(target, data=request.data, partial=True)
+        if serializer.is_valid():
+            logger.debug("serializer data: %s", serializer.validated_data)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            logger.debug("serializer error: %s", serializer.errors)
+            return Response(
+                {"message": "wrong parameters"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class CompoundView(ISpyBSafeQuerySet):
@@ -1365,11 +1385,10 @@ class DownloadStructures(ISpyBSafeQuerySet):
         file_url = request.GET.get('file_url')
 
         if file_url:
-            link = models.DownloadLinks.objects.filter(file_url=file_url)
-            if link and link[0].zip_file and os.path.isfile(link[0].file_url):
-                logger.info('zip_file: %s', link[0].zip_file)
+            if models.DownloadLinks.objects.filter(file_url=file_url).first():
+                logger.info('Found %s', file_url)
+                assert os.path.isfile(file_url)
 
-                # return file and tidy up.
                 file_name = os.path.basename(file_url)
                 wrapper = FileWrapper(open(file_url, 'rb'))
                 response = FileResponse(wrapper, content_type='application/zip')
@@ -1378,69 +1397,41 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 )
                 response['Content-Length'] = os.path.getsize(file_url)
                 return response
-            elif link:
-                content = {
-                    'message': 'Zip file no longer present - '
-                    'please recreate by calling '
-                    'POST/Prepare download'
-                }
+            else:
+                content = {'message': 'file_url is not found'}
                 return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-            content = {'message': 'File_url is not found'}
-            return Response(content, status=status.HTTP_404_NOT_FOUND)
-
-        content = {'message': 'Please provide file_url parameter from ' 'post response'}
+        content = {'message': 'Please provide file_url parameter from post response'}
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
     def create(self, request):
-        """Method to handle POST request that's use to initiate a target download.\
+        """Method to handle POST requests that are used to initiate a target download.
 
-        The user is permitted to download Targets they have ascess to (whether
-        authenticated or not), and this is hadled by the queryset logic later in
+        The user is permitted to download Targets they have access to (whether
+        authenticated or not), and this is handled by the queryset logic later in
         this method.
         """
         logger.info('+ DownloadStructures.post')
 
-        # Clear up old existing files
-        maintain_download_links()
+        erase_out_of_date_download_records()
 
-        # Static files
-        # For static files, the contents of the zip file at the time of the search
-        # are stored in the zip_contents field. These are used to reconstruct the
-        # zip file from the time of the request.
+        # Static files (i.e. links not removed)
         if request.data['file_url']:
-            # This is a static link - the contents are stored in the database
-            # if required.
             file_url = request.data['file_url']
             logger.info('Given file_url "%s"', file_url)
-            existing_link = models.DownloadLinks.objects.filter(file_url=file_url)
+            existing_link = models.DownloadLinks.objects.filter(
+                file_url=file_url
+            ).first()
 
-            if existing_link and existing_link[0].static_link:
-                # If the zip file is present, return it
-                # Note that don't depend 100% on the zip_file flag as the
-                # file might have been deleted from the media server.
-                if existing_link[0].zip_file and os.path.isfile(
-                    existing_link[0].file_url
-                ):
-                    logger.info('Download is Ready!')
-                    return Response(
-                        {"file_url": existing_link[0].file_url},
-                        status=status.HTTP_200_OK,
-                    )
-                elif os.path.isfile(existing_link[0].file_url):
-                    # If the file is there but zip_file is false, then it is
-                    # probably being rebuilt by a parallel process.
-                    logger.info('Download is under construction')
-                    content = {'message': 'Zip being rebuilt - ' 'please try later'}
-                    return Response(content, status=status.HTTP_208_ALREADY_REPORTED)
-                else:
-                    # Otherwise re-create the file.
-                    logger.info('Recreating download...')
-                    recreate_static_file(existing_link[0], request.get_host())
-                    return Response(
-                        {"file_url": existing_link[0].file_url},
-                        status=status.HTTP_200_OK,
-                    )
+            if existing_link and existing_link.static_link:
+                # A record exists, the file _must_ exist.
+                file_url = existing_link.file_url
+                logger.info('Existing static link found for file_url "%s"', file_url)
+                assert os.path.isfile(file_url)
+                return Response(
+                    {"file_url": file_url},
+                    status=status.HTTP_200_OK,
+                )
 
             msg = 'file_url should only be provided for static files'
             logger.warning(msg)
@@ -1448,7 +1439,6 @@ class DownloadStructures(ISpyBSafeQuerySet):
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         # Dynamic files
-
         if 'target_name' not in request.data:
             content = {
                 'message': 'If no file_url, a target_name (title) must be provided'
@@ -1492,7 +1482,11 @@ class DownloadStructures(ISpyBSafeQuerySet):
                     code__contains=code_first_part
                 )
                 if prot.exists():
-                    site_obvs = prot[0:1]
+                    # even more than just django object, I need an
+                    # unevaluated queryset down the line
+                    site_obvs = models.SiteObservation.objects.filter(
+                        pk=prot.first().pk,
+                    )
                 else:
                     logger.warning(
                         'Could not find SiteObservation record for "%s"',
@@ -1514,17 +1508,9 @@ class DownloadStructures(ISpyBSafeQuerySet):
             }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        protein_repr = ""
-        for protein in site_obvs:
-            protein_repr += "%r " % protein
-        logger.info('Collected %s Protein records: %r', site_obvs.count(), protein_repr)
-
-        filename_url, file_exists = check_download_links(request, target, site_obvs)
-        if file_exists:
-            return Response({"file_url": filename_url})
-        else:
-            content = {'message': 'Zip being rebuilt - please try later'}
-            return Response(content, status=status.HTTP_208_ALREADY_REPORTED)
+        filename_url = create_or_return_download_link(request, target, site_obvs)
+        assert filename_url is not None
+        return Response({"file_url": filename_url})
 
 
 class UploadTargetExperiments(ISpyBSafeQuerySet):
@@ -1570,6 +1556,16 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
         target_file = temp_path.joinpath(filename.name)
         handle_uploaded_file(target_file, filename)
 
+        celery_app = Celery("fragalysis")
+        celery_app.config_from_object("django.conf:settings", namespace="CELERY")
+        inspect = celery_app.control.inspect()
+        ping = inspect.ping()
+
+        if not ping:
+            # celery not active in local development. log a warning
+            # and try to run the task anyway
+            logger.warning('Celery not running!')
+
         task = task_load_target.delay(
             data_bundle=str(target_file),
             proposal_ref=target_access_string,
@@ -1586,42 +1582,49 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
 class TaskStatus(APIView):
     def get(self, request, task_id, *args, **kwargs):
         """Given a task_id (a string) we try to return the status of the task,
-        trying to handle unknown tasks as best we can. Celery is happy to accept any
-        string as a Task ID. To know it's a real task takes a lot of work, or you can
-        simply interpret a 'PENDING' state as "unknown task".
+        trying to handle unknown tasks as best we can.
         """
         # Unused arguments
         del request, args, kwargs
 
-        logger.debug("+ TaskStatus.get called task_id='%s'", task_id)
+        logger.debug("task_id=%s", task_id)
 
-        # task_id is (will be) a UUID, but Celery expects a string
+        # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
+        result = None
         try:
             result = AsyncResult(task_id_str)
         except TimeoutError:
-            error = {'error': 'Task result query timed out'}
+            error = {'error': 'Task query timed out. Try again later'}
             return Response(error, status=status.HTTP_408_REQUEST_TIMEOUT)
+        # Handle failure cases
+        if not result:
+            error = {'error': 'Task query returned nothing, contact your administrator'}
+            return Response(error, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        if result.state == 'PENDING':
-            error = {'error': 'Unknown task'}
-            return Response(error, status=status.HTTP_400_BAD_REQUEST)
-
-        # Extract messages (from task info)
-        # Assuming the task has some info.
+        # Extract messages from result's info attribute
+        # (if it has an info attribute)
         messages = []
-        if result.info:
+        if hasattr(result, 'info'):
             if isinstance(result.info, dict):
                 messages = result.info.get('description', [])
             elif isinstance(result.info, list):
                 messages = result.info
 
+        started = result.state != 'PENDING'
+        finished = result.ready()
+        task_status = "UNKNOWN"
+        if finished and messages:
+            # The task is considered to have failed if the word 'FAILED'
+            # is in the last line of the message (regardless of case)
+            task_status = "FAILED" if 'failed' in messages[-1].lower() else "SUCCESS"
+        elif started:
+            task_status = "RUNNING"
+
         data = {
-            'task_id': result.id,
-            'status': result.state,
-            'ready': result.ready(),
-            'successful': result.successful(),
-            'failed': result.failed(),
+            'started': started,
+            'finished': finished,
+            'status': task_status,
             'messages': messages,
         }
         return JsonResponse(data)

@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 import traceback
@@ -10,6 +11,8 @@ from ispyb.exception import (
     ISPyBNoResultException,
     ISPyBRetrieveFailed,
 )
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class SSHConnector(Connector):
@@ -33,6 +36,7 @@ class SSHConnector(Connector):
 
         self.conn_inactivity = conn_inactivity
         self.lock = threading.Lock()
+        self.conn = None
         self.server = None
         self.last_activity_ts = None
 
@@ -48,6 +52,12 @@ class SSHConnector(Connector):
                 'db_name': db,
             }
             self.remote_connect(**creds)
+            logger.debug(
+                "Started host=%s username=%s local_bind_port=%s",
+                ssh_host,
+                ssh_user,
+                self.server.local_bind_port,
+            )
 
         else:
             self.connect(
@@ -58,12 +68,14 @@ class SSHConnector(Connector):
                 port=port,
                 conn_inactivity=conn_inactivity,
             )
+            logger.debug("Started host=%s user=%s port=%s", host, user, port)
 
     def remote_connect(
         self, ssh_host, ssh_user, ssh_pass, db_host, db_port, db_user, db_pass, db_name
     ):
         sshtunnel.SSH_TIMEOUT = 10.0
         sshtunnel.TUNNEL_TIMEOUT = 10.0
+        sshtunnel.DEFAULT_LOGLEVEL = logging.CRITICAL
         self.conn_inactivity = int(self.conn_inactivity)
 
         self.server = sshtunnel.SSHTunnelForwarder(
@@ -123,3 +135,11 @@ class SSHConnector(Connector):
         if result == []:
             raise ISPyBNoResultException
         return result
+
+    def stop(self):
+        if self.server is not None:
+            self.server.stop()
+        self.server = None
+        self.conn = None
+        self.last_activity_ts = None
+        logger.debug("Server stopped")

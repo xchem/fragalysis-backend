@@ -237,6 +237,12 @@ TOKEN_EXPIRY_MINUTES = os.environ.get("OIDC_RENEW_ID_TOKEN_EXPIRY_MINUTES", "15"
 OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = int(TOKEN_EXPIRY_MINUTES) * 60
 # Keycloak mozilla_django_oidc - Settings - End
 
+# The deployment mode.
+# Controls the behaviour of the application (it's strictness to errors etc).
+# Typically one of "DEVELOPMENT" or "PRODUCTION".
+# see api.utils for the 'deployment_mode_is_production()' function.
+DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "production").upper()
+
 ROOT_URLCONF = "fragalysis.urls"
 
 STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
@@ -389,6 +395,10 @@ TAS_REGEX_ERROR_MSG = os.environ.get(
     "TAS_REGEX_ERROR_MSG",
     "Must begin 'lb' followed by 5 digits, optionally followed by a hyphen and a number.",
 )
+# Are any public target access strings defined?
+# If so they'll be in the PUBLIC_TAS variable as a comma separated list.
+PUBLIC_TAS = os.environ.get("PUBLIC_TAS", "")
+PUBLIC_TAS_LIST = PUBLIC_TAS.split(",") if PUBLIC_TAS else []
 
 COMPUTED_SET_MEDIA_DIRECTORY = "computed_set_data"
 TARGET_LOADER_MEDIA_DIRECTORY = "target_loader_data"
@@ -447,9 +457,9 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'api.security': {'level': 'INFO'},
             'asyncio': {'level': 'WARNING'},
             'celery': {'level': 'INFO'},
-            'django': {'level': 'INFO'},
-            'mozilla_django_oidc': {'level': 'INFO'},
-            'urllib3': {'level': 'INFO'},
+            'django': {'level': 'WARNING'},
+            'mozilla_django_oidc': {'level': 'WARNING'},
+            'urllib3': {'level': 'WARNING'},
             'paramiko': {'level': 'WARNING'},
         },
         'root': {
