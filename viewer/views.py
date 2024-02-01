@@ -1552,9 +1552,7 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
             if not user.is_authenticated:
                 return redirect(settings.LOGIN_URL)
             else:
-                if target_access_string not in self.get_proposals_for_user(
-                    user
-                ):
+                if target_access_string not in self.get_proposals_for_user(user):
                     return Response(
                         {
                             "target_access_string": [
@@ -2084,7 +2082,9 @@ class JobRequestView(APIView):
         logger.info('+ session_project_id=%s', session_project_id)
 
         # Project must exist.
-        project: Optional[models.Project] = models.Project.objects.filter(id=access_id).first()
+        project: Optional[models.Project] = models.Project.objects.filter(
+            id=access_id
+        ).first()
         if not project:
             content = {'error': f'Access ID (Project) {access_id} does not exist'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
