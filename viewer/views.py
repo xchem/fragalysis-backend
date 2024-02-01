@@ -1553,7 +1553,7 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
                 return redirect(settings.LOGIN_URL)
             else:
                 if target_access_string not in self.get_proposals_for_user(
-                    user, restrict_to_membership=True
+                    user
                 ):
                     return Response(
                         {
