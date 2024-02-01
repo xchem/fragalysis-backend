@@ -1737,11 +1737,17 @@ def load_target(
                 archive.extractall(target_loader.raw_data)
                 msg = f"Data extraction complete: {data_bundle}"
                 logger.info("%s%s", target_loader.report.task_id, msg)
-        except FileNotFoundError as exc:
-            msg = f"{data_bundle} file does not exist"
-            logger.exception("%s%s", target_loader.report.task_id, msg)
-            target_loader.experiment_upload.message = exc.args[0]
-            raise FileNotFoundError(msg) from exc
+        except Exception as exc:
+            # Handle _any_ underlying problem with the file.
+            logger.error('Got an exception opening the file: %s', str(exc))
+            target_loader.report.log(
+                Level.FATAL,
+                f"Decompression of '{bundle_filename}' has failed. Is it a Target Experiment file?",
+            )
+            target_loader.report.final(
+                f"Failed to decompress '{target_loader.data_bundle}'", success=False
+            )
+            return
 
         target_loader.report.log(Level.INFO, f"Decompressed '{bundle_filename}'")
 
@@ -1760,23 +1766,23 @@ def load_target(
             # Any problem with the underlying data is transmitted in the report.
             logger.debug(exc, exc_info=True)
             target_loader.report.final(
-                f"Uploading {target_loader.data_bundle} failed", success=False
+                f"Failed to process '{target_loader.data_bundle}'", success=False
             )
             return
-
         else:
-            # Move the uploaded file to its final location
-            target_loader.abs_final_path.mkdir(parents=True)
-            target_loader.raw_data.rename(target_loader.abs_final_path)
-            Path(target_loader.bundle_path).rename(
-                target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
-            )
+            _move_and_save_target(target_loader)
 
-            set_directory_permissions(target_loader.abs_final_path, 0o755)
 
-            target_loader.report.final(
-                f"{target_loader.data_bundle} uploaded successfully"
-            )
-            target_loader.experiment_upload.message = target_loader.report.json()
+def _move_and_save_target(target_loader):
+    # Move the uploaded file to its final location
+    target_loader.abs_final_path.mkdir(parents=True)
+    target_loader.raw_data.rename(target_loader.abs_final_path)
+    Path(target_loader.bundle_path).rename(
+        target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
+    )
 
-            target_loader.experiment_upload.save()
+    set_directory_permissions(target_loader.abs_final_path, 0o755)
+
+    target_loader.report.final(f"{target_loader.data_bundle} uploaded successfully")
+    target_loader.experiment_upload.message = target_loader.report.json()
+    target_loader.experiment_upload.save()

@@ -1552,11 +1552,13 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
             if not user.is_authenticated:
                 return redirect(settings.LOGIN_URL)
             else:
-                if target_access_string not in self.get_proposals_for_user(user):
+                if target_access_string not in self.get_proposals_for_user(
+                    user, restrict_to_membership=True
+                ):
                     return Response(
                         {
                             "target_access_string": [
-                                f"You are not authorized to upload data to {target_access_string}"
+                                f"You are not authorized to upload data to '{target_access_string}'"
                             ]
                         },
                         status=status.HTTP_403_FORBIDDEN,
