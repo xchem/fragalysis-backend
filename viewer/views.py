@@ -30,6 +30,7 @@ from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_highlighted_diffs, get_params, pretty_request
 from viewer import filters, models, serializers
@@ -1506,6 +1507,11 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 'message': 'Please enter list of valid protein codes '
                 'for target: {}, proteins: {}'.format(target.title, proteins_list)
             }
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        # Forced errors?
+        if have_infection(INFECTION_STRUCTURE_DOWNLOAD):
+            content = {'message': f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD})'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         filename_url = create_or_return_download_link(request, target, site_obvs)
