@@ -950,6 +950,8 @@ class JobOverrideWriteSerializer(serializers.ModelSerializer):
 
 
 class SiteObservationReadSerializer(serializers.ModelSerializer):
+    compound_code = serializers.StringRelatedField()
+
     class Meta:
         model = models.SiteObservation
         fields = '__all__'
