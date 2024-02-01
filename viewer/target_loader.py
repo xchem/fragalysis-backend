@@ -1770,10 +1770,10 @@ def load_target(
             )
             return
         else:
-            _move_and_save_target(target_loader)
+            _move_and_save_target_experiment(target_loader)
 
 
-def _move_and_save_target(target_loader):
+def _move_and_save_target_experiment(target_loader):
     # Move the uploaded file to its final location
     target_loader.abs_final_path.mkdir(parents=True)
     target_loader.raw_data.rename(target_loader.abs_final_path)
