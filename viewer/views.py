@@ -2058,9 +2058,10 @@ class JobRequestView(APIView):
 
     def post(self, request):
         logger.info('+ JobRequest.post')
-        # Only authenticated users can create squonk job requests.
+        # Only authenticated users can create squonk job requests
+        # (unless 'AUTHENTICATE_UPLOAD' is False in settings.py)
         user = self.request.user
-        if not user.is_authenticated:
+        if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
             content: Dict[str, Any] = {'error': 'Only authenticated users can run jobs'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
@@ -2081,6 +2082,22 @@ class JobRequestView(APIView):
         logger.info('+ target_id=%s', target_id)
         logger.info('+ snapshot_id=%s', snapshot_id)
         logger.info('+ session_project_id=%s', session_project_id)
+
+        # Project must exist.
+        project: Optional[models.Project] = models.Project.objects.filter(id=access_id).first()
+        if not project:
+            content = {'error': f'Access ID (Project) {access_id} does not exist'}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+        # The user must be a member of the target access string.
+        # (when AUTHENTICATE_UPLOAD is set)
+        if settings.AUTHENTICATE_UPLOAD:
+            ispyb_safe_query_set = ISpyBSafeQuerySet()
+            user_proposals = ispyb_safe_query_set.get_proposals_for_user(
+                user, restrict_to_membership=True
+            )
+            if project.title not in user_proposals:
+                content = {'error': f"You are not a member of '{project.title}'"}
+                return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Check the user can use this Squonk2 facility.
         # To do this we need to setup a couple of API parameter objects.
