@@ -1059,11 +1059,11 @@ class TargetLoader:
             "canon_site": canon_site,
         }
 
-        # members = extract(key="members")
+        members = extract(key="members")
         ref_ligands = extract(key="reference_ligand_id")
 
         index_fields = {
-            # "members": members,
+            "members": members,
             "reference_ligands": ref_ligands,
         }
 
@@ -1518,23 +1518,50 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
-        tag_categories = (
-            "ConformerSites",
-            "CanonSites",
-            "XtalformSites",
-            "Quatassemblies",
-            "Xtalforms",
-        )
-
-        for cat in tag_categories:
-            self._tag_site_observations(site_observation_objects, cat)
-
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
             val.instance.ref_site_observation = site_observation_objects[
                 val.index_data["reference_ligands"]
             ].instance
             val.instance.save()
+
+        # tag site observations
+        for val in canon_site_conf_objects.values():  # pylint: disable=no-member
+            tag = "conf_site: " + ",".join(val.instance.residues[:3])
+            so_list = [
+                site_observation_objects[k].instance for k in val.index_data["members"]
+            ]
+            self._tag_observations(tag, "ConformerSites", so_list)
+
+        for val in canon_site_objects.values():  # pylint: disable=no-member
+            tag = "canon_site: " + ",".join(val.instance.residues[:3])
+            so_list = SiteObservation.objects.filter(
+                canon_site_conf__canon_site=val.instance
+            )
+            self._tag_observations(tag, "ConformerSites", so_list)
+
+        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
+            tag = "xtalform_site: " + ",".join(val.instance.residues[:3])
+            so_list = [
+                site_observation_objects[k].instance for k in val.index_data["residues"]
+            ]
+            self._tag_observations(tag, "ConformerSites", so_list)
+
+        for val in quat_assembly_objects.values():  # pylint: disable=no-member
+            tag = "quatassembly: " + val.instance.name
+            so_list = SiteObservation.objects.filter(
+                xtalform_site__xtalform__in=XtalformQuatAssembly.objects.filter(
+                    quat_assembly=val.instance
+                ).values("xtalform")
+            )
+            self._tag_observations(tag, "ConformerSites", so_list)
+
+        for val in xtalform_objects.values():  # pylint: disable=no-member
+            tag = "xtalform: " + val.instance.name
+            so_list = SiteObservation.objects.filter(
+                xtalform_site__xtalform=val.instance
+            )
+            self._tag_observations(tag, "ConformerSites", so_list)
 
     def _load_yaml(self, yaml_file: Path) -> dict | None:
         contents = None
@@ -1592,96 +1619,49 @@ class TargetLoader:
 
         return result
 
-    def _tag_site_observations(self, site_observation_objects, category):
-        # this is an attempt to replicate tag creation from previous
-        # loader. as there are plenty of differences, I cannot just
-        # use the same functions..
+    def _tag_observations(self, tag, category, so_list):
+        try:
+            # memo to self: description is set to tag, but there's
+            # no fk to tag, instead, tag has a fk to
+            # group. There's no uniqueness requirement on
+            # description so there's no certainty that this will
+            # be unique (or remain searchable at all because user
+            # is allowed to change the tag name). this feels like
+            # poor design but I don't understand the principles of
+            # this system to know if that's indeed the case or if
+            # it is in fact a truly elegant solution
+            so_group = SiteObservationGroup.objects.get(
+                target=self.target, description=tag
+            )
+        except SiteObservationGroup.DoesNotExist:
+            assert self.target
+            so_group = SiteObservationGroup(target=self.target)
+            so_group.save()
+        except MultipleObjectsReturned:
+            SiteObservationGroup.objects.filter(
+                target=self.target, description=tag
+            ).delete()
+            assert self.target
+            so_group = SiteObservationGroup(target=self.target)
+            so_group.save()
 
-        logger.debug("Getting category %s", category)
-        groups: Dict[str, Any] = {}
-        for _, obj in site_observation_objects.items():
-            if category == "ConformerSites":
-                tags = [
-                    "conf_site: " + ",".join(obj.instance.canon_site_conf.residues[:3]),
-                ]
-            elif category == "CanonSites":
-                tags = [
-                    "canon_site: "
-                    + ",".join(obj.instance.xtalform_site.canon_site.residues[:3]),
-                ]
-            elif category == "XtalformSites":
-                tags = [
-                    "xtalform_site: "
-                    + ",".join(obj.instance.xtalform_site.residues[:3]),
-                ]
-            # tricky one. connected via m2m
-            elif category == "Quatassemblies":
-                tags = [
-                    "quatassembly: " + qa.name
-                    for qa in obj.instance.xtalform_site.xtalform.quat_assembly.all()
-                ]
+        try:
+            so_tag = SiteObservationTag.objects.get(tag=tag, target=self.target)
+            # Tag already exists
+            # Apart from the new mol_group and molecules, we shouldn't be
+            # changing anything.
+            so_tag.mol_group = so_group
+        except SiteObservationTag.DoesNotExist:
+            so_tag = SiteObservationTag()
+            so_tag.tag = tag
+            so_tag.category = TagCategory.objects.get(category=category)
+            so_tag.target = self.target
+            so_tag.mol_group = so_group
 
-            elif category == "Xtalforms":
-                tags = [
-                    "xtalform: " + obj.instance.xtalform_site.xtalform.name,
-                ]
-            else:
-                tags = [
-                    "Unspecified",
-                ]
+        so_tag.save()
 
-            for tag in tags:
-                if tag not in groups.keys():
-                    groups[tag] = [obj.instance]
-                else:
-                    groups[tag].append(obj.instance)
-
-        # I suspect I need to group them by site..
-        for tag, so_list in groups.items():
-            try:
-                # memo to self: description is set to tag, but there's
-                # no fk to tag, instead, tag has a fk to
-                # group. There's no uniqueness requirement on
-                # description so there's no certainty that this will
-                # be unique (or remain searchable at all because user
-                # is allowed to change the tag name). this feels like
-                # poor design but I don't understand the principles of
-                # this system to know if that's indeed the case or if
-                # it is in fact a truly elegant solution
-                so_group = SiteObservationGroup.objects.get(
-                    target=self.target, description=tag
-                )
-            except SiteObservationGroup.DoesNotExist:
-                assert self.target
-                so_group = SiteObservationGroup(target=self.target)
-                so_group.save()
-            except MultipleObjectsReturned:
-                SiteObservationGroup.objects.filter(
-                    target=self.target, description=tag
-                ).delete()
-                assert self.target
-                so_group = SiteObservationGroup(target=self.target)
-                so_group.save()
-
-            try:
-                so_tag = SiteObservationTag.objects.get(tag=tag, target=self.target)
-                # Tag already exists
-                # Apart from the new mol_group and molecules, we shouldn't be
-                # changing anything.
-                so_tag.mol_group = so_group
-            except SiteObservationTag.DoesNotExist:
-                so_tag = SiteObservationTag()
-                so_tag.tag = tag
-                so_tag.category = TagCategory.objects.get(category=category)
-                so_tag.target = self.target
-                so_tag.mol_group = so_group
-
-            so_tag.save()
-
-            for site_obvs in so_list:
-                logger.debug("site_obvs_id=%s", site_obvs.id)
-                so_group.site_observation.add(site_obvs)
-                so_tag.site_observations.add(site_obvs)
+        so_group.site_observation.add(*so_list)
+        so_tag.site_observations.add(*so_list)
 
     def _is_already_uploaded(self, target_created, project_created):
         if target_created or project_created:
