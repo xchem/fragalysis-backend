@@ -1,3 +1,4 @@
+import contextlib
 import functools
 import hashlib
 import logging
@@ -76,12 +77,6 @@ class UploadState(str, Enum):
     CANCELED = "CANCELED"
 
 
-class Level(str, Enum):
-    INFO = "INFO"
-    WARNING = "WARNING"
-    FATAL = "FATAL"
-
-
 @dataclass
 class MetadataObject:
     """Data structure to store freshly created model instances.
@@ -121,10 +116,12 @@ class ProcessedObject:
 @dataclass
 class UploadReportEntry:
     message: str
-    level: Level | None = None
+    level: int | None = None
 
     def __str__(self):
-        return ": ".join([k for k in (self.level, self.message) if k])
+        if self.level is None:
+            return self.message
+        return f"{logging.getLevelName(self.level)}: {self.message}"
 
 
 @dataclass
@@ -137,18 +134,12 @@ class UploadReport:
     def __post_init__(self) -> None:
         self.task_id = f"task {self.task.request.id}: " if self.task else ""
 
-    def log(self, level: Level, message: str) -> None:
+    def log(self, level: int, message: str) -> None:
         msg = f"{self.task_id}{message}"
-        if level == Level.FATAL:
+        if level == logging.ERROR:
             self.failed = True
             self.upload_state = UploadState.REPORTING
-            logger.error(msg)
-        elif level == Level.WARNING:
-            logger.warning(msg)
-        else:
-            # must be info
-            logger.info(msg)
-
+        logger.log(level, msg)
         self.stack.append(UploadReportEntry(level=level, message=message))
         self._update_task(self.json())
 
@@ -169,7 +160,7 @@ class UploadReport:
     def _update_task(self, message: str | list) -> None:
         if not self.task:
             return
-        try:
+        with contextlib.suppress(AttributeError):
             logger.debug("taskstuff %s", dir(self.task))
             self.task.update_state(
                 state=self.upload_state,
@@ -177,9 +168,6 @@ class UploadReport:
                     "description": message,
                 },
             )
-        except AttributeError:
-            # no task passed to method, nothing to do
-            pass
 
 
 def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
@@ -343,14 +331,14 @@ def create_objects(func=None, *, depth=math.inf):
                     instance_data.key,
                     instance_data.fields,
                 )
-                self.report.log(Level.FATAL, msg)
+                self.report.log(logging.ERROR, msg)
                 failed = failed + 1
             except IntegrityError:
                 msg = "{} object {} failed to save".format(
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     instance_data.key,
                 )
-                self.report.log(Level.FATAL, msg)
+                self.report.log(logging.ERROR, msg)
                 failed = failed + 1
 
             if not obj:
@@ -377,7 +365,7 @@ def create_objects(func=None, *, depth=math.inf):
             created,
             existing,
         )  # pylint: disable=protected-access
-        self.report.log(Level.INFO, msg)
+        self.report.log(logging.INFO, msg)
 
         return result
 
@@ -455,7 +443,7 @@ class TargetLoader:
         # Initial (reassuring message)
         bundle_filename = os.path.basename(self.bundle_path)
         self.report.log(
-            Level.INFO,
+            logging.INFO,
             f"Created TargetLoader for '{bundle_filename}' proposal_ref='{proposal_ref}'",
         )
 
@@ -480,7 +468,7 @@ class TargetLoader:
         """
 
         def logfunc(_, message):
-            self.report.log(Level.WARNING, message)
+            self.report.log(logging.WARNING, message)
 
         result = []
         for item in file_struct:
@@ -531,9 +519,9 @@ class TargetLoader:
 
         def logfunc(key, message):
             if key in required:
-                self.report.log(Level.FATAL, message)
+                self.report.log(logging.ERROR, message)
             else:
-                self.report.log(Level.WARNING, message)
+                self.report.log(logging.WARNING, message)
 
         result = {}
         for key, value in file_struct.items():
@@ -598,16 +586,13 @@ class TargetLoader:
         key: str,
         logfunc: Callable,
     ) -> Tuple[str | None, str | None]:
-        file_hash = value.get("sha256", None)
+        file_hash = value.get("sha256")
         try:
             filename = value["file"]
         except KeyError:
             # this is rather unexpected, haven't seen it yet
             filename = None
-            logfunc(
-                key,
-                "{}: malformed dict, key 'file' missing".format(obj_identifier),
-            )
+            logfunc(key, f"{obj_identifier}: malformed dict, key 'file' missing")
         return filename, file_hash
 
     def _check_file_hash(
@@ -621,15 +606,11 @@ class TargetLoader:
         file_path = self.raw_data.joinpath(filename)
         if file_path.is_file():
             if file_hash and file_hash != calculate_sha256(file_path):
-                logfunc(key, "Invalid hash for file {}".format(filename))
+                logfunc(key, f"Invalid hash for file {filename}")
         else:
             logfunc(
                 key,
-                "{} referenced in {}: {} but not found in archive".format(
-                    key,
-                    METADATA_FILE,
-                    obj_identifier,
-                ),
+                f"{key} referenced in {METADATA_FILE}: {obj_identifier} but not found in archive",
             )
 
     @create_objects(depth=1)
@@ -714,7 +695,8 @@ class TargetLoader:
         else:
             exp_type = -1
             self.report.log(
-                Level.FATAL, f"Unexpected 'type' '{dtype}' value for {experiment_name}"
+                logging.ERROR,
+                f"Unexpected 'type' '{dtype}' value for {experiment_name}",
             )
 
         dstatus = extract(key="status")
@@ -731,7 +713,7 @@ class TargetLoader:
         except KeyError:
             status = -1
             self.report.log(
-                Level.FATAL, f"Unexpected status '{dstatus}' for {experiment_name}"
+                logging.ERROR, f"Unexpected status '{dstatus}' for {experiment_name}"
             )
 
         # TODO: unhandled atm
@@ -811,10 +793,8 @@ class TargetLoader:
                 else "ligand_cif"
             )
             self.report.log(
-                Level.WARNING,
-                "{} missing from {} in '{}' experiment section".format(
-                    exc, smiles, protein_name
-                ),
+                logging.WARNING,
+                f"{exc} missing from {smiles} in '{protein_name}' experiment section",
             )
             return None
 
@@ -907,7 +887,7 @@ class TargetLoader:
             item_name=assembly_name,
         )
 
-        chains = extract(key="chains", level=Level.WARNING)
+        chains = extract(key="chains", level=logging.WARNING)
 
         fields = {
             "name": assembly_name,
@@ -1180,7 +1160,7 @@ class TargetLoader:
             data=data,
             section_name="crystals",
             item_name=experiment_id,
-            level=Level.WARNING,
+            level=logging.WARNING,
         )
 
         experiment = experiments[experiment_id].instance
@@ -1228,18 +1208,13 @@ class TargetLoader:
         logger.debug('looking for ligand_mol: %s', ligand_mol)
         mol_data = None
         if ligand_mol:
-            try:
+            with contextlib.suppress(TypeError, FileNotFoundError):
                 with open(
                     self.raw_data.joinpath(ligand_mol),
                     "r",
                     encoding="utf-8",
                 ) as f:
                     mol_data = f.read()
-            except (TypeError, FileNotFoundError):
-                # this site observation doesn't have a ligand. perfectly
-                # legitimate case
-                pass
-
         smiles = extract(key="ligand_smiles")
 
         fields = {
@@ -1287,19 +1262,15 @@ class TargetLoader:
             upload_dir = next(up_iter)
         except StopIteration as exc:
             msg = "Upload directory missing from uploaded file"
-            self.report.log(Level.FATAL, msg)
+            self.report.log(logging.ERROR, msg)
             # what do you mean unused?!
             raise StopIteration(
                 msg
             ) from exc  # pylint: disable=# pylint: disable=protected-access
 
-        try:
+        with contextlib.suppress(StopIteration):
             upload_dir = next(up_iter)
-            self.report.log(Level.WARNING, "Multiple upload directories in archive")
-        except StopIteration:
-            # just a warning, ignoring the second one
-            pass
-
+            self.report.log(logging.WARNING, "Multiple upload directories in archive")
         # now that target name is not included in path, I don't need
         # it here, need it just before creating target object. Also,
         # there's probably no need to throw a fatal here, I can
@@ -1309,7 +1280,7 @@ class TargetLoader:
             config_file = next(config_it)
         except StopIteration as exc:
             msg = f"config file missing from {str(upload_dir)}"
-            self.report.log(Level.FATAL, msg)
+            self.report.log(logging.ERROR, msg)
             raise StopIteration() from exc
 
         # load necessary files
@@ -1325,7 +1296,7 @@ class TargetLoader:
         # Validate the upload's XCA version information against any MODE-based conditions.
         # An error message is returned if the bundle is not supported.
         if vb_err_msg := _validate_bundle_against_mode(config):
-            self.report.log(Level.FATAL, vb_err_msg)
+            self.report.log(logging.ERROR, vb_err_msg)
             raise AssertionError(vb_err_msg)
 
         # Target (very least) is required
@@ -1333,7 +1304,7 @@ class TargetLoader:
             self.target_name = config["target_name"]
         except KeyError as exc:
             msg = "target_name missing in config file"
-            self.report.log(Level.FATAL, msg)
+            self.report.log(logging.ERROR, msg)
             raise KeyError(msg) from exc
 
         # moved this bit from init
@@ -1358,7 +1329,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded"
-            self.report.log(Level.FATAL, msg)
+            self.report.log(logging.ERROR, msg)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1570,7 +1541,7 @@ class TargetLoader:
                 contents = yaml.safe_load(file)
         except FileNotFoundError:
             self.report.log(
-                Level.FATAL, f"File {yaml_file.name} not found in data archive"
+                logging.ERROR, f"File {yaml_file.name} not found in data archive"
             )
 
         return contents
@@ -1585,7 +1556,7 @@ class TargetLoader:
                 result.append(yaml_data[block])
             except KeyError:
                 msg = error_text.format(block)
-                self.report.log(Level.FATAL, msg)
+                self.report.log(logging.ERROR, msg)
 
         return result
 
@@ -1595,26 +1566,18 @@ class TargetLoader:
         key: str | int,
         section_name: str,
         item_name: str,
-        level: Level = Level.FATAL,
+        level: int = logging.ERROR,
         return_type: type = str,
     ) -> Any:
         try:
             result = data[key]
         except KeyError as exc:
-            if level == Level.INFO:
-                result = ""
-            else:
-                result = "missing"
+            result = "" if level == logging.INFO else "missing"
             if return_type == list:
                 result = [result]
 
             self.report.log(
-                level,
-                "{} missing from {}: {} section".format(
-                    exc,
-                    section_name,
-                    item_name,
-                ),
+                level, f"{exc} missing from {section_name}: {item_name} section"
             )
 
         return result
@@ -1707,7 +1670,7 @@ def load_target(
 
         # Decompression can take some time, so we want to report progress
         bundle_filename = os.path.basename(data_bundle)
-        target_loader.report.log(Level.INFO, f"Decompressing '{bundle_filename}'")
+        target_loader.report.log(logging.INFO, f"Decompressing '{bundle_filename}'")
 
         try:
             # archive is first extracted to temporary dir and moved later
@@ -1723,7 +1686,7 @@ def load_target(
             target_loader.experiment_upload.message = exc.args[0]
             raise FileNotFoundError(msg) from exc
 
-        target_loader.report.log(Level.INFO, f"Decompressed '{bundle_filename}'")
+        target_loader.report.log(logging.INFO, f"Decompressed '{bundle_filename}'")
 
         try:
             with transaction.atomic():
