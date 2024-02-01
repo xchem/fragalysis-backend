@@ -1561,7 +1561,7 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
                                 f"You are not authorized to upload data to {target_access_string}"
                             ]
                         },
-                        status=status.HTTP_400_BAD_REQUEST,
+                        status=status.HTTP_403_FORBIDDEN,
                     )
 
         # memo to self: cannot use TemporaryDirectory here because task
