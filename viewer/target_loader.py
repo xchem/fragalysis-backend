@@ -1,8 +1,11 @@
 import functools
 import hashlib
+import itertools
 import logging
 import math
 import os
+import re
+import string
 import tarfile
 import uuid
 from collections.abc import Callable
@@ -10,12 +13,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
 
 import yaml
 from celery import Task
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
 from django.db.models import Model
@@ -278,6 +282,29 @@ def calculate_sha256(filepath) -> str:
         for chunk in iter(lambda: f.read(4096), b""):
             sha256_hash.update(chunk)
     return sha256_hash.hexdigest()
+
+
+def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
+    """Return alphabetic generator (A, B .. AA, AB...) starting from a specified point."""
+
+    # since product requries finite maximum return string length set
+    # to 10 characters. that should be enough for fragalysis (and to
+    # cause database issues)
+    generator = (
+        "".join(word)
+        for word in itertools.chain.from_iterable(
+            itertools.product(string.ascii_lowercase, repeat=i) for i in range(1, 11)
+        )
+    )
+
+    # Drop values until the starting point is reached
+    if start_from is not None and start_from != '':
+        start_from = start_from.lower()
+        generator = itertools.dropwhile(lambda x: x != start_from, generator)  # type: ignore[assignment]
+        # and drop one more, then it starts from after the start from as it should
+        _ = next(generator)
+
+    return generator
 
 
 def create_objects(func=None, *, depth=math.inf):
@@ -631,6 +658,25 @@ class TargetLoader:
                     obj_identifier,
                 ),
             )
+
+    def _enumerate_objects(self, objects: dict, attr: str) -> None:
+        # don't overwrite values already in database, get the current
+        # max value and continue from there
+        max_existing = 0
+        for val in objects.values():  # pylint: disable=no-member
+            value = getattr(val.instance, attr, 0)
+            if value:
+                max_existing = max(value, max_existing)
+
+        if not max_existing:
+            max_existing = 0
+
+        for val in objects.values():  # pylint: disable=no-member
+            value = getattr(val.instance, attr)
+            if not value:
+                max_existing = max_existing + 1
+                setattr(val.instance, attr, max_existing)
+                val.instance.save()
 
     @create_objects(depth=1)
     def process_experiment(
@@ -1185,7 +1231,7 @@ class TargetLoader:
 
         experiment = experiments[experiment_id].instance
 
-        code = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
+        longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
 
         try:
@@ -1244,7 +1290,7 @@ class TargetLoader:
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
-            "code": code,
+            "longcode": longcode,
             "experiment": experiment,
             "cmpd": compound,
             "xtalform_site": xtalform_site,
@@ -1446,6 +1492,7 @@ class TargetLoader:
             comp_meta.instance.project_id.add(self.experiment_upload.project)
 
         xtalform_objects = self.process_xtalform(yaml_data=xtalforms)
+        self._enumerate_objects(xtalform_objects, "xtalform_num")
 
         # add xtalform fk to experiment
         for _, obj in experiment_objects.items():  # pylint: disable=no-member
@@ -1460,6 +1507,7 @@ class TargetLoader:
                 logger.warning(msg)
 
         quat_assembly_objects = self.process_quat_assembly(yaml_data=assemblies)
+        self._enumerate_objects(quat_assembly_objects, "assembly_num")
 
         _ = self.process_xtalform_quatassembly(
             yaml_data=xtalform_assemblies,
@@ -1468,6 +1516,7 @@ class TargetLoader:
         )
 
         canon_site_objects = self.process_canon_site(yaml_data=canon_sites)
+        self._enumerate_objects(canon_site_objects, "canon_site_num")
         # NB! missing fk's:
         # - ref_conf_site
         # - quat_assembly
@@ -1491,8 +1540,27 @@ class TargetLoader:
             canon_sites=canon_sites_by_conf_sites,
             xtalforms=xtalform_objects,
         )
+        # enumerate xtalform_sites. a bit trickier than others because
+        # requires alphabetic enumeration
+        last_xtsite = (
+            XtalformSite.objects.filter(
+                pk__in=[
+                    k.instance.pk
+                    for k in xtalform_sites_objects.values()  # pylint: disable=no-member
+                ]
+            )
+            .order_by("-xtalform_site_num")[0]
+            .xtalform_site_num
+        )
+
+        xtnum = alphanumerator(start_from=last_xtsite)
+        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
+            if not val.instance.xtalform_site_num:
+                val.instance.xtalform_site_num = next(xtnum)
+                val.instance.save()
 
         # now can update CanonSite with ref_conf_site
+        # also, fill the canon_site_num field
         for val in canon_site_objects.values():  # pylint: disable=no-member
             val.instance.ref_conf_site = canon_site_conf_objects[
                 val.index_data["reference_conformer_site_id"]
@@ -1502,9 +1570,7 @@ class TargetLoader:
         # canon site instances are now complete
         # still missing fk to site_observation in canon_site_conf
 
-        # reindex xtalform site to grab for site observation I don't
-        # need this anywhere else, why won't i just give the correct
-        # key for xtal sites objects?
+        # reindex xtalform site to grab for site observation
         xtalform_site_by_tag = {}
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
             for k in val.index_data["residues"]:
@@ -1518,6 +1584,77 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
+        # TARGET123-x0233 observation XXXX goes to:
+
+        #     code: x0233A
+        #         x0233 - strip from crystal name.
+        #         A - cycle through the observations, assign A-Z, AA,..AZ, BA-BZ, .... AAA-AAZ, ...
+        #         If code isn't unique for target, then simply prefix it with A-Z,AA-AZ....
+        #     longcode - new field, populate with what's currently code: TARGET-x0488_A_147_x1081+A+147/6
+
+        # all observations of that (crystal + canonical site + compound). I
+        # think that's it - see the mockup above, everything you'd
+        # expect to show up when you click the orange "observations"
+        # button.  add short code for site_observations for
+        values = ["xtalform_site__xtalform", "canon_site_conf__canon_site", "cmpd"]
+        qs = (
+            SiteObservation.objects.values(*values)
+            .order_by(*values)
+            .annotate(obvs=ArrayAgg("id"))
+            .values_list("obvs", flat=True)
+        )
+        current_list = SiteObservation.objects.filter(
+            experiment__experiment_upload__target=self.target
+        ).values_list('code', flat=True)
+        for elem in qs:
+            # objects in this group should be named with same scheme
+            so_group = SiteObservation.objects.filter(pk__in=elem)
+
+            # first process existing codes and find maximum value
+            codelist = so_group.filter(code__isnull=False).values_list(
+                "code", flat=True
+            )
+            stripped = []
+            for k in codelist:
+                try:
+                    stripped.append(re.search(r"x\d*\D*", k).group(0))
+                except AttributeError:
+                    # code exists but seems to be non-standard. don't
+                    # know if this has implications to upload
+                    # processing
+                    logger.error("Non-standard SiteObservation code: %s", k)
+
+            # get the latest iterator position
+            iter_pos = ""
+            if stripped:
+                last = sorted(stripped)[-1]
+                try:
+                    iter_pos = re.search(r"[^\d]+(?=\d*$)", last).group(0)
+                except AttributeError:
+                    # code exists but seems to be non-standard. don't
+                    # know if this has implications to upload
+                    # processing
+                    # technically it should be validated in previous try-catch block
+                    logger.error("Non-standard SiteObservation code 2: %s", last)
+
+            logger.debug("iter_pos: %s", iter_pos)
+
+            # ... and create new one starting from next item
+            suffix = alphanumerator(start_from=iter_pos)
+            for so in so_group.filter(code__isnull=True):
+                code = f"{so.experiment.code.split('-')[1]}{next(suffix)}"
+
+                # test uniqueness for target
+                # TODO: this should ideally be solved by db engine, before
+                # rushing to write the trigger, have think about the
+                # loader concurrency situations
+                prefix = alphanumerator()
+                while code in current_list:
+                    code = f"{next(prefix)}{code}"
+
+                so.code = code
+                so.save()
+
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
             val.instance.ref_site_observation = site_observation_objects[
@@ -1526,42 +1663,54 @@ class TargetLoader:
             val.instance.save()
 
         # tag site observations
+        for val in canon_site_objects.values():  # pylint: disable=no-member
+            tag = f"{val.instance.canon_site_num} - {val.instance.name}"
+            so_list = SiteObservation.objects.filter(
+                canon_site_conf__canon_site=val.instance
+            )
+            self._tag_observations(tag, "CanonSites", so_list)
+
+        numerators = {}
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
-            tag = "conf_site: " + ",".join(val.instance.residues[:3])
+            if val.instance.canon_site.canon_site_num not in numerators.keys():
+                numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
+            tag = (
+                f"{val.instance.canon_site.canon_site_num}"
+                + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
+                + f" - {val.instance.name}"
+            )
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["members"]
             ]
             self._tag_observations(tag, "ConformerSites", so_list)
 
-        for val in canon_site_objects.values():  # pylint: disable=no-member
-            tag = "canon_site: " + ",".join(val.instance.residues[:3])
-            so_list = SiteObservation.objects.filter(
-                canon_site_conf__canon_site=val.instance
-            )
-            self._tag_observations(tag, "ConformerSites", so_list)
-
-        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
-            tag = "xtalform_site: " + ",".join(val.instance.residues[:3])
-            so_list = [
-                site_observation_objects[k].instance for k in val.index_data["residues"]
-            ]
-            self._tag_observations(tag, "ConformerSites", so_list)
-
         for val in quat_assembly_objects.values():  # pylint: disable=no-member
-            tag = "quatassembly: " + val.instance.name
+            tag = f"A{val.instance.assembly_num} - {val.instance.name}"
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform__in=XtalformQuatAssembly.objects.filter(
                     quat_assembly=val.instance
                 ).values("xtalform")
             )
-            self._tag_observations(tag, "ConformerSites", so_list)
+            self._tag_observations(tag, "Quatassemblies", so_list)
 
         for val in xtalform_objects.values():  # pylint: disable=no-member
-            tag = "xtalform: " + val.instance.name
+            tag = f"F{val.instance.xtalform_num} - {val.instance.name}"
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform=val.instance
             )
-            self._tag_observations(tag, "ConformerSites", so_list)
+            self._tag_observations(tag, "Xtalforms", so_list)
+
+        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
+            tag = (
+                f"F{val.instance.xtalform.xtalform_num}"
+                + f"{val.instance.xtalform_site_num}"
+                + f" - {val.instance.xtalform.name}"
+                + f" - {val.instance.xtalform_site_id}"
+            )
+            so_list = [
+                site_observation_objects[k].instance for k in val.index_data["residues"]
+            ]
+            self._tag_observations(tag, "XtalformSites", so_list)
 
     def _load_yaml(self, yaml_file: Path) -> dict | None:
         contents = None
