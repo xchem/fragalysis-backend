@@ -1584,18 +1584,6 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
-        # TARGET123-x0233 observation XXXX goes to:
-
-        #     code: x0233A
-        #         x0233 - strip from crystal name.
-        #         A - cycle through the observations, assign A-Z, AA,..AZ, BA-BZ, .... AAA-AAZ, ...
-        #         If code isn't unique for target, then simply prefix it with A-Z,AA-AZ....
-        #     longcode - new field, populate with what's currently code: TARGET-x0488_A_147_x1081+A+147/6
-
-        # all observations of that (crystal + canonical site + compound). I
-        # think that's it - see the mockup above, everything you'd
-        # expect to show up when you click the orange "observations"
-        # button.  add short code for site_observations for
         values = ["xtalform_site__xtalform", "canon_site_conf__canon_site", "cmpd"]
         qs = (
             SiteObservation.objects.values(*values)
@@ -1631,9 +1619,6 @@ class TargetLoader:
                 try:
                     iter_pos = re.search(r"[^\d]+(?=\d*$)", last).group(0)
                 except AttributeError:
-                    # code exists but seems to be non-standard. don't
-                    # know if this has implications to upload
-                    # processing
                     # technically it should be validated in previous try-catch block
                     logger.error("Non-standard SiteObservation code 2: %s", last)
 
@@ -1662,6 +1647,8 @@ class TargetLoader:
             ].instance
             val.instance.save()
 
+        logger.debug("data read and processed, adding tags")
+
         # tag site observations
         for val in canon_site_objects.values():  # pylint: disable=no-member
             tag = f"{val.instance.canon_site_num} - {val.instance.name}"
@@ -1669,6 +1656,8 @@ class TargetLoader:
                 canon_site_conf__canon_site=val.instance
             )
             self._tag_observations(tag, "CanonSites", so_list)
+
+        logger.debug("canon_site objects tagged")
 
         numerators = {}
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
@@ -1684,6 +1673,8 @@ class TargetLoader:
             ]
             self._tag_observations(tag, "ConformerSites", so_list)
 
+        logger.debug("conf_site objects tagged")
+
         for val in quat_assembly_objects.values():  # pylint: disable=no-member
             tag = f"A{val.instance.assembly_num} - {val.instance.name}"
             so_list = SiteObservation.objects.filter(
@@ -1693,12 +1684,16 @@ class TargetLoader:
             )
             self._tag_observations(tag, "Quatassemblies", so_list)
 
+        logger.debug("quat_assembly objects tagged")
+
         for val in xtalform_objects.values():  # pylint: disable=no-member
             tag = f"F{val.instance.xtalform_num} - {val.instance.name}"
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform=val.instance
             )
             self._tag_observations(tag, "Xtalforms", so_list)
+
+        logger.debug("xtalform objects tagged")
 
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
             tag = (
@@ -1711,6 +1706,8 @@ class TargetLoader:
                 site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
             self._tag_observations(tag, "XtalformSites", so_list)
+
+        logger.debug("xtalform_sites objects tagged")
 
     def _load_yaml(self, yaml_file: Path) -> dict | None:
         contents = None
