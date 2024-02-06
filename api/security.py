@@ -19,9 +19,11 @@ from .remote_ispyb_connector import SSHConnector
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+# A list of cached security results.
+# Results use the key 'RESULTS' and the collection time uses the key 'TIMESTAMP'.
 USER_LIST_DICT: Dict[str, Any] = {}
-
-connector: str = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
+# Period to cache user lists in seconds
+USER_LIST_CACHE_SECONDS: int = settings.SECURITY_CONNECTOR_CACHE_MINUTES * 60
 
 # example test:
 # from rest_framework.test import APIRequestFactory
@@ -109,9 +111,9 @@ def get_conn() -> Optional[Connector]:
 
 
 def get_configured_connector() -> Optional[Union[Connector, SSHConnector]]:
-    if connector == 'ispyb':
+    if settings.SECURITY_CONNECTOR == 'ispyb':
         return get_conn()
-    elif connector == 'ssh_ispyb':
+    elif settings.SECURITY_CONNECTOR == 'ssh_ispyb':
         return get_remote_conn()
     return None
 
@@ -122,9 +124,9 @@ def ping_configured_connector() -> bool:
     a connection can be made.
     """
     conn: Optional[Union[Connector, SSHConnector]] = None
-    if connector == 'ispyb':
+    if settings.SECURITY_CONNECTOR == 'ispyb':
         conn = get_conn()
-    elif connector == 'ssh_ispyb':
+    elif settings.SECURITY_CONNECTOR == 'ssh_ispyb':
         conn = get_remote_conn()
         if conn is not None:
             conn.stop()
@@ -175,17 +177,18 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return prop_ids
 
     def needs_updating(self, user):
-        """Returns true of the data collected for a user is out of date.
-        It's simple, we just record the last collected timestamp and consider it
-        'out of date' (i.e. more than an hour old).
-        """
-        update_window = 3600
-        if user.username not in USER_LIST_DICT:
-            USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": 0}
+        """Returns true of the data collected for a user is out of date."""
         current_time = time.time()
-        if current_time - USER_LIST_DICT[user.username]["TIMESTAMP"] > update_window:
+        if user.username not in USER_LIST_DICT:
+            USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": current_time}
+        if (
+            current_time - USER_LIST_DICT[user.username]["TIMESTAMP"]
+            >= USER_LIST_CACHE_SECONDS
+        ):
+            # Clear the cache (using the current time as the new timestamp)
             USER_LIST_DICT[user.username]["TIMESTAMP"] = current_time
             return True
+        # Cached results are still valid...
         return False
 
     def run_query_with_connector(self, conn, user):

@@ -224,6 +224,15 @@ OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_STORE_ACCESS_TOKEN = True
 OIDC_STORE_ID_TOKEN = True
 
+# Security/access control connector.
+# Currently one of 'ispyb' or 'ssh_ispyb'.
+SECURITY_CONNECTOR = os.environ.get('SECURITY_CONNECTOR', 'ispyb').lower()
+# Number of minutes to cache security information for a user.
+# Set to '0' to disable caching.
+SECURITY_CONNECTOR_CACHE_MINUTES = int(
+    os.environ.get('SECURITY_CONNECTOR_CACHE_MINUTES', '2')
+)
+
 # SessionRefresh configuration.
 # There's only one item - the token expiry period, with a default of 15 minutes.
 # The default is 15 minutes if you don't set this value.
