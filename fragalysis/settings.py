@@ -504,3 +504,10 @@ TAS_REGEX_ERROR_MSG: str = os.environ.get(
     "TAS_REGEX_ERROR_MSG",
     "Must begin 'lb' followed by 5 digits, optionally followed by a hyphen and a number.",
 )
+
+BE_NAMESPACE: str = os.environ.get("BE_NAMESPACE", "undefined")
+BE_IMAGE_TAG: str = os.environ.get("BE_IMAGE_TAG", "undefined")
+FE_NAMESPACE: str = os.environ.get("FE_NAMESPACE", "undefined")
+FE_IMAGE_TAG: str = os.environ.get("FE_IMAGE_TAG", "undefined")
+STACK_NAMESPACE: str = os.environ.get("STACK_NAMESPACE", "undefined")
+STACK_VERSION: str = os.environ.get("STACK_VERSION", "undefined")
