@@ -23,6 +23,7 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 import os
 import sys
 from datetime import timedelta
+from typing import List
 
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -411,45 +412,52 @@ if not DISABLE_LOGGING_FRAMEWORK:
 # Controls the behaviour of the application (it's strictness to errors etc).
 # Typically one of "DEVELOPMENT" or "PRODUCTION".
 # see api.utils for the 'deployment_mode_is_production()' function.
-DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "production").upper()
+DEPLOYMENT_MODE: str = os.environ.get("DEPLOYMENT_MODE", "production").upper()
 
 # Authentication check when uploading files.
 # This can be switched off to simplify development testing if required.
 # It's asserted as True for 'production' mode.
-AUTHENTICATE_UPLOAD = True
-if os.environ.get("AUTHENTICATE_UPLOAD") == 'False':
+AUTHENTICATE_UPLOAD: bool = True
+if os.environ.get("AUTHENTICATE_UPLOAD") == "False":
     assert DEPLOYMENT_MODE != "PRODUCTION"
     AUTHENTICATE_UPLOAD = False
 
-COMPUTED_SET_MEDIA_DIRECTORY = "computed_set_data"
+COMPUTED_SET_MEDIA_DIRECTORY: str = "computed_set_data"
 
 # Discourse settings for API calls to Discourse Platform
-DISCOURSE_PARENT_CATEGORY = 'Fragalysis targets'
-DISCOURSE_USER = 'fragalysis'
-DISCOURSE_HOST = os.environ.get('DISCOURSE_HOST')
+DISCOURSE_PARENT_CATEGORY: str = "Fragalysis targets"
+DISCOURSE_USER: str = "fragalysis"
+DISCOURSE_HOST: str = os.environ.get("DISCOURSE_HOST", "")
 # Note that this can be obtained from discourse for the desired environment.
-DISCOURSE_API_KEY = os.environ.get("DISCOURSE_API_KEY")
+DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # This suffix can be set to that the different development environments posting
 # to the same Discourse server can "automatically" generate different category/post
 # titles - hopefully reducing confusion. It will be appended at category or post-title,
 # e.g. "Mpro-duncan", "Mpro-staging" etc. Note that it is for dev systems.
 # It is not required on production because production will have a
 # dedicated Discourse server.
-DISCOURSE_DEV_POST_SUFFIX = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", '')
+DISCOURSE_DEV_POST_SUFFIX: str = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", "")
 
 # What infection have been set?
 # "Infections" are  built-in faults that can be induced by providing their names.
 # Typically these are "hard to reproduce" errors that are useful for testing.
 # The names are provided in a comma-separated list in this variable.
 # The full set of supported names can be used can be found in "api/infections.py"
-INFECTIONS: str = os.environ.get('INFECTIONS', '').lower()
+INFECTIONS: str = os.environ.get("INFECTIONS", "").lower()
+
+# The ISpyB database settings.
+# Can be used in conjunction with SSH settings (later in this file)
+ISPYB_USER: str = os.environ.get("ISPYB_USER", "")
+ISPYB_PASSWORD: str = os.environ.get("ISPYB_PASSWORD", "")
+ISPYB_HOST: str = os.environ.get("ISPYB_HOST", "")
+ISPYB_PORT: str = os.environ.get("ISPYB_PORT", "")
 
 # An optional URL that identifies the URL to a prior stack.
 # If set, it's typically something like "https://fragalysis.diamond.ac.uk".
 # It can be blank, indicating there is no legacy service.
-LEGACY_URL = os.environ.get("LEGACY_URL", "")
+LEGACY_URL: str = os.environ.get("LEGACY_URL", "")
 
-NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
+NEOMODEL_NEO4J_BOLT_URL: str = os.environ.get(
     "NEO4J_BOLT_URL", "bolt://neo4j:test@neo4j:7687"
 )
 
@@ -458,35 +466,41 @@ NEOMODEL_NEO4J_BOLT_URL = os.environ.get(
 # Y                  | Y                 | Shown / Required
 # Y                  | N                 | Shown / Optional
 # N                  | N                 | Not Shown
-PROPOSAL_SUPPORTED = True
-PROPOSAL_REQUIRED = True
+PROPOSAL_SUPPORTED: bool = True
+PROPOSAL_REQUIRED: bool = True
 
 # Are any public target access strings defined?
 # If so they'll be in the PUBLIC_TAS variable as a comma separated list.
-PUBLIC_TAS = os.environ.get("PUBLIC_TAS", "")
-PUBLIC_TAS_LIST = PUBLIC_TAS.split(",") if PUBLIC_TAS else []
+PUBLIC_TAS: str = os.environ.get("PUBLIC_TAS", "")
+PUBLIC_TAS_LIST: List[str] = PUBLIC_TAS.split(",") if PUBLIC_TAS else []
 
 # Security/access control connector.
 # Currently one of 'ispyb' or 'ssh_ispyb'.
-SECURITY_CONNECTOR = os.environ.get('SECURITY_CONNECTOR', 'ispyb').lower()
+SECURITY_CONNECTOR: str = os.environ.get("SECURITY_CONNECTOR", "ispyb").lower()
 # Number of minutes to cache security information for a user.
 # Set to '0' to disable caching.
-SECURITY_CONNECTOR_CACHE_MINUTES = int(
-    os.environ.get('SECURITY_CONNECTOR_CACHE_MINUTES', '2')
+SECURITY_CONNECTOR_CACHE_MINUTES: int = int(
+    os.environ.get("SECURITY_CONNECTOR_CACHE_MINUTES", "2")
 )
 
-SQUONK2_MEDIA_DIRECTORY = "fragalysis-files"
-SQUONK2_INSTANCE_API = "data-manager-ui/results/instance/"
+# An SSH host.
+# Used in the security module in conjunction with ISPyB settings.
+SSH_HOST: str = os.environ.get("SSH_HOST", "")
+SSH_USER: str = os.environ.get("SSH_USER", "")
+SSH_PASSWORD: str = os.environ.get("SSH_PASSWORD", "")
 
-TARGET_LOADER_MEDIA_DIRECTORY = "target_loader_data"
+SQUONK2_MEDIA_DIRECTORY: str = "fragalysis-files"
+SQUONK2_INSTANCE_API: str = "data-manager-ui/results/instance/"
+
+TARGET_LOADER_MEDIA_DIRECTORY: str = "target_loader_data"
 
 # The Target Access String (TAS) Python regular expression.
 # The Project title (the TAS) must match this expression to be valid.
 # See api/utils.py validate_tas() for the current implementation.
 # To simplify error messages when the match fails you can also
 # add an error message.
-TAS_REGEX = os.environ.get("TAS_REGEX", r"^(lb\d{5})(-(\d+)){0,1}$")
-TAS_REGEX_ERROR_MSG = os.environ.get(
+TAS_REGEX: str = os.environ.get("TAS_REGEX", r"^(lb\d{5})(-(\d+)){0,1}$")
+TAS_REGEX_ERROR_MSG: str = os.environ.get(
     "TAS_REGEX_ERROR_MSG",
     "Must begin 'lb' followed by 5 digits, optionally followed by a hyphen and a number.",
 )

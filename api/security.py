@@ -43,18 +43,18 @@ USER_LIST_CACHE_SECONDS: int = settings.SECURITY_CONNECTOR_CACHE_MINUTES * 60
 
 def get_remote_conn() -> Optional[SSHConnector]:
     ispyb_credentials: Dict[str, Any] = {
-        "user": os.environ.get("ISPYB_USER"),
-        "pw": os.environ.get("ISPYB_PASSWORD"),
-        "host": os.environ.get("ISPYB_HOST"),
-        "port": os.environ.get("ISPYB_PORT"),
+        "user": settings.ISPYB_USER,
+        "pw": settings.ISPYB_PASSWORD,
+        "host": settings.ISPYB_HOST,
+        "port": settings.ISPYB_PORT,
         "db": "ispyb",
         "conn_inactivity": 360,
     }
 
     ssh_credentials: Dict[str, Any] = {
-        'ssh_host': os.environ.get("SSH_HOST"),
-        'ssh_user': os.environ.get("SSH_USER"),
-        'ssh_password': os.environ.get("SSH_PASSWORD"),
+        'ssh_host': settings.SSH_HOST,
+        'ssh_user': settings.SSH_USER,
+        'ssh_password': settings.SSH_PASSWORD,
         'remote': True,
     }
 
@@ -83,10 +83,10 @@ def get_remote_conn() -> Optional[SSHConnector]:
 
 def get_conn() -> Optional[Connector]:
     credentials: Dict[str, Any] = {
-        "user": os.environ.get("ISPYB_USER"),
-        "pw": os.environ.get("ISPYB_PASSWORD"),
-        "host": os.environ.get("ISPYB_HOST"),
-        "port": os.environ.get("ISPYB_PORT"),
+        "user": settings.ISPYB_USER,
+        "pw": settings.ISPYB_PASSWORD,
+        "host": settings.ISPYB_HOST,
+        "port": settings.ISPYB_PORT,
         "db": "ispyb",
         "conn_inactivity": 360,
     }
@@ -300,7 +300,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         assert user
 
         proposals = []
-        ispyb_user = os.environ.get("ISPYB_USER")
+        ispyb_user = settings.ISPYB_USER
         logger.debug(
             "ispyb_user=%s restrict_to_membership=%s",
             ispyb_user,
