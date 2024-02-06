@@ -438,6 +438,12 @@ DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX: str = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", "")
 
+# Do we enable the collection and presentation
+# of the availability of underlying services?
+# A colon (:) separated list of services to enable.
+# See "viewer/services.py" for the full list of supported services.
+ENABLE_SERVICE_STATUS: str = os.environ.get("ENABLE_SERVICE_STATUS", "")
+
 # What infection have been set?
 # "Infections" are  built-in faults that can be induced by providing their names.
 # Typically these are "hard to reproduce" errors that are useful for testing.

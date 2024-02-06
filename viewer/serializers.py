@@ -465,8 +465,8 @@ class MolpropsSerializer(serializers.ModelSerializer):
 
 class GraphSerializer(serializers.ModelSerializer):
     graph = serializers.SerializerMethodField()
-    graph_choice = os.environ.get("NEO4J_QUERY", "neo4j")
-    graph_auth = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
+    graph_choice = settings.NEO4J_QUERY
+    graph_auth = settings.NEO4J_AUTH
 
     def get_graph(self, obj):
         return get_full_graph(
