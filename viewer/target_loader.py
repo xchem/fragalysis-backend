@@ -1,8 +1,12 @@
+import contextlib
 import functools
 import hashlib
+import itertools
 import logging
 import math
 import os
+import re
+import string
 import tarfile
 import uuid
 from collections.abc import Callable
@@ -10,12 +14,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
 
 import yaml
 from celery import Task
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
 from django.db.models import Model
@@ -76,12 +81,6 @@ class UploadState(str, Enum):
     CANCELED = "CANCELED"
 
 
-class Level(str, Enum):
-    INFO = "INFO"
-    WARNING = "WARNING"
-    FATAL = "FATAL"
-
-
 @dataclass
 class MetadataObject:
     """Data structure to store freshly created model instances.
@@ -121,10 +120,12 @@ class ProcessedObject:
 @dataclass
 class UploadReportEntry:
     message: str
-    level: Level | None = None
+    level: int | None = None
 
     def __str__(self):
-        return ": ".join([k for k in (self.level, self.message) if k])
+        if self.level is None:
+            return self.message
+        return f"{logging.getLevelName(self.level)}: {self.message}"
 
 
 @dataclass
@@ -137,18 +138,12 @@ class UploadReport:
     def __post_init__(self) -> None:
         self.task_id = f"task {self.task.request.id}: " if self.task else ""
 
-    def log(self, level: Level, message: str) -> None:
+    def log(self, level: int, message: str) -> None:
         msg = f"{self.task_id}{message}"
-        if level == Level.FATAL:
+        if level == logging.ERROR:
             self.failed = True
             self.upload_state = UploadState.REPORTING
-            logger.error(msg)
-        elif level == Level.WARNING:
-            logger.warning(msg)
-        else:
-            # must be info
-            logger.info(msg)
-
+        logger.log(level, msg)
         self.stack.append(UploadReportEntry(level=level, message=message))
         self._update_task(self.json())
 
@@ -169,7 +164,7 @@ class UploadReport:
     def _update_task(self, message: str | list) -> None:
         if not self.task:
             return
-        try:
+        with contextlib.suppress(AttributeError):
             logger.debug("taskstuff %s", dir(self.task))
             self.task.update_state(
                 state=self.upload_state,
@@ -177,9 +172,6 @@ class UploadReport:
                     "description": message,
                 },
             )
-        except AttributeError:
-            # no task passed to method, nothing to do
-            pass
 
 
 def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
@@ -280,6 +272,29 @@ def calculate_sha256(filepath) -> str:
     return sha256_hash.hexdigest()
 
 
+def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
+    """Return alphabetic generator (A, B .. AA, AB...) starting from a specified point."""
+
+    # since product requries finite maximum return string length set
+    # to 10 characters. that should be enough for fragalysis (and to
+    # cause database issues)
+    generator = (
+        "".join(word)
+        for word in itertools.chain.from_iterable(
+            itertools.product(string.ascii_lowercase, repeat=i) for i in range(1, 11)
+        )
+    )
+
+    # Drop values until the starting point is reached
+    if start_from is not None and start_from != '':
+        start_from = start_from.lower()
+        generator = itertools.dropwhile(lambda x: x != start_from, generator)  # type: ignore[assignment]
+        # and drop one more, then it starts from after the start from as it should
+        _ = next(generator)
+
+    return generator
+
+
 def create_objects(func=None, *, depth=math.inf):
     """Wrapper function for saving database objects.
 
@@ -343,14 +358,14 @@ def create_objects(func=None, *, depth=math.inf):
                     instance_data.key,
                     instance_data.fields,
                 )
-                self.report.log(Level.FATAL, msg)
+                self.report.log(logging.ERROR, msg)
                 failed = failed + 1
             except IntegrityError:
                 msg = "{} object {} failed to save".format(
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     instance_data.key,
                 )
-                self.report.log(Level.FATAL, msg)
+                self.report.log(logging.ERROR, msg)
                 failed = failed + 1
 
             if not obj:
@@ -377,7 +392,7 @@ def create_objects(func=None, *, depth=math.inf):
             created,
             existing,
         )  # pylint: disable=protected-access
-        self.report.log(Level.INFO, msg)
+        self.report.log(logging.INFO, msg)
 
         return result
 
@@ -455,7 +470,7 @@ class TargetLoader:
         # Initial (reassuring message)
         bundle_filename = os.path.basename(self.bundle_path)
         self.report.log(
-            Level.INFO,
+            logging.INFO,
             f"Created TargetLoader for '{bundle_filename}' proposal_ref='{proposal_ref}'",
         )
 
@@ -480,7 +495,7 @@ class TargetLoader:
         """
 
         def logfunc(_, message):
-            self.report.log(Level.WARNING, message)
+            self.report.log(logging.WARNING, message)
 
         result = []
         for item in file_struct:
@@ -531,9 +546,9 @@ class TargetLoader:
 
         def logfunc(key, message):
             if key in required:
-                self.report.log(Level.FATAL, message)
+                self.report.log(logging.ERROR, message)
             else:
-                self.report.log(Level.WARNING, message)
+                self.report.log(logging.WARNING, message)
 
         result = {}
         for key, value in file_struct.items():
@@ -598,16 +613,13 @@ class TargetLoader:
         key: str,
         logfunc: Callable,
     ) -> Tuple[str | None, str | None]:
-        file_hash = value.get("sha256", None)
+        file_hash = value.get("sha256")
         try:
             filename = value["file"]
         except KeyError:
             # this is rather unexpected, haven't seen it yet
             filename = None
-            logfunc(
-                key,
-                "{}: malformed dict, key 'file' missing".format(obj_identifier),
-            )
+            logfunc(key, f"{obj_identifier}: malformed dict, key 'file' missing")
         return filename, file_hash
 
     def _check_file_hash(
@@ -621,16 +633,31 @@ class TargetLoader:
         file_path = self.raw_data.joinpath(filename)
         if file_path.is_file():
             if file_hash and file_hash != calculate_sha256(file_path):
-                logfunc(key, "Invalid hash for file {}".format(filename))
+                logfunc(key, f"Invalid hash for file {filename}")
         else:
             logfunc(
                 key,
-                "{} referenced in {}: {} but not found in archive".format(
-                    key,
-                    METADATA_FILE,
-                    obj_identifier,
-                ),
+                f"{key} referenced in {METADATA_FILE}: {obj_identifier} but not found in archive",
             )
+
+    def _enumerate_objects(self, objects: dict, attr: str) -> None:
+        # don't overwrite values already in database, get the current
+        # max value and continue from there
+        max_existing = 0
+        for val in objects.values():  # pylint: disable=no-member
+            value = getattr(val.instance, attr, 0)
+            if value:
+                max_existing = max(value, max_existing)
+
+        if not max_existing:
+            max_existing = 0
+
+        for val in objects.values():  # pylint: disable=no-member
+            value = getattr(val.instance, attr)
+            if not value:
+                max_existing = max_existing + 1
+                setattr(val.instance, attr, max_existing)
+                val.instance.save()
 
     @create_objects(depth=1)
     def process_experiment(
@@ -714,7 +741,8 @@ class TargetLoader:
         else:
             exp_type = -1
             self.report.log(
-                Level.FATAL, f"Unexpected 'type' '{dtype}' value for {experiment_name}"
+                logging.ERROR,
+                f"Unexpected 'type' '{dtype}' value for {experiment_name}",
             )
 
         dstatus = extract(key="status")
@@ -731,7 +759,7 @@ class TargetLoader:
         except KeyError:
             status = -1
             self.report.log(
-                Level.FATAL, f"Unexpected status '{dstatus}' for {experiment_name}"
+                logging.ERROR, f"Unexpected status '{dstatus}' for {experiment_name}"
             )
 
         # TODO: unhandled atm
@@ -811,10 +839,8 @@ class TargetLoader:
                 else "ligand_cif"
             )
             self.report.log(
-                Level.WARNING,
-                "{} missing from {} in '{}' experiment section".format(
-                    exc, smiles, protein_name
-                ),
+                logging.WARNING,
+                f"{exc} missing from {smiles} in '{protein_name}' experiment section",
             )
             return None
 
@@ -907,7 +933,7 @@ class TargetLoader:
             item_name=assembly_name,
         )
 
-        chains = extract(key="chains", level=Level.WARNING)
+        chains = extract(key="chains", level=logging.WARNING)
 
         fields = {
             "name": assembly_name,
@@ -1059,11 +1085,11 @@ class TargetLoader:
             "canon_site": canon_site,
         }
 
-        # members = extract(key="members")
+        members = extract(key="members")
         ref_ligands = extract(key="reference_ligand_id")
 
         index_fields = {
-            # "members": members,
+            "members": members,
             "reference_ligands": ref_ligands,
         }
 
@@ -1180,12 +1206,12 @@ class TargetLoader:
             data=data,
             section_name="crystals",
             item_name=experiment_id,
-            level=Level.WARNING,
+            level=logging.WARNING,
         )
 
         experiment = experiments[experiment_id].instance
 
-        code = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
+        longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
 
         try:
@@ -1228,23 +1254,18 @@ class TargetLoader:
         logger.debug('looking for ligand_mol: %s', ligand_mol)
         mol_data = None
         if ligand_mol:
-            try:
+            with contextlib.suppress(TypeError, FileNotFoundError):
                 with open(
                     self.raw_data.joinpath(ligand_mol),
                     "r",
                     encoding="utf-8",
                 ) as f:
                     mol_data = f.read()
-            except (TypeError, FileNotFoundError):
-                # this site observation doesn't have a ligand. perfectly
-                # legitimate case
-                pass
-
         smiles = extract(key="ligand_smiles")
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
-            "code": code,
+            "longcode": longcode,
             "experiment": experiment,
             "cmpd": compound,
             "xtalform_site": xtalform_site,
@@ -1287,19 +1308,15 @@ class TargetLoader:
             upload_dir = next(up_iter)
         except StopIteration as exc:
             msg = "Upload directory missing from uploaded file"
-            self.report.log(Level.FATAL, msg)
+            self.report.log(logging.ERROR, msg)
             # what do you mean unused?!
             raise StopIteration(
                 msg
             ) from exc  # pylint: disable=# pylint: disable=protected-access
 
-        try:
+        with contextlib.suppress(StopIteration):
             upload_dir = next(up_iter)
-            self.report.log(Level.WARNING, "Multiple upload directories in archive")
-        except StopIteration:
-            # just a warning, ignoring the second one
-            pass
-
+            self.report.log(logging.WARNING, "Multiple upload directories in archive")
         # now that target name is not included in path, I don't need
         # it here, need it just before creating target object. Also,
         # there's probably no need to throw a fatal here, I can
@@ -1309,7 +1326,7 @@ class TargetLoader:
             config_file = next(config_it)
         except StopIteration as exc:
             msg = f"config file missing from {str(upload_dir)}"
-            self.report.log(Level.FATAL, msg)
+            self.report.log(logging.ERROR, msg)
             raise StopIteration() from exc
 
         # load necessary files
@@ -1325,7 +1342,7 @@ class TargetLoader:
         # Validate the upload's XCA version information against any MODE-based conditions.
         # An error message is returned if the bundle is not supported.
         if vb_err_msg := _validate_bundle_against_mode(config):
-            self.report.log(Level.FATAL, vb_err_msg)
+            self.report.log(logging.ERROR, vb_err_msg)
             raise AssertionError(vb_err_msg)
 
         # Target (very least) is required
@@ -1333,7 +1350,7 @@ class TargetLoader:
             self.target_name = config["target_name"]
         except KeyError as exc:
             msg = "target_name missing in config file"
-            self.report.log(Level.FATAL, msg)
+            self.report.log(logging.ERROR, msg)
             raise KeyError(msg) from exc
 
         # moved this bit from init
@@ -1358,7 +1375,7 @@ class TargetLoader:
             # remove uploaded file
             Path(self.bundle_path).unlink()
             msg = f"{self.bundle_name} already uploaded"
-            self.report.log(Level.FATAL, msg)
+            self.report.log(logging.ERROR, msg)
             raise FileExistsError(msg)
 
         if project_created and committer.pk == settings.ANONYMOUS_USER:
@@ -1446,6 +1463,7 @@ class TargetLoader:
             comp_meta.instance.project_id.add(self.experiment_upload.project)
 
         xtalform_objects = self.process_xtalform(yaml_data=xtalforms)
+        self._enumerate_objects(xtalform_objects, "xtalform_num")
 
         # add xtalform fk to experiment
         for _, obj in experiment_objects.items():  # pylint: disable=no-member
@@ -1460,6 +1478,7 @@ class TargetLoader:
                 logger.warning(msg)
 
         quat_assembly_objects = self.process_quat_assembly(yaml_data=assemblies)
+        self._enumerate_objects(quat_assembly_objects, "assembly_num")
 
         _ = self.process_xtalform_quatassembly(
             yaml_data=xtalform_assemblies,
@@ -1468,6 +1487,7 @@ class TargetLoader:
         )
 
         canon_site_objects = self.process_canon_site(yaml_data=canon_sites)
+        self._enumerate_objects(canon_site_objects, "canon_site_num")
         # NB! missing fk's:
         # - ref_conf_site
         # - quat_assembly
@@ -1491,8 +1511,27 @@ class TargetLoader:
             canon_sites=canon_sites_by_conf_sites,
             xtalforms=xtalform_objects,
         )
+        # enumerate xtalform_sites. a bit trickier than others because
+        # requires alphabetic enumeration
+        last_xtsite = (
+            XtalformSite.objects.filter(
+                pk__in=[
+                    k.instance.pk
+                    for k in xtalform_sites_objects.values()  # pylint: disable=no-member
+                ]
+            )
+            .order_by("-xtalform_site_num")[0]
+            .xtalform_site_num
+        )
+
+        xtnum = alphanumerator(start_from=last_xtsite)
+        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
+            if not val.instance.xtalform_site_num:
+                val.instance.xtalform_site_num = next(xtnum)
+                val.instance.save()
 
         # now can update CanonSite with ref_conf_site
+        # also, fill the canon_site_num field
         for val in canon_site_objects.values():  # pylint: disable=no-member
             val.instance.ref_conf_site = canon_site_conf_objects[
                 val.index_data["reference_conformer_site_id"]
@@ -1502,9 +1541,7 @@ class TargetLoader:
         # canon site instances are now complete
         # still missing fk to site_observation in canon_site_conf
 
-        # reindex xtalform site to grab for site observation I don't
-        # need this anywhere else, why won't i just give the correct
-        # key for xtal sites objects?
+        # reindex xtalform site to grab for site observation
         xtalform_site_by_tag = {}
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
             for k in val.index_data["residues"]:
@@ -1518,16 +1555,61 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
-        tag_categories = (
-            "ConformerSites",
-            "CanonSites",
-            "XtalformSites",
-            "Quatassemblies",
-            "Xtalforms",
+        values = ["xtalform_site__xtalform", "canon_site_conf__canon_site", "cmpd"]
+        qs = (
+            SiteObservation.objects.values(*values)
+            .order_by(*values)
+            .annotate(obvs=ArrayAgg("id"))
+            .values_list("obvs", flat=True)
         )
+        current_list = SiteObservation.objects.filter(
+            experiment__experiment_upload__target=self.target
+        ).values_list('code', flat=True)
+        for elem in qs:
+            # objects in this group should be named with same scheme
+            so_group = SiteObservation.objects.filter(pk__in=elem)
 
-        for cat in tag_categories:
-            self._tag_site_observations(site_observation_objects, cat)
+            # first process existing codes and find maximum value
+            codelist = so_group.filter(code__isnull=False).values_list(
+                "code", flat=True
+            )
+            stripped = []
+            for k in codelist:
+                try:
+                    stripped.append(re.search(r"x\d*\D*", k).group(0))
+                except AttributeError:
+                    # code exists but seems to be non-standard. don't
+                    # know if this has implications to upload
+                    # processing
+                    logger.error("Non-standard SiteObservation code: %s", k)
+
+            # get the latest iterator position
+            iter_pos = ""
+            if stripped:
+                last = sorted(stripped)[-1]
+                try:
+                    iter_pos = re.search(r"[^\d]+(?=\d*$)", last).group(0)
+                except AttributeError:
+                    # technically it should be validated in previous try-catch block
+                    logger.error("Non-standard SiteObservation code 2: %s", last)
+
+            logger.debug("iter_pos: %s", iter_pos)
+
+            # ... and create new one starting from next item
+            suffix = alphanumerator(start_from=iter_pos)
+            for so in so_group.filter(code__isnull=True):
+                code = f"{so.experiment.code.split('-')[1]}{next(suffix)}"
+
+                # test uniqueness for target
+                # TODO: this should ideally be solved by db engine, before
+                # rushing to write the trigger, have think about the
+                # loader concurrency situations
+                prefix = alphanumerator()
+                while code in current_list:
+                    code = f"{next(prefix)}{code}"
+
+                so.code = code
+                so.save()
 
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
@@ -1536,6 +1618,68 @@ class TargetLoader:
             ].instance
             val.instance.save()
 
+        logger.debug("data read and processed, adding tags")
+
+        # tag site observations
+        for val in canon_site_objects.values():  # pylint: disable=no-member
+            tag = f"{val.instance.canon_site_num} - {val.instance.name}"
+            so_list = SiteObservation.objects.filter(
+                canon_site_conf__canon_site=val.instance
+            )
+            self._tag_observations(tag, "CanonSites", so_list)
+
+        logger.debug("canon_site objects tagged")
+
+        numerators = {}
+        for val in canon_site_conf_objects.values():  # pylint: disable=no-member
+            if val.instance.canon_site.canon_site_num not in numerators.keys():
+                numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
+            tag = (
+                f"{val.instance.canon_site.canon_site_num}"
+                + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
+                + f" - {val.instance.name}"
+            )
+            so_list = [
+                site_observation_objects[k].instance for k in val.index_data["members"]
+            ]
+            self._tag_observations(tag, "ConformerSites", so_list)
+
+        logger.debug("conf_site objects tagged")
+
+        for val in quat_assembly_objects.values():  # pylint: disable=no-member
+            tag = f"A{val.instance.assembly_num} - {val.instance.name}"
+            so_list = SiteObservation.objects.filter(
+                xtalform_site__xtalform__in=XtalformQuatAssembly.objects.filter(
+                    quat_assembly=val.instance
+                ).values("xtalform")
+            )
+            self._tag_observations(tag, "Quatassemblies", so_list)
+
+        logger.debug("quat_assembly objects tagged")
+
+        for val in xtalform_objects.values():  # pylint: disable=no-member
+            tag = f"F{val.instance.xtalform_num} - {val.instance.name}"
+            so_list = SiteObservation.objects.filter(
+                xtalform_site__xtalform=val.instance
+            )
+            self._tag_observations(tag, "Xtalforms", so_list)
+
+        logger.debug("xtalform objects tagged")
+
+        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
+            tag = (
+                f"F{val.instance.xtalform.xtalform_num}"
+                + f"{val.instance.xtalform_site_num}"
+                + f" - {val.instance.xtalform.name}"
+                + f" - {val.instance.xtalform_site_id}"
+            )
+            so_list = [
+                site_observation_objects[k].instance for k in val.index_data["residues"]
+            ]
+            self._tag_observations(tag, "XtalformSites", so_list)
+
+        logger.debug("xtalform_sites objects tagged")
+
     def _load_yaml(self, yaml_file: Path) -> dict | None:
         contents = None
         try:
@@ -1543,7 +1687,7 @@ class TargetLoader:
                 contents = yaml.safe_load(file)
         except FileNotFoundError:
             self.report.log(
-                Level.FATAL, f"File {yaml_file.name} not found in data archive"
+                logging.ERROR, f"File {yaml_file.name} not found in data archive"
             )
 
         return contents
@@ -1558,7 +1702,7 @@ class TargetLoader:
                 result.append(yaml_data[block])
             except KeyError:
                 msg = error_text.format(block)
-                self.report.log(Level.FATAL, msg)
+                self.report.log(logging.ERROR, msg)
 
         return result
 
@@ -1568,120 +1712,65 @@ class TargetLoader:
         key: str | int,
         section_name: str,
         item_name: str,
-        level: Level = Level.FATAL,
+        level: int = logging.ERROR,
         return_type: type = str,
     ) -> Any:
         try:
             result = data[key]
         except KeyError as exc:
-            if level == Level.INFO:
-                result = ""
-            else:
-                result = "missing"
+            result = "" if level == logging.INFO else "missing"
             if return_type == list:
                 result = [result]
 
             self.report.log(
-                level,
-                "{} missing from {}: {} section".format(
-                    exc,
-                    section_name,
-                    item_name,
-                ),
+                level, f"{exc} missing from {section_name}: {item_name} section"
             )
 
         return result
 
-    def _tag_site_observations(self, site_observation_objects, category):
-        # this is an attempt to replicate tag creation from previous
-        # loader. as there are plenty of differences, I cannot just
-        # use the same functions..
+    def _tag_observations(self, tag, category, so_list):
+        try:
+            # memo to self: description is set to tag, but there's
+            # no fk to tag, instead, tag has a fk to
+            # group. There's no uniqueness requirement on
+            # description so there's no certainty that this will
+            # be unique (or remain searchable at all because user
+            # is allowed to change the tag name). this feels like
+            # poor design but I don't understand the principles of
+            # this system to know if that's indeed the case or if
+            # it is in fact a truly elegant solution
+            so_group = SiteObservationGroup.objects.get(
+                target=self.target, description=tag
+            )
+        except SiteObservationGroup.DoesNotExist:
+            assert self.target
+            so_group = SiteObservationGroup(target=self.target)
+            so_group.save()
+        except MultipleObjectsReturned:
+            SiteObservationGroup.objects.filter(
+                target=self.target, description=tag
+            ).delete()
+            assert self.target
+            so_group = SiteObservationGroup(target=self.target)
+            so_group.save()
 
-        logger.debug("Getting category %s", category)
-        groups: Dict[str, Any] = {}
-        for _, obj in site_observation_objects.items():
-            if category == "ConformerSites":
-                tags = [
-                    "conf_site: " + ",".join(obj.instance.canon_site_conf.residues[:3]),
-                ]
-            elif category == "CanonSites":
-                tags = [
-                    "canon_site: "
-                    + ",".join(obj.instance.xtalform_site.canon_site.residues[:3]),
-                ]
-            elif category == "XtalformSites":
-                tags = [
-                    "xtalform_site: "
-                    + ",".join(obj.instance.xtalform_site.residues[:3]),
-                ]
-            # tricky one. connected via m2m
-            elif category == "Quatassemblies":
-                tags = [
-                    "quatassembly: " + qa.name
-                    for qa in obj.instance.xtalform_site.xtalform.quat_assembly.all()
-                ]
+        try:
+            so_tag = SiteObservationTag.objects.get(tag=tag, target=self.target)
+            # Tag already exists
+            # Apart from the new mol_group and molecules, we shouldn't be
+            # changing anything.
+            so_tag.mol_group = so_group
+        except SiteObservationTag.DoesNotExist:
+            so_tag = SiteObservationTag()
+            so_tag.tag = tag
+            so_tag.category = TagCategory.objects.get(category=category)
+            so_tag.target = self.target
+            so_tag.mol_group = so_group
 
-            elif category == "Xtalforms":
-                tags = [
-                    "xtalform: " + obj.instance.xtalform_site.xtalform.name,
-                ]
-            else:
-                tags = [
-                    "Unspecified",
-                ]
+        so_tag.save()
 
-            for tag in tags:
-                if tag not in groups.keys():
-                    groups[tag] = [obj.instance]
-                else:
-                    groups[tag].append(obj.instance)
-
-        # I suspect I need to group them by site..
-        for tag, so_list in groups.items():
-            try:
-                # memo to self: description is set to tag, but there's
-                # no fk to tag, instead, tag has a fk to
-                # group. There's no uniqueness requirement on
-                # description so there's no certainty that this will
-                # be unique (or remain searchable at all because user
-                # is allowed to change the tag name). this feels like
-                # poor design but I don't understand the principles of
-                # this system to know if that's indeed the case or if
-                # it is in fact a truly elegant solution
-                so_group = SiteObservationGroup.objects.get(
-                    target=self.target, description=tag
-                )
-            except SiteObservationGroup.DoesNotExist:
-                assert self.target
-                so_group = SiteObservationGroup(target=self.target)
-                so_group.save()
-            except MultipleObjectsReturned:
-                SiteObservationGroup.objects.filter(
-                    target=self.target, description=tag
-                ).delete()
-                assert self.target
-                so_group = SiteObservationGroup(target=self.target)
-                so_group.save()
-
-            try:
-                so_tag = SiteObservationTag.objects.get(tag=tag, target=self.target)
-                # Tag already exists
-                # Apart from the new mol_group and molecules, we shouldn't be
-                # changing anything.
-                so_tag.mol_group = so_group
-            except SiteObservationTag.DoesNotExist:
-                so_tag = SiteObservationTag()
-                so_tag.tag = tag
-                so_tag.category = TagCategory.objects.get(category=category)
-                so_tag.target = self.target
-                so_tag.mol_group = so_group
-
-            so_tag.save()
-
-            for site_obvs in so_list:
-                logger.debug("site_obvs_id=%s", site_obvs.id)
-                so_group.site_observation.add(site_obvs)
-                so_tag.site_observations.add(site_obvs)
+        so_group.site_observation.add(*so_list)
+        so_tag.site_observations.add(*so_list)
 
     def _is_already_uploaded(self, target_created, project_created):
         if target_created or project_created:
@@ -1727,7 +1816,7 @@ def load_target(
 
         # Decompression can take some time, so we want to report progress
         bundle_filename = os.path.basename(data_bundle)
-        target_loader.report.log(Level.INFO, f"Decompressing '{bundle_filename}'")
+        target_loader.report.log(logging.INFO, f"Decompressing '{bundle_filename}'")
 
         try:
             # archive is first extracted to temporary dir and moved later
@@ -1741,7 +1830,7 @@ def load_target(
             # Handle _any_ underlying problem with the file.
             logger.error('Got an exception opening the file: %s', str(exc))
             target_loader.report.log(
-                Level.FATAL,
+                logging.ERROR,
                 f"Decompression of '{bundle_filename}' has failed. Is it a Target Experiment file?",
             )
             target_loader.report.final(
@@ -1749,7 +1838,7 @@ def load_target(
             )
             return
 
-        target_loader.report.log(Level.INFO, f"Decompressed '{bundle_filename}'")
+        target_loader.report.log(logging.INFO, f"Decompressed '{bundle_filename}'")
 
         try:
             with transaction.atomic():

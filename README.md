@@ -215,6 +215,26 @@ In `settings.py`, this is controlled by setting the value of `FRAGALYSIS_BACKEND
 which is also exposed in the developer docker-compose file.
 To enable it, you need to set it to a valid Sentry DNS value.
 
+## Deployment mode
+The stack can be deployed in one of tweo modes: - `DEVELOPMENT` or `PRODUCTION`.
+The mode is controlled by the `DEPLOYMENT_MODE` environment variable and is used
+by the backend in order to tailor the behaviour of the application.
+
+In `PRODUCTION` mode the API is typically a little more strict than in `DEVELOPMENT` mode.
+
+## Forced errors ("infections")
+In order to allow error paths of various elements of the stack to be tested, the
+developer can _inject_ specific errors ("infections"). This is
+achieved by setting the environment variable `INFECTIONS` in the `docker-compose.yml` file
+or, for kubernetes deployments, using the ansible variable `stack_infections`.
+
+Known errors are documented in the `api/infections.py` module. To induce the error
+(at thew appropriate point in the stack) provide the infection name as the value of the
+`INFECTIONS` environment variable. You can provide more than one name by separating
+them with a comma.
+
+Infections are ignored in `PRODUCTION` mode.
+
 ## Compiling the documentation
 Because the documentation uses Sphinx and its `autodoc` module, compiling the
 documentation needs all the application requirements. As this is often impractical

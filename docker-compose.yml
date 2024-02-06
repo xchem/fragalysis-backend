@@ -88,6 +88,8 @@ services:
       AUTHENTICATE_UPLOAD: ${AUTHENTICATE_UPLOAD:-True}
       DEPLOYMENT_MODE: 'development'
       POSTGRESQL_USER: postgres
+      # Comma-separated dforced errors (infections?)
+      INFECTIONS: ''
       # Celery tasks need to run synchronously
       CELERY_TASK_ALWAYS_EAGER: 'True'
       # Error reporting and default/root log-level

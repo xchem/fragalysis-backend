@@ -281,6 +281,9 @@ class ExperimentCompound(models.Model):
 class QuatAssembly(models.Model):
     chains = models.TextField()
     name = models.TextField()
+    assembly_num = models.IntegerField(
+        null=True, help_text="numeric assembly id (enumerated on creation)"
+    )
 
     objects = models.Manager()
     filter_manager = QuatAssemblyDataManager()
@@ -300,6 +303,9 @@ class Xtalform(models.Model):
         QuatAssembly,
         through="XtalformQuatAssembly",
         through_fields=("xtalform", "quat_assembly"),
+    )
+    xtalform_num = models.IntegerField(
+        null=True, help_text="numeric xtalform id (enumerated on creation)"
     )
 
     objects = models.Manager()
@@ -360,6 +366,9 @@ class CanonSite(models.Model):
     ref_conf_site = models.OneToOneField(
         "CanonSiteConf", null=True, on_delete=models.CASCADE
     )
+    canon_site_num = models.IntegerField(
+        null=True, help_text="numeric canon site id (enumerated on creation)"
+    )
 
     objects = models.Manager()
     filter_manager = CanonSiteDataManager()
@@ -378,6 +387,10 @@ class XtalformSite(models.Model):
     residues = models.JSONField(encoder=DjangoJSONEncoder)
     xtalform_site_id = models.TextField(
         null=False, help_text="xtalform site id from YAML"
+    )
+    # unused, remove when certain
+    xtalform_site_num = models.TextField(
+        null=True, help_text="alphabetic xtalform site id (enumerated on creation)"
     )
 
     objects = models.Manager()
@@ -414,7 +427,8 @@ class CanonSiteConf(models.Model):
 
 
 class SiteObservation(models.Model):
-    code = models.TextField()
+    code = models.TextField(null=True)
+    longcode = models.TextField(null=True)
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
     cmpd = models.ForeignKey(Compound, null=True, on_delete=models.CASCADE)
     xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)

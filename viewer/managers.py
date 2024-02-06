@@ -13,8 +13,10 @@ class SiteObservationQueryset(QuerySet):
             "experiment",
             "experiment__experiment_upload",
             "experiment__experiment_upload__target",
+            "cmpd",
         ).annotate(
             target=F("experiment__experiment_upload__target"),
+            compound_code=F("cmpd__compound_code"),
         )
 
         return qs
