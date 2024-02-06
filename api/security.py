@@ -19,9 +19,11 @@ from .remote_ispyb_connector import SSHConnector
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+# A list of cached security results.
+# Results use the key 'RESULTS' and the collection time uses the key 'TIMESTAMP'.
 USER_LIST_DICT: Dict[str, Any] = {}
-
-connector: str = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
+# Period to cache user lists in seconds
+USER_LIST_CACHE_SECONDS: int = settings.SECURITY_CONNECTOR_CACHE_MINUTES * 60
 
 # example test:
 # from rest_framework.test import APIRequestFactory
@@ -109,9 +111,9 @@ def get_conn() -> Optional[Connector]:
 
 
 def get_configured_connector() -> Optional[Union[Connector, SSHConnector]]:
-    if connector == 'ispyb':
+    if settings.SECURITY_CONNECTOR == 'ispyb':
         return get_conn()
-    elif connector == 'ssh_ispyb':
+    elif settings.SECURITY_CONNECTOR == 'ssh_ispyb':
         return get_remote_conn()
     return None
 
@@ -122,9 +124,9 @@ def ping_configured_connector() -> bool:
     a connection can be made.
     """
     conn: Optional[Union[Connector, SSHConnector]] = None
-    if connector == 'ispyb':
+    if settings.SECURITY_CONNECTOR == 'ispyb':
         conn = get_conn()
-    elif connector == 'ssh_ispyb':
+    elif settings.SECURITY_CONNECTOR == 'ssh_ispyb':
         conn = get_remote_conn()
         if conn is not None:
             conn.stop()
@@ -175,17 +177,18 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return prop_ids
 
     def needs_updating(self, user):
-        """Returns true of the data collected for a user is out of date.
-        It's simple, we just record the last collected timestamp and consider it
-        'out of date' (i.e. more than an hour old).
-        """
-        update_window = 3600
-        if user.username not in USER_LIST_DICT:
-            USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": 0}
+        """Returns true of the data collected for a user is out of date."""
         current_time = time.time()
-        if current_time - USER_LIST_DICT[user.username]["TIMESTAMP"] > update_window:
+        if user.username not in USER_LIST_DICT:
+            USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": current_time}
+        if (
+            current_time - USER_LIST_DICT[user.username]["TIMESTAMP"]
+            >= USER_LIST_CACHE_SECONDS
+        ):
+            # Clear the cache (using the current time as the new timestamp)
             USER_LIST_DICT[user.username]["TIMESTAMP"] = current_time
             return True
+        # Cached results are still valid...
         return False
 
     def run_query_with_connector(self, conn, user):
@@ -283,13 +286,26 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             )
             return cached_prop_ids
 
-    def get_proposals_for_user(self, user):
-        """Returns a list of proposals (public and private) that the user has access to."""
+    def get_proposals_for_user(self, user, restrict_to_membership=False):
+        """Returns a list of proposals that the user has access to.
+
+        If 'restrict_to_membership' is set only those proposals/visits where the user
+        is a member of the visit will be returned. Otherwise the 'public'
+        proposals/visits will also be returned. Typically 'restrict_to_membership' is
+        used for uploads/changes - this allows us to implement logic that (say)
+        only permits explicit members of public proposals to add/load data for that
+        project (restrict_to_membership=True), but everyone can 'see' public data
+        (restrict_to_membership=False).
+        """
         assert user
 
         proposals = []
         ispyb_user = os.environ.get("ISPYB_USER")
-        logger.debug("ispyb_user=%s", ispyb_user)
+        logger.debug(
+            "ispyb_user=%s restrict_to_membership=%s",
+            ispyb_user,
+            restrict_to_membership,
+        )
         if ispyb_user:
             if user.is_authenticated:
                 logger.info("Getting proposals from ISPyB...")
@@ -301,11 +317,13 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             logger.info("Getting proposals from Django...")
             proposals = self.get_proposals_for_user_from_django(user)
 
-        # Now add in Target Access Strings that everyone has access to
-        # (unless we already have them)
-        for open_proposal in self.get_open_proposals():
-            if open_proposal not in proposals:
-                proposals.append(open_proposal)
+        # We have all the proposals where the user has membership.
+        if not restrict_to_membership:
+            # Here we're not restricting proposals to those where the user is a member,
+            # so we add those projects/proposals that everyone has access to.
+            for open_proposal in self.get_open_proposals():
+                if open_proposal not in proposals:
+                    proposals.append(open_proposal)
 
         return proposals
 

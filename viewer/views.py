@@ -380,32 +380,18 @@ class UploadCSet(APIView):
         logger.info('User=%s', str(request.user))
         #        logger.info('Auth=%s', str(request.auth))
 
-        # Only authenticated users can upload files
-        # - this can be switched off in settings.py.
-        user = self.request.user
-        if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
-            context = {}
-            context['error_message'] = (
-                'Only authenticated users can upload files'
-                ' - please navigate to landing page and Login'
-            )
-            return render(request, 'viewer/upload-cset.html', context)
-
         form = CSetForm(request.POST, request.FILES)
         if form.is_valid():
             # Get all the variables needed from the form.
             # The fields we use will be based on the 'submit_choice',
             # expected to be one of V (validate), U (upload) or D delete
             choice = request.POST['submit_choice']
-
-            # Generate run-time error if the required form fields
-            # are not set based on the choice made...
-
-            # The 'sdf_file' anf 'target_name' are only required for upload/update
+            # The 'sdf_file' and 'target_name' are only required for upload/update
             sdf_file = request.FILES.get('sdf_file')
             target = request.POST.get('target_name')
             update_set = request.POST.get('update_set')
 
+            user = self.request.user
             logger.info(
                 '+ UploadCSet POST user.id=%s choice="%s" target="%s" update_set="%s"',
                 user.id,
@@ -473,6 +459,32 @@ class UploadCSet(APIView):
                         request.session[_SESSION_ERROR],
                     )
                     return redirect('viewer:upload_cset')
+
+            # You cannot validate or upload a set
+            # unless the user is part of the Target's project (proposal)
+            # even if the target is 'open'.
+            if choice in ['V', 'U'] and settings.AUTHENTICATE_UPLOAD:
+                assert target
+                context = {}
+                # The target must be part of a proposal that the user is a member of.
+                target_record = models.Target.objects.filter(title=target).first()
+                if not target_record:
+                    context['error_message'] = f'Unknown Target ({target})'
+                    return render(request, 'viewer/upload-cset.html', context)
+                # What proposals is the user a member of?
+                ispyb_safe_query_set = ISpyBSafeQuerySet()
+                user_proposals = ispyb_safe_query_set.get_proposals_for_user(
+                    user, restrict_to_membership=True
+                )
+                user_is_member = any(
+                    target_project.title in user_proposals
+                    for target_project in target_record.project_id.all()
+                )
+                if not user_is_member:
+                    context[
+                        'error_message'
+                    ] = f"You cannot load compound sets for '{target}'. You are not a member of any of its Proposals"
+                    return render(request, 'viewer/upload-cset.html', context)
 
             # Save uploaded sdf and zip to tmp storage
             tmp_pdb_file = None
@@ -1546,14 +1558,16 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
             if not user.is_authenticated:
                 return redirect(settings.LOGIN_URL)
             else:
-                if target_access_string not in self.get_proposals_for_user(user):
+                if target_access_string not in self.get_proposals_for_user(
+                    user, restrict_to_membership=True
+                ):
                     return Response(
                         {
                             "target_access_string": [
-                                f"User {user} is not authorized to upload data to {target_access_string}"
+                                f"You are not authorized to upload data to '{target_access_string}'"
                             ]
                         },
-                        status=status.HTTP_400_BAD_REQUEST,
+                        status=status.HTTP_403_FORBIDDEN,
                     )
 
         # memo to self: cannot use TemporaryDirectory here because task
@@ -2050,9 +2064,10 @@ class JobRequestView(APIView):
 
     def post(self, request):
         logger.info('+ JobRequest.post')
-        # Only authenticated users can create squonk job requests.
+        # Only authenticated users can create squonk job requests
+        # (unless 'AUTHENTICATE_UPLOAD' is False in settings.py)
         user = self.request.user
-        if not user.is_authenticated:
+        if not user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
             content: Dict[str, Any] = {'error': 'Only authenticated users can run jobs'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
@@ -2073,6 +2088,24 @@ class JobRequestView(APIView):
         logger.info('+ target_id=%s', target_id)
         logger.info('+ snapshot_id=%s', snapshot_id)
         logger.info('+ session_project_id=%s', session_project_id)
+
+        # Project must exist.
+        project: Optional[models.Project] = models.Project.objects.filter(
+            id=access_id
+        ).first()
+        if not project:
+            content = {'error': f'Access ID (Project) {access_id} does not exist'}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+        # The user must be a member of the target access string.
+        # (when AUTHENTICATE_UPLOAD is set)
+        if settings.AUTHENTICATE_UPLOAD:
+            ispyb_safe_query_set = ISpyBSafeQuerySet()
+            user_proposals = ispyb_safe_query_set.get_proposals_for_user(
+                user, restrict_to_membership=True
+            )
+            if project.title not in user_proposals:
+                content = {'error': f"You are not a member of '{project.title}'"}
+                return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Check the user can use this Squonk2 facility.
         # To do this we need to setup a couple of API parameter objects.
