@@ -1,5 +1,4 @@
-import os
-
+from django.conf import settings
 from django.http import HttpResponse
 from frag.network.decorate import get_add_del_link
 from frag.network.query import get_full_graph
@@ -8,13 +7,9 @@ from network.functions import order_structures
 
 
 def full_graph(request):
-    """
-    Get the full graph for a molecule from an input smiles
-    :param request:
-    :return:
-    """
-    graph_choice = os.environ.get("NEO4J_QUERY", "neo4j")
-    graph_auth = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
+    """Get the full graph for a molecule from an input smiles"""
+    graph_choice = settings.NEO4J_QUERY
+    graph_auth = settings.NEO4J_AUTH
     if "graph_choice" in request.GET:
         graph_choice = request.GET["graph_choice"]
     if "smiles" in request.GET:

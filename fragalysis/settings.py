@@ -461,6 +461,9 @@ NEOMODEL_NEO4J_BOLT_URL: str = os.environ.get(
     "NEO4J_BOLT_URL", "bolt://neo4j:test@neo4j:7687"
 )
 
+NEO4J_QUERY: str = os.environ.get("NEO4J_QUERY", "neo4j")
+NEO4J_AUTH: str = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
+
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
 # Y                  | Y                 | Shown / Required
