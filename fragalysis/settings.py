@@ -30,9 +30,9 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.excepthook import ExcepthookIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
 # DJANGO SETTINGS
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
 
 ALLOWED_HOSTS = ["*"]
 
@@ -157,12 +157,14 @@ STATICFILES_FINDERS = (
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 )
 
-# mozilla_django_oidc - from documentation: https://mozilla-django-oidc.readthedocs.io/en/stable/
-# Before you can configure your application, you need to set up a client with an OpenID Connect provider (OP).
-# You’ll need to set up a different client for every environment you have for your site. For example,
-# if your site has a -dev, -stage, and -prod environments, each of those has a different hostname and thus you
+# mozilla_django_oidc.
+# See: https://mozilla-django-oidc.readthedocs.io/en/stable/
+# Before you can configure your application, you need to set up a client with
+# an OpenID Connect provider (OP). You’ll need to set up a different client for
+# every environment you have for your site. For example, if your site has a -dev,
+# -stage, and -prod environments, each of those has a different hostname and thus you
 # need to set up a separate client for each one.
-# you need to provide your OpenID Connect provider (OP) the callback url for your site.
+# You need to provide your OpenID Connect provider (OP) the callback url for your site.
 # The URL path for the callback url is /oidc/callback/.
 #
 # Here are examples of callback urls:
@@ -176,8 +178,8 @@ STATICFILES_FINDERS = (
 #   a client id (OIDC_RP_CLIENT_ID)
 #   a client secret (OIDC_RP_CLIENT_SECRET)
 
-# Keycloak mozilla_django_oidc - Settings
-# from keyclaok (openid provider = OP) - NB these should be environment variables - not checked in
+# Keycloak mozilla_django_oidc settings (openid provider = OP).
+# These should be environment variables - not checked in
 OIDC_RP_CLIENT_ID = os.environ.get("OIDC_RP_CLIENT_ID", "fragalysis-local")
 OIDC_RP_CLIENT_SECRET = os.environ.get('OIDC_RP_CLIENT_SECRET')
 OIDC_KEYCLOAK_REALM = os.environ.get(
@@ -196,11 +198,13 @@ OIDC_OP_TOKEN_ENDPOINT = os.path.join(
 OIDC_OP_USER_ENDPOINT = os.path.join(
     OIDC_KEYCLOAK_REALM, "protocol/openid-connect/userinfo"
 )
-# OIDC_OP_JWKS_ENDPOINT = "<URL of the OIDC OP certs endpoint>" - This is required when using RS256.
+# OIDC_OP_JWKS_ENDPOINT = "<URL of the OIDC OP certs endpoint>"
+# This is required when using RS256.
 OIDC_OP_JWKS_ENDPOINT = os.path.join(
     OIDC_KEYCLOAK_REALM, "protocol/openid-connect/certs"
 )
-# OIDC_OP_LOGOUT_ENDPOINT = "<URL of the OIDC OP certs endpoint>" - This is required when using RS256.
+# OIDC_OP_LOGOUT_ENDPOINT = "<URL of the OIDC OP certs endpoint>"
+# This is required when using RS256.
 OIDC_OP_LOGOUT_ENDPOINT = os.path.join(
     OIDC_KEYCLOAK_REALM, "protocol/openid-connect/logout"
 )
@@ -211,12 +215,14 @@ OIDC_OP_LOGOUT_URL_METHOD = os.environ.get("OIDC_OP_LOGOUT_URL_METHOD")
 
 # LOGIN_REDIRECT_URL = "<URL path to redirect to after login>"
 LOGIN_REDIRECT_URL = "/viewer/react/landing"
-# LOGOUT_REDIRECT_URL = "<URL path to redirect to after logout - must be in keycloak call back if used>"
+# LOGOUT_REDIRECT_URL = "<URL path to redirect to after logout.
+# Must be in keycloak call back if used>"
 LOGOUT_REDIRECT_URL = "/viewer/react/landing"
 
 # After much trial and error
-# Using RS256 + JWKS Endpoint seems to work with no value for OIDC_RP_IDP_SIGN_KEY seems to work for authentication.
-# Trying HS256 produces a "JWS token verification failed" error for some reason.
+# Using RS256 + JWKS Endpoint seems to work with no value for OIDC_RP_IDP_SIGN_KEY
+# seems to work for authentication. Trying HS256 produces a "JWS token verification failed"
+# error for some reason.
 OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_STORE_ACCESS_TOKEN = True
 OIDC_STORE_ID_TOKEN = True
@@ -350,11 +356,9 @@ SILENCED_SYSTEM_CHECKS = [
 # We provide a console and rotating file handler
 # (50Mi of logging in 10 files of 5M each),
 # with the rotating file handler typically used for everything.
-DISABLE_LOGGING_FRAMEWORK = (
-    True
-    if os.environ.get("DISABLE_LOGGING_FRAMEWORK", "no").lower() in ["yes"]
-    else False
-)
+DISABLE_LOGGING_FRAMEWORK = os.environ.get(
+    "DISABLE_LOGGING_FRAMEWORK", "no"
+).lower() in ["yes"]
 LOGGING_FRAMEWORK_ROOT_LEVEL = os.environ.get("LOGGING_FRAMEWORK_ROOT_LEVEL", "DEBUG")
 if not DISABLE_LOGGING_FRAMEWORK:
     LOGGING = {
@@ -397,9 +401,9 @@ if not DISABLE_LOGGING_FRAMEWORK:
         },
     }
 
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
 # FRAGALYSIS SETTINGS
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
 # Generally alphabetical (where possible) and with comprehensive
 # comments where necessary to explain the setting.
 
