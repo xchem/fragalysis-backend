@@ -37,8 +37,8 @@
 #
 # 2.    Ansible variables that map directly to environment variables in this file
 #       use the same name as the environment variable and are prefixed with
-#       "stack_env_". For example the "DEPLOYMENT_MODE" environment variable
-#       can be set using the "stack_env_deployment_mode" variable.
+#       "stack_". For example the "DEPLOYMENT_MODE" environment variable
+#       can be set using the "stack_deployment_mode" variable.
 #
 # 3.    Variables are declared using the 'EXTRA VARIABLES' section of the corresponding
 #       AWX "Job Template".
