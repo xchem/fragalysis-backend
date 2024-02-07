@@ -1,24 +1,62 @@
-"""Django settings for the fragalysis "backend".
-This standard Django module is used to provide the dynamic configuration of
-the backend logic. As well as providing vital django-related configuration
-it is also the source of the numerous fragalysis-specific environment variables
-that control the stack's configuration (behaviour).
+"""Django settings for the fragalysis 'backend'"""
 
-Not all settings are configured by environment variable. Some are hard-coded
-and you'll need to edit their values here Those that are configurable at run-time
-should be obvious (i.e. they'll use "os.environ.get()" to obtain their value).
-
-You will find the django-related configuration at the top of the file
-(under DJANGO SETTINGS) and the fragalysis-specific configuration at the bottom of
-the file (under FRAGALYSIS SETTINGS).
-
-For more information on this file, see
-https://docs.djangoproject.com/en/3.2/topics/settings/
-
-For the full list of Django-related settings and their values, see
-https://docs.djangoproject.com/en/3.2/ref/settings/
-"""
-
+# This standard Django module is used to provide the dynamic configuration of
+# the backend logic. As well as providing vital django-related configuration
+# it is also the source of the numerous fragalysis-specific environment variables
+# that control the stack's configuration (behaviour).
+#
+# Not all settings are configured by environment variable. Some are hard-coded
+# and you'll need to edit their values here. Those that are configurable at run-time
+# should be obvious (i.e. they'll use "os.environ.get()" to obtain their value)
+# alternative run-time value.
+#
+# You will find the django-related configuration at the top of the file
+# (under DJANGO SETTINGS) and the fragalysis-specific configuration at the bottom of
+# the file (under FRAGALYSIS SETTINGS).
+#
+# Guidance for variables: -
+#
+# 1.    Everything *MUST* have a default value, this file should not raise an exception
+#       if a value cannot be found in the environment, that's the role of the
+#       application code.
+#
+# 2.    The constant used to hold the environment variable *SHOULD* match the
+#       environment variable's name. i.e. the "DEPLOYMENT_MODE" environment variable's
+#       value *SHOULD* be found in 'settings.DEPLOYMENT_MODE'.
+#
+# Providing run-time values for variables: -
+#
+# The environment variable values are set using either a 'docker-compose' file
+# (when used for local development) or, more typically, via an "Ansible variable"
+# provided by the "Ansible playbook" that's responsible for deploying the stack.
+#
+# Many (not all) of the environment variables are made available
+# for deployment using an Ansible playbook variable, explained below.
+#
+# 1.    Ansible variables are lower-case and use "snake case".
+#
+# 2.    Ansible variables that map directly to environment variables in this file
+#       use the same name as the environment variable and are prefixed with
+#       "stack_env_". For example the "DEPLOYMENT_MODE" environment variable
+#       can be set using the "stack_env_deployment_mode" variable.
+#
+# 3.    Variables are declared using the 'EXTRA VARIABLES' section of the corresponding
+#       AWX "Job Template".
+#
+# IMPORTANTLY: For a description of an environment variable (setting) and its value
+#              you *MUST* consult the comments in this file ("settings.py"), and *NOT*
+#              the Ansible playbook. This file is the primary authority for the
+#              configuration of the Fragalysis Stack.
+#
+# Ansible variables are declared in "roles/fragalysis-stack/defaults/main.yaml"
+# or "roles/fragalysis-stack/vars/main.yaml" of the playbook repository
+# https://github.com/xchem/fragalysis-stack-kubernetes
+#
+# For more information on "settings.py", see
+# https://docs.djangoproject.com/en/3.2/topics/settings/
+#
+# For the full list of Django-related settings and their values, see
+# https://docs.djangoproject.com/en/3.2/ref/settings/
 
 import os
 import sys
@@ -40,54 +78,26 @@ ALLOWED_HOSTS = ["*"]
 # AnonymousUser should be the first record inserted into the auth_user table.
 ANONYMOUS_USER = 1
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
-if os.environ.get("DEBUG_FRAGALYSIS") == True:
-    DEBUG = True
+AUTHENTICATION_BACKENDS = (
+    "django.contrib.auth.backends.ModelBackend",
+    "fragalysis.auth.KeycloakOIDCAuthenticationBackend",
+    "guardian.backends.ObjectPermissionBackend",
+)
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# Password validation
+# https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
 
-if SENTRY_DNS := os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS"):
-    # By default only call sentry in staging/production
-    sentry_sdk.init(
-        dsn=SENTRY_DNS,
-        integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
-            RedisIntegration(),
-            ExcepthookIntegration(always_run=True),
-        ],
-        # If you wish to associate users to errors (assuming you are using
-        # django.contrib.auth) you may enable sending PII data.
-        send_default_pii=True,
-    )
-
-ROOT_URLCONF = "fragalysis.urls"
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "WEB_DJANGO_SECRET_KEY", "8flmz)c9i!o&f1-moi5-p&9ak4r9=ck$3!0y1@%34p^(6i*^_9"
-)
-
-USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-
-REST_FRAMEWORK = {
-    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
-    "PAGE_SIZE": 5000,
-    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.QueryParameterVersioning",
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
-        "mozilla_django_oidc.contrib.drf.OIDCAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
-    ],
-}
 
 # CELERY STUFF
 CELERY_ACCEPT_CONTENT = ["application/json"]
@@ -100,6 +110,11 @@ CELERY_TASK_ALWAYS_EAGER = os.environ.get(
     "CELERY_TASK_ALWAYS_EAGER", "False"
 ).lower() in ["true", "yes"]
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+
+# SECURITY WARNING: don't run with DUBUG turned on in production!
+DEBUG = os.environ.get("DEBUG_FRAGALYSIS") == "True"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Application definition
 INSTALLED_APPS = [
@@ -134,6 +149,17 @@ INSTALLED_APPS = [
     "simple_history",
 ]
 
+LANGUAGE_CODE = "en-us"
+
+# Swagger logging / logout
+LOGIN_URL = "/accounts/login/"
+LOGOUT_URL = "/accounts/logout/"
+# LOGIN_REDIRECT_URL = "<URL path to redirect to after login>"
+LOGIN_REDIRECT_URL = "/viewer/react/landing"
+# LOGOUT_REDIRECT_URL = "<URL path to redirect to after logout.
+# Must be in keycloak call back if used>"
+LOGOUT_REDIRECT_URL = "/viewer/react/landing"
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -145,18 +171,79 @@ MIDDLEWARE = [
     "mozilla_django_oidc.middleware.SessionRefresh",
 ]
 
-AUTHENTICATION_BACKENDS = (
-    "django.contrib.auth.backends.ModelBackend",
-    "fragalysis.auth.KeycloakOIDCAuthenticationBackend",
-    "guardian.backends.ObjectPermissionBackend",
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+
+REST_FRAMEWORK = {
+    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
+    "PAGE_SIZE": 5000,
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.QueryParameterVersioning",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "mozilla_django_oidc.contrib.drf.OIDCAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ],
+}
+
+ROOT_URLCONF = "fragalysis.urls"
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get(
+    "WEB_DJANGO_SECRET_KEY", "8flmz)c9i!o&f1-moi5-p&9ak4r9=ck$3!0y1@%34p^(6i*^_9"
 )
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "fragalysis", "../viewer/static")]
+if SENTRY_DNS := os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS"):
+    # By default only call sentry in staging/production
+    sentry_sdk.init(
+        dsn=SENTRY_DNS,
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+            RedisIntegration(),
+            ExcepthookIntegration(always_run=True),
+        ],
+        # If you wish to associate users to errors (assuming you are using
+        # django.contrib.auth) you may enable sending PII data.
+        send_default_pii=True,
+    )
 
+STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "fragalysis", "../viewer/static")]
 STATICFILES_FINDERS = (
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 )
+
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# A list of identifiers of messages generated by the system check framework
+# that we wish to permanently acknowledge and ignore.
+# Silenced checks will not be output to the console.
+#
+# fields.W342   Is issued for the xchem-db package.
+#               The hint is "ForeignKey(unique=True) is usually better served by a OneToOneField."
+SILENCED_SYSTEM_CHECKS = [
+    "fields.W342",
+]
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ]
+        },
+    }
+]
+
+TIME_ZONE = "UTC"
 
 # mozilla_django_oidc.
 # See: https://mozilla-django-oidc.readthedocs.io/en/stable/
@@ -218,12 +305,6 @@ OIDC_OP_LOGOUT_ENDPOINT = os.path.join(
 # If desired, this should be set to "fragalysis.views.keycloak_logout"
 OIDC_OP_LOGOUT_URL_METHOD = os.environ.get("OIDC_OP_LOGOUT_URL_METHOD")
 
-# LOGIN_REDIRECT_URL = "<URL path to redirect to after login>"
-LOGIN_REDIRECT_URL = "/viewer/react/landing"
-# LOGOUT_REDIRECT_URL = "<URL path to redirect to after logout.
-# Must be in keycloak call back if used>"
-LOGOUT_REDIRECT_URL = "/viewer/react/landing"
-
 # After much trial and error
 # Using RS256 + JWKS Endpoint seems to work with no value for OIDC_RP_IDP_SIGN_KEY
 # seems to work for authentication. Trying HS256 produces a "JWS token verification failed"
@@ -238,25 +319,7 @@ OIDC_STORE_ID_TOKEN = True
 TOKEN_EXPIRY_MINUTES = os.environ.get("OIDC_RENEW_ID_TOKEN_EXPIRY_MINUTES", "15")
 OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = int(TOKEN_EXPIRY_MINUTES) * 60
 
-TEMPLATES = [
-    {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
-        "APP_DIRS": True,
-        "OPTIONS": {
-            "context_processors": [
-                "django.template.context_processors.debug",
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
-            ]
-        },
-    }
-]
-
 WSGI_APPLICATION = "fragalysis.wsgi.application"
-
-CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKOWN")
 
 DATABASE_ROUTERS = ["xchem_db.routers.AuthRouter"]
 
@@ -281,7 +344,8 @@ if os.environ.get("BUILD_XCDB") == "yes":
         "PORT": os.environ.get("XCHEM_PORT", ""),
     }
 
-if CHEMCENTRAL_DB_NAME != "UNKOWN":
+CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKNOWN")
+if CHEMCENTRAL_DB_NAME != "UNKNOWN":
     DATABASES["chemcentral"] = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": CHEMCENTRAL_DB_NAME,
@@ -291,37 +355,14 @@ if CHEMCENTRAL_DB_NAME != "UNKOWN":
         "PORT": 5432,
     }
 
-# Password validation
-# https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-    },
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
-]
-
-# Internationalization
-
-LANGUAGE_CODE = "en-us"
-
-TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = "/static/"
 MEDIA_ROOT = "/code/media/"
 MEDIA_URL = "/media/"
-# Swagger logging / logout
-LOGIN_URL = "/accounts/login/"
-LOGOUT_URL = "/accounts/logout/"
 
 WEBPACK_LOADER = {
     "DEFAULT": {
@@ -341,16 +382,6 @@ if EMAIL_HOST_USER := os.environ.get("EMAIL_USER"):
     EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", True)
     EMAIL_PORT = os.environ.get("EMAIL_PORT", 587)
     EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PASSWORD")
-
-# A list of identifiers of messages generated by the system check framework
-# that we wish to permanently acknowledge and ignore.
-# Silenced checks will not be output to the console.
-#
-# fields.W342   Is issued for the xchem-db package.
-#               The hint is "ForeignKey(unique=True) is usually better served by a OneToOneField."
-SILENCED_SYSTEM_CHECKS = [
-    "fields.W342",
-]
 
 # Configure django logging.
 # We provide a standard formatter that emits a timestamp, the module issuing the log
@@ -409,8 +440,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
 # --------------------------------------------------------------------------------------
 # FRAGALYSIS SETTINGS
 # --------------------------------------------------------------------------------------
-# Generally alphabetical (where possible) and with comprehensive
-# comments where necessary to explain the setting.
+# With comprehensive comments where necessary to explain the setting's values.
 
 # The deployment mode.
 # Controls the behaviour of the application (it's strictness to errors etc).
@@ -441,6 +471,10 @@ DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # It is not required on production because production will have a
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX: str = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", "")
+
+DUMMY_TARGET_TITLE: str = os.environ.get("DUMMY_TARGET_TITLE", "")
+DUMMY_USER: str = os.environ.get("DUMMY_USER", "")
+DUMMY_TAS: str = os.environ.get("DUMMY_TAS", "")
 
 # Do we enable the collection and presentation
 # of the availability of underlying services?
@@ -518,10 +552,6 @@ SQUONK2_SLUG: str = os.environ.get("SQUONK2_SLUG", "")[:SQUONK2_MAX_SLUG_LENGTH]
 SQUONK2_ORG_OWNER: str = os.environ.get("SQUONK2_ORG_OWNER", "")
 SQUONK2_ORG_OWNER_PASSWORD: str = os.environ.get("SQUONK2_ORG_OWNER_PASSWORD", "")
 SQUONK2_VERIFY_CERTIFICATES: str = os.environ.get("SQUONK2_VERIFY_CERTIFICATES", "")
-
-DUMMY_TARGET_TITLE: str = os.environ.get("DUMMY_TARGET_TITLE", "")
-DUMMY_USER: str = os.environ.get("DUMMY_USER", "")
-DUMMY_TAS: str = os.environ.get("DUMMY_TAS", "")
 
 TARGET_LOADER_MEDIA_DIRECTORY: str = "target_loader_data"
 
