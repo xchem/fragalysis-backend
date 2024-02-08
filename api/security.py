@@ -211,7 +211,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         if needs_updating:
             if conn := get_configured_connector():
                 logger.info("Got a connector for '%s'", user.username)
-                self._extracted_from_get_proposals_for_user_from_ispyb_10(user, conn)
+                self._get_proposals_from_connector(user, conn)
             else:
                 logger.info("Failed to get a connector for '%s'", user.username)
 
