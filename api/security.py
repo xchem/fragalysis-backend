@@ -205,86 +205,86 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return rs
 
     def get_proposals_for_user_from_ispyb(self, user):
-        # First check if it's updated in the past 1 hour
+        # Read (update) the results for this user or just return the cache?
         needs_updating = self.needs_updating(user)
         logger.info("user=%s needs_updating=%s", user.username, needs_updating)
-
         if needs_updating:
-            conn: Optional[Union[Connector, SSHConnector]] = get_configured_connector()
+            if conn := get_configured_connector():
+                logger.info("Got a connector for '%s'", user.username)
+                self._extracted_from_get_proposals_for_user_from_ispyb_10(user, conn)
+            else:
+                logger.info("Failed to get a connector for '%s'", user.username)
 
-            # If there is no connection (ISPyB credentials may be missing)
-            # then there's nothing we can do except return an empty list.
-            # Otherwise run a query for the user.
-            if conn is None:
-                logger.warning("Failed to get ISPyB connector")
-                return []
-            rs = self.run_query_with_connector(conn=conn, user=user)
-            logger.debug("Connector query rs=%s", rs)
+        # The cache has either beb updated, has not changed or is empty.
+        # Return what wqe can.
+        cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
+        logger.info(
+            "Returning %s cached proposals for '%s': %s",
+            len(cached_prop_ids),
+            user.username,
+            cached_prop_ids,
+        )
+        return cached_prop_ids
 
-            # Typically you'll find the following fields in each item
-            # in the rs response: -
-            #
-            #    'id': 0000000,
-            #    'proposalId': 00000,
-            #    'startDate': datetime.datetime(2022, 12, 1, 15, 56, 30)
-            #    'endDate': datetime.datetime(2022, 12, 3, 18, 34, 9)
-            #    'beamline': 'i00-0'
-            #    'proposalCode': 'lb'
-            #    'proposalNumber': '12345'
-            #    'sessionNumber': 1
-            #    'comments': None
-            #    'personRoleOnSession': 'Data Access'
-            #    'personRemoteOnSession': 1
-            #
-            # Iterate through the response and return the 'proposalNumber' (proposals)
-            # and one with the 'proposalNumber' and 'sessionNumber' (visits), each
-            # prefixed by the `proposalCode` (if present).
-            #
-            # Codes are expected to consist of 2 letters.
-            # Typically: lb, mx, nt, nr, bi
-            #
-            # These strings should correspond to a title value in a Project record.
-            # and should get this sort of list: -
-            #
-            # ["lb12345", "lb12345-1"]
-            #              --      -
-            #              | ----- |
-            #           Code   |   Session
-            #               Proposal
-            prop_id_set = set()
-            for record in rs:
-                pc_str = ""
-                if "proposalCode" in record and record["proposalCode"]:
-                    pc_str = f'{record["proposalCode"]}'
-                pn_str = f'{record["proposalNumber"]}'
-                sn_str = f'{record["sessionNumber"]}'
-                proposal_str = f'{pc_str}{pn_str}'
-                proposal_visit_str = f'{proposal_str}-{sn_str}'
-                prop_id_set.update([proposal_str, proposal_visit_str])
+    def _get_proposals_from_connector(self, user, conn):
+        assert user
+        assert conn
 
-            # Always display the collected results for the user.
-            # These will be cached.
-            logger.info(
-                "Got %s proposals from %s records for user %s: %s",
-                len(prop_id_set),
-                len(rs),
-                user.username,
-                prop_id_set,
-            )
+        rs = self.run_query_with_connector(conn=conn, user=user)
 
-            # Cache the result and return the result for the user
-            USER_LIST_DICT[user.username]["RESULTS"] = list(prop_id_set)
-            return USER_LIST_DICT[user.username]["RESULTS"]
-        else:
-            # Return the previous query (cached for an hour)
-            cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
-            logger.info(
-                "Got %s cached proposals for user %s: %s",
-                len(cached_prop_ids),
-                user.username,
-                cached_prop_ids,
-            )
-            return cached_prop_ids
+        # Typically you'll find the following fields in each item
+        # in the rs response: -
+        #
+        #    'id': 0000000,
+        #    'proposalId': 00000,
+        #    'startDate': datetime.datetime(2022, 12, 1, 15, 56, 30)
+        #    'endDate': datetime.datetime(2022, 12, 3, 18, 34, 9)
+        #    'beamline': 'i00-0'
+        #    'proposalCode': 'lb'
+        #    'proposalNumber': '12345'
+        #    'sessionNumber': 1
+        #    'comments': None
+        #    'personRoleOnSession': 'Data Access'
+        #    'personRemoteOnSession': 1
+        #
+        # Iterate through the response and return the 'proposalNumber' (proposals)
+        # and one with the 'proposalNumber' and 'sessionNumber' (visits), each
+        # prefixed by the `proposalCode` (if present).
+        #
+        # Codes are expected to consist of 2 letters.
+        # Typically: lb, mx, nt, nr, bi
+        #
+        # These strings should correspond to a title value in a Project record.
+        # and should get this sort of list: -
+        #
+        # ["lb12345", "lb12345-1"]
+        #              --      -
+        #              | ----- |
+        #           Code   |   Session
+        #               Proposal
+        prop_id_set = set()
+        for record in rs:
+            pc_str = ""
+            if "proposalCode" in record and record["proposalCode"]:
+                pc_str = f'{record["proposalCode"]}'
+            pn_str = f'{record["proposalNumber"]}'
+            sn_str = f'{record["sessionNumber"]}'
+            proposal_str = f'{pc_str}{pn_str}'
+            proposal_visit_str = f'{proposal_str}-{sn_str}'
+            prop_id_set.update([proposal_str, proposal_visit_str])
+
+        # Always display the collected results for the user.
+        # These will be cached.
+        logger.info(
+            "Got %s proposals from %s records for user %s: %s",
+            len(prop_id_set),
+            len(rs),
+            user.username,
+            prop_id_set,
+        )
+
+        # Replace the cache with what we've found
+        USER_LIST_DICT[user.username]["RESULTS"] = list(prop_id_set)
 
     def get_proposals_for_user(self, user, restrict_to_membership=False):
         """Returns a list of proposals that the user has access to.
