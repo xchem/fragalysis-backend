@@ -1507,7 +1507,7 @@ class TargetLoader:
             yaml_data=meta,
             blocks=(
                 "crystals",
-                "xtalforms",
+                "crystalforms",
                 "canon_sites",
                 "conformer_sites",
                 "xtalform_sites",
