@@ -804,6 +804,11 @@ class TargetLoader:
                 logging.ERROR, f"Unexpected status '{dstatus}' for {experiment_name}"
             )
 
+        try:
+            smiles = data["crystallographic_files"]["ligand_cif"]["smiles"]
+        except KeyError:
+            smiles = ""
+
         # TODO: unhandled atm
         # version	int	old versions are kept	target loader
         version = 1
@@ -833,6 +838,7 @@ class TargetLoader:
 
         index_fields = {
             "xtalform": assigned_xtalform,
+            "smiles": smiles,
         }
 
         return ProcessedObject(
@@ -1254,17 +1260,6 @@ class TargetLoader:
             # wrong data item
             return None
 
-        # this is wrong, shouldn't have to use it
-        # logger.debug(
-        #     'checking already exists: %s, %s',
-        #     experiment_id,
-        #     experiments[experiment_id].new,
-        # )
-        # # remove already saved objects
-        # if experiments[experiment_id].new == False:
-        #     logger.debug('quitting sobvs')
-        #     return None
-
         extract = functools.partial(
             self._extract,
             data=data,
@@ -1278,11 +1273,36 @@ class TargetLoader:
         longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
 
+        smiles = extract(key="ligand_smiles")
+
         try:
             compound = compounds[experiment_id].instance
         except KeyError:
-            # compound missing, fine
-            compound = None
+            # compound not saved on this round, but if this is not the
+            # first upload, experiment and compound may have come from
+            # the first.
+            try:
+                logger.debug('exp: %s, %s', experiment, experiments[experiment_id].new)
+                # logger.debug('exp compounds: %s', experiment.compounds)
+                compound = experiment.compounds.get(
+                    smiles=experiments[experiment_id].index_data["smiles"]
+                )
+            except Compound.DoesNotExist:
+                # really doensn't exist, can happen
+                compound = None
+                self.report.log(
+                    logging.INFO,
+                    f"No compounds for experiment {experiment.code}",
+                )
+            except MultipleObjectsReturned:
+                # based on the way data is presented, I'm fairly
+                # certain this cannot happen. but there's nothing in
+                # the db to prevent this
+                compound = experiment.compounds.filter(smiles=smiles).first()
+                self.report.log(
+                    logging.WARNING,
+                    f"Multiple compounds for experiment {experiment.code}",
+                )
 
         canon_site_conf = canon_site_confs[idx].instance
         xtalform_site = xtalform_sites[key]
@@ -1326,7 +1346,6 @@ class TargetLoader:
                     encoding="utf-8",
                 ) as f:
                     mol_data = f.read()
-        smiles = extract(key="ligand_smiles")
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
