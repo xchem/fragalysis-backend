@@ -469,7 +469,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'api.security': {'level': 'INFO'},
             'asyncio': {'level': 'WARNING'},
             'celery': {'level': 'INFO'},
-            'django': {'level': 'WARNING'},
+            'django': {'level': 'ERROR'},
             'mozilla_django_oidc': {'level': 'WARNING'},
             'urllib3': {'level': 'WARNING'},
             'paramiko': {'level': 'WARNING'},
