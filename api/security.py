@@ -204,7 +204,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             }
 
         # Has the cache expired?
-        return now >= USER_PROPOSAL_CACHE[user.username]["TIMESTAMP"]
+        return now >= USER_PROPOSAL_CACHE[user.username]["EXPIRES_AT"]
 
     def _populate_cache(self, user, new_content):
         """Called by code that collects content to replace the cache with new content,
@@ -212,13 +212,17 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         TIMESTAMP for the user will also be set (to 'now') to reflect the time the
         cache was most recently populated.
         """
-        USER_PROPOSAL_CACHE[user.username]["RESULTS"] = new_content.copy()
+        username = user.username
+        USER_PROPOSAL_CACHE[username]["RESULTS"] = new_content.copy()
         # Set the timestamp (which records when the cache was populated with 'stuff')
         # and ensure it will now expire after USER_PROPOSAL_CACHE_SECONDS.
         now = datetime.now()
-        USER_PROPOSAL_CACHE[user.username]["TIMESTAMP"] = now
-        USER_PROPOSAL_CACHE[user.username]["EXPIRES_AT"] = (
-            now + USER_PROPOSAL_CACHE_MAX_AGE
+        USER_PROPOSAL_CACHE[username]["TIMESTAMP"] = now
+        USER_PROPOSAL_CACHE[username]["EXPIRES_AT"] = now + USER_PROPOSAL_CACHE_MAX_AGE
+        logger.info(
+            "USER_PROPOSAL_CACHE populated for '%s' (expires at %s)",
+            username,
+            USER_PROPOSAL_CACHE[username]["EXPIRES_AT"],
         )
 
     def _mark_cache_collection_failure(self, user):
@@ -228,7 +232,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         to set a new, short, 'expiry' time. In this way, cache collection will occur
         again soon. The cache and its timestamp are left intact.
         """
-        # Set a short expiry time.
         now = datetime.now()
         USER_PROPOSAL_CACHE[user.username]["EXPIRES_AT"] = (
             now + USER_PROPOSAL_CACHE_RETRY_TIMEOUT
