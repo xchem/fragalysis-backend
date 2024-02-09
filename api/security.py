@@ -153,23 +153,27 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def get_open_proposals(self):
         """
-        Returns the list of proposals anybody can access.
-        They are defined via an environment variable
-        and are made available as a list of strings (Project titles)
+        Returns the set of proposals anybody can access.
+        These consist of any Projects that are marked "open_to_public"
+        and any defined via an environment variable.
         """
-        return settings.PUBLIC_TAS_LIST
+        open_proposals = set(
+            Project.objects.filter(open_to_public=True).values_list("title", flat=True)
+        )
+        open_proposals.update(settings.PUBLIC_TAS_LIST)
+        return open_proposals
 
     def get_proposals_for_user_from_django(self, user):
-        # Get the list of proposals for the user
+        # Get the set() of proposals for the user
         if user.pk is None:
             logger.warning("user.pk is None")
-            return []
+            return set()
         else:
-            prop_ids = list(
+            prop_ids = set(
                 Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
             )
-            logger.debug(
-                "Got %s proposals for user %s: %s",
+            logger.info(
+                "Got %s proposals for '%s': %s",
                 len(prop_ids),
                 user.username,
                 prop_ids,
@@ -180,14 +184,22 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """Returns true of the data collected for a user is out of date."""
         current_time = time.time()
         if user.username not in USER_LIST_DICT:
-            USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": current_time}
+            # Unknown users always need updating
+            USER_LIST_DICT[user.username] = {
+                "RESULTS": set(),
+                "TIMESTAMP": current_time,
+            }
+            return True
+
+        # Known user. Is the cache out of date?
         if (
             current_time - USER_LIST_DICT[user.username]["TIMESTAMP"]
             >= USER_LIST_CACHE_SECONDS
         ):
-            # Clear the cache (using the current time as the new timestamp)
+            # Dirty the cache (using the current time as the new timestamp)
             USER_LIST_DICT[user.username]["TIMESTAMP"] = current_time
             return True
+
         # Cached results are still valid...
         return False
 
@@ -205,21 +217,19 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return rs
 
     def get_proposals_for_user_from_ispyb(self, user):
-        # Read (update) the results for this user or just return the cache?
-        needs_updating = self.needs_updating(user)
-        logger.info("user=%s needs_updating=%s", user.username, needs_updating)
-        if needs_updating:
+        if self.needs_updating(user):
+            logger.info("user='%s' (needs_updating)", user.username)
             if conn := get_configured_connector():
-                logger.info("Got a connector for '%s'", user.username)
+                logger.debug("Got a connector for '%s'", user.username)
                 self._get_proposals_from_connector(user, conn)
             else:
-                logger.info("Failed to get a connector for '%s'", user.username)
+                logger.warning("Failed to get a connector for '%s'", user.username)
 
-        # The cache has either beb updated, has not changed or is empty.
+        # The cache has either been updated, has not changed or is empty.
         # Return what wqe can.
         cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
         logger.info(
-            "Returning %s cached proposals for '%s': %s",
+            "Got %s proposals for '%s': %s",
             len(cached_prop_ids),
             user.username,
             cached_prop_ids,
@@ -227,6 +237,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return cached_prop_ids
 
     def _get_proposals_from_connector(self, user, conn):
+        """Updates the USER_LIST_DICT with the results of a query."""
         assert user
         assert conn
 
@@ -275,8 +286,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # Always display the collected results for the user.
         # These will be cached.
-        logger.info(
-            "Got %s proposals from %s records for user %s: %s",
+        logger.debug(
+            "%s proposals from %s records for '%s': %s",
             len(prop_id_set),
             len(rs),
             user.username,
@@ -284,7 +295,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         )
 
         # Replace the cache with what we've found
-        USER_LIST_DICT[user.username]["RESULTS"] = list(prop_id_set)
+        USER_LIST_DICT[user.username]["RESULTS"] = prop_id_set
 
     def get_proposals_for_user(self, user, restrict_to_membership=False):
         """Returns a list of proposals that the user has access to.
@@ -299,7 +310,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """
         assert user
 
-        proposals = []
+        proposals = set()
         ispyb_user = os.environ.get("ISPYB_USER")
         logger.debug(
             "ispyb_user=%s restrict_to_membership=%s",
@@ -319,13 +330,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # We have all the proposals where the user has membership.
         if not restrict_to_membership:
-            # Here we're not restricting proposals to those where the user is a member,
-            # so we add those projects/proposals that everyone has access to.
-            for open_proposal in self.get_open_proposals():
-                if open_proposal not in proposals:
-                    proposals.append(open_proposal)
+            proposals.update(self.get_open_proposals())
 
-        return proposals
+        # Return the set() as a list()
+        return list(proposals)
 
     def get_q_filter(self, proposal_list):
         """Returns a Q expression representing a (potentially complex) table filter."""
