@@ -359,14 +359,11 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             if user.is_authenticated:
                 logger.info("Getting proposals from ISPyB...")
                 proposals = self._get_proposals_for_user_from_ispyb(user)
-            else:
-                username = user.username or "UNKNOWN"
-                logger.info("No proposals (user '%s' is not authenticated)", username)
         else:
             logger.info("Getting proposals from Django...")
             proposals = self._get_proposals_for_user_from_django(user)
 
-        # We have all the proposals where the user has authortiy.
+        # We have all the proposals where the user has authority.
         # Add open/public proposals?
         if not restrict_to_membership:
             proposals.update(self._get_open_proposals())
