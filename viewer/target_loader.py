@@ -1437,11 +1437,32 @@ class TargetLoader:
             self.report.log(logging.ERROR, msg)
             raise KeyError(msg) from exc
 
-        # moved this bit from init
+        try:
+            config_inputs = config["inputs"]
+        except KeyError as exc:
+            msg = "'inputs' key missing in config file"
+            self.report.log(logging.ERROR, msg)
+            raise KeyError(msg) from exc
+
+        try:
+            code_prefix = config_inputs[0]["code_prefix"]
+        except KeyError as exc:
+            msg = "'code_prefix' key missing in config file"
+            self.report.log(logging.ERROR, msg)
+            raise KeyError(msg) from exc
+        try:
+            code_prefix_tooltip = config_inputs[0]["code_prefix_tooltip"]
+        except KeyError as exc:
+            msg = "'code_prefix_tooltip' key missing in config file"
+            self.report.log(logging.ERROR, msg)
+            raise KeyError(msg) from exc
+
         self.target, target_created = Target.objects.get_or_create(
             title=self.target_name,
             display_name=self.target_name,
         )
+
+        logger.debug("tooltip: %s", code_prefix_tooltip)
 
         # TODO: original target loader's function get_create_projects
         # seems to handle more cases. adopt or copy
@@ -1681,20 +1702,21 @@ class TargetLoader:
                     # technically it should be validated in previous try-catch block
                     logger.error("Non-standard SiteObservation code 2: %s", last)
 
-            logger.debug("iter_pos: %s", iter_pos)
-
             # ... and create new one starting from next item
             suffix = alphanumerator(start_from=iter_pos)
             for so in so_group.filter(code__isnull=True):
-                code = f"{so.experiment.code.split('-')[1]}{next(suffix)}"
+                code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
 
                 # test uniqueness for target
                 # TODO: this should ideally be solved by db engine, before
                 # rushing to write the trigger, have think about the
                 # loader concurrency situations
-                prefix = alphanumerator()
-                while code in current_list:
-                    code = f"{next(prefix)}{code}"
+                if code in current_list:
+                    msg = (
+                        f"short code {code} already exists for this target;  "
+                        + "specify a code_prefix to resolve this conflict"
+                    )
+                    self.report.log(logging.ERROR, msg)
 
                 so.code = code
                 so.save()
