@@ -510,9 +510,7 @@ class MolOps:
         computed_set.save()
 
         description_dict = description_mol.GetPropsAsDict()
-        logger.debug('description_needed: %s', descriptions_needed)
-        logger.debug('description_dict: %s', description_dict)
-        for key in list(description_dict.keys()):
+        for key in description_dict.keys():
             if key in descriptions_needed and key not in [
                 'ref_mols',
                 'ref_pdb',
