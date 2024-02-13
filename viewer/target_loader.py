@@ -700,6 +700,7 @@ class TargetLoader:
     def process_experiment(
         self,
         item_data: tuple[str, dict] | None = None,
+        prefix_tooltips: dict[str, str] | None = None,
         validate_files: bool = True,
         **kwargs,
     ) -> ProcessedObject | None:
@@ -734,6 +735,7 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
+        assert prefix_tooltips
         logger.debug("incoming data: %s", item_data)
         experiment_name, data = item_data
 
@@ -813,6 +815,9 @@ class TargetLoader:
         # version	int	old versions are kept	target loader
         version = 1
 
+        code_prefix = extract(key="code_prefix")
+        prefix_tooltip = prefix_tooltips.get(code_prefix, "")
+
         fields = {
             "code": experiment_name,
         }
@@ -830,6 +835,7 @@ class TargetLoader:
             "mtz_info": str(self._get_final_path(mtz_info)),
             "cif_info": str(self._get_final_path(cif_info)),
             "map_info": map_info_paths,
+            "prefix_tooltip": prefix_tooltip,
             # this doesn't seem to be present
             # pdb_sha256:
         }
@@ -839,6 +845,7 @@ class TargetLoader:
         index_fields = {
             "xtalform": assigned_xtalform,
             "smiles": smiles,
+            "code_prefix": code_prefix,
         }
 
         return ProcessedObject(
@@ -1437,32 +1444,10 @@ class TargetLoader:
             self.report.log(logging.ERROR, msg)
             raise KeyError(msg) from exc
 
-        try:
-            config_inputs = config["inputs"]
-        except KeyError as exc:
-            msg = "'inputs' key missing in config file"
-            self.report.log(logging.ERROR, msg)
-            raise KeyError(msg) from exc
-
-        try:
-            code_prefix = config_inputs[0]["code_prefix"]
-        except KeyError as exc:
-            msg = "'code_prefix' key missing in config file"
-            self.report.log(logging.ERROR, msg)
-            raise KeyError(msg) from exc
-        try:
-            code_prefix_tooltip = config_inputs[0]["code_prefix_tooltip"]
-        except KeyError as exc:
-            msg = "'code_prefix_tooltip' key missing in config file"
-            self.report.log(logging.ERROR, msg)
-            raise KeyError(msg) from exc
-
         self.target, target_created = Target.objects.get_or_create(
             title=self.target_name,
             display_name=self.target_name,
         )
-
-        logger.debug("tooltip: %s", code_prefix_tooltip)
 
         # TODO: original target loader's function get_create_projects
         # seems to handle more cases. adopt or copy
@@ -1496,6 +1481,7 @@ class TargetLoader:
         self.version_number = meta["version_number"]
         self.version_dir = meta["version_dir"]
         self.previous_version_dirs = meta["previous_version_dirs"]
+        prefix_tooltips = meta["code_prefix_tooltips"]
 
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -1554,7 +1540,9 @@ class TargetLoader:
             ),
         )
 
-        experiment_objects = self.process_experiment(yaml_data=crystals)
+        experiment_objects = self.process_experiment(
+            yaml_data=crystals, prefix_tooltips=prefix_tooltips
+        )
         compound_objects = self.process_compound(
             yaml_data=crystals, experiments=experiment_objects
         )
@@ -1705,6 +1693,9 @@ class TargetLoader:
             # ... and create new one starting from next item
             suffix = alphanumerator(start_from=iter_pos)
             for so in so_group.filter(code__isnull=True):
+                code_prefix = experiment_objects[so.experiment.code].index_data[
+                    "code_prefix"
+                ]
                 code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
 
                 # test uniqueness for target
