@@ -11,6 +11,7 @@ import os
 import shutil
 import uuid
 import zipfile
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
@@ -48,6 +49,13 @@ _ZIP_FILEPATHS = {
     'extra_files': ('extra_files'),
     'readme': (''),
 }
+
+
+@dataclass
+class MetadataObject:
+    path: str
+    archive_path: str
+
 
 # Dictionary containing all references needed to create the zip file
 # NB you may need to add a version number to this at some point...
