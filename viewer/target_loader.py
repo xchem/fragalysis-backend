@@ -1652,7 +1652,8 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
-        values = ["canon_site_conf__canon_site", "cmpd"]
+        # values = ["canon_site_conf__canon_site", "cmpd"]
+        values = ["experiment"]
         qs = (
             SiteObservation.objects.values(*values)
             .order_by(*values)
