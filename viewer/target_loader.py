@@ -1652,16 +1652,13 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
-        values = ["xtalform_site__xtalform", "canon_site_conf__canon_site", "cmpd"]
+        values = ["canon_site_conf__canon_site", "cmpd"]
         qs = (
             SiteObservation.objects.values(*values)
             .order_by(*values)
             .annotate(obvs=ArrayAgg("id"))
             .values_list("obvs", flat=True)
         )
-        current_list = SiteObservation.objects.filter(
-            experiment__experiment_upload__target=self.target
-        ).values_list('code', flat=True)
         for elem in qs:
             # objects in this group should be named with same scheme
             so_group = SiteObservation.objects.filter(pk__in=elem)
@@ -1702,7 +1699,10 @@ class TargetLoader:
                 # TODO: this should ideally be solved by db engine, before
                 # rushing to write the trigger, have think about the
                 # loader concurrency situations
-                if code in current_list:
+                if SiteObservation.objects.filter(
+                    experiment__experiment_upload__target=self.target,
+                    code=code,
+                ).exists():
                     msg = (
                         f"short code {code} already exists for this target;  "
                         + "specify a code_prefix to resolve this conflict"
