@@ -1492,7 +1492,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
                 # prot = models.Protein.objects.filter(code__contains=code_first_part).values()
                 # I don't see why I need to drop out of django objects here
                 prot = models.SiteObservation.objects.filter(
-                    code__contains=code_first_part
+                    experiment__experiment_upload__target=target, code=code_first_part
                 )
                 if prot.exists():
                     # even more than just django object, I need an

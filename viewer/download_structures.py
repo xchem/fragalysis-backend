@@ -11,6 +11,7 @@ import os
 import shutil
 import uuid
 import zipfile
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
@@ -48,6 +49,13 @@ _ZIP_FILEPATHS = {
     'extra_files': ('extra_files'),
     'readme': (''),
 }
+
+
+@dataclass(frozen=True)
+class ArchiveFile:
+    path: str
+    archive_path: str
+
 
 # Dictionary containing all references needed to create the zip file
 # NB you may need to add a version number to this at some point...
@@ -216,7 +224,7 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     return content
 
 
-def _add_file_to_zip_aligned(ziparchive, code, filepath):
+def _add_file_to_zip_aligned(ziparchive, code, archive_file):
     """Add the requested file to the zip archive.
 
     If the file is an SDF or MOL we insert the name of the molecule
@@ -230,39 +238,32 @@ def _add_file_to_zip_aligned(ziparchive, code, filepath):
     Returns:
         [boolean]: [True of record added to archive]
     """
-    logger.debug('+_add_file_to_zip_aligned: %s, %s', code, filepath)
-    if not filepath:
+    logger.debug('+_add_file_to_zip_aligned: %s, %s', code, archive_file)
+    if not archive_file:
         # Odd - assume success
         logger.error('No filepath value')
         return True
 
-    # Incoming filepath can be both str and FieldFile
-    try:
-        filepath = filepath.path
-    except AttributeError:
-        filepath = str(Path(settings.MEDIA_ROOT).joinpath(filepath))
-
-    # strip off the leading parts of path
-    archive_path = str(Path(*Path(filepath).parts[7:]))
+    filepath = str(Path(settings.MEDIA_ROOT).joinpath(archive_file.path))
     if Path(filepath).is_file():
         if _is_mol_or_sdf(filepath):
             # It's a MOL or SD file.
             # Read and (potentially) adjust the file
             # and add to the archive as a string.
             content = _read_and_patch_molecule_name(filepath, molecule_name=code)
-            ziparchive.writestr(archive_path, content)
+            ziparchive.writestr(archive_file.archive_path, content)
         else:
             # Copy the file without modification
-            ziparchive.write(filepath, archive_path)
+            ziparchive.write(filepath, archive_file.archive_path)
         return True
     else:
         logger.warning('filepath "%s" is not a file', filepath)
-        _add_empty_file(ziparchive, archive_path)
+        _add_empty_file(ziparchive, archive_file.archive_path)
 
     return False
 
 
-def _add_file_to_sdf(combined_sdf_file, filepath):
+def _add_file_to_sdf(combined_sdf_file, archive_file):
     """Append the requested sdf file to the single sdf file provided.
 
     Args:
@@ -274,19 +275,19 @@ def _add_file_to_sdf(combined_sdf_file, filepath):
     """
     media_root = settings.MEDIA_ROOT
 
-    if not filepath:
+    if not archive_file.path:
         # Odd - assume success
         logger.error('No filepath value')
         return True
 
-    fullpath = os.path.join(media_root, filepath)
+    fullpath = os.path.join(media_root, archive_file.path)
     if os.path.isfile(fullpath):
         with open(combined_sdf_file, 'a', encoding='utf-8') as f_out:
             patched_sdf_content = _read_and_patch_molecule_name(fullpath)
             f_out.write(patched_sdf_content)
         return True
     else:
-        logger.warning('filepath "%s" is not a file', filepath)
+        logger.warning('filepath "%s" is not a file', archive_file.path)
 
     return False
 
@@ -301,11 +302,8 @@ def _protein_files_zip(zip_contents, ziparchive, error_file):
             continue
 
         for prot, prot_file in files.items():
-            # if it's a list of files (map_info) instead of single file
-            if not isinstance(prot_file, list):
-                prot_file = [prot_file]
             for f in prot_file:
-                if not _add_file_to_zip_aligned(ziparchive, prot.split(":")[0], f):
+                if not _add_file_to_zip_aligned(ziparchive, prot, f):
                     error_file.write(f'{param},{prot},{f}\n')
                     prot_errors += 1
 
@@ -333,14 +331,14 @@ def _molecule_files_zip(zip_contents, ziparchive, combined_sdf_file, error_file)
         ] is True and not _add_file_to_zip_aligned(
             ziparchive, prot.split(":")[0], file
         ):
-            error_file.write(f'sdf_info,{prot},{file}\n')
+            error_file.write(f'sdf_info,{prot},{file.path}\n')
             mol_errors += 1
 
         # Append sdf file on the Molecule record to the combined_sdf_file.
         if zip_contents['molecules'][
             'single_sdf_file'
         ] is True and not _add_file_to_sdf(combined_sdf_file, file):
-            error_file.write(f'single_sdf_file,{prot},{file}\n')
+            error_file.write(f'single_sdf_file,{prot},{file.path}\n')
             mol_errors += 1
 
     return mol_errors
@@ -446,6 +444,46 @@ def _extra_files_zip(ziparchive, target):
         logger.info('No extra files found')
     else:
         logger.info('Processed %s extra files', num_processed)
+
+
+def _yaml_files_zip(ziparchive, target):
+    """Add all yaml files (except transforms) from upload to ziparchive"""
+
+    for experiment_upload in target.experimentupload_set.order_by('commit_datetime'):
+        yaml_paths = (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(experiment_upload.task_id)
+        )
+
+        transforms = [
+            Path(f.name).name
+            for f in (
+                experiment_upload.neighbourhood_transforms,
+                experiment_upload.neighbourhood_transforms,
+                experiment_upload.neighbourhood_transforms,
+            )
+        ]
+        # taking the latest upload for now
+        # add unpacked zip directory
+        yaml_paths = [d for d in list(yaml_paths.glob("*")) if d.is_dir()][0]
+
+        # add upload_[d] dir
+        yaml_paths = next(yaml_paths.glob("upload_*"))
+
+        archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
+
+        yaml_files = [
+            f
+            for f in list(yaml_paths.glob("*.yaml"))
+            if f.is_file() and f.name not in transforms
+        ]
+
+        logger.info('Processing yaml files (%s)...', yaml_files)
+
+        for file in yaml_files:
+            logger.info('Adding yaml file "%s"...', file)
+            ziparchive.write(file, str(Path(archive_path).joinpath(file.name)))
 
 
 def _document_file_zip(ziparchive, download_path, original_search, host):
@@ -583,6 +621,8 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
 
         _extra_files_zip(ziparchive, target)
 
+        _yaml_files_zip(ziparchive, target)
+
         _document_file_zip(ziparchive, download_path, original_search, host)
 
         error_file.close()
@@ -625,21 +665,79 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
     for so in site_obvs:
         for param in protein_params:
             if protein_params[param] is True:
-                try:
-                    # getting the param from experiment. more data are
-                    # coming from there, that's why this is in try
-                    # block
+                if param in ['pdb_info', 'mtz_info', 'cif_info', 'map_info']:
+                    # experiment object
                     model_attr = getattr(so.experiment, param)
-                    # getattr retrieves FieldFile object, hence the .name
-                    if isinstance(model_attr, list):
-                        # except map_files, this returns a list of files
-                        zip_contents['proteins'][param][so.code] = model_attr
-                    else:
-                        zip_contents['proteins'][param][so.code] = model_attr.name
+                    logger.debug(
+                        'Adding param to zip: %s, value: %s', param, model_attr
+                    )
+                    if param != 'map_info':
+                        # treat all params as list
+                        model_attr = (
+                            [model_attr.name]
+                            # None - some weird glitch in storing the values
+                            if model_attr and not str(model_attr).find('None') > -1
+                            else [param]
+                        )
 
-                except AttributeError:
-                    # on the off chance that the data are in site_observation model
-                    zip_contents['proteins'][param][so.code] = getattr(so, param).name
+                    afile = []
+                    for f in model_attr:
+                        # here the model_attr is already stringified
+                        if model_attr and model_attr != 'None':
+                            archive_path = str(
+                                Path('crystallographic_files')
+                                .joinpath(so.code)
+                                .joinpath(
+                                    Path(f)
+                                    .parts[-1]
+                                    .replace(so.experiment.code, so.code)
+                                )
+                            )
+                        else:
+                            archive_path = param
+                        afile.append(ArchiveFile(path=f, archive_path=archive_path))
+
+                elif param in [
+                    'bound_file',
+                    'apo_solv_file',
+                    'apo_desolv_file',
+                    'apo_file',
+                    'sigmaa_file',
+                    'event_file',
+                    'artefacts_file',
+                    'pdb_header_file',
+                    'diff_file',
+                ]:
+                    # siteobservation object
+
+                    model_attr = getattr(so, param)
+                    logger.debug(
+                        'Adding param to zip: %s, value: %s', param, model_attr
+                    )
+                    if model_attr and model_attr != 'None':
+                        archive_path = str(
+                            Path('aligned_files')
+                            .joinpath(so.code)
+                            .joinpath(
+                                Path(model_attr.name)
+                                .parts[-1]
+                                .replace(so.longcode, so.code)
+                            )
+                        )
+                    else:
+                        archive_path = param
+
+                    afile = [
+                        ArchiveFile(
+                            path=model_attr.name,
+                            archive_path=archive_path,
+                        )
+                    ]
+                else:
+                    logger.warning('Unexpected param: %s', param)
+                    continue
+
+                zip_contents['proteins'][param][so.code] = afile
 
     if other_params['single_sdf_file'] is True:
         zip_contents['molecules']['single_sdf_file'] = True
@@ -666,7 +764,14 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
 
             if rel_sd_file:
                 logger.debug('rel_sd_file=%s code=%s', rel_sd_file, so.code)
-                zip_contents['molecules']['sdf_files'].update({rel_sd_file: so.code})
+                zip_contents['molecules']['sdf_files'].update(
+                    {
+                        ArchiveFile(
+                            path=rel_sd_file,
+                            archive_path=rel_sd_file,
+                        ): so.code
+                    }
+                )
                 num_molecules_collected += 1
 
         # Report (in the log) anomalies
