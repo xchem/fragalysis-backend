@@ -21,7 +21,7 @@
     "model": "viewer.tagcategory",
     "pk": 3,
     "fields": {
-        "category": "XtalformSites",
+        "category": "CrystalformSites",
         "colour": "0099ff",
         "description": null
     }
@@ -39,7 +39,7 @@
     "model": "viewer.tagcategory",
     "pk": 5,
     "fields": {
-        "category": "Xtalforms",
+        "category": "Crystalforms",
         "colour": "ffcc00",
         "description": null
     }

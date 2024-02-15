@@ -89,10 +89,12 @@ def check_refmol(mol, validate_dict, target=None):
 
         for ref_mol in ref_mols:
             ref_strip = ref_mol.strip()
-            query_string = f'{target}-' + ref_strip.split(':')[0].split('_')[0]
-            query = SiteObservation.objects.filter(code__contains=query_string)
+            query = SiteObservation.objects.filter(
+                code=ref_strip,
+                experiment__experiment_upload__target__title=target,
+            )
             if len(query) == 0:
-                msg = f"No SiteObservation code contains '{query_string}'"
+                msg = f"No SiteObservation code contains '{ref_strip}'"
                 validate_dict = add_warning(
                     molecule_name=mol.GetProp('_Name'),
                     field='ref_mol',

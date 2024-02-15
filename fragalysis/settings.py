@@ -422,14 +422,14 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 "formatter": "simple",
             },
         },
-        "loggers": {
-            "api.security": {"level": "INFO"},
-            "asyncio": {"level": "WARNING"},
-            "celery": {"level": "INFO"},
-            "django": {"level": "WARNING"},
-            "mozilla_django_oidc": {"level": "WARNING"},
-            "urllib3": {"level": "WARNING"},
-            "paramiko": {"level": "WARNING"},
+        'loggers': {
+            'api.security': {'level': 'INFO'},
+            'asyncio': {'level': 'WARNING'},
+            'celery': {'level': 'INFO'},
+            'django': {'level': 'ERROR'},
+            'mozilla_django_oidc': {'level': 'WARNING'},
+            'urllib3': {'level': 'WARNING'},
+            'paramiko': {'level': 'WARNING'},
         },
         "root": {
             "level": LOGGING_FRAMEWORK_ROOT_LEVEL,

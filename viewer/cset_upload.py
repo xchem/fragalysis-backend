@@ -198,9 +198,12 @@ class MolOps:
                 zfile_hashvals=zfile_hashvals,
             )
         else:
-            name = f'{compound_set.target.title}-{pdb_fn}'
+            name = pdb_fn
             try:
-                site_obvs = SiteObservation.objects.get(code__contains=name)
+                site_obvs = SiteObservation.objects.get(
+                    code__contains=name,
+                    experiment__experiment_upload__target__title=target,
+                )
             except SiteObservation.DoesNotExist:
                 # Initial SiteObservation lookup failed.
                 logger.warning(
@@ -210,7 +213,10 @@ class MolOps:
                 )
                 # Try alternatives.
                 # If all else fails then the site_obvs will be 'None'
-                qs = SiteObservation.objects.filter(code__contains=name)
+                qs = SiteObservation.objects.filter(
+                    code__contains=name,
+                    experiment__experiment_upload__target__title=target,
+                )
                 if qs.exists():
                     logger.info(
                         'Found SiteObservation containing name=%s qs=%s',
@@ -219,7 +225,10 @@ class MolOps:
                     )
                 else:
                     alt_name = name.split(':')[0].split('_')[0]
-                    qs = SiteObservation.objects.filter(code__contains=alt_name)
+                    qs = SiteObservation.objects.filter(
+                        code__contains=alt_name,
+                        experiment__experiment_upload__target__title=target,
+                    )
                     if qs.exists():
                         logger.info(
                             'Found SiteObservation containing alternative name=%s qs=%s',
@@ -328,15 +337,13 @@ class MolOps:
             # try exact match first
             try:
                 site_obvs = SiteObservation.objects.get(
-                    code__contains=str(compound_set.target.title + '-' + i),
+                    code=str(i),
                     experiment__experiment_upload__target_id=compound_set.target,
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
                 qs = SiteObservation.objects.filter(
-                    code__contains=str(
-                        compound_set.target.title + '-' + i.split(':')[0].split('_')[0]
-                    ),
+                    code=str(i.split(':')[0].split('_')[0]),
                     experiment__experiment_upload__target_id=compound_set.target,
                 )
                 if not qs.exists():
@@ -503,7 +510,7 @@ class MolOps:
         computed_set.save()
 
         description_dict = description_mol.GetPropsAsDict()
-        for key in list(description_dict.keys()):
+        for key in description_dict.keys():
             if key in descriptions_needed and key not in [
                 'ref_mols',
                 'ref_pdb',

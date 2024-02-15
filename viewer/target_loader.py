@@ -95,6 +95,7 @@ class MetadataObject:
 
     instance: Model
     index_data: dict = field(default_factory=dict)
+    new: bool = False
 
 
 # type hint for wrapped yaml block processors
@@ -165,7 +166,6 @@ class UploadReport:
         if not self.task:
             return
         with contextlib.suppress(AttributeError):
-            logger.debug("taskstuff %s", dir(self.task))
             self.task.update_state(
                 state=self.upload_state,
                 meta={
@@ -295,6 +295,12 @@ def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
     return generator
 
 
+def strip_version(s: str) -> str:
+    # format something like XX01ZVNS2B-x0673/B/501/1
+    # remove tailing '/1'
+    return s[0 : s.rfind('/')]
+
+
 def create_objects(func=None, *, depth=math.inf):
     """Wrapper function for saving database objects.
 
@@ -313,29 +319,49 @@ def create_objects(func=None, *, depth=math.inf):
     def wrapper_create_objects(
         self, *args, yaml_data: dict, **kwargs
     ) -> dict[int | str, MetadataObject]:
-        logger.debug("+ wrapper_service_query")
+        # logger.debug("+ wrapper_service_query")
         # logger.debug("args passed: %s", args)
-        logger.debug("kwargs passed: %s", kwargs)
+        # logger.debug("kwargs passed: %s", kwargs)
 
         flattened_data = flatten_dict(yaml_data, depth=depth)
         result = {}
         created, existing, failed = 0, 0, 0
         for item in flattened_data:
             logger.debug("flattened data item: %s", item)
-            instance_data = func(self, *args, item_data=item, **kwargs)
+            instance_data = func(
+                self, *args, item_data=item, validate_files=False, **kwargs
+            )
             logger.debug("Instance data returned: %s", instance_data)
+            obj = None
+            new = False
             if not instance_data:
                 continue
 
-            obj = None
             try:
                 if instance_data.fields:
-                    obj, new = instance_data.model_class.filter_manager.by_target(
-                        self.target
-                    ).get_or_create(
-                        **instance_data.fields,
-                        defaults=instance_data.defaults,
-                    )
+                    try:
+                        obj = instance_data.model_class.filter_manager.by_target(
+                            self.target
+                        ).get(**instance_data.fields)
+                        logger.debug("Object exists: %s", instance_data.fields)
+                        new = False
+                    except instance_data.model_class.DoesNotExist:
+                        # revalidate files
+                        logger.debug("Object doesn't exist: %s", instance_data)
+                        instance_data = func(self, *args, item_data=item, **kwargs)
+                        obj = instance_data.model_class(
+                            **instance_data.fields,
+                            **instance_data.defaults,
+                        )
+                        obj.save()
+                        new = True
+
+                    # obj, new = instance_data.model_class.filter_manager.by_target(
+                    #     self.target
+                    # ).get_or_create(
+                    #     **instance_data.fields,
+                    #     defaults=instance_data.defaults,
+                    # )
                 else:
                     # no unique field requirements, just create new object
                     obj = instance_data.model_class(
@@ -380,7 +406,9 @@ def create_objects(func=None, *, depth=math.inf):
                     obj,
                 )
 
-            m = MetadataObject(instance=obj, index_data=instance_data.index_data)
+            m = MetadataObject(
+                instance=obj, index_data=instance_data.index_data, new=new
+            )
             # index data here probs
             result[instance_data.key] = m
 
@@ -487,6 +515,7 @@ class TargetLoader:
         key: str,
         obj_identifier: str,
         file_struct: list,
+        validate_files: bool = True,
     ) -> list[str]:
         """Validate list of panddas event files.
 
@@ -503,7 +532,8 @@ class TargetLoader:
             if not fname:
                 continue
 
-            self._check_file_hash(obj_identifier, key, fname, file_hash, logfunc)
+            if validate_files:
+                self._check_file_hash(obj_identifier, key, fname, file_hash, logfunc)
             result.append(fname)
 
         return result
@@ -514,6 +544,7 @@ class TargetLoader:
         file_struct: dict,
         required: Iterable[str] = (),
         recommended: Iterable[str] = (),
+        validate_files: bool = True,
     ) -> list[str | None]:
         """Check if file exists and if sha256 hash matches (if given).
 
@@ -566,11 +597,17 @@ class TargetLoader:
                 if not filename:
                     continue
 
-                self._check_file_hash(obj_identifier, key, filename, file_hash, logfunc)
+                if validate_files:
+                    self._check_file_hash(
+                        obj_identifier, key, filename, file_hash, logfunc
+                    )
 
             elif isinstance(value, str):
                 filename = value
-                self._check_file_hash(obj_identifier, key, filename, file_hash, logfunc)
+                if validate_files:
+                    self._check_file_hash(
+                        obj_identifier, key, filename, file_hash, logfunc
+                    )
 
             else:
                 # probably panddas files here
@@ -661,7 +698,10 @@ class TargetLoader:
 
     @create_objects(depth=1)
     def process_experiment(
-        self, item_data: tuple[str, dict] | None = None, **kwargs
+        self,
+        item_data: tuple[str, dict] | None = None,
+        validate_files: bool = True,
+        **kwargs,
     ) -> ProcessedObject | None:
         """Extract data from yaml block for creating Experiment instance.
 
@@ -719,6 +759,7 @@ class TargetLoader:
                 "xtal_mtz",
                 "ligand_cif",
             ),
+            validate_files=validate_files,
         )
 
         try:
@@ -730,6 +771,7 @@ class TargetLoader:
             key="panddas_event_files",
             obj_identifier=experiment_name,
             file_struct=panddas_files,
+            validate_files=validate_files,
         )
 
         dtype = extract(key="type")
@@ -762,12 +804,16 @@ class TargetLoader:
                 logging.ERROR, f"Unexpected status '{dstatus}' for {experiment_name}"
             )
 
+        try:
+            smiles = data["crystallographic_files"]["ligand_cif"]["smiles"]
+        except KeyError:
+            smiles = ""
+
         # TODO: unhandled atm
         # version	int	old versions are kept	target loader
         version = 1
 
         fields = {
-            "experiment_upload": self.experiment_upload,
             "code": experiment_name,
         }
 
@@ -776,6 +822,7 @@ class TargetLoader:
             map_info_paths = [str(self._get_final_path(k)) for k in map_info_files]
 
         defaults = {
+            "experiment_upload": self.experiment_upload,
             "status": status,
             "version": version,
             "type": exp_type,
@@ -791,6 +838,7 @@ class TargetLoader:
 
         index_fields = {
             "xtalform": assigned_xtalform,
+            "smiles": smiles,
         }
 
         return ProcessedObject(
@@ -803,7 +851,10 @@ class TargetLoader:
 
     @create_objects(depth=1)
     def process_compound(
-        self, item_data: tuple[str, dict] | None = None, **kwargs
+        self,
+        experiments: dict[int | str, MetadataObject],
+        item_data: tuple[str, dict] | None = None,
+        **kwargs,
     ) -> ProcessedObject | None:
         """Extract data from yaml block for creating Compound instance.
 
@@ -825,6 +876,7 @@ class TargetLoader:
         protein_name, data = item_data
         if (
             "aligned_files" not in data.keys()
+            or not experiments[protein_name].new  # remove already saved objects
             or "crystallographic_files" not in data.keys()
         ):
             return None
@@ -858,7 +910,9 @@ class TargetLoader:
 
     @create_objects(depth=1)
     def process_xtalform(
-        self, item_data: tuple[str, dict] | None = None, **kwargs
+        self,
+        item_data: tuple[str, dict] | None = None,
+        **kwargs,
     ) -> ProcessedObject | None:
         """Create Xtalform model instance from data.
 
@@ -910,7 +964,9 @@ class TargetLoader:
 
     @create_objects(depth=1)
     def process_quat_assembly(
-        self, item_data: tuple[str, dict] | None = None, **kwargs
+        self,
+        item_data: tuple[str, dict] | None = None,
+        **kwargs,
     ) -> ProcessedObject | None:
         """Create QuatAssemblylform model instance from data.
 
@@ -997,7 +1053,9 @@ class TargetLoader:
 
     @create_objects(depth=1)
     def process_canon_site(
-        self, item_data: tuple[str, dict] | None = None, **kwargs
+        self,
+        item_data: tuple[str, dict] | None = None,
+        **kwargs,
     ) -> ProcessedObject | None:
         """Create CanonSite model instance from data.
 
@@ -1175,6 +1233,7 @@ class TargetLoader:
         # ligand: str,
         # idx: int | str,
         # data: dict,
+        validate_files: bool = True,
         **kwargs,
     ) -> ProcessedObject | None:
         """Create SiteObservation model instance from data.
@@ -1214,11 +1273,36 @@ class TargetLoader:
         longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
 
+        smiles = extract(key="ligand_smiles")
+
         try:
             compound = compounds[experiment_id].instance
         except KeyError:
-            # compound missing, fine
-            compound = None
+            # compound not saved on this round, but if this is not the
+            # first upload, experiment and compound may have come from
+            # the first.
+            try:
+                logger.debug('exp: %s, %s', experiment, experiments[experiment_id].new)
+                # logger.debug('exp compounds: %s', experiment.compounds)
+                compound = experiment.compounds.get(
+                    smiles=experiments[experiment_id].index_data["smiles"]
+                )
+            except Compound.DoesNotExist:
+                # really doensn't exist, can happen
+                compound = None
+                self.report.log(
+                    logging.INFO,
+                    f"No compounds for experiment {experiment.code}",
+                )
+            except MultipleObjectsReturned:
+                # based on the way data is presented, I'm fairly
+                # certain this cannot happen. but there's nothing in
+                # the db to prevent this
+                compound = experiment.compounds.filter(smiles=smiles).first()
+                self.report.log(
+                    logging.WARNING,
+                    f"Multiple compounds for experiment {experiment.code}",
+                )
 
         canon_site_conf = canon_site_confs[idx].instance
         xtalform_site = xtalform_sites[key]
@@ -1249,6 +1333,7 @@ class TargetLoader:
                 "diff_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
             ),
+            validate_files=validate_files,
         )
 
         logger.debug('looking for ligand_mol: %s', ligand_mol)
@@ -1261,7 +1346,6 @@ class TargetLoader:
                     encoding="utf-8",
                 ) as f:
                     mol_data = f.read()
-        smiles = extract(key="ligand_smiles")
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
@@ -1428,7 +1512,8 @@ class TargetLoader:
             xtalform_assemblies,
         ) = self._get_yaml_blocks(
             yaml_data=xtalforms_yaml,
-            blocks=("assemblies", "xtalforms"),
+            # blocks=("assemblies", "xtalforms"),
+            blocks=("assemblies", "crystalforms"),
         )
 
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -1441,7 +1526,7 @@ class TargetLoader:
             yaml_data=meta,
             blocks=(
                 "crystals",
-                "xtalforms",
+                "crystalforms",
                 "canon_sites",
                 "conformer_sites",
                 "xtalform_sites",
@@ -1449,7 +1534,9 @@ class TargetLoader:
         )
 
         experiment_objects = self.process_experiment(yaml_data=crystals)
-        compound_objects = self.process_compound(yaml_data=crystals)
+        compound_objects = self.process_compound(
+            yaml_data=crystals, experiments=experiment_objects
+        )
 
         # save components manytomany to experiment
         # TODO: is it 1:1 relationship? looking at the meta_align it
@@ -1545,7 +1632,8 @@ class TargetLoader:
         xtalform_site_by_tag = {}
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
             for k in val.index_data["residues"]:
-                xtalform_site_by_tag[k] = val.instance
+                # strip the version number from tag
+                xtalform_site_by_tag[strip_version(k)] = val.instance
 
         site_observation_objects = self.process_site_observation(
             yaml_data=crystals,
@@ -1614,7 +1702,7 @@ class TargetLoader:
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
             val.instance.ref_site_observation = site_observation_objects[
-                val.index_data["reference_ligands"]
+                strip_version(val.index_data["reference_ligands"])
             ].instance
             val.instance.save()
 
@@ -1640,7 +1728,8 @@ class TargetLoader:
                 + f" - {val.instance.name}"
             )
             so_list = [
-                site_observation_objects[k].instance for k in val.index_data["members"]
+                site_observation_objects[strip_version(k)].instance
+                for k in val.index_data["members"]
             ]
             self._tag_observations(tag, "ConformerSites", so_list)
 
@@ -1662,7 +1751,7 @@ class TargetLoader:
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform=val.instance
             )
-            self._tag_observations(tag, "Xtalforms", so_list)
+            self._tag_observations(tag, "Crystalforms", so_list)
 
         logger.debug("xtalform objects tagged")
 
@@ -1674,9 +1763,10 @@ class TargetLoader:
                 + f" - {val.instance.xtalform_site_id}"
             )
             so_list = [
-                site_observation_objects[k].instance for k in val.index_data["residues"]
+                site_observation_objects[strip_version(k)].instance
+                for k in val.index_data["residues"]
             ]
-            self._tag_observations(tag, "XtalformSites", so_list)
+            self._tag_observations(tag, "CrystalformSites", so_list)
 
         logger.debug("xtalform_sites objects tagged")
 
