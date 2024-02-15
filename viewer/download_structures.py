@@ -446,6 +446,46 @@ def _extra_files_zip(ziparchive, target):
         logger.info('Processed %s extra files', num_processed)
 
 
+def _yaml_files_zip(ziparchive, target):
+    """Add all yaml files (except transforms) from upload to ziparchive"""
+
+    for experiment_upload in target.experimentupload_set.order_by('commit_datetime'):
+        yaml_paths = (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(experiment_upload.task_id)
+        )
+
+        transforms = [
+            Path(f.name).name
+            for f in (
+                experiment_upload.neighbourhood_transforms,
+                experiment_upload.neighbourhood_transforms,
+                experiment_upload.neighbourhood_transforms,
+            )
+        ]
+        # taking the latest upload for now
+        # add unpacked zip directory
+        yaml_paths = [d for d in list(yaml_paths.glob("*")) if d.is_dir()][0]
+
+        # add upload_[d] dir
+        yaml_paths = next(yaml_paths.glob("upload_*"))
+
+        archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
+
+        yaml_files = [
+            f
+            for f in list(yaml_paths.glob("*.yaml"))
+            if f.is_file() and f.name not in transforms
+        ]
+
+        logger.info('Processing yaml files (%s)...', yaml_files)
+
+        for file in yaml_files:
+            logger.info('Adding yaml file "%s"...', file)
+            ziparchive.write(file, str(Path(archive_path).joinpath(file.name)))
+
+
 def _document_file_zip(ziparchive, download_path, original_search, host):
     """Create the document file
     This consists of a template plus an added contents description.
@@ -580,6 +620,8 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
             _trans_matrix_files_zip(ziparchive, target)
 
         _extra_files_zip(ziparchive, target)
+
+        _yaml_files_zip(ziparchive, target)
 
         _document_file_zip(ziparchive, download_path, original_search, host)
 
