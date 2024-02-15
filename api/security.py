@@ -61,6 +61,7 @@ def get_remote_conn() -> Optional[SSHConnector]:
         'ssh_host': settings.SSH_HOST,
         'ssh_user': settings.SSH_USER,
         'ssh_password': settings.SSH_PASSWORD,
+        "ssh_private_key_filename": settings.SSH_PRIVATE_KEY_FILENAME,
         'remote': True,
     }
 

@@ -28,6 +28,7 @@ class SSHConnector(Connector):
         remote=False,
         ssh_user=None,
         ssh_password=None,
+        ssh_private_key_filename=None,
         ssh_host=None,
         conn_inactivity=360,
     ):
@@ -45,6 +46,7 @@ class SSHConnector(Connector):
                 'ssh_host': ssh_host,
                 'ssh_user': ssh_user,
                 'ssh_pass': ssh_password,
+                'ssh_pkey': ssh_private_key_filename,
                 'db_host': host,
                 'db_port': int(port),
                 'db_user': user,
@@ -71,19 +73,36 @@ class SSHConnector(Connector):
             logger.debug("Started host=%s user=%s port=%s", host, user, port)
 
     def remote_connect(
-        self, ssh_host, ssh_user, ssh_pass, db_host, db_port, db_user, db_pass, db_name
+        self,
+        ssh_host,
+        ssh_user,
+        ssh_pass,
+        ssh_pkey,
+        db_host,
+        db_port,
+        db_user,
+        db_pass,
+        db_name,
     ):
         sshtunnel.SSH_TIMEOUT = 10.0
         sshtunnel.TUNNEL_TIMEOUT = 10.0
         sshtunnel.DEFAULT_LOGLEVEL = logging.CRITICAL
         self.conn_inactivity = int(self.conn_inactivity)
 
-        self.server = sshtunnel.SSHTunnelForwarder(
-            (ssh_host),
-            ssh_username=ssh_user,
-            ssh_password=ssh_pass,
-            remote_bind_address=(db_host, db_port),
-        )
+        if ssh_pkey is not None:
+            self.server = sshtunnel.SSHTunnelForwarder(
+                (ssh_host),
+                ssh_username=ssh_user,
+                ssh_pkey=ssh_pkey,
+                remote_bind_address=(db_host, db_port),
+            )
+        else:
+            self.server = sshtunnel.SSHTunnelForwarder(
+                (ssh_host),
+                ssh_username=ssh_user,
+                ssh_password=ssh_pass,
+                remote_bind_address=(db_host, db_port),
+            )
 
         # stops hanging connections in transport
         self.server.daemon_forward_servers = True

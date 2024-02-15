@@ -532,9 +532,11 @@ SECURITY_CONNECTOR_CACHE_MINUTES: int = int(
 
 # An SSH host.
 # Used in the security module in conjunction with ISPyB settings.
+# Any SSH_PRIVATE_KEY_FILENAME value will be used in preference to SSH_PASSWORD.
 SSH_HOST: str = os.environ.get("SSH_HOST", "")
 SSH_USER: str = os.environ.get("SSH_USER", "")
 SSH_PASSWORD: str = os.environ.get("SSH_PASSWORD", "")
+SSH_PRIVATE_KEY_FILENAME: str = os.environ.get("SSH_PRIVATE_KEY_FILENAME", "")
 
 # A slug used for names this Fragalysis will create
 SQUONK2_MAX_SLUG_LENGTH: int = 10
