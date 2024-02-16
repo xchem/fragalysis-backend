@@ -1724,7 +1724,7 @@ class TargetLoader:
 
         # tag site observations
         for val in canon_site_objects.values():  # pylint: disable=no-member
-            tag = f"{val.instance.canon_site_num} - {val.instance.name}"
+            tag = f"{val.instance.canon_site_num} - {''.join(val.instance.name.split('+')[1:-1])}"
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
@@ -1739,7 +1739,7 @@ class TargetLoader:
             tag = (
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
-                + f" - {val.instance.name}"
+                + f" - {val.instance.name.split('+')[0]}"
             )
             so_list = [
                 site_observation_objects[strip_version(k)].instance
