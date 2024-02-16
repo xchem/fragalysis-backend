@@ -363,7 +363,7 @@ class MolOps:
         # Try to get the LHS SiteObservation,
         # This will be used to set the ComputedMolecule.site_observation_code.
         # This may fail.
-        lhs_property = 'lhs_pdb'
+        lhs_property = 'ref_pdb'
         lhs_so = self.get_site_observation(
             lhs_property,
             mol,
