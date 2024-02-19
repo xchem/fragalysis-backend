@@ -48,7 +48,7 @@ USER_PROPOSAL_CACHE_RETRY_TIMEOUT: timedelta = timedelta(seconds=7)
 
 
 def get_remote_conn() -> Optional[SSHConnector]:
-    ispyb_credentials: Dict[str, Any] = {
+    credentials: Dict[str, Any] = {
         "user": settings.ISPYB_USER,
         "pw": settings.ISPYB_PASSWORD,
         "host": settings.ISPYB_HOST,
@@ -65,24 +65,24 @@ def get_remote_conn() -> Optional[SSHConnector]:
         'remote': True,
     }
 
-    ispyb_credentials.update(**ssh_credentials)
+    credentials.update(**ssh_credentials)
 
     # Caution: Credentials may not be set in the environment.
     #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
-    if not ispyb_credentials["host"]:
+    if not credentials["host"]:
         logger.debug("No ISPyB host - cannot return a connector")
         return None
 
     # Try to get an SSH connection (aware that it might fail)
     conn: Optional[SSHConnector] = None
     try:
-        conn = SSHConnector(**ispyb_credentials)
+        conn = SSHConnector(**credentials)
     except Exception:
         # Log the exception if DEBUG level or lower/finer?
-        # The following wil not log if the level is set to INFO for example.
+        # The following will not log if the level is set to INFO for example.
         if logging.DEBUG >= logger.level:
-            logger.info("ispyb_credentials=%s", ispyb_credentials)
+            logger.info("credentials=%s", credentials)
             logger.exception("Got the following exception creating SSHConnector...")
 
     return conn
@@ -109,7 +109,7 @@ def get_conn() -> Optional[Connector]:
         conn = Connector(**credentials)
     except Exception:
         # Log the exception if DEBUG level or lower/finer?
-        # The following wil not log if the level is set to INFO for example.
+        # The following will not log if the level is set to INFO for example.
         if logging.DEBUG >= logger.level:
             logger.info("credentials=%s", credentials)
             logger.exception("Got the following exception creating Connector...")

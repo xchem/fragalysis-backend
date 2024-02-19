@@ -55,12 +55,11 @@ class SSHConnector(Connector):
             }
             self.remote_connect(**creds)
             logger.debug(
-                "Started host=%s username=%s local_bind_port=%s",
+                "Started remote ssh_host=%s ssh_user=%s local_bind_port=%s",
                 ssh_host,
                 ssh_user,
                 self.server.local_bind_port,
             )
-
         else:
             self.connect(
                 user=user,
@@ -70,7 +69,7 @@ class SSHConnector(Connector):
                 port=port,
                 conn_inactivity=conn_inactivity,
             )
-            logger.debug("Started host=%s user=%s port=%s", host, user, port)
+            logger.debug("Started direct host=%s user=%s port=%s", host, user, port)
 
     def remote_connect(
         self,
@@ -89,7 +88,12 @@ class SSHConnector(Connector):
         sshtunnel.DEFAULT_LOGLEVEL = logging.CRITICAL
         self.conn_inactivity = int(self.conn_inactivity)
 
-        if ssh_pkey is not None:
+        if ssh_pkey:
+            logger.debug(
+                'Creating SSHTunnelForwarder (with SSH Key) host=%s user=%s',
+                ssh_host,
+                ssh_user,
+            )
             self.server = sshtunnel.SSHTunnelForwarder(
                 (ssh_host),
                 ssh_username=ssh_user,
@@ -97,19 +101,28 @@ class SSHConnector(Connector):
                 remote_bind_address=(db_host, db_port),
             )
         else:
+            logger.debug(
+                'Creating SSHTunnelForwarder (with password) host=%s user=%s',
+                ssh_host,
+                ssh_user,
+            )
             self.server = sshtunnel.SSHTunnelForwarder(
                 (ssh_host),
                 ssh_username=ssh_user,
                 ssh_password=ssh_pass,
                 remote_bind_address=(db_host, db_port),
             )
+        logger.debug('Created SSHTunnelForwarder')
 
         # stops hanging connections in transport
         self.server.daemon_forward_servers = True
         self.server.daemon_transport = True
 
+        logger.debug('Starting SSH server...')
         self.server.start()
+        logger.debug('Started SSH server')
 
+        logger.debug('Connecting to ISPyB (db_user=%s db_name=%s)...', db_user, db_name)
         self.conn = pymysql.connect(
             user=db_user,
             password=db_pass,
@@ -119,8 +132,10 @@ class SSHConnector(Connector):
         )
 
         if self.conn is not None:
+            logger.debug('Connected')
             self.conn.autocommit = True
         else:
+            logger.debug('Failed to connect')
             self.server.stop()
             raise ISPyBConnectionException
         self.last_activity_ts = time.time()
