@@ -4,8 +4,9 @@
 # Infections are injected into the application via the environment variable
 # 'INFECTIONS', a comma-separated list of infection names.
 
-import os
 from typing import Dict, Set
+
+from django.conf import settings
 
 from api.utils import deployment_mode_is_production
 
@@ -20,9 +21,6 @@ _CATALOGUE: Dict[str, str] = {
     INFECTION_STRUCTURE_DOWNLOAD: 'An error in the DownloadStructures view'
 }
 
-# What infection have been set?
-_INFECTIONS: str = os.environ.get('INFECTIONS', '').lower()
-
 
 def have_infection(name: str) -> bool:
     """Returns True if we've been given the named infection.
@@ -31,9 +29,11 @@ def have_infection(name: str) -> bool:
 
 
 def _get_infections() -> Set[str]:
-    if _INFECTIONS == '':
+    if settings.INFECTIONS == '':
         return set()
     infections: set[str] = {
-        infection for infection in _INFECTIONS.split(',') if infection in _CATALOGUE
+        infection
+        for infection in settings.INFECTIONS.split(',')
+        if infection in _CATALOGUE
     }
     return infections

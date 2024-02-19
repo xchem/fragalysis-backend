@@ -17,6 +17,7 @@ class SiteObservationQueryset(QuerySet):
         ).annotate(
             target=F("experiment__experiment_upload__target"),
             compound_code=F("cmpd__compound_code"),
+            prefix_tooltip=F("experiment__prefix_tooltip"),
         )
 
         return qs
