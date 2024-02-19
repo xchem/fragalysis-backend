@@ -6,9 +6,11 @@
 # that control the stack's configuration (behaviour).
 #
 # Not all settings are configured by environment variable. Some are hard-coded
-# and you'll need to edit their values here. Those that are configurable at run-time
-# should be obvious (i.e. they'll use "os.environ.get()" to obtain their value)
-# alternative run-time value.
+# and you'll need to edit their values here. For example `ALLOWED_HOSTS`
+# is a static variable that is not intended to be changed at run-time.
+#
+# Those that are configurable at run-time should be obvious
+# (i.e. they'll use "os.environ.get()" to obtain their value) alternative run-time value.
 #
 # You will find the django-related configuration at the top of the file
 # (under DJANGO SETTINGS) and the fragalysis-specific configuration at the bottom of
@@ -22,7 +24,11 @@
 #
 # 2.    The constant used to hold the environment variable *SHOULD* match the
 #       environment variable's name. i.e. the "DEPLOYMENT_MODE" environment variable's
-#       value *SHOULD* be found in 'settings.DEPLOYMENT_MODE'.
+#       value *SHOULD* be found in 'settings.DEPLOYMENT_MODE' variable.
+#
+# 3.    In the FRAGALYSIS section, document the variable's purpose and the values
+#       it can take in the comments. If there are dependencies or "gotchas"
+#       (i.e. changing its value after deployment) then these should be documented.
 #
 # Providing run-time values for variables: -
 #
@@ -45,7 +51,7 @@
 #
 # IMPORTANTLY: For a description of an environment variable (setting) and its value
 #              you *MUST* consult the comments in this file ("settings.py"), and *NOT*
-#              the Ansible playbook. This file is the primary authority for the
+#              the Ansible playbook. "settings.py" is the primary authority for the
 #              configuration of the Fragalysis Stack.
 #
 # Ansible variables are declared in "roles/fragalysis-stack/defaults/main.yaml"
@@ -472,6 +478,8 @@ DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX: str = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", "")
 
+# Some Squonk2 developer/debug variables.
+# Unused in production.
 DUMMY_TARGET_TITLE: str = os.environ.get("DUMMY_TARGET_TITLE", "")
 DUMMY_USER: str = os.environ.get("DUMMY_USER", "")
 DUMMY_TAS: str = os.environ.get("DUMMY_TAS", "")
@@ -505,6 +513,9 @@ NEOMODEL_NEO4J_BOLT_URL: str = os.environ.get(
     "NEO4J_BOLT_URL", "bolt://neo4j:test@neo4j:7687"
 )
 
+# The graph (neo4j) database settings.
+# The query provides the graph endpoint, typically a service in a kubernetes namespace
+# like 'graph.graph-a.svc' and the 'auth' provides the graph username and password.
 NEO4J_QUERY: str = os.environ.get("NEO4J_QUERY", "neo4j")
 NEO4J_AUTH: str = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
 
@@ -532,27 +543,46 @@ SECURITY_CONNECTOR_CACHE_MINUTES: int = int(
 
 # An SSH host.
 # Used in the security module in conjunction with ISPyB settings.
-# Any SSH_PRIVATE_KEY_FILENAME value will be used in preference to SSH_PASSWORD.
+# The SSH_PRIVATE_KEY_FILENAME value will be used if there is no SSH_PASSWORD.
 SSH_HOST: str = os.environ.get("SSH_HOST", "")
 SSH_USER: str = os.environ.get("SSH_USER", "")
 SSH_PASSWORD: str = os.environ.get("SSH_PASSWORD", "")
 SSH_PRIVATE_KEY_FILENAME: str = os.environ.get("SSH_PRIVATE_KEY_FILENAME", "")
 
-# A slug used for names this Fragalysis will create
+# The maximum length of the 'slug' used for names this Fragalysis will create.
+#
+# Squonk2 variables are generally used by the 'squonk2_agent.py' module
+# in the 'viewer' package.
 SQUONK2_MAX_SLUG_LENGTH: int = 10
 
+# Where the Squonk2 logic places its files in Job containers.
 SQUONK2_MEDIA_DIRECTORY: str = "fragalysis-files"
+# The Squonk2 DataManger UI endpoint to obtain Job Instance information.
 SQUONK2_INSTANCE_API: str = "data-manager-ui/results/instance/"
 
+# The URL for the Squonk2 Account Server API.
 SQUONK2_ASAPI_URL: str = os.environ.get("SQUONK2_ASAPI_URL", "")
+# The URL for the Squonk2 Data Manaqer API.
 SQUONK2_DMAPI_URL: str = os.environ.get("SQUONK2_DMAPI_URL", "")
+# The URL for the Squonk2 User Interface.
 SQUONK2_UI_URL: str = os.environ.get("SQUONK2_UI_URL", "")
+# The pre-assigned Squonk2 Account Server Organisation for the stack.
+# This is created by an administrator of the Squonk2 service.
 SQUONK2_ORG_UUID: str = os.environ.get("SQUONK2_ORG_UUID", "")
+# The Account Server Unit billing day 9for all products (projects) that are created.
+# It's a day of the month (1..27).
 SQUONK2_UNIT_BILLING_DAY: str = os.environ.get("SQUONK2_UNIT_BILLING_DAY", "")
+# The Squonk2 Account Server product "flavour" created for Jobs (products/projects).
+# It's usually one of "GOLD", "SILVER" or "BRONZE".
 SQUONK2_PRODUCT_FLAVOUR: str = os.environ.get("SQUONK2_PRODUCT_FLAVOUR", "")
+# A short slug used when creating Squonk2 objects for this stack.
+# This must be unique across all stacks that share the same Squonk2 service.
 SQUONK2_SLUG: str = os.environ.get("SQUONK2_SLUG", "")[:SQUONK2_MAX_SLUG_LENGTH]
+# The pre-assigned Squonk2 Account Server Organisation owner and password.
+# This account is used to create Squonk2 objects for the stack.
 SQUONK2_ORG_OWNER: str = os.environ.get("SQUONK2_ORG_OWNER", "")
 SQUONK2_ORG_OWNER_PASSWORD: str = os.environ.get("SQUONK2_ORG_OWNER_PASSWORD", "")
+# Do we verify Squonk2 SSL certificates ("yes" or "no").
 SQUONK2_VERIFY_CERTIFICATES: str = os.environ.get("SQUONK2_VERIFY_CERTIFICATES", "")
 
 TARGET_LOADER_MEDIA_DIRECTORY: str = "target_loader_data"
@@ -568,6 +598,9 @@ TAS_REGEX_ERROR_MSG: str = os.environ.get(
     "Must begin 'lb' followed by 5 digits, optionally followed by a hyphen and a number.",
 )
 
+# Version variables.
+# These are set by the Dockerfile in the fragalysis-stack repository
+# and controlled by the CI process, i.e. they're not normally set by a a user.
 BE_NAMESPACE: str = os.environ.get("BE_NAMESPACE", "undefined")
 BE_IMAGE_TAG: str = os.environ.get("BE_IMAGE_TAG", "undefined")
 FE_NAMESPACE: str = os.environ.get("FE_NAMESPACE", "undefined")
