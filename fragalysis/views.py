@@ -1,6 +1,4 @@
 # Classes/Methods to override default OIDC Views (Keycloak authentication)
-import os
-
 from django.conf import settings
 from django.http import JsonResponse
 from mozilla_django_oidc.views import OIDCLogoutView
@@ -34,41 +32,12 @@ def version(request):
     # Unused args
     del request
 
-    undefined_value = "undefined"
-
     # b/e, f/e and stack origin comes form container environment variables.
-    #
-    # We also need to deal with empty or unset strings
-    # so the get() default does not help
-    be_namespace = os.environ.get('BE_NAMESPACE')
-    if not be_namespace:
-        be_namespace = undefined_value
-
-    be_image_tag = os.environ.get('BE_IMAGE_TAG')
-    if not be_image_tag:
-        be_image_tag = undefined_value
-
-    fe_namespace = os.environ.get('FE_NAMESPACE')
-    if not fe_namespace:
-        fe_namespace = undefined_value
-
-    fe_branch = os.environ.get('FE_BRANCH')
-    if not fe_branch:
-        fe_branch = undefined_value
-
-    stack_namespace = os.environ.get('STACK_NAMESPACE')
-    if not stack_namespace:
-        stack_namespace = undefined_value
-
-    stack_version = os.environ.get('STACK_VERSION')
-    if not stack_version:
-        stack_version = undefined_value
-
     version_response = {
-        'version': {
-            'backend': f'{be_namespace}:{be_image_tag}',
-            'frontend': f'{fe_namespace}:{fe_branch}',
-            'stack': f'{stack_namespace}:{stack_version}',
+        "version": {
+            "backend": f"{settings.BE_NAMESPACE}:{settings.BE_IMAGE_TAG}",
+            "frontend": f"{settings.FE_NAMESPACE}:{settings.FE_IMAGE_TAG}",
+            "stack": f"{settings.STACK_NAMESPACE}:{settings.STACK_VERSION}",
         }
     }
     return JsonResponse(version_response)

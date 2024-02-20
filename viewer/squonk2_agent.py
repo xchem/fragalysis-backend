@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import ParseResult, urlparse
 
 import requests
+from django.conf import settings
 from requests import Response
 from squonk2.as_api import AsApi, AsApiRv
 from squonk2.auth import Auth
@@ -58,9 +59,7 @@ _SUPPORTED_PRODUCT_FLAVOURS: List[str] = ["BRONZE", "SILVER", "GOLD"]
 # How long are Squonk2 'names'?
 _SQ2_MAX_NAME_LENGTH: int = 80
 
-# A slug used for names this Fragalysis will create
-# and a prefix string. So Squonk2 objects will be called "Fragalysis {slug}"
-_MAX_SLUG_LENGTH: int = 10
+# An object prefix string. So Squonk2 objects will be called "Fragalysis {slug}"
 _SQ2_NAME_PREFIX: str = "Fragalysis"
 
 # Built-in
@@ -94,46 +93,24 @@ class Squonk2Agent:
         # "Fragalysis {SLUG} ", this leaves (80-22) 58 characters for the
         # use with the target-access-string and session project strings
         # to form Squonk2 Unit and Project names.
-        self.__CFG_SQUONK2_ASAPI_URL: Optional[str] = os.environ.get(
-            'SQUONK2_ASAPI_URL'
-        )
-        self.__CFG_SQUONK2_DMAPI_URL: Optional[str] = os.environ.get(
-            'SQUONK2_DMAPI_URL'
-        )
-        self.__CFG_SQUONK2_UI_URL: Optional[str] = os.environ.get('SQUONK2_UI_URL')
-        self.__CFG_SQUONK2_ORG_UUID: Optional[str] = os.environ.get('SQUONK2_ORG_UUID')
-        self.__CFG_SQUONK2_UNIT_BILLING_DAY: Optional[str] = os.environ.get(
-            'SQUONK2_UNIT_BILLING_DAY'
-        )
-        self.__CFG_SQUONK2_PRODUCT_FLAVOUR: Optional[str] = os.environ.get(
-            'SQUONK2_PRODUCT_FLAVOUR'
-        )
-        self.__CFG_SQUONK2_SLUG: Optional[str] = os.environ.get('SQUONK2_SLUG', '')[
-            :_MAX_SLUG_LENGTH
-        ]
-        self.__CFG_SQUONK2_ORG_OWNER: Optional[str] = os.environ.get(
-            'SQUONK2_ORG_OWNER'
-        )
-        self.__CFG_SQUONK2_ORG_OWNER_PASSWORD: Optional[str] = os.environ.get(
-            'SQUONK2_ORG_OWNER_PASSWORD'
-        )
-        self.__CFG_OIDC_AS_CLIENT_ID: Optional[str] = os.environ.get(
-            'OIDC_AS_CLIENT_ID'
-        )
-        self.__CFG_OIDC_DM_CLIENT_ID: Optional[str] = os.environ.get(
-            'OIDC_DM_CLIENT_ID'
-        )
-        self.__CFG_OIDC_KEYCLOAK_REALM: Optional[str] = os.environ.get(
-            'OIDC_KEYCLOAK_REALM'
-        )
+        self.__CFG_SQUONK2_ASAPI_URL: str = settings.SQUONK2_ASAPI_URL
+        self.__CFG_SQUONK2_DMAPI_URL: str = settings.SQUONK2_DMAPI_URL
+        self.__CFG_SQUONK2_UI_URL: str = settings.SQUONK2_UI_URL
+        self.__CFG_SQUONK2_ORG_UUID: str = settings.SQUONK2_ORG_UUID
+        self.__CFG_SQUONK2_UNIT_BILLING_DAY: str = settings.SQUONK2_UNIT_BILLING_DAY
+        self.__CFG_SQUONK2_PRODUCT_FLAVOUR: str = settings.SQUONK2_PRODUCT_FLAVOUR
+        self.__CFG_SQUONK2_SLUG: str = settings.SQUONK2_SLUG
+        self.__CFG_SQUONK2_ORG_OWNER: str = settings.SQUONK2_ORG_OWNER
+        self.__CFG_SQUONK2_ORG_OWNER_PASSWORD: str = settings.SQUONK2_ORG_OWNER_PASSWORD
+        self.__CFG_OIDC_AS_CLIENT_ID: str = settings.OIDC_AS_CLIENT_ID
+        self.__CFG_OIDC_DM_CLIENT_ID: str = settings.OIDC_DM_CLIENT_ID
+        self.__CFG_OIDC_KEYCLOAK_REALM: str = settings.OIDC_KEYCLOAK_REALM
 
         # Optional config (no '__CFG_' prefix)
-        self.__DUMMY_TARGET_TITLE: Optional[str] = os.environ.get('DUMMY_TARGET_TITLE')
-        self.__DUMMY_USER: Optional[str] = os.environ.get('DUMMY_USER')
-        self.__DUMMY_TAS: Optional[str] = os.environ.get('DUMMY_TAS')
-        self.__SQUONK2_VERIFY_CERTIFICATES: Optional[str] = os.environ.get(
-            'SQUONK2_VERIFY_CERTIFICATES'
-        )
+        self.__DUMMY_TARGET_TITLE: str = settings.DUMMY_TARGET_TITLE
+        self.__DUMMY_USER: str = settings.DUMMY_USER
+        self.__DUMMY_TAS: str = settings.DUMMY_TAS
+        self.__SQUONK2_VERIFY_CERTIFICATES: str = settings.SQUONK2_VERIFY_CERTIFICATES
 
         # The integer billing day, valid if greater than zero
         self.__unit_billing_day: int = 0
@@ -799,9 +776,9 @@ class Squonk2Agent:
         # Is the slug too long?
         # Limited to 10 characters
         assert self.__CFG_SQUONK2_SLUG
-        if len(self.__CFG_SQUONK2_SLUG) > _MAX_SLUG_LENGTH:
+        if len(self.__CFG_SQUONK2_SLUG) > settings.SQUONK2_MAX_SLUG_LENGTH:
             msg = (
-                f'Slug is longer than {_MAX_SLUG_LENGTH} characters'
+                f'Slug is longer than {settings.SQUONK2_MAX_SLUG_LENGTH} characters'
                 f' ({self.__CFG_SQUONK2_SLUG})'
             )
             _LOGGER.error(msg)

@@ -66,12 +66,10 @@ installs/updates new packages to local venv. It's equivalent to running
 `poetry lock && poetry install`, so if you're not interested in local environment and
 just want to update the lockfile, you can run just `poetry lock`.
 
-
 ## Building and running (local)
 The backend is a Docker container image and can be build and deployed locally using `docker-compose`: -
 
     docker-compose build
-
 
 To run the application (which wil include deployment of the postgres and neo4j databases)
 run: -
@@ -180,6 +178,18 @@ at `/code/logs`.
 
 >   For local development using the `docker-compose.yml` file you'll find the logs
     at `./data/logs/backend.log`.
+
+## Configuration (environment variables)
+The backend configuration is controlled by a number of environment variables.
+Variables are typically defined in the project's `fragalysis/settings.py`, where you
+will also find **ALL** the dynamically configured variables (those that can be changed
+using *environment variables* in the deployed Pod/Container).
+
+- Not all variables are dynamic. For example `ALLOWED_HOSTS` is a static variable
+  that is set in the `settings.py` file and is not intended to be changed at run-time.
+
+Refer to the documentation in the `settings.py` file to understand the environment
+and the style guide for new variables that you need to add.
 
 ## Database migrations
 The best approach is to spin-up the development backend (locally) using
