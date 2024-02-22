@@ -48,40 +48,41 @@ USER_PROPOSAL_CACHE_RETRY_TIMEOUT: timedelta = timedelta(seconds=7)
 
 
 def get_remote_conn() -> Optional[SSHConnector]:
-    ispyb_credentials: Dict[str, Any] = {
-        "user": os.environ.get("ISPYB_USER"),
-        "pw": os.environ.get("ISPYB_PASSWORD"),
-        "host": os.environ.get("ISPYB_HOST"),
-        "port": os.environ.get("ISPYB_PORT"),
+    credentials: Dict[str, Any] = {
+        "user": settings.ISPYB_USER,
+        "pw": settings.ISPYB_PASSWORD,
+        "host": settings.ISPYB_HOST,
+        "port": settings.ISPYB_PORT,
         "db": "ispyb",
         "conn_inactivity": 360,
     }
 
     ssh_credentials: Dict[str, Any] = {
-        'ssh_host': os.environ.get("SSH_HOST"),
-        'ssh_user': os.environ.get("SSH_USER"),
-        'ssh_password': os.environ.get("SSH_PASSWORD"),
+        'ssh_host': settings.SSH_HOST,
+        'ssh_user': settings.SSH_USER,
+        'ssh_password': settings.SSH_PASSWORD,
+        "ssh_private_key_filename": settings.SSH_PRIVATE_KEY_FILENAME,
         'remote': True,
     }
 
-    ispyb_credentials.update(**ssh_credentials)
+    credentials.update(**ssh_credentials)
 
     # Caution: Credentials may not be set in the environment.
     #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
-    if not ispyb_credentials["host"]:
+    if not credentials["host"]:
         logger.debug("No ISPyB host - cannot return a connector")
         return None
 
     # Try to get an SSH connection (aware that it might fail)
     conn: Optional[SSHConnector] = None
     try:
-        conn = SSHConnector(**ispyb_credentials)
+        conn = SSHConnector(**credentials)
     except Exception:
         # Log the exception if DEBUG level or lower/finer?
-        # The following wil not log if the level is set to INFO for example.
+        # The following will not log if the level is set to INFO for example.
         if logging.DEBUG >= logger.level:
-            logger.info("ispyb_credentials=%s", ispyb_credentials)
+            logger.info("credentials=%s", credentials)
             logger.exception("Got the following exception creating SSHConnector...")
 
     return conn
@@ -89,10 +90,10 @@ def get_remote_conn() -> Optional[SSHConnector]:
 
 def get_conn() -> Optional[Connector]:
     credentials: Dict[str, Any] = {
-        "user": os.environ.get("ISPYB_USER"),
-        "pw": os.environ.get("ISPYB_PASSWORD"),
-        "host": os.environ.get("ISPYB_HOST"),
-        "port": os.environ.get("ISPYB_PORT"),
+        "user": settings.ISPYB_USER,
+        "pw": settings.ISPYB_PASSWORD,
+        "host": settings.ISPYB_HOST,
+        "port": settings.ISPYB_PORT,
         "db": "ispyb",
         "conn_inactivity": 360,
     }
@@ -108,7 +109,7 @@ def get_conn() -> Optional[Connector]:
         conn = Connector(**credentials)
     except Exception:
         # Log the exception if DEBUG level or lower/finer?
-        # The following wil not log if the level is set to INFO for example.
+        # The following will not log if the level is set to INFO for example.
         if logging.DEBUG >= logger.level:
             logger.info("credentials=%s", credentials)
             logger.exception("Got the following exception creating Connector...")
@@ -349,7 +350,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         assert user
 
         proposals = set()
-        ispyb_user = os.environ.get("ISPYB_USER")
+        ispyb_user = settings.ISPYB_USER
         logger.debug(
             "ispyb_user=%s restrict_to_membership=%s",
             ispyb_user,

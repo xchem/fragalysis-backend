@@ -196,6 +196,7 @@ class Experiment(models.Model):
     map_info = ArrayField(models.FileField(max_length=255), null=True)
     type = models.PositiveSmallIntegerField(null=True)
     pdb_sha256 = models.TextField(null=True)
+    prefix_tooltip = models.TextField(null=True)
     compounds = models.ManyToManyField(
         "Compound",
         through="ExperimentCompound",

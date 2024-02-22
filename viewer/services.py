@@ -6,6 +6,7 @@ from concurrent import futures
 from enum import Enum
 
 import requests
+from django.conf import settings
 from frag.utils.network_utils import get_driver
 from pydiscourse import DiscourseClient
 
@@ -18,8 +19,8 @@ DELAY = 10
 # Default timeout for any request calls
 REQUEST_TIMEOUT_S = 5
 
-_NEO4J_LOCATION: str = os.environ.get("NEO4J_QUERY", "neo4j")
-_NEO4J_AUTH: str = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
+_NEO4J_LOCATION: str = settings.NEO4J_QUERY
+_NEO4J_AUTH: str = settings.NEO4J_AUTH
 
 
 class State(str, Enum):
