@@ -943,6 +943,19 @@ class ComputedMolecule(models.Model):
         blank=True,
         help_text="An optional rationale for this molecule",
     )
+    pdb = models.ForeignKey(
+        SiteObservation,
+        related_name="pdb",
+        on_delete=models.PROTECT,
+        null=True,
+        help_text="SiteObservation object user referenced in upload (if given)",
+    )
+    pdb_info = models.FileField(
+        upload_to="computed_set_data/",
+        null=True,
+        max_length=255,
+        help_text="Link to pdb file; user-uploaded pdb or pdb.experiment.pdb_info",
+    )
 
     def __str__(self) -> str:
         return f"{self.smiles}"
