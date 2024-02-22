@@ -20,7 +20,7 @@ from typing import Any, Dict
 import pandoc
 from django.conf import settings
 
-from viewer.models import DownloadLinks
+from viewer.models import DownloadLinks, SiteObservation
 from viewer.utils import clean_filename
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,7 @@ _ZIP_FILEPATHS = {
 class ArchiveFile:
     path: str
     archive_path: str
+    site_observation: SiteObservation | None = None
 
 
 # Dictionary containing all references needed to create the zip file
@@ -81,60 +82,7 @@ zip_template = {
 }
 
 
-# A directory, relative to the media directory,
-# where missing SD files are written.
-# The SD files are constructed from the molecule 'sdf_info' field
-# (essentially MOL-file text) when the 'sdf_file' field is blank.
-_MISSING_SDF_DIRECTORY = 'missing_sdfs'
-_MISSING_SDF_PATH = os.path.join(settings.MEDIA_ROOT, _MISSING_SDF_DIRECTORY)
-
 _ERROR_FILE = 'errors.csv'
-
-
-def _replace_missing_sdf(molecule, code):
-    """Creates a file in the 'missing SDFs' directory, using the protein code
-    provided. The file is constructed using the molecule's sdf_info field, skipping the
-    action if the file exists. The media-relative path of the written file is returned
-    (if it was written).
-
-    Files, once written, are left and are not removed (or replaced).
-    The directory serves an archive of missing SD files.
-
-    This was added for FE/915 to generate SD files for those that are missing
-    from the upload directory.
-    """
-    if not os.path.isdir(_MISSING_SDF_PATH):
-        os.mkdir(_MISSING_SDF_PATH)
-
-    # We shouldn't be called if molecule['sdf_info'] is blank.
-    # but check anyway.
-    sdf_info = molecule.ligand_mol_file
-    if not sdf_info:
-        return None
-    sdf_lines = sdf_info.splitlines(True)[1:]
-    if not sdf_lines:
-        return None
-    # Make sure last line ends with a new-line
-    if not sdf_lines[-1].endswith('\n'):
-        sdf_lines[-1] += '\n'
-
-    # media-relative path to missing file...
-    missing_file = os.path.join(_MISSING_SDF_DIRECTORY, f'{code}.sdf')
-    # absolute path to missing file...
-    missing_path = os.path.join(settings.MEDIA_ROOT, missing_file)
-    # create the file if it doesn't exist...
-    if not os.path.isfile(missing_path):
-        # No file - create one.
-        with open(missing_path, 'w', encoding='utf-8') as sd_file:
-            # First line is the protein code, i.e. "PGN_RS02895PGA-x0346_0B"
-            sd_file.write(f'{code}\n')
-            # Now write the lines from the molecule sdf_info record
-            sd_file.writelines(sdf_lines)
-            # And append file terminator...
-            sd_file.write('$$$$\n')
-
-    # Returns the media-relative path to the file in the missing file directory
-    return missing_file
 
 
 def _add_file_to_zip(ziparchive, param, filepath):
@@ -256,6 +204,11 @@ def _add_file_to_zip_aligned(ziparchive, code, archive_file):
             # Copy the file without modification
             ziparchive.write(filepath, archive_file.archive_path)
         return True
+    elif archive_file.site_observation:
+        # NB! this bypasses _read_and_patch_molecule_name. problem?
+        ziparchive.writestr(
+            archive_file.archive_path, archive_file.site_observation.ligand_mol_file
+        )
     else:
         logger.warning('filepath "%s" is not a file', filepath)
         _add_empty_file(ziparchive, archive_file.archive_path)
@@ -319,9 +272,9 @@ def _molecule_files_zip(zip_contents, ziparchive, combined_sdf_file, error_file)
     logger.info(
         'len(molecules.sd_files)=%s', len(zip_contents['molecules']['sdf_files'])
     )
-    for file, prot in zip_contents['molecules']['sdf_files'].items():
+    for archive_file, prot in zip_contents['molecules']['sdf_files'].items():
         # Do not try and process any missing SD files.
-        if not file:
+        if not archive_file:
             error_file.write(f'sdf_files,{prot},missing\n')
             mol_errors += 1
             continue
@@ -329,16 +282,16 @@ def _molecule_files_zip(zip_contents, ziparchive, combined_sdf_file, error_file)
         if zip_contents['molecules'][
             'sdf_info'
         ] is True and not _add_file_to_zip_aligned(
-            ziparchive, prot.split(":")[0], file
+            ziparchive, prot.split(":")[0], archive_file
         ):
-            error_file.write(f'sdf_info,{prot},{file.path}\n')
+            error_file.write(f'sdf_info,{prot},{archive_file.path}\n')
             mol_errors += 1
 
         # Append sdf file on the Molecule record to the combined_sdf_file.
         if zip_contents['molecules'][
             'single_sdf_file'
-        ] is True and not _add_file_to_sdf(combined_sdf_file, file):
-            error_file.write(f'single_sdf_file,{prot},{file.path}\n')
+        ] is True and not _add_file_to_sdf(combined_sdf_file, archive_file):
+            error_file.write(f'single_sdf_file,{prot},{archive_file.path}\n')
             mol_errors += 1
 
     return mol_errors
@@ -750,29 +703,29 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
         num_molecules_collected = 0
         num_missing_sd_files = 0
         for so in site_obvs:
-            rel_sd_file = None
             if so.ligand_mol_file:
                 # There is an SD file (normal)
                 # sdf info is now kept as text in db field
-                rel_sd_file = _replace_missing_sdf(so, so.code)
+                archive_path = str(
+                    Path('aligned_files').joinpath(so.code).joinpath(f'{so.code}.sdf')
+                )
+                # path is ignored when writing sdfs but mandatory field
+                zip_contents['molecules']['sdf_files'].update(
+                    {
+                        ArchiveFile(
+                            path=archive_path,
+                            archive_path=archive_path,
+                            site_observation=so,
+                        ): so.code
+                    }
+                )
+                num_molecules_collected += 1
             else:
                 # No file value (odd).
                 logger.warning(
                     "SiteObservation record's 'ligand_mol_file' isn't set (%s)", so
                 )
                 num_missing_sd_files += 1
-
-            if rel_sd_file:
-                logger.debug('rel_sd_file=%s code=%s', rel_sd_file, so.code)
-                zip_contents['molecules']['sdf_files'].update(
-                    {
-                        ArchiveFile(
-                            path=rel_sd_file,
-                            archive_path=rel_sd_file,
-                        ): so.code
-                    }
-                )
-                num_molecules_collected += 1
 
         # Report (in the log) anomalies
         if num_molecules_collected == 0:
