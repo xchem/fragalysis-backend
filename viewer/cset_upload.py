@@ -2,9 +2,9 @@ import ast
 import datetime
 import logging
 import os
-import shutil
 import uuid
 import zipfile
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from openpyxl.utils import get_column_letter
@@ -142,37 +142,31 @@ class MolOps:
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
 
-    def process_pdb(self, pdb_code, target, zfile, zfile_hashvals) -> SiteObservation:
+    def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
         for key in zfile_hashvals.keys():
             if key == pdb_code:
                 pdb_code = f'{pdb_code}#{zfile_hashvals[pdb_code]}'
 
-        pdb_fp = zfile[pdb_code]
-        pdb_fn = zfile[pdb_code].split('/')[-1]
+        try:
+            pdb_fp = zfile[pdb_code]
+        except KeyError:
+            return None
 
-        new_filename = f'{settings.MEDIA_ROOT}pdbs/{pdb_fn}'
-        old_filename = settings.MEDIA_ROOT + pdb_fp
-        shutil.copy(old_filename, new_filename)
+        # ensure filename uniqueness
+        pdb_fn = '_'.join([zfile[pdb_code].split('/')[-1], uuid.uuid4().hex])
+        pdb_field = Path(settings.COMPUTED_SET_MEDIA_DIRECTORY).joinpath(pdb_fn)
 
-        # Create Protein object
-        target_obj = Target.objects.get(title=target)
-        # prot.target_id = target_obj
-        site_obvs, created = SiteObservation.objects.get_or_create(
-            code=pdb_code, target_id=target_obj
-        )
-        # prot.code = pdb_code
-        if created:
-            target_obj = Target.objects.get(title=target)
-            site_obvs.target_id = target_obj
-            site_obvs.pdb_info = f'pdbs/{pdb_fn}'
-            site_obvs.save()
+        new_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_field)
+        old_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_fp)
+        old_filename.rename(new_filename)
+        os.chmod(new_filename, 0o755)
 
-        return site_obvs
+        return str(pdb_field)
 
     # use zfile object for pdb files uploaded in zip
     def get_site_observation(
         self, property_name, mol, target, compound_set, zfile, zfile_hashvals
-    ) -> Optional[SiteObservation]:
+    ) -> SiteObservation | str | None:
         # Get a SiteObservation from the molecule using
         # a named property (i.e. lhs_pdb or ref_pdb for example)
 
@@ -187,61 +181,69 @@ class MolOps:
             return None
 
         pdb_fn = mol.GetProp(property_name).split('/')[-1]
-        site_obvs = None
 
         if zfile:
+            # pdb archive uploaded. referenced pdb file may or may not be included
             pdb_code = pdb_fn.replace('.pdb', '')
-            site_obvs = self.process_pdb(
+            pdb_file = self.process_pdb(
                 pdb_code=pdb_code,
-                target=target,
                 zfile=zfile,
                 zfile_hashvals=zfile_hashvals,
             )
-        else:
-            name = pdb_fn
-            try:
-                site_obvs = SiteObservation.objects.get(
-                    code__contains=name,
-                    experiment__experiment_upload__target__title=target,
+            if pdb_file:
+                return pdb_file
+            else:
+                logger.info(
+                    'No protein pdb (%s) found in zipfile',
+                    pdb_fn,
                 )
-            except SiteObservation.DoesNotExist:
-                # Initial SiteObservation lookup failed.
-                logger.warning(
-                    'Failed to get SiteObservation object (target=%s name=%s)',
-                    compound_set.target.title,
+
+        # pdb was not included, try to find the matching site observation
+        name = pdb_fn
+        site_obvs = None
+        try:
+            site_obvs = SiteObservation.objects.get(
+                code__contains=name,
+                experiment__experiment_upload__target__title=target,
+            )
+        except SiteObservation.DoesNotExist:
+            # Initial SiteObservation lookup failed.
+            logger.warning(
+                'Failed to get SiteObservation object (target=%s name=%s)',
+                compound_set.target.title,
+                name,
+            )
+            # Try alternatives.
+            # If all else fails then the site_obvs will be 'None'
+            qs = SiteObservation.objects.filter(
+                code__contains=name,
+                experiment__experiment_upload__target__title=target,
+            )
+            if qs.exists():
+                logger.info(
+                    'Found SiteObservation containing name=%s qs=%s',
                     name,
+                    qs,
                 )
-                # Try alternatives.
-                # If all else fails then the site_obvs will be 'None'
+            else:
+                alt_name = name.split(':')[0].split('_')[0]
                 qs = SiteObservation.objects.filter(
-                    code__contains=name,
+                    code__contains=alt_name,
                     experiment__experiment_upload__target__title=target,
                 )
                 if qs.exists():
                     logger.info(
-                        'Found SiteObservation containing name=%s qs=%s',
-                        name,
+                        'Found SiteObservation containing alternative name=%s qs=%s',
+                        alt_name,
                         qs,
                     )
-                else:
-                    alt_name = name.split(':')[0].split('_')[0]
-                    qs = SiteObservation.objects.filter(
-                        code__contains=alt_name,
-                        experiment__experiment_upload__target__title=target,
-                    )
-                    if qs.exists():
-                        logger.info(
-                            'Found SiteObservation containing alternative name=%s qs=%s',
-                            alt_name,
-                            qs,
-                        )
-                if qs.count() > 0:
-                    logger.debug(
-                        'Found alternative (target=%s name=%s)',
-                        compound_set.target.title,
-                        name,
-                    )
-                    site_obvs = qs[0]
+            if qs.count() > 0:
+                logger.debug(
+                    'Found alternative (target=%s name=%s)',
+                    compound_set.target.title,
+                    name,
+                )
+                site_obvs = qs[0]
 
         if not site_obvs:
             logger.warning(
@@ -360,31 +362,10 @@ class MolOps:
 
             insp_frags.append(ref)
 
-        # Try to get the LHS SiteObservation,
-        # This will be used to set the ComputedMolecule.site_observation_code.
-        # This may fail.
-        lhs_property = 'lhs_pdb'
-        lhs_so = self.get_site_observation(
-            lhs_property,
-            mol,
-            target,
-            compound_set,
-            zfile,
-            zfile_hashvals=zfile_hashvals,
-        )
-        if not lhs_so:
-            logger.warning(
-                'Failed to get a LHS SiteObservation (%s) for %s, %s, %s',
-                lhs_property,
-                mol,
-                target,
-                compound_set,
-            )
-
-        # Try to get the reference SiteObservation,
-        # This will be used to set the ComputedMolecule.reference_code.
-        # This may fail.
         ref_property = 'ref_pdb'
+        # data in ref ref_pdb field may be one of 2 things:
+        # - siteobservation's short code (code field)
+        # - pdb file in uploaded zipfile
         ref_so = self.get_site_observation(
             ref_property,
             mol,
@@ -400,15 +381,6 @@ class MolOps:
                 mol,
                 target,
                 compound_set,
-            )
-
-        # A LHS or Reference protein must be provided.
-        # (Part of "Fix behaviour of RHS [P] button - also RHS upload change", issue #1249)
-        if not lhs_so and not ref_so:
-            logger.error(
-                'ComputedMolecule has no LHS (%s) or Reference (%s) property',
-                lhs_property,
-                ref_property,
             )
 
         # Need a ComputedMolecule before saving.
@@ -433,15 +405,27 @@ class MolOps:
             logger.info('Creating new ComputedMolecule')
             computed_molecule = ComputedMolecule()
 
+        if isinstance(ref_so, SiteObservation):
+            code = ref_so.code
+            pdb_info = ref_so.experiment.pdb_info
+            lhs_so = ref_so
+        else:
+            code = None
+            pdb_info = ref_so
+            lhs_so = None
+
         assert computed_molecule
         computed_molecule.compound = compound
         computed_molecule.computed_set = compound_set
         computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
-        computed_molecule.site_observation_code = lhs_so.code if lhs_so else None
-        computed_molecule.reference_code = ref_so.code if ref_so else None
+        computed_molecule.site_observation_code = code
+        computed_molecule.reference_code = code
         computed_molecule.molecule_name = molecule_name
         computed_molecule.name = f"{target}-{computed_molecule.identifier}"
         computed_molecule.smiles = smiles
+        computed_molecule.pdb = lhs_so
+        # TODO: this is wrong
+        computed_molecule.pdb_info = pdb_info
         # Extract possible reference URL and Rationale
         # URLs have to be valid URLs and rationals must contain more than one word
         ref_url: Optional[str] = (
@@ -591,6 +575,14 @@ class MolOps:
             assert settings.AUTHENTICATE_UPLOAD is False
         computed_set.save()
 
+        # check compound set folder exists.
+        cmp_set_folder = os.path.join(
+            settings.MEDIA_ROOT, settings.COMPUTED_SET_MEDIA_DIRECTORY
+        )
+        if not os.path.isdir(cmp_set_folder):
+            logger.info('Making ComputedSet folder (%s)', cmp_set_folder)
+            os.mkdir(cmp_set_folder)
+
         # Set descriptions in return for the Molecules.
         # This also sets the submitter and method URL properties of the computed set
         # while also saving it.
@@ -610,14 +602,6 @@ class MolOps:
                 self.zfile,
                 self.zfile_hashvals,
             )
-
-        # check compound set folder exists.
-        cmp_set_folder = os.path.join(
-            settings.MEDIA_ROOT, settings.COMPUTED_SET_MEDIA_DIRECTORY
-        )
-        if not os.path.isdir(cmp_set_folder):
-            logger.info('Making ComputedSet folder (%s)', cmp_set_folder)
-            os.mkdir(cmp_set_folder)
 
         # move and save the compound set
         new_filename = f'{settings.MEDIA_ROOT}{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{computed_set.name}.sdf'
