@@ -159,23 +159,9 @@ class MolOps:
         new_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_field)
         old_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_fp)
         old_filename.rename(new_filename)
+        os.chmod(new_filename, 0o755)
 
         return str(pdb_field)
-
-        # # Create Protein object
-        # target_obj = Target.objects.get(title=target)
-        # # prot.target_id = target_obj
-        # site_obvs, created = SiteObservation.objects.get_or_create(
-        #     code=pdb_code, target_id=target_obj
-        # )
-        # # prot.code = pdb_code
-        # if created:
-        #     target_obj = Target.objects.get(title=target)
-        #     site_obvs.target_id = target_obj
-        #     site_obvs.pdb_info = f'pdbs/{pdb_fn}'
-        #     site_obvs.save()
-
-        # return site_obvs
 
     # use zfile object for pdb files uploaded in zip
     def get_site_observation(
@@ -396,15 +382,6 @@ class MolOps:
                 target,
                 compound_set,
             )
-
-        # A LHS or Reference protein must be provided.
-        # (Part of "Fix behaviour of RHS [P] button - also RHS upload change", issue #1249)
-        # if not lhs_so and not ref_so:
-        #     logger.error(
-        #         'ComputedMolecule has no LHS (%s) or Reference (%s) property',
-        #         lhs_property,
-        #         ref_property,
-        #     )
 
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...

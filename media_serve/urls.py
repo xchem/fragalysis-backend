@@ -11,5 +11,8 @@ urlpatterns = [
     re_path(
         r"^target_loader_data/(?P<file_path>.+)", views.tld_download, name="get_tld"
     ),
+    re_path(
+        r"^computed_set_data/(?P<file_path>.+)", views.cspdb_download, name="get_cspdb"
+    ),
     re_path(r"^pdbs/(?P<file_path>.+)", views.file_download, name="get_file"),
 ]
