@@ -713,6 +713,10 @@ class SiteObservationTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SiteObservationTag
         fields = '__all__'
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "upload_name": {"read_only": True},
+        }
 
 
 class SessionProjectTagSerializer(serializers.ModelSerializer):
