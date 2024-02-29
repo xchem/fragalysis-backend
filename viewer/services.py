@@ -166,6 +166,9 @@ def discourse(func_id, name, key=None, url=None, user=None) -> bool:
     del func_id, name
 
     logger.debug("+ discourse")
+    # Discourse is "unconfigured" if there is no API key
+    if not settings.DISCOURSE_API_KEY:
+        return False
     client = DiscourseClient(
         os.environ.get(url, None),
         api_username=os.environ.get(user, None),
@@ -206,6 +209,7 @@ def keycloak(func_id, name, url=None, secret=None) -> bool:
     del func_id, name, secret
 
     logger.debug("+ keycloak")
+    # Keycloak is "unconfigured" if there is no realm URL
     keycloak_realm = os.environ.get(url, None)
     if not keycloak_realm:
         return False
