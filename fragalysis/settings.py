@@ -464,10 +464,12 @@ if os.environ.get("AUTHENTICATE_UPLOAD") == "False":
 
 COMPUTED_SET_MEDIA_DIRECTORY: str = "computed_set_data"
 
-# Discourse settings for API calls to Discourse Platform
+# Discourse settings for API calls to Discourse Platform.
 DISCOURSE_PARENT_CATEGORY: str = "Fragalysis targets"
 DISCOURSE_USER: str = "fragalysis"
 DISCOURSE_HOST: str = os.environ.get("DISCOURSE_HOST", "")
+# If a DISCOURSE_API_KEY is not set the backend will assume
+# that a Discourse server is not available.
 # Note that this can be obtained from discourse for the desired environment.
 DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # This suffix can be set to that the different development environments posting
