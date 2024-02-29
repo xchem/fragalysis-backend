@@ -490,17 +490,17 @@ class UploadCSet(APIView):
             tmp_pdb_file = None
             tmp_sdf_file = None
             if 'pdb_zip' in list(request.FILES.keys()):
-                # In the first stage (green release) of the XCA-based Fragalysis Stack
-                # we do not support PDB files.
-                request.session[
-                    _SESSION_ERROR
-                ] = 'This release does not support the inclusion of PDB file.'
-                logger.warning(
-                    '- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR]
-                )
-                return redirect('viewer:upload_cset')
-            #                pdb_file = request.FILES['pdb_zip']
-            #                tmp_pdb_file = save_tmp_file(pdb_file)
+                #     # In the first stage (green release) of the XCA-based Fragalysis Stack
+                #     # we do not support PDB files.
+                #     request.session[
+                #         _SESSION_ERROR
+                #     ] = 'This release does not support the inclusion of PDB file.'
+                #     logger.warning(
+                #         '- UploadCSet POST error_msg="%s"', request.session[_SESSION_ERROR]
+                #     )
+                #     return redirect('viewer:upload_cset')
+                pdb_file = request.FILES['pdb_zip']
+                tmp_pdb_file = save_tmp_file(pdb_file)
             if sdf_file:
                 tmp_sdf_file = save_tmp_file(sdf_file)
 

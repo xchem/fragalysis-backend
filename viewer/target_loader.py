@@ -1957,7 +1957,7 @@ def load_target(
             # These are errors processing the data, which we handle gracefully.
             # The task should _always_ end successfully.
             # Any problem with the underlying data is transmitted in the report.
-            logger.debug(exc, exc_info=True)
+            logger.error(exc, exc_info=True)
             target_loader.report.final(
                 f"Failed to process '{target_loader.data_bundle}'", success=False
             )
