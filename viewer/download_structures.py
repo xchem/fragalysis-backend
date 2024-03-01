@@ -144,36 +144,6 @@ _ERROR_FILE = 'errors.csv'
 _METADATA_FILE = 'metadata.csv'
 
 
-def _add_file_to_zip(ziparchive, param, filepath):
-    """Add the requested file to the zip archive.
-
-    Args:
-        ziparchive: Handle of zip archive
-        param: parameter of filelist
-        filepath: filepath from record
-
-    Returns:
-        [boolean]: [True of record added]
-    """
-    logger.debug('+_add_file_to_zip: %s, %s', param, filepath)
-    if not filepath:
-        # Odd - assume success
-        logger.error('No filepath value')
-        return True
-
-    fullpath = os.path.join(settings.MEDIA_ROOT, filepath)
-    cleaned_filename = clean_filename(filepath)
-    archive_path = os.path.join(_ZIP_FILEPATHS[param], cleaned_filename)
-    if os.path.isfile(fullpath):
-        ziparchive.write(fullpath, archive_path)
-        return True
-    else:
-        logger.warning('filepath "%s" is not a file', filepath)
-        _add_empty_file(ziparchive, archive_path)
-
-    return False
-
-
 def _is_mol_or_sdf(path):
     """Returns True if the file and path look like a MOL or SDF file.
     It does this by simply checking the file's extension.
@@ -231,6 +201,27 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     return content
 
 
+def _patch_molecule_name(site_observation):
+    """Patch the MOL or SDF file with molecule name.
+
+    Processes the content of ligand_mol attribute of the
+    site_observation object. Returns the content as string.
+
+    Alternative to _read_and_patch_molecule_name function above
+    which operates on files. As ligand_mol is now stored as text,
+    slightly different approach was necessary.
+
+    """
+    logger.debug('Patching MOL/SDF of "%s"', site_observation)
+
+    # Now read the file, checking the first line
+    # and setting it to the molecule name if it's blank.
+    lines = site_observation.ligand_mol_file.split('\n')
+    if not lines[0].strip():
+        lines[0] = site_observation.long_code
+    return '\n'.join(lines)
+
+
 def _add_file_to_zip_aligned(ziparchive, code, archive_file):
     """Add the requested file to the zip archive.
 
@@ -264,10 +255,11 @@ def _add_file_to_zip_aligned(ziparchive, code, archive_file):
             ziparchive.write(filepath, archive_file.archive_path)
         return True
     elif archive_file.site_observation:
-        # NB! this bypasses _read_and_patch_molecule_name. problem?
         ziparchive.writestr(
-            archive_file.archive_path, archive_file.site_observation.ligand_mol_file
+            archive_file.archive_path,
+            _patch_molecule_name(archive_file.site_observation),
         )
+        return True
     else:
         logger.warning('filepath "%s" is not a file', filepath)
         _add_empty_file(ziparchive, archive_file.archive_path)
@@ -285,17 +277,14 @@ def _add_file_to_sdf(combined_sdf_file, archive_file):
     Returns:
         [boolean]: [True of record added]
     """
-    media_root = settings.MEDIA_ROOT
-
     if not archive_file.path:
         # Odd - assume success
         logger.error('No filepath value')
         return True
 
-    fullpath = os.path.join(media_root, archive_file.path)
-    if os.path.isfile(fullpath):
+    if archive_file.path and archive_file.path != 'None':
         with open(combined_sdf_file, 'a', encoding='utf-8') as f_out:
-            patched_sdf_content = _read_and_patch_molecule_name(fullpath)
+            patched_sdf_content = _patch_molecule_name(archive_file.site_observation)
             f_out.write(patched_sdf_content)
         return True
     else:
@@ -315,8 +304,9 @@ def _protein_files_zip(zip_contents, ziparchive, error_file):
 
         for prot, prot_file in files.items():
             for f in prot_file:
+                # memo to self: f is ArchiveFile object
                 if not _add_file_to_zip_aligned(ziparchive, prot, f):
-                    error_file.write(f'{param},{prot},{f}\n')
+                    error_file.write(f'{param},{prot},{f.archive_path}\n')
                     prot_errors += 1
 
     return prot_errors
@@ -673,16 +663,7 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
         if zip_contents['molecules']['smiles_info']:
             _smiles_files_zip(zip_contents, ziparchive, download_path)
 
-        # Add the metadata file from the target
-        # if zip_contents['metadata_info'] and not _add_file_to_zip(
-        #     ziparchive, 'metadata_info', zip_contents['metadata_info']
-        # ):
-        #     error_file.write(
-        #         f"metadata_info,{target},{zip_contents['metadata_info']}\n"
-        #     )
-        #     errors += 1
-        #     logger.warning('After _add_file_to_zip() errors=%s', errors)
-
+        # compile and add metadata.csv
         if zip_contents['metadata_info']:
             _metadate_file_zip(ziparchive, target)
 
@@ -755,18 +736,17 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     afile = []
                     for f in model_attr:
                         # here the model_attr is already stringified
+                        apath = Path('crystallographic_files').joinpath(so.code)
                         if model_attr and model_attr != 'None':
                             archive_path = str(
-                                Path('crystallographic_files')
-                                .joinpath(so.code)
-                                .joinpath(
+                                apath.joinpath(
                                     Path(f)
                                     .parts[-1]
                                     .replace(so.experiment.code, so.code)
                                 )
                             )
                         else:
-                            archive_path = param
+                            archive_path = str(apath.joinpath(param))
                         afile.append(ArchiveFile(path=f, archive_path=archive_path))
 
                 elif param in [
@@ -787,18 +767,17 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     logger.debug(
                         'Adding param to zip: %s, value: %s', param, model_attr
                     )
+                    apath = Path('aligned_files').joinpath(so.code)
                     if model_attr and model_attr != 'None':
                         archive_path = str(
-                            Path('aligned_files')
-                            .joinpath(so.code)
-                            .joinpath(
+                            apath.joinpath(
                                 Path(model_attr.name)
                                 .parts[-1]
                                 .replace(so.longcode, so.code)
                             )
                         )
                     else:
-                        archive_path = param
+                        archive_path = str(apath.joinpath(param))
 
                     afile = [
                         ArchiveFile(
@@ -812,11 +791,8 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
 
                 zip_contents['proteins'][param][so.code] = afile
 
-    if other_params['single_sdf_file'] is True:
-        zip_contents['molecules']['single_sdf_file'] = True
-
-    if other_params['sdf_info'] is True:
-        zip_contents['molecules']['sdf_info'] = True
+    zip_contents['molecules']['single_sdf_file'] = other_params['single_sdf_file']
+    zip_contents['molecules']['sdf_info'] = other_params['sdf_info']
 
     # sdf information is held as a file on the Molecule record.
     if other_params['sdf_info'] or other_params['single_sdf_file']:
