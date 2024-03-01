@@ -8,19 +8,27 @@ import copy
 import json
 import logging
 import os
+import re
 import shutil
 import uuid
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Any, Dict
 
 import pandoc
 from django.conf import settings
+from django.db.models import Exists, OuterRef, Subquery
 
-from viewer.models import DownloadLinks, SiteObservation
+from viewer.models import (
+    DownloadLinks,
+    SiteObservation,
+    SiteObservationTag,
+    SiteObvsSiteObservationTag,
+    TagCategory,
+)
 from viewer.utils import clean_filename
 
 logger = logging.getLogger(__name__)
@@ -49,6 +57,43 @@ _ZIP_FILEPATHS = {
     'extra_files': ('extra_files'),
     'readme': (''),
 }
+
+TAG_CATEGORIES = (
+    'ConformerSites',
+    'CanonSites',
+    'CrystalformSites',
+    'Quatassemblies',
+    'Crystalforms',
+)
+CURATED_TAG_CATEGORIES = ('Series', 'Forum', 'Other')
+
+
+class TagSubquery(Subquery):
+    """Annotate SiteObservation with tag of given category"""
+
+    def __init__(self, category):
+        query = SiteObservationTag.objects.filter(
+            pk=Subquery(
+                SiteObvsSiteObservationTag.objects.filter(
+                    site_observation=OuterRef('pk'),
+                    site_obvs_tag__category=TagCategory.objects.get(
+                        category=category,
+                    ),
+                ).values('site_obvs_tag')[:1]
+            )
+        ).values('tag')[0:1]
+        super().__init__(query)
+
+
+class CuratedTagSubquery(Exists):
+    """Annotate SiteObservation with tag of given category"""
+
+    def __init__(self, tag):
+        query = SiteObvsSiteObservationTag.objects.filter(
+            site_observation=OuterRef('pk'),
+            site_obvs_tag=tag,
+        )
+        super().__init__(query)
 
 
 @dataclass(frozen=True)
@@ -83,6 +128,9 @@ zip_template = {
 
 
 _ERROR_FILE = 'errors.csv'
+
+# unlike v1, metadata doesn't exist anymore, needs compiling
+_METADATA_FILE = 'metadata.csv'
 
 
 def _add_file_to_zip(ziparchive, param, filepath):
@@ -350,6 +398,58 @@ def _trans_matrix_files_zip(ziparchive, target):
             _add_empty_file(ziparchive, archive_path)
 
 
+def _metadate_file_zip(ziparchive, target):
+    """Compile and add metadata file to archive."""
+    logger.info('+ Processing metadata')
+
+    annotations = {}
+    values = ['code', 'longcode', 'cmpd__compound_code', 'smiles']
+    header = ['Code', 'Long code', 'Compound code', 'Smiles']
+
+    for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
+        tag = f'tag_{category.category.lower()}'
+        values.append(tag)
+        header.append(category.category)
+        annotations[tag] = TagSubquery(category.category)
+
+    pattern = re.compile(r'\W+')
+    for tag in SiteObservationTag.objects.filter(
+        category__in=TagCategory.objects.filter(category__in=CURATED_TAG_CATEGORIES),
+        target=target,
+    ):
+        # for reasons unknown, mypy thinks tag is a string
+        tagname = f'tag_{pattern.sub("_", tag.tag).strip().lower()}'  # type: ignore[attr-defined]
+        values.append(tagname)
+        header.append(f'[{tag.category}] {tag.tag}')  # type: ignore[attr-defined]
+        annotations[tagname] = CuratedTagSubquery(tag)
+
+    # fmt: off
+    qs = SiteObservation.filter_manager.by_target(
+        target=target,
+    ).prefetch_related(
+        'cmpd',
+        'siteobservationtags',
+    ).annotate(**annotations).values_list(*values)
+    # fmt: on
+
+    buff = StringIO()
+    buff.write(','.join(header))
+    buff.write('\n')
+    for so_values in qs:
+        buff.write(
+            ','.join(
+                [
+                    str(k) if k else 'False' if isinstance(k, bool) else ''
+                    for k in so_values
+                ]
+            )
+        )
+        buff.write('\n')
+
+    ziparchive.writestr(_METADATA_FILE, buff.getvalue())
+    logger.info('+ Processing metadata')
+
+
 def _extra_files_zip(ziparchive, target):
     """If an extra info folder exists at the target root level, then
     copy the contents to the output file as is.
@@ -514,7 +614,7 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
 
     error_filename = os.path.join(download_path, _ERROR_FILE)
     error_file = open(error_filename, "w", encoding="utf-8")
-    error_file.write("Param,Code,Invalid file reference\n")
+    error_file.write("Param,Code,File not found when assembling download\n")
     errors = 0
 
     # If a single sdf file is also wanted then create file to
@@ -560,14 +660,17 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
             _smiles_files_zip(zip_contents, ziparchive, download_path)
 
         # Add the metadata file from the target
-        if zip_contents['metadata_info'] and not _add_file_to_zip(
-            ziparchive, 'metadata_info', zip_contents['metadata_info']
-        ):
-            error_file.write(
-                f"metadata_info,{target},{zip_contents['metadata_info']}\n"
-            )
-            errors += 1
-            logger.warning('After _add_file_to_zip() errors=%s', errors)
+        # if zip_contents['metadata_info'] and not _add_file_to_zip(
+        #     ziparchive, 'metadata_info', zip_contents['metadata_info']
+        # ):
+        #     error_file.write(
+        #         f"metadata_info,{target},{zip_contents['metadata_info']}\n"
+        #     )
+        #     errors += 1
+        #     logger.warning('After _add_file_to_zip() errors=%s', errors)
+
+        if zip_contents['metadata_info']:
+            _metadate_file_zip(ziparchive, target)
 
         if zip_contents['trans_matrix_info']:
             _trans_matrix_files_zip(ziparchive, target)
@@ -599,7 +702,7 @@ def _protein_garbage_filter(proteins):
     return proteins.exclude(code__startswith=r'references_')
 
 
-def _create_structures_dict(target, site_obvs, protein_params, other_params):
+def _create_structures_dict(site_obvs, protein_params, other_params):
     """Write a ZIP file containing data from an input dictionary
 
     Args:
@@ -746,13 +849,10 @@ def _create_structures_dict(target, site_obvs, protein_params, other_params):
         for molecule in site_obvs:
             zip_contents['molecules']['smiles_info'].update({molecule.smiles: None})
 
-    # Add the metadata file from the target
-    if other_params['metadata_info'] is True:
-        zip_contents['metadata_info'] = target.metadata.name
+    zip_contents['metadata_info'] = other_params['metadata_info']
 
-    # Add the metadata file from the target
-    if other_params['trans_matrix_info'] is True:
-        zip_contents['trans_matrix_info'] = True
+    # Add the trans matrix files
+    zip_contents['trans_matrix_info'] = other_params['trans_matrix_info']
 
     return zip_contents
 
@@ -900,7 +1000,7 @@ def create_or_return_download_link(request, target, site_observations):
     logger.info('Creating new download (file_url=%s)...', file_url)
 
     zip_contents = _create_structures_dict(
-        target, site_observations, protein_params, other_params
+        site_observations, protein_params, other_params
     )
     _create_structures_zip(target, zip_contents, file_url, original_search, host)
 

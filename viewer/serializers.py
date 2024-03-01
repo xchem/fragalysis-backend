@@ -710,9 +710,18 @@ class SiteObservationTagSerializer(serializers.ModelSerializer):
         many=True, queryset=models.SiteObservation.objects.all()
     )
 
+    def create(self, validated_data):
+        # populate 'upload_name' field at object creation
+        validated_data['upload_name'] = validated_data['tag']
+        return super().create(validated_data)
+
     class Meta:
         model = models.SiteObservationTag
         fields = '__all__'
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "upload_name": {"read_only": True},
+        }
 
 
 class SessionProjectTagSerializer(serializers.ModelSerializer):

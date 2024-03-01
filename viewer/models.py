@@ -1177,6 +1177,9 @@ class TagCategory(models.Model):
 
 class Tag(models.Model):
     tag = models.CharField(max_length=200, help_text="The (unique) name of the tag")
+    upload_name = models.CharField(
+        max_length=200, help_text="The generated name of the tag"
+    )
     category = models.ForeignKey(TagCategory, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, on_delete=models.CASCADE)
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
@@ -1196,9 +1199,10 @@ class Tag(models.Model):
         return f"{self.tag}"
 
     def __repr__(self) -> str:
-        return "<Tag %r %r %r %r %r>" % (
+        return "<Tag %r %r %r %r %r %r>" % (
             self.id,
             self.tag,
+            self.upload_name,
             self.category,
             self.target,
             self.user,
@@ -1207,7 +1211,7 @@ class Tag(models.Model):
     class Meta:
         abstract = True
         unique_together = (
-            'tag',
+            'upload_name',
             'target',
         )
 
