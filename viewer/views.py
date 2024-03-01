@@ -1462,14 +1462,10 @@ class DownloadStructures(ISpyBSafeQuerySet):
         target = None
         logger.info('Given target_name "%s"', target_name)
 
-        # Check target_name is valid
-        # (it should natch the title of an existing target)
-        for targ in self.queryset:
-            if targ.title == target_name:
-                target = targ
-                break
-
-        if not target:
+        # Check target_name is valid:
+        try:
+            target = self.queryset.get(title=target_name)
+        except models.Target.DoesNotExist:
             msg = f'Either the Target "{target_name}" is not present or you are not permitted access it'
             logger.warning(msg)
             content = {'message': msg}

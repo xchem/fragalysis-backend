@@ -31,6 +31,8 @@ from viewer.models import (
 )
 from viewer.utils import clean_filename
 
+from .serializers import DownloadStructuresSerializer
+
 logger = logging.getLogger(__name__)
 
 # Length of time to keep records of dynamic links.
@@ -41,18 +43,23 @@ KEEP_UNTIL_DURATION = timedelta(minutes=90)
 # the protein code subdirectory of the aligned directory
 # (as for the target upload).
 _ZIP_FILEPATHS = {
-    'apo_file': ('aligned'),
-    'bound_file': ('aligned'),
-    'cif_info': ('aligned'),
-    'mtz_info': ('aligned'),
-    'map_info': ('aligned'),
-    'sigmaa_file': ('aligned'),
-    'diff_file': ('aligned'),
-    'event_file': ('aligned'),
-    'sdf_info': ('aligned'),
+    'apo_file': ('aligned'),  # SiteObservation: apo_file
+    'apo_solv_file': ('aligned'),  # SiteObservation: apo_solv_file
+    'apo_desolv_file': ('aligned'),  # SiteObservation: apo_desolv_file
+    'bound_file': ('aligned'),  # SiteObservation: bound_file
+    'sdf_info': ('aligned'),  # SiteObservation: ligand_mol_file (indirectly)
+    'ligand_pdb': ('aligned'),  # SiteObservation: ligand_pdb
+    'smiles_info': (''),  # SiteObservation: smiles_info (indirectly)
+    # those above are all controlled by serializer's all_aligned_structures flag
+    'sigmaa_file': ('aligned'),  # SiteObservation: sigmaa_file
+    'diff_file': ('aligned'),  # SiteObservation: diff_file
+    'event_file': ('aligned'),  # SiteObservation: ligand_pdb
+    'pdb_info': ('aligned'),  # Experiment: cif_info
+    'cif_info': ('aligned'),  # Experiment: cif_info
+    'mtz_info': ('aligned'),  # Experiment: mtz_info
+    'map_info': ('aligned'),  # Experiment: map_info (multiple files)
     'single_sdf_file': (''),
     'metadata_info': (''),
-    'smiles_info': (''),
     'trans_matrix_info': (''),
     'extra_files': ('extra_files'),
     'readme': (''),
@@ -107,14 +114,18 @@ class ArchiveFile:
 # NB you may need to add a version number to this at some point...
 zip_template = {
     'proteins': {
-        'apo_file': {},  # from experiment
-        'bound_file': {},  # x
-        'cif_info': {},  # from experiment
-        'mtz_info': {},  # from experiment
-        'map_info': {},  # from experiment
-        'event_file': {},  # x
+        'apo_file': {},
+        'apo_solv_file': {},
+        'apo_desolv_file': {},
+        'bound_file': {},
+        'pdb_info': {},
+        'cif_info': {},
+        'mtz_info': {},
+        'map_info': {},
+        'event_file': {},
         'diff_file': {},
         'sigmaa_file': {},
+        'ligand_pdb': {},
     },
     'molecules': {
         'sdf_files': {},
@@ -755,13 +766,14 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
 
                 elif param in [
                     'bound_file',
+                    'apo_file',
                     'apo_solv_file',
                     'apo_desolv_file',
-                    'apo_file',
                     'sigmaa_file',
                     'event_file',
                     'artefacts_file',
                     'pdb_header_file',
+                    'ligand_pdb',
                     'diff_file',
                 ]:
                     # siteobservation object
@@ -866,55 +878,35 @@ def get_download_params(request):
     Returns:
         protein_params, other_params
     """
-    protein_param_flags = [
-        'apo_file',
-        'bound_file',
-        'cif_info',
-        'mtz_info',
-        'map_info',
-        'event_file',
-        'sigmaa_file',
-        'diff_file',
-    ]
 
-    other_param_flags = [
-        'sdf_info',
-        'single_sdf_file',
-        'metadata_info',
-        'smiles_info',
-        'trans_matrix_info',
-    ]
+    serializer = DownloadStructuresSerializer(data=request.data)
+    serializer.is_valid()
+    logger.debug('serializer data: %s', serializer.validated_data)
 
-    # protein_params = {'pdb_info': request.data['pdb_info'],
-    #               'bound_info': request.data['bound_info'],
-    #               'cif_info': request.data['cif_info'],
-    #               'mtz_info': request.data['mtz_info'],
-    #               'diff_info': request.data['diff_info'],
-    #               'event_info': request.data['event_info'],
-    #               'sigmaa_info': request.data['sigmaa_info'],
-    #               'trans_matrix_info':
-    #                   request.data['trans_matrix_info']}
-    protein_params = {}
-    for param in protein_param_flags:
-        protein_params[param] = False
-        if param in request.data and request.data[param] in [True, 'true']:
-            protein_params[param] = True
+    protein_params = {
+        'pdb_info': serializer.validated_data['pdb_info'],
+        'apo_file': serializer.validated_data['all_aligned_structures'],
+        'bound_file': serializer.validated_data['all_aligned_structures'],
+        'apo_solv_file': serializer.validated_data['all_aligned_structures'],
+        'apo_desolv_file': serializer.validated_data['all_aligned_structures'],
+        'ligand_pdb': serializer.validated_data['all_aligned_structures'],
+        'cif_info': serializer.validated_data['cif_info'],
+        'mtz_info': serializer.validated_data['mtz_info'],
+        'map_info': serializer.validated_data['map_info'],
+        'event_file': serializer.validated_data['event_file'],
+        'sigmaa_file': serializer.validated_data['sigmaa_file'],
+        'diff_file': serializer.validated_data['diff_file'],
+    }
 
-    # other_params = {'sdf_info': request.data['sdf_info'],
-    #                 'single_sdf_file': request.data['single_sdf_file'],
-    #                 'metadata_info': request.data['metadata_info'],
-    #                 'smiles_info': request.data['smiles_info']}
-    other_params = {}
-    for param in other_param_flags:
-        other_params[param] = False
-        if param in request.data and request.data[param] in [True, 'true']:
-            other_params[param] = True
+    other_params = {
+        'sdf_info': serializer.validated_data['all_aligned_structures'],
+        'single_sdf_file': serializer.validated_data['single_sdf_file'],
+        'metadata_info': serializer.validated_data['metadata_info'],
+        'smiles_info': serializer.validated_data['all_aligned_structures'],
+        'trans_matrix_info': serializer.validated_data['trans_matrix_info'],
+    }
 
-    static_link = False
-    if 'static_link' in request.data and (
-        request.data['static_link'] is True or request.data['static_link'] == 'true'
-    ):
-        static_link = True
+    static_link = serializer.validated_data['static_link']
 
     return protein_params, other_params, static_link
 
