@@ -31,6 +31,8 @@ from viewer.models import (
 )
 from viewer.utils import clean_filename
 
+from .serializers import DownloadStructuresSerializer
+
 logger = logging.getLogger(__name__)
 
 # Length of time to keep records of dynamic links.
@@ -41,18 +43,23 @@ KEEP_UNTIL_DURATION = timedelta(minutes=90)
 # the protein code subdirectory of the aligned directory
 # (as for the target upload).
 _ZIP_FILEPATHS = {
-    'apo_file': ('aligned'),
-    'bound_file': ('aligned'),
-    'cif_info': ('aligned'),
-    'mtz_info': ('aligned'),
-    'map_info': ('aligned'),
-    'sigmaa_file': ('aligned'),
-    'diff_file': ('aligned'),
-    'event_file': ('aligned'),
-    'sdf_info': ('aligned'),
+    'apo_file': ('aligned'),  # SiteObservation: apo_file
+    'apo_solv_file': ('aligned'),  # SiteObservation: apo_solv_file
+    'apo_desolv_file': ('aligned'),  # SiteObservation: apo_desolv_file
+    'bound_file': ('aligned'),  # SiteObservation: bound_file
+    'sdf_info': ('aligned'),  # SiteObservation: ligand_mol_file (indirectly)
+    'ligand_pdb': ('aligned'),  # SiteObservation: ligand_pdb
+    'smiles_info': (''),  # SiteObservation: smiles_info (indirectly)
+    # those above are all controlled by serializer's all_aligned_structures flag
+    'sigmaa_file': ('aligned'),  # SiteObservation: sigmaa_file
+    'diff_file': ('aligned'),  # SiteObservation: diff_file
+    'event_file': ('aligned'),  # SiteObservation: ligand_pdb
+    'pdb_info': ('aligned'),  # Experiment: cif_info
+    'cif_info': ('aligned'),  # Experiment: cif_info
+    'mtz_info': ('aligned'),  # Experiment: mtz_info
+    'map_info': ('aligned'),  # Experiment: map_info (multiple files)
     'single_sdf_file': (''),
     'metadata_info': (''),
-    'smiles_info': (''),
     'trans_matrix_info': (''),
     'extra_files': ('extra_files'),
     'readme': (''),
@@ -107,14 +114,18 @@ class ArchiveFile:
 # NB you may need to add a version number to this at some point...
 zip_template = {
     'proteins': {
-        'apo_file': {},  # from experiment
-        'bound_file': {},  # x
-        'cif_info': {},  # from experiment
-        'mtz_info': {},  # from experiment
-        'map_info': {},  # from experiment
-        'event_file': {},  # x
+        'apo_file': {},
+        'apo_solv_file': {},
+        'apo_desolv_file': {},
+        'bound_file': {},
+        'pdb_info': {},
+        'cif_info': {},
+        'mtz_info': {},
+        'map_info': {},
+        'event_file': {},
         'diff_file': {},
         'sigmaa_file': {},
+        'ligand_pdb': {},
     },
     'molecules': {
         'sdf_files': {},
@@ -131,36 +142,6 @@ _ERROR_FILE = 'errors.csv'
 
 # unlike v1, metadata doesn't exist anymore, needs compiling
 _METADATA_FILE = 'metadata.csv'
-
-
-def _add_file_to_zip(ziparchive, param, filepath):
-    """Add the requested file to the zip archive.
-
-    Args:
-        ziparchive: Handle of zip archive
-        param: parameter of filelist
-        filepath: filepath from record
-
-    Returns:
-        [boolean]: [True of record added]
-    """
-    logger.debug('+_add_file_to_zip: %s, %s', param, filepath)
-    if not filepath:
-        # Odd - assume success
-        logger.error('No filepath value')
-        return True
-
-    fullpath = os.path.join(settings.MEDIA_ROOT, filepath)
-    cleaned_filename = clean_filename(filepath)
-    archive_path = os.path.join(_ZIP_FILEPATHS[param], cleaned_filename)
-    if os.path.isfile(fullpath):
-        ziparchive.write(fullpath, archive_path)
-        return True
-    else:
-        logger.warning('filepath "%s" is not a file', filepath)
-        _add_empty_file(ziparchive, archive_path)
-
-    return False
 
 
 def _is_mol_or_sdf(path):
@@ -220,6 +201,27 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     return content
 
 
+def _patch_molecule_name(site_observation):
+    """Patch the MOL or SDF file with molecule name.
+
+    Processes the content of ligand_mol attribute of the
+    site_observation object. Returns the content as string.
+
+    Alternative to _read_and_patch_molecule_name function above
+    which operates on files. As ligand_mol is now stored as text,
+    slightly different approach was necessary.
+
+    """
+    logger.debug('Patching MOL/SDF of "%s"', site_observation)
+
+    # Now read the file, checking the first line
+    # and setting it to the molecule name if it's blank.
+    lines = site_observation.ligand_mol_file.split('\n')
+    if not lines[0].strip():
+        lines[0] = site_observation.long_code
+    return '\n'.join(lines)
+
+
 def _add_file_to_zip_aligned(ziparchive, code, archive_file):
     """Add the requested file to the zip archive.
 
@@ -253,10 +255,11 @@ def _add_file_to_zip_aligned(ziparchive, code, archive_file):
             ziparchive.write(filepath, archive_file.archive_path)
         return True
     elif archive_file.site_observation:
-        # NB! this bypasses _read_and_patch_molecule_name. problem?
         ziparchive.writestr(
-            archive_file.archive_path, archive_file.site_observation.ligand_mol_file
+            archive_file.archive_path,
+            _patch_molecule_name(archive_file.site_observation),
         )
+        return True
     else:
         logger.warning('filepath "%s" is not a file', filepath)
         _add_empty_file(ziparchive, archive_file.archive_path)
@@ -274,17 +277,14 @@ def _add_file_to_sdf(combined_sdf_file, archive_file):
     Returns:
         [boolean]: [True of record added]
     """
-    media_root = settings.MEDIA_ROOT
-
     if not archive_file.path:
         # Odd - assume success
         logger.error('No filepath value')
         return True
 
-    fullpath = os.path.join(media_root, archive_file.path)
-    if os.path.isfile(fullpath):
+    if archive_file.path and archive_file.path != 'None':
         with open(combined_sdf_file, 'a', encoding='utf-8') as f_out:
-            patched_sdf_content = _read_and_patch_molecule_name(fullpath)
+            patched_sdf_content = _patch_molecule_name(archive_file.site_observation)
             f_out.write(patched_sdf_content)
         return True
     else:
@@ -304,8 +304,9 @@ def _protein_files_zip(zip_contents, ziparchive, error_file):
 
         for prot, prot_file in files.items():
             for f in prot_file:
+                # memo to self: f is ArchiveFile object
                 if not _add_file_to_zip_aligned(ziparchive, prot, f):
-                    error_file.write(f'{param},{prot},{f}\n')
+                    error_file.write(f'{param},{prot},{f.archive_path}\n')
                     prot_errors += 1
 
     return prot_errors
@@ -499,7 +500,7 @@ def _extra_files_zip(ziparchive, target):
         logger.info('Processed %s extra files', num_processed)
 
 
-def _yaml_files_zip(ziparchive, target):
+def _yaml_files_zip(ziparchive, target, transforms_requested: bool = False) -> None:
     """Add all yaml files (except transforms) from upload to ziparchive"""
 
     for experiment_upload in target.experimentupload_set.order_by('commit_datetime'):
@@ -536,6 +537,9 @@ def _yaml_files_zip(ziparchive, target):
 
         for file in yaml_files:
             logger.info('Adding yaml file "%s"...', file)
+            if not transforms_requested and file.name == 'neighbourhoods.yaml':
+                # don't add this file if transforms are not requested
+                continue
             ziparchive.write(file, str(Path(archive_path).joinpath(file.name)))
 
 
@@ -659,16 +663,7 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
         if zip_contents['molecules']['smiles_info']:
             _smiles_files_zip(zip_contents, ziparchive, download_path)
 
-        # Add the metadata file from the target
-        # if zip_contents['metadata_info'] and not _add_file_to_zip(
-        #     ziparchive, 'metadata_info', zip_contents['metadata_info']
-        # ):
-        #     error_file.write(
-        #         f"metadata_info,{target},{zip_contents['metadata_info']}\n"
-        #     )
-        #     errors += 1
-        #     logger.warning('After _add_file_to_zip() errors=%s', errors)
-
+        # compile and add metadata.csv
         if zip_contents['metadata_info']:
             _metadate_file_zip(ziparchive, target)
 
@@ -677,7 +672,9 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
 
         _extra_files_zip(ziparchive, target)
 
-        _yaml_files_zip(ziparchive, target)
+        _yaml_files_zip(
+            ziparchive, target, transforms_requested=zip_contents['trans_matrix_info']
+        )
 
         _document_file_zip(ziparchive, download_path, original_search, host)
 
@@ -739,29 +736,29 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     afile = []
                     for f in model_attr:
                         # here the model_attr is already stringified
+                        apath = Path('crystallographic_files').joinpath(so.code)
                         if model_attr and model_attr != 'None':
                             archive_path = str(
-                                Path('crystallographic_files')
-                                .joinpath(so.code)
-                                .joinpath(
+                                apath.joinpath(
                                     Path(f)
                                     .parts[-1]
                                     .replace(so.experiment.code, so.code)
                                 )
                             )
                         else:
-                            archive_path = param
+                            archive_path = str(apath.joinpath(param))
                         afile.append(ArchiveFile(path=f, archive_path=archive_path))
 
                 elif param in [
                     'bound_file',
+                    'apo_file',
                     'apo_solv_file',
                     'apo_desolv_file',
-                    'apo_file',
                     'sigmaa_file',
                     'event_file',
                     'artefacts_file',
                     'pdb_header_file',
+                    'ligand_pdb',
                     'diff_file',
                 ]:
                     # siteobservation object
@@ -770,18 +767,17 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     logger.debug(
                         'Adding param to zip: %s, value: %s', param, model_attr
                     )
+                    apath = Path('aligned_files').joinpath(so.code)
                     if model_attr and model_attr != 'None':
                         archive_path = str(
-                            Path('aligned_files')
-                            .joinpath(so.code)
-                            .joinpath(
+                            apath.joinpath(
                                 Path(model_attr.name)
                                 .parts[-1]
                                 .replace(so.longcode, so.code)
                             )
                         )
                     else:
-                        archive_path = param
+                        archive_path = str(apath.joinpath(param))
 
                     afile = [
                         ArchiveFile(
@@ -795,11 +791,8 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
 
                 zip_contents['proteins'][param][so.code] = afile
 
-    if other_params['single_sdf_file'] is True:
-        zip_contents['molecules']['single_sdf_file'] = True
-
-    if other_params['sdf_info'] is True:
-        zip_contents['molecules']['sdf_info'] = True
+    zip_contents['molecules']['single_sdf_file'] = other_params['single_sdf_file']
+    zip_contents['molecules']['sdf_info'] = other_params['sdf_info']
 
     # sdf information is held as a file on the Molecule record.
     if other_params['sdf_info'] or other_params['single_sdf_file']:
@@ -866,55 +859,35 @@ def get_download_params(request):
     Returns:
         protein_params, other_params
     """
-    protein_param_flags = [
-        'apo_file',
-        'bound_file',
-        'cif_info',
-        'mtz_info',
-        'map_info',
-        'event_file',
-        'sigmaa_file',
-        'diff_file',
-    ]
 
-    other_param_flags = [
-        'sdf_info',
-        'single_sdf_file',
-        'metadata_info',
-        'smiles_info',
-        'trans_matrix_info',
-    ]
+    serializer = DownloadStructuresSerializer(data=request.data)
+    serializer.is_valid()
+    logger.debug('serializer data: %s', serializer.validated_data)
 
-    # protein_params = {'pdb_info': request.data['pdb_info'],
-    #               'bound_info': request.data['bound_info'],
-    #               'cif_info': request.data['cif_info'],
-    #               'mtz_info': request.data['mtz_info'],
-    #               'diff_info': request.data['diff_info'],
-    #               'event_info': request.data['event_info'],
-    #               'sigmaa_info': request.data['sigmaa_info'],
-    #               'trans_matrix_info':
-    #                   request.data['trans_matrix_info']}
-    protein_params = {}
-    for param in protein_param_flags:
-        protein_params[param] = False
-        if param in request.data and request.data[param] in [True, 'true']:
-            protein_params[param] = True
+    protein_params = {
+        'pdb_info': serializer.validated_data['pdb_info'],
+        'apo_file': serializer.validated_data['all_aligned_structures'],
+        'bound_file': serializer.validated_data['all_aligned_structures'],
+        'apo_solv_file': serializer.validated_data['all_aligned_structures'],
+        'apo_desolv_file': serializer.validated_data['all_aligned_structures'],
+        'ligand_pdb': serializer.validated_data['all_aligned_structures'],
+        'cif_info': serializer.validated_data['cif_info'],
+        'mtz_info': serializer.validated_data['mtz_info'],
+        'map_info': serializer.validated_data['map_info'],
+        'event_file': serializer.validated_data['event_file'],
+        'sigmaa_file': serializer.validated_data['sigmaa_file'],
+        'diff_file': serializer.validated_data['diff_file'],
+    }
 
-    # other_params = {'sdf_info': request.data['sdf_info'],
-    #                 'single_sdf_file': request.data['single_sdf_file'],
-    #                 'metadata_info': request.data['metadata_info'],
-    #                 'smiles_info': request.data['smiles_info']}
-    other_params = {}
-    for param in other_param_flags:
-        other_params[param] = False
-        if param in request.data and request.data[param] in [True, 'true']:
-            other_params[param] = True
+    other_params = {
+        'sdf_info': serializer.validated_data['all_aligned_structures'],
+        'single_sdf_file': serializer.validated_data['single_sdf_file'],
+        'metadata_info': serializer.validated_data['metadata_info'],
+        'smiles_info': serializer.validated_data['all_aligned_structures'],
+        'trans_matrix_info': serializer.validated_data['trans_matrix_info'],
+    }
 
-    static_link = False
-    if 'static_link' in request.data and (
-        request.data['static_link'] is True or request.data['static_link'] == 'true'
-    ):
-        static_link = True
+    static_link = serializer.validated_data['static_link']
 
     return protein_params, other_params, static_link
 

@@ -1324,6 +1324,7 @@ class TargetLoader:
             sigmaa_file,
             diff_file,
             event_file,
+            ligand_pdb,
         ) = self.validate_files(
             obj_identifier=experiment_id,
             file_struct=data,
@@ -1339,6 +1340,7 @@ class TargetLoader:
                 "sigmaa_map",  # NB! keys in meta_aligner not yet updated
                 "diff_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
+                "ligand_pdb",
             ),
             validate_files=validate_files,
         )
@@ -1375,6 +1377,7 @@ class TargetLoader:
             "diff_file": str(self._get_final_path(diff_file)),
             "event_file": str(self._get_final_path(event_file)),
             "artefacts_file": str(self._get_final_path(artefacts_file)),
+            "ligand_pdb": str(self._get_final_path(ligand_pdb)),
             "pdb_header_file": "currently missing",
             "ligand_mol_file": mol_data,
         }

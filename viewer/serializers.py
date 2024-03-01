@@ -832,22 +832,20 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
 
 
 class DownloadStructuresSerializer(serializers.Serializer):
-    target_name = serializers.CharField(max_length=200)
-    proteins = serializers.CharField(max_length=5000)
-    apo_file = serializers.BooleanField(default=False)
-    bound_file = serializers.BooleanField(default=False)
+    target_name = serializers.CharField(max_length=200, default=None)
+    proteins = serializers.CharField(max_length=5000, default=None)
+    all_aligned_structures = serializers.BooleanField(default=False)
+    pdb_info = serializers.BooleanField(default=False)
     cif_info = serializers.BooleanField(default=False)
     mtz_info = serializers.BooleanField(default=False)
     diff_file = serializers.BooleanField(default=False)
     event_file = serializers.BooleanField(default=False)
     sigmaa_file = serializers.BooleanField(default=False)
     map_info = serializers.BooleanField(default=False)
-    sdf_info = serializers.BooleanField(default=False)
     single_sdf_file = serializers.BooleanField(default=False)
     metadata_info = serializers.BooleanField(default=False)
-    smiles_info = serializers.BooleanField(default=False)
     static_link = serializers.BooleanField(default=False)
-    file_url = serializers.CharField(max_length=200)
+    file_url = serializers.CharField(max_length=200, default=None)
     trans_matrix_info = serializers.BooleanField(default=False)
 
 
