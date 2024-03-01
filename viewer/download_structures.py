@@ -510,7 +510,7 @@ def _extra_files_zip(ziparchive, target):
         logger.info('Processed %s extra files', num_processed)
 
 
-def _yaml_files_zip(ziparchive, target):
+def _yaml_files_zip(ziparchive, target, transforms_requested: bool = False) -> None:
     """Add all yaml files (except transforms) from upload to ziparchive"""
 
     for experiment_upload in target.experimentupload_set.order_by('commit_datetime'):
@@ -547,6 +547,9 @@ def _yaml_files_zip(ziparchive, target):
 
         for file in yaml_files:
             logger.info('Adding yaml file "%s"...', file)
+            if not transforms_requested and file.name == 'neighbourhoods.yaml':
+                # don't add this file if transforms are not requested
+                continue
             ziparchive.write(file, str(Path(archive_path).joinpath(file.name)))
 
 
@@ -688,7 +691,9 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
 
         _extra_files_zip(ziparchive, target)
 
-        _yaml_files_zip(ziparchive, target)
+        _yaml_files_zip(
+            ziparchive, target, transforms_requested=zip_contents['trans_matrix_info']
+        )
 
         _document_file_zip(ziparchive, download_path, original_search, host)
 
