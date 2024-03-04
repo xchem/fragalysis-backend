@@ -242,7 +242,8 @@ def _add_file_to_zip_aligned(ziparchive, code, archive_file):
         logger.error('No filepath value')
         return True
 
-    filepath = str(Path(settings.MEDIA_ROOT).joinpath(archive_file.path))
+    # calling str on archive_file.path because could be None
+    filepath = str(Path(settings.MEDIA_ROOT).joinpath(str(archive_file.path)))
     if Path(filepath).is_file():
         if _is_mol_or_sdf(filepath):
             # It's a MOL or SD file.
@@ -861,8 +862,10 @@ def get_download_params(request):
     """
 
     serializer = DownloadStructuresSerializer(data=request.data)
-    serializer.is_valid()
-    logger.debug('serializer data: %s', serializer.validated_data)
+    valid = serializer.is_valid()
+    logger.debug('serializer validated data: %s, %s', valid, serializer.validated_data)
+    if not valid:
+        logger.error('serializer errors: %s', serializer.errors)
 
     protein_params = {
         'pdb_info': serializer.validated_data['pdb_info'],

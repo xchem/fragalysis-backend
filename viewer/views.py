@@ -1425,6 +1425,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
         this method.
         """
         logger.info('+ DownloadStructures.post')
+        logger.debug('DownloadStructures.post.data: %s', request.data)
 
         erase_out_of_date_download_records()
 
