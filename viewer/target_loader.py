@@ -5,7 +5,6 @@ import itertools
 import logging
 import math
 import os
-import re
 import string
 import tarfile
 import uuid
@@ -23,7 +22,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Model
+from django.db.models import Count, Model
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
@@ -1655,7 +1654,6 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
-        # values = ["canon_site_conf__canon_site", "cmpd"]
         values = ["experiment"]
         qs = (
             SiteObservation.objects.values(*values)
@@ -1663,58 +1661,61 @@ class TargetLoader:
             .annotate(obvs=ArrayAgg("id"))
             .values_list("obvs", flat=True)
         )
+
         for elem in qs:
-            # objects in this group should be named with same scheme
-            so_group = SiteObservation.objects.filter(pk__in=elem)
+            # fmt: off
+            subgroups = SiteObservation.objects.filter(
+                pk__in=elem,
+            ).order_by(
+                "canon_site_conf__canon_site",
+            ).annotate(
+                sites=Count("canon_site_conf__canon_site"),
+                obvs=ArrayAgg('id'),
+            ).order_by(
+                "-sites",
+            ).values_list("obvs", flat=True)
+            # fmt: on
 
-            # first process existing codes and find maximum value
-            codelist = so_group.filter(code__isnull=False).values_list(
-                "code", flat=True
-            )
-            stripped = []
-            for k in codelist:
-                try:
-                    stripped.append(re.search(r"x\d*\D*", k).group(0))
-                except AttributeError:
-                    # code exists but seems to be non-standard. don't
-                    # know if this has implications to upload
-                    # processing
-                    logger.error("Non-standard SiteObservation code: %s", k)
+            suffix = alphanumerator()
+            for sub in subgroups:
+                # objects in this group should be named with same scheme
+                so_group = SiteObservation.objects.filter(pk__in=sub)
 
-            # get the latest iterator position
-            iter_pos = ""
-            if stripped:
-                last = sorted(stripped)[-1]
-                try:
-                    iter_pos = re.search(r"[^\d]+(?=\d*$)", last).group(0)
-                except AttributeError:
-                    # technically it should be validated in previous try-catch block
-                    logger.error("Non-standard SiteObservation code 2: %s", last)
+                # memo to self: there used to be some code to test the
+                # position of the iterator in existing entries. This
+                # was because it was assumed, that when adding v2
+                # uploads, it can bring a long new observations under
+                # existing experiment. Following discussions with
+                # Conor, it seems that this will not be the case. But
+                # should it agin be, this code was deleted on
+                # 2024-03-04, if you need to check
 
-            # ... and create new one starting from next item
-            suffix = alphanumerator(start_from=iter_pos)
-            for so in so_group.filter(code__isnull=True):
-                code_prefix = experiment_objects[so.experiment.code].index_data[
-                    "code_prefix"
-                ]
-                code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
-
-                # test uniqueness for target
-                # TODO: this should ideally be solved by db engine, before
-                # rushing to write the trigger, have think about the
-                # loader concurrency situations
-                if SiteObservation.objects.filter(
-                    experiment__experiment_upload__target=self.target,
-                    code=code,
-                ).exists():
-                    msg = (
-                        f"short code {code} already exists for this target;  "
-                        + "specify a code_prefix to resolve this conflict"
+                for so in so_group.filter(code__isnull=True):
+                    code_prefix = experiment_objects[so.experiment.code].index_data[
+                        "code_prefix"
+                    ]
+                    # iter_pos = next(suffix)
+                    # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
+                    code = (
+                        f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
                     )
-                    self.report.log(logging.ERROR, msg)
 
-                so.code = code
-                so.save()
+                    # test uniqueness for target
+                    # TODO: this should ideally be solved by db engine, before
+                    # rushing to write the trigger, have think about the
+                    # loader concurrency situations
+                    if SiteObservation.objects.filter(
+                        experiment__experiment_upload__target=self.target,
+                        code=code,
+                    ).exists():
+                        msg = (
+                            f"short code {code} already exists for this target;  "
+                            + "specify a code_prefix to resolve this conflict"
+                        )
+                        self.report.log(logging.ERROR, msg)
+
+                    so.code = code
+                    so.save()
 
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
