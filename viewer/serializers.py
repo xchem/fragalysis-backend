@@ -832,8 +832,8 @@ class TargetMoleculesSerializer(serializers.ModelSerializer):
 
 
 class DownloadStructuresSerializer(serializers.Serializer):
-    target_name = serializers.CharField(max_length=200, default=None)
-    proteins = serializers.CharField(max_length=5000, default=None)
+    target_name = serializers.CharField(max_length=200, default=None, allow_blank=True)
+    proteins = serializers.CharField(max_length=5000, default='', allow_blank=True)
     all_aligned_structures = serializers.BooleanField(default=False)
     pdb_info = serializers.BooleanField(default=False)
     cif_info = serializers.BooleanField(default=False)
@@ -845,7 +845,7 @@ class DownloadStructuresSerializer(serializers.Serializer):
     single_sdf_file = serializers.BooleanField(default=False)
     metadata_info = serializers.BooleanField(default=False)
     static_link = serializers.BooleanField(default=False)
-    file_url = serializers.CharField(max_length=200, default=None)
+    file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
     trans_matrix_info = serializers.BooleanField(default=False)
 
 
