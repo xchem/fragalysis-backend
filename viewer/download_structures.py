@@ -20,7 +20,8 @@ from typing import Any, Dict
 
 import pandoc
 from django.conf import settings
-from django.db.models import Exists, OuterRef, Subquery
+from django.db.models import CharField, Exists, F, OuterRef, Subquery, Value
+from django.db.models.functions import Concat
 
 from viewer.models import (
     DownloadLinks,
@@ -79,6 +80,7 @@ class TagSubquery(Subquery):
     """Annotate SiteObservation with tag of given category"""
 
     def __init__(self, category):
+        # fmt: off
         query = SiteObservationTag.objects.filter(
             pk=Subquery(
                 SiteObvsSiteObservationTag.objects.filter(
@@ -88,8 +90,16 @@ class TagSubquery(Subquery):
                     ),
                 ).values('site_obvs_tag')[:1]
             )
-        ).values('tag')[0:1]
+        ).annotate(
+            combitag=Concat(
+                F('tag_prefix'),
+                Value(' - '),
+                F('tag'),
+                output_field=CharField(),
+            ),
+        ).values('combitag')[0:1]
         super().__init__(query)
+        # fmt: on
 
 
 class CuratedTagSubquery(Exists):
