@@ -721,6 +721,7 @@ class SiteObservationTagSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "id": {"read_only": True},
             "upload_name": {"read_only": True},
+            "tag_prefix": {"read_only": True},
         }
 
 
