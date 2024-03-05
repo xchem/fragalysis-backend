@@ -737,7 +737,13 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     afile = []
                     for f in model_attr:
                         # here the model_attr is already stringified
-                        apath = Path('crystallographic_files').joinpath(so.code)
+                        try:
+                            exp_path = re.search(r"x\d*", so.code).group(0)  # type: ignore[union-attr]
+                        except AttributeError:
+                            logger.error('Unexpected shortcodeformat: %s', so.code)
+                            exp_path = so.code
+
+                        apath = Path('crystallographic_files').joinpath(exp_path)
                         if model_attr and model_attr != 'None':
                             archive_path = str(
                                 apath.joinpath(
