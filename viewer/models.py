@@ -1180,6 +1180,9 @@ class TagCategory(models.Model):
 
 class Tag(models.Model):
     tag = models.CharField(max_length=200, help_text="The (unique) name of the tag")
+    tag_prefix = models.TextField(
+        null=True, help_text="Tag prefix for auto-generated tags"
+    )
     upload_name = models.CharField(
         max_length=200, help_text="The generated name of the tag"
     )
