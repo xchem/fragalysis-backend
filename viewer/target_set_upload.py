@@ -637,7 +637,7 @@ def specifc_site(rd_mols, site_observations, target, site_description=None):
 
     try:
         site_obvs_tag = SiteObservationTag.objects.get(
-            tag=site_description, target_id=target.id
+            upload_name=site_description, target_id=target.id
         )
     except SiteObservationTag.DoesNotExist:
         site_obvs_tag = None
@@ -646,6 +646,7 @@ def specifc_site(rd_mols, site_observations, target, site_description=None):
         # New site/tag or the tag has been deleted
         site_obvs_tag = SiteObservationTag()
         site_obvs_tag.tag = site_description
+        site_obvs_tag.upload_name = site_description
         site_obvs_tag.category = TagCategory.objects.get(category='Sites')
         site_obvs_tag.target = target
         site_obvs_tag.mol_group = site_obvs_group

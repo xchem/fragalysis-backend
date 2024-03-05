@@ -465,6 +465,9 @@ class SiteObservation(models.Model):
     seq_id = models.IntegerField()
     chain_id = models.CharField(max_length=1)
     ligand_mol_file = models.TextField(null=True)
+    ligand_pdb = models.FileField(
+        upload_to="target_loader_data/", null=True, max_length=255
+    )
 
     objects = models.Manager()
     history = HistoricalRecords()
@@ -1177,6 +1180,12 @@ class TagCategory(models.Model):
 
 class Tag(models.Model):
     tag = models.CharField(max_length=200, help_text="The (unique) name of the tag")
+    tag_prefix = models.TextField(
+        null=True, help_text="Tag prefix for auto-generated tags"
+    )
+    upload_name = models.CharField(
+        max_length=200, help_text="The generated name of the tag"
+    )
     category = models.ForeignKey(TagCategory, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, on_delete=models.CASCADE)
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
@@ -1196,9 +1205,10 @@ class Tag(models.Model):
         return f"{self.tag}"
 
     def __repr__(self) -> str:
-        return "<Tag %r %r %r %r %r>" % (
+        return "<Tag %r %r %r %r %r %r>" % (
             self.id,
             self.tag,
+            self.upload_name,
             self.category,
             self.target,
             self.user,
@@ -1207,7 +1217,7 @@ class Tag(models.Model):
     class Meta:
         abstract = True
         unique_together = (
-            'tag',
+            'upload_name',
             'target',
         )
 

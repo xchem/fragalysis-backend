@@ -5,7 +5,6 @@ import itertools
 import logging
 import math
 import os
-import re
 import string
 import tarfile
 import uuid
@@ -23,7 +22,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Model
+from django.db.models import Count, Model
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
@@ -1324,6 +1323,7 @@ class TargetLoader:
             sigmaa_file,
             diff_file,
             event_file,
+            ligand_pdb,
         ) = self.validate_files(
             obj_identifier=experiment_id,
             file_struct=data,
@@ -1339,6 +1339,7 @@ class TargetLoader:
                 "sigmaa_map",  # NB! keys in meta_aligner not yet updated
                 "diff_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
+                "ligand_pdb",
             ),
             validate_files=validate_files,
         )
@@ -1375,6 +1376,7 @@ class TargetLoader:
             "diff_file": str(self._get_final_path(diff_file)),
             "event_file": str(self._get_final_path(event_file)),
             "artefacts_file": str(self._get_final_path(artefacts_file)),
+            "ligand_pdb": str(self._get_final_path(ligand_pdb)),
             "pdb_header_file": "currently missing",
             "ligand_mol_file": mol_data,
         }
@@ -1652,7 +1654,6 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
-        # values = ["canon_site_conf__canon_site", "cmpd"]
         values = ["experiment"]
         qs = (
             SiteObservation.objects.values(*values)
@@ -1660,58 +1661,61 @@ class TargetLoader:
             .annotate(obvs=ArrayAgg("id"))
             .values_list("obvs", flat=True)
         )
+
         for elem in qs:
-            # objects in this group should be named with same scheme
-            so_group = SiteObservation.objects.filter(pk__in=elem)
+            # fmt: off
+            subgroups = SiteObservation.objects.filter(
+                pk__in=elem,
+            ).order_by(
+                "canon_site_conf__canon_site",
+            ).annotate(
+                sites=Count("canon_site_conf__canon_site"),
+                obvs=ArrayAgg('id'),
+            ).order_by(
+                "-sites",
+            ).values_list("obvs", flat=True)
+            # fmt: on
 
-            # first process existing codes and find maximum value
-            codelist = so_group.filter(code__isnull=False).values_list(
-                "code", flat=True
-            )
-            stripped = []
-            for k in codelist:
-                try:
-                    stripped.append(re.search(r"x\d*\D*", k).group(0))
-                except AttributeError:
-                    # code exists but seems to be non-standard. don't
-                    # know if this has implications to upload
-                    # processing
-                    logger.error("Non-standard SiteObservation code: %s", k)
+            suffix = alphanumerator()
+            for sub in subgroups:
+                # objects in this group should be named with same scheme
+                so_group = SiteObservation.objects.filter(pk__in=sub)
 
-            # get the latest iterator position
-            iter_pos = ""
-            if stripped:
-                last = sorted(stripped)[-1]
-                try:
-                    iter_pos = re.search(r"[^\d]+(?=\d*$)", last).group(0)
-                except AttributeError:
-                    # technically it should be validated in previous try-catch block
-                    logger.error("Non-standard SiteObservation code 2: %s", last)
+                # memo to self: there used to be some code to test the
+                # position of the iterator in existing entries. This
+                # was because it was assumed, that when adding v2
+                # uploads, it can bring a long new observations under
+                # existing experiment. Following discussions with
+                # Conor, it seems that this will not be the case. But
+                # should it agin be, this code was deleted on
+                # 2024-03-04, if you need to check
 
-            # ... and create new one starting from next item
-            suffix = alphanumerator(start_from=iter_pos)
-            for so in so_group.filter(code__isnull=True):
-                code_prefix = experiment_objects[so.experiment.code].index_data[
-                    "code_prefix"
-                ]
-                code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
-
-                # test uniqueness for target
-                # TODO: this should ideally be solved by db engine, before
-                # rushing to write the trigger, have think about the
-                # loader concurrency situations
-                if SiteObservation.objects.filter(
-                    experiment__experiment_upload__target=self.target,
-                    code=code,
-                ).exists():
-                    msg = (
-                        f"short code {code} already exists for this target;  "
-                        + "specify a code_prefix to resolve this conflict"
+                for so in so_group.filter(code__isnull=True):
+                    code_prefix = experiment_objects[so.experiment.code].index_data[
+                        "code_prefix"
+                    ]
+                    # iter_pos = next(suffix)
+                    # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
+                    code = (
+                        f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
                     )
-                    self.report.log(logging.ERROR, msg)
 
-                so.code = code
-                so.save()
+                    # test uniqueness for target
+                    # TODO: this should ideally be solved by db engine, before
+                    # rushing to write the trigger, have think about the
+                    # loader concurrency situations
+                    if SiteObservation.objects.filter(
+                        experiment__experiment_upload__target=self.target,
+                        code=code,
+                    ).exists():
+                        msg = (
+                            f"short code {code} already exists for this target;  "
+                            + "specify a code_prefix to resolve this conflict"
+                        )
+                        self.report.log(logging.ERROR, msg)
+
+                    so.code = code
+                    so.save()
 
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
@@ -1724,11 +1728,12 @@ class TargetLoader:
 
         # tag site observations
         for val in canon_site_objects.values():  # pylint: disable=no-member
-            tag = f"{val.instance.canon_site_num} - {''.join(val.instance.name.split('+')[1:-1])}"
+            prefix = val.instance.canon_site_num
+            tag = ''.join(val.instance.name.split('+')[1:-1])
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
-            self._tag_observations(tag, "CanonSites", so_list)
+            self._tag_observations(tag, prefix, "CanonSites", so_list)
 
         logger.debug("canon_site objects tagged")
 
@@ -1736,51 +1741,52 @@ class TargetLoader:
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
             if val.instance.canon_site.canon_site_num not in numerators.keys():
                 numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
-            tag = (
+            prefix = (
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
-                + f" - {val.instance.name.split('+')[0]}"
             )
+            tag = val.instance.name.split('+')[0]
             so_list = [
                 site_observation_objects[strip_version(k)].instance
                 for k in val.index_data["members"]
             ]
-            self._tag_observations(tag, "ConformerSites", so_list)
+            self._tag_observations(tag, prefix, "ConformerSites", so_list)
 
         logger.debug("conf_site objects tagged")
 
         for val in quat_assembly_objects.values():  # pylint: disable=no-member
-            tag = f"A{val.instance.assembly_num} - {val.instance.name}"
+            prefix = f"A{val.instance.assembly_num}"
+            tag = val.instance.name
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform__in=XtalformQuatAssembly.objects.filter(
                     quat_assembly=val.instance
                 ).values("xtalform")
             )
-            self._tag_observations(tag, "Quatassemblies", so_list)
+            self._tag_observations(tag, prefix, "Quatassemblies", so_list)
 
         logger.debug("quat_assembly objects tagged")
 
         for val in xtalform_objects.values():  # pylint: disable=no-member
-            tag = f"F{val.instance.xtalform_num} - {val.instance.name}"
+            prefix = f"F{val.instance.xtalform_num}"
+            tag = val.instance.name
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform=val.instance
             )
-            self._tag_observations(tag, "Crystalforms", so_list)
+            self._tag_observations(tag, prefix, "Crystalforms", so_list)
 
         logger.debug("xtalform objects tagged")
 
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
-            tag = (
+            prefix = (
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
-                + f" - {val.instance.xtalform.name}"
-                + f" - {val.instance.xtalform_site_id}"
             )
+            tag = f"{val.instance.xtalform.name} - {val.instance.xtalform_site_id}"
             so_list = [
                 site_observation_objects[strip_version(k)].instance
                 for k in val.index_data["residues"]
             ]
-            self._tag_observations(tag, "CrystalformSites", so_list)
+            self._tag_observations(tag, prefix, "CrystalformSites", so_list)
 
         logger.debug("xtalform_sites objects tagged")
 
@@ -1832,7 +1838,7 @@ class TargetLoader:
 
         return result
 
-    def _tag_observations(self, tag, category, so_list):
+    def _tag_observations(self, tag, prefix, category, so_list):
         try:
             # memo to self: description is set to tag, but there's
             # no fk to tag, instead, tag has a fk to
@@ -1859,7 +1865,7 @@ class TargetLoader:
             so_group.save()
 
         try:
-            so_tag = SiteObservationTag.objects.get(tag=tag, target=self.target)
+            so_tag = SiteObservationTag.objects.get(upload_name=tag, target=self.target)
             # Tag already exists
             # Apart from the new mol_group and molecules, we shouldn't be
             # changing anything.
@@ -1867,6 +1873,8 @@ class TargetLoader:
         except SiteObservationTag.DoesNotExist:
             so_tag = SiteObservationTag()
             so_tag.tag = tag
+            so_tag.tag_prefix = prefix
+            so_tag.upload_name = tag
             so_tag.category = TagCategory.objects.get(category=category)
             so_tag.target = self.target
             so_tag.mol_group = so_group
