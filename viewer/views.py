@@ -1473,7 +1473,9 @@ class DownloadStructures(ISpyBSafeQuerySet):
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         logger.info('Found Target record %r', target)
-        proteins_list = [p.strip() for p in request.data.get('proteins', []).split(',')]
+        proteins_list = [
+            p.strip() for p in request.data.get('proteins', '').split(',') if p
+        ]
         if proteins_list:
             logger.info('Given %s Proteins %s', len(proteins_list), proteins_list)
             logger.info('Looking for SiteObservation records for given Proteins...')
