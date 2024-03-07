@@ -635,7 +635,7 @@ class TargetLoader:
 
         # memo to self: added type ignore directives to return line
         # below and append line above because after small refactoring,
-        # mypy all of the sudden started throwing errors on bothe or
+        # mypy all of the sudden started throwing errors on both of
         # these. the core of it's grievance is that it expects the
         # return type to be list[str]. no idea why, function signature
         # clearly defines it as list[str | None]
@@ -1348,7 +1348,19 @@ class TargetLoader:
             validate_files=validate_files,
         )
 
+        # TODO: ligand file simulation for testing, remove once the
+        # key is addded to XCA output
+        if ligand_mol:
+            ligand_smiles_path = f"{ligand_mol.removesuffix('.mol')}.smi"
+            if self.raw_data.joinpath(ligand_smiles_path).is_file():
+                ligand_smiles = ligand_smiles_path
+            else:
+                ligand_smiles = None
+        else:
+            ligand_smiles = None
+
         logger.debug('looking for ligand_mol: %s', ligand_mol_file)
+
         mol_data = None
         if ligand_mol_file:
             with contextlib.suppress(TypeError, FileNotFoundError):

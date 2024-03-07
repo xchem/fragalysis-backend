@@ -49,6 +49,8 @@ _ZIP_FILEPATHS = {
     'apo_desolv_file': ('aligned'),  # SiteObservation: apo_desolv_file
     'bound_file': ('aligned'),  # SiteObservation: bound_file
     'sdf_info': ('aligned'),  # SiteObservation: ligand_mol_file (indirectly)
+    'ligand_mol': ('aligned'),  # SiteObservation: ligand_mol
+    'ligand_smiles': ('aligned'),  # SiteObservation: ligand_smiles
     'ligand_pdb': ('aligned'),  # SiteObservation: ligand_pdb
     'smiles_info': (''),  # SiteObservation: smiles_info (indirectly)
     # those above are all controlled by serializer's all_aligned_structures flag
@@ -136,6 +138,8 @@ zip_template = {
         'diff_file': {},
         'sigmaa_file': {},
         'ligand_pdb': {},
+        'ligand_mol': {},
+        'ligand_smiles': {},
     },
     'molecules': {
         'sdf_files': {},
@@ -229,6 +233,10 @@ def _patch_molecule_name(site_observation):
     lines = site_observation.ligand_mol_file.split('\n')
     if not lines[0].strip():
         lines[0] = site_observation.long_code
+
+    # the db contents is mol file but what's requested here is
+    # sdf. add sdf separator
+    lines.append('$$$$\n')
     return '\n'.join(lines)
 
 
@@ -776,6 +784,8 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     'artefacts_file',
                     'pdb_header_file',
                     'ligand_pdb',
+                    'ligand_mol',
+                    'ligand_smiles',
                     'diff_file',
                 ]:
                     # siteobservation object
@@ -890,6 +900,8 @@ def get_download_params(request):
         'apo_solv_file': serializer.validated_data['all_aligned_structures'],
         'apo_desolv_file': serializer.validated_data['all_aligned_structures'],
         'ligand_pdb': serializer.validated_data['all_aligned_structures'],
+        'ligand_mol': serializer.validated_data['all_aligned_structures'],
+        'ligand_smiles': serializer.validated_data['all_aligned_structures'],
         'cif_info': serializer.validated_data['cif_info'],
         'mtz_info': serializer.validated_data['mtz_info'],
         'map_info': serializer.validated_data['map_info'],
