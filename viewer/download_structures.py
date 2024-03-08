@@ -418,13 +418,13 @@ def _trans_matrix_files_zip(ziparchive, target):
             _add_empty_file(ziparchive, archive_path)
 
 
-def _metadate_file_zip(ziparchive, target):
+def _metadata_file_zip(ziparchive, target, site_observations):
     """Compile and add metadata file to archive."""
     logger.info('+ Processing metadata')
 
     annotations = {}
-    values = ['code', 'longcode', 'cmpd__compound_code', 'smiles']
-    header = ['Code', 'Long code', 'Compound code', 'Smiles']
+    values = ['code', 'longcode', 'cmpd__compound_code', 'smiles', 'downloaded']
+    header = ['Code', 'Long code', 'Compound code', 'Smiles', 'Downloaded']
 
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'
@@ -432,7 +432,7 @@ def _metadate_file_zip(ziparchive, target):
         header.append(category.category)
         annotations[tag] = TagSubquery(category.category)
 
-    pattern = re.compile(r'\W+')
+    pattern = re.compile(r'\W+')  # non-alphanumeric characters
     for tag in SiteObservationTag.objects.filter(
         category__in=TagCategory.objects.filter(category__in=CURATED_TAG_CATEGORIES),
         target=target,
@@ -449,6 +449,12 @@ def _metadate_file_zip(ziparchive, target):
     ).prefetch_related(
         'cmpd',
         'siteobservationtags',
+    ).annotate(
+        downloaded=Exists(
+            site_observations.filter(
+                pk=OuterRef('pk'),
+            ),
+        )
     ).annotate(**annotations).values_list(*values)
     # fmt: on
 
@@ -621,7 +627,9 @@ def _build_readme(readme, original_search, template_file, ziparchive):
         readme.write(f'- {filename}' + '\n')
 
 
-def _create_structures_zip(target, zip_contents, file_url, original_search, host):
+def _create_structures_zip(
+    target, zip_contents, file_url, original_search, host, site_observations
+):
     """Write a ZIP file containing data from an input dictionary."""
 
     logger.info('+ _create_structures_zip(%s)', target.title)
@@ -684,7 +692,7 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
 
         # compile and add metadata.csv
         if zip_contents['metadata_info']:
-            _metadate_file_zip(ziparchive, target)
+            _metadata_file_zip(ziparchive, target, site_observations)
 
         if zip_contents['trans_matrix_info']:
             _trans_matrix_files_zip(ziparchive, target)
@@ -1006,7 +1014,14 @@ def create_or_return_download_link(request, target, site_observations):
     zip_contents = _create_structures_dict(
         site_observations, protein_params, other_params
     )
-    _create_structures_zip(target, zip_contents, file_url, original_search, host)
+    _create_structures_zip(
+        target,
+        zip_contents,
+        file_url,
+        original_search,
+        host,
+        site_observations,
+    )
 
     download_link = DownloadLinks()
     # Note: 'zip_file' and 'zip_contents' record properties are no longer used.
