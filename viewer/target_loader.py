@@ -734,7 +734,6 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        assert prefix_tooltips
         logger.debug("incoming data: %s", item_data)
         experiment_name, data = item_data
 
@@ -814,8 +813,12 @@ class TargetLoader:
         # version	int	old versions are kept	target loader
         version = 1
 
-        code_prefix = extract(key="code_prefix")
-        prefix_tooltip = prefix_tooltips.get(code_prefix, "")
+        # if empty or key missing entirely, ensure code_prefix returns empty
+        code_prefix = extract(key="code_prefix", level=logging.INFO)
+        # ignoring type because tooltip dict can legitimately be empty
+        # and in such case, assert statement fails. need to remove it
+        # and use the ignore
+        prefix_tooltip = prefix_tooltips.get(code_prefix, "")  # type: ignore[union-attr]
 
         fields = {
             "code": experiment_name,
@@ -1501,7 +1504,7 @@ class TargetLoader:
         self.version_number = meta["version_number"]
         self.version_dir = meta["version_dir"]
         self.previous_version_dirs = meta["previous_version_dirs"]
-        prefix_tooltips = meta["code_prefix_tooltips"]
+        prefix_tooltips = meta.get("code_prefix_tooltips", {})
 
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
