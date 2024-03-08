@@ -1874,7 +1874,7 @@ class TargetLoader:
             so_tag = SiteObservationTag()
             so_tag.tag = tag
             so_tag.tag_prefix = prefix
-            so_tag.upload_name = tag
+            so_tag.upload_name = f"{prefix} - {tag}"
             so_tag.category = TagCategory.objects.get(category=category)
             so_tag.target = self.target
             so_tag.mol_group = so_group
