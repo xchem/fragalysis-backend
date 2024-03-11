@@ -47,7 +47,7 @@ USER_PROPOSAL_CACHE_RETRY_TIMEOUT: timedelta = timedelta(seconds=7)
 # response = view(request)
 
 
-def get_remote_conn() -> Optional[SSHConnector]:
+def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
     credentials: Dict[str, Any] = {
         "user": settings.ISPYB_USER,
         "pw": settings.ISPYB_PASSWORD,
@@ -71,7 +71,8 @@ def get_remote_conn() -> Optional[SSHConnector]:
     #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
     if not credentials["host"]:
-        logger.debug("No ISPyB host - cannot return a connector")
+        if logging.DEBUG >= logger.level or force_error_display:
+            logger.info("No ISPyB host - cannot return a connector")
         return None
 
     # Try to get an SSH connection (aware that it might fail)
@@ -81,14 +82,14 @@ def get_remote_conn() -> Optional[SSHConnector]:
     except Exception:
         # Log the exception if DEBUG level or lower/finer?
         # The following will not log if the level is set to INFO for example.
-        if logging.DEBUG >= logger.level:
+        if logging.DEBUG >= logger.level or force_error_display:
             logger.info("credentials=%s", credentials)
             logger.exception("Got the following exception creating SSHConnector...")
 
     return conn
 
 
-def get_conn() -> Optional[Connector]:
+def get_conn(force_error_display=False) -> Optional[Connector]:
     credentials: Dict[str, Any] = {
         "user": settings.ISPYB_USER,
         "pw": settings.ISPYB_PASSWORD,
@@ -101,7 +102,8 @@ def get_conn() -> Optional[Connector]:
     #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
     if not credentials["host"]:
-        logger.debug("No ISPyB host - cannot return a connector")
+        if logging.DEBUG >= logger.level or force_error_display:
+            logger.info("No ISPyB host - cannot return a connector")
         return None
 
     conn: Optional[Connector] = None
@@ -110,7 +112,7 @@ def get_conn() -> Optional[Connector]:
     except Exception:
         # Log the exception if DEBUG level or lower/finer?
         # The following will not log if the level is set to INFO for example.
-        if logging.DEBUG >= logger.level:
+        if logging.DEBUG >= logger.level or force_error_display:
             logger.info("credentials=%s", credentials)
             logger.exception("Got the following exception creating Connector...")
 
