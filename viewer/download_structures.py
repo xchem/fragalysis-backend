@@ -512,7 +512,7 @@ def _extra_files_zip(ziparchive, target):
                     ziparchive.write(
                         filepath,
                         os.path.join(
-                            _ZIP_FILEPATHS[f'extra_files_{num_extra_dir}'], file
+                            f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
                         ),
                     )
                     num_processed += 1

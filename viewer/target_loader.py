@@ -1279,7 +1279,7 @@ class TargetLoader:
         longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
 
-        smiles = extract(key="ligand_smiles")
+        smiles = extract(key="ligand_smiles_string")
 
         try:
             compound = compounds[experiment_id].instance
@@ -1347,17 +1347,6 @@ class TargetLoader:
             ),
             validate_files=validate_files,
         )
-
-        # TODO: ligand file simulation for testing, remove once the
-        # key is addded to XCA output
-        if ligand_mol:
-            ligand_smiles_path = f"{ligand_mol.removesuffix('.mol')}.smi"
-            if self.raw_data.joinpath(ligand_smiles_path).is_file():
-                ligand_smiles = ligand_smiles_path
-            else:
-                ligand_smiles = None
-        else:
-            ligand_smiles = None
 
         logger.debug('looking for ligand_mol: %s', ligand_mol_file)
 
