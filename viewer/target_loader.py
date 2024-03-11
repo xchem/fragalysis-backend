@@ -635,7 +635,7 @@ class TargetLoader:
 
         # memo to self: added type ignore directives to return line
         # below and append line above because after small refactoring,
-        # mypy all of the sudden started throwing errors on bothe or
+        # mypy all of the sudden started throwing errors on both of
         # these. the core of it's grievance is that it expects the
         # return type to be list[str]. no idea why, function signature
         # clearly defines it as list[str | None]
@@ -1279,7 +1279,7 @@ class TargetLoader:
         longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
 
-        smiles = extract(key="ligand_smiles")
+        smiles = extract(key="ligand_smiles_string")
 
         try:
             compound = compounds[experiment_id].instance
@@ -1319,11 +1319,13 @@ class TargetLoader:
             apo_desolv_file,
             apo_file,
             artefacts_file,
-            ligand_mol,
+            ligand_mol_file,
             sigmaa_file,
             diff_file,
             event_file,
             ligand_pdb,
+            ligand_mol,
+            ligand_smiles,
         ) = self.validate_files(
             obj_identifier=experiment_id,
             file_struct=data,
@@ -1340,16 +1342,19 @@ class TargetLoader:
                 "diff_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
                 "ligand_pdb",
+                "ligand_mol",
+                "ligand_smiles",
             ),
             validate_files=validate_files,
         )
 
-        logger.debug('looking for ligand_mol: %s', ligand_mol)
+        logger.debug('looking for ligand_mol: %s', ligand_mol_file)
+
         mol_data = None
-        if ligand_mol:
+        if ligand_mol_file:
             with contextlib.suppress(TypeError, FileNotFoundError):
                 with open(
-                    self.raw_data.joinpath(ligand_mol),
+                    self.raw_data.joinpath(ligand_mol_file),
                     "r",
                     encoding="utf-8",
                 ) as f:
@@ -1377,6 +1382,8 @@ class TargetLoader:
             "event_file": str(self._get_final_path(event_file)),
             "artefacts_file": str(self._get_final_path(artefacts_file)),
             "ligand_pdb": str(self._get_final_path(ligand_pdb)),
+            "ligand_mol": str(self._get_final_path(ligand_mol)),
+            "ligand_smiles": str(self._get_final_path(ligand_smiles)),
             "pdb_header_file": "currently missing",
             "ligand_mol_file": mol_data,
         }

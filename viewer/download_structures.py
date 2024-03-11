@@ -49,6 +49,8 @@ _ZIP_FILEPATHS = {
     'apo_desolv_file': ('aligned'),  # SiteObservation: apo_desolv_file
     'bound_file': ('aligned'),  # SiteObservation: bound_file
     'sdf_info': ('aligned'),  # SiteObservation: ligand_mol_file (indirectly)
+    'ligand_mol': ('aligned'),  # SiteObservation: ligand_mol
+    'ligand_smiles': ('aligned'),  # SiteObservation: ligand_smiles
     'ligand_pdb': ('aligned'),  # SiteObservation: ligand_pdb
     'smiles_info': (''),  # SiteObservation: smiles_info (indirectly)
     # those above are all controlled by serializer's all_aligned_structures flag
@@ -136,6 +138,8 @@ zip_template = {
         'diff_file': {},
         'sigmaa_file': {},
         'ligand_pdb': {},
+        'ligand_mol': {},
+        'ligand_smiles': {},
     },
     'molecules': {
         'sdf_files': {},
@@ -229,6 +233,10 @@ def _patch_molecule_name(site_observation):
     lines = site_observation.ligand_mol_file.split('\n')
     if not lines[0].strip():
         lines[0] = site_observation.long_code
+
+    # the db contents is mol file but what's requested here is
+    # sdf. add sdf separator
+    lines.append('$$$$\n')
     return '\n'.join(lines)
 
 
@@ -410,13 +418,13 @@ def _trans_matrix_files_zip(ziparchive, target):
             _add_empty_file(ziparchive, archive_path)
 
 
-def _metadate_file_zip(ziparchive, target):
+def _metadata_file_zip(ziparchive, target, site_observations):
     """Compile and add metadata file to archive."""
     logger.info('+ Processing metadata')
 
     annotations = {}
-    values = ['code', 'longcode', 'cmpd__compound_code', 'smiles']
-    header = ['Code', 'Long code', 'Compound code', 'Smiles']
+    values = ['code', 'longcode', 'cmpd__compound_code', 'smiles', 'downloaded']
+    header = ['Code', 'Long code', 'Compound code', 'Smiles', 'Downloaded']
 
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'
@@ -424,7 +432,7 @@ def _metadate_file_zip(ziparchive, target):
         header.append(category.category)
         annotations[tag] = TagSubquery(category.category)
 
-    pattern = re.compile(r'\W+')
+    pattern = re.compile(r'\W+')  # non-alphanumeric characters
     for tag in SiteObservationTag.objects.filter(
         category__in=TagCategory.objects.filter(category__in=CURATED_TAG_CATEGORIES),
         target=target,
@@ -441,6 +449,12 @@ def _metadate_file_zip(ziparchive, target):
     ).prefetch_related(
         'cmpd',
         'siteobservationtags',
+    ).annotate(
+        downloaded=Exists(
+            site_observations.filter(
+                pk=OuterRef('pk'),
+            ),
+        )
     ).annotate(**annotations).values_list(*values)
     # fmt: on
 
@@ -498,7 +512,7 @@ def _extra_files_zip(ziparchive, target):
                     ziparchive.write(
                         filepath,
                         os.path.join(
-                            _ZIP_FILEPATHS[f'extra_files_{num_extra_dir}'], file
+                            f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
                         ),
                     )
                     num_processed += 1
@@ -613,7 +627,9 @@ def _build_readme(readme, original_search, template_file, ziparchive):
         readme.write(f'- {filename}' + '\n')
 
 
-def _create_structures_zip(target, zip_contents, file_url, original_search, host):
+def _create_structures_zip(
+    target, zip_contents, file_url, original_search, host, site_observations
+):
     """Write a ZIP file containing data from an input dictionary."""
 
     logger.info('+ _create_structures_zip(%s)', target.title)
@@ -676,7 +692,7 @@ def _create_structures_zip(target, zip_contents, file_url, original_search, host
 
         # compile and add metadata.csv
         if zip_contents['metadata_info']:
-            _metadate_file_zip(ziparchive, target)
+            _metadata_file_zip(ziparchive, target, site_observations)
 
         if zip_contents['trans_matrix_info']:
             _trans_matrix_files_zip(ziparchive, target)
@@ -776,6 +792,8 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     'artefacts_file',
                     'pdb_header_file',
                     'ligand_pdb',
+                    'ligand_mol',
+                    'ligand_smiles',
                     'diff_file',
                 ]:
                     # siteobservation object
@@ -890,6 +908,8 @@ def get_download_params(request):
         'apo_solv_file': serializer.validated_data['all_aligned_structures'],
         'apo_desolv_file': serializer.validated_data['all_aligned_structures'],
         'ligand_pdb': serializer.validated_data['all_aligned_structures'],
+        'ligand_mol': serializer.validated_data['all_aligned_structures'],
+        'ligand_smiles': serializer.validated_data['all_aligned_structures'],
         'cif_info': serializer.validated_data['cif_info'],
         'mtz_info': serializer.validated_data['mtz_info'],
         'map_info': serializer.validated_data['map_info'],
@@ -994,7 +1014,14 @@ def create_or_return_download_link(request, target, site_observations):
     zip_contents = _create_structures_dict(
         site_observations, protein_params, other_params
     )
-    _create_structures_zip(target, zip_contents, file_url, original_search, host)
+    _create_structures_zip(
+        target,
+        zip_contents,
+        file_url,
+        original_search,
+        host,
+        site_observations,
+    )
 
     download_link = DownloadLinks()
     # Note: 'zip_file' and 'zip_contents' record properties are no longer used.
