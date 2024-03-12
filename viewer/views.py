@@ -1473,40 +1473,30 @@ class DownloadStructures(ISpyBSafeQuerySet):
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         logger.info('Found Target record %r', target)
-        site_obvs = models.SiteObservation.objects.none()
-        proteins_list = []
-        if request.data['proteins']:
-            logger.info('Given Proteins in request')
-            # Get first part of protein code
-            proteins_list = [
-                p.strip().split(":")[0] for p in request.data['proteins'].split(',')
-            ]
+        proteins_list = [
+            p.strip() for p in request.data.get('proteins', '').split(',') if p
+        ]
+        if proteins_list:
             logger.info('Given %s Proteins %s', len(proteins_list), proteins_list)
-
             logger.info('Looking for SiteObservation records for given Proteins...')
-            # Filter by protein codes
-            for code_first_part in proteins_list:
-                # prot = models.Protein.objects.filter(code__contains=code_first_part).values()
-                # I don't see why I need to drop out of django objects here
-                prot = models.SiteObservation.objects.filter(
-                    experiment__experiment_upload__target=target, code=code_first_part
+
+            site_obvs = models.SiteObservation.objects.filter(
+                experiment__experiment_upload__target=target,
+                code__in=proteins_list,
+            )
+
+            missing_obvs = set(proteins_list).difference(
+                set(site_obvs.values_list('code', flat=True))
+            )
+            if missing_obvs:
+                logger.warning(
+                    'Could not find SiteObservation record for "%s"',
+                    missing_obvs,
                 )
-                if prot.exists():
-                    # even more than just django object, I need an
-                    # unevaluated queryset down the line
-                    site_obvs = models.SiteObservation.objects.filter(
-                        pk=prot.first().pk,
-                    )
-                else:
-                    logger.warning(
-                        'Could not find SiteObservation record for "%s"',
-                        code_first_part,
-                    )
 
         else:
             logger.info('Request had no Proteins')
             logger.info('Looking for Protein records for %r...', target)
-            # proteins = models.Protein.objects.filter(target_id=target.id).values()
             site_obvs = models.SiteObservation.objects.filter(
                 experiment__experiment_upload__target=target
             )

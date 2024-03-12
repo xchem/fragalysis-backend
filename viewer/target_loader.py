@@ -635,7 +635,7 @@ class TargetLoader:
 
         # memo to self: added type ignore directives to return line
         # below and append line above because after small refactoring,
-        # mypy all of the sudden started throwing errors on bothe or
+        # mypy all of the sudden started throwing errors on both of
         # these. the core of it's grievance is that it expects the
         # return type to be list[str]. no idea why, function signature
         # clearly defines it as list[str | None]
@@ -734,7 +734,6 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        assert prefix_tooltips
         logger.debug("incoming data: %s", item_data)
         experiment_name, data = item_data
 
@@ -814,8 +813,12 @@ class TargetLoader:
         # version	int	old versions are kept	target loader
         version = 1
 
-        code_prefix = extract(key="code_prefix")
-        prefix_tooltip = prefix_tooltips.get(code_prefix, "")
+        # if empty or key missing entirely, ensure code_prefix returns empty
+        code_prefix = extract(key="code_prefix", level=logging.INFO)
+        # ignoring type because tooltip dict can legitimately be empty
+        # and in such case, assert statement fails. need to remove it
+        # and use the ignore
+        prefix_tooltip = prefix_tooltips.get(code_prefix, "")  # type: ignore[union-attr]
 
         fields = {
             "code": experiment_name,
@@ -1279,7 +1282,7 @@ class TargetLoader:
         longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
 
-        smiles = extract(key="ligand_smiles")
+        smiles = extract(key="ligand_smiles_string")
 
         try:
             compound = compounds[experiment_id].instance
@@ -1319,11 +1322,13 @@ class TargetLoader:
             apo_desolv_file,
             apo_file,
             artefacts_file,
-            ligand_mol,
+            ligand_mol_file,
             sigmaa_file,
             diff_file,
             event_file,
             ligand_pdb,
+            ligand_mol,
+            ligand_smiles,
         ) = self.validate_files(
             obj_identifier=experiment_id,
             file_struct=data,
@@ -1340,16 +1345,19 @@ class TargetLoader:
                 "diff_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
                 "ligand_pdb",
+                "ligand_mol",
+                "ligand_smiles",
             ),
             validate_files=validate_files,
         )
 
-        logger.debug('looking for ligand_mol: %s', ligand_mol)
+        logger.debug('looking for ligand_mol: %s', ligand_mol_file)
+
         mol_data = None
-        if ligand_mol:
+        if ligand_mol_file:
             with contextlib.suppress(TypeError, FileNotFoundError):
                 with open(
-                    self.raw_data.joinpath(ligand_mol),
+                    self.raw_data.joinpath(ligand_mol_file),
                     "r",
                     encoding="utf-8",
                 ) as f:
@@ -1377,6 +1385,8 @@ class TargetLoader:
             "event_file": str(self._get_final_path(event_file)),
             "artefacts_file": str(self._get_final_path(artefacts_file)),
             "ligand_pdb": str(self._get_final_path(ligand_pdb)),
+            "ligand_mol": str(self._get_final_path(ligand_mol)),
+            "ligand_smiles": str(self._get_final_path(ligand_smiles)),
             "pdb_header_file": "currently missing",
             "ligand_mol_file": mol_data,
         }
@@ -1483,7 +1493,7 @@ class TargetLoader:
         self.version_number = meta["version_number"]
         self.version_dir = meta["version_dir"]
         self.previous_version_dirs = meta["previous_version_dirs"]
-        prefix_tooltips = meta["code_prefix_tooltips"]
+        prefix_tooltips = meta.get("code_prefix_tooltips", {})
 
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -1874,7 +1884,7 @@ class TargetLoader:
             so_tag = SiteObservationTag()
             so_tag.tag = tag
             so_tag.tag_prefix = prefix
-            so_tag.upload_name = tag
+            so_tag.upload_name = f"{prefix} - {tag}"
             so_tag.category = TagCategory.objects.get(category=category)
             so_tag.target = self.target
             so_tag.mol_group = so_group
