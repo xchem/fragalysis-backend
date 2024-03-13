@@ -354,9 +354,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         proposals = set()
         ispyb_user = settings.ISPYB_USER
         logger.debug(
-            "ispyb_user=%s restrict_to_membership=%s",
+            "ispyb_user=%s restrict_to_membership=%s (DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP=%s)",
             ispyb_user,
             restrict_to_membership,
+            settings.DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP,
         )
         if ispyb_user:
             if user.is_authenticated:
@@ -368,7 +369,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # We have all the proposals where the user has authority.
         # Add open/public proposals?
-        if not restrict_to_membership:
+        if (
+            not restrict_to_membership
+            or settings.DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP
+        ):
             proposals.update(self._get_open_proposals())
 
         # Return the set() as a list()
