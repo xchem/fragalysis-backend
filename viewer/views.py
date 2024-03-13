@@ -1579,7 +1579,7 @@ class UploadTargetExperiments(ISpyBSafeQuerySet):
             contact_email=contact_email,
             user_id=request.user.pk,
         )
-        logger.info("+ UploadTargetExperiments.create  got Celery id %s", task.task_id)
+        logger.info("+ UploadTargetExperiments.create got Celery id %s", task.task_id)
 
         url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
         # as it launches task, I think 202 is more appropriate
