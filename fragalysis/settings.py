@@ -464,6 +464,17 @@ if os.environ.get("AUTHENTICATE_UPLOAD") == "False":
 
 COMPUTED_SET_MEDIA_DIRECTORY: str = "computed_set_data"
 
+# The following (part of m2ms-1385) is used to prevent the
+# 'restrict-to-membership' check in security.py - something that is designed to prevent
+# uploading to public proposals unless the user is explicitly part of the proposal
+# (according to ISPyB). This variable is used to defeat this test for situations
+# when ISPyB is unavailable. It is not permitted when the DEPLOYMENT_MODE
+# is 'PRODUCTION
+DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP: bool = False
+if os.environ.get("DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP") == "True":
+    assert DEPLOYMENT_MODE != "PRODUCTION"
+    DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP = True
+
 # Discourse settings for API calls to Discourse Platform.
 DISCOURSE_PARENT_CATEGORY: str = "Fragalysis targets"
 DISCOURSE_USER: str = "fragalysis"
