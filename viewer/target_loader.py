@@ -1875,7 +1875,9 @@ class TargetLoader:
             so_group.save()
 
         try:
-            so_tag = SiteObservationTag.objects.get(upload_name=tag, target=self.target)
+            so_tag = SiteObservationTag.objects.get(
+                upload_name=f"{prefix} - {tag}", target=self.target
+            )
             # Tag already exists
             # Apart from the new mol_group and molecules, we shouldn't be
             # changing anything.
