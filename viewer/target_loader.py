@@ -52,6 +52,10 @@ logger = logging.getLogger(__name__)
 # assemblies and xtalforms
 XTALFORMS_FILE = "assemblies.yaml"
 
+# holding horses for now
+# # assigned xtalforms, not all are referenced in meta_aligner
+# ASSIGNED_XTALFORMS_FILE = "assigned_xtalforms.yaml"
+
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
 
@@ -737,8 +741,8 @@ class TargetLoader:
         logger.debug("incoming data: %s", item_data)
         experiment_name, data = item_data
 
-        if "aligned_files" not in data.keys():
-            return None
+        # if "aligned_files" not in data.keys():
+        #     return None
 
         extract = functools.partial(
             self._extract,
@@ -1480,7 +1484,7 @@ class TargetLoader:
             self.report.log(logging.ERROR, msg)
             raise FileExistsError(msg)
 
-        if project_created and committer.pk == settings.ANONYMOUS_USER:
+        if project_created and self.project.title in settings.PUBLIC_TAS_LIST:  # type: ignore[attr-defined]
             assert self.project
             self.project.open_to_public = True
             self.project.save()
@@ -1694,35 +1698,45 @@ class TargetLoader:
                 # memo to self: there used to be some code to test the
                 # position of the iterator in existing entries. This
                 # was because it was assumed, that when adding v2
-                # uploads, it can bring a long new observations under
+                # uploads, it can bring along new observations under
                 # existing experiment. Following discussions with
                 # Conor, it seems that this will not be the case. But
                 # should it agin be, this code was deleted on
                 # 2024-03-04, if you need to check
 
                 for so in so_group.filter(code__isnull=True):
-                    code_prefix = experiment_objects[so.experiment.code].index_data[
-                        "code_prefix"
-                    ]
-                    # iter_pos = next(suffix)
-                    # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
-                    code = (
-                        f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
-                    )
+                    if so.experiment.type == 1:
+                        # manual. code is pdb code
+                        code = f"{so.experiment.code}-{next(suffix)}"
+                        # NB! at the time of writing this piece of
+                        # code, I haven't seen an example of the data
+                        # so I only have a very vague idea how this is
+                        # going to work. The way I understand it now,
+                        # they cannot belong to separate groups so
+                        # there's no need for different iterators. But
+                        # could be I need to split them up
+                    else:
+                        # model building. generate code
+                        code_prefix = experiment_objects[so.experiment.code].index_data[
+                            "code_prefix"
+                        ]
+                        # iter_pos = next(suffix)
+                        # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
+                        code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
 
-                    # test uniqueness for target
-                    # TODO: this should ideally be solved by db engine, before
-                    # rushing to write the trigger, have think about the
-                    # loader concurrency situations
-                    if SiteObservation.objects.filter(
-                        experiment__experiment_upload__target=self.target,
-                        code=code,
-                    ).exists():
-                        msg = (
-                            f"short code {code} already exists for this target;  "
-                            + "specify a code_prefix to resolve this conflict"
-                        )
-                        self.report.log(logging.ERROR, msg)
+                        # test uniqueness for target
+                        # TODO: this should ideally be solved by db engine, before
+                        # rushing to write the trigger, have think about the
+                        # loader concurrency situations
+                        if SiteObservation.objects.filter(
+                            experiment__experiment_upload__target=self.target,
+                            code=code,
+                        ).exists():
+                            msg = (
+                                f"short code {code} already exists for this target;  "
+                                + "specify a code_prefix to resolve this conflict"
+                            )
+                            self.report.log(logging.ERROR, msg)
 
                     so.code = code
                     so.save()
