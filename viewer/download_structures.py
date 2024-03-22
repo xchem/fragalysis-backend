@@ -86,7 +86,7 @@ class TagSubquery(Subquery):
         query = SiteObservationTag.objects.filter(
             pk=Subquery(
                 SiteObvsSiteObservationTag.objects.filter(
-                    site_observation=OuterRef('pk'),
+                    site_observation=OuterRef(OuterRef('pk')),
                     site_obvs_tag__category=TagCategory.objects.get(
                         category=category,
                     ),
