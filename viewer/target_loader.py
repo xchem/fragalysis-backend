@@ -741,9 +741,6 @@ class TargetLoader:
         logger.debug("incoming data: %s", item_data)
         experiment_name, data = item_data
 
-        # if "aligned_files" not in data.keys():
-        #     return None
-
         extract = functools.partial(
             self._extract,
             data=data,
