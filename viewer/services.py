@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 DELAY = 10
 # Default timeout for any request calls
+# Used for keycloak atm.
 REQUEST_TIMEOUT_S = 5
 
 _NEO4J_LOCATION: str = settings.NEO4J_QUERY
@@ -135,7 +136,7 @@ def service_query(func):
             except TimeoutError:
                 # Timeout is an "expected" condition for a service that's expected
                 # to be running but may be degraded so we don't log it unless debugging.
-                logger.debug("Service query '%s' timed out", func.__name__)
+                logger.exception("Service query '%s' timed out", func.__name__)
                 state = State.TIMEOUT
             except Exception as exc:
                 # unknown error with the query
@@ -156,7 +157,7 @@ def ispyb(func_id, name, ispyb_host=None) -> bool:
     # Unused arguments
     del func_id, name, ispyb_host
 
-    logger.debug("+ ispyb")
+    logger.info("+ ispyb")
     return ping_configured_connector()
 
 

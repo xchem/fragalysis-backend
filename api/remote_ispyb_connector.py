@@ -53,14 +53,16 @@ class SSHConnector(Connector):
                 'db_pass': pw,
                 'db_name': db,
             }
+            logger.info("Creating remote connector: %s", creds)
             self.remote_connect(**creds)
-            logger.debug(
+            logger.info(
                 "Started remote ssh_host=%s ssh_user=%s local_bind_port=%s",
                 ssh_host,
                 ssh_user,
                 self.server.local_bind_port,
             )
         else:
+            logger.info("Creating connector")
             self.connect(
                 user=user,
                 pw=pw,
@@ -69,7 +71,7 @@ class SSHConnector(Connector):
                 port=port,
                 conn_inactivity=conn_inactivity,
             )
-            logger.debug("Started direct host=%s user=%s port=%s", host, user, port)
+            logger.info("Started direct host=%s user=%s port=%s", host, user, port)
 
     def remote_connect(
         self,
@@ -85,11 +87,11 @@ class SSHConnector(Connector):
     ):
         sshtunnel.SSH_TIMEOUT = 10.0
         sshtunnel.TUNNEL_TIMEOUT = 10.0
-        sshtunnel.DEFAULT_LOGLEVEL = logging.CRITICAL
+        sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
         self.conn_inactivity = int(self.conn_inactivity)
 
         if ssh_pkey:
-            logger.debug(
+            logger.info(
                 'Creating SSHTunnelForwarder (with SSH Key) host=%s user=%s',
                 ssh_host,
                 ssh_user,
@@ -101,7 +103,7 @@ class SSHConnector(Connector):
                 remote_bind_address=(db_host, db_port),
             )
         else:
-            logger.debug(
+            logger.info(
                 'Creating SSHTunnelForwarder (with password) host=%s user=%s',
                 ssh_host,
                 ssh_user,
@@ -112,17 +114,17 @@ class SSHConnector(Connector):
                 ssh_password=ssh_pass,
                 remote_bind_address=(db_host, db_port),
             )
-        logger.debug('Created SSHTunnelForwarder')
+        logger.info('Created SSHTunnelForwarder')
 
         # stops hanging connections in transport
         self.server.daemon_forward_servers = True
         self.server.daemon_transport = True
 
-        logger.debug('Starting SSH server...')
+        logger.info('Starting SSH server...')
         self.server.start()
-        logger.debug('Started SSH server')
+        logger.info('Started SSH server')
 
-        logger.debug('Connecting to ISPyB (db_user=%s db_name=%s)...', db_user, db_name)
+        logger.info('Connecting to ISPyB (db_user=%s db_name=%s)...', db_user, db_name)
         self.conn = pymysql.connect(
             user=db_user,
             password=db_pass,
@@ -132,10 +134,10 @@ class SSHConnector(Connector):
         )
 
         if self.conn is not None:
-            logger.debug('Connected')
+            logger.info('Connected')
             self.conn.autocommit = True
         else:
-            logger.debug('Failed to connect')
+            logger.info('Failed to connect')
             self.server.stop()
             raise ISPyBConnectionException
         self.last_activity_ts = time.time()
