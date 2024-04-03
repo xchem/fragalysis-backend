@@ -141,8 +141,8 @@ def service_query(func):
 
             except TimeoutError:
                 # Timeout is an "expected" condition for a service that's expected
-                # to be running but may be degraded so we don't log it unless debugging.
-                logger.exception("Service query '%s' timed out", func.__name__)
+                # to be running but is taking too long to report its state
+                # and is also considered DEGRADED.
                 state = State.TIMEOUT
                 logger.info("=-->TimeoutError state=%s", state)
             except Exception as exc:
