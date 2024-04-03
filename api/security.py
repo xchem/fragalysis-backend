@@ -83,9 +83,8 @@ def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
     except Exception:
         # Log the exception if DEBUG level or lower/finer?
         # The following will not log if the level is set to INFO for example.
-        if logging.DEBUG >= logger.level or force_error_display:
-            logger.info("credentials=%s", credentials)
-            logger.exception("Got the following exception creating SSHConnector...")
+        logger.info("credentials=%s", credentials)
+        logger.exception("Got the following exception creating SSHConnector...")
     logger.info("Got remote connector: %s", conn)
 
     return conn
