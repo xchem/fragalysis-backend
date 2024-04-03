@@ -14,6 +14,10 @@ from ispyb.exception import (
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+# Timeout to allow the pymysql.connect() method to connect to the DB.
+# The default, if not specified, is 10 seconds.
+PYMYSQL_CONNECT_TIMEOUT_S = 5
+
 
 class SSHConnector(Connector):
     def __init__(
@@ -85,8 +89,8 @@ class SSHConnector(Connector):
         db_pass,
         db_name,
     ):
-        sshtunnel.SSH_TIMEOUT = 10.0
-        sshtunnel.TUNNEL_TIMEOUT = 10.0
+        sshtunnel.SSH_TIMEOUT = 5.0
+        sshtunnel.TUNNEL_TIMEOUT = 5.0
         sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
         self.conn_inactivity = int(self.conn_inactivity)
 
@@ -131,6 +135,7 @@ class SSHConnector(Connector):
             host='127.0.0.1',
             port=self.server.local_bind_port,
             database=db_name,
+            connect_timeout=PYMYSQL_CONNECT_TIMEOUT_S,
         )
 
         if self.conn is not None:

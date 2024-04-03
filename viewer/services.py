@@ -15,7 +15,8 @@ from viewer.squonk2_agent import get_squonk2_agent
 
 logger = logging.getLogger(__name__)
 
-DELAY = 10
+# Service query timeout
+SERVICE_QUERY_TIMEOUT_S = 17
 # Default timeout for any request calls
 # Used for keycloak atm.
 REQUEST_TIMEOUT_S = 5
@@ -125,7 +126,7 @@ def service_query(func):
             # TimeoutError is not caught
             executor = futures.ThreadPoolExecutor()
             try:
-                async with asyncio.timeout(DELAY):
+                async with asyncio.timeout(SERVICE_QUERY_TIMEOUT_S):
                     future = loop.run_in_executor(
                         executor, functools.partial(func, *args, **kwargs)
                     )
