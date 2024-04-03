@@ -108,16 +108,18 @@ def service_query(func):
 
     @functools.wraps(func)
     async def wrapper_service_query(*args, **kwargs):
-        logger.debug("+ wrapper_service_query")
-        logger.debug("args passed: %s", args)
-        logger.debug("kwargs passed: %s", kwargs)
-        logger.debug("function: %s", func.__name__)
+        logger.info("+ wrapper_service_query")
+        logger.info("args passed: %s", args)
+        logger.info("kwargs passed: %s", kwargs)
+        logger.info("function: %s", func.__name__)
 
         state = State.NOT_CONFIGURED
+        logger.info("=--> initial state=%s", state)
         envs = [os.environ.get(k, None) for k in kwargs.values()]
         # env variables come in kwargs, all must be defined
         if all(envs):
             state = State.DEGRADED
+            logger.info("=--> entry state=%s", state)
             loop = asyncio.get_running_loop()
             # memo to self: executor is absolutely crucial, otherwise
             # TimeoutError is not caught
@@ -132,22 +134,29 @@ def service_query(func):
                     logger.debug("result: %s", result)
                     if result:
                         state = State.OK
+                        logger.info("=--> Exit state=%s", state)
+                    else:
+                        logger.info("=--> Exit no result!")
 
             except TimeoutError:
                 # Timeout is an "expected" condition for a service that's expected
                 # to be running but may be degraded so we don't log it unless debugging.
                 logger.exception("Service query '%s' timed out", func.__name__)
                 state = State.TIMEOUT
+                logger.info("=-->TimeoutError state=%s", state)
             except Exception as exc:
                 # unknown error with the query
                 logger.exception(exc, exc_info=True)
                 state = State.ERROR
+                logger.info("=--> Exception state=%s", state)
 
         # name and ID are 1nd and 0th params respectively.
         # alternative solution for this would be to return just a
         # state and have the service_queries() map the results to the
         # correct values
-        return {"id": args[0], "name": args[1], "state": state}
+        response = {"id": args[0], "name": args[1], "state": state}
+        logger.info("=--> response=%s", response)
+        return response
 
     return wrapper_service_query
 
