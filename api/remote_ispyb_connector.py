@@ -141,9 +141,8 @@ class SSHConnector(Connector):
         # a number of times (because it is known to fail)
         # before giving up...
         connect_attempts = 0
-        stop_connecting = False
         self.conn = None
-        while not stop_connecting and connect_attempts < PYMYSQL_OE_RECONNECT_ATTEMPTS:
+        while connect_attempts < PYMYSQL_OE_RECONNECT_ATTEMPTS:
             try:
                 self.conn = pymysql.connect(
                     user=db_user,
@@ -169,7 +168,8 @@ class SSHConnector(Connector):
                     e.args[0],
                     repr(e),
                 )
-                stop_connecting = True
+                connect_attempts += 1
+                time.sleep(PYMYSQL_OE_RECONNECT_DELAY_S)
 
         if self.conn is not None:
             logger.info('Connected')

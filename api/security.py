@@ -86,9 +86,9 @@ def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
         # Just catch it and ignore it
         pass
     if conn:
-        logger.info("Failed to get a remote connector")
-    else:
         logger.info("Got remote connector: %s", conn)
+    else:
+        logger.info("Failed to get a remote connector")
 
     return conn
 
