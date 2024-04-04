@@ -142,7 +142,7 @@ class SSHConnector(Connector):
         # before giving up...
         connect_attempts = 0
         self.conn = None
-        while not self.conn and connect_attempts < PYMYSQL_OE_RECONNECT_ATTEMPTS:
+        while self.conn is None and connect_attempts < PYMYSQL_OE_RECONNECT_ATTEMPTS:
             try:
                 self.conn = pymysql.connect(
                     user=db_user,
