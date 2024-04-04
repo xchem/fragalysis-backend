@@ -162,11 +162,7 @@ class SSHConnector(Connector):
                         db_user,
                         db_name,
                     )
-                logger.warning(
-                    'OperationalError(%d): %s',
-                    oe_e.args[0],
-                    repr(oe_e),
-                )
+                logger.warning('%s', repr(oe_e))
                 connect_attempts += 1
                 time.sleep(PYMYSQL_EXCEPTION_RECONNECT_DELAY_S)
             except Exception as e:
@@ -178,11 +174,7 @@ class SSHConnector(Connector):
                         db_user,
                         db_name,
                     )
-                logger.warning(
-                    'Unexpected Exception(%d): %s',
-                    e.args[0],
-                    repr(e),
-                )
+                logger.warning('Unexpected %s', repr(e))
                 connect_attempts += 1
                 time.sleep(PYMYSQL_EXCEPTION_RECONNECT_DELAY_S)
 
