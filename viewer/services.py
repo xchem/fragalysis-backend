@@ -16,7 +16,7 @@ from viewer.squonk2_agent import get_squonk2_agent
 logger = logging.getLogger(__name__)
 
 # Service query timeout
-SERVICE_QUERY_TIMEOUT_S = 17
+SERVICE_QUERY_TIMEOUT_S = 28
 # Default timeout for any request calls
 # Used for keycloak atm.
 REQUEST_TIMEOUT_S = 5
