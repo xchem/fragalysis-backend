@@ -146,8 +146,8 @@ def service_query(func):
                 logger.exception(exc, exc_info=True)
                 state = State.ERROR
 
-        # name and ID are 1nd and 0th params respectively.
-        # alternative solution for this would be to return just a
+        # ID and Name are the 1st and 2nd params respectively.
+        # Alternative solution for this would be to return just a
         # state and have the service_queries() map the results to the
         # correct values
         if state not in [State.OK, State.NOT_CONFIGURED]:
