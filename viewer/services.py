@@ -25,6 +25,8 @@ _NEO4J_LOCATION: str = settings.NEO4J_QUERY
 _NEO4J_AUTH: str = settings.NEO4J_AUTH
 
 
+# TIMEOUT is no longer used.
+# A service timeout is considered a service that is degraded
 class State(str, Enum):
     NOT_CONFIGURED = "NOT_CONFIGURED"
     DEGRADED = "DEGRADED"
@@ -109,18 +111,16 @@ def service_query(func):
 
     @functools.wraps(func)
     async def wrapper_service_query(*args, **kwargs):
-        logger.info("+ wrapper_service_query")
-        logger.info("args passed: %s", args)
-        logger.info("kwargs passed: %s", kwargs)
-        logger.info("function: %s", func.__name__)
+        logger.debug("+ wrapper_service_query")
+        logger.debug("args passed: %s", args)
+        logger.debug("kwargs passed: %s", kwargs)
+        logger.debug("function: %s", func.__name__)
 
         state = State.NOT_CONFIGURED
-        logger.info("=--> initial state=%s", state)
         envs = [os.environ.get(k, None) for k in kwargs.values()]
         # env variables come in kwargs, all must be defined
         if all(envs):
             state = State.DEGRADED
-            logger.info("=--> entry state=%s", state)
             loop = asyncio.get_running_loop()
             # memo to self: executor is absolutely crucial, otherwise
             # TimeoutError is not caught
@@ -135,28 +135,22 @@ def service_query(func):
                     logger.debug("result: %s", result)
                     if result:
                         state = State.OK
-                        logger.info("=--> Exit state=%s", state)
-                    else:
-                        logger.info("=--> Exit no result!")
 
             except TimeoutError:
                 # Timeout is an "expected" condition for a service that's expected
                 # to be running but is taking too long to report its state
                 # and is also considered DEGRADED.
-                logger.info("=-->TimeoutError state=%s", state)
+                state = State.DEGRADED
             except Exception as exc:
                 # unknown error with the query
                 logger.exception(exc, exc_info=True)
                 state = State.ERROR
-                logger.info("=--> Exception state=%s", state)
 
         # name and ID are 1nd and 0th params respectively.
         # alternative solution for this would be to return just a
         # state and have the service_queries() map the results to the
         # correct values
-        response = {"id": args[0], "name": args[1], "state": state}
-        logger.info("=--> response=%s", response)
-        return response
+        return {"id": args[0], "name": args[1], "state": state}
 
     return wrapper_service_query
 
@@ -166,7 +160,7 @@ def ispyb(func_id, name, ispyb_host=None) -> bool:
     # Unused arguments
     del func_id, name, ispyb_host
 
-    logger.info("+ ispyb")
+    logger.debug("+ ispyb")
     return ping_configured_connector()
 
 
