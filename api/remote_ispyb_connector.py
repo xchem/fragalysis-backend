@@ -23,7 +23,7 @@ PYMYSQL_WRITE_TIMEOUT_S = 10
 # MySQL DB connection attempts.
 # An attempt to cope with intermittent OperationalError exceptions
 # that are seen to occur at "busy times". See m2ms-1403.
-PYMYSQL_OE_RECONNECT_ATTEMPTS = 3
+PYMYSQL_OE_RECONNECT_ATTEMPTS = 5
 PYMYSQL_OE_RECONNECT_DELAY_S = 1
 
 
@@ -103,7 +103,7 @@ class SSHConnector(Connector):
         self.conn_inactivity = int(self.conn_inactivity)
 
         if ssh_pkey:
-            logger.info(
+            logger.debug(
                 'Creating SSHTunnelForwarder (with SSH Key) host=%s user=%s',
                 ssh_host,
                 ssh_user,
@@ -115,7 +115,7 @@ class SSHConnector(Connector):
                 remote_bind_address=(db_host, db_port),
             )
         else:
-            logger.info(
+            logger.debug(
                 'Creating SSHTunnelForwarder (with password) host=%s user=%s',
                 ssh_host,
                 ssh_user,
@@ -126,17 +126,19 @@ class SSHConnector(Connector):
                 ssh_password=ssh_pass,
                 remote_bind_address=(db_host, db_port),
             )
-        logger.info('Created SSHTunnelForwarder')
+        logger.debug('Created SSHTunnelForwarder')
 
         # stops hanging connections in transport
         self.server.daemon_forward_servers = True
         self.server.daemon_transport = True
 
-        logger.info('Starting SSH server...')
+        logger.debug('Starting SSH server...')
         self.server.start()
-        logger.info('Started SSH server')
+        logger.debug('Started SSH server')
 
-        logger.info('Connecting to ISPyB (db_user=%s db_name=%s)...', db_user, db_name)
+        logger.info(
+            'Connecting to MySQL database (db_user=%s db_name=%s)...', db_user, db_name
+        )
         # Try to connect to the database
         # a number of times (because it is known to fail)
         # before giving up...
