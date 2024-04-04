@@ -150,7 +150,7 @@ def service_query(func):
         # alternative solution for this would be to return just a
         # state and have the service_queries() map the results to the
         # correct values
-        if state != State.OK:
+        if state not in [State.OK, State.NOT_CONFIGURED]:
             logger.info('"%s" is %s', args[1], state)
         return {"id": args[0], "name": args[1], "state": state}
 
