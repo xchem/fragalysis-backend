@@ -11,12 +11,18 @@ from ispyb.exception import (
     ISPyBNoResultException,
     ISPyBRetrieveFailed,
 )
+from pymysql.err import OperationalError
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 # Timeout to allow the pymysql.connect() method to connect to the DB.
 # The default, if not specified, is 10 seconds.
 PYMYSQL_CONNECT_TIMEOUT_S = 5
+# MySQL DB connection attempts.
+# An attempt to cope with intermittent OperationalError exceptions
+# that are seen to occur at "busy times". See m2ms-1403.
+PYMYSQL_OE_RECONNECT_ATTEMPTS = 3
+PYMYSQL_OE_RECONNECT_DELAY_S = 1
 
 
 class SSHConnector(Connector):
@@ -129,14 +135,37 @@ class SSHConnector(Connector):
         logger.info('Started SSH server')
 
         logger.info('Connecting to ISPyB (db_user=%s db_name=%s)...', db_user, db_name)
-        self.conn = pymysql.connect(
-            user=db_user,
-            password=db_pass,
-            host='127.0.0.1',
-            port=self.server.local_bind_port,
-            database=db_name,
-            connect_timeout=PYMYSQL_CONNECT_TIMEOUT_S,
-        )
+        # Try to connect to the database
+        # a number of times (because it is known to fail)
+        # before giving up...
+        connect_attempts = 0
+        stop_connecting = False
+        self.conn = None
+        while not stop_connecting and connect_attempts < PYMYSQL_OE_RECONNECT_ATTEMPTS:
+            try:
+                self.conn = pymysql.connect(
+                    user=db_user,
+                    password=db_pass,
+                    host='127.0.0.1',
+                    port=self.server.local_bind_port,
+                    database=db_name,
+                    connect_timeout=PYMYSQL_CONNECT_TIMEOUT_S,
+                )
+            except OperationalError as oe_e:
+                logger.info(
+                    'OperationalError(%d): %s',
+                    oe_e.args[0],
+                    repr(oe_e),
+                )
+                connect_attempts += 1
+                time.sleep(PYMYSQL_OE_RECONNECT_DELAY_S)
+            except Exception as e:
+                logger.info(
+                    'Unexpected Exception(%d): %s',
+                    e.args[0],
+                    repr(e),
+                )
+                stop_connecting = True
 
         if self.conn is not None:
             logger.info('Connected')
