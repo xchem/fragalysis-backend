@@ -17,7 +17,9 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 # Timeout to allow the pymysql.connect() method to connect to the DB.
 # The default, if not specified, is 10 seconds.
-PYMYSQL_CONNECT_TIMEOUT_S = 5
+PYMYSQL_CONNECT_TIMEOUT_S = 3
+PYMYSQL_READ_TIMEOUT_S = 3
+PYMYSQL_WRITE_TIMEOUT_S = 10
 # MySQL DB connection attempts.
 # An attempt to cope with intermittent OperationalError exceptions
 # that are seen to occur at "busy times". See m2ms-1403.
@@ -150,6 +152,8 @@ class SSHConnector(Connector):
                     port=self.server.local_bind_port,
                     database=db_name,
                     connect_timeout=PYMYSQL_CONNECT_TIMEOUT_S,
+                    read_timeout=PYMYSQL_READ_TIMEOUT_S,
+                    write_timeout=PYMYSQL_WRITE_TIMEOUT_S,
                 )
             except OperationalError as oe_e:
                 logger.info(
