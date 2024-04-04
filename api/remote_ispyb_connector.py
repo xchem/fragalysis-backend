@@ -65,16 +65,16 @@ class SSHConnector(Connector):
                 'db_pass': pw,
                 'db_name': db,
             }
-            logger.info("Creating remote connector: %s", creds)
+            logger.debug("Creating remote connector: %s", creds)
             self.remote_connect(**creds)
-            logger.info(
+            logger.debug(
                 "Started remote ssh_host=%s ssh_user=%s local_bind_port=%s",
                 ssh_host,
                 ssh_user,
                 self.server.local_bind_port,
             )
         else:
-            logger.info("Creating connector")
+            logger.debug("Creating connector")
             self.connect(
                 user=user,
                 pw=pw,
@@ -83,7 +83,7 @@ class SSHConnector(Connector):
                 port=port,
                 conn_inactivity=conn_inactivity,
             )
-            logger.info("Started direct host=%s user=%s port=%s", host, user, port)
+            logger.debug("Started direct host=%s user=%s port=%s", host, user, port)
 
     def remote_connect(
         self,
@@ -157,7 +157,7 @@ class SSHConnector(Connector):
                     write_timeout=PYMYSQL_WRITE_TIMEOUT_S,
                 )
             except OperationalError as oe_e:
-                logger.info(
+                logger.warning(
                     'OperationalError(%d): %s',
                     oe_e.args[0],
                     repr(oe_e),
@@ -165,7 +165,7 @@ class SSHConnector(Connector):
                 connect_attempts += 1
                 time.sleep(PYMYSQL_OE_RECONNECT_DELAY_S)
             except Exception as e:
-                logger.info(
+                logger.warning(
                     'Unexpected Exception(%d): %s',
                     e.args[0],
                     repr(e),
