@@ -151,7 +151,7 @@ def service_query(func):
         # state and have the service_queries() map the results to the
         # correct values
         if state not in [State.OK, State.NOT_CONFIGURED]:
-            logger.info('"%s" is %s', args[1], state)
+            logger.info('"%s" is %s', args[1], state.name)
         return {"id": args[0], "name": args[1], "state": state}
 
     return wrapper_service_query
