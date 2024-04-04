@@ -99,7 +99,7 @@ class SSHConnector(Connector):
     ):
         sshtunnel.SSH_TIMEOUT = 5.0
         sshtunnel.TUNNEL_TIMEOUT = 5.0
-        sshtunnel.DEFAULT_LOGLEVEL = logging.DEBUG
+        sshtunnel.DEFAULT_LOGLEVEL = logging.ERROR
         self.conn_inactivity = int(self.conn_inactivity)
 
         if ssh_pkey:
