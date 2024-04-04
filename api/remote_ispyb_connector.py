@@ -24,7 +24,7 @@ PYMYSQL_WRITE_TIMEOUT_S = 10
 # An attempt to cope with intermittent OperationalError exceptions
 # that are seen to occur at "busy times". See m2ms-1403.
 PYMYSQL_OE_RECONNECT_ATTEMPTS = 5
-PYMYSQL_OE_RECONNECT_DELAY_S = 1
+PYMYSQL_EXCEPTION_RECONNECT_DELAY_S = 1
 
 
 class SSHConnector(Connector):
@@ -168,7 +168,7 @@ class SSHConnector(Connector):
                     repr(oe_e),
                 )
                 connect_attempts += 1
-                time.sleep(PYMYSQL_OE_RECONNECT_DELAY_S)
+                time.sleep(PYMYSQL_EXCEPTION_RECONNECT_DELAY_S)
             except Exception as e:
                 if connect_attempts == 0:
                     # So we only log our connection attempts once
@@ -184,7 +184,7 @@ class SSHConnector(Connector):
                     repr(e),
                 )
                 connect_attempts += 1
-                time.sleep(PYMYSQL_OE_RECONNECT_DELAY_S)
+                time.sleep(PYMYSQL_EXCEPTION_RECONNECT_DELAY_S)
 
         if self.conn is not None:
             if connect_attempts > 0:
