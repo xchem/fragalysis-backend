@@ -81,11 +81,14 @@ def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
     try:
         conn = SSHConnector(**credentials)
     except Exception:
-        # Log the exception if DEBUG level or lower/finer?
-        # The following will not log if the level is set to INFO for example.
-        logger.info("credentials=%s", credentials)
-        logger.exception("Got the following exception creating SSHConnector...")
-    logger.info("Got remote connector: %s", conn)
+        # No connection?
+        # Underling log is required to identify the problem.
+        # Just catch it and ignore it
+        pass
+    if conn:
+        logger.info("Failed to get a remote connector")
+    else:
+        logger.info("Got remote connector: %s", conn)
 
     return conn
 
