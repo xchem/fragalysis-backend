@@ -72,19 +72,22 @@ def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
     #          If a host is not defined other properties are useless.
     if not credentials["host"]:
         if logging.DEBUG >= logger.level or force_error_display:
-            logger.info("No ISPyB host - cannot return a connector")
+            logger.debug("No ISPyB host - cannot return a connector")
         return None
 
     # Try to get an SSH connection (aware that it might fail)
+    logger.debug("Creating remote connector with credentials: %s", credentials)
     conn: Optional[SSHConnector] = None
     try:
         conn = SSHConnector(**credentials)
     except Exception:
-        # Log the exception if DEBUG level or lower/finer?
-        # The following will not log if the level is set to INFO for example.
         if logging.DEBUG >= logger.level or force_error_display:
             logger.info("credentials=%s", credentials)
-            logger.exception("Got the following exception creating SSHConnector...")
+            logger.exception("Got the following exception creating Connector...")
+    if conn:
+        logger.debug("Got remote connector")
+    else:
+        logger.debug("Failed to get a remote connector")
 
     return conn
 
@@ -106,6 +109,7 @@ def get_conn(force_error_display=False) -> Optional[Connector]:
             logger.info("No ISPyB host - cannot return a connector")
         return None
 
+    logger.info("Creating connector with credentials: %s", credentials)
     conn: Optional[Connector] = None
     try:
         conn = Connector(**credentials)
@@ -115,6 +119,10 @@ def get_conn(force_error_display=False) -> Optional[Connector]:
         if logging.DEBUG >= logger.level or force_error_display:
             logger.info("credentials=%s", credentials)
             logger.exception("Got the following exception creating Connector...")
+    if conn:
+        logger.debug("Got connector")
+    else:
+        logger.debug("Did not get a connector")
 
     return conn
 

@@ -11,8 +11,20 @@ from ispyb.exception import (
     ISPyBNoResultException,
     ISPyBRetrieveFailed,
 )
+from pymysql.err import OperationalError
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+# Timeout to allow the pymysql.connect() method to connect to the DB.
+# The default, if not specified, is 10 seconds.
+PYMYSQL_CONNECT_TIMEOUT_S = 3
+PYMYSQL_READ_TIMEOUT_S = 3
+PYMYSQL_WRITE_TIMEOUT_S = 10
+# MySQL DB connection attempts.
+# An attempt to cope with intermittent OperationalError exceptions
+# that are seen to occur at "busy times". See m2ms-1403.
+PYMYSQL_OE_RECONNECT_ATTEMPTS = 5
+PYMYSQL_EXCEPTION_RECONNECT_DELAY_S = 1
 
 
 class SSHConnector(Connector):
@@ -53,6 +65,7 @@ class SSHConnector(Connector):
                 'db_pass': pw,
                 'db_name': db,
             }
+            logger.debug("Creating remote connector: %s", creds)
             self.remote_connect(**creds)
             logger.debug(
                 "Started remote ssh_host=%s ssh_user=%s local_bind_port=%s",
@@ -61,6 +74,7 @@ class SSHConnector(Connector):
                 self.server.local_bind_port,
             )
         else:
+            logger.debug("Creating connector")
             self.connect(
                 user=user,
                 pw=pw,
@@ -83,9 +97,9 @@ class SSHConnector(Connector):
         db_pass,
         db_name,
     ):
-        sshtunnel.SSH_TIMEOUT = 10.0
-        sshtunnel.TUNNEL_TIMEOUT = 10.0
-        sshtunnel.DEFAULT_LOGLEVEL = logging.CRITICAL
+        sshtunnel.SSH_TIMEOUT = 5.0
+        sshtunnel.TUNNEL_TIMEOUT = 5.0
+        sshtunnel.DEFAULT_LOGLEVEL = logging.ERROR
         self.conn_inactivity = int(self.conn_inactivity)
 
         if ssh_pkey:
@@ -122,20 +136,55 @@ class SSHConnector(Connector):
         self.server.start()
         logger.debug('Started SSH server')
 
-        logger.debug('Connecting to ISPyB (db_user=%s db_name=%s)...', db_user, db_name)
-        self.conn = pymysql.connect(
-            user=db_user,
-            password=db_pass,
-            host='127.0.0.1',
-            port=self.server.local_bind_port,
-            database=db_name,
-        )
+        # Try to connect to the database
+        # a number of times (because it is known to fail)
+        # before giving up...
+        connect_attempts = 0
+        self.conn = None
+        while self.conn is None and connect_attempts < PYMYSQL_OE_RECONNECT_ATTEMPTS:
+            try:
+                self.conn = pymysql.connect(
+                    user=db_user,
+                    password=db_pass,
+                    host='127.0.0.1',
+                    port=self.server.local_bind_port,
+                    database=db_name,
+                    connect_timeout=PYMYSQL_CONNECT_TIMEOUT_S,
+                    read_timeout=PYMYSQL_READ_TIMEOUT_S,
+                    write_timeout=PYMYSQL_WRITE_TIMEOUT_S,
+                )
+            except OperationalError as oe_e:
+                if connect_attempts == 0:
+                    # So we only log our connection attempts once
+                    # an error has occurred - to avoid flooding the log
+                    logger.info(
+                        'Connecting to MySQL database (db_user=%s db_name=%s)...',
+                        db_user,
+                        db_name,
+                    )
+                logger.warning('%s', repr(oe_e))
+                connect_attempts += 1
+                time.sleep(PYMYSQL_EXCEPTION_RECONNECT_DELAY_S)
+            except Exception as e:
+                if connect_attempts == 0:
+                    # So we only log our connection attempts once
+                    # an error has occurred - to avoid flooding the log
+                    logger.info(
+                        'Connecting to MySQL database (db_user=%s db_name=%s)...',
+                        db_user,
+                        db_name,
+                    )
+                logger.warning('Unexpected %s', repr(e))
+                connect_attempts += 1
+                time.sleep(PYMYSQL_EXCEPTION_RECONNECT_DELAY_S)
 
         if self.conn is not None:
-            logger.debug('Connected')
+            if connect_attempts > 0:
+                logger.info('Connected')
             self.conn.autocommit = True
         else:
-            logger.debug('Failed to connect')
+            if connect_attempts > 0:
+                logger.info('Failed to connect')
             self.server.stop()
             raise ISPyBConnectionException
         self.last_activity_ts = time.time()
