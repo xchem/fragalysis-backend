@@ -15,14 +15,18 @@ from viewer.squonk2_agent import get_squonk2_agent
 
 logger = logging.getLogger(__name__)
 
-DELAY = 10
+# Service query timeout
+SERVICE_QUERY_TIMEOUT_S = 28
 # Default timeout for any request calls
+# Used for keycloak atm.
 REQUEST_TIMEOUT_S = 5
 
 _NEO4J_LOCATION: str = settings.NEO4J_QUERY
 _NEO4J_AUTH: str = settings.NEO4J_AUTH
 
 
+# TIMEOUT is no longer used.
+# A service timeout is considered a service that is degraded
 class State(str, Enum):
     NOT_CONFIGURED = "NOT_CONFIGURED"
     DEGRADED = "DEGRADED"
@@ -122,7 +126,7 @@ def service_query(func):
             # TimeoutError is not caught
             executor = futures.ThreadPoolExecutor()
             try:
-                async with asyncio.timeout(DELAY):
+                async with asyncio.timeout(SERVICE_QUERY_TIMEOUT_S):
                     future = loop.run_in_executor(
                         executor, functools.partial(func, *args, **kwargs)
                     )
@@ -134,18 +138,20 @@ def service_query(func):
 
             except TimeoutError:
                 # Timeout is an "expected" condition for a service that's expected
-                # to be running but may be degraded so we don't log it unless debugging.
-                logger.debug("Service query '%s' timed out", func.__name__)
-                state = State.TIMEOUT
+                # to be running but is taking too long to report its state
+                # and is also considered DEGRADED.
+                state = State.DEGRADED
             except Exception as exc:
                 # unknown error with the query
                 logger.exception(exc, exc_info=True)
                 state = State.ERROR
 
-        # name and ID are 1nd and 0th params respectively.
-        # alternative solution for this would be to return just a
+        # ID and Name are the 1st and 2nd params respectively.
+        # Alternative solution for this would be to return just a
         # state and have the service_queries() map the results to the
         # correct values
+        if state not in [State.OK, State.NOT_CONFIGURED]:
+            logger.info('"%s" is %s', args[1], state.name)
         return {"id": args[0], "name": args[1], "state": state}
 
     return wrapper_service_query
