@@ -1712,6 +1712,16 @@ class XtalformSites(viewsets.ModelViewSet):
     http_method_names = ('get',)
 
 
+class FirstAssemblyView(viewsets.ModelViewSet):
+    queryset = models.QuatAssembly.filter_manager.filter_qs()
+    serializer_class = serializers.FirstAssemblySerializer
+    permission_class = [permissions.IsAuthenticated]
+    filterset_class = filters.AssemblyFilter
+    # filterset_fields = ("target", "project")
+    # filter_permissions = "target__project_id"
+    http_method_names = ('get',)
+
+
 class JobFileTransferView(viewsets.ModelViewSet):
     """Squonk Job file transfer (api/job_file_transfer)"""
 

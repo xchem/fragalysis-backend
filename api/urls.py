@@ -133,6 +133,9 @@ router.register(
 router.register("job_callback", viewer_views.JobCallBackView, basename='job_callback')
 router.register("job_config", viewer_views.JobConfigView, basename='job_config')
 router.register("job_override", viewer_views.JobOverrideView, basename='job_override')
+router.register(
+    "first_assembly", viewer_views.FirstAssemblyView, basename='first_assembly'
+)
 
 
 from rest_framework import response, schemas

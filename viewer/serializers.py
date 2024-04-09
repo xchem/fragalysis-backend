@@ -1,7 +1,9 @@
 import logging
 import os
+from pathlib import Path
 from urllib.parse import urljoin
 
+import yaml
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -729,6 +731,82 @@ class SessionProjectTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SessionProjectTag
         fields = '__all__'
+
+
+class FirstAssemblySerializer(serializers.ModelSerializer):
+    target = serializers.IntegerField()
+    pdb_file = serializers.SerializerMethodField()
+
+    def get_pdb_file(self, obj):
+        exp_upload = (
+            models.ExperimentUpload.objects.filter(
+                target__id=obj.target,
+            )
+            .order_by('-commit_datetime')
+            .first()
+        )
+
+        yaml_path = (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(exp_upload.task_id)
+        )
+
+        # add unpacked zip directory
+        yaml_path = [d for d in list(yaml_path.glob("*")) if d.is_dir()][0]
+
+        # add upload_[d] dir
+        yaml_path = next(yaml_path.glob("upload_*"))
+
+        # last components of path, need for reconstruction later
+        comps = yaml_path.parts[-2:]
+
+        # and the file itself
+        yaml_path = yaml_path.joinpath('assemblies.yaml')
+        logger.debug("assemblies path: %s", yaml_path)
+        if yaml_path.is_file():
+            with open(yaml_path, "r", encoding="utf-8") as file:
+                contents = yaml.safe_load(file)
+                try:
+                    assemblies = contents["assemblies"]
+                except KeyError:
+                    logger.error("No 'assemblies' section in 'assemblies.yaml'")
+                    return ''
+
+                try:
+                    first = list(assemblies.values())[0]
+                except IndexError:
+                    logger.error("No assemblies in 'assemblies' section")
+                    return ''
+
+                try:
+                    reference = first["reference"]
+                except KeyError:
+                    logger.error("No assemblies in 'assemblies' section")
+                    return ''
+
+                ref_path = (
+                    Path(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+                    .joinpath(exp_upload.task_id)
+                    .joinpath(comps[0])
+                    .joinpath(comps[1])
+                    .joinpath("crystallographic_files")
+                    .joinpath(reference)
+                    .joinpath(f"{reference}.pdb")
+                )
+                logger.debug('ref_path: %s', ref_path)
+                if Path(settings.MEDIA_ROOT).joinpath(ref_path).is_file():
+                    return str(ref_path)
+                else:
+                    logger.error("Reference pdb file doesn't exist")
+                    return ''
+        else:
+            logger.error("'assemblies.yaml' missing")
+            return ''
+
+    class Meta:
+        model = models.QuatAssembly
+        fields = ('target', 'pdb_file')
 
 
 class TargetMoleculesSerializer(serializers.ModelSerializer):

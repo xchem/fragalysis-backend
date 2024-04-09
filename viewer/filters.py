@@ -5,6 +5,7 @@ from viewer.models import (
     CanonSite,
     CanonSiteConf,
     Compound,
+    QuatAssembly,
     SiteObservation,
     Snapshot,
     XtalformSite,
@@ -100,3 +101,9 @@ class CompoundFilter(TargetFilterMixin):
     class Meta:
         model = Compound
         fields = ("smiles", "current_identifier", "inchi")
+
+
+class AssemblyFilter(TargetFilterMixin):
+    class Meta:
+        model = QuatAssembly
+        fields = ("target",)
