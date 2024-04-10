@@ -1360,6 +1360,14 @@ class SiteObservationTagView(viewsets.ModelViewSet):
     )
 
 
+class PoseView(viewsets.ModelViewSet):
+    """Set up/retrieve information about tags relating to Poses (api/poses)"""
+
+    queryset = models.Pose.filter_manager.filter_qs()
+    serializer_class = serializers.PoseSerializer
+    filterset_class = filters.PoseFilter
+
+
 class SessionProjectTagView(viewsets.ModelViewSet):
     """Set up/retrieve information about tags relating to Session Projects."""
 

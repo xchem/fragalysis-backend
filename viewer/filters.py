@@ -5,6 +5,7 @@ from viewer.models import (
     CanonSite,
     CanonSiteConf,
     Compound,
+    Pose,
     SiteObservation,
     Snapshot,
     XtalformSite,
@@ -100,3 +101,9 @@ class CompoundFilter(TargetFilterMixin):
     class Meta:
         model = Compound
         fields = ("smiles", "current_identifier", "inchi")
+
+
+class PoseFilter(TargetFilterMixin):
+    class Meta:
+        model = Pose
+        fields = ("target", "canon_site", "compound", "main_site_observation")

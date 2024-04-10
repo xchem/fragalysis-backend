@@ -982,3 +982,13 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.XtalformSite
         fields = '__all__'
+
+
+class PoseSerializer(serializers.ModelSerializer):
+    site_observations = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=models.SiteObservation.objects.all()
+    )
+
+    class Meta:
+        model = models.Pose
+        fields = ("id", "display_name", "site_observations")

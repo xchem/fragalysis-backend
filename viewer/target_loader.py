@@ -1818,9 +1818,9 @@ class TargetLoader:
         self._tag_observations(
             "New",
             "",
-            "other",
+            "Other",
             [
-                k
+                k.instance
                 for k in site_observation_objects.values()  # pylint: disable=no-member
                 if k.new
             ],
@@ -1877,7 +1877,11 @@ class TargetLoader:
     def _generate_poses(self):
         values = ["canon_site_conf__canon_site", "cmpd"]
         # fmt: off
-        pose_groups = SiteObservation.objects.values(
+        pose_groups = SiteObservation.objects.exclude(
+            canon_site_conf__canon_site__isnull=True,
+        ).exclude(
+            cmpd__isnull=True,
+        ).values(
             *values
         ).order_by(
             "canon_site_conf__canon_site",

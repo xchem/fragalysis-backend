@@ -17,6 +17,7 @@ from .managers import (
     CanonSiteDataManager,
     CompoundDataManager,
     ExperimentDataManager,
+    PoseDataManager,
     QuatAssemblyDataManager,
     SiteObservationDataManager,
     XtalformDataManager,
@@ -438,6 +439,19 @@ class Pose(models.Model):
     )
     display_name = models.TextField(null=True)
 
+    objects = models.Manager()
+    filter_manager = PoseDataManager()
+
+    def __str__(self) -> str:
+        return f"{self.main_site_observation.code}"
+
+    def __repr__(self) -> str:
+        return "<Pose %r %r %r>" % (
+            self.id,
+            self.main_site_observation.code,
+            self.display_name,
+        )
+
 
 class SiteObservation(models.Model):
     code = models.TextField(null=True)
@@ -446,7 +460,12 @@ class SiteObservation(models.Model):
     cmpd = models.ForeignKey(Compound, null=True, on_delete=models.CASCADE)
     xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
     canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
-    pose = models.ForeignKey(Pose, on_delete=models.CASCADE, null=True)
+    pose = models.ForeignKey(
+        Pose,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="site_observations",
+    )
     bound_file = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
