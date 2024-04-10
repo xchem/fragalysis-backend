@@ -427,6 +427,18 @@ class CanonSiteConf(models.Model):
         return "<CanonSiteConf %r %r %r>" % (self.id, self.name, self.canon_site)
 
 
+class Pose(models.Model):
+    canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
+    compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    main_site_observation = models.OneToOneField(
+        "SiteObservation",
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="main_pose",  # irrelevant, need to remove accessor conflict
+    )
+    display_name = models.TextField(null=True)
+
+
 class SiteObservation(models.Model):
     code = models.TextField(null=True)
     longcode = models.TextField(null=True)
@@ -434,6 +446,7 @@ class SiteObservation(models.Model):
     cmpd = models.ForeignKey(Compound, null=True, on_delete=models.CASCADE)
     xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
     canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
+    pose = models.ForeignKey(Pose, on_delete=models.CASCADE, null=True)
     bound_file = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
