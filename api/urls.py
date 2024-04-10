@@ -88,9 +88,6 @@ router.register(
     viewer_views.SessionProjectTagView,
     basename='session_project_tag',
 )
-router.register(
-    "target_molecules", viewer_views.TargetMoleculesView, basename='target_molecules'
-)
 
 # Download a zip file of the requested contents
 router.register(

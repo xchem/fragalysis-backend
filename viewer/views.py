@@ -1368,18 +1368,6 @@ class SessionProjectTagView(viewsets.ModelViewSet):
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
-class TargetMoleculesView(ISpyBSafeQuerySet):
-    """Retrieve all Molecules and Tag information relating
-    to a Target. The idea is that a single call can return all target related
-    information needed by the React front end in a single call.
-    """
-
-    queryset = models.Target.objects.all()
-    serializer_class = serializers.TargetMoleculesSerializer
-    filter_permissions = "project_id"
-    filterset_fields = ("title",)
-
-
 class DownloadStructures(ISpyBSafeQuerySet):
     """Uses a selected subset of the target data
     (proteins and booleans with suggested files) and creates a Zip file
