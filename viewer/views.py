@@ -1368,16 +1368,16 @@ class SessionProjectTagView(viewsets.ModelViewSet):
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
-class TargetMoleculesView(ISpyBSafeQuerySet):
-    """Retrieve all Molecules and Tag information relating
-    to a Target. The idea is that a single call can return all target related
-    information needed by the React front end in a single call.
-    """
+# class TargetMoleculesView(ISpyBSafeQuerySet):
+#     """Retrieve all Molecules and Tag information relating
+#     to a Target. The idea is that a single call can return all target related
+#     information needed by the React front end in a single call.
+#     """
 
-    queryset = models.Target.objects.all()
-    serializer_class = serializers.TargetMoleculesSerializer
-    filter_permissions = "project_id"
-    filterset_fields = ("title",)
+#     queryset = models.Target.objects.all()
+#     serializer_class = serializers.TargetMoleculesSerializer
+#     filter_permissions = "project_id"
+#     filterset_fields = ("title",)
 
 
 class DownloadStructures(ISpyBSafeQuerySet):
@@ -1712,14 +1712,12 @@ class XtalformSites(viewsets.ModelViewSet):
     http_method_names = ('get',)
 
 
-class FirstAssemblyView(viewsets.ModelViewSet):
-    queryset = models.QuatAssembly.filter_manager.filter_qs()
-    serializer_class = serializers.FirstAssemblySerializer
-    permission_class = [permissions.IsAuthenticated]
-    filterset_class = filters.AssemblyFilter
-    # filterset_fields = ("target", "project")
-    # filter_permissions = "target__project_id"
-    http_method_names = ('get',)
+# class FirstAssemblyView(viewsets.ModelViewSet):
+#     queryset = models.QuatAssembly.filter_manager.filter_qs()
+#     serializer_class = serializers.FirstAssemblySerializer
+#     permission_class = [permissions.IsAuthenticated]
+#     filterset_class = filters.AssemblyFilter
+#     http_method_names = ('get',)
 
 
 class JobFileTransferView(viewsets.ModelViewSet):
