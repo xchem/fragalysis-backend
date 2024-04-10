@@ -88,9 +88,6 @@ router.register(
     viewer_views.SessionProjectTagView,
     basename='session_project_tag',
 )
-# router.register(
-#     "target_molecules", viewer_views.TargetMoleculesView, basename='target_molecules'
-# )
 
 # Download a zip file of the requested contents
 router.register(
@@ -133,9 +130,6 @@ router.register(
 router.register("job_callback", viewer_views.JobCallBackView, basename='job_callback')
 router.register("job_config", viewer_views.JobConfigView, basename='job_config')
 router.register("job_override", viewer_views.JobOverrideView, basename='job_override')
-# router.register(
-#     "first_assembly", viewer_views.FirstAssemblyView, basename='first_assembly'
-# )
 
 
 from rest_framework import response, schemas
