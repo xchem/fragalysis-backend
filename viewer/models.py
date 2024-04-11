@@ -435,7 +435,7 @@ class Pose(models.Model):
         "SiteObservation",
         null=True,
         on_delete=models.CASCADE,
-        related_name="main_pose",  # irrelevant, need to remove accessor conflict
+        related_name="main_pose",
     )
     display_name = models.TextField(null=True)
 

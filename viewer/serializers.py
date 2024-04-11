@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
@@ -984,11 +985,196 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# def update_pose_observations(pose, observation_list, canon_site, compound):
+# def update_pose_observations(pose):
+#     """Update site observations in the pose.
+
+#     Go over every observation and make sure that:
+#     - they have the same canon_site and compound as the pose being created
+#     - the pose they're being removed from is deleted when empty
+#     """
+#     template = (
+#         "Site observation {} cannot be assigned to pose because "
+#         + "pose's {} ({}) doesn't match with observation's ({})"
+#     )
+
+#     messages = []
+#     all_good = True
+#     poses = []
+
+#     # for so in observation_list:
+#     for so in pose.site_observations.all():
+#         logger.debug('processing observation: %s', so)
+#         if so.canon_site_conf.canon_site != pose.canon_site:
+#             all_good = False
+#             messages.append(
+#                 template.format(
+#                     so.code,
+#                     'canonical site',
+#                     pose.canon_site.name,
+#                     so.canon_site_conf.canon_site.name,
+#                 )
+#             )
+#         if so.cmpd != pose.compound:
+#             all_good = False
+#             messages.append(
+#                 template.format(
+#                     so.code,
+#                     'compound',
+#                     pose.compound.compound_code,
+#                     so.cmpd.compound_code,
+#                 )
+#             )
+#         logger.debug('accumulated messages: %s', messages)
+
+#         poses.append(so.pose)
+
+#         so.pose = pose
+#         so.save()
+
+#     # delete old poses that are now empty
+#     for old_pose in poses:
+#         logger.debug('processing old_pose: %s', old_pose)
+#         if not old_pose.site_observations.exists():
+#             old_pose.delete()
+
+#     if not all_good:
+#         raise IntegrityError(messages)
+
+#     return pose
+
+
 class PoseSerializer(serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True, queryset=models.SiteObservation.objects.all()
     )
+    main_site_observation = serializers.PrimaryKeyRelatedField(
+        required=False, default=None, queryset=models.SiteObservation.objects.all()
+    )
+
+    # def update_pose_main_observation(self):
+    #     pass
+
+    def create(self, validated_data):
+        logger.debug('validated_data: %s', validated_data)
+        if not validated_data['site_observations']:
+            raise serializers.ValidationError(
+                {'site_observations': 'Cannot create empty pose'}
+            )
+
+        try:
+            with transaction.atomic():
+                new_pose = super().create(validated_data)
+                return new_pose
+
+        except IntegrityError as exc:
+            raise serializers.ValidationError({'site_observations': exc.args[0]})
+
+    def update(self, instance, validated_data):
+        logger.debug('validated_data: %s', validated_data)
+
+        if not validated_data['site_observations']:
+            raise serializers.ValidationError(
+                {'site_observations': 'Cannot remove all site observations from pose'}
+            )
+
+        try:
+            with transaction.atomic():
+                return instance
+
+        except IntegrityError as exc:
+            raise serializers.ValidationError({'site_observations': exc.args[0]})
+
+    def validate(self, data):
+        """Validate data sent to create or update pose.
+
+        First look at the main_site_observation. If this is not set,
+        try to find a suitable one from the list of observations. If
+        is given, check if it already isn't a main observation to some
+        othe pose.
+
+        Then check observation and make sure that:
+        - they have the same canon_site and compound as the pose being created
+        - the pose they're being removed from is deleted when empty
+
+        """
+        logger.debug('data: %s', data)
+
+        # instance = getattr(self, 'instance', None)
+
+        template = (
+            "Site observation {} cannot be assigned to pose because "
+            + "pose's {} ({}) doesn't match with observation's ({})"
+        )
+
+        messages: dict[str, list[str]] = {
+            'site_observations': [],
+            'main_site_observation': [],
+        }
+        validated_observations = []
+
+        if data['main_site_observation']:
+            logger.debug('no main observation given, trying to find one')
+            main_pose = getattr(data['main_site_observation'], 'main_pose', None)
+            if main_pose:
+                messages['main_site_observation'].append(
+                    'Requested main_site_observation already main observation '
+                    + f'in pose {main_pose.display_name}'
+                )
+
+        for so in data['site_observations']:
+            all_good = True
+
+            # only try to set one if not given in request data
+            if not data['main_site_observation']:
+                logger.debug('no main observation given, trying to find one')
+                if not hasattr(so, 'main_pose'):
+                    data['main_site_observation'] = so
+
+            logger.debug('processing observation: %s', so)
+            if so.canon_site_conf.canon_site != data['canon_site']:
+                all_good = False
+                messages['site_observations'].append(
+                    template.format(
+                        so.code,
+                        'canonical site',
+                        data['canon_site'].name,
+                        so.canon_site_conf.canon_site.name,
+                    )
+                )
+            if so.cmpd != data['compound']:
+                all_good = False
+                messages['site_observations'].append(
+                    template.format(
+                        so.code,
+                        'compound',
+                        data['compound'].compound_code,
+                        so.cmpd.compound_code,
+                    )
+                )
+            logger.debug('accumulated messages: %s', messages)
+            if all_good:
+                validated_observations.append(so)
+
+        # did we get main observaton?
+        if not data['main_site_observation']:
+            messages['main_site_observation'].append(
+                'No suitable observation found to set as main_site_observation'
+            )
+
+        if any(messages.values()):
+            raise serializers.ValidationError(messages)
+        else:
+            data['site_observations'] = validated_observations
+            return data
 
     class Meta:
         model = models.Pose
-        fields = ("id", "display_name", "site_observations")
+        fields = (
+            "id",
+            "display_name",
+            "canon_site",
+            "compound",
+            "main_site_observation",
+            "site_observations",
+        )
