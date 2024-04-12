@@ -1206,6 +1206,7 @@ class Tag(models.Model):
         null=True,
         help_text="Optional JSON field containing name/value pairs for future use",
     )
+    hidden = models.BooleanField(default=False)
 
     def __str__(self) -> str:
         return f"{self.tag}"
