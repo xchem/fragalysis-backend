@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import Count, F
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
 from rdkit import Chem
@@ -1052,38 +1052,55 @@ class PoseSerializer(serializers.ModelSerializer):
         required=False, default=None, queryset=models.SiteObservation.objects.all()
     )
 
-    # def update_pose_main_observation(self):
-    #     pass
+    def update_pose_main_observation(self, main_obvs):
+        if main_obvs.pose.site_observations.count() == 1:
+            main_obvs.pose.delete()
+
+    def remove_empty_poses(self, pose):
+        # fmt: off
+        empty_poses = models.Pose.objects.filter(
+            canon_site=pose.canon_site,
+            compound=pose.compound,
+        ).annotate(
+            num_obvs=Count('site_observations'),
+        ).filter(
+            num_obvs=0,
+        )
+        # fmt: on
+        logger.debug('empty_poses: %s', empty_poses)
+        empty_poses.delete()
 
     def create(self, validated_data):
         logger.debug('validated_data: %s', validated_data)
-        if not validated_data['site_observations']:
-            raise serializers.ValidationError(
-                {'site_observations': 'Cannot create empty pose'}
-            )
-
         try:
             with transaction.atomic():
-                new_pose = super().create(validated_data)
-                return new_pose
+                # only situation with suggested main being a main in
+                # other pose is when it's the only observation in
+                # pose, the other cases must have been caught by
+                # validation
+                self.update_pose_main_observation(
+                    validated_data['main_site_observation']
+                )
+                pose = super().create(validated_data)
+                self.remove_empty_poses(pose)
+                return pose
 
         except IntegrityError as exc:
-            raise serializers.ValidationError({'site_observations': exc.args[0]})
+            raise serializers.ValidationError({'errors': exc.args[0]})
 
     def update(self, instance, validated_data):
         logger.debug('validated_data: %s', validated_data)
 
-        if not validated_data['site_observations']:
-            raise serializers.ValidationError(
-                {'site_observations': 'Cannot remove all site observations from pose'}
-            )
-
         try:
             with transaction.atomic():
-                return instance
+                # TODO: func here to release the main
+                pose = super().update(instance, validated_data)
+                pose.save()
+                self.remove_empty_poses(pose)
+                return pose
 
         except IntegrityError as exc:
-            raise serializers.ValidationError({'site_observations': exc.args[0]})
+            raise serializers.ValidationError({'errors': exc.args[0]})
 
     def validate(self, data):
         """Validate data sent to create or update pose.
@@ -1100,8 +1117,6 @@ class PoseSerializer(serializers.ModelSerializer):
         """
         logger.debug('data: %s', data)
 
-        # instance = getattr(self, 'instance', None)
-
         template = (
             "Site observation {} cannot be assigned to pose because "
             + "pose's {} ({}) doesn't match with observation's ({})"
@@ -1113,12 +1128,23 @@ class PoseSerializer(serializers.ModelSerializer):
         }
         validated_observations = []
 
+        if not data['site_observations']:
+            if hasattr(self, 'instance'):
+                messages['site_observations'].append(
+                    'Cannot remove all site observations from pose'
+                )
+            else:
+                messages['site_observations'].append('Cannot create empty pose')
+
         if data['main_site_observation']:
             logger.debug('no main observation given, trying to find one')
             main_pose = getattr(data['main_site_observation'], 'main_pose', None)
-            if main_pose:
+            if main_pose and main_pose.site_observations.count() > 1:
+                # checking length, because if single observation in
+                # pose, it would leave an empty pose which will be
+                # deleted. otherwise don't allow setting main
                 messages['main_site_observation'].append(
-                    'Requested main_site_observation already main observation '
+                    'Requested main_site_observation already the main observation '
                     + f'in pose {main_pose.display_name}'
                 )
 
