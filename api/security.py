@@ -262,25 +262,32 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return rs
 
     def _get_proposals_for_user_from_ispyb(self, user):
+        updated_cache = False
         if self._cache_needs_updating(user):
-            logger.info("user='%s' (needs_updating)", user.username)
+            logger.info("Updating cache for '%s'", user.username)
             if conn := get_configured_connector():
                 logger.debug("Got a connector for '%s'", user.username)
                 self._get_proposals_from_connector(user, conn)
             else:
                 logger.warning("Failed to get a connector for '%s'", user.username)
                 self._mark_cache_collection_failure(user)
+            updated_cache = True
 
         # The cache has either been updated, has not changed or is empty.
-        # Return what we have for the user. If required, public (open) proposals
-        # will be added to what we return.
+        # Return what we have for the user. Public (open) proposals
+        # will be added to what we return if necessary.
         cached_prop_ids = USER_PROPOSAL_CACHE[user.username]["RESULTS"]
-        logger.info(
-            "Got %s proposals for '%s': %s",
-            len(cached_prop_ids),
-            user.username,
-            cached_prop_ids,
-        )
+        if updated_cache:
+            logger.info(
+                "Cached %s Proposals for '%s'",
+                len(cached_prop_ids),
+                user.username,
+            )
+            logger.debug(
+                "The cached Proposals for '%s' are: %s",
+                user.username,
+                cached_prop_ids,
+            )
         return cached_prop_ids
 
     def _get_proposals_from_connector(self, user, conn):
@@ -369,10 +376,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         )
         if ispyb_user:
             if user.is_authenticated:
-                logger.info("Getting proposals from ISPyB...")
+                logger.debug("Getting proposals from ISPyB...")
                 proposals = self._get_proposals_for_user_from_ispyb(user)
         else:
-            logger.info("Getting proposals from Django...")
+            logger.debug("Getting proposals from Django...")
             proposals = self._get_proposals_for_user_from_django(user)
 
         # We have all the proposals where the user has authority.
