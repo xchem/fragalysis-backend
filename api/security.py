@@ -231,8 +231,9 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         USER_PROPOSAL_CACHE[username]["TIMESTAMP"] = now
         USER_PROPOSAL_CACHE[username]["EXPIRES_AT"] = now + USER_PROPOSAL_CACHE_MAX_AGE
         logger.info(
-            "USER_PROPOSAL_CACHE populated for '%s' (expires at %s)",
+            "USER_PROPOSAL_CACHE updated for '%s' with %s results (expires at %s)",
             username,
+            len(USER_PROPOSAL_CACHE[username]["RESULTS"]),
             USER_PROPOSAL_CACHE[username]["EXPIRES_AT"],
         )
 
@@ -264,7 +265,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def _get_proposals_for_user_from_ispyb(self, user):
         updated_cache = False
         if self._cache_needs_updating(user):
-            logger.info("Updating cache for '%s'", user.username)
+            logger.debug("Updating cache for '%s'", user.username)
             if conn := get_configured_connector():
                 logger.debug("Got a connector for '%s'", user.username)
                 self._get_proposals_from_connector(user, conn)
@@ -278,7 +279,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # will be added to what we return if necessary.
         cached_prop_ids = USER_PROPOSAL_CACHE[user.username]["RESULTS"]
         if updated_cache:
-            logger.info(
+            logger.debug(
                 "Cached %s Proposals for '%s'",
                 len(cached_prop_ids),
                 user.username,
