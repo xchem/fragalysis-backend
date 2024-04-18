@@ -1,9 +1,11 @@
 # pylint: skip-file
 import logging
 import os
+import threading
 from datetime import datetime, timedelta
+from functools import cache
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from wsgiref.util import FileWrapper
 
 from django.conf import settings
@@ -19,32 +21,49 @@ from .remote_ispyb_connector import SSHConnector
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-# Sets of cached query results, indexed by username.
-# The cache uses the key 'RESULTS' and the collection time uses the key 'TIMESTAMP'.
-# and the time the cache is expires is in 'EXPIRES_AT'
-USER_PROPOSAL_CACHE: Dict[str, Dict[str, Any]] = {}
-# Period to cache user lists in seconds (on successful reads from the connector)
-USER_PROPOSAL_CACHE_MAX_AGE: timedelta = timedelta(
-    minutes=settings.SECURITY_CONNECTOR_CACHE_MINUTES
-)
-# A short period, used when caching of results fails.
-# This ensures a rapid retry on failure.
-USER_PROPOSAL_CACHE_RETRY_TIMEOUT: timedelta = timedelta(seconds=7)
 
-# example test:
-# from rest_framework.test import APIRequestFactory
-#
-# from rest_framework.test import force_authenticate
-# from viewer.views import TargetView
-# from django.contrib.auth.models import User
-#
-# factory = APIRequestFactory()
-# view = TargetView.as_view({'get': 'list'})
-# user = User.objects.get(username='uzw12877')
-# # Make an authenticated request to the view...
-# request = factory.get('/api/targets/')
-# force_authenticate(request, user=user)
-# response = view(request)
+@cache
+class CachedContent:
+    """A static class managing caches proposals/visits for each user.
+    Proposals should be collected when has_expired() returns True.
+    Content can be written (when the cache for the user has expired)
+    and read using the set/get methods.
+    """
+
+    _timers: Dict[str, datetime] = {}
+    _content: Dict[str, List[str]] = {}
+    _cache_period: timedelta = timedelta(
+        minutes=settings.SECURITY_CONNECTOR_CACHE_MINUTES
+    )
+    _cache_lock: threading.Lock = threading.Lock()
+
+    @staticmethod
+    def has_expired(username) -> bool:
+        assert username
+        with CachedContent._cache_lock:
+            has_expired = False
+            now = datetime.now()
+            if username not in CachedContent._timers:
+                # User's not known,
+                # initialise an entry that will automatically expire
+                CachedContent._timers[username] = now
+            if CachedContent._timers[username] <= now:
+                has_expired = True
+                # Expired, reset the expiry time
+                CachedContent._timers[username] = now + CachedContent._cache_period
+        return has_expired
+
+    @staticmethod
+    def get_content(username):
+        with CachedContent._cache_lock:
+            if username not in CachedContent._content:
+                CachedContent._content[username] = []
+        return CachedContent._content[username]
+
+    @staticmethod
+    def set_content(username, content) -> None:
+        with CachedContent._cache_lock:
+            CachedContent._content[username] = content.copy()
 
 
 def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
@@ -197,57 +216,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             )
         return prop_ids
 
-    def _cache_needs_updating(self, user):
-        """True of the data for a user now needs to be collected
-        (e.g. the cache is out of date). The response is also True for the first
-        call for each user. When data is successfully collected you need to
-        call '_populate_cache()' with the user and new cache content.
-        This will set the cache content and the cache timestamp.
-        """
-        now = datetime.now()
-        if user.username not in USER_PROPOSAL_CACHE:
-            # Unknown user - initilise the entry for this user.
-            # And make suer it immediately expires!
-            USER_PROPOSAL_CACHE[user.username] = {
-                "RESULTS": set(),
-                "TIMESTAMP": None,
-                "EXPIRES_AT": now,
-            }
-
-        # Has the cache expired?
-        return now >= USER_PROPOSAL_CACHE[user.username]["EXPIRES_AT"]
-
-    def _populate_cache(self, user, new_content):
-        """Called by code that collects content to replace the cache with new content,
-        this is typically from '_get_proposals_from_connector()'. The underlying map's
-        TIMESTAMP for the user will also be set (to 'now') to reflect the time the
-        cache was most recently populated.
-        """
-        username = user.username
-        USER_PROPOSAL_CACHE[username]["RESULTS"] = new_content.copy()
-        # Set the timestamp (which records when the cache was populated with 'stuff')
-        # and ensure it will now expire after USER_PROPOSAL_CACHE_SECONDS.
-        now = datetime.now()
-        USER_PROPOSAL_CACHE[username]["TIMESTAMP"] = now
-        USER_PROPOSAL_CACHE[username]["EXPIRES_AT"] = now + USER_PROPOSAL_CACHE_MAX_AGE
-        logger.info(
-            "USER_PROPOSAL_CACHE populated for '%s' (expires at %s)",
-            username,
-            USER_PROPOSAL_CACHE[username]["EXPIRES_AT"],
-        )
-
-    def _mark_cache_collection_failure(self, user):
-        """Called by code that collects content to indicate that although the cache
-        should have been collected it has not (trough some other problem).
-        Under these circumstances the cache will not be updated but we have the opportunity
-        to set a new, short, 'expiry' time. In this way, cache collection will occur
-        again soon. The cache and its timestamp are left intact.
-        """
-        now = datetime.now()
-        USER_PROPOSAL_CACHE[user.username]["EXPIRES_AT"] = (
-            now + USER_PROPOSAL_CACHE_RETRY_TIMEOUT
-        )
-
     def _run_query_with_connector(self, conn, user):
         core = conn.core
         try:
@@ -262,8 +230,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return rs
 
     def _get_proposals_for_user_from_ispyb(self, user):
-        if self._cache_needs_updating(user):
-            logger.info("user='%s' (needs_updating)", user.username)
+        if CachedContent.has_expired(user.username):
+            logger.info("Cache has expired for '%s'", user.username)
             if conn := get_configured_connector():
                 logger.debug("Got a connector for '%s'", user.username)
                 self._get_proposals_from_connector(user, conn)
@@ -272,15 +240,16 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
                 self._mark_cache_collection_failure(user)
 
         # The cache has either been updated, has not changed or is empty.
-        # Return what we have for the user. If required, public (open) proposals
-        # will be added to what we return.
-        cached_prop_ids = USER_PROPOSAL_CACHE[user.username]["RESULTS"]
-        logger.info(
-            "Got %s proposals for '%s': %s",
+        # Return what we have for the user. Public (open) proposals
+        # will be added to what we return if necessary.
+        cached_prop_ids = CachedContent.get_content(user.username)
+        logger.debug(
+            "Have %s cached Proposals for '%s': %s",
             len(cached_prop_ids),
             user.username,
             cached_prop_ids,
         )
+
         return cached_prop_ids
 
     def _get_proposals_from_connector(self, user, conn):
@@ -342,9 +311,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             user.username,
             prop_id_set,
         )
-
-        # Replace the cache with what we've collected
-        self._populate_cache(user, prop_id_set)
+        CachedContent.set_content(user.username, prop_id_set)
 
     def get_proposals_for_user(self, user, restrict_to_membership=False):
         """Returns a list of proposals that the user has access to.
@@ -369,10 +336,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         )
         if ispyb_user:
             if user.is_authenticated:
-                logger.info("Getting proposals from ISPyB...")
+                logger.debug("Getting proposals from ISPyB...")
                 proposals = self._get_proposals_for_user_from_ispyb(user)
         else:
-            logger.info("Getting proposals from Django...")
+            logger.debug("Getting proposals from Django...")
             proposals = self._get_proposals_for_user_from_django(user)
 
         # We have all the proposals where the user has authority.
