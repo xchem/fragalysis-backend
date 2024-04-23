@@ -231,7 +231,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def _get_proposals_for_user_from_ispyb(self, user):
         if CachedContent.has_expired(user.username):
             logger.info("Cache has expired for '%s'", user.username)
-            if conn := get_configured_connector():
+            conn = get_configured_connector()
+            if conn:
                 logger.debug("Got a connector for '%s'", user.username)
                 self._get_proposals_from_connector(user, conn)
             else:
