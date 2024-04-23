@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from functools import cache
+from functools import lru_cache
 import logging
 import os
 import threading
@@ -37,7 +37,7 @@ SSH_USER = os.environ.get('SSH_USER')
 SSH_PASSWORD = os.environ.get('SSH_PASSWORD')
 SSH_PRIVATE_KEY_FILENAME = os.environ.get('SSH_PRIVATE_KEY_FILENAME')
 
-@cache
+@lru_cache(maxsize=None)
 class CachedContent:
     """A static class managing caches proposals/visits for each user.
     Proposals should be collected when has_expired() returns True.
