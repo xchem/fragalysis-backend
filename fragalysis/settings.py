@@ -208,6 +208,11 @@ OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_STORE_ACCESS_TOKEN = True
 OIDC_STORE_ID_TOKEN = True
 
+# Are any public target access strings defined?
+# If so they'll be in the PUBLIC_TAS variable as a comma separated list.
+PUBLIC_TAS = os.environ.get("PUBLIC_TAS", "")
+PUBLIC_TAS_LIST = PUBLIC_TAS.split(",") if PUBLIC_TAS else []
+
 # SessionRefresh configuration.
 # There's only one item - the token expiry period, with a default of 15 minutes.
 # The default is 15 minutes if you don't set this value.
