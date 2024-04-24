@@ -275,14 +275,299 @@ class APIUrlsTestCase(APITestCase):
 
         self.get_types = ["targets"] #, "molecules"]
 
+        self.secret_target_data = {
+            "targets": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 2,
+                        "title": "SECRET_TARGET",
+                        "project_id": [2],
+                        "protein_set": [2],
+                        "default_squonk_project": None,
+                        "template_protein": "/media/secret_pdb.pdb",
+                        "metadata": None,
+                        "upload_status": None,
+                        "zip_archive": None,
+                        "sequences": [{'chain': '', 'sequence': ''}]
+                    },
+                    {
+                        "id": 1,
+                        "title": "DUMMY_TARGET",
+                        "project_id": [1],
+                        "protein_set": [1],
+                        "default_squonk_project": None,
+                        "template_protein": "/media/my_pdb.pdb",
+                        "metadata": None,
+                        "upload_status": None,
+                        "zip_archive": None,
+                        "sequences": [{'chain': '', 'sequence': ''}]
+                    },
+                ],
+            },
+            "molecules": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "smiles": "DUMMY",
+                        "cmpd_id": 1,
+                        "prot_id": 1,
+                        "protein_code": "DUMM",
+                        "lig_id": "DUM",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/my_pdb.pdb",
+                        "chain_id": "C",
+                        "sdf_info": "DUMMY_SD",
+                        "x_com": 0.3,
+                        "y_com": 0.4,
+                        "z_com": 0.5,
+                        "mw": 0.2,
+                        "logp": 0.1,
+                        "tpsa": 0.3,
+                        "ha": 1,
+                        "hacc": 5,
+                        "hdon": 6,
+                        "rots": 8,
+                        "rings": 10,
+                        "velec": 9
+                    },
+                    {
+                        "id": 2,
+                        "smiles": "SECRET",
+                        "cmpd_id": 2,
+                        "prot_id": 2,
+                        "protein_code": "SECC",
+                        "lig_id": "SEC",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/secret_pdb.pdb",
+                        "chain_id": "C",
+                        "sdf_info": "SECRET_SD",
+                        "x_com": 0.3,
+                        "y_com": 0.4,
+                        "z_com": 0.5,
+                        "mw": 0.2,
+                        "logp": 0.1,
+                        "tpsa": 0.3,
+                        "ha": 1,
+                        "hacc": 5,
+                        "hdon": 6,
+                        "rots": 8,
+                        "rings": 10,
+                        "velec": 9
+                    },
+                ],
+            },
+            "compounds": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "inchi": "DUM_INCH",
+                        "long_inchi": "DUM_L_INCHI",
+                        "smiles": "DUM_SMI",
+                        "current_identifier": "DUMM",
+                        'all_identifiers': "DUMM",
+                        "mol_log_p": 0.1,
+                        "mol_wt": 0.2,
+                        "tpsa": 0.3,
+                        "heavy_atom_count": 1,
+                        "heavy_atom_mol_wt": 2,
+                        "nhoh_count": 3,
+                        "no_count": 4,
+                        "num_h_acceptors": 5,
+                        "num_h_donors": 6,
+                        "num_het_atoms": 7,
+                        'num_rot_bonds': 8,
+                        'num_val_electrons': 9,
+                        "ring_count": 10,
+                    },
+                    {
+                        "id": 2,
+                        "inchi": "SEC_INCH",
+                        "long_inchi": "SEC_L_INCHI",
+                        "smiles": "SEC_SMI",
+                        "current_identifier": "SEC_DUMM",
+                        'all_identifiers': "SEC_DUMM",
+                        "mol_log_p": 0.1,
+                        "mol_wt": 0.2,
+                        "tpsa": 0.3,
+                        "heavy_atom_count": 1,
+                        "heavy_atom_mol_wt": 2,
+                        "nhoh_count": 3,
+                        "no_count": 4,
+                        "num_h_acceptors": 5,
+                        "num_h_donors": 6,
+                        "num_het_atoms": 7,
+                        'num_rot_bonds': 8,
+                        'num_val_electrons': 9,
+                        "ring_count": 10,
+                    },
+                ],
+            },
+            "proteins": {
+                "count": 2,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "code": "DUMM",
+                        "target_id": 1,
+                        "apo_holo": None,
+                        "prot_type": "AP",
+                        "pdb_info": "http://testserver/media/my_pdb.pdb",
+                        "bound_info": None,
+                        "mtz_info": None,
+                        "map_info": None,
+                        "cif_info": None,
+                        "sigmaa_info": None,
+                        "diff_info": None,
+                        "event_info": None,
+                        "aligned": None,
+                        "has_eds": None,
+                        "aligned_to": None
+                    },
+                    {
+                        "id": 2,
+                        "code": "SECC",
+                        "target_id": 1,
+                        "apo_holo": None,
+                        "prot_type": "AP",
+                        "pdb_info": "http://testserver/media/secret_pdb.pdb",
+                        "mtz_info": None,
+                        "map_info": None,
+                        "cif_info": None,
+                        "sigmaa_info": None,
+                        "diff_info": None,
+                        "event_info": None,
+                        "aligned": None,
+                        "has_eds": None,
+                        "aligned_to": None
+                    },
+                ],
+            },
+        }
+        self.not_secret_target_data = {
+            "targets": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "title": "DUMMY_TARGET",
+                        "project_id": [1],
+                        "protein_set": [1],
+                        'default_squonk_project': None,
+                        "template_protein": "/media/my_pdb.pdb",
+                        "metadata": None,
+                        'upload_status': None,
+                        "zip_archive": None,
+                        "sequences": [{'chain': '', 'sequence': ''}]
+                    }
+                ],
+            },
+            "molecules": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "smiles": "DUMMY",
+                        "cmpd_id": 1,
+                        "prot_id": 1,
+                        "protein_code": "DUMM",
+                        "lig_id": "DUM",
+                        "mol_type": "PR",
+                        "molecule_protein": "/media/my_pdb.pdb",
+                        "chain_id": "C",
+                        "sdf_info": "DUMMY_SD",
+                        "x_com": 0.3,
+                        "y_com": 0.4,
+                        "z_com": 0.5,
+                        "mw": 0.2,
+                        "logp": 0.1,
+                        "tpsa": 0.3,
+                        "ha": 1,
+                        "hacc": 5,
+                        "hdon": 6,
+                        "rots": 8,
+                        "rings": 10,
+                        "velec": 9
+                    }
+                ],
+            },
+            "compounds": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "inchi": "DUM_INCH",
+                        "long_inchi": "DUM_L_INCHI",
+                        "smiles": "DUM_SMI",
+                        "current_identifier": "DUMM",
+                        'all_identifiers': "DUMM",
+                        "mol_log_p": 0.1,
+                        "mol_wt": 0.2,
+                        "tpsa": 0.3,
+                        "heavy_atom_count": 1,
+                        "heavy_atom_mol_wt": 2,
+                        "nhoh_count": 3,
+                        "no_count": 4,
+                        "num_h_acceptors": 5,
+                        "num_h_donors": 6,
+                        "num_het_atoms": 7,
+                        'num_rot_bonds': 8,
+                        'num_val_electrons': 9,
+                        "ring_count": 10,
+                    }
+                ],
+            },
+            "proteins": {
+                "count": 1,
+                "next": None,
+                "previous": None,
+                "results": [
+                    {
+                        "id": 1,
+                        "code": "DUMM",
+                        "target_id": 1,
+                        "apo_holo": None,
+                        "prot_type": "AP",
+                        "pdb_info": "http://testserver/media/my_pdb.pdb",
+                        "bound_info": None,
+                        "mtz_info": None,
+                        "map_info": None,
+                        "cif_info": None,
+                        "sigmaa_info": None,
+                        "diff_info": None,
+                        "event_info": None,
+                        "aligned": None,
+                        "has_eds": None,
+                        "aligned_to": None
+                    }
+                ],
+            },
+        }
+
     def test_API(self):
         """
         Untested but check get API works the way we want
         :return:
         """
         urls = [
-#            "molecules",
-#            "compounds",
+            "molecules",
+            "compounds",
             "targets",
             "proteins",
             "vectors",
@@ -419,16 +704,12 @@ class APIUrlsTestCase(APITestCase):
         post_data = [{} for x in response_data]
         post_resp = [{"detail": 'Method "POST" not allowed.'} for x in response_data]
         for i, url in enumerate(urls):
-            test_url = self.url_base + "/" + url + "/"
-            tets_url_get = test_url + "/1/"
-            print("Testing GET from URL: ", tets_url_get)
             # GET basic request
-            response = self.client.get(tets_url_get)
+            response = self.client.get(self.url_base + "/" + url + "/1/")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
             # POST shouldn't work
-            print("Testing POST to URL: ", test_url)
-            response = self.client.post(test_url + "/", post_data[i])
+            response = self.client.post(self.url_base + "/" + url + "/", post_data[i])
             self.assertEqual(response.status_code, 405)
             self.assertEqual(response.data, post_resp[i])
 
@@ -441,6 +722,16 @@ class APIUrlsTestCase(APITestCase):
             a = json.loads(json.dumps(response.json()))
             b = json.loads(json.dumps(test_data_set[get_type]))
             self.assertFalse(DeepDiff(a, b, ignore_order=True))
+
+    def test_secure(self):
+        # Test the login user  can access secure data
+        self.do_full_scan(self.user_two, self.secret_target_data)
+
+    def test_insecure(self):
+        self.do_full_scan(self.user, self.not_secret_target_data)
+
+    def test_not_logged_in(self):
+        self.do_full_scan(None, self.not_secret_target_data)
 
     def test_tags(self):
         """

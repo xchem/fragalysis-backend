@@ -1,12 +1,8 @@
-from datetime import datetime, timedelta
-from functools import lru_cache
 import logging
 import os
-import threading
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 from wsgiref.util import FileWrapper
-from django.conf import settings
 from django.http import Http404
 from django.http import HttpResponse
 from django.db.models import Q
@@ -21,64 +17,18 @@ logger = logging.getLogger(__name__)
 
 USER_LIST_DICT = {}
 
-SECURITY_CONNECTOR_CACHE_MINUTES = os.environ.get('SECURITY_CONNECTOR_CACHE_MINUTES', 2)
-
 ISPYB_USER = os.environ.get('ISPYB_USER')
 ISPYB_PASSWORD = os.environ.get('ISPYB_PASSWORD')
 ISPYB_HOST = os.environ.get('ISPYB_HOST')
 ISPYB_PORT = os.environ.get('ISPYB_PORT')
-
-PUBLCI_TAS_LIST = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
-
-SECURITY_CONNECTOR = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 
 SSH_HOST = os.environ.get('SSH_HOST')
 SSH_USER = os.environ.get('SSH_USER')
 SSH_PASSWORD = os.environ.get('SSH_PASSWORD')
 SSH_PRIVATE_KEY_FILENAME = os.environ.get('SSH_PRIVATE_KEY_FILENAME')
 
-@lru_cache(maxsize=None)
-class CachedContent:
-    """A static class managing caches proposals/visits for each user.
-    Proposals should be collected when has_expired() returns True.
-    Content can be written (when the cache for the user has expired)
-    and read using the set/get methods.
-    """
+connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 
-    _timers: Dict[str, datetime] = {}
-    _content: Dict[str, List[str]] = {}
-    _cache_period: timedelta = timedelta(
-        minutes=SECURITY_CONNECTOR_CACHE_MINUTES
-    )
-    _cache_lock: threading.Lock = threading.Lock()
-
-    @staticmethod
-    def has_expired(username) -> bool:
-        assert username
-        with CachedContent._cache_lock:
-            has_expired = False
-            now = datetime.now()
-            if username not in CachedContent._timers:
-                # User's not known,
-                # initialise an entry that will automatically expire
-                CachedContent._timers[username] = now
-            if CachedContent._timers[username] <= now:
-                has_expired = True
-                # Expired, reset the expiry time
-                CachedContent._timers[username] = now + CachedContent._cache_period
-        return has_expired
-
-    @staticmethod
-    def get_content(username):
-        with CachedContent._cache_lock:
-            if username not in CachedContent._content:
-                CachedContent._content[username] = []
-        return CachedContent._content[username]
-
-    @staticmethod
-    def set_content(username, content) -> None:
-        with CachedContent._cache_lock:
-            CachedContent._content[username] = content.copy()
 
 def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
     credentials: Dict[str, Any] = {
@@ -159,199 +109,186 @@ def get_conn(force_error_display=False) -> Optional[Connector]:
 
     return conn
 
-
-def get_configured_connector() -> Optional[Union[Connector, SSHConnector]]:
-    if SECURITY_CONNECTOR == 'ispyb':
-        return get_conn()
-    elif SECURITY_CONNECTOR == 'ssh_ispyb':
-        return get_remote_conn()
-    return None
-
-
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+
     def get_queryset(self):
         """
         Optionally restricts the returned purchases to a given proposals
         """
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user(self.request.user)
-        logger.debug(
-            'is_authenticated=%s, proposal_list=%s',
-            self.request.user.is_authenticated,
-            proposal_list,
-        )
+        # Add in the ones everyone has access to
+        # (unless we already have it)
+        for open_proposal in self.get_open_proposals():
+            if open_proposal not in proposal_list:
+                proposal_list.append(open_proposal)
+
+        logger.debug('is_authenticated=%s, proposal_list=%s',
+                     self.request.user.is_authenticated, proposal_list)
 
         # Must have a foreign key to a Project for this filter to work.
         # get_q_filter() returns a Q expression for filtering
         q_filter = self.get_q_filter(proposal_list)
         return self.queryset.filter(q_filter).distinct()
 
-    def _get_open_proposals(self):
+    def get_open_proposals(self):
         """
-        Returns the set of proposals anybody can access.
-        These consist of any Projects that are marked "open_to_public"
-        and any defined via an environment variable.
+        Returns the list of proposals anybody can access.
+        This function is deprecated, instead we should move to the 'open_to_public'
+        field rather than using a built-in list of Projects.
+        We still add "OPEN" to the list for legacy testing.
         """
-        open_proposals = set(
-            Project.objects.filter(open_to_public=True).values_list("title", flat=True)
-        )
-        open_proposals.update(settings.PUBLIC_TAS_LIST)
-        return open_proposals
+        if os.environ.get("TEST_SECURITY_FLAG", False):
+            return ["lb00000", "OPEN", "private_dummy_project"]
+        else:
+            # A list of well-known (built-in) public Projects (Proposals/Visits)
+            return ["lb00000", "OPEN", "lb27156"]
 
-    def _get_proposals_for_user_from_django(self, user):
-        prop_ids = set()
-        # Get the set() of proposals for the user
+    def get_proposals_for_user_from_django(self, user):
+        # Get the list of proposals for the user
         if user.pk is None:
             logger.warning("user.pk is None")
+            return []
         else:
-            prop_ids.update(
+            prop_ids = list(
                 Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
             )
-            logger.info(
-                "Got %s proposals for '%s': %s",
-                len(prop_ids),
-                user.username,
-                prop_ids,
-            )
-        return prop_ids
+            logger.debug("Got %s proposals: %s", len(prop_ids), prop_ids)
+            return prop_ids
 
-    def _run_query_with_connector(self, conn, user):
+    def needs_updating(self, user):
+        """Returns true of the data collected for a user is out of date.
+        It's simple, we just record the last collected timestamp and consider it
+        'out of date' (i.e. more than an hour old).
+        """
+        global USER_LIST_DICT
+
+        update_window = 3600
+        if user.username not in USER_LIST_DICT:
+            USER_LIST_DICT[user.username] = {"RESULTS": [], "TIMESTAMP": 0}
+        current_time = time.time()
+        if current_time - USER_LIST_DICT[user.username]["TIMESTAMP"] > update_window:
+            USER_LIST_DICT[user.username]["TIMESTAMP"] = current_time
+            return True
+        return False
+
+    def run_query_with_connector(self, conn, user):
+
         core = conn.core
         try:
             rs = core.retrieve_sessions_for_person_login(user.username)
             if conn.server:
                 conn.server.stop()
         except ISPyBNoResultException:
-            logger.warning("No results for user=%s", user.username)
             rs = []
             if conn.server:
                 conn.server.stop()
         return rs
 
-    def _get_proposals_for_user_from_ispyb(self, user):
-        if CachedContent.has_expired(user.username):
-            logger.info("Cache has expired for '%s'", user.username)
-            conn = get_configured_connector()
-            if conn:
-                logger.debug("Got a connector for '%s'", user.username)
-                self._get_proposals_from_connector(user, conn)
-            else:
-                logger.warning("Failed to get a connector for '%s'", user.username)
-                self._mark_cache_collection_failure(user)
+    def get_proposals_for_user_from_ispyb(self, user):
+        # First check if it's updated in the past 1 hour
+        global USER_LIST_DICT
 
-        # The cache has either been updated, has not changed or is empty.
-        # Return what we have for the user. Public (open) proposals
-        # will be added to what we return if necessary.
-        cached_prop_ids = CachedContent.get_content(user.username)
-        logger.debug(
-            "Have %s cached Proposals for '%s': %s",
-            len(cached_prop_ids),
-            user.username,
-            cached_prop_ids,
-        )
+        needs_updating = self.needs_updating(user)
+        logger.debug("user=%s needs_updating=%s", user.username, needs_updating)
 
-        return cached_prop_ids
+        if needs_updating:
+            conn = None
+            if connector == 'ispyb':
+                conn = get_conn()
+            if connector == 'ssh_ispyb':
+                conn = get_remote_conn()
 
-    def _get_proposals_from_connector(self, user, conn):
-        """Updates the USER_LIST_DICT with the results of a query
-        and marks it as populated.
-        """
-        assert user
-        assert conn
+            # If there is no connection (ISPyB credentials may be missing)
+            # then there's nothing we can do except return an empty list.
+            # Otherwise run a query for the user.
+            if conn is None:
+                logger.warning("Failed to get ISPyB connector")
+                return []
+            rs = self.run_query_with_connector(conn=conn, user=user)
+            logger.debug("Connector query rs=%s", rs)
 
-        rs = self._run_query_with_connector(conn=conn, user=user)
+            # Typically you'll find the following fields in each item
+            # in the rs response; -
+            #
+            #    'id': 0000000,
+            #    'proposalId': 00000,
+            #    'startDate': datetime.datetime(2022, 12, 1, 15, 56, 30)
+            #    'endDate': datetime.datetime(2022, 12, 3, 18, 34, 9)
+            #    'beamline': 'i00-0'
+            #    'proposalCode': 'lb'
+            #    'proposalNumber': '12345'
+            #    'sessionNumber': 1
+            #    'comments': None
+            #    'personRoleOnSession': 'Data Access'
+            #    'personRemoteOnSession': 1
+            #
+            # Iterate through the response and return the 'proposalNumber' (proposals)
+            # and one with the 'proposalNumber' and 'sessionNumber' (visits), each
+            # prefixed by the `proposalCode` (if present).
+            #
+            # Codes are expected to consist of 2 letters.
+            # Typically: lb, mx, nt, nr, bi
+            #
+            # These strings should correspond to a title value in a Project record.
+            # and should get this sort of list: -
+            #
+            # ["lb12345", "lb12345-1"]
+            #              --      -
+            #              | ----- |
+            #           Code   |   Session
+            #               Proposal
+            prop_id_set = set()
+            for record in rs:
+                pc_str = ""
+                if "proposalCode" in record and record["proposalCode"]:
+                    pc_str = f'{record["proposalCode"]}'
+                pn_str = f'{record["proposalNumber"]}'
+                sn_str = f'{record["sessionNumber"]}'
+                proposal_str = f'{pc_str}{pn_str}'
+                proposal_visit_str = f'{proposal_str}-{sn_str}'
+                prop_id_set.update([proposal_str, proposal_visit_str])
 
-        # Typically you'll find the following fields in each item
-        # in the rs response: -
-        #
-        #    'id': 0000000,
-        #    'proposalId': 00000,
-        #    'startDate': datetime.datetime(2022, 12, 1, 15, 56, 30)
-        #    'endDate': datetime.datetime(2022, 12, 3, 18, 34, 9)
-        #    'beamline': 'i00-0'
-        #    'proposalCode': 'lb'
-        #    'proposalNumber': '12345'
-        #    'sessionNumber': 1
-        #    'comments': None
-        #    'personRoleOnSession': 'Data Access'
-        #    'personRemoteOnSession': 1
-        #
-        # Iterate through the response and return the 'proposalNumber' (proposals)
-        # and one with the 'proposalNumber' and 'sessionNumber' (visits), each
-        # prefixed by the `proposalCode` (if present).
-        #
-        # Codes are expected to consist of 2 letters.
-        # Typically: lb, mx, nt, nr, bi
-        #
-        # These strings should correspond to a title value in a Project record.
-        # and should get this sort of list: -
-        #
-        # ["lb12345", "lb12345-1"]
-        #              --      -
-        #              | ----- |
-        #           Code   |   Session
-        #               Proposal
-        prop_id_set = set()
-        for record in rs:
-            pc_str = ""
-            if "proposalCode" in record and record["proposalCode"]:
-                pc_str = f'{record["proposalCode"]}'
-            pn_str = f'{record["proposalNumber"]}'
-            sn_str = f'{record["sessionNumber"]}'
-            proposal_str = f'{pc_str}{pn_str}'
-            proposal_visit_str = f'{proposal_str}-{sn_str}'
-            prop_id_set.update([proposal_str, proposal_visit_str])
+            # Always display the collected results for the user.
+            # These will be cached.
+            logger.info("Got %s proposals (%s): %s",
+                        len(prop_id_set), user.username, prop_id_set)
 
-        # Always display the collected results for the user.
-        # These will be cached.
-        logger.debug(
-            "%s proposals from %s records for '%s': %s",
-            len(prop_id_set),
-            len(rs),
-            user.username,
-            prop_id_set,
-        )
-        CachedContent.set_content(user.username, prop_id_set)
-
-    def get_proposals_for_user(self, user, restrict_to_membership=False):
-        """Returns a list of proposals that the user has access to.
-
-        If 'restrict_to_membership' is set only those proposals/visits where the user
-        is a member of the visit will be returned. Otherwise the 'public'
-        proposals/visits will also be returned. Typically 'restrict_to_membership' is
-        used for uploads/changes - this allows us to implement logic that (say)
-        only permits explicit members of public proposals to add/load data for that
-        project (restrict_to_membership=True), but everyone can 'see' public data
-        (restrict_to_membership=False).
-        """
-        assert user
-
-        proposals = set()
-        ispyb_user = ISPYB_USER
-        if ispyb_user:
-            if user.is_authenticated:
-                logger.debug("Getting proposals from ISPyB...")
-                proposals = self._get_proposals_for_user_from_ispyb(user)
+            # Cache the result and return the result for the user
+            USER_LIST_DICT[user.username]["RESULTS"] = list(prop_id_set)
+            return USER_LIST_DICT[user.username]["RESULTS"]
         else:
-            logger.debug("Getting proposals from Django...")
-            proposals = self._get_proposals_for_user_from_django(user)
+            # Return the previous query (cached for an hour)
+            cached_prop_ids = USER_LIST_DICT[user.username]["RESULTS"]
+            logger.debug("Got %s cached proposals: %s", len(cached_prop_ids), cached_prop_ids)
+            return cached_prop_ids
 
-        # We have all the proposals where the user has authority.
-        # Add open/public proposals.
-        proposals.update(self._get_open_proposals())
+    def get_proposals_for_user(self, user):
+        """Returns a list of proposals (public and private) that the user has access to.
+        """
+        assert user
 
-        # Return the set() as a list()
-        return list(proposals)
+        ispyb_user = os.environ.get("ISPYB_USER")
+        logger.debug("ispyb_user=%s", ispyb_user)
+        if ispyb_user:
+            logger.debug("user.is_authenticated=%s", user.is_authenticated)
+            if user.is_authenticated:
+                return self.get_proposals_for_user_from_ispyb(user)
+            else:
+                logger.debug("Got no proposals")
+                return []
+        else:
+            return self.get_proposals_for_user_from_django(user)
 
     def get_q_filter(self, proposal_list):
-        """Returns a Q expression representing a (potentially complex) table filter."""
+        """Returns a Q expression representing a (potentially complex) table filter.
+        """
         if self.filter_permissions:
             # Q-filter is based on the filter_permissions string
             # whether the resultant Project title in the proposal list
             # OR where the Project is 'open_to_public'
-            return Q(**{self.filter_permissions + "__title__in": proposal_list}) | Q(
-                **{self.filter_permissions + "__open_to_public": True}
-            )
+            return Q(**{self.filter_permissions + "__title__in": proposal_list}) |\
+                Q(**{self.filter_permissions + "__open_to_public": True})
         else:
             # No filter permission?
             # Assume this QuerySet is used for the Project model.
@@ -363,6 +300,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
 
 class ISpyBSafeStaticFiles:
+
     def get_queryset(self):
         query = ISpyBSafeQuerySet()
         query.request = self.request
@@ -372,31 +310,19 @@ class ISpyBSafeStaticFiles:
         return queryset
 
     def get_response(self):
-        logger.info("+ get_response called with: %s", self.input_string)
         try:
             queryset = self.get_queryset()
             filter_dict = {self.field_name + "__endswith": self.input_string}
-            logger.info("filter_dict: %r", filter_dict)
-            # instance = queryset.get(**filter_dict)
-            instance = queryset.filter(**filter_dict)[0]
-            logger.info("instance: %r", instance)
-
-            file_name = os.path.basename(str(getattr(instance, self.field_name)))
-
-            logger.info("instance: %r", instance)
-            logger.info("Path to pass to nginx: %s", self.prefix + file_name)
+            object = queryset.get(**filter_dict)
+            file_name = os.path.basename(str(getattr(object, self.field_name)))
 
             if hasattr(self, 'file_format'):
-                if self.file_format == 'raw':
+                if self.file_format=='raw':
                     file_field = getattr(object, self.field_name)
                     filepath = file_field.path
                     zip_file = open(filepath, 'rb')
-                    response = HttpResponse(
-                        FileWrapper(zip_file), content_type='application/zip'
-                    )
-                    response['Content-Disposition'] = (
-                        'attachment; filename="%s"' % file_name
-                    )
+                    response = HttpResponse(FileWrapper(zip_file), content_type='application/zip')
+                    response['Content-Disposition'] = 'attachment; filename="%s"' % file_name
 
             else:
                 response = HttpResponse()
@@ -405,29 +331,5 @@ class ISpyBSafeStaticFiles:
                 response["Content-Disposition"] = "attachment;filename=" + file_name
 
             return response
-        except Exception as exc:
-            logger.error(exc, exc_info=True)
-            raise Http404 from exc
-
-
-class ISpyBSafeStaticFiles2(ISpyBSafeStaticFiles):
-    def get_response(self):
-        logger.info("+ get_response called with: %s", self.input_string)
-        # it wasn't working because found two objects with test file name
-        # so it doesn't help me here..
-        try:
-            # file_name = Path('/').joinpath(self.prefix).joinpath(self.input_string)
-            # file_name = Path(self.prefix).joinpath(self.input_string)
-            file_name = str(Path('/').joinpath(self.prefix).joinpath(self.input_string))
-            logger.info("Path to pass to nginx: %s", file_name)
-            response = HttpResponse()
-            response["Content-Type"] = self.content_type
-            response["X-Accel-Redirect"] = file_name
-            # response["Content-Disposition"] = "attachment;filename=" + file_name.name
-            response["Content-Disposition"] = "attachment;filename=" + self.input_string
-
-            logger.info("- Response resolved: %r", response)
-            return response
-        except Exception as exc:
-            logger.error(exc, exc_info=True)
-            raise Http404 from exc
+        except Exception:
+            raise Http404
