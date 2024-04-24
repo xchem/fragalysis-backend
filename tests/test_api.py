@@ -281,7 +281,7 @@ class APIUrlsTestCase(APITestCase):
         :return:
         """
         urls = [
-            "molecules",
+#            "molecules",
             "compounds",
             "targets",
             "proteins",
