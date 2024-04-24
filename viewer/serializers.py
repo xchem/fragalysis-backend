@@ -985,87 +985,17 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-# def update_pose_observations(pose, observation_list, canon_site, compound):
-# def update_pose_observations(pose):
-#     """Update site observations in the pose.
-
-#     Go over every observation and make sure that:
-#     - they have the same canon_site and compound as the pose being created
-#     - the pose they're being removed from is deleted when empty
-#     """
-#     template = (
-#         "Site observation {} cannot be assigned to pose because "
-#         + "pose's {} ({}) doesn't match with observation's ({})"
-#     )
-
-#     messages = []
-#     all_good = True
-#     poses = []
-
-#     # for so in observation_list:
-#     for so in pose.site_observations.all():
-#         logger.debug('processing observation: %s', so)
-#         if so.canon_site_conf.canon_site != pose.canon_site:
-#             all_good = False
-#             messages.append(
-#                 template.format(
-#                     so.code,
-#                     'canonical site',
-#                     pose.canon_site.name,
-#                     so.canon_site_conf.canon_site.name,
-#                 )
-#             )
-#         if so.cmpd != pose.compound:
-#             all_good = False
-#             messages.append(
-#                 template.format(
-#                     so.code,
-#                     'compound',
-#                     pose.compound.compound_code,
-#                     so.cmpd.compound_code,
-#                 )
-#             )
-#         logger.debug('accumulated messages: %s', messages)
-
-#         poses.append(so.pose)
-
-#         so.pose = pose
-#         so.save()
-
-#     # delete old poses that are now empty
-#     for old_pose in poses:
-#         logger.debug('processing old_pose: %s', old_pose)
-#         if not old_pose.site_observations.exists():
-#             old_pose.delete()
-
-#     if not all_good:
-#         raise IntegrityError(messages)
-
-#     return pose
-
-
-class CompoundNestedSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.Compound
-        fields = ('compound_code',)
-
-
-class SiteObservationNestedSerializer(serializers.ModelSerializer):
-    cmpd = CompoundNestedSerializer()
-
-    class Meta:
-        model = models.SiteObservation
-        fields = ('id', 'cmpd')
-
-
 class PoseSerializer(serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True, queryset=models.SiteObservation.objects.all()
     )
-    # main_site_observation = serializers.PrimaryKeyRelatedField(
-    #     required=False, default=None, queryset=models.SiteObservation.objects.all()
-    # )
-    main_site_observation = SiteObservationNestedSerializer()
+    main_site_observation = serializers.PrimaryKeyRelatedField(
+        required=False, default=None, queryset=models.SiteObservation.objects.all()
+    )
+    main_site_observation_cmpd_code = serializers.SerializerMethodField()
+
+    def get_main_site_observation_cmpd_code(self, obj):
+        return obj.main_site_observation.cmpd.compound_code
 
     def update_pose_main_observation(self, main_obvs):
         if main_obvs.pose.site_observations.count() == 1:
@@ -1212,10 +1142,11 @@ class PoseSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Pose
         fields = (
-            "id",
-            "display_name",
-            "canon_site",
-            "compound",
-            "main_site_observation",
-            "site_observations",
+            'id',
+            'display_name',
+            'canon_site',
+            'compound',
+            'main_site_observation',
+            'site_observations',
+            'main_site_observation_cmpd_code',
         )
