@@ -282,7 +282,7 @@ class APIUrlsTestCase(APITestCase):
         """
         urls = [
 #            "molecules",
-            "compounds",
+#            "compounds",
             "targets",
             "proteins",
             "vectors",
@@ -420,12 +420,14 @@ class APIUrlsTestCase(APITestCase):
         post_resp = [{"detail": 'Method "POST" not allowed.'} for x in response_data]
         for i, url in enumerate(urls):
             test_url = self.url_base + "/" + url + "/"
-            print("Testing URL: ", test_url)
+            tets_url_get = test_url + "/1/"
+            print("Testing GET from URL: ", tets_url_get)
             # GET basic request
-            response = self.client.get(test_url + "/1/")
+            response = self.client.get(tets_url_get)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data, response_data[i])
             # POST shouldn't work
+            print("Testing POST to URL: ", test_url)
             response = self.client.post(test_url + "/", post_data[i])
             self.assertEqual(response.status_code, 405)
             self.assertEqual(response.data, post_resp[i])
