@@ -1,6 +1,6 @@
 import logging
 import os
-import time
+from typing import Any, Dict, Optional
 
 from wsgiref.util import FileWrapper
 from django.http import Http404
@@ -17,87 +17,97 @@ logger = logging.getLogger(__name__)
 
 USER_LIST_DICT = {}
 
+ISPYB_USER = os.environ.get('ISPYB_USER')
+ISPYB_PASSWORD = os.environ.get('ISPYB_PASSWORD')
+ISPYB_HOST = os.environ.get('ISPYB_HOST')
+ISPYB_PORT = os.environ.get('ISPYB_PORT')
+
+SSH_HOST = os.environ.get('SSH_HOST')
+SSH_USER = os.environ.get('SSH_USER')
+SSH_PASSWORD = os.environ.get('SSH_PASSWORD')
+SSH_PRIVATE_KEY_FILENAME = os.environ.get('SSH_PRIVATE_KEY_FILENAME')
+
 connector = os.environ.get('SECURITY_CONNECTOR', 'ispyb')
 
-# example test:
-# from rest_framework.test import APIRequestFactory
-#
-# from rest_framework.test import force_authenticate
-# from viewer.views import TargetView
-# from django.contrib.auth.models import User
-#
-# factory = APIRequestFactory()
-# view = TargetView.as_view({'get': 'list'})
-# user = User.objects.get(username='uzw12877')
-# # Make an authenticated request to the view...
-# request = factory.get('/api/targets/')
-# force_authenticate(request, user=user)
-# response = view(request)
 
-
-def get_remote_conn():
-
-    ispyb_credentials = {
-        "user": os.environ.get("ISPYB_USER"),
-        "pw": os.environ.get("ISPYB_PASSWORD"),
-        "host": os.environ.get("ISPYB_HOST"),
-        "port": os.environ.get("ISPYB_PORT"),
+def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
+    credentials: Dict[str, Any] = {
+        "user": ISPYB_USER,
+        "pw": ISPYB_PASSWORD,
+        "host": ISPYB_HOST,
+        "port": ISPYB_PORT,
         "db": "ispyb",
         "conn_inactivity": 360,
     }
 
-    ssh_credentials = {
-        'ssh_host': os.environ.get("SSH_HOST"),
-        'ssh_user': os.environ.get("SSH_USER"),
-        'ssh_password': os.environ.get("SSH_PASSWORD"),
-        'remote': True
+    ssh_credentials: Dict[str, Any] = {
+        'ssh_host': SSH_HOST,
+        'ssh_user': SSH_USER,
+        'ssh_password': SSH_PASSWORD,
+        "ssh_private_key_filename": SSH_PRIVATE_KEY_FILENAME,
+        'remote': True,
     }
 
-    ispyb_credentials.update(**ssh_credentials)
+    credentials.update(**ssh_credentials)
 
     # Caution: Credentials may not be set in the environment.
     #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
-    if not ispyb_credentials["host"]:
-        logger.debug("No ISPyB host - cannot return a connector")
+    if not credentials["host"]:
+        if logging.DEBUG >= logger.level or force_error_display:
+            logger.debug("No ISPyB host - cannot return a connector")
         return None
 
     # Try to get an SSH connection (aware that it might fail)
-    conn = None
+    logger.debug("Creating remote connector with credentials: %s", credentials)
+    conn: Optional[SSHConnector] = None
     try:
-        conn = SSHConnector(**ispyb_credentials)
-    except:
-        logger.info("ispyb_credentials=%s", ispyb_credentials)
-        logger.exception("Exception creating SSHConnector")
+        conn = SSHConnector(**credentials)
+    except Exception:
+        if logging.DEBUG >= logger.level or force_error_display:
+            logger.info("credentials=%s", credentials)
+            logger.exception("Got the following exception creating Connector...")
+    if conn:
+        logger.debug("Got remote connector")
+    else:
+        logger.debug("Failed to get a remote connector")
 
     return conn
 
 
-def get_conn():
-    credentials = {
-        "user": os.environ.get("ISPYB_USER"),
-        "pw": os.environ.get("ISPYB_PASSWORD"),
-        "host": os.environ.get("ISPYB_HOST"),
-        "port": os.environ.get("ISPYB_PORT"),
+def get_conn(force_error_display=False) -> Optional[Connector]:
+    credentials: Dict[str, Any] = {
+        "user": ISPYB_USER,
+        "pw": ISPYB_PASSWORD,
+        "host": ISPYB_HOST,
+        "port": ISPYB_PORT,
         "db": "ispyb",
         "conn_inactivity": 360,
     }
-
-    # Caution: Credentials may not be set in the environment.
-    #          Assume the credentials are invalid if there is no password
+    # Caution: Credentials may not have been set in the environment.
+    #          Assume the credentials are invalid if there is no host.
     #          If a host is not defined other properties are useless.
     if not credentials["host"]:
+        if logging.DEBUG >= logger.level or force_error_display:
+            logger.info("No ISPyB host - cannot return a connector")
         return None
 
-    conn = None
+    logger.info("Creating connector with credentials: %s", credentials)
+    conn: Optional[Connector] = None
     try:
         conn = Connector(**credentials)
-    except:
-        logger.info("credentials=%s", credentials)
-        logger.exception("Exception creating Connector")
-        
-    return conn
+    except Exception:
+        # Log the exception if DEBUG level or lower/finer?
+        # The following will not log if the level is set to INFO for example.
+        if logging.DEBUG >= logger.level or force_error_display:
+            logger.info("credentials=%s", credentials)
+            logger.exception("Got the following exception creating Connector...")
+    if conn:
+        logger.debug("Got connector")
+    else:
+        logger.debug("Did not get a connector")
 
+    return conn
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
@@ -131,7 +141,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         if os.environ.get("TEST_SECURITY_FLAG", False):
             return ["lb00000", "OPEN", "private_dummy_project"]
         else:
-            # A list of well-known (built-in) public Projects (Proposals/Visits)
+            # A list of well-known (built-in) public Projects (Proposals/Visits)
             return ["lb00000", "OPEN", "lb27156"]
 
     def get_proposals_for_user_from_django(self, user):
@@ -181,7 +191,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         needs_updating = self.needs_updating(user)
         logger.debug("user=%s needs_updating=%s", user.username, needs_updating)
-        
+
         if needs_updating:
             conn = None
             if connector == 'ispyb':
@@ -197,7 +207,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
                 return []
             rs = self.run_query_with_connector(conn=conn, user=user)
             logger.debug("Connector query rs=%s", rs)
-            
+
             # Typically you'll find the following fields in each item
             # in the rs response; -
             #
@@ -222,12 +232,12 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             #
             # These strings should correspond to a title value in a Project record.
             # and should get this sort of list: -
-            # 
+            #
             # ["lb12345", "lb12345-1"]
             #              --      -
             #              | ----- |
             #           Code   |   Session
-            #               Proposal 
+            #               Proposal
             prop_id_set = set()
             for record in rs:
                 pc_str = ""
@@ -240,7 +250,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
                 prop_id_set.update([proposal_str, proposal_visit_str])
 
             # Always display the collected results for the user.
-            # These will be cached. 
+            # These will be cached.
             logger.info("Got %s proposals (%s): %s",
                         len(prop_id_set), user.username, prop_id_set)
 
@@ -257,7 +267,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """Returns a list of proposals (public and private) that the user has access to.
         """
         assert user
-        
+
         ispyb_user = os.environ.get("ISPYB_USER")
         logger.debug("ispyb_user=%s", ispyb_user)
         if ispyb_user:
@@ -275,7 +285,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """
         if self.filter_permissions:
             # Q-filter is based on the filter_permissions string
-            # whether the resultant Project title in the proposal list
+            # whether the resultant Project title in the proposal list
             # OR where the Project is 'open_to_public'
             return Q(**{self.filter_permissions + "__title__in": proposal_list}) |\
                 Q(**{self.filter_permissions + "__open_to_public": True})
