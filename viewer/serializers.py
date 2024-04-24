@@ -1044,13 +1044,28 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
 #     return pose
 
 
+class CompoundNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Compound
+        fields = ('compound_code',)
+
+
+class SiteObservationNestedSerializer(serializers.ModelSerializer):
+    cmpd = CompoundNestedSerializer()
+
+    class Meta:
+        model = models.SiteObservation
+        fields = ('id', 'cmpd')
+
+
 class PoseSerializer(serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True, queryset=models.SiteObservation.objects.all()
     )
-    main_site_observation = serializers.PrimaryKeyRelatedField(
-        required=False, default=None, queryset=models.SiteObservation.objects.all()
-    )
+    # main_site_observation = serializers.PrimaryKeyRelatedField(
+    #     required=False, default=None, queryset=models.SiteObservation.objects.all()
+    # )
+    main_site_observation = SiteObservationNestedSerializer()
 
     def update_pose_main_observation(self, main_obvs):
         if main_obvs.pose.site_observations.count() == 1:
