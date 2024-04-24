@@ -103,7 +103,7 @@ class SSHConnector(Connector):
         self.conn_inactivity = int(self.conn_inactivity)
 
         if ssh_pkey:
-            logger.debug(
+            logger.info(
                 'Creating SSHTunnelForwarder (with SSH Key) host=%s user=%s',
                 ssh_host,
                 ssh_user,
@@ -115,7 +115,7 @@ class SSHConnector(Connector):
                 remote_bind_address=(db_host, db_port),
             )
         else:
-            logger.debug(
+            logger.info(
                 'Creating SSHTunnelForwarder (with password) host=%s user=%s',
                 ssh_host,
                 ssh_user,
@@ -126,15 +126,15 @@ class SSHConnector(Connector):
                 ssh_password=ssh_pass,
                 remote_bind_address=(db_host, db_port),
             )
-        logger.debug('Created SSHTunnelForwarder')
+        logger.info('Created SSHTunnelForwarder')
 
         # stops hanging connections in transport
         self.server.daemon_forward_servers = True
         self.server.daemon_transport = True
 
-        logger.debug('Starting SSH server...')
+        logger.info('Starting SSH server...')
         self.server.start()
-        logger.debug('Started SSH server')
+        logger.info('Started SSH server')
 
         # Try to connect to the database
         # a number of times (because it is known to fail)
