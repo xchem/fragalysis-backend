@@ -1231,16 +1231,17 @@ class TargetLoader:
             index_data=index_data,
         )
 
-    @create_objects(depth=5)
+    @create_objects(depth=6)
     def process_site_observation(
         self,
         experiments: dict[int | str, MetadataObject],
         compounds: dict[int | str, MetadataObject],
         xtalform_sites: dict[str, Model],
         canon_site_confs: dict[int | str, MetadataObject],
-        item_data: tuple[str, str, str, int | str, int | str, dict] | None = None,
+        item_data: tuple[str, str, str, int | str, int, int | str, dict] | None = None,
         # chain: str,
         # ligand: str,
+        # version: int,
         # idx: int | str,
         # data: dict,
         validate_files: bool = True,
@@ -1265,7 +1266,7 @@ class TargetLoader:
         del kwargs
         assert item_data
         try:
-            experiment_id, _, chain, ligand, idx, data = item_data
+            experiment_id, _, chain, ligand, version, idx, data = item_data
         except ValueError:
             # wrong data item
             return None
@@ -1367,6 +1368,7 @@ class TargetLoader:
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
             "longcode": longcode,
+            "version": version,
             "experiment": experiment,
             "cmpd": compound,
             "xtalform_site": xtalform_site,
