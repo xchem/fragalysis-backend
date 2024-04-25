@@ -764,14 +764,14 @@ class TargetLoader:
         )
 
         try:
-            panddas_files = data["crystallographic_files"]["panddas_event_files"]
+            event_files = data["crystallographic_files"]["ligand_binding_events"]
         except KeyError:
-            panddas_files = []
+            event_files = []
 
         map_info_files = self.validate_map_files(
-            key="panddas_event_files",
+            key="ligand_binding_events",
             obj_identifier=experiment_name,
-            file_struct=panddas_files,
+            file_struct=event_files,
             validate_files=validate_files,
         )
 
