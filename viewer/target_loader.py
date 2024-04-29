@@ -97,6 +97,8 @@ class MetadataObject:
     """
 
     instance: Model
+    key: str
+    versioned_key: str
     index_data: dict = field(default_factory=dict)
     new: bool = False
 
@@ -118,7 +120,7 @@ class ProcessedObject:
     key: str
     defaults: dict = field(default_factory=dict)
     index_data: dict = field(default_factory=dict)
-    identifier: Optional[str] = ""
+    versioned_key: Optional[str] = ""
 
 
 @dataclass
@@ -298,10 +300,11 @@ def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
     return generator
 
 
-def strip_version(s: str) -> str:
+def strip_version(s: str, separator: str = "/") -> str:
     # format something like XX01ZVNS2B-x0673/B/501/1
     # remove tailing '/1'
-    return s[0 : s.rfind('/')]
+    return s[0 : s.rfind(separator)]
+    # return s
 
 
 def create_objects(func=None, *, depth=math.inf):
@@ -410,7 +413,11 @@ def create_objects(func=None, *, depth=math.inf):
                 )
 
             m = MetadataObject(
-                instance=obj, index_data=instance_data.index_data, new=new
+                instance=obj,
+                key=instance_data.key,
+                versioned_key=instance_data.versioned_key,
+                index_data=instance_data.index_data,
+                new=new,
             )
             # index data here probs
             result[instance_data.key] = m
@@ -1082,7 +1089,9 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        canon_site_id, data = item_data
+        v_canon_site_id, data = item_data
+
+        canon_site_id = strip_version(v_canon_site_id, separator="+")
 
         extract = functools.partial(
             self._extract,
@@ -1099,7 +1108,9 @@ class TargetLoader:
         }
 
         conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
+        # conf_sites_ids = set([strip_version(k, separator="+") for k in conf_sites_ids])
         ref_conf_site_id = extract(key="reference_conformer_site_id")
+        # ref_conf_site_id = strip_version(ref_conf_site_id, separator="+")
 
         index_data = {
             "ref_conf_site": ref_conf_site_id,
@@ -1112,6 +1123,7 @@ class TargetLoader:
             fields=fields,
             index_data=index_data,
             key=canon_site_id,
+            versioned_key=v_canon_site_id,
         )
 
     @create_objects(depth=1)
@@ -1134,8 +1146,10 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        conf_site_name, data = item_data
-        canon_site = canon_sites[conf_site_name]
+        v_conf_site_name, data = item_data
+        conf_site_name = strip_version(v_conf_site_name, separator="+")
+
+        canon_site = canon_sites[v_conf_site_name]
 
         extract = functools.partial(
             self._extract,
@@ -1154,6 +1168,8 @@ class TargetLoader:
         }
 
         members = extract(key="members")
+        # members = set([strip_version(k) for k in members])
+
         ref_ligands = extract(key="reference_ligand_id")
 
         index_fields = {
@@ -1166,6 +1182,7 @@ class TargetLoader:
             fields=fields,
             index_data=index_fields,
             key=conf_site_name,
+            versioned_key=v_conf_site_name,
         )
 
     @create_objects(depth=1)
@@ -1189,7 +1206,8 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        xtalform_site_name, data = item_data
+        v_xtalform_site_name, data = item_data
+        xtalform_site_name = strip_version(v_xtalform_site_name)
 
         extract = functools.partial(
             self._extract,
@@ -1201,6 +1219,7 @@ class TargetLoader:
         xtalform_id = extract(key="xtalform_id")
 
         canon_site_id = extract(key="canonical_site_id")
+        # canon_site_id = strip_version(canon_site_id, separator="+")
 
         xtalform = xtalforms[xtalform_id].instance
         canon_site = canon_sites[canon_site_id]
@@ -1228,6 +1247,7 @@ class TargetLoader:
             fields=fields,
             defaults=defaults,
             key=xtalform_site_name,
+            versioned_key=v_xtalform_site_name,
             index_data=index_data,
         )
 
@@ -1238,7 +1258,7 @@ class TargetLoader:
         compounds: dict[int | str, MetadataObject],
         xtalform_sites: dict[str, Model],
         canon_site_confs: dict[int | str, MetadataObject],
-        item_data: tuple[str, str, str, int | str, int, int | str, dict] | None = None,
+        item_data: tuple[str, str, str, int | str, int, str, dict] | None = None,
         # chain: str,
         # ligand: str,
         # version: int,
@@ -1266,11 +1286,12 @@ class TargetLoader:
         del kwargs
         assert item_data
         try:
-            experiment_id, _, chain, ligand, version, idx, data = item_data
+            experiment_id, _, chain, ligand, version, v_idx, data = item_data
         except ValueError:
             # wrong data item
             return None
 
+        idx = strip_version(v_idx, separator="+")
         extract = functools.partial(
             self._extract,
             data=data,
@@ -1283,6 +1304,7 @@ class TargetLoader:
 
         longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
+        v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
 
         smiles = extract(key="ligand_smiles_string")
 
@@ -1399,6 +1421,7 @@ class TargetLoader:
             fields=fields,
             defaults=defaults,
             key=key,
+            versioned_key=v_key,
         )
 
     def process_bundle(self):
@@ -1641,12 +1664,25 @@ class TargetLoader:
                 val.instance.xtalform_site_num = next(xtnum)
                 val.instance.save()
 
+        # reindex conf sites by versioned tag
+        canon_site_conf_versioned = {}
+        for val in canon_site_conf_objects.values():  # pylint: disable=no-member
+            for k in val.index_data["members"]:
+                # strip the version number from tag
+                canon_site_conf_versioned[val.versioned_key] = val.instance
+
         # now can update CanonSite with ref_conf_site
         # also, fill the canon_site_num field
+        # TODO: ref_conf_site is with version, object's key isn't
+        # for val in canon_site_objects.values():  # pylint: disable=no-member
+        #     val.instance.ref_conf_site = canon_site_conf_objects[
+        #         val.index_data["reference_conformer_site_id"]
+        #     ].instance
+        #     val.instance.save()
         for val in canon_site_objects.values():  # pylint: disable=no-member
-            val.instance.ref_conf_site = canon_site_conf_objects[
+            val.instance.ref_conf_site = canon_site_conf_versioned[
                 val.index_data["reference_conformer_site_id"]
-            ].instance
+            ]
             val.instance.save()
 
         # canon site instances are now complete
@@ -1704,6 +1740,7 @@ class TargetLoader:
                 # 2024-03-04, if you need to check
 
                 for so in so_group.filter(code__isnull=True):
+                    logger.debug("processing so: %s", so.longcode)
                     if so.experiment.type == 1:
                         # manual. code is pdb code
                         code = f"{so.experiment.code}-{next(suffix)}"
@@ -1740,11 +1777,22 @@ class TargetLoader:
                     so.code = code
                     so.save()
 
+        site_observations_versioned = {}
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            site_observations_versioned[val.versioned_key] = val.instance
+
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
             val.instance.ref_site_observation = site_observation_objects[
                 strip_version(val.index_data["reference_ligands"])
             ].instance
+            logger.debug("attaching canon_site_conf: %r", val.instance)
+            logger.debug(
+                "attaching canon_site_conf: %r",
+                site_observation_objects[
+                    strip_version(val.index_data["reference_ligands"])
+                ].instance.longcode,
+            )
             val.instance.save()
 
         logger.debug("data read and processed, adding tags")
@@ -1770,7 +1818,8 @@ class TargetLoader:
             )
             tag = val.instance.name.split('+')[0]
             so_list = [
-                site_observation_objects[strip_version(k)].instance
+                # site_observation_objects[k].instance for k in val.index_data["members"]
+                site_observations_versioned[k]
                 for k in val.index_data["members"]
             ]
             self._tag_observations(tag, prefix, "ConformerSites", so_list)
