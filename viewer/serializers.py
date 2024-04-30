@@ -987,7 +987,8 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
 
 class PoseSerializer(serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=models.SiteObservation.objects.all()
+        many=True,
+        queryset=models.SiteObservation.objects.all(),
     )
     main_site_observation = serializers.PrimaryKeyRelatedField(
         required=False, default=None, queryset=models.SiteObservation.objects.all()
@@ -1073,6 +1074,28 @@ class PoseSerializer(serializers.ModelSerializer):
         }
         validated_observations = []
 
+        # I'm not sure why the serializer doesn't populate fields
+        # here.. have to check them myself
+        instance = getattr(self, 'instance', None)
+        if instance:
+            if not hasattr(data, 'site_observations'):
+                data['site_observations'] = instance.site_observations.all()
+            if not hasattr(data, 'main_site_observation'):
+                data['main_site_observation'] = instance.main_site_observation
+            if not hasattr(data, 'compound'):
+                data['compound'] = instance.compound
+            if not hasattr(data, 'canon_site'):
+                data['canon_site'] = instance.canon_site
+        else:
+            if not hasattr(data, 'site_observations'):
+                data['site_observations'] = []
+            if not hasattr(data, 'main_site_observation'):
+                data['main_site_observation'] = None
+            if not hasattr(data, 'compound'):
+                data['compound'] = None
+            if not hasattr(data, 'canon_site'):
+                data['canon_site'] = None
+
         if not data['site_observations']:
             if hasattr(self, 'instance'):
                 messages['site_observations'].append(
@@ -1084,7 +1107,11 @@ class PoseSerializer(serializers.ModelSerializer):
         if data['main_site_observation']:
             logger.debug('no main observation given, trying to find one')
             main_pose = getattr(data['main_site_observation'], 'main_pose', None)
-            if main_pose and main_pose.site_observations.count() > 1:
+            if (
+                main_pose
+                and main_pose != instance
+                and main_pose.site_observations.count() > 1
+            ):
                 # checking length, because if single observation in
                 # pose, it would leave an empty pose which will be
                 # deleted. otherwise don't allow setting main
