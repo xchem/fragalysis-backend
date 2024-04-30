@@ -1813,6 +1813,7 @@ class TargetLoader:
         logger.debug("xtalform_sites objects tagged")
 
         self._generate_poses()
+
         # tag all new observations, so that the curator can find and
         # re-pose them
         self._tag_observations(
@@ -1925,6 +1926,8 @@ class TargetLoader:
             for obvs in pose_items:
                 obvs.pose = pose
                 obvs.save()
+
+            self._tag_observations(pose.display_name, "P", "Pose", pose_items)
 
     def _tag_observations(self, tag, prefix, category, so_list):
         try:
