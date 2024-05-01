@@ -1080,8 +1080,11 @@ class PoseSerializer(serializers.ModelSerializer):
         if instance:
             if not hasattr(data, 'site_observations'):
                 data['site_observations'] = instance.site_observations.all()
+            logger.debug('has main: %s', hasattr(data, 'main_site_observation'))
             if not hasattr(data, 'main_site_observation'):
-                data['main_site_observation'] = instance.main_site_observation
+                logger.debug('reattaching main: %s', instance.main_site_observation)
+                # data['main_site_observation'] = instance.main_site_observation
+                data['main_site_observation'] = None
             if not hasattr(data, 'compound'):
                 data['compound'] = instance.compound
             if not hasattr(data, 'canon_site'):
