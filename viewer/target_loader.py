@@ -302,9 +302,8 @@ def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
 
 def strip_version(s: str, separator: str = "/") -> str:
     # format something like XX01ZVNS2B-x0673/B/501/1
-    # remove tailing '/1'
+    # remove tailing '<separator>1'
     return s[0 : s.rfind(separator)]
-    # return s
 
 
 def create_objects(func=None, *, depth=math.inf):
@@ -1118,9 +1117,7 @@ class TargetLoader:
         }
 
         conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
-        # conf_sites_ids = set([strip_version(k, separator="+") for k in conf_sites_ids])
         ref_conf_site_id = extract(key="reference_conformer_site_id")
-        # ref_conf_site_id = strip_version(ref_conf_site_id, separator="+")
 
         index_data = {
             "ref_conf_site": ref_conf_site_id,
@@ -1178,7 +1175,6 @@ class TargetLoader:
         }
 
         members = extract(key="members")
-        # members = set([strip_version(k) for k in members])
 
         ref_ligands = extract(key="reference_ligand_id")
 
@@ -1229,7 +1225,6 @@ class TargetLoader:
         xtalform_id = extract(key="xtalform_id")
 
         canon_site_id = extract(key="canonical_site_id")
-        # canon_site_id = strip_version(canon_site_id, separator="+")
 
         xtalform = xtalforms[xtalform_id].instance
         canon_site = canon_sites[canon_site_id]
@@ -1347,7 +1342,7 @@ class TargetLoader:
                 )
 
         canon_site_conf = canon_site_confs[v_idx].instance
-        xtalform_site = xtalform_sites[key]
+        xtalform_site = xtalform_sites[v_key]
 
         (  # pylint: disable=unbalanced-tuple-unpacking
             bound_file,
@@ -1689,8 +1684,7 @@ class TargetLoader:
         xtalform_site_by_tag = {}
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
             for k in val.index_data["residues"]:
-                # strip the version number from tag
-                xtalform_site_by_tag[strip_version(k)] = val.instance
+                xtalform_site_by_tag[k] = val.instance
 
         site_observation_objects = self.process_site_observation(
             yaml_data=crystals,
@@ -1792,14 +1786,12 @@ class TargetLoader:
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
             val.instance.ref_site_observation = site_observation_objects[
-                # strip_version(val.index_data["reference_ligands"])
                 val.index_data["reference_ligands"]
             ].instance
             logger.debug("attaching canon_site_conf: %r", val.instance)
             logger.debug(
                 "attaching canon_site_conf: %r",
                 site_observation_objects[
-                    # strip_version(val.index_data["reference_ligands"])
                     val.index_data["reference_ligands"]
                 ].instance.longcode,
             )
@@ -1866,9 +1858,7 @@ class TargetLoader:
             )
             tag = f"{val.instance.xtalform.name} - {val.instance.xtalform_site_id}"
             so_list = [
-                # site_observation_objects[strip_version(k)].instance
-                site_observation_objects[k].instance
-                for k in val.index_data["residues"]
+                site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
             self._tag_observations(tag, prefix, "CrystalformSites", so_list)
 
