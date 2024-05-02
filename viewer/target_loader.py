@@ -97,6 +97,8 @@ class MetadataObject:
     """
 
     instance: Model
+    key: str
+    versioned_key: str
     index_data: dict = field(default_factory=dict)
     new: bool = False
 
@@ -118,7 +120,7 @@ class ProcessedObject:
     key: str
     defaults: dict = field(default_factory=dict)
     index_data: dict = field(default_factory=dict)
-    identifier: Optional[str] = ""
+    versioned_key: Optional[str] = ""
 
 
 @dataclass
@@ -298,10 +300,10 @@ def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
     return generator
 
 
-def strip_version(s: str) -> str:
+def strip_version(s: str, separator: str = "/") -> str:
     # format something like XX01ZVNS2B-x0673/B/501/1
-    # remove tailing '/1'
-    return s[0 : s.rfind('/')]
+    # remove tailing '<separator>1'
+    return s[0 : s.rfind(separator)]
 
 
 def create_objects(func=None, *, depth=math.inf):
@@ -397,7 +399,12 @@ def create_objects(func=None, *, depth=math.inf):
                 self.report.log(logging.ERROR, msg)
                 failed = failed + 1
 
-            if not obj:
+            if obj:
+                # update any additional fields
+                instance_qs = instance_data.model_class.objects.filter(pk=obj.pk)
+                instance_qs.update(**instance_data.defaults)
+                obj.refresh_from_db()
+            else:
                 # create fake object so I can just push the upload
                 # through and compile report for user feedback
                 obj = instance_data.model_class(
@@ -410,10 +417,14 @@ def create_objects(func=None, *, depth=math.inf):
                 )
 
             m = MetadataObject(
-                instance=obj, index_data=instance_data.index_data, new=new
+                instance=obj,
+                key=instance_data.key,
+                versioned_key=instance_data.versioned_key,
+                index_data=instance_data.index_data,
+                new=new,
             )
             # index data here probs
-            result[instance_data.key] = m
+            result[instance_data.versioned_key] = m
 
         msg = "{} {} objects processed, {} created, {} fetched from database".format(
             created + existing + failed,
@@ -764,14 +775,14 @@ class TargetLoader:
         )
 
         try:
-            panddas_files = data["crystallographic_files"]["panddas_event_files"]
+            event_files = data["crystallographic_files"]["ligand_binding_events"]
         except KeyError:
-            panddas_files = []
+            event_files = []
 
         map_info_files = self.validate_map_files(
-            key="panddas_event_files",
+            key="ligand_binding_events",
             obj_identifier=experiment_name,
-            file_struct=panddas_files,
+            file_struct=event_files,
             validate_files=validate_files,
         )
 
@@ -855,6 +866,7 @@ class TargetLoader:
             model_class=Experiment,
             fields=fields,
             key=experiment_name,
+            versioned_key=experiment_name,
             defaults=defaults,
             index_data=index_fields,
         )
@@ -916,6 +928,7 @@ class TargetLoader:
             fields={},
             defaults=defaults,
             key=protein_name,
+            versioned_key=protein_name,
         )
 
     @create_objects(depth=1)
@@ -969,6 +982,7 @@ class TargetLoader:
             model_class=Xtalform,
             fields=fields,
             key=xtalform_name,
+            versioned_key=xtalform_name,
             defaults=defaults,
         )
 
@@ -1010,6 +1024,7 @@ class TargetLoader:
             model_class=QuatAssembly,
             fields=fields,
             key=assembly_name,
+            versioned_key=assembly_name,
         )
 
     @create_objects(depth=3)
@@ -1059,6 +1074,7 @@ class TargetLoader:
             model_class=XtalformQuatAssembly,
             fields=fields,
             key=xtalform_id,
+            versioned_key=xtalform_id,
         )
 
     @create_objects(depth=1)
@@ -1082,7 +1098,9 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        canon_site_id, data = item_data
+        v_canon_site_id, data = item_data
+
+        canon_site_id = strip_version(v_canon_site_id, separator="+")
 
         extract = functools.partial(
             self._extract,
@@ -1112,6 +1130,7 @@ class TargetLoader:
             fields=fields,
             index_data=index_data,
             key=canon_site_id,
+            versioned_key=v_canon_site_id,
         )
 
     @create_objects(depth=1)
@@ -1134,8 +1153,10 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        conf_site_name, data = item_data
-        canon_site = canon_sites[conf_site_name]
+        v_conf_site_name, data = item_data
+        conf_site_name = strip_version(v_conf_site_name, separator="+")
+
+        canon_site = canon_sites[v_conf_site_name]
 
         extract = functools.partial(
             self._extract,
@@ -1154,6 +1175,7 @@ class TargetLoader:
         }
 
         members = extract(key="members")
+
         ref_ligands = extract(key="reference_ligand_id")
 
         index_fields = {
@@ -1166,6 +1188,7 @@ class TargetLoader:
             fields=fields,
             index_data=index_fields,
             key=conf_site_name,
+            versioned_key=v_conf_site_name,
         )
 
     @create_objects(depth=1)
@@ -1189,7 +1212,8 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        xtalform_site_name, data = item_data
+        v_xtalform_site_name, data = item_data
+        xtalform_site_name = strip_version(v_xtalform_site_name)
 
         extract = functools.partial(
             self._extract,
@@ -1228,19 +1252,21 @@ class TargetLoader:
             fields=fields,
             defaults=defaults,
             key=xtalform_site_name,
+            versioned_key=v_xtalform_site_name,
             index_data=index_data,
         )
 
-    @create_objects(depth=5)
+    @create_objects(depth=6)
     def process_site_observation(
         self,
         experiments: dict[int | str, MetadataObject],
         compounds: dict[int | str, MetadataObject],
         xtalform_sites: dict[str, Model],
         canon_site_confs: dict[int | str, MetadataObject],
-        item_data: tuple[str, str, str, int | str, int | str, dict] | None = None,
+        item_data: tuple[str, str, str, int | str, int, str, dict] | None = None,
         # chain: str,
         # ligand: str,
+        # version: int,
         # idx: int | str,
         # data: dict,
         validate_files: bool = True,
@@ -1265,11 +1291,12 @@ class TargetLoader:
         del kwargs
         assert item_data
         try:
-            experiment_id, _, chain, ligand, idx, data = item_data
+            experiment_id, _, chain, ligand, version, v_idx, data = item_data
         except ValueError:
             # wrong data item
             return None
 
+        idx = strip_version(v_idx, separator="+")
         extract = functools.partial(
             self._extract,
             data=data,
@@ -1282,6 +1309,7 @@ class TargetLoader:
 
         longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
+        v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
 
         smiles = extract(key="ligand_smiles_string")
 
@@ -1293,7 +1321,6 @@ class TargetLoader:
             # the first.
             try:
                 logger.debug('exp: %s, %s', experiment, experiments[experiment_id].new)
-                # logger.debug('exp compounds: %s', experiment.compounds)
                 compound = experiment.compounds.get(
                     smiles=experiments[experiment_id].index_data["smiles"]
                 )
@@ -1314,8 +1341,8 @@ class TargetLoader:
                     f"Multiple compounds for experiment {experiment.code}",
                 )
 
-        canon_site_conf = canon_site_confs[idx].instance
-        xtalform_site = xtalform_sites[key]
+        canon_site_conf = canon_site_confs[v_idx].instance
+        xtalform_site = xtalform_sites[v_key]
 
         (  # pylint: disable=unbalanced-tuple-unpacking
             bound_file,
@@ -1367,6 +1394,7 @@ class TargetLoader:
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
             "longcode": longcode,
+            "version": version,
             "experiment": experiment,
             "cmpd": compound,
             "xtalform_site": xtalform_site,
@@ -1397,6 +1425,7 @@ class TargetLoader:
             fields=fields,
             defaults=defaults,
             key=key,
+            versioned_key=v_key,
         )
 
     def process_bundle(self):
@@ -1641,6 +1670,7 @@ class TargetLoader:
 
         # now can update CanonSite with ref_conf_site
         # also, fill the canon_site_num field
+        # TODO: ref_conf_site is with version, object's key isn't
         for val in canon_site_objects.values():  # pylint: disable=no-member
             val.instance.ref_conf_site = canon_site_conf_objects[
                 val.index_data["reference_conformer_site_id"]
@@ -1654,8 +1684,7 @@ class TargetLoader:
         xtalform_site_by_tag = {}
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
             for k in val.index_data["residues"]:
-                # strip the version number from tag
-                xtalform_site_by_tag[strip_version(k)] = val.instance
+                xtalform_site_by_tag[k] = val.instance
 
         site_observation_objects = self.process_site_observation(
             yaml_data=crystals,
@@ -1666,12 +1695,18 @@ class TargetLoader:
         )
 
         values = ["experiment"]
-        qs = (
-            SiteObservation.objects.values(*values)
-            .order_by(*values)
-            .annotate(obvs=ArrayAgg("id"))
-            .values_list("obvs", flat=True)
-        )
+        # fmt: off
+        qs = SiteObservation.objects.filter(
+                experiment__experiment_upload__target=self.target,
+                code__isnull=True,
+            ).values(
+                *values,
+            ).order_by(
+                *values,
+            ).annotate(
+                obvs=ArrayAgg("id"),
+            ).values_list("obvs", flat=True)
+        # fmt: on
 
         for elem in qs:
             # fmt: off
@@ -1702,6 +1737,7 @@ class TargetLoader:
                 # 2024-03-04, if you need to check
 
                 for so in so_group.filter(code__isnull=True):
+                    logger.debug("processing so: %s", so.longcode)
                     if so.experiment.type == 1:
                         # manual. code is pdb code
                         code = f"{so.experiment.code}-{next(suffix)}"
@@ -1725,12 +1761,17 @@ class TargetLoader:
                         # TODO: this should ideally be solved by db engine, before
                         # rushing to write the trigger, have think about the
                         # loader concurrency situations
-                        if SiteObservation.objects.filter(
+                        code_qs = SiteObservation.objects.filter(
                             experiment__experiment_upload__target=self.target,
                             code=code,
-                        ).exists():
+                        )
+                        # if code exists and the experiment is new
+                        logger.debug(
+                            'checking code uniq: %s, %s', code, so.experiment.status
+                        )
+                        if code_qs.exists() and so.experiment.status == 0:
                             msg = (
-                                f"short code {code} already exists for this target;  "
+                                f"short code {code} already exists for this target; "
                                 + "specify a code_prefix to resolve this conflict"
                             )
                             self.report.log(logging.ERROR, msg)
@@ -1738,11 +1779,22 @@ class TargetLoader:
                     so.code = code
                     so.save()
 
+        # site_observations_versioned = {}
+        # for val in site_observation_objects.values():  # pylint: disable=no-member
+        #     site_observations_versioned[val.versioned_key] = val.instance
+
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
             val.instance.ref_site_observation = site_observation_objects[
-                strip_version(val.index_data["reference_ligands"])
+                val.index_data["reference_ligands"]
             ].instance
+            logger.debug("attaching canon_site_conf: %r", val.instance)
+            logger.debug(
+                "attaching canon_site_conf: %r",
+                site_observation_objects[
+                    val.index_data["reference_ligands"]
+                ].instance.longcode,
+            )
             val.instance.save()
 
         logger.debug("data read and processed, adding tags")
@@ -1768,8 +1820,10 @@ class TargetLoader:
             )
             tag = val.instance.name.split('+')[0]
             so_list = [
-                site_observation_objects[strip_version(k)].instance
+                site_observation_objects[k].instance
                 for k in val.index_data["members"]
+                # site_observations_versioned[k]
+                # for k in val.index_data["members"]
             ]
             self._tag_observations(tag, prefix, "ConformerSites", so_list)
 
@@ -1804,8 +1858,7 @@ class TargetLoader:
             )
             tag = f"{val.instance.xtalform.name} - {val.instance.xtalform_site_id}"
             so_list = [
-                site_observation_objects[strip_version(k)].instance
-                for k in val.index_data["residues"]
+                site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
             self._tag_observations(tag, prefix, "CrystalformSites", so_list)
 

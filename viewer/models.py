@@ -430,6 +430,7 @@ class CanonSiteConf(models.Model):
 class SiteObservation(models.Model):
     code = models.TextField(null=True)
     longcode = models.TextField(null=True)
+    version = models.PositiveSmallIntegerField(null=False, default=1)
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
     cmpd = models.ForeignKey(Compound, null=True, on_delete=models.CASCADE)
     xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
