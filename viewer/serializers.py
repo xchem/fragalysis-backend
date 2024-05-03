@@ -1108,7 +1108,7 @@ class PoseSerializer(serializers.ModelSerializer):
                 messages['site_observations'].append('Cannot create empty pose')
 
         if data['main_site_observation']:
-            logger.debug('no main observation given, trying to find one')
+            logger.debug('main observation given, trying to set one')
             main_pose = getattr(data['main_site_observation'], 'main_pose', None)
             if (
                 main_pose
