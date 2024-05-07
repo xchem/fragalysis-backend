@@ -283,11 +283,9 @@ pre-commit documentation.
 
 Ideally from a Python environment...
 
-    python -m venv venv
-    source venv/bin/activate
+    poetry shell
+    poetry install --only dev
 
-    pip install --upgrade pip
-    pip install -r build-requirements.txt
     pre-commit install -t commit-msg -t pre-commit
 
 Now the project's rules will run on every commit and you can check the

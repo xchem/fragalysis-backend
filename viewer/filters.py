@@ -6,6 +6,7 @@ from viewer.models import (
     CanonSiteConf,
     Compound,
     Pose,
+    QuatAssembly,
     SiteObservation,
     Snapshot,
     XtalformSite,
@@ -107,3 +108,9 @@ class PoseFilter(TargetFilterMixin):
     class Meta:
         model = Pose
         fields = ("target", "canon_site", "compound", "main_site_observation")
+
+
+class AssemblyFilter(TargetFilterMixin):
+    class Meta:
+        model = QuatAssembly
+        fields = ("target",)
