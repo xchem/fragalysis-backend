@@ -183,7 +183,6 @@ class Experiment(models.Model):
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
     code = models.TextField(null=True)
     status = models.IntegerField(null=True)
-    version = models.IntegerField(null=True)
     pdb_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
@@ -360,7 +359,15 @@ class XtalformQuatAssembly(models.Model):
         ]
 
 
-class CanonSite(models.Model):
+class Versionable(models.Model):
+    superseded = models.BooleanField(null=False, default=False)
+    version = models.PositiveSmallIntegerField(null=False, default=1)
+
+    class Meta:
+        abstract = True
+
+
+class CanonSite(Versionable, models.Model):
     name = models.TextField()
     residues = models.JSONField(encoder=DjangoJSONEncoder)
     # TODO: missing in db, check if correct, (might be correct, but might not)
@@ -381,7 +388,7 @@ class CanonSite(models.Model):
         return "<CanonSite %r %r>" % (self.id, self.name)
 
 
-class XtalformSite(models.Model):
+class XtalformSite(Versionable, models.Model):
     xtalform = models.ForeignKey(Xtalform, on_delete=models.CASCADE)
     canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
     lig_chain = models.CharField(max_length=1)
@@ -408,7 +415,7 @@ class XtalformSite(models.Model):
         )
 
 
-class CanonSiteConf(models.Model):
+class CanonSiteConf(Versionable, models.Model):
     canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
     # TODO: name not present in metadata atm
     name = models.TextField(null=True)
@@ -427,10 +434,9 @@ class CanonSiteConf(models.Model):
         return "<CanonSiteConf %r %r %r>" % (self.id, self.name, self.canon_site)
 
 
-class SiteObservation(models.Model):
+class SiteObservation(Versionable, models.Model):
     code = models.TextField(null=True)
     longcode = models.TextField(null=True)
-    version = models.PositiveSmallIntegerField(null=False, default=1)
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
     cmpd = models.ForeignKey(Compound, null=True, on_delete=models.CASCADE)
     xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)

@@ -300,10 +300,10 @@ def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
     return generator
 
 
-def strip_version(s: str, separator: str = "/") -> str:
+def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
     # format something like XX01ZVNS2B-x0673/B/501/1
     # remove tailing '<separator>1'
-    return s[0 : s.rfind(separator)]
+    return s[0 : s.rfind(separator)], int(s[s.rfind(separator) + 1 :])
 
 
 def create_objects(func=None, *, depth=math.inf):
@@ -330,7 +330,8 @@ def create_objects(func=None, *, depth=math.inf):
 
         flattened_data = flatten_dict(yaml_data, depth=depth)
         result = {}
-        created, existing, failed = 0, 0, 0
+        created, existing, failed, updated = 0, 0, 0, 0
+
         for item in flattened_data:
             logger.debug("flattened data item: %s", item)
             instance_data = func(
@@ -379,10 +380,7 @@ def create_objects(func=None, *, depth=math.inf):
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     obj,
                 )
-                if new:
-                    created = created + 1
-                else:
-                    existing = existing + 1
+
             except MultipleObjectsReturned:
                 msg = "{}.get_or_create in {} returned multiple objects for {}".format(
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
@@ -416,6 +414,21 @@ def create_objects(func=None, *, depth=math.inf):
                     obj,
                 )
 
+            if new:
+                created = created + 1
+                # check if old versions exist and mark them as superseded
+                if "version" in instance_data.fields.keys():
+                    del instance_data.fields["version"]
+                    superseded = instance_data.model_class.objects.filter(
+                        **instance_data.fields,
+                    ).exclude(
+                        pk=obj.pk,
+                    )
+                    updated += superseded.update(superseded=True)
+
+            else:
+                existing = existing + 1
+
             m = MetadataObject(
                 instance=obj,
                 key=instance_data.key,
@@ -435,6 +448,19 @@ def create_objects(func=None, *, depth=math.inf):
             existing,
         )  # pylint: disable=protected-access
         self.report.log(logging.INFO, msg)
+
+        # refresh all objects to make sure they're up to date.
+        # this is specifically because of the superseded flag above -
+        # I'm setting this in separate queryset, the db rows are
+        # updated, but the changes are not being propagated to the
+        # objects in result dict. Well aware that this isn't efficient
+        # but I don't have access to parent's versioned key here, (and
+        # even if I did, there's no guarantee that they would have
+        # already been processd), so that's why updating every single
+        # object.
+        if updated > 0:
+            for k in result.values():
+                k.instance.refresh_from_db()
 
         return result
 
@@ -821,10 +847,6 @@ class TargetLoader:
         except KeyError:
             smiles = ""
 
-        # TODO: unhandled atm
-        # version	int	old versions are kept	target loader
-        version = 1
-
         # if empty or key missing entirely, ensure code_prefix returns empty
         code_prefix = extract(key="code_prefix", level=logging.INFO)
         # ignoring type because tooltip dict can legitimately be empty
@@ -843,7 +865,6 @@ class TargetLoader:
         defaults = {
             "experiment_upload": self.experiment_upload,
             "status": status,
-            "version": version,
             "type": exp_type,
             "pdb_info": str(self._get_final_path(pdb_info)),
             "mtz_info": str(self._get_final_path(mtz_info)),
@@ -1100,7 +1121,7 @@ class TargetLoader:
         assert item_data
         v_canon_site_id, data = item_data
 
-        canon_site_id = strip_version(v_canon_site_id, separator="+")
+        canon_site_id, version = strip_version(v_canon_site_id, separator="+")
 
         extract = functools.partial(
             self._extract,
@@ -1113,6 +1134,10 @@ class TargetLoader:
 
         fields = {
             "name": canon_site_id,
+            "version": version,
+        }
+
+        defaults = {
             "residues": residues,
         }
 
@@ -1131,6 +1156,7 @@ class TargetLoader:
             index_data=index_data,
             key=canon_site_id,
             versioned_key=v_canon_site_id,
+            defaults=defaults,
         )
 
     @create_objects(depth=1)
@@ -1154,7 +1180,7 @@ class TargetLoader:
         del kwargs
         assert item_data
         v_conf_site_name, data = item_data
-        conf_site_name = strip_version(v_conf_site_name, separator="+")
+        conf_site_name, version = strip_version(v_conf_site_name, separator="+")
 
         canon_site = canon_sites[v_conf_site_name]
 
@@ -1170,8 +1196,12 @@ class TargetLoader:
 
         fields = {
             "name": conf_site_name,
-            "residues": residues,
             "canon_site": canon_site,
+            "version": version,
+        }
+
+        defaults = {
+            "residues": residues,
         }
 
         members = extract(key="members")
@@ -1189,6 +1219,7 @@ class TargetLoader:
             index_data=index_fields,
             key=conf_site_name,
             versioned_key=v_conf_site_name,
+            defaults=defaults,
         )
 
     @create_objects(depth=1)
@@ -1213,7 +1244,7 @@ class TargetLoader:
         del kwargs
         assert item_data
         v_xtalform_site_name, data = item_data
-        xtalform_site_name = strip_version(v_xtalform_site_name)
+        xtalform_site_name, version = strip_version(v_xtalform_site_name)
 
         extract = functools.partial(
             self._extract,
@@ -1236,6 +1267,7 @@ class TargetLoader:
             "xtalform_site_id": xtalform_site_name,
             "xtalform": xtalform,
             "canon_site": canon_site,
+            "version": version,
         }
 
         defaults = {
@@ -1296,7 +1328,7 @@ class TargetLoader:
             # wrong data item
             return None
 
-        idx = strip_version(v_idx, separator="+")
+        idx, _ = strip_version(v_idx, separator="+")
         extract = functools.partial(
             self._extract,
             data=data,
