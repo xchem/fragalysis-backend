@@ -930,7 +930,7 @@ class PoseSerializer(serializers.ModelSerializer):
         - the pose they're being removed from is deleted when empty
 
         """
-        logger.debug('data: %s', data)
+        logger.info('+ validate: %s', data)
 
         template = (
             "Site observation {} cannot be assigned to pose because "
@@ -943,30 +943,22 @@ class PoseSerializer(serializers.ModelSerializer):
         }
         validated_observations = []
 
-        # I'm not sure why the serializer doesn't populate fields
-        # here.. have to check them myself
+        # populate data struct with missing attributes but only when
+        # they're missing, not simply undefined. not sure why the
+        # serializer isn't doing this here
         instance = getattr(self, 'instance', None)
-        if instance:
-            if not hasattr(data, 'site_observations'):
-                data['site_observations'] = instance.site_observations.all()
-            logger.debug('has main: %s', hasattr(data, 'main_site_observation'))
-            if not hasattr(data, 'main_site_observation'):
-                logger.debug('reattaching main: %s', instance.main_site_observation)
-                # data['main_site_observation'] = instance.main_site_observation
-                data['main_site_observation'] = None
-            if not hasattr(data, 'compound'):
-                data['compound'] = instance.compound
-            if not hasattr(data, 'canon_site'):
-                data['canon_site'] = instance.canon_site
-        else:
-            if not hasattr(data, 'site_observations'):
-                data['site_observations'] = []
-            if not hasattr(data, 'main_site_observation'):
-                data['main_site_observation'] = None
-            if not hasattr(data, 'compound'):
-                data['compound'] = None
-            if not hasattr(data, 'canon_site'):
-                data['canon_site'] = None
+        if 'site_observations' not in data.keys():
+            data['site_observations'] = (
+                instance.site_observations.all() if instance else []
+            )
+        if 'main_site_observation' not in data.keys():
+            data['main_site_observation'] = (
+                instance.main_site_observation if instance else None
+            )
+        if 'compound' not in data.keys():
+            data['compound'] = instance.compound if instance else None
+        if 'canon_site' not in data.keys():
+            data['canon_site'] = instance.canon_site if instance else None
 
         if not data['site_observations']:
             if hasattr(self, 'instance'):
