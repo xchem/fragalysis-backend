@@ -55,17 +55,7 @@ class TargetSerializer(serializers.ModelSerializer):
             .first()
         )
 
-        yaml_path = (
-            Path(settings.MEDIA_ROOT)
-            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(exp_upload.task_id)
-        )
-
-        # add unpacked zip directory
-        yaml_path = [d for d in list(yaml_path.glob("*")) if d.is_dir()][0]
-
-        # add upload_[d] dir
-        yaml_path = next(yaml_path.glob("upload_*"))
+        yaml_path = exp_upload.get_upload_path()
 
         # last components of path, need for reconstruction later
         comps = yaml_path.parts[-2:]

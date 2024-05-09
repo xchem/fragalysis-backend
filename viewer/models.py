@@ -1,6 +1,7 @@
 import logging
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -171,12 +172,23 @@ class ExperimentUpload(models.Model):
     reference_structure_transforms = models.FileField(
         upload_to="experiment-upload/", max_length=255
     )
+    upload_data_dir = models.TextField(null=True)
+    upload_version = models.PositiveSmallIntegerField(default=1)
 
     def __str__(self) -> str:
         return f"{self.project}"
 
     def __repr__(self) -> str:
         return "<ExperimentUpload %r %r %r>" % (self.id, self.project, self.target)
+
+    def get_upload_path(self):
+        return (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(self.task_id)
+            .joinpath(Path(str(self.file)).stem)
+            .joinpath(self.upload_data_dir)
+        )
 
 
 class Experiment(models.Model):
