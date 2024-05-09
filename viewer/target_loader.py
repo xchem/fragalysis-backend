@@ -483,7 +483,7 @@ class TargetLoader:
         self.tempdir = tempdir
         self.raw_data = Path(self.tempdir).joinpath(self.bundle_name)
         self.task = task
-        self.version_number = None
+        self.version_number = 1
         self.version_dir = None
         self.previous_version_dirs = None
         self.user_id = user_id
@@ -1534,6 +1534,12 @@ class TargetLoader:
             # add upload as anonymous user
             committer = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
 
+        # collect top level info
+        self.version_number = int(meta["version_number"])
+        self.version_dir = meta["version_dir"]
+        self.previous_version_dirs = meta["previous_version_dirs"]
+        prefix_tooltips = meta.get("code_prefix_tooltips", {})
+
         # TODO: is it here where I can figure out if this has already been uploaded?
         if self._is_already_uploaded(target_created, project_created):
             # remove uploaded file
@@ -1550,12 +1556,6 @@ class TargetLoader:
         # populate m2m field
         assert self.target
         self.target.project_id.add(self.project)
-
-        # collect top level info
-        self.version_number = meta["version_number"]
-        self.version_dir = meta["version_dir"]
-        self.previous_version_dirs = meta["previous_version_dirs"]
-        prefix_tooltips = meta.get("code_prefix_tooltips", {})
 
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -1586,6 +1586,8 @@ class TargetLoader:
         self.experiment_upload.reference_structure_transforms = str(
             self._get_final_path(trans_ref_struct)
         )
+        self.experiment_upload.upload_data_dir = self.version_dir
+        self.experiment_upload.upload_version = self.version_number
         self.experiment_upload.save()
 
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -1996,15 +1998,12 @@ class TargetLoader:
         if target_created or project_created:
             return False
         else:
-            uploaded_files = ExperimentUpload.objects.filter(
+            uploaded = ExperimentUpload.objects.filter(
                 target=self.target,
                 project=self.project,
-            ).values_list("file", flat=True)
+            ).values_list("upload_data_dir", flat=True)
 
-            # TODO: this just tests the target-project-filename combo,
-            # which may not be enough
-
-            return self.data_bundle in uploaded_files
+            return self.version_dir in uploaded
 
     def _get_final_path(self, path: str | None) -> Path | None:
         """Update relative path to final storage path
