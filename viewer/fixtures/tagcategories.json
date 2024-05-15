@@ -70,5 +70,14 @@
         "colour": "000000",
         "description": null
     }
+},
+{
+    "model": "viewer.tagcategory",
+    "pk": 9,
+    "fields": {
+        "category": "Pose",
+        "colour": "ff0000",
+        "description": null
+    }
 }
 ]
