@@ -153,6 +153,7 @@ INSTALLED_APPS = [
     "webpack_loader",
     "django_cleanup",
     "simple_history",
+    "django_prometheus",
 ]
 
 LANGUAGE_CODE = "en-us"
@@ -167,6 +168,7 @@ LOGIN_REDIRECT_URL = "/viewer/react/landing"
 LOGOUT_REDIRECT_URL = "/viewer/react/landing"
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -175,6 +177,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "mozilla_django_oidc.middleware.SessionRefresh",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -331,7 +334,7 @@ DATABASE_ROUTERS = ["xchem_db.routers.AuthRouter"]
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "ENGINE": "django_prometheus.db.backends.postgresql_psycopg2",
         "NAME": os.environ.get("POSTGRESQL_DATABASE", "frag"),
         "USER": os.environ.get("POSTGRESQL_USER", "fragalysis"),
         "PASSWORD": os.environ.get("POSTGRESQL_PASSWORD", "fragalysis"),
@@ -342,7 +345,7 @@ DATABASES = {
 
 if os.environ.get("BUILD_XCDB") == "yes":
     DATABASES["xchem_db"] = {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.environ.get("XCHEM_NAME", ""),
         "USER": os.environ.get("XCHEM_USER", ""),
         "PASSWORD": os.environ.get("XCHEM_PASSWORD", ""),
@@ -353,7 +356,7 @@ if os.environ.get("BUILD_XCDB") == "yes":
 CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKNOWN")
 if CHEMCENTRAL_DB_NAME != "UNKNOWN":
     DATABASES["chemcentral"] = {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": CHEMCENTRAL_DB_NAME,
         "USER": os.environ.get("CHEMCENT_DB_USER", "postgres"),
         "PASSWORD": os.environ.get("CHEMCENT_DB_PASSWORD", "postgres"),
