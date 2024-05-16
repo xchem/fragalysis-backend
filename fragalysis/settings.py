@@ -334,7 +334,7 @@ DATABASE_ROUTERS = ["xchem_db.routers.AuthRouter"]
 
 DATABASES = {
     "default": {
-        "ENGINE": "django_prometheus.db.backends.postgresql_psycopg2",
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
         "NAME": os.environ.get("POSTGRESQL_DATABASE", "frag"),
         "USER": os.environ.get("POSTGRESQL_USER", "fragalysis"),
         "PASSWORD": os.environ.get("POSTGRESQL_PASSWORD", "fragalysis"),
@@ -345,7 +345,7 @@ DATABASES = {
 
 if os.environ.get("BUILD_XCDB") == "yes":
     DATABASES["xchem_db"] = {
-        "ENGINE": "django_prometheus.db.backends.postgresql",
+        "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("XCHEM_NAME", ""),
         "USER": os.environ.get("XCHEM_USER", ""),
         "PASSWORD": os.environ.get("XCHEM_PASSWORD", ""),
@@ -356,7 +356,7 @@ if os.environ.get("BUILD_XCDB") == "yes":
 CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKNOWN")
 if CHEMCENTRAL_DB_NAME != "UNKNOWN":
     DATABASES["chemcentral"] = {
-        "ENGINE": "django_prometheus.db.backends.postgresql",
+        "ENGINE": "django.db.backends.postgresql",
         "NAME": CHEMCENTRAL_DB_NAME,
         "USER": os.environ.get("CHEMCENT_DB_USER", "postgres"),
         "PASSWORD": os.environ.get("CHEMCENT_DB_PASSWORD", "postgres"),
