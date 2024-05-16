@@ -785,17 +785,18 @@ files = [
 
 [[package]]
 name = "djangorestframework"
-version = "3.15.1"
+version = "3.14.0"
 description = "Web APIs for Django, made easy."
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "djangorestframework-3.15.1-py3-none-any.whl", hash = "sha256:3ccc0475bce968608cf30d07fb17d8e52d1d7fc8bfe779c905463200750cbca6"},
-    {file = "djangorestframework-3.15.1.tar.gz", hash = "sha256:f88fad74183dfc7144b2756d0d2ac716ea5b4c7c9840995ac3bfd8ec034333c1"},
+    {file = "djangorestframework-3.14.0-py3-none-any.whl", hash = "sha256:eb63f58c9f218e1a7d064d17a70751f528ed4e1d35547fdade9aaf4cd103fd08"},
+    {file = "djangorestframework-3.14.0.tar.gz", hash = "sha256:579a333e6256b09489cbe0a067e66abe55c6595d8926be6b99423786334350c8"},
 ]
 
 [package.dependencies]
 django = ">=3.0"
+pytz = "*"
 
 [[package]]
 name = "enum-compat"
@@ -3017,4 +3018,4 @@ test = ["coverage"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11.3"
-content-hash = "688993a63beccfdd86ac3c312bf783901c447f48e1ce1b10621d4efe03aa62b7"
+content-hash = "f5ab769523c6d0b223a4020f92f5929d919472c348a5d08767a88f3570e85e8f"
