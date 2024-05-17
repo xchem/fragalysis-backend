@@ -113,8 +113,6 @@ def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
     return conn
 
 
-PM_SECURITY_CACHE_HIT: Counter = Counter("fragalysis_security_cache_hit", "Count of each hit of the cache")
-
 def get_conn(force_error_display=False) -> Optional[Connector]:
     credentials: Dict[str, Any] = {
         "user": settings.ISPYB_USER,
