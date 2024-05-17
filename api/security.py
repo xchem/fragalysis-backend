@@ -105,11 +105,15 @@ def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
             logger.exception("Got the following exception creating Connector...")
     if conn:
         logger.debug("Got remote connector")
+        settings.PM_SUCCESSFUL_SECURITY_CONNECTIONS.inc()
     else:
         logger.debug("Failed to get a remote connector")
+        settings.PM_FAILED_SECURITY_CONNECTIONS.inc()
 
     return conn
 
+
+PM_SECURITY_CACHE_HIT: Counter = Counter("fragalysis_security_cache_hit", "Count of each hit of the cache")
 
 def get_conn(force_error_display=False) -> Optional[Connector]:
     credentials: Dict[str, Any] = {
@@ -231,6 +235,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def _get_proposals_for_user_from_ispyb(self, user):
         if CachedContent.has_expired(user.username):
+            settings.PM_SECURITY_CACHE_MISS.inc()
             logger.info("Cache has expired for '%s'", user.username)
             if conn := get_configured_connector():
                 logger.debug("Got a connector for '%s'", user.username)
@@ -238,6 +243,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             else:
                 logger.warning("Failed to get a connector for '%s'", user.username)
                 self._mark_cache_collection_failure(user)
+        else:
+            settings.PM_SECURITY_CACHE_HIT.inc()
 
         # The cache has either been updated, has not changed or is empty.
         # Return what we have for the user. Public (open) proposals
