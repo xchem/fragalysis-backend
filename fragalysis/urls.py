@@ -49,4 +49,5 @@ urlpatterns = [
         mozilla_django_oidc.views.OIDCAuthenticationCallbackView.as_view(),
         name="keycloak_callback",
     ),
+    path("", include("django_prometheus.urls")),
 ]
