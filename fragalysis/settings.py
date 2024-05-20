@@ -334,7 +334,7 @@ DATABASE_ROUTERS = ["xchem_db.routers.AuthRouter"]
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.environ.get("POSTGRESQL_DATABASE", "frag"),
         "USER": os.environ.get("POSTGRESQL_USER", "fragalysis"),
         "PASSWORD": os.environ.get("POSTGRESQL_PASSWORD", "fragalysis"),
