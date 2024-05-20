@@ -70,7 +70,6 @@ from datetime import timedelta
 from typing import List
 
 import sentry_sdk
-from prometheus_client import Counter
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.excepthook import ExcepthookIntegration
@@ -624,18 +623,3 @@ FE_NAMESPACE: str = os.environ.get("FE_NAMESPACE", "undefined")
 FE_IMAGE_TAG: str = os.environ.get("FE_IMAGE_TAG", "undefined")
 STACK_NAMESPACE: str = os.environ.get("STACK_NAMESPACE", "undefined")
 STACK_VERSION: str = os.environ.get("STACK_VERSION", "undefined")
-
-# All of the application-specific prometheus metrics...
-
-PM_SUCCESSFUL_SECURITY_CONNECTIONS: Counter = Counter(
-    "fragalysis_successful_security_connections", "Successful connections"
-)
-PM_FAILED_SECURITY_CONNECTIONS: Counter = Counter(
-    "fragalysis_failed_security_connections", "Failed connections"
-)
-PM_SECURITY_CACHE_HIT: Counter = Counter(
-    "fragalysis_security_cache_hit", "Security cache hit"
-)
-PM_SECURITY_CACHE_MISS: Counter = Counter(
-    "fragalysis_security_cache_miss", "Security cache miss"
-)
