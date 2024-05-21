@@ -16,9 +16,9 @@ rdkit = "2023.3.2"
 xchem-db = "0.1.26b0"
 
 # Less strict (flexible dependency) packages...
-celery = "^5.3.1"
+celery = "^5.4"
 deepdiff = "^6.2.0"
-djangorestframework = "^3.14.0"
+djangorestframework = "3.14.0"
 django-bootstrap3 = "^23.4"
 django-cleanup = "^8.0.0"
 django-extensions = "^3.2.3"
@@ -46,6 +46,8 @@ shortuuid = "^1.0.11"
 sshtunnel = "^0.4.0"
 urllib3 = "^2.0.4"
 validators = "^0.20.0"
+django-celery-beat = "^2.6.0"
+django-celery-results = "^2.5.1"
 
 # Blocked packages...
 #

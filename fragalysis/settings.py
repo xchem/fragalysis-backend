@@ -130,6 +130,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # 3rd
+    "django_celery_beat",
+    "django_celery_results",
     # My own apps
     "scoring",
     "network",
@@ -138,6 +141,7 @@ INSTALLED_APPS = [
     "hypothesis",
     "hotspots",
     "media_serve",
+    "service_status.apps.ServiceStatusConfig",
     # The XChem database model
     "xchem_db",
     # My utility apps
@@ -427,6 +431,18 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 "filename": os.path.join(BASE_DIR, "logs/backend.log"),
                 "formatter": "simple",
             },
+            'service_status': {
+                'level': 'DEBUG',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'filename': os.path.join(BASE_DIR, "logs/service_status.log"),
+                'formatter': 'simple',
+                "maxBytes": 5_000_000,
+                "backupCount": 10,
+            },
+        },
+        "root": {
+            "level": LOGGING_FRAMEWORK_ROOT_LEVEL,
+            "handlers": ["console", "rotating"],
         },
         'loggers': {
             'api.security': {'level': 'INFO'},
@@ -436,10 +452,11 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'mozilla_django_oidc': {'level': 'WARNING'},
             'urllib3': {'level': 'WARNING'},
             'paramiko': {'level': 'WARNING'},
-        },
-        "root": {
-            "level": LOGGING_FRAMEWORK_ROOT_LEVEL,
-            "handlers": ["console", "rotating"],
+            'service_status': {
+                'handlers': ['service_status', 'console'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
         },
     }
 
