@@ -1360,24 +1360,21 @@ class SiteObservationTagView(viewsets.ModelViewSet):
     )
 
 
+class PoseView(viewsets.ModelViewSet):
+    """Set up/retrieve information about Poses (api/poses)"""
+
+    queryset = models.Pose.filter_manager.filter_qs()
+    serializer_class = serializers.PoseSerializer
+    filterset_class = filters.PoseFilter
+    http_method_names = ('get', 'post', 'patch')
+
+
 class SessionProjectTagView(viewsets.ModelViewSet):
     """Set up/retrieve information about tags relating to Session Projects."""
 
     queryset = models.SessionProjectTag.objects.all()
     serializer_class = serializers.SessionProjectTagSerializer
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
-
-
-class TargetMoleculesView(ISpyBSafeQuerySet):
-    """Retrieve all Molecules and Tag information relating
-    to a Target. The idea is that a single call can return all target related
-    information needed by the React front end in a single call.
-    """
-
-    queryset = models.Target.objects.all()
-    serializer_class = serializers.TargetMoleculesSerializer
-    filter_permissions = "project_id"
-    filterset_fields = ("title",)
 
 
 class DownloadStructures(ISpyBSafeQuerySet):
@@ -1680,7 +1677,9 @@ class TargetExperimentUploads(ISpyBSafeQuerySet):
 
 
 class SiteObservations(viewsets.ModelViewSet):
-    queryset = models.SiteObservation.filter_manager.filter_qs()
+    queryset = models.SiteObservation.filter_manager.filter_qs().filter(
+        superseded=False
+    )
     serializer_class = serializers.SiteObservationReadSerializer
     permission_class = [permissions.IsAuthenticated]
     filterset_class = filters.SiteObservationFilter
@@ -1689,7 +1688,7 @@ class SiteObservations(viewsets.ModelViewSet):
 
 
 class CanonSites(viewsets.ModelViewSet):
-    queryset = models.CanonSite.filter_manager.filter_qs()
+    queryset = models.CanonSite.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.CanonSiteReadSerializer
     permission_class = [permissions.IsAuthenticated]
     filterset_class = filters.CanonSiteFilter
@@ -1697,7 +1696,7 @@ class CanonSites(viewsets.ModelViewSet):
 
 
 class CanonSiteConfs(viewsets.ModelViewSet):
-    queryset = models.CanonSiteConf.filter_manager.filter_qs()
+    queryset = models.CanonSiteConf.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.CanonSiteConfReadSerializer
     filterset_class = filters.CanonSiteConfFilter
     permission_class = [permissions.IsAuthenticated]
@@ -1705,7 +1704,7 @@ class CanonSiteConfs(viewsets.ModelViewSet):
 
 
 class XtalformSites(viewsets.ModelViewSet):
-    queryset = models.XtalformSite.filter_manager.filter_qs()
+    queryset = models.XtalformSite.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.XtalformSiteReadSerializer
     filterset_class = filters.XtalformSiteFilter
     permission_class = [permissions.IsAuthenticated]

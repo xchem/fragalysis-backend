@@ -153,6 +153,7 @@ INSTALLED_APPS = [
     "webpack_loader",
     "django_cleanup",
     "simple_history",
+    "django_prometheus",
 ]
 
 LANGUAGE_CODE = "en-us"
@@ -167,6 +168,7 @@ LOGIN_REDIRECT_URL = "/viewer/react/landing"
 LOGOUT_REDIRECT_URL = "/viewer/react/landing"
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -175,6 +177,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "mozilla_django_oidc.middleware.SessionRefresh",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -331,7 +334,7 @@ DATABASE_ROUTERS = ["xchem_db.routers.AuthRouter"]
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.environ.get("POSTGRESQL_DATABASE", "frag"),
         "USER": os.environ.get("POSTGRESQL_USER", "fragalysis"),
         "PASSWORD": os.environ.get("POSTGRESQL_PASSWORD", "fragalysis"),

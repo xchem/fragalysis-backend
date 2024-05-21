@@ -1,11 +1,12 @@
 import logging
-import os
+from pathlib import Path
 from urllib.parse import urljoin
 
+import yaml
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.contrib.postgres.aggregates import ArrayAgg
-from django.db.models import F
+from django.db import IntegrityError, transaction
+from django.db.models import Count
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
 from rdkit import Chem
@@ -14,8 +15,8 @@ from rest_framework import serializers
 
 from api.security import ISpyBSafeQuerySet
 from api.utils import draw_mol, validate_tas
-from scoring.models import SiteObservationGroup
 from viewer import models
+from viewer.target_loader import XTALFORMS_FILE
 from viewer.target_set_upload import sanitize_mol
 from viewer.utils import get_https_host
 
@@ -28,100 +29,6 @@ class FileSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.File
         fields = "__all__"
-
-
-def get_protein_sequences(pdb_block):
-    sequence_list = []
-    aa = {
-        'CYS': 'C',
-        'ASP': 'D',
-        'SER': 'S',
-        'GLN': 'Q',
-        'LYS': 'K',
-        'ILE': 'I',
-        'PRO': 'P',
-        'THR': 'T',
-        'PHE': 'F',
-        'ASN': 'N',
-        'GLY': 'G',
-        'HIS': 'H',
-        'LEU': 'L',
-        'ARG': 'R',
-        'TRP': 'W',
-        'ALA': 'A',
-        'VAL': 'V',
-        'GLU': 'E',
-        'TYR': 'Y',
-        'MET': 'M',
-    }
-
-    current_chain = 'A'
-    current_sequence = ''
-    current_number = 0
-
-    for line in pdb_block.split('\n'):
-        if line[0:4] == 'ATOM':
-            residue = line[17:20].strip()
-            chain = line[21].strip()
-            n = int(line[22:26].strip())
-
-            if chain != current_chain:
-                chain_dict = {'chain': current_chain, 'sequence': current_sequence}
-                sequence_list.append(chain_dict)
-                current_sequence = ''
-                current_chain = chain
-            if not n == current_number:
-                if n == current_number + 1:
-                    try:
-                        seqres = aa[residue]
-                    except:
-                        seqres = 'X'
-                    current_sequence += seqres
-                else:
-                    if not current_number == 0:
-                        gap = n - current_number
-                        gap_str = ''
-                        for _ in range(gap):
-                            gap_str += 'X'
-                        current_sequence += gap_str
-            current_number = n
-
-    if not sequence_list:
-        chain_dict = {'chain': current_chain, 'sequence': current_sequence}
-        sequence_list.append(chain_dict)
-
-    return sequence_list
-
-
-def protein_sequences(obj):
-    """Common enabler code for Target-related serializers"""
-    proteins = models.SiteObservation.filter_manager.by_target(target=obj)
-    protein_file = None
-    for protein in proteins:
-        if protein.apo_file:
-            if not os.path.isfile(protein.apo_file.path):
-                continue
-            protein_file = protein.apo_file
-            break
-    if not protein_file:
-        return [{'chain': '', 'sequence': ''}]
-
-    protein_file.open(mode='r')
-    pdb_block = protein_file.read()
-    protein_file.close()
-
-    sequences = get_protein_sequences(pdb_block)
-    return sequences
-
-
-def template_protein(obj):
-    """Common enabler code for Target-related serializers"""
-
-    proteins = models.SiteObservation.filter_manager.by_target(target=obj)
-    for protein in proteins:
-        if protein.apo_file:
-            return protein.apo_file.url
-    return "NOT AVAILABLE"
 
 
 class CompoundIdentifierTypeSerializer(serializers.ModelSerializer):
@@ -140,10 +47,69 @@ class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
     zip_archive = serializers.SerializerMethodField()
     metadata = serializers.SerializerMethodField()
-    sequences = serializers.SerializerMethodField()
 
     def get_template_protein(self, obj):
-        return template_protein(obj)
+        exp_upload = (
+            models.ExperimentUpload.objects.filter(
+                target=obj,
+            )
+            .order_by('-commit_datetime')
+            .first()
+        )
+
+        yaml_path = exp_upload.get_upload_path()
+
+        # last components of path, need for reconstruction later
+        comps = yaml_path.parts[-2:]
+
+        # and the file itself
+        yaml_path = yaml_path.joinpath(XTALFORMS_FILE)
+        logger.debug("assemblies path: %s", yaml_path)
+        if yaml_path.is_file():
+            with open(yaml_path, "r", encoding="utf-8") as file:
+                contents = yaml.safe_load(file)
+                try:
+                    assemblies = contents["assemblies"]
+                except KeyError:
+                    logger.error("No 'assemblies' section in '%s'", XTALFORMS_FILE)
+                    return ''
+
+                try:
+                    first = list(assemblies.values())[0]
+                except IndexError:
+                    logger.error("No assemblies in 'assemblies' section")
+                    return ''
+
+                try:
+                    reference = first["reference"]
+                except KeyError:
+                    logger.error("No assemblies in 'assemblies' section")
+                    return ''
+
+                ref_path = (
+                    Path(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+                    .joinpath(exp_upload.task_id)
+                    .joinpath(comps[0])
+                    .joinpath(comps[1])
+                    .joinpath("crystallographic_files")
+                    .joinpath(reference)
+                    .joinpath(f"{reference}.pdb")
+                )
+                logger.debug('ref_path: %s', ref_path)
+                if Path(settings.MEDIA_ROOT).joinpath(ref_path).is_file():
+                    request = self.context.get('request', None)
+                    if request is not None:
+                        return request.build_absolute_uri(
+                            Path(settings.MEDIA_URL).joinpath(ref_path)
+                        )
+                    else:
+                        return ''
+                else:
+                    logger.error("Reference pdb file doesn't exist")
+                    return ''
+        else:
+            logger.error("'%s' missing", XTALFORMS_FILE)
+            return ''
 
     def get_zip_archive(self, obj):
         # The if-check is because the filefield in target has null=True.
@@ -156,9 +122,6 @@ class TargetSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'metadata') and obj.metadata.name:
             return urljoin(get_https_host(self.context["request"]), obj.metadata.url)
         return
-
-    def get_sequences(self, obj):
-        return protein_sequences(obj)
 
     class Meta:
         model = models.Target
@@ -173,7 +136,6 @@ class TargetSerializer(serializers.ModelSerializer):
             "metadata",
             "zip_archive",
             "upload_status",
-            "sequences",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -184,7 +146,6 @@ class TargetSerializer(serializers.ModelSerializer):
             "metadata": {"read_only": True},
             "zip_archive": {"read_only": True},
             "upload_status": {"read_only": True},
-            "sequences": {"read_only": True},
         }
 
 
@@ -731,107 +692,6 @@ class SessionProjectTagSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class TargetMoleculesSerializer(serializers.ModelSerializer):
-    template_protein = serializers.SerializerMethodField()
-    zip_archive = serializers.SerializerMethodField()
-    metadata = serializers.SerializerMethodField()
-    sequences = serializers.SerializerMethodField()
-    molecules = serializers.SerializerMethodField()
-    tags_info = serializers.SerializerMethodField()
-    tag_categories = serializers.SerializerMethodField()
-
-    def get_template_protein(self, obj):
-        return template_protein(obj)
-
-    def get_zip_archive(self, obj):
-        # The if-check is because the filefield in target has null=True.
-        # Note that this link will not work on local
-        if hasattr(obj, 'zip_archive') and obj.zip_archive.name:
-            return urljoin(get_https_host(self.context["request"]), obj.zip_archive.url)
-        return
-
-    def get_metadata(self, obj):
-        if hasattr(obj, 'metadata') and obj.metadata.name:
-            return urljoin(get_https_host(self.context["request"]), obj.metadata.url)
-        return
-
-    def get_sequences(self, obj):
-        return protein_sequences(obj)
-
-    def get_molecules(self, obj):
-        mols = models.SiteObservation.objects.filter(
-            experiment__experiment_upload__target__id=obj.id
-        ).annotate(
-            # NB! some of the fields are just renamed here, avoiding
-            # that would simplify things here and remove some lines of
-            # code. but that means front-end code needs to know about
-            # the changes
-            protein_code=F('code'),
-            molecule_protein=F('experiment__pdb_info'),
-            sdf_info=F('ligand_mol_file'),
-            lig_id=F('seq_id'),
-            tags_set=ArrayAgg("siteobservationtag__pk"),
-        )
-        fields = [
-            "id",
-            "smiles",
-            "cmpd",
-            "protein_code",
-            "molecule_protein",
-            "lig_id",
-            "chain_id",
-            "sdf_info",
-            "tags_set",
-        ]
-
-        logger.debug("%s", mols)
-        logger.debug("%s", mols.values(*fields))
-
-        molecules = [
-            {'data': k, 'tags_set': k['tags_set']} for k in mols.values(*fields)
-        ]
-
-        return molecules
-
-    def get_tags_info(self, obj):
-        tags = models.SiteObservationTag.objects.filter(target_id=obj.id)
-        tags_info = []
-        for tag in tags:
-            tag_data = models.SiteObservationTag.objects.filter(id=tag.id).values()
-            tag_coords = SiteObservationGroup.objects.filter(
-                id=tag.mol_group_id
-            ).values('x_com', 'y_com', 'z_com')
-            tag_dict = {'data': tag_data, 'coords': tag_coords}
-            tags_info.append(tag_dict)
-
-        return tags_info
-
-    def get_tag_categories(self, obj):
-        tag_categories = (
-            models.TagCategory.objects.filter(siteobservationtag__target_id=obj.id)
-            .distinct()
-            .values()
-        )
-        return tag_categories
-
-    class Meta:
-        model = models.Target
-        fields = (
-            "id",
-            "title",
-            "project_id",
-            "default_squonk_project",
-            "template_protein",
-            "metadata",
-            "zip_archive",
-            "upload_status",
-            "sequences",
-            "molecules",
-            "tags_info",
-            "tag_categories",
-        )
-
-
 class DownloadStructuresSerializer(serializers.Serializer):
     target_name = serializers.CharField(max_length=200, default=None, allow_blank=True)
     proteins = serializers.CharField(max_length=5000, default='', allow_blank=True)
@@ -982,3 +842,192 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.XtalformSite
         fields = '__all__'
+
+
+class PoseSerializer(serializers.ModelSerializer):
+    site_observations = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=models.SiteObservation.objects.all(),
+    )
+    main_site_observation = serializers.PrimaryKeyRelatedField(
+        required=False, default=None, queryset=models.SiteObservation.objects.all()
+    )
+    main_site_observation_cmpd_code = serializers.SerializerMethodField()
+
+    def get_main_site_observation_cmpd_code(self, obj):
+        return obj.main_site_observation.cmpd.compound_code
+
+    def update_pose_main_observation(self, main_obvs):
+        if main_obvs.pose.site_observations.count() == 1:
+            main_obvs.pose.delete()
+
+    def remove_empty_poses(self, pose):
+        # fmt: off
+        empty_poses = models.Pose.objects.filter(
+            canon_site=pose.canon_site,
+            compound=pose.compound,
+        ).annotate(
+            num_obvs=Count('site_observations'),
+        ).filter(
+            num_obvs=0,
+        )
+        # fmt: on
+        logger.debug('empty_poses: %s', empty_poses)
+        empty_poses.delete()
+
+    def create(self, validated_data):
+        logger.debug('validated_data: %s', validated_data)
+        try:
+            with transaction.atomic():
+                # only situation with suggested main being a main in
+                # other pose is when it's the only observation in
+                # pose, the other cases must have been caught by
+                # validation
+                self.update_pose_main_observation(
+                    validated_data['main_site_observation']
+                )
+                pose = super().create(validated_data)
+                self.remove_empty_poses(pose)
+                return pose
+
+        except IntegrityError as exc:
+            raise serializers.ValidationError({'errors': exc.args[0]})
+
+    def update(self, instance, validated_data):
+        logger.debug('validated_data: %s', validated_data)
+
+        try:
+            with transaction.atomic():
+                # TODO: func here to release the main
+                pose = super().update(instance, validated_data)
+                pose.save()
+                self.remove_empty_poses(pose)
+                return pose
+
+        except IntegrityError as exc:
+            raise serializers.ValidationError({'errors': exc.args[0]})
+
+    def validate(self, data):
+        """Validate data sent to create or update pose.
+
+        First look at the main_site_observation. If this is not set,
+        try to find a suitable one from the list of observations. If
+        is given, check if it already isn't a main observation to some
+        othe pose.
+
+        Then check observation and make sure that:
+        - they have the same canon_site and compound as the pose being created
+        - the pose they're being removed from is deleted when empty
+
+        """
+        logger.info('+ validate: %s', data)
+
+        template = (
+            "Site observation {} cannot be assigned to pose because "
+            + "pose's {} ({}) doesn't match with observation's ({})"
+        )
+
+        messages: dict[str, list[str]] = {
+            'site_observations': [],
+            'main_site_observation': [],
+        }
+        validated_observations = []
+
+        # populate data struct with missing attributes but only when
+        # they're missing, not simply undefined. not sure why the
+        # serializer isn't doing this here
+        instance = getattr(self, 'instance', None)
+        if 'site_observations' not in data.keys():
+            data['site_observations'] = (
+                instance.site_observations.all() if instance else []
+            )
+        if 'main_site_observation' not in data.keys():
+            data['main_site_observation'] = (
+                instance.main_site_observation if instance else None
+            )
+        if 'compound' not in data.keys():
+            data['compound'] = instance.compound if instance else None
+        if 'canon_site' not in data.keys():
+            data['canon_site'] = instance.canon_site if instance else None
+
+        if not data['site_observations']:
+            if hasattr(self, 'instance'):
+                messages['site_observations'].append(
+                    'Cannot remove all site observations from pose'
+                )
+            else:
+                messages['site_observations'].append('Cannot create empty pose')
+
+        if data['main_site_observation']:
+            logger.debug('main observation given, trying to set one')
+            main_pose = getattr(data['main_site_observation'], 'main_pose', None)
+            if (
+                main_pose
+                and main_pose != instance
+                and main_pose.site_observations.count() > 1
+            ):
+                # checking length, because if single observation in
+                # pose, it would leave an empty pose which will be
+                # deleted. otherwise don't allow setting main
+                messages['main_site_observation'].append(
+                    'Requested main_site_observation already the main observation '
+                    + f'in pose {main_pose.display_name}'
+                )
+
+        for so in data['site_observations']:
+            all_good = True
+
+            # only try to set one if not given in request data
+            if not data['main_site_observation']:
+                logger.debug('no main observation given, trying to find one')
+                if not hasattr(so, 'main_pose'):
+                    data['main_site_observation'] = so
+
+            logger.debug('processing observation: %s', so)
+            if so.canon_site_conf.canon_site != data['canon_site']:
+                all_good = False
+                messages['site_observations'].append(
+                    template.format(
+                        so.code,
+                        'canonical site',
+                        data['canon_site'].name,
+                        so.canon_site_conf.canon_site.name,
+                    )
+                )
+            if so.cmpd != data['compound']:
+                all_good = False
+                messages['site_observations'].append(
+                    template.format(
+                        so.code,
+                        'compound',
+                        data['compound'].compound_code,
+                        so.cmpd.compound_code,
+                    )
+                )
+            logger.debug('accumulated messages: %s', messages)
+            if all_good:
+                validated_observations.append(so)
+
+        # did we get main observaton?
+        if not data['main_site_observation']:
+            messages['main_site_observation'].append(
+                'No suitable observation found to set as main_site_observation'
+            )
+
+        if any(messages.values()):
+            raise serializers.ValidationError(messages)
+        else:
+            data['site_observations'] = validated_observations
+            return data
+
+    class Meta:
+        model = models.Pose
+        fields = (
+            'id',
+            'display_name',
+            'canon_site',
+            'compound',
+            'main_site_observation',
+            'site_observations',
+            'main_site_observation_cmpd_code',
+        )

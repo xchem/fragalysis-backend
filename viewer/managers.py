@@ -283,3 +283,35 @@ class CanonSiteConfDataManager(Manager):
 
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class PoseQueryset(QuerySet):
+    def filter_qs(self):
+        Pose = apps.get_model("viewer", "Pose")
+        CanonSite = apps.get_model("viewer", "CanonSite")
+
+        canonsite_qs = CanonSite.filter_manager.filter_qs()
+
+        qs = Pose.objects.annotate(
+            target=Subquery(
+                canonsite_qs.filter(
+                    pk=OuterRef("canon_site__pk"),
+                ).values(
+                    "target"
+                )[:1],
+            ),
+            upload_name=F("main_site_observation__code"),
+        )
+
+        return qs
+
+
+class PoseDataManager(Manager):
+    def get_queryset(self):
+        return PoseQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)

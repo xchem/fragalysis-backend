@@ -35,6 +35,7 @@ from viewer.models import (
     Compound,
     Experiment,
     ExperimentUpload,
+    Pose,
     Project,
     QuatAssembly,
     SiteObservation,
@@ -97,6 +98,8 @@ class MetadataObject:
     """
 
     instance: Model
+    key: str
+    versioned_key: str
     index_data: dict = field(default_factory=dict)
     new: bool = False
 
@@ -118,7 +121,7 @@ class ProcessedObject:
     key: str
     defaults: dict = field(default_factory=dict)
     index_data: dict = field(default_factory=dict)
-    identifier: Optional[str] = ""
+    versioned_key: Optional[str] = ""
 
 
 @dataclass
@@ -298,10 +301,10 @@ def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
     return generator
 
 
-def strip_version(s: str) -> str:
+def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
     # format something like XX01ZVNS2B-x0673/B/501/1
-    # remove tailing '/1'
-    return s[0 : s.rfind('/')]
+    # remove tailing '<separator>1'
+    return s[0 : s.rfind(separator)], int(s[s.rfind(separator) + 1 :])
 
 
 def create_objects(func=None, *, depth=math.inf):
@@ -328,7 +331,8 @@ def create_objects(func=None, *, depth=math.inf):
 
         flattened_data = flatten_dict(yaml_data, depth=depth)
         result = {}
-        created, existing, failed = 0, 0, 0
+        created, existing, failed, updated = 0, 0, 0, 0
+
         for item in flattened_data:
             logger.debug("flattened data item: %s", item)
             instance_data = func(
@@ -377,10 +381,7 @@ def create_objects(func=None, *, depth=math.inf):
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     obj,
                 )
-                if new:
-                    created = created + 1
-                else:
-                    existing = existing + 1
+
             except MultipleObjectsReturned:
                 msg = "{}.get_or_create in {} returned multiple objects for {}".format(
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
@@ -397,7 +398,12 @@ def create_objects(func=None, *, depth=math.inf):
                 self.report.log(logging.ERROR, msg)
                 failed = failed + 1
 
-            if not obj:
+            if obj:
+                # update any additional fields
+                instance_qs = instance_data.model_class.objects.filter(pk=obj.pk)
+                instance_qs.update(**instance_data.defaults)
+                obj.refresh_from_db()
+            else:
                 # create fake object so I can just push the upload
                 # through and compile report for user feedback
                 obj = instance_data.model_class(
@@ -409,11 +415,30 @@ def create_objects(func=None, *, depth=math.inf):
                     obj,
                 )
 
+            if new:
+                created = created + 1
+                # check if old versions exist and mark them as superseded
+                if "version" in instance_data.fields.keys():
+                    del instance_data.fields["version"]
+                    superseded = instance_data.model_class.objects.filter(
+                        **instance_data.fields,
+                    ).exclude(
+                        pk=obj.pk,
+                    )
+                    updated += superseded.update(superseded=True)
+
+            else:
+                existing = existing + 1
+
             m = MetadataObject(
-                instance=obj, index_data=instance_data.index_data, new=new
+                instance=obj,
+                key=instance_data.key,
+                versioned_key=instance_data.versioned_key,
+                index_data=instance_data.index_data,
+                new=new,
             )
             # index data here probs
-            result[instance_data.key] = m
+            result[instance_data.versioned_key] = m
 
         msg = "{} {} objects processed, {} created, {} fetched from database".format(
             created + existing + failed,
@@ -424,6 +449,19 @@ def create_objects(func=None, *, depth=math.inf):
             existing,
         )  # pylint: disable=protected-access
         self.report.log(logging.INFO, msg)
+
+        # refresh all objects to make sure they're up to date.
+        # this is specifically because of the superseded flag above -
+        # I'm setting this in separate queryset, the db rows are
+        # updated, but the changes are not being propagated to the
+        # objects in result dict. Well aware that this isn't efficient
+        # but I don't have access to parent's versioned key here, (and
+        # even if I did, there's no guarantee that they would have
+        # already been processd), so that's why updating every single
+        # object.
+        if updated > 0:
+            for k in result.values():
+                k.instance.refresh_from_db()
 
         return result
 
@@ -446,7 +484,7 @@ class TargetLoader:
         self.tempdir = tempdir
         self.raw_data = Path(self.tempdir).joinpath(self.bundle_name)
         self.task = task
-        self.version_number = None
+        self.version_number = 1
         self.version_dir = None
         self.previous_version_dirs = None
         self.user_id = user_id
@@ -764,14 +802,14 @@ class TargetLoader:
         )
 
         try:
-            panddas_files = data["crystallographic_files"]["panddas_event_files"]
+            event_files = data["crystallographic_files"]["ligand_binding_events"]
         except KeyError:
-            panddas_files = []
+            event_files = []
 
         map_info_files = self.validate_map_files(
-            key="panddas_event_files",
+            key="ligand_binding_events",
             obj_identifier=experiment_name,
-            file_struct=panddas_files,
+            file_struct=event_files,
             validate_files=validate_files,
         )
 
@@ -810,10 +848,6 @@ class TargetLoader:
         except KeyError:
             smiles = ""
 
-        # TODO: unhandled atm
-        # version	int	old versions are kept	target loader
-        version = 1
-
         # if empty or key missing entirely, ensure code_prefix returns empty
         code_prefix = extract(key="code_prefix", level=logging.INFO)
         # ignoring type because tooltip dict can legitimately be empty
@@ -832,7 +866,6 @@ class TargetLoader:
         defaults = {
             "experiment_upload": self.experiment_upload,
             "status": status,
-            "version": version,
             "type": exp_type,
             "pdb_info": str(self._get_final_path(pdb_info)),
             "mtz_info": str(self._get_final_path(mtz_info)),
@@ -855,6 +888,7 @@ class TargetLoader:
             model_class=Experiment,
             fields=fields,
             key=experiment_name,
+            versioned_key=experiment_name,
             defaults=defaults,
             index_data=index_fields,
         )
@@ -916,6 +950,7 @@ class TargetLoader:
             fields={},
             defaults=defaults,
             key=protein_name,
+            versioned_key=protein_name,
         )
 
     @create_objects(depth=1)
@@ -969,6 +1004,7 @@ class TargetLoader:
             model_class=Xtalform,
             fields=fields,
             key=xtalform_name,
+            versioned_key=xtalform_name,
             defaults=defaults,
         )
 
@@ -1010,6 +1046,7 @@ class TargetLoader:
             model_class=QuatAssembly,
             fields=fields,
             key=assembly_name,
+            versioned_key=assembly_name,
         )
 
     @create_objects(depth=3)
@@ -1059,6 +1096,7 @@ class TargetLoader:
             model_class=XtalformQuatAssembly,
             fields=fields,
             key=xtalform_id,
+            versioned_key=xtalform_id,
         )
 
     @create_objects(depth=1)
@@ -1082,7 +1120,9 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        canon_site_id, data = item_data
+        v_canon_site_id, data = item_data
+
+        canon_site_id, version = strip_version(v_canon_site_id, separator="+")
 
         extract = functools.partial(
             self._extract,
@@ -1095,6 +1135,10 @@ class TargetLoader:
 
         fields = {
             "name": canon_site_id,
+            "version": version,
+        }
+
+        defaults = {
             "residues": residues,
         }
 
@@ -1112,6 +1156,8 @@ class TargetLoader:
             fields=fields,
             index_data=index_data,
             key=canon_site_id,
+            versioned_key=v_canon_site_id,
+            defaults=defaults,
         )
 
     @create_objects(depth=1)
@@ -1134,8 +1180,10 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        conf_site_name, data = item_data
-        canon_site = canon_sites[conf_site_name]
+        v_conf_site_name, data = item_data
+        conf_site_name, version = strip_version(v_conf_site_name, separator="+")
+
+        canon_site = canon_sites[v_conf_site_name]
 
         extract = functools.partial(
             self._extract,
@@ -1149,11 +1197,16 @@ class TargetLoader:
 
         fields = {
             "name": conf_site_name,
-            "residues": residues,
             "canon_site": canon_site,
+            "version": version,
+        }
+
+        defaults = {
+            "residues": residues,
         }
 
         members = extract(key="members")
+
         ref_ligands = extract(key="reference_ligand_id")
 
         index_fields = {
@@ -1166,6 +1219,8 @@ class TargetLoader:
             fields=fields,
             index_data=index_fields,
             key=conf_site_name,
+            versioned_key=v_conf_site_name,
+            defaults=defaults,
         )
 
     @create_objects(depth=1)
@@ -1189,7 +1244,8 @@ class TargetLoader:
         """
         del kwargs
         assert item_data
-        xtalform_site_name, data = item_data
+        v_xtalform_site_name, data = item_data
+        xtalform_site_name, version = strip_version(v_xtalform_site_name)
 
         extract = functools.partial(
             self._extract,
@@ -1212,6 +1268,7 @@ class TargetLoader:
             "xtalform_site_id": xtalform_site_name,
             "xtalform": xtalform,
             "canon_site": canon_site,
+            "version": version,
         }
 
         defaults = {
@@ -1228,19 +1285,21 @@ class TargetLoader:
             fields=fields,
             defaults=defaults,
             key=xtalform_site_name,
+            versioned_key=v_xtalform_site_name,
             index_data=index_data,
         )
 
-    @create_objects(depth=5)
+    @create_objects(depth=6)
     def process_site_observation(
         self,
         experiments: dict[int | str, MetadataObject],
         compounds: dict[int | str, MetadataObject],
         xtalform_sites: dict[str, Model],
         canon_site_confs: dict[int | str, MetadataObject],
-        item_data: tuple[str, str, str, int | str, int | str, dict] | None = None,
+        item_data: tuple[str, str, str, int | str, int, str, dict] | None = None,
         # chain: str,
         # ligand: str,
+        # version: int,
         # idx: int | str,
         # data: dict,
         validate_files: bool = True,
@@ -1265,11 +1324,12 @@ class TargetLoader:
         del kwargs
         assert item_data
         try:
-            experiment_id, _, chain, ligand, idx, data = item_data
+            experiment_id, _, chain, ligand, version, v_idx, data = item_data
         except ValueError:
             # wrong data item
             return None
 
+        idx, _ = strip_version(v_idx, separator="+")
         extract = functools.partial(
             self._extract,
             data=data,
@@ -1282,6 +1342,7 @@ class TargetLoader:
 
         longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}"
+        v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
 
         smiles = extract(key="ligand_smiles_string")
 
@@ -1293,7 +1354,6 @@ class TargetLoader:
             # the first.
             try:
                 logger.debug('exp: %s, %s', experiment, experiments[experiment_id].new)
-                # logger.debug('exp compounds: %s', experiment.compounds)
                 compound = experiment.compounds.get(
                     smiles=experiments[experiment_id].index_data["smiles"]
                 )
@@ -1314,8 +1374,8 @@ class TargetLoader:
                     f"Multiple compounds for experiment {experiment.code}",
                 )
 
-        canon_site_conf = canon_site_confs[idx].instance
-        xtalform_site = xtalform_sites[key]
+        canon_site_conf = canon_site_confs[v_idx].instance
+        xtalform_site = xtalform_sites[v_key]
 
         (  # pylint: disable=unbalanced-tuple-unpacking
             bound_file,
@@ -1367,6 +1427,7 @@ class TargetLoader:
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
             "longcode": longcode,
+            "version": version,
             "experiment": experiment,
             "cmpd": compound,
             "xtalform_site": xtalform_site,
@@ -1397,6 +1458,7 @@ class TargetLoader:
             fields=fields,
             defaults=defaults,
             key=key,
+            versioned_key=v_key,
         )
 
     def process_bundle(self):
@@ -1473,6 +1535,12 @@ class TargetLoader:
             # add upload as anonymous user
             committer = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
 
+        # collect top level info
+        self.version_number = int(meta["version_number"])
+        self.version_dir = meta["version_dir"]
+        self.previous_version_dirs = meta["previous_version_dirs"]
+        prefix_tooltips = meta.get("code_prefix_tooltips", {})
+
         # TODO: is it here where I can figure out if this has already been uploaded?
         if self._is_already_uploaded(target_created, project_created):
             # remove uploaded file
@@ -1489,12 +1557,6 @@ class TargetLoader:
         # populate m2m field
         assert self.target
         self.target.project_id.add(self.project)
-
-        # collect top level info
-        self.version_number = meta["version_number"]
-        self.version_dir = meta["version_dir"]
-        self.previous_version_dirs = meta["previous_version_dirs"]
-        prefix_tooltips = meta.get("code_prefix_tooltips", {})
 
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -1525,6 +1587,8 @@ class TargetLoader:
         self.experiment_upload.reference_structure_transforms = str(
             self._get_final_path(trans_ref_struct)
         )
+        self.experiment_upload.upload_data_dir = self.version_dir
+        self.experiment_upload.upload_version = self.version_number
         self.experiment_upload.save()
 
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -1641,6 +1705,7 @@ class TargetLoader:
 
         # now can update CanonSite with ref_conf_site
         # also, fill the canon_site_num field
+        # TODO: ref_conf_site is with version, object's key isn't
         for val in canon_site_objects.values():  # pylint: disable=no-member
             val.instance.ref_conf_site = canon_site_conf_objects[
                 val.index_data["reference_conformer_site_id"]
@@ -1654,8 +1719,7 @@ class TargetLoader:
         xtalform_site_by_tag = {}
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
             for k in val.index_data["residues"]:
-                # strip the version number from tag
-                xtalform_site_by_tag[strip_version(k)] = val.instance
+                xtalform_site_by_tag[k] = val.instance
 
         site_observation_objects = self.process_site_observation(
             yaml_data=crystals,
@@ -1666,12 +1730,18 @@ class TargetLoader:
         )
 
         values = ["experiment"]
-        qs = (
-            SiteObservation.objects.values(*values)
-            .order_by(*values)
-            .annotate(obvs=ArrayAgg("id"))
-            .values_list("obvs", flat=True)
-        )
+        # fmt: off
+        qs = SiteObservation.objects.filter(
+                experiment__experiment_upload__target=self.target,
+                code__isnull=True,
+            ).values(
+                *values,
+            ).order_by(
+                *values,
+            ).annotate(
+                obvs=ArrayAgg("id"),
+            ).values_list("obvs", flat=True)
+        # fmt: on
 
         for elem in qs:
             # fmt: off
@@ -1702,6 +1772,7 @@ class TargetLoader:
                 # 2024-03-04, if you need to check
 
                 for so in so_group.filter(code__isnull=True):
+                    logger.debug("processing so: %s", so.longcode)
                     if so.experiment.type == 1:
                         # manual. code is pdb code
                         code = f"{so.experiment.code}-{next(suffix)}"
@@ -1725,12 +1796,17 @@ class TargetLoader:
                         # TODO: this should ideally be solved by db engine, before
                         # rushing to write the trigger, have think about the
                         # loader concurrency situations
-                        if SiteObservation.objects.filter(
+                        code_qs = SiteObservation.objects.filter(
                             experiment__experiment_upload__target=self.target,
                             code=code,
-                        ).exists():
+                        )
+                        # if code exists and the experiment is new
+                        logger.debug(
+                            'checking code uniq: %s, %s', code, so.experiment.status
+                        )
+                        if code_qs.exists() and so.experiment.status == 0:
                             msg = (
-                                f"short code {code} already exists for this target;  "
+                                f"short code {code} already exists for this target; "
                                 + "specify a code_prefix to resolve this conflict"
                             )
                             self.report.log(logging.ERROR, msg)
@@ -1738,11 +1814,22 @@ class TargetLoader:
                     so.code = code
                     so.save()
 
+        # site_observations_versioned = {}
+        # for val in site_observation_objects.values():  # pylint: disable=no-member
+        #     site_observations_versioned[val.versioned_key] = val.instance
+
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
             val.instance.ref_site_observation = site_observation_objects[
-                strip_version(val.index_data["reference_ligands"])
+                val.index_data["reference_ligands"]
             ].instance
+            logger.debug("attaching canon_site_conf: %r", val.instance)
+            logger.debug(
+                "attaching canon_site_conf: %r",
+                site_observation_objects[
+                    val.index_data["reference_ligands"]
+                ].instance.longcode,
+            )
             val.instance.save()
 
         logger.debug("data read and processed, adding tags")
@@ -1768,8 +1855,10 @@ class TargetLoader:
             )
             tag = val.instance.name.split('+')[0]
             so_list = [
-                site_observation_objects[strip_version(k)].instance
+                site_observation_objects[k].instance
                 for k in val.index_data["members"]
+                # site_observations_versioned[k]
+                # for k in val.index_data["members"]
             ]
             self._tag_observations(tag, prefix, "ConformerSites", so_list)
 
@@ -1804,12 +1893,26 @@ class TargetLoader:
             )
             tag = f"{val.instance.xtalform.name} - {val.instance.xtalform_site_id}"
             so_list = [
-                site_observation_objects[strip_version(k)].instance
-                for k in val.index_data["residues"]
+                site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
             self._tag_observations(tag, prefix, "CrystalformSites", so_list)
 
         logger.debug("xtalform_sites objects tagged")
+
+        self._generate_poses()
+
+        # tag all new observations, so that the curator can find and
+        # re-pose them
+        self._tag_observations(
+            "New",
+            "",
+            "Other",
+            [
+                k.instance
+                for k in site_observation_objects.values()  # pylint: disable=no-member
+                if k.new
+            ],
+        )
 
     def _load_yaml(self, yaml_file: Path) -> dict | None:
         contents = None
@@ -1859,6 +1962,60 @@ class TargetLoader:
 
         return result
 
+    def _generate_poses(self):
+        values = ["canon_site_conf__canon_site", "cmpd"]
+        # fmt: off
+        pose_groups = SiteObservation.objects.exclude(
+            canon_site_conf__canon_site__isnull=True,
+        ).exclude(
+            cmpd__isnull=True,
+        ).values(
+            *values
+        ).order_by(
+            "canon_site_conf__canon_site",
+        ).annotate(
+            obvs=ArrayAgg('id'),
+        ).values_list("obvs", flat=True)
+        # fmt: on
+
+        for group in pose_groups:
+            pose_items = SiteObservation.objects.filter(pk__in=group)
+            sample = pose_items.first()
+            # check for existing group
+            try:
+                pose = Pose.objects.get(
+                    canon_site=sample.canon_site_conf.canon_site,
+                    compound=sample.cmpd,
+                )
+            except Pose.DoesNotExist:
+                # create new, add random observation as main
+                pose = Pose(
+                    canon_site=sample.canon_site_conf.canon_site,
+                    compound=sample.cmpd,
+                    main_site_observation=sample,
+                    display_name=sample.code,
+                )
+                pose.save()
+            except MultipleObjectsReturned:
+                # must be a follow-up upload. create new pose, but
+                # only add observatons that are not yet assigned
+                pose_items = pose_items.filter(pose__isnull=True)
+                sample = pose_items.first()
+                pose = Pose(
+                    canon_site=sample.canon_site_conf.canon_site,
+                    compound=sample.cmpd,
+                    main_site_observation=sample,
+                    display_name=sample.code,
+                )
+                pose.save()
+
+            # finally add observations to the (new or existing) pose
+            for obvs in pose_items:
+                obvs.pose = pose
+                obvs.save()
+
+            self._tag_observations(pose.display_name, "P", "Pose", pose_items)
+
     def _tag_observations(self, tag, prefix, category, so_list):
         try:
             # memo to self: description is set to tag, but there's
@@ -1885,9 +2042,10 @@ class TargetLoader:
             so_group = SiteObservationGroup(target=self.target)
             so_group.save()
 
+        name = f"{prefix} - {tag}" if prefix else tag
         try:
             so_tag = SiteObservationTag.objects.get(
-                upload_name=f"{prefix} - {tag}", target=self.target
+                upload_name=name, target=self.target
             )
             # Tag already exists
             # Apart from the new mol_group and molecules, we shouldn't be
@@ -1897,7 +2055,7 @@ class TargetLoader:
             so_tag = SiteObservationTag()
             so_tag.tag = tag
             so_tag.tag_prefix = prefix
-            so_tag.upload_name = f"{prefix} - {tag}"
+            so_tag.upload_name = name
             so_tag.category = TagCategory.objects.get(category=category)
             so_tag.target = self.target
             so_tag.mol_group = so_group
@@ -1911,15 +2069,12 @@ class TargetLoader:
         if target_created or project_created:
             return False
         else:
-            uploaded_files = ExperimentUpload.objects.filter(
+            uploaded = ExperimentUpload.objects.filter(
                 target=self.target,
                 project=self.project,
-            ).values_list("file", flat=True)
+            ).values_list("upload_data_dir", flat=True)
 
-            # TODO: this just tests the target-project-filename combo,
-            # which may not be enough
-
-            return self.data_bundle in uploaded_files
+            return self.version_dir in uploaded
 
     def _get_final_path(self, path: str | None) -> Path | None:
         """Update relative path to final storage path

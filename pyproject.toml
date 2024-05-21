@@ -14,16 +14,17 @@ python = "^3.11.3"
 # Do not change these without careful thought!
 rdkit = "2023.3.2"
 xchem-db = "0.1.26b0"
+djangorestframework = "3.14.0"
 
 # Less strict (flexible dependency) packages...
 celery = "^5.3.1"
 deepdiff = "^6.2.0"
-djangorestframework = "^3.14.0"
 django-bootstrap3 = "^23.4"
 django-cleanup = "^8.0.0"
 django-extensions = "^3.2.3"
 django-filter = "^23.2"
 django-guardian = "^2.4.0"
+django-prometheus = "^2.3.1"
 django-simple-history = "^3.3.0"
 django-webpack-loader = "^0.7.0"
 django-rest-swagger = "^2.2.0"
@@ -53,7 +54,7 @@ bcrypt = "4.0.1"
 # Django will (probably) need work in the code to support v4.
 # Simply changing to django 4 results in errors
 # like "CSRF Failed: Origin checking failed"
-django = "3.2.24"
+django = "3.2.25"
 # We're stuck on ISPyB 4.x to avoid the error: -
 #   ImportError: cannot import name 'ISPyBNoResultException' from 'ispyb.connector.mysqlsp.main'
 ispyb = "4.13.2"
@@ -65,7 +66,7 @@ pre-commit = "^3.3.3"
 pylint = "^3.0.3"
 pylint-django = "^2.5.5"
 httpie = "^3.2.2"
-black = "^23.12.0"
+black = "^24.3.0"
 mypy = "^1.7.1"
 
 [build-system]

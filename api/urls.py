@@ -88,9 +88,6 @@ router.register(
     viewer_views.SessionProjectTagView,
     basename='session_project_tag',
 )
-router.register(
-    "target_molecules", viewer_views.TargetMoleculesView, basename='target_molecules'
-)
 
 # Download a zip file of the requested contents
 router.register(
@@ -125,6 +122,7 @@ router.register(
     "canon_site_confs", viewer_views.CanonSiteConfs, basename='canon_site_confs'
 )
 router.register("xtalform_sites", viewer_views.XtalformSites, basename='xtalform_sites')
+router.register("poses", viewer_views.PoseView, basename='poses')
 
 # Squonk Jobs
 router.register(
