@@ -22,6 +22,11 @@ class PrometheusMetrics:
         'Total number of ISpyB connections',
         labelnames=['k8s_namespace'],
     )
+    ispyb_connection_attempts = Counter(
+        'fragalysis_ispyb_connection_attempts',
+        'Total number of ISpyB connection attempts (after initial failure)',
+        labelnames=['k8s_namespace'],
+    )
     ispyb_connection_failures = Counter(
         'fragalysis_ispyb_connection_failures',
         'Total number of ISpyB connection failures',
@@ -39,6 +44,10 @@ class PrometheusMetrics:
     @staticmethod
     def new_ispyb_connection():
         PrometheusMetrics.ispyb_connections.labels(_NAMESPACE).inc()
+
+    @staticmethod
+    def new_ispyb_connection_attempt():
+        PrometheusMetrics.ispyb_connection_attempts.labels(_NAMESPACE).inc()
 
     @staticmethod
     def failed_ispyb_connection():
