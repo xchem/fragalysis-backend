@@ -2014,8 +2014,6 @@ class TargetLoader:
                 obvs.pose = pose
                 obvs.save()
 
-            self._tag_observations(pose.display_name, "P", "Pose", pose_items)
-
     def _tag_observations(self, tag, prefix, category, so_list):
         try:
             # memo to self: description is set to tag, but there's
