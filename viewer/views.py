@@ -33,8 +33,8 @@ from rest_framework.views import APIView
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
 from api.security import ISpyBSafeQuerySet
 from api.utils import get_highlighted_diffs, get_params, pretty_request
+from service_status.models import Service
 from viewer import filters, models, serializers
-from viewer.services import get_service_state
 from viewer.squonk2_agent import (
     AccessParams,
     CommonParams,
@@ -2471,14 +2471,7 @@ class ServiceState(View):
         """
         # Unused arguments
         del args, kwargs
-
         logger.debug("+ ServiceServiceState.State.get called")
-        service_string = settings.ENABLE_SERVICE_STATUS
-        logger.debug("Service string: %s", service_string)
-
-        services = [k for k in service_string.split(":") if k != ""]
-        logger.debug("Services ordered: %s", services)
-
-        service_states = get_service_state(services)
-
-        return JsonResponse({"service_states": service_states})
+        return JsonResponse(
+            {"service_states": list(Service.data_manager.to_frontend())}
+        )

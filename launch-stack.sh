@@ -63,5 +63,8 @@ echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER:-https};
 echo "Testing nginx config..."
 nginx -tq
 
+echo "Launching service health check queries"
+python manage.py start_service_queries
+
 echo "Running nginx..."
 nginx
