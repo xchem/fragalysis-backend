@@ -13,6 +13,8 @@ from ispyb.exception import (
 )
 from pymysql.err import OperationalError
 
+from .prometheus_metrics import PrometheusMetrics
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 # Timeout to allow the pymysql.connect() method to connect to the DB.
@@ -181,10 +183,12 @@ class SSHConnector(Connector):
         if self.conn is not None:
             if connect_attempts > 0:
                 logger.info('Connected')
+            PrometheusMetrics.new_ispyb_connection()
             self.conn.autocommit = True
         else:
             if connect_attempts > 0:
                 logger.info('Failed to connect')
+            PrometheusMetrics.failed_ispyb_connection()
             self.server.stop()
             raise ISPyBConnectionException
         self.last_activity_ts = time.time()
