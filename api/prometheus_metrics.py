@@ -32,6 +32,16 @@ class PrometheusMetrics:
         'Total number of ISpyB connection failures',
         labelnames=['k8s_namespace'],
     )
+    proposal_cache_hit = Counter(
+        'fragalysis_proposal_cache_hit',
+        'Total number of proposal cache hits (avoiding new connections)',
+        labelnames=['k8s_namespace'],
+    )
+    proposal_cache_miss = Counter(
+        'fragalysis_proposal_cache_miss',
+        'Total number of proposal cache misses (forcing a new connection)',
+        labelnames=['k8s_namespace'],
+    )
 
     @staticmethod
     def new_tunnel():
@@ -52,3 +62,11 @@ class PrometheusMetrics:
     @staticmethod
     def failed_ispyb_connection():
         PrometheusMetrics.ispyb_connection_failures.labels(_NAMESPACE).inc()
+
+    @staticmethod
+    def new_proposal_cache_hit():
+        PrometheusMetrics.proposal_cache_hit.labels(_NAMESPACE).inc()
+
+    @staticmethod
+    def new_proposal_cache_miss():
+        PrometheusMetrics.proposal_cache_miss.labels(_NAMESPACE).inc()
