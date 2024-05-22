@@ -25,12 +25,7 @@ def service_query(func):
     """Decorator function for service queries functions"""
 
     @functools.wraps(func)
-    def wrapper_service_query(*args, **kwargs):
-        logger.debug("+ wrapper_service_query")
-        logger.debug("args passed: %s", args)
-        logger.debug("kwargs passed: %s", kwargs)
-        logger.debug("function: %s", func.__name__)
-
+    def wrapper_service_query():
         import service_status.services as services_module
 
         try:

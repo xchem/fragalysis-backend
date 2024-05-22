@@ -103,10 +103,16 @@ When you want to spin-down the deployment run: -
 
     docker-compose down
 
->   When running locally (via `docker-compose`) Celery tasks are set to run
-    synchronously, like a function call rather than as asynchronous tasks.
-    This is controlled by the `CELERY_TASK_ALWAYS_EAGER` environment variable
-    that you'll find in the `docker-compose.yml` file.
+When running locally (via `docker-compose`) Celery tasks are set to
+run synchronously, like a function call rather than as asynchronous
+tasks.  This is controlled by the `CELERY_TASK_ALWAYS_EAGER`
+environment variable that you'll find in the `docker-compose.yml`
+file. If asynchronous Celery tasks are needed in local development,
+they can be launched with the additional compose file:
+
+
+    docker compose -f docker-compose.yml -f docker-compose.celery.yml up
+
 
 There is also a convenient bash script that can be used to build and push an
 image to a repository. you just need to provide the Docker image *namespace* and a *tag*.
