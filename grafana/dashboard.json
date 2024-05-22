@@ -585,7 +585,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(fragalysis_ispyb_connections, namespace)",
+        "definition": "label_values(fragalysis_ispyb_connections_total, namespace)",
         "description": "The kubernetes Namespace of the Fragalysis Stack of interest",
         "hide": 0,
         "includeAll": false,
@@ -593,7 +593,7 @@
         "name": "Namespace",
         "options": [],
         "query": {
-          "query": "label_values(fragalysis_ispyb_connections, namespace)",
+          "query": "label_values(fragalysis_ispyb_connections_total, namespace)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -612,6 +612,6 @@
   "timezone": "",
   "title": "Fragalysis",
   "uid": "Ue0SYxPIk",
-  "version": 8,
+  "version": 9,
   "weekStart": ""
 }
