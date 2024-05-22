@@ -112,21 +112,23 @@ def init_services():
             service.save()
 
     # and launch the rest
-    for s in requested_services:
-        logger.debug('trying to launch service: %s', s)
-        try:
-            service = Service.objects.get(service=s)
-        except Service.DoesNotExist:
-            logger.error(
-                'Service %s requested but test function missing in services.py',
-                s,
-            )
-            continue
+    # TODO: this could potentially be an actual check if beat is running
+    if not settings.CELERY_TASK_ALWAYS_EAGER:
+        for s in requested_services:
+            logger.debug('trying to launch service: %s', s)
+            try:
+                service = Service.objects.get(service=s)
+            except Service.DoesNotExist:
+                logger.error(
+                    'Service %s requested but test function missing in services.py',
+                    s,
+                )
+                continue
 
-        # launch query task
-        task = getattr(services_module, service.service)
-        logger.debug('trying to launch task: %s', task)
-        task.delay(1)
+            # launch query task
+            task = getattr(services_module, service.service)
+            logger.debug('trying to launch task: %s', task)
+            task.delay(1)
 
 
 def services(enable=(), disable=()):

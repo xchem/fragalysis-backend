@@ -93,7 +93,7 @@ services:
       # Comma-separated dforced errors (infections?)
       INFECTIONS: ''
       # Celery tasks need to run synchronously
-      # CELERY_TASK_ALWAYS_EAGER: 'True'
+      CELERY_TASK_ALWAYS_EAGER: 'True'
       # Error reporting and default/root log-level
       FRAGALYSIS_BACKEND_SENTRY_DNS: ${FRAGALYSIS_BACKEND_SENTRY_DNS}
       LOGGING_FRAMEWORK_ROOT_LEVEL: ${LOGGING_FRAMEWORK_ROOT_LEVEL:-INFO}
@@ -128,44 +128,3 @@ services:
         condition: service_healthy
       graph:
         condition: service_healthy
-    healthcheck:
-      test: python manage.py --help || exit 1
-      interval: 10s
-      timeout: 10s
-      retries: 20
-      start_period: 10s
-
-
-  celery_worker:
-    # command: sh -c "wait-for-it redis:6379 && wait-for-it backend:8000 -- celery -A fragalysis worker -l info"
-    command: sh -c "celery -A fragalysis worker -l info"
-    container_name: celery_worker
-    depends_on:
-      database:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-    hostname: celery_worker
-    env_file:
-      - .env
-    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
-    restart: on-failure
-
-  celery_beat:
-    command: sh -c "celery -A fragalysis beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
-    # command: sh -c "wait-for-it redis:6379 && wait-for-it backend:8000 -- celery -A fragalysis beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
-    container_name: celery_beat
-    depends_on:
-      database:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-    hostname: celery_beat
-    env_file:
-      - .env
-    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
-    restart: on-failure
