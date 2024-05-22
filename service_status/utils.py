@@ -25,7 +25,7 @@ def service_query(func):
     """Decorator function for service queries functions"""
 
     @functools.wraps(func)
-    def wrapper_service_query():
+    def wrapper_service_query(*args, **kwargs):  # pylint: disable=unused-argument
         import service_status.services as services_module
 
         try:
