@@ -48,10 +48,12 @@ class CachedContent:
                 # User's not known,
                 # initialise an entry that will automatically expire
                 CachedContent._timers[username] = now
+                PrometheusMetrics.new_proposal_cache_hit()
             if CachedContent._timers[username] <= now:
                 has_expired = True
                 # Expired, reset the expiry time
                 CachedContent._timers[username] = now + CachedContent._cache_period
+                PrometheusMetrics.new_proposal_cache_miss()
         return has_expired
 
     @staticmethod
@@ -237,15 +239,12 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def _get_proposals_for_user_from_ispyb(self, user):
         if CachedContent.has_expired(user.username):
             logger.info("Cache has expired for '%s'", user.username)
-            PrometheusMetrics.new_proposal_cache_miss()
             if conn := get_configured_connector():
                 logger.debug("Got a connector for '%s'", user.username)
                 self._get_proposals_from_connector(user, conn)
             else:
                 logger.warning("Failed to get a connector for '%s'", user.username)
                 self._mark_cache_collection_failure(user)
-        else:
-            PrometheusMetrics.new_proposal_cache_hit()
 
         # The cache has either been updated, has not changed or is empty.
         # Return what we have for the user. Public (open) proposals
