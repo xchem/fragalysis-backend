@@ -166,6 +166,7 @@ class SSHConnector(Connector):
                     )
                 logger.warning('%s', repr(oe_e))
                 connect_attempts += 1
+                PrometheusMetrics.new_ispyb_connection_attempt()
                 time.sleep(PYMYSQL_EXCEPTION_RECONNECT_DELAY_S)
             except Exception as e:
                 if connect_attempts == 0:
