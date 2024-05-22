@@ -17,6 +17,7 @@ from rest_framework import viewsets
 
 from viewer.models import Project
 
+from .prometheus_metrics import PrometheusMetrics
 from .remote_ispyb_connector import SSHConnector
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -47,10 +48,12 @@ class CachedContent:
                 # User's not known,
                 # initialise an entry that will automatically expire
                 CachedContent._timers[username] = now
+                PrometheusMetrics.new_proposal_cache_hit()
             if CachedContent._timers[username] <= now:
                 has_expired = True
                 # Expired, reset the expiry time
                 CachedContent._timers[username] = now + CachedContent._cache_period
+                PrometheusMetrics.new_proposal_cache_miss()
         return has_expired
 
     @staticmethod
@@ -105,8 +108,10 @@ def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
             logger.exception("Got the following exception creating Connector...")
     if conn:
         logger.debug("Got remote connector")
+        PrometheusMetrics.new_tunnel()
     else:
         logger.debug("Failed to get a remote connector")
+        PrometheusMetrics.failed_tunnel()
 
     return conn
 
@@ -140,8 +145,10 @@ def get_conn(force_error_display=False) -> Optional[Connector]:
             logger.exception("Got the following exception creating Connector...")
     if conn:
         logger.debug("Got connector")
+        PrometheusMetrics.new_ispyb_connection()
     else:
         logger.debug("Did not get a connector")
+        PrometheusMetrics.failed_ispyb_connection()
 
     return conn
 

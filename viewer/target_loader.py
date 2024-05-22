@@ -35,6 +35,7 @@ from viewer.models import (
     Compound,
     Experiment,
     ExperimentUpload,
+    Pose,
     Project,
     QuatAssembly,
     SiteObservation,
@@ -1898,6 +1899,21 @@ class TargetLoader:
 
         logger.debug("xtalform_sites objects tagged")
 
+        self._generate_poses()
+
+        # tag all new observations, so that the curator can find and
+        # re-pose them
+        self._tag_observations(
+            "New",
+            "",
+            "Other",
+            [
+                k.instance
+                for k in site_observation_objects.values()  # pylint: disable=no-member
+                if k.new
+            ],
+        )
+
     def _load_yaml(self, yaml_file: Path) -> dict | None:
         contents = None
         try:
@@ -1946,6 +1962,60 @@ class TargetLoader:
 
         return result
 
+    def _generate_poses(self):
+        values = ["canon_site_conf__canon_site", "cmpd"]
+        # fmt: off
+        pose_groups = SiteObservation.objects.exclude(
+            canon_site_conf__canon_site__isnull=True,
+        ).exclude(
+            cmpd__isnull=True,
+        ).values(
+            *values
+        ).order_by(
+            "canon_site_conf__canon_site",
+        ).annotate(
+            obvs=ArrayAgg('id'),
+        ).values_list("obvs", flat=True)
+        # fmt: on
+
+        for group in pose_groups:
+            pose_items = SiteObservation.objects.filter(pk__in=group)
+            sample = pose_items.first()
+            # check for existing group
+            try:
+                pose = Pose.objects.get(
+                    canon_site=sample.canon_site_conf.canon_site,
+                    compound=sample.cmpd,
+                )
+            except Pose.DoesNotExist:
+                # create new, add random observation as main
+                pose = Pose(
+                    canon_site=sample.canon_site_conf.canon_site,
+                    compound=sample.cmpd,
+                    main_site_observation=sample,
+                    display_name=sample.code,
+                )
+                pose.save()
+            except MultipleObjectsReturned:
+                # must be a follow-up upload. create new pose, but
+                # only add observatons that are not yet assigned
+                pose_items = pose_items.filter(pose__isnull=True)
+                sample = pose_items.first()
+                pose = Pose(
+                    canon_site=sample.canon_site_conf.canon_site,
+                    compound=sample.cmpd,
+                    main_site_observation=sample,
+                    display_name=sample.code,
+                )
+                pose.save()
+
+            # finally add observations to the (new or existing) pose
+            for obvs in pose_items:
+                obvs.pose = pose
+                obvs.save()
+
+            self._tag_observations(pose.display_name, "P", "Pose", pose_items)
+
     def _tag_observations(self, tag, prefix, category, so_list):
         try:
             # memo to self: description is set to tag, but there's
@@ -1972,9 +2042,10 @@ class TargetLoader:
             so_group = SiteObservationGroup(target=self.target)
             so_group.save()
 
+        name = f"{prefix} - {tag}" if prefix else tag
         try:
             so_tag = SiteObservationTag.objects.get(
-                upload_name=f"{prefix} - {tag}", target=self.target
+                upload_name=name, target=self.target
             )
             # Tag already exists
             # Apart from the new mol_group and molecules, we shouldn't be
@@ -1984,7 +2055,7 @@ class TargetLoader:
             so_tag = SiteObservationTag()
             so_tag.tag = tag
             so_tag.tag_prefix = prefix
-            so_tag.upload_name = f"{prefix} - {tag}"
+            so_tag.upload_name = name
             so_tag.category = TagCategory.objects.get(category=category)
             so_tag.target = self.target
             so_tag.mol_group = so_group
