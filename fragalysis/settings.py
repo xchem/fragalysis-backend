@@ -67,7 +67,7 @@
 import os
 import sys
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
 
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -534,6 +534,16 @@ NEOMODEL_NEO4J_BOLT_URL: str = os.environ.get(
 # like 'graph.graph-a.svc' and the 'auth' provides the graph username and password.
 NEO4J_QUERY: str = os.environ.get("NEO4J_QUERY", "neo4j")
 NEO4J_AUTH: str = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
+
+# Does it look like we're running in Kubernetes?
+# If so, let's get the namespace we're in - it will provide
+# useful discrimination material in log/metrics messages.
+# If there is no apparent namespace the variable will be 'None'.
+OUR_KUBERNETES_NAMESPACE: Optional[str] = None
+_NS_FILENAME: str = '/var/run/secrets/kubernetes.io/serviceaccount/namespace'
+if os.path.isfile(_NS_FILENAME):
+    with open(_NS_FILENAME, 'rt', encoding='utf8') as ns_file:
+        OUR_KUBERNETES_NAMESPACE = ns_file.read().strip()
 
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
