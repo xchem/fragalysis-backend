@@ -11,37 +11,37 @@ class PrometheusMetrics:
     # Create, and initialise the metrics for this module
     ssh_tunnels = Counter(
         'fragalysis_ssh_tunnels',
-        'Total number of SSH tunnels created',
+        'Number of SSH tunnels successfully created',
     )
     ssh_tunnels.reset()
     ssh_tunnel_failures = Counter(
         'fragalysis_ssh_tunnel_failures',
-        'Total number of SSH tunnel failures',
+        'Number of SSH tunnel failures',
     )
     ssh_tunnel_failures.reset()
     ispyb_connections = Counter(
         'fragalysis_ispyb_connections',
-        'Total number of ISpyB connections',
+        'Number of ISpyB successful connections (excluding retries)',
     )
     ispyb_connections.reset()
     ispyb_connection_attempts = Counter(
         'fragalysis_ispyb_connection_attempts',
-        'Total number of ISpyB connection attempts (after initial failure)',
+        'Number of ISpyB connection retries (after initial failure)',
     )
     ispyb_connection_attempts.reset()
     ispyb_connection_failures = Counter(
         'fragalysis_ispyb_connection_failures',
-        'Total number of ISpyB connection failures',
+        'Number of ISpyB connection failures',
     )
     ispyb_connection_failures.reset()
     proposal_cache_hit = Counter(
         'fragalysis_proposal_cache_hit',
-        'Total number of proposal cache hits (avoiding new connections)',
+        'Number of proposal cache hits',
     )
     proposal_cache_hit.reset()
     proposal_cache_miss = Counter(
         'fragalysis_proposal_cache_miss',
-        'Total number of proposal cache misses (forcing a new connection)',
+        'Number of proposal cache misses',
     )
     proposal_cache_miss.reset()
 
