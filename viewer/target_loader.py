@@ -53,9 +53,8 @@ logger = logging.getLogger(__name__)
 # assemblies and xtalforms
 XTALFORMS_FILE = "assemblies.yaml"
 
-# holding horses for now
-# # assigned xtalforms, not all are referenced in meta_aligner
-# ASSIGNED_XTALFORMS_FILE = "assigned_xtalforms.yaml"
+# canon site tag names
+CANON_SITES_FILE = "canonical_sites.yaml"
 
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
@@ -1499,9 +1498,10 @@ class TargetLoader:
         config = self._load_yaml(config_file)
         meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
         xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
+        canon_sites_yaml = self._load_yaml(Path(upload_dir).joinpath(CANON_SITES_FILE))
 
         # this is the last file to load. if any of the files missing, don't continue
-        if not meta or not config or not xtalforms_yaml:
+        if not any([meta, config, xtalforms_yaml, canon_sites_yaml]):
             msg = "Missing files in uploaded data, aborting"
             raise FileNotFoundError(msg)
 
@@ -1834,10 +1834,15 @@ class TargetLoader:
 
         logger.debug("data read and processed, adding tags")
 
+        canon_name_tag_map = {
+            k: v["centroid_res"] if "centroid_res" in v.keys() else "UNDEFINED"
+            for k, v in canon_sites_yaml.items()
+        }
+
         # tag site observations
         for val in canon_site_objects.values():  # pylint: disable=no-member
             prefix = val.instance.canon_site_num
-            tag = ''.join(val.instance.name.split('+')[1:-1])
+            tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
@@ -1914,8 +1919,8 @@ class TargetLoader:
             ],
         )
 
-    def _load_yaml(self, yaml_file: Path) -> dict | None:
-        contents = None
+    def _load_yaml(self, yaml_file: Path) -> dict:
+        contents = {}
         try:
             with open(yaml_file, "r", encoding="utf-8") as file:
                 contents = yaml.safe_load(file)
