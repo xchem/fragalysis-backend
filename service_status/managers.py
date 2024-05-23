@@ -10,7 +10,7 @@ class ServiceStateQueryset(QuerySet):
             id=F("service"),
             name=F("display_name"),
             state=F("last_state"),
-        )
+        ).order_by("service")
 
         return qs
 

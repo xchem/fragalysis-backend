@@ -67,8 +67,10 @@ Defined in app `service_status`.
 
 ```
 python manage.py services --enable [comma separated service names]
+
+# or
+
 python manage.py services --disable [comma separated service names]
 ```
 
 Starts or stops service health check queries individually.
-TODO: command incomplete

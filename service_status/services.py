@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 from random import random
 
@@ -64,12 +63,14 @@ def discourse() -> str:
     """Discourse"""
     logger.debug("+ discourse")
     # Discourse is "unconfigured" if there is no API key
-    if not settings.DISCOURSE_API_KEY:
+    if not any(
+        [settings.DISCOURSE_API_KEY, settings.DISCOURSE_HOST, settings.DISCOURSE_USER]
+    ):
         return State.NOT_CONFIGURED
     client = DiscourseClient(
-        os.environ.get(settings.DISCOURSE_HOST, None),
-        api_username=os.environ.get(settings.DISCOURSE_USER, None),
-        api_key=os.environ.get(settings.DISCOURSE_API_KEY, None),
+        settings.DISCOURSE_HOST,
+        api_username=settings.DISCOURSE_USER,
+        api_key=settings.DISCOURSE_API_KEY,
     )
     # TODO: some action on client?
     return State.DEGRADED if client is None else State.OK
@@ -88,9 +89,7 @@ def squonk() -> str:
 def fragmentation_graph() -> str:
     """Fragmentation graph"""
     logger.debug("+ fragmentation_graph")
-    graph_driver = get_driver(
-        url=settings.NEO4J_LOCATION, neo4j_auth=settings.NEO4J_AUTH
-    )
+    graph_driver = get_driver(url=settings.NEO4J_QUERY, neo4j_auth=settings.NEO4J_AUTH)
     with graph_driver.session() as session:
         try:
             _ = session.run("match (n) return count (n);")
@@ -106,7 +105,7 @@ def keycloak() -> str:
     """Keycloak"""
     logger.debug("+ keycloak")
     # Keycloak is "unconfigured" if there is no realm URL
-    keycloak_realm = os.environ.get(settings.OIDC_KEYCLOAK_REALM, None)
+    keycloak_realm = settings.OIDC_KEYCLOAK_REALM
     if not keycloak_realm:
         return State.NOT_CONFIGURED
     response = requests.get(keycloak_realm, timeout=REQUEST_TIMEOUT_S)
