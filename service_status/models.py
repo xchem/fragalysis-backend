@@ -33,6 +33,7 @@ class Service(models.Model):
         ServiceState, null=False, on_delete=models.PROTECT, default='NOT_CONFIGURED'
     )
     last_states_of_same_type = models.IntegerField(null=False, default=0)
+    total_queries = models.IntegerField(null=False, default=0)
     last_query_time = models.DateTimeField(null=True)
     last_success = models.DateTimeField(null=True)
     last_failure = models.DateTimeField(null=True)

@@ -7,6 +7,8 @@ from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.utils import timezone
 
+from fragalysis.celery import app as celery_app
+
 from .models import Service, ServiceState
 
 logger = logging.getLogger('service_status')
@@ -50,13 +52,15 @@ def service_query(func):
         else:
             service.last_failure = timestamp
 
+        service.total_queries = service.total_queries + 1
+
         # unexplored possibility to adjust ping times if necessary
 
         service.save()
 
         # get the task function from this module
         task = getattr(services_module, func.__name__)
-        task.delay(service.frequency)
+        task.apply_async(countdown=service.frequency)
 
     return wrapper_service_query
 
@@ -123,12 +127,17 @@ def init_services():
             # launch query task
             task = getattr(services_module, service.service)
             logger.debug('trying to launch task: %s', task)
-            task.delay(1)
+            task.delay()
 
 
 def services(enable=(), disable=()):
     logger.debug('+ init_services')
     import service_status.services as services_module
+
+    if enable is None:
+        enable = []
+    if disable is None:
+        disable = []
 
     to_enable = set(enable).difference(set(disable))
     to_disable = set(disable).difference(set(enable))
@@ -143,10 +152,10 @@ def services(enable=(), disable=()):
             continue
 
         task = getattr(services_module, service.service)
-        task.delay(1)
+        task.delay()
         logger.info('Starting service query %s', name)
 
-    # TODO: this bit isn't working really
+    inquisitor = celery_app.control.inspect()
     for name in to_disable:
         try:
             service = Service.objects.get(service=name)
@@ -155,7 +164,14 @@ def services(enable=(), disable=()):
             continue
 
         task = getattr(services_module, service.service)
+        for tasklist in inquisitor.active().values():
+            for worker_task in tasklist:
+                if worker_task['name'] == task.name:
+                    logger.info('Terminating task: %s', task.name)
+                    celery_app.control.revoke(worker_task['id'], terminate=True)
 
+    # task name in both enable and disable, figure out if running or
+    # not and either stop or start
     for name in confusables:
         try:
             service = Service.objects.get(service=name)
@@ -164,3 +180,14 @@ def services(enable=(), disable=()):
             continue
 
         task = getattr(services_module, service.service)
+        is_active = False
+        for tasklist in inquisitor.active().values():
+            for worker_task in tasklist:
+                if worker_task['name'] == task.name:
+                    logger.info('Terminating task: %s', task.name)
+                    is_active = True
+                    celery_app.control.revoke(worker_task['id'], terminate=True)
+        if is_active:
+            # task not found in queue, wasn't running, activate
+            logger.info('Starting service query %s', name)
+            task.delay()
