@@ -12,7 +12,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
-from ispyb.connector.mysqlsp.main import ISPyBNoResultException
+from ispyb.exception import ISPyBConnectionException, ISPyBNoResultException
 from rest_framework import viewsets
 
 from viewer.models import Project
@@ -102,16 +102,23 @@ def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
     conn: Optional[SSHConnector] = None
     try:
         conn = SSHConnector(**credentials)
+    except ISPyBConnectionException:
+        # Got SSH tunnel but the ISPyB connection failed
+        PrometheusMetrics.new_tunnel()
     except Exception:
+        # Any other exception will be a problem with the SSH tunnel connection
+        PrometheusMetrics.failed_tunnel()
         if logging.DEBUG >= logger.level or force_error_display:
             logger.info("credentials=%s", credentials)
             logger.exception("Got the following exception creating Connector...")
-    if conn:
-        logger.debug("Got remote connector")
-        PrometheusMetrics.new_tunnel()
     else:
-        logger.debug("Failed to get a remote connector")
-        PrometheusMetrics.failed_tunnel()
+        # No exception - we must have created an SSH tunnel
+        PrometheusMetrics.new_tunnel()
+
+    if conn:
+        logger.debug("Got remote ISPyB connector")
+    else:
+        logger.debug("Failed to get a remote ISPyB connector")
 
     return conn
 
