@@ -136,6 +136,7 @@ class SSHConnector(Connector):
 
         logger.debug('Starting SSH server...')
         self.server.start()
+        PrometheusMetrics.new_tunnel()
         logger.debug('Started SSH server')
 
         # Try to connect to the database
