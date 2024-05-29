@@ -1312,11 +1312,14 @@ class DictToCsv(viewsets.ViewSet):
         """Method to handle GET request"""
         file_url = request.GET.get('file_url')
 
+        filename = str(Path(file_url).name)
+
         if file_url and os.path.isfile(file_url):
             with open(file_url, encoding='utf8') as csvfile:
                 # return file and tidy up.
                 response = HttpResponse(csvfile, content_type='text/csv')
-                response['Content-Disposition'] = 'attachment; filename=download.csv'
+                # response['Content-Disposition'] = 'attachment; filename=download.csv'
+                response['Content-Disposition'] = f'attachment; filename={filename}'
                 shutil.rmtree(os.path.dirname(file_url), ignore_errors=True)
                 return response
         else:
@@ -1327,11 +1330,14 @@ class DictToCsv(viewsets.ViewSet):
         logger.info('+ DictToCsv.post')
         input_dict = request.data['dict']
         input_title = request.data['title']
+        filename = request.data.get('filename', 'download.csv')
 
         if not input_dict:
             return Response({"message": "Please enter Dictionary"})
         else:
-            filename_url = create_csv_from_dict(input_dict, input_title)
+            filename_url = create_csv_from_dict(
+                input_dict, input_title, filename=filename
+            )
 
         return Response({"file_url": filename_url})
 

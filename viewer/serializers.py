@@ -657,6 +657,7 @@ class DiscoursePostWriteSerializer(serializers.Serializer):
 
 class DictToCsvSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
+    filename = serializers.CharField()
     dict = serializers.DictField()
 
 
