@@ -1328,7 +1328,6 @@ class TargetLoader:
             # wrong data item
             return None
 
-        idx, _ = strip_version(v_idx, separator="+")
         extract = functools.partial(
             self._extract,
             data=data,
@@ -1339,7 +1338,9 @@ class TargetLoader:
 
         experiment = experiments[experiment_id].instance
 
-        longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
+        longcode = (
+            f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
+        )
         key = f"{experiment.code}/{chain}/{str(ligand)}"
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
 
