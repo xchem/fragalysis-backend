@@ -318,7 +318,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # Display the collected results for the user.
         # These will be cached.
-        logger.debug(
+        logger.info(
             "%s proposals from %s records for '%s': %s",
             len(prop_id_set),
             len(rs),
