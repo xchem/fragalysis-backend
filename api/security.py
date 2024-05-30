@@ -53,7 +53,7 @@ class CachedContent:
                 # Expired, reset the expiry time
                 CachedContent._timers[username] = now + CachedContent._cache_period
         if has_expired:
-            logger.info("Content expired for '%s'", username)
+            logger.debug("Content expired for '%s'", username)
         return has_expired
 
     @staticmethod
@@ -62,14 +62,14 @@ class CachedContent:
             if username not in CachedContent._content:
                 CachedContent._content[username] = set()
         content = CachedContent._content[username]
-        logger.info("Got content for '%s': %s", username, content)
+        logger.debug("Got content for '%s': %s", username, content)
         return content
 
     @staticmethod
     def set_content(username, content) -> None:
         with CachedContent._cache_lock:
             CachedContent._content[username] = content.copy()
-            logger.info("Set content for '%s': %s", username, content)
+            logger.debug("Set content for '%s': %s", username, content)
 
 
 def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
@@ -246,7 +246,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def _get_proposals_for_user_from_ispyb(self, user):
         if CachedContent.has_expired(user.username):
-            logger.info("Cache has expired for '%s'", user.username)
             PrometheusMetrics.new_proposal_cache_miss()
             if conn := get_configured_connector():
                 logger.info("Got a connector for '%s'", user.username)
@@ -260,13 +259,11 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # Return what we have for the user. Public (open) proposals
         # will be added to what we return if necessary.
         cached_prop_ids = CachedContent.get_content(user.username)
-        logger.debug(
-            "Have %s cached Proposals for '%s': %s",
+        logger.info(
+            "Returning %s cached Proposals for '%s'",
             len(cached_prop_ids),
             user.username,
-            cached_prop_ids,
         )
-
         return cached_prop_ids
 
     def _get_proposals_from_connector(self, user, conn):
