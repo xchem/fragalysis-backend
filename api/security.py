@@ -52,19 +52,24 @@ class CachedContent:
                 has_expired = True
                 # Expired, reset the expiry time
                 CachedContent._timers[username] = now + CachedContent._cache_period
+        if has_expired:
+            logger.info("Content expired for '%s'", username)
         return has_expired
 
     @staticmethod
     def get_content(username):
         with CachedContent._cache_lock:
             if username not in CachedContent._content:
-                CachedContent._content[username] = []
-        return CachedContent._content[username]
+                CachedContent._content[username] = set()
+        content = CachedContent._content[username]
+        logger.info("Got content for '%s': %s", username, content)
+        return content
 
     @staticmethod
     def set_content(username, content) -> None:
         with CachedContent._cache_lock:
             CachedContent._content[username] = content.copy()
+            logger.info("Set content for '%s': %s", username, content)
 
 
 def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
@@ -244,7 +249,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             logger.info("Cache has expired for '%s'", user.username)
             PrometheusMetrics.new_proposal_cache_miss()
             if conn := get_configured_connector():
-                logger.debug("Got a connector for '%s'", user.username)
+                logger.info("Got a connector for '%s'", user.username)
                 self._get_proposals_from_connector(user, conn)
             else:
                 logger.warning("Failed to get a connector for '%s'", user.username)
@@ -315,9 +320,9 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             proposal_visit_str = f'{proposal_str}-{sn_str}'
             prop_id_set.update([proposal_str, proposal_visit_str])
 
-        # Always display the collected results for the user.
+        # Display the collected results for the user.
         # These will be cached.
-        logger.debug(
+        logger.info(
             "%s proposals from %s records for '%s': %s",
             len(prop_id_set),
             len(rs),
