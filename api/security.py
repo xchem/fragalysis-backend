@@ -253,7 +253,6 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
                 self._get_proposals_from_connector(user, conn)
             else:
                 logger.warning("Failed to get a connector for '%s'", user.username)
-                self._mark_cache_collection_failure(user)
         else:
             PrometheusMetrics.new_proposal_cache_hit()
 
