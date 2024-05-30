@@ -60,7 +60,7 @@ class CachedContent:
     def get_content(username):
         with CachedContent._cache_lock:
             if username not in CachedContent._content:
-                CachedContent._content[username] = []
+                CachedContent._content[username] = set()
         content = CachedContent._content[username]
         logger.info("Got content for '%s': %s", username, content)
         return content
