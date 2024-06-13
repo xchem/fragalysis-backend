@@ -256,6 +256,7 @@ class Compound(models.Model):
     )
     description = models.TextField(blank=True, null=True)
     comments = models.TextField(blank=True, null=True)
+    inchi_key = models.CharField(db_index=True, max_length=27, blank=True)
 
     objects = models.Manager()
     filter_manager = CompoundDataManager()
@@ -1016,6 +1017,7 @@ class ComputedMolecule(models.Model):
         max_length=255,
         help_text="Link to pdb file; user-uploaded pdb or pdb.experiment.pdb_info",
     )
+    version = models.PositiveSmallIntegerField(null=False, default=1)
 
     def __str__(self) -> str:
         return f"{self.smiles}"
