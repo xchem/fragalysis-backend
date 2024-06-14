@@ -947,6 +947,12 @@ class ComputedSet(models.Model):
     upload_datetime = models.DateTimeField(
         null=True, help_text="The datetime the upload was completed"
     )
+    computed_molecules = models.ManyToManyField(
+        "ComputedMolecule",
+        through="ComputedSetComputedMolecule",
+        through_fields=("computed_set", "computed_molecule"),
+        related_name="computed_set",
+    )
 
     def __str__(self) -> str:
         target_title: str = self.target.title if self.target else "None"
@@ -974,7 +980,6 @@ class ComputedMolecule(models.Model):
         null=True,
         blank=True,
     )
-    computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE)
     name = models.CharField(
         max_length=50, help_text="A combination of Target and Identifier"
     )
@@ -1030,6 +1035,24 @@ class ComputedMolecule(models.Model):
             self.compound,
             self.site_observation_code,
         )
+
+
+class ComputedSetComputedMolecule(models.Model):
+    computed_set = models.ForeignKey(ComputedSet, null=False, on_delete=models.CASCADE)
+    computed_molecule = models.ForeignKey(
+        ComputedMolecule, null=False, on_delete=models.CASCADE
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "computed_set",
+                    "computed_molecule",
+                ],
+                name="unique_computedsetcomputedmolecule",
+            ),
+        ]
 
 
 class ScoreDescription(models.Model):

@@ -139,6 +139,7 @@ class MolOps:
         version,
         zfile,
         zfile_hashvals,
+        computed_set_name,
     ):
         self.user_id = user_id
         self.sdf_filename = sdf_filename
@@ -148,6 +149,7 @@ class MolOps:
         self.version = version
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
+        self.computed_set_name = computed_set_name
 
     def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
         for key in zfile_hashvals.keys():
@@ -270,6 +272,9 @@ class MolOps:
         inchi_key = Chem.InchiToInchiKey(inchi)
 
         try:
+            # NB! Max said there could be thousands of compounds per
+            # target so this distinct() here may become a problem
+
             # fmt: off
             cpd = Compound.objects.filter(
                 computedmolecule__computed_set__target=target,
@@ -414,12 +419,13 @@ class MolOps:
         else:
             suffix = 'a'
 
+        # distinct is ran on indexed field, so shouldn't be a problem
         number = ComputedMolecule.objects.filter(
             computed_set__target=compound_set.target,
-        ).count() + 1
+        ).values('id').distinct().count() + 1
         # fmt: on
 
-        name = f"{target}-{number}-{suffix}"
+        name = f'v{number}{suffix}'
 
         existing_computed_molecules = []
         for k in qs:
@@ -471,7 +477,6 @@ class MolOps:
         # update: I think it's about updating metadata. moving
         # name attribute out so it won't get overwritten
         computed_molecule.compound = compound
-        computed_molecule.computed_set = compound_set
         computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
         computed_molecule.site_observation_code = code
         computed_molecule.reference_code = code
@@ -501,6 +506,8 @@ class MolOps:
             computed_molecule.computed_inspirations.add(insp_frag)
         # Done
         computed_molecule.save()
+
+        compound_set.computed_molecules.add(computed_molecule)
 
         # No update the molecule in the original file...
         add_props_to_sdf_molecule(
@@ -585,50 +592,78 @@ class MolOps:
             )
 
         # Do we have any existing ComputedSets?
-        # Ones with the same method and upload date?
-        today: datetime.date = datetime.date.today()
-        existing_sets: List[ComputedSet] = ComputedSet.objects.filter(
-            method=truncated_submitter_method, upload_date=today
-        ).all()
-        # If so, find the one with the highest ordinal.
-        latest_ordinal: int = 0
-        for exiting_set in existing_sets:
-            assert exiting_set.md_ordinal > 0
-            if exiting_set.md_ordinal > latest_ordinal:
-                latest_ordinal = exiting_set.md_ordinal
-        if latest_ordinal:
-            logger.info(
-                'Found existing ComputedSets for method "%s" on %s (%d) with ordinal=%d',
-                truncated_submitter_method,
-                str(today),
-                len(existing_sets),
-                latest_ordinal,
+        try:
+            computed_set = ComputedSet.objects.get(name=self.computed_set_name)
+            # refresh some attributes
+            computed_set.md_ordinal = F('md_ordinal') + 1
+            computed_set.upload_date = datetime.date.today()
+            computed_set.save()
+        except ComputedSet.DoesNotExist:
+            # no, create new
+
+            # I suspect I don't really need this anymore
+            # # Ones with the same method and upload date?
+            today: datetime.date = datetime.date.today()
+            # existing_sets: List[ComputedSet] = ComputedSet.objects.filter(
+            #     method=truncated_submitter_method, upload_date=today
+            # ).all()
+            # # If so, find the one with the highest ordinal.
+            # latest_ordinal: int = 0
+            # for exiting_set in existing_sets:
+            #     assert exiting_set.md_ordinal > 0
+            #     if exiting_set.md_ordinal > latest_ordinal:
+            #         latest_ordinal = exiting_set.md_ordinal
+            # if latest_ordinal:
+            #     logger.info(
+            #         'Found existing ComputedSets for method "%s" on %s (%d) with ordinal=%d',
+            #         truncated_submitter_method,
+            #         str(today),
+            #         len(existing_sets),
+            #         latest_ordinal,
+            #     )
+            # # ordinals are 1-based
+            # new_ordinal: int = latest_ordinal + 1
+
+            # # The computed set "name" consists of the "method",
+            # # today's date and a 2-digit ordinal. The ordinal
+            # # is used to distinguish between computed sets uploaded
+            # # with the same method on the same day.
+            # assert new_ordinal > 0
+            new_ordinal: int = 1
+            try:
+                target = Target.objects.get(title=self.target)
+            except Target.DoesNotExist as exc:
+                # probably wrong target name supplied
+                logger.error('Target %s does not exist', self.target)
+                raise Target.DoesNotExist from exc
+
+            cs_name: str = (
+                f'{truncated_submitter_method}-{str(today)}-'
+                + f'{get_column_letter(new_ordinal)}'
             )
-        # ordinals are 1-based
-        new_ordinal: int = latest_ordinal + 1
+            logger.info('Creating new ComputedSet "%s"', cs_name)
 
-        # The computed set "name" consists of the "method",
-        # today's date and a 2-digit ordinal. The ordinal
-        # is used to distinguish between computed sets uploaded
-        # with the same method on the same day.
-        assert new_ordinal > 0
-        cs_name: str = f"{truncated_submitter_method}-{str(today)}-{get_column_letter(new_ordinal)}"
-        logger.info('Creating new ComputedSet "%s"', cs_name)
+            computed_set = ComputedSet(
+                name=cs_name,
+                md_ordinal=new_ordinal,
+                upload_date=today,
+                method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
+                target=target,
+                spec_version=float(self.version.strip('ver_')),
+            )
+            if self.user_id:
+                try:
+                    computed_set.owner_user = User.objects.get(id=self.user_id)
+                except User.DoesNotExist as exc:
+                    logger.error('User %s does not exist', self.user_id)
+                    raise User.DoesNotExist from exc
 
-        computed_set: ComputedSet = ComputedSet()
-        computed_set.name = cs_name
-        computed_set.md_ordinal = new_ordinal
-        computed_set.upload_date = today
-        computed_set.method = self.submitter_method[: ComputedSet.LENGTH_METHOD]
-        computed_set.target = Target.objects.get(title=self.target)
-        computed_set.spec_version = float(self.version.strip('ver_'))
-        if self.user_id:
-            computed_set.owner_user = User.objects.get(id=self.user_id)
-        else:
-            # The User ID may only be None if AUTHENTICATE_UPLOAD is False.
-            # Here the ComputedSet owner will take on a default (anonymous) value.
-            assert settings.AUTHENTICATE_UPLOAD is False
-        computed_set.save()
+            else:
+                # The User ID may only be None if AUTHENTICATE_UPLOAD is False.
+                # Here the ComputedSet owner will take on a default (anonymous) value.
+                assert settings.AUTHENTICATE_UPLOAD is False
+
+            computed_set.save()
 
         # check compound set folder exists.
         cmp_set_folder = os.path.join(
