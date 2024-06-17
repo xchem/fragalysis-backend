@@ -1841,17 +1841,21 @@ class TargetLoader:
         }
 
         # tag site observations
+        cat_canon = TagCategory.objects.get(category="CanonSites")
         for val in canon_site_objects.values():  # pylint: disable=no-member
             prefix = val.instance.canon_site_num
             tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
-            self._tag_observations(tag, prefix, "CanonSites", so_list)
+            self._tag_observations(
+                tag, prefix, category=cat_canon, site_observations=so_list
+            )
 
         logger.debug("canon_site objects tagged")
 
         numerators = {}
+        cat_conf = TagCategory.objects.get(category="ConformerSites")
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
             if val.instance.canon_site.canon_site_num not in numerators.keys():
                 numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
@@ -1866,10 +1870,13 @@ class TargetLoader:
                 # site_observations_versioned[k]
                 # for k in val.index_data["members"]
             ]
-            self._tag_observations(tag, prefix, "ConformerSites", so_list)
+            self._tag_observations(
+                tag, prefix, category=cat_conf, site_observations=so_list, hidden=True
+            )
 
         logger.debug("conf_site objects tagged")
 
+        cat_quat = TagCategory.objects.get(category="Quatassemblies")
         for val in quat_assembly_objects.values():  # pylint: disable=no-member
             prefix = f"A{val.instance.assembly_num}"
             tag = val.instance.name
@@ -1878,20 +1885,26 @@ class TargetLoader:
                     quat_assembly=val.instance
                 ).values("xtalform")
             )
-            self._tag_observations(tag, prefix, "Quatassemblies", so_list)
+            self._tag_observations(
+                tag, prefix, category=cat_quat, site_observations=so_list
+            )
 
         logger.debug("quat_assembly objects tagged")
 
+        cat_xtal = TagCategory.objects.get(category="Crystalforms")
         for val in xtalform_objects.values():  # pylint: disable=no-member
             prefix = f"F{val.instance.xtalform_num}"
             tag = val.instance.name
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform=val.instance
             )
-            self._tag_observations(tag, prefix, "Crystalforms", so_list)
+            self._tag_observations(
+                tag, prefix, category=cat_xtal, site_observations=so_list
+            )
 
         logger.debug("xtalform objects tagged")
 
+        cat_xtalsite = TagCategory.objects.get(category="CrystalformSites")
         for val in xtalform_sites_objects.values():  # pylint: disable=no-member
             prefix = (
                 f"F{val.instance.xtalform.xtalform_num}"
@@ -1901,7 +1914,13 @@ class TargetLoader:
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
-            self._tag_observations(tag, prefix, "CrystalformSites", so_list)
+            self._tag_observations(
+                tag,
+                prefix,
+                category=cat_xtalsite,
+                site_observations=so_list,
+                hidden=True,
+            )
 
         logger.debug("xtalform_sites objects tagged")
 
@@ -1912,7 +1931,7 @@ class TargetLoader:
         self._tag_observations(
             "New",
             "",
-            "Other",
+            TagCategory.objects.get(category="Other"),
             [
                 k.instance
                 for k in site_observation_objects.values()  # pylint: disable=no-member
@@ -2020,7 +2039,14 @@ class TargetLoader:
                 obvs.pose = pose
                 obvs.save()
 
-    def _tag_observations(self, tag, prefix, category, so_list):
+    def _tag_observations(
+        self,
+        tag: str,
+        prefix: str,
+        category: TagCategory,
+        site_observations: list,
+        hidden: bool = False,
+    ) -> None:
         try:
             # memo to self: description is set to tag, but there's
             # no fk to tag, instead, tag has a fk to
@@ -2056,18 +2082,20 @@ class TargetLoader:
             # changing anything.
             so_tag.mol_group = so_group
         except SiteObservationTag.DoesNotExist:
-            so_tag = SiteObservationTag()
-            so_tag.tag = tag
-            so_tag.tag_prefix = prefix
-            so_tag.upload_name = name
-            so_tag.category = TagCategory.objects.get(category=category)
-            so_tag.target = self.target
-            so_tag.mol_group = so_group
+            so_tag = SiteObservationTag(
+                tag=tag,
+                tag_prefix=prefix,
+                upload_name=name,
+                category=category,
+                target=self.target,
+                mol_group=so_group,
+                hidden=hidden,
+            )
 
         so_tag.save()
 
-        so_group.site_observation.add(*so_list)
-        so_tag.site_observations.add(*so_list)
+        so_group.site_observation.add(*site_observations)
+        so_tag.site_observations.add(*site_observations)
 
     def _is_already_uploaded(self, target_created, project_created):
         if target_created or project_created:
