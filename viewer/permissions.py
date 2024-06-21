@@ -14,9 +14,8 @@ class IsProposalMember(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        del view
-
         _LOGGER.info("Checking %s", repr(obj))
+        _LOGGER.info("view.filter_permissions=%s", view.filter_permissions)
         proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
             user=request.user, restrict_to_membership=True
         )
