@@ -199,21 +199,24 @@ class TargetView(ISpyBSafeQuerySet):
     filterset_fields = ("title",)
 
     def patch(self, request, pk):
+        logger.info("pk=%s", pk)
         try:
             target = self.queryset.get(pk=pk)
         except models.Target.DoesNotExist:
+            msg = f"Target pk={pk} does not exist"
+            logger.warning(msg)
             return Response(
-                {"message": f"Target pk={pk} does not exist"},
+                {"message": msg},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         serializer = self.serializer_class(target, data=request.data, partial=True)
         if serializer.is_valid():
-            logger.debug("serializer data: %s", serializer.validated_data)
+            logger.info("serializer.validated_data=%s", serializer.validated_data)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            logger.debug("serializer error: %s", serializer.errors)
+            logger.warning("serializer.errors=%s", serializer.errors)
             return Response(
                 {"message": "wrong parameters"}, status=status.HTTP_400_BAD_REQUEST
             )
