@@ -210,10 +210,16 @@ class TargetView(ISpyBSafeQuerySet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        logger.info("request.data=%s", request.data)
         serializer = self.serializer_class(target, data=request.data, partial=True)
         if serializer.is_valid():
             logger.info("serializer.validated_data=%s", serializer.validated_data)
-            serializer.save()
+            logger.info(
+                "serializer.validated_data.display_name=%s",
+                serializer.validated_data.get('display_name'),
+            )
+            new_target = serializer.save()
+            logger.info("new_target=%s", new_target)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             logger.warning("serializer.errors=%s", serializer.errors)
