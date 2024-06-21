@@ -35,6 +35,7 @@ from api.security import ISpyBSafeQuerySet
 from api.utils import get_highlighted_diffs, get_params, pretty_request
 from service_status.models import Service
 from viewer import filters, models, serializers
+from viewer.permissions import IsProposalMember
 from viewer.squonk2_agent import (
     AccessParams,
     CommonParams,
@@ -197,6 +198,7 @@ class TargetView(ISpyBSafeQuerySet):
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
     filterset_fields = ("title",)
+    permission_classes = [IsProposalMember]
 
     def patch(self, request, pk):
         logger.info("pk=%s", pk)

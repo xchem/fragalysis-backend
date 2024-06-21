@@ -184,7 +184,7 @@ def ping_configured_connector() -> bool:
     return conn is not None
 
 
-class ISpyBSafeQuerySet(viewsets.ModelViewSet):
+class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """
         Optionally restricts the returned purchases to a given proposals
