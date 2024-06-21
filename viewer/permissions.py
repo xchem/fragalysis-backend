@@ -16,11 +16,6 @@ class IsProposalMember(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         del view
 
-        # Read permissions are allowed to any request,
-        # so we'll always allow GET, HEAD or OPTIONS requests.
-        if request.method in permissions.SAFE_METHODS:
-            return True
-
         _LOGGER.info("Checking %s", repr(obj))
         proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(request.user)
         _LOGGER.info("Proposals=%s", proposals)
