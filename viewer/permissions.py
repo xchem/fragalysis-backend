@@ -11,6 +11,9 @@ class IsManyProposalMember(permissions.BasePermission):
     by users who are members of the object's proposals."""
 
     def has_object_permission(self, request, view, obj):
+        # Users must be authenticated
+        if not request.user.is_authenticated:
+            return False
         # Here we check that the user has access to one of the proposal(s)
         # the object belongs to. The object's proposal record IDs (Many)
         # is stored in the reference defined in its 'filter_permissions' field.
