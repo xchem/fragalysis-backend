@@ -191,7 +191,7 @@ class ProjectView(ISpyBSafeQuerySet):
     filter_permissions = ""
 
 
-class TargetView(viewsets.ModelViewSet):
+class TargetView(ISpyBSafeQuerySet):
     """Targets (api/targets)"""
 
     queryset = models.Target.objects.filter()
