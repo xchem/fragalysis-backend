@@ -9,7 +9,7 @@ _LOGGER: logging.Logger = logging.getLogger(__name__)
 _ISPYB_SAFE_QUERY_SET: ISpyBSafeQuerySet = ISpyBSafeQuerySet()
 
 
-class IsProposalMember(permissions.BasePermission):
+class IsManyProposalMember(permissions.BasePermission):
     """
     Custom permission to only allow owners of an object to edit it.
     """
