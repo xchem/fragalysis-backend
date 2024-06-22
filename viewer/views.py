@@ -191,7 +191,7 @@ class ProjectView(ISpyBSafeQuerySet):
     filter_permissions = ""
 
 
-class TargetView(ISpyBSafeQuerySet):
+class TargetView(viewsets.ModelViewSet):
     """Targets (api/targets)"""
 
     queryset = models.Target.objects.filter()
@@ -201,7 +201,6 @@ class TargetView(ISpyBSafeQuerySet):
     permission_classes = [IsManyProposalMember]
 
     def patch(self, request, pk):
-        logger.info("pk=%s", pk)
         try:
             target = self.queryset.get(pk=pk)
         except models.Target.DoesNotExist:
@@ -212,23 +211,11 @@ class TargetView(ISpyBSafeQuerySet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        logger.info("target=%s", repr(target))
-        logger.info("request.data=%s", request.data)
         serializer = self.serializer_class(target, data=request.data, partial=True)
         if serializer.is_valid():
-            logger.info("serializer.validated_data=%s", serializer.validated_data)
-            logger.info(
-                "serializer.validated_datakeys=%s", serializer.validated_data.keys()
-            )
-            logger.info(
-                "serializer.validated_data.display_name=%s",
-                serializer.validated_data.get('display_name'),
-            )
-            new_target = serializer.save()
-            logger.info("new_target=%s", repr(new_target))
+            _ = serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            logger.warning("serializer.errors=%s", serializer.errors)
             return Response(
                 {"message": "wrong parameters"}, status=status.HTTP_400_BAD_REQUEST
             )
