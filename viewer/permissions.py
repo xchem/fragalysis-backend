@@ -7,11 +7,8 @@ _ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
 
 
 class IsManyProposalMember(permissions.BasePermission):
-    """
-    Custom permission to only allow owners of an object to edit it.
-    """
-
-    message: str = "Your authority to access this object has not been given"
+    """Custom permission to only allow objects to be changed
+    by users who are members of the object's proposals."""
 
     def has_object_permission(self, request, view, obj):
         # Here we check that the user has access to one of the proposal(s)
