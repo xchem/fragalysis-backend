@@ -184,7 +184,7 @@ def ping_configured_connector() -> bool:
     return conn is not None
 
 
-class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+class ISpyBSafeQuerySet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Optionally restricts the returned purchases to a given proposals
@@ -199,7 +199,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # Must have a foreign key to a Project for this filter to work.
         # get_q_filter() returns a Q expression for filtering
-        q_filter = self.get_q_filter(proposal_list)
+        q_filter = self._get_q_filter(proposal_list)
         return self.queryset.filter(q_filter).distinct()
 
     def _get_open_proposals(self):
@@ -375,7 +375,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # Return the set() as a list()
         return list(proposals)
 
-    def get_q_filter(self, proposal_list):
+    def _get_q_filter(self, proposal_list):
         """Returns a Q expression representing a (potentially complex) table filter."""
         if self.filter_permissions:
             # Q-filter is based on the filter_permissions string
