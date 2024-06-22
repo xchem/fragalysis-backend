@@ -1,13 +1,9 @@
-import logging
-from typing import List
-
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
 
 from api.security import ISpyBSafeQuerySet
 
-_LOGGER: logging.Logger = logging.getLogger(__name__)
-_ISPYB_SAFE_QUERY_SET: ISpyBSafeQuerySet = ISpyBSafeQuerySet()
+_ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
 
 
 class IsManyProposalMember(permissions.BasePermission):
@@ -21,7 +17,7 @@ class IsManyProposalMember(permissions.BasePermission):
         # Here we check that the user has access to one of the proposal(s)
         # the object belongs to. The object's proposal record IDs (Many)
         # is stored in the reference defined in its 'filter_permissions' field.
-        object_proposals: List[str] = [
+        object_proposals = [
             p.title for p in getattr(obj, view.filter_permissions).all()
         ]
         # So - is any of the object's proposals in the user's list of proposals?
