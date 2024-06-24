@@ -1,5 +1,6 @@
 import django_filters
 from django_filters import rest_framework as filters
+from rest_framework.filters import BaseFilterBackend
 
 from api.security import ISpyBSafeQuerySet
 from viewer.models import (
@@ -119,7 +120,7 @@ class AssemblyFilter(TargetFilterMixin):
         fields = ("target",)
 
 
-class SecurityFilter(filters.BaseFilterBackend):
+class SecurityFilter(BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
         print("SecurityFilter - filter_queryset %s %s %s", request, queryset, view)
         qs = _ISPYB_SAFE_QUERY_SET.get_queryset()
