@@ -1,6 +1,7 @@
 import django_filters
 from django_filters import rest_framework as filters
 
+from api.security import ISpyBSafeQuerySet
 from viewer.models import (
     CanonSite,
     CanonSiteConf,
@@ -11,6 +12,8 @@ from viewer.models import (
     Snapshot,
     XtalformSite,
 )
+
+_ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
 
 
 class SnapshotFilter(filters.FilterSet):
@@ -114,3 +117,11 @@ class AssemblyFilter(TargetFilterMixin):
     class Meta:
         model = QuatAssembly
         fields = ("target",)
+
+
+class SecurityFilter(filters.BaseFilterBackend):
+    def filter_queryset(self, request, queryset, view):
+        print("SecurityFilter - filter_queryset %s %s %s", request, queryset, view)
+        qs = _ISPYB_SAFE_QUERY_SET.get_queryset()
+        print(f"SecurityFilter - got {len(qs)}")
+        return qs

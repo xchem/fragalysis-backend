@@ -194,9 +194,10 @@ class ProjectView(ISpyBSafeQuerySet):
 class TargetView(viewsets.ModelViewSet):
     """Targets (api/targets)"""
 
-    queryset = models.Target.objects.filter()
+    #    queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
+    filter_class = filters.SecurityFilter
     filterset_fields = ("title",)
     permission_classes = [IsManyProposalMember]
 
