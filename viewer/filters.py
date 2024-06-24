@@ -2,7 +2,6 @@ import logging
 
 import django_filters
 from django_filters import rest_framework as filters
-from rest_framework.filters import BaseFilterBackend
 
 from api.security import ISpyBSafeQuerySet
 from viewer.models import (
@@ -124,7 +123,7 @@ class AssemblyFilter(TargetFilterMixin):
         fields = ("target",)
 
 
-class SecurityFilter(BaseFilterBackend):
+class SecurityFilter(django_filters.FilterSet):
     @property
     def qs(self):
         logger.info("SecurityFilter - request=%s", self.request)
