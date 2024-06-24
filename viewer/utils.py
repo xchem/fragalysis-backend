@@ -4,13 +4,15 @@ utils.py
 Collection of technical methods tidied up in one location.
 """
 import fnmatch
+import itertools
 import json
 import logging
 import os
 import shutil
+import string
 import tempfile
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Generator, Optional
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -405,3 +407,26 @@ def restore_curated_tags(filename: str) -> None:
 
     except IntegrityError as exc:
         logger.error(exc)
+
+
+def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
+    """Return alphabetic generator (A, B .. AA, AB...) starting from a specified point."""
+
+    # since product requries finite maximum return string length set
+    # to 10 characters. that should be enough for fragalysis (and to
+    # cause database issues)
+    generator = (
+        "".join(word)
+        for word in itertools.chain.from_iterable(
+            itertools.product(string.ascii_lowercase, repeat=i) for i in range(1, 11)
+        )
+    )
+
+    # Drop values until the starting point is reached
+    if start_from is not None and start_from != '':
+        start_from = start_from.lower()
+        generator = itertools.dropwhile(lambda x: x != start_from, generator)  # type: ignore[assignment]
+        # and drop one more, then it starts from after the start from as it should
+        _ = next(generator)
+
+    return generator
