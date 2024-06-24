@@ -85,6 +85,109 @@ _SESSION_MESSAGE = 'session_message'
 _SQ2A: Squonk2Agent = get_squonk2_agent()
 
 
+def react(request):
+    """We "START HERE". This is the first API call that the front-end calls."""
+
+    discourse_api_key = settings.DISCOURSE_API_KEY
+
+    context = {}
+
+    # Legacy URL (a n optional prior stack)
+    # May be blank ('')
+    context['legacy_url'] = settings.LEGACY_URL
+
+    # Is the Squonk2 Agent configured?
+    logger.info("Checking whether Squonk2 is configured...")
+    sq2_rv = _SQ2A.configured()
+    if sq2_rv.success:
+        logger.info("Squonk2 is configured")
+        context['squonk_available'] = 'true'
+    else:
+        logger.info("Squonk2 is NOT configured")
+        context['squonk_available'] = 'false'
+
+    if discourse_api_key:
+        context['discourse_available'] = 'true'
+    else:
+        context['discourse_available'] = 'false'
+
+    user = request.user
+    if user.is_authenticated:
+        context['discourse_host'] = ''
+        context['user_present_on_discourse'] = 'false'
+        # If user is authenticated and a discourse api key is available, then check discourse to
+        # see if user is set up and set up flag in context.
+        if discourse_api_key:
+            context['discourse_host'] = settings.DISCOURSE_HOST
+            _, _, user_id = check_discourse_user(user)
+            if user_id:
+                context['user_present_on_discourse'] = 'true'
+
+        # If user is authenticated Squonk can be called then return the Squonk host
+        # so the Frontend can navigate to it
+        context['squonk_ui_url'] = ''
+        if sq2_rv.success and check_squonk_active(request):
+            context['squonk_ui_url'] = _SQ2A.get_ui_url()
+
+    return render(request, "viewer/react_temp.html", context)
+
+
+def save_pdb_zip(pdb_file):
+    zf = zipfile.ZipFile(pdb_file)
+    zip_lst = zf.namelist()
+    zfile = {}
+    zfile_hashvals: Dict[str, str] = {}
+    print(zip_lst)
+    for filename in zip_lst:
+        # only handle pdb files
+        if filename.split('.')[-1] == 'pdb':
+            f = filename.split('/')[0]
+            save_path = os.path.join(settings.MEDIA_ROOT, 'tmp', f)
+            if default_storage.exists(f):
+                rand_str = uuid.uuid4().hex
+                pdb_path = default_storage.save(
+                    save_path.replace('.pdb', f'-{rand_str}.pdb'),
+                    ContentFile(zf.read(filename)),
+                )
+            # Test if Protein object already exists
+            # code = filename.split('/')[-1].replace('.pdb', '')
+            # test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
+            # test_prot_objs = Protein.objects.filter(code=test_pdb_code)
+            #
+            # if len(test_prot_objs) > 0:
+            #     # make a unique pdb code as not to overwrite existing object
+            #     rand_str = uuid.uuid4().hex
+            #     test_pdb_code = f'{code}#{rand_str}'
+            #     zfile_hashvals[code] = rand_str
+            #
+            # fn = test_pdb_code + '.pdb'
+            #
+            # pdb_path = default_storage.save('tmp/' + fn,
+            #                                 ContentFile(zf.read(filename)))
+            else:
+                pdb_path = default_storage.save(
+                    save_path, ContentFile(zf.read(filename))
+                )
+            test_pdb_code = pdb_path.split('/')[-1].replace('.pdb', '')
+            zfile[test_pdb_code] = pdb_path
+
+    # Close the zip file
+    if zf:
+        zf.close()
+
+    return zfile, zfile_hashvals
+
+
+def save_tmp_file(myfile):
+    """Save file in temporary location for validation/upload processing"""
+
+    name = myfile.name
+    path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
+    tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+
+    return tmp_file
+
+
 class CompoundIdentifierTypeView(viewsets.ModelViewSet):
     queryset = models.CompoundIdentifierType.objects.all()
     serializer_class = serializers.CompoundIdentifierTypeSerializer
@@ -226,109 +329,6 @@ class CompoundView(ISpyBSafeQuerySet):
     serializer_class = serializers.CompoundSerializer
     filter_permissions = "project_id"
     filterset_class = filters.CompoundFilter
-
-
-def react(request):
-    """We "START HERE". This is the first API call that the front-end calls."""
-
-    discourse_api_key = settings.DISCOURSE_API_KEY
-
-    context = {}
-
-    # Legacy URL (a n optional prior stack)
-    # May be blank ('')
-    context['legacy_url'] = settings.LEGACY_URL
-
-    # Is the Squonk2 Agent configured?
-    logger.info("Checking whether Squonk2 is configured...")
-    sq2_rv = _SQ2A.configured()
-    if sq2_rv.success:
-        logger.info("Squonk2 is configured")
-        context['squonk_available'] = 'true'
-    else:
-        logger.info("Squonk2 is NOT configured")
-        context['squonk_available'] = 'false'
-
-    if discourse_api_key:
-        context['discourse_available'] = 'true'
-    else:
-        context['discourse_available'] = 'false'
-
-    user = request.user
-    if user.is_authenticated:
-        context['discourse_host'] = ''
-        context['user_present_on_discourse'] = 'false'
-        # If user is authenticated and a discourse api key is available, then check discourse to
-        # see if user is set up and set up flag in context.
-        if discourse_api_key:
-            context['discourse_host'] = settings.DISCOURSE_HOST
-            _, _, user_id = check_discourse_user(user)
-            if user_id:
-                context['user_present_on_discourse'] = 'true'
-
-        # If user is authenticated Squonk can be called then return the Squonk host
-        # so the Frontend can navigate to it
-        context['squonk_ui_url'] = ''
-        if sq2_rv.success and check_squonk_active(request):
-            context['squonk_ui_url'] = _SQ2A.get_ui_url()
-
-    return render(request, "viewer/react_temp.html", context)
-
-
-def save_pdb_zip(pdb_file):
-    zf = zipfile.ZipFile(pdb_file)
-    zip_lst = zf.namelist()
-    zfile = {}
-    zfile_hashvals: Dict[str, str] = {}
-    print(zip_lst)
-    for filename in zip_lst:
-        # only handle pdb files
-        if filename.split('.')[-1] == 'pdb':
-            f = filename.split('/')[0]
-            save_path = os.path.join(settings.MEDIA_ROOT, 'tmp', f)
-            if default_storage.exists(f):
-                rand_str = uuid.uuid4().hex
-                pdb_path = default_storage.save(
-                    save_path.replace('.pdb', f'-{rand_str}.pdb'),
-                    ContentFile(zf.read(filename)),
-                )
-            # Test if Protein object already exists
-            # code = filename.split('/')[-1].replace('.pdb', '')
-            # test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
-            # test_prot_objs = Protein.objects.filter(code=test_pdb_code)
-            #
-            # if len(test_prot_objs) > 0:
-            #     # make a unique pdb code as not to overwrite existing object
-            #     rand_str = uuid.uuid4().hex
-            #     test_pdb_code = f'{code}#{rand_str}'
-            #     zfile_hashvals[code] = rand_str
-            #
-            # fn = test_pdb_code + '.pdb'
-            #
-            # pdb_path = default_storage.save('tmp/' + fn,
-            #                                 ContentFile(zf.read(filename)))
-            else:
-                pdb_path = default_storage.save(
-                    save_path, ContentFile(zf.read(filename))
-                )
-            test_pdb_code = pdb_path.split('/')[-1].replace('.pdb', '')
-            zfile[test_pdb_code] = pdb_path
-
-    # Close the zip file
-    if zf:
-        zf.close()
-
-    return zfile, zfile_hashvals
-
-
-def save_tmp_file(myfile):
-    """Save file in temporary location for validation/upload processing"""
-
-    name = myfile.name
-    path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
-    tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
-
-    return tmp_file
 
 
 class UploadCSet(APIView):
