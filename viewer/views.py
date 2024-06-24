@@ -198,7 +198,7 @@ class TargetView(mixins.UpdateModelMixin, ISpyBSafeQuerySet):
     filterset_fields = ("title",)
     permission_classes = [IsManyProposalMember]
 
-    def patch(self, request, pk):
+    def update(self, request, pk):
         try:
             target = self.queryset.get(pk=pk)
         except models.Target.DoesNotExist:
