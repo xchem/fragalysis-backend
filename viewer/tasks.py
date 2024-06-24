@@ -86,6 +86,7 @@ def process_compound_set(validate_output):
         logger.warning('process_compound_set() EXIT params=%s (not validated)', params)
         return process_stage, validate_dict, validated
 
+    computed_set_name = params.get('update', None)
     submitter_name, submitter_method, blank_version = blank_mol_vals(params['sdf'])
     zfile, zfile_hashvals = PdbOps().run(params)
 
@@ -100,6 +101,7 @@ def process_compound_set(validate_output):
         version=blank_version,
         zfile=zfile,
         zfile_hashvals=zfile_hashvals,
+        computed_set_name=computed_set_name,
     )
     compound_set = save_mols.task()
 
@@ -186,6 +188,7 @@ def validate_compound_set(task_params):
         'sdf': sdf_file,
         'target': target,
         'pdb_zip': zfile,
+        'update': update,
     }
 
     # Protect ourselves from an empty, blank or missing SD file.
