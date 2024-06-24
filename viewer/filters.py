@@ -3,7 +3,6 @@ import logging
 import django_filters
 from django_filters import rest_framework as filters
 
-from api.security import ISpyBSafeQuerySet
 from viewer.models import (
     CanonSite,
     CanonSiteConf,
@@ -16,8 +15,6 @@ from viewer.models import (
 )
 
 logger = logging.getLogger(__name__)
-
-_ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
 
 
 class SnapshotFilter(filters.FilterSet):
@@ -121,12 +118,3 @@ class AssemblyFilter(TargetFilterMixin):
     class Meta:
         model = QuatAssembly
         fields = ("target",)
-
-
-class SecurityFilter(django_filters.FilterSet):
-    @property
-    def qs(self):
-        logger.info("SecurityFilter - request=%s", self.request)
-        query_set = _ISPYB_SAFE_QUERY_SET.get_queryset()
-        logger.info("SecurityFilter - len(query_set)=%s", len(query_set))
-        return query_set
