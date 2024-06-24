@@ -197,7 +197,7 @@ class TargetView(viewsets.ModelViewSet):
     #    queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
-    filter_class = filters.SecurityFilter
+    filterset_class = filters.SecurityFilter
     filterset_fields = ("title",)
     permission_classes = [IsManyProposalMember]
 

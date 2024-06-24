@@ -125,10 +125,9 @@ class AssemblyFilter(TargetFilterMixin):
 
 
 class SecurityFilter(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        logger.info(
-            "SecurityFilter - filter_queryset %s %s %s", request, queryset, view
-        )
-        qs = _ISPYB_SAFE_QUERY_SET.get_queryset()
-        logger.info("SecurityFilter - got %s", len(qs))
-        return qs
+    @property
+    def qs(self):
+        logger.info("SecurityFilter - request=%s", self.request)
+        query_set = _ISPYB_SAFE_QUERY_SET.get_queryset()
+        logger.info("SecurityFilter - len(query_set)=%s", len(query_set))
+        return query_set
