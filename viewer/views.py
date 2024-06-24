@@ -192,7 +192,7 @@ class ProjectView(ISpyBSafeQuerySet):
 
 
 class TargetView(ISpyBSafeQuerySet):
-    #    queryset = models.Target.objects.filter()
+    queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
     filterset_fields = ("title",)
