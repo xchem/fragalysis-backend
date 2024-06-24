@@ -601,34 +601,7 @@ class MolOps:
         except ComputedSet.DoesNotExist:
             # no, create new
 
-            # I suspect I don't really need this anymore
-            # # Ones with the same method and upload date?
             today: datetime.date = datetime.date.today()
-            # existing_sets: List[ComputedSet] = ComputedSet.objects.filter(
-            #     method=truncated_submitter_method, upload_date=today
-            # ).all()
-            # # If so, find the one with the highest ordinal.
-            # latest_ordinal: int = 0
-            # for exiting_set in existing_sets:
-            #     assert exiting_set.md_ordinal > 0
-            #     if exiting_set.md_ordinal > latest_ordinal:
-            #         latest_ordinal = exiting_set.md_ordinal
-            # if latest_ordinal:
-            #     logger.info(
-            #         'Found existing ComputedSets for method "%s" on %s (%d) with ordinal=%d',
-            #         truncated_submitter_method,
-            #         str(today),
-            #         len(existing_sets),
-            #         latest_ordinal,
-            #     )
-            # # ordinals are 1-based
-            # new_ordinal: int = latest_ordinal + 1
-
-            # # The computed set "name" consists of the "method",
-            # # today's date and a 2-digit ordinal. The ordinal
-            # # is used to distinguish between computed sets uploaded
-            # # with the same method on the same day.
-            # assert new_ordinal > 0
             new_ordinal: int = 1
             try:
                 target = Target.objects.get(title=self.target)
