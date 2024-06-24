@@ -24,7 +24,7 @@ from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
-from rest_framework import generics, permissions, status, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
@@ -83,7 +83,6 @@ _SESSION_ERROR = 'session_error'
 _SESSION_MESSAGE = 'session_message'
 
 _SQ2A: Squonk2Agent = get_squonk2_agent()
-_ISPYB_SAFE_QUERY_SET: ISpyBSafeQuerySet = ISpyBSafeQuerySet()
 
 
 class CompoundIdentifierTypeView(viewsets.ModelViewSet):
@@ -192,14 +191,12 @@ class ProjectView(ISpyBSafeQuerySet):
     filter_permissions = ""
 
 
-class TargetView(generics.RetrieveUpdateAPIView):
+class TargetView(ISpyBSafeQuerySet):
+    #    queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
     filterset_fields = ("title",)
     permission_classes = [IsManyProposalMember]
-
-    def get_queryset(self):
-        return _ISPYB_SAFE_QUERY_SET.get_queryset()
 
     def patch(self, request, pk):
         try:
