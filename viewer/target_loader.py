@@ -1886,7 +1886,8 @@ class TargetLoader:
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
             )
-            tag = f"{val.instance.xtalform.name} - {val.instance.xtalform_site_id}"
+            # tag = f"{val.instance.xtalform.name} - {val.instance.xtalform_site_id}"
+            tag = val.instance.xtalform_site_id
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
