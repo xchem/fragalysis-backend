@@ -13,7 +13,6 @@ from xcdb import views as xcdb_views
 router = DefaultRouter()
 # Register the basic data
 router.register("compounds", viewer_views.CompoundView, "compounds")
-router.register("targets", viewer_views.TargetView, "targets")
 router.register("projects", viewer_views.ProjectView)
 router.register("session-projects", viewer_views.SessionProjectsView)
 router.register("snapshots", viewer_views.SnapshotsView)
@@ -151,4 +150,5 @@ urlpatterns = [
     path("auth/", drf_views.obtain_auth_token, name="auth"),
     path("swagger/", schema_view),
     path("job_request/", viewer_views.JobRequestView.as_view(), name="job_request"),
+    path("targets/", viewer_views.TargetView.as_view(), "targets"),
 ]
