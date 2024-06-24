@@ -25,7 +25,8 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 @cache
 class CachedContent:
-    """A static class managing caches proposals/visits for each user.
+    """
+    A static class managing caches proposals/visits for each user.
     Proposals should be collected when has_expired() returns True.
     Content can be written (when the cache for the user has expired)
     and read using the set/get methods.
@@ -341,15 +342,18 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         CachedContent.set_content(user.username, prop_id_set)
 
     def user_is_member_of_any_given_proposals(self, user, proposals):
-        """Returns true if the user has access to any proposal in the given
+        """
+        Returns true if the user has access to any proposal in the given
         proposals list.Only one needs to match for permission to be granted.
         We 'restrict_to_membership' to only consider proposals the user
-        has explicit membership."""
+        has explicit membership.
+        """
         user_proposals = self.get_proposals_for_user(user, restrict_to_membership=True)
         return any(proposal in user_proposals for proposal in proposals)
 
     def get_proposals_for_user(self, user, restrict_to_membership=False):
-        """Returns a list of proposals that the user has access to.
+        """
+        Returns a list of proposals that the user has access to.
 
         If 'restrict_to_membership' is set only those proposals/visits where the user
         is a member of the visit will be returned. Otherwise the 'public'
