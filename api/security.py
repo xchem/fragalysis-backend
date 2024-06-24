@@ -185,9 +185,22 @@ def ping_configured_connector() -> bool:
 
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+    """
+    This ISpyBSafeQuerySet, which inherits from the DRF viewsets.ReadOnlyModelViewSet,
+    is used for all views that need to yield (filter) view objects based on a
+    user's proposal membership. This requires the view to define the property
+    "filter_permissions" to enable this class to navigate to the view object's Project
+    (proposal/visit).
+
+    As the ISpyBSafeQuerySet is based on a ReadOnlyModelViewSet, which only provides
+    implementations for list() and retrieve() methods, the user will need to provide
+    "mixins" for any additional methods the view needs to support (PATCH, PUT, DELETE).
+    """
+
     def get_queryset(self):
         """
-        Optionally restricts the returned purchases to a given proposals
+        Restricts the returned records to those that belong to proposals
+        the user has access to. Without a user only 'open' proposals are returned.
         """
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user(self.request.user)
@@ -267,8 +280,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return cached_prop_ids
 
     def _get_proposals_from_connector(self, user, conn):
-        """Updates the USER_LIST_DICT with the results of a query
-        and marks it as populated.
+        """
+        Updates the user's proposal cache with the results of a query
         """
         assert user
         assert conn
