@@ -1,3 +1,5 @@
+import logging
+
 import django_filters
 from django_filters import rest_framework as filters
 from rest_framework.filters import BaseFilterBackend
@@ -13,6 +15,8 @@ from viewer.models import (
     Snapshot,
     XtalformSite,
 )
+
+logger = logging.getLogger(__name__)
 
 _ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
 
@@ -122,7 +126,9 @@ class AssemblyFilter(TargetFilterMixin):
 
 class SecurityFilter(BaseFilterBackend):
     def filter_queryset(self, request, queryset, view):
-        print("SecurityFilter - filter_queryset %s %s %s", request, queryset, view)
+        logger.info(
+            "SecurityFilter - filter_queryset %s %s %s", request, queryset, view
+        )
         qs = _ISPYB_SAFE_QUERY_SET.get_queryset()
-        print(f"SecurityFilter - got {len(qs)}")
+        logger.info("SecurityFilter - got %s", len(qs))
         return qs
