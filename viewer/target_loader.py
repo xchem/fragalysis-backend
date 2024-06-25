@@ -1661,24 +1661,6 @@ class TargetLoader:
             canon_sites=canon_sites_by_conf_sites,
             xtalforms=xtalform_objects,
         )
-        # enumerate xtalform_sites. a bit trickier than others because
-        # requires alphabetic enumeration
-        last_xtsite = (
-            XtalformSite.objects.filter(
-                pk__in=[
-                    k.instance.pk
-                    for k in xtalform_sites_objects.values()  # pylint: disable=no-member
-                ]
-            )
-            .order_by("-xtalform_site_num")[0]
-            .xtalform_site_num
-        )
-
-        xtnum = alphanumerator(start_from=last_xtsite)
-        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
-            if not val.instance.xtalform_site_num:
-                val.instance.xtalform_site_num = next(xtnum)
-                val.instance.save()
 
         # now can update CanonSite with ref_conf_site
         # also, fill the canon_site_num field
@@ -1880,8 +1862,60 @@ class TargetLoader:
 
         logger.debug("xtalform objects tagged")
 
+        # enumerate xtalform_sites. a bit trickier than others because
+        # requires alphabetic enumeration starting from the letter of
+        # the chain and following from there
+
+        # sort the dictionary
+        # fmt: off
+        xtls_sort_qs = XtalformSite.objects.filter(
+            pk__in=[k.instance.pk for k in xtalform_sites_objects.values() ], # pylint: disable=no-member
+        ).annotate(
+            obvs=Count("canon_site__canonsiteconf__siteobservation", default=0),
+        ).order_by("-obvs", "xtalform_site_id")
+        # ordering by xtalform_site_id is not strictly necessary, but
+        # makes the sorting consistent
+
+        # fmt: on
+
+        _xtalform_sites_objects = {}
+        for xtl in xtls_sort_qs:
+            key = f"{xtl.xtalform_site_id}/{xtl.version}"
+            _xtalform_sites_objects[key] = xtalform_sites_objects[
+                key
+            ]  # pylint: disable=no-member
+
+        if self.version_number == 1:
+            # first upload, use the chain letter
+            xtnum = alphanumerator(
+                start_from=xtls_sort_qs[0].lig_chain.lower(), drop_first=False
+            )
+        else:
+            # subsequent upload, just use the latest letter as starting point
+            # fmt: off
+            last_xtsite = XtalformSite.objects.filter(
+                    pk__in=[
+                        k.instance.pk
+                        for k in _xtalform_sites_objects.values()  # pylint: disable=no-member
+                    ]
+                ).order_by(
+                    "-xtalform_site_num"
+                )[0].xtalform_site_num
+            # fmt: on
+            xtnum = alphanumerator(start_from=last_xtsite)
+
+            # this should be rare, as Frank said, all crystal-related
+            # issues should be resolved by the time of the first
+            # upload. In fact, I'll mark this momentous occasion here:
+            logger.warning("New XtalformSite objects added in subsequent uploads")
+
+        for val in _xtalform_sites_objects.values():  # pylint: disable=no-member
+            if not val.instance.xtalform_site_num:
+                val.instance.xtalform_site_num = next(xtnum)
+                val.instance.save()
+
         cat_xtalsite = TagCategory.objects.get(category="CrystalformSites")
-        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
+        for val in _xtalform_sites_objects.values():  # pylint: disable=no-member
             prefix = (
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
