@@ -35,7 +35,7 @@ from api.security import ISpyBSafeQuerySet
 from api.utils import get_highlighted_diffs, get_params, pretty_request
 from service_status.models import Service
 from viewer import filters, models, serializers
-from viewer.permissions import IsManyProposalMember
+from viewer.permissions import IsObjectProposalMember
 from viewer.squonk2_agent import (
     AccessParams,
     CommonParams,
@@ -84,17 +84,18 @@ _SESSION_MESSAGE = 'session_message'
 
 _SQ2A: Squonk2Agent = get_squonk2_agent()
 
+# ---------------------------
+# ENTRYPOINT FOR THE FRONTEND
+# ---------------------------
+
 
 def react(request):
     """We "START HERE". This is the first API call that the front-end calls."""
 
     discourse_api_key = settings.DISCOURSE_API_KEY
 
-    context = {}
-
-    # Legacy URL (a n optional prior stack)
-    # May be blank ('')
-    context['legacy_url'] = settings.LEGACY_URL
+    # Start building the context that will be passed to the template
+    context = {'legacy_url': settings.LEGACY_URL}
 
     # Is the Squonk2 Agent configured?
     logger.info("Checking whether Squonk2 is configured...")
@@ -106,11 +107,7 @@ def react(request):
         logger.info("Squonk2 is NOT configured")
         context['squonk_available'] = 'false'
 
-    if discourse_api_key:
-        context['discourse_available'] = 'true'
-    else:
-        context['discourse_available'] = 'false'
-
+    context['discourse_available'] = 'true' if discourse_api_key else 'false'
     user = request.user
     if user.is_authenticated:
         context['discourse_host'] = ''
@@ -123,8 +120,9 @@ def react(request):
             if user_id:
                 context['user_present_on_discourse'] = 'true'
 
-        # If user is authenticated Squonk can be called then return the Squonk host
-        # so the Frontend can navigate to it
+        # User is authenticated, so if Squonk can be called
+        # return the Squonk UI URL
+        # so the f/e knows where to go.
         context['squonk_ui_url'] = ''
         if sq2_rv.success and check_squonk_active(request):
             context['squonk_ui_url'] = _SQ2A.get_ui_url()
@@ -299,7 +297,7 @@ class TargetView(mixins.UpdateModelMixin, ISpyBSafeQuerySet):
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
     filterset_fields = ("title",)
-    permission_classes = [IsManyProposalMember]
+    permission_classes = [IsObjectProposalMember]
 
     def patch(self, request, pk):
         try:
@@ -987,6 +985,8 @@ class SessionProjectsView(viewsets.ModelViewSet):
     """
 
     queryset = models.SessionProject.objects.filter()
+    filter_permissions = "target__project_id"
+    filterset_fields = '__all__'
 
     def get_serializer_class(self):
         """Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request
@@ -1002,9 +1002,6 @@ class SessionProjectsView(viewsets.ModelViewSet):
             return serializers.SessionProjectReadSerializer
         # (POST, PUT, PATCH)
         return serializers.SessionProjectWriteSerializer
-
-    filter_permissions = "target_id__project_id"
-    filterset_fields = '__all__'
 
 
 class SessionActionsView(viewsets.ModelViewSet):
