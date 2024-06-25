@@ -186,6 +186,211 @@ def save_tmp_file(myfile):
     return tmp_file
 
 
+def create_csv_from_dict(input_dict, title=None, filename=None):
+    """Write a CSV file containing data from an input dictionary and return a URL
+    to the file in the media directory.
+    """
+    if not filename:
+        filename = 'download'
+
+    media_root = settings.MEDIA_ROOT
+    unique_dir = str(uuid.uuid4())
+    # /code/media/downloads/unique_dir
+    download_path = os.path.join(media_root, 'downloads', unique_dir)
+    os.makedirs(download_path, exist_ok=True)
+
+    download_file = os.path.join(download_path, filename)
+
+    # Remove file if it already exists
+    if os.path.isfile(download_file):
+        os.remove(download_file)
+
+    with open(download_file, "w", newline='', encoding='utf-8') as csvfile:
+        if title:
+            csvfile.write(title)
+            csvfile.write("\n")
+
+    df = pd.DataFrame.from_dict(input_dict)
+    df.to_csv(download_file, mode='a', header=True, index=False)
+
+    return download_file
+
+
+def email_task_completion(
+    contact_email, message_type, target_name, target_path=None, task_id=None
+):
+    """Notify user of upload completion"""
+
+    logger.info('+ email_notify_task_completion: ' + message_type + ' ' + target_name)
+    email_from = settings.EMAIL_HOST_USER
+
+    if contact_email == '' or not email_from:
+        # Only send email if configured.
+        return
+
+    if message_type == 'upload-success':
+        subject = 'Fragalysis: Target: ' + target_name + ' Uploaded'
+        message = (
+            'The upload of your target data is complete. Your target is available at: '
+            + str(target_path)
+        )
+    elif message_type == 'validate-success':
+        subject = 'Fragalysis: Target: ' + target_name + ' Validation'
+        message = (
+            'Your data was validated. It can now be uploaded using the upload option.'
+        )
+    else:
+        # Validation failure
+        subject = 'Fragalysis: Target: ' + target_name + ' Validation/Upload Failed'
+        message = (
+            'The validation/upload of your target data did not complete successfully. '
+            'Please navigate the following link to check the errors: validate_task/'
+            + str(task_id)
+        )
+
+    recipient_list = [
+        contact_email,
+    ]
+    logger.info('+ email_notify_task_completion email_from: %s', email_from)
+    logger.info('+ email_notify_task_completion subject: %s', subject)
+    logger.info('+ email_notify_task_completion message: %s', message)
+    logger.info('+ email_notify_task_completion contact_email: %s', contact_email)
+
+    # Send email - this should not prevent returning to the screen in the case of error.
+    send_mail(subject, message, email_from, recipient_list, fail_silently=True)
+    logger.info('- email_notify_task_completion')
+    return
+
+
+# --------------------
+# FUNCTION-BASED VIEWS
+# --------------------
+
+
+def img_from_smiles(request):
+    """Generate a 2D molecule image for a given smiles string"""
+    if "smiles" in request.GET:
+        smiles = request.GET["smiles"]
+        if smiles:
+            return get_params(smiles, request)
+        else:
+            return HttpResponse("Please insert SMILES")
+    else:
+        return HttpResponse("Please insert SMILES")
+
+
+def highlight_mol_diff(request):
+    """Generate a 2D molecule image highlighting the difference between a
+    reference and new molecule
+    """
+    if 'prb_smiles' and 'ref_smiles' in request.GET:
+        return HttpResponse(get_highlighted_diffs(request))
+    else:
+        return HttpResponse("Please insert smiles for reference and probe")
+
+
+def similarity_search(request):
+    if "smiles" in request.GET:
+        smiles = request.GET["smiles"]
+    else:
+        return HttpResponse("Please insert SMILES")
+    if "db_name" in request.GET:
+        db_name = request.GET["db_name"]
+    else:
+        return HttpResponse("Please insert db_name")
+    sql_query = """SELECT sub.*
+  FROM (
+    SELECT rdk.id,rdk.structure,rdk.idnumber
+      FROM vendordbs.enamine_real_dsi_molfps AS mfp
+      JOIN vendordbs.enamine_real_dsi AS rdk ON mfp.id = rdk.id
+      WHERE m @> qmol_from_smiles(%s) LIMIT 1000
+  ) sub;"""
+    with connections[db_name].cursor() as cursor:
+        cursor.execute(sql_query, [smiles])
+        return HttpResponse(json.dumps(cursor.fetchall()))
+
+
+def get_open_targets(request):
+    """Return a list of all open targets (viewer/open_targets)"""
+    # Unused arguments
+    del request
+
+    targets = models.Target.objects.all()
+    target_names = []
+    target_ids = []
+
+    for t in targets:
+        for p in t.project_id.all():
+            if 'OPEN' in p.title:
+                target_names.append(t.title)
+                target_ids.append(t.id)
+
+    return HttpResponse(
+        json.dumps({'target_names': target_names, 'target_ids': target_ids})
+    )
+
+
+def cset_download(request, name):
+    """View to download an SDF file of a ComputedSet by name
+    (viewer/compound_set/(<name>)).
+    """
+    # Unused arguments
+    del request
+
+    computed_set = models.ComputedSet.objects.get(name=name)
+    written_filename = computed_set.written_sdf_filename
+    with open(written_filename, 'r', encoding='utf-8') as wf:
+        data = wf.read()
+    response = HttpResponse(content_type='text/plain')
+    response[
+        'Content-Disposition'
+    ] = f'attachment; filename={name}.sdf'  # force browser to download file
+    response.write(data)
+    return response
+
+
+def pset_download(request, name):
+    """View to download a zip file of all protein structures (apo) for a computed set
+    (viewer/compound_set/(<name>))
+    """
+    # Unused arguments
+    del request
+
+    response = HttpResponse(content_type='application/zip')
+    filename = 'protein-set_' + name + '.zip'
+    response['Content-Disposition'] = (
+        'filename=%s' % filename
+    )  # force browser to download file
+
+    # For the first stage (green release) of the XCA-based Fragalysis Stack
+    # there are no PDB files.
+    #    compound_set = models.ComputedSet.objects.get(name=name)
+    #    computed_molecules = models.ComputedMolecule.objects.filter(computed_set=compound_set)
+    #    pdb_filepaths = list(set([c.pdb_info.path for c in computed_molecules]))
+    #    buff = StringIO()
+    #    zip_obj = zipfile.ZipFile(buff, 'w')
+    #    zip_obj.writestr('')
+    #    for fp in pdb_filepaths:
+    #        data = open(fp, 'r', encoding='utf-8').read()
+    #        zip_obj.writestr(fp.split('/')[-1], data)
+    #    zip_obj.close()
+    #    buff.flush()
+    #    ret_zip = buff.getvalue()
+    #    buff.close()
+
+    # ...instead we just create an empty file...
+    with zipfile.ZipFile('dummy.zip', 'w') as pdb_file:
+        pass
+
+    response.write(pdb_file)
+    return response
+
+
+# -----------------
+# CLASS-BASED VIEWS
+# -----------------
+
+
 class CompoundIdentifierTypeView(viewsets.ModelViewSet):
     queryset = models.CompoundIdentifierType.objects.all()
     serializer_class = serializers.CompoundIdentifierTypeSerializer
@@ -622,52 +827,6 @@ class UploadCSet(APIView):
         return render(request, 'viewer/upload-cset.html', context)
 
 
-def email_task_completion(
-    contact_email, message_type, target_name, target_path=None, task_id=None
-):
-    """Notify user of upload completion"""
-
-    logger.info('+ email_notify_task_completion: ' + message_type + ' ' + target_name)
-    email_from = settings.EMAIL_HOST_USER
-
-    if contact_email == '' or not email_from:
-        # Only send email if configured.
-        return
-
-    if message_type == 'upload-success':
-        subject = 'Fragalysis: Target: ' + target_name + ' Uploaded'
-        message = (
-            'The upload of your target data is complete. Your target is available at: '
-            + str(target_path)
-        )
-    elif message_type == 'validate-success':
-        subject = 'Fragalysis: Target: ' + target_name + ' Validation'
-        message = (
-            'Your data was validated. It can now be uploaded using the upload option.'
-        )
-    else:
-        # Validation failure
-        subject = 'Fragalysis: Target: ' + target_name + ' Validation/Upload Failed'
-        message = (
-            'The validation/upload of your target data did not complete successfully. '
-            'Please navigate the following link to check the errors: validate_task/'
-            + str(task_id)
-        )
-
-    recipient_list = [
-        contact_email,
-    ]
-    logger.info('+ email_notify_task_completion email_from: %s', email_from)
-    logger.info('+ email_notify_task_completion subject: %s', subject)
-    logger.info('+ email_notify_task_completion message: %s', message)
-    logger.info('+ email_notify_task_completion contact_email: %s', contact_email)
-
-    # Send email - this should not prevent returning to the screen in the case of error.
-    send_mail(subject, message, email_from, recipient_list, fail_silently=True)
-    logger.info('- email_notify_task_completion')
-    return
-
-
 class ValidateTaskView(View):
     """View to handle dynamic loading of validation results from `viewer.tasks.validate`.
     The validation of files uploaded to viewer/upload_cset.
@@ -865,125 +1024,6 @@ class UploadTaskView(View):
                 return JsonResponse(response_data)
 
         return JsonResponse(response_data)
-
-
-def img_from_smiles(request):
-    """Generate a 2D molecule image for a given smiles string"""
-    if "smiles" in request.GET:
-        smiles = request.GET["smiles"]
-        if smiles:
-            return get_params(smiles, request)
-        else:
-            return HttpResponse("Please insert SMILES")
-    else:
-        return HttpResponse("Please insert SMILES")
-
-
-def highlight_mol_diff(request):
-    """Generate a 2D molecule image highlighting the difference between a
-    reference and new molecule
-    """
-    if 'prb_smiles' and 'ref_smiles' in request.GET:
-        return HttpResponse(get_highlighted_diffs(request))
-    else:
-        return HttpResponse("Please insert smiles for reference and probe")
-
-
-def similarity_search(request):
-    if "smiles" in request.GET:
-        smiles = request.GET["smiles"]
-    else:
-        return HttpResponse("Please insert SMILES")
-    if "db_name" in request.GET:
-        db_name = request.GET["db_name"]
-    else:
-        return HttpResponse("Please insert db_name")
-    sql_query = """SELECT sub.*
-  FROM (
-    SELECT rdk.id,rdk.structure,rdk.idnumber
-      FROM vendordbs.enamine_real_dsi_molfps AS mfp
-      JOIN vendordbs.enamine_real_dsi AS rdk ON mfp.id = rdk.id
-      WHERE m @> qmol_from_smiles(%s) LIMIT 1000
-  ) sub;"""
-    with connections[db_name].cursor() as cursor:
-        cursor.execute(sql_query, [smiles])
-        return HttpResponse(json.dumps(cursor.fetchall()))
-
-
-def get_open_targets(request):
-    """Return a list of all open targets (viewer/open_targets)"""
-    # Unused arguments
-    del request
-
-    targets = models.Target.objects.all()
-    target_names = []
-    target_ids = []
-
-    for t in targets:
-        for p in t.project_id.all():
-            if 'OPEN' in p.title:
-                target_names.append(t.title)
-                target_ids.append(t.id)
-
-    return HttpResponse(
-        json.dumps({'target_names': target_names, 'target_ids': target_ids})
-    )
-
-
-def cset_download(request, name):
-    """View to download an SDF file of a ComputedSet by name
-    (viewer/compound_set/(<name>)).
-    """
-    # Unused arguments
-    del request
-
-    computed_set = models.ComputedSet.objects.get(name=name)
-    written_filename = computed_set.written_sdf_filename
-    with open(written_filename, 'r', encoding='utf-8') as wf:
-        data = wf.read()
-    response = HttpResponse(content_type='text/plain')
-    response[
-        'Content-Disposition'
-    ] = f'attachment; filename={name}.sdf'  # force browser to download file
-    response.write(data)
-    return response
-
-
-def pset_download(request, name):
-    """View to download a zip file of all protein structures (apo) for a computed set
-    (viewer/compound_set/(<name>))
-    """
-    # Unused arguments
-    del request
-
-    response = HttpResponse(content_type='application/zip')
-    filename = 'protein-set_' + name + '.zip'
-    response['Content-Disposition'] = (
-        'filename=%s' % filename
-    )  # force browser to download file
-
-    # For the first stage (green release) of the XCA-based Fragalysis Stack
-    # there are no PDB files.
-    #    compound_set = models.ComputedSet.objects.get(name=name)
-    #    computed_molecules = models.ComputedMolecule.objects.filter(computed_set=compound_set)
-    #    pdb_filepaths = list(set([c.pdb_info.path for c in computed_molecules]))
-    #    buff = StringIO()
-    #    zip_obj = zipfile.ZipFile(buff, 'w')
-    #    zip_obj.writestr('')
-    #    for fp in pdb_filepaths:
-    #        data = open(fp, 'r', encoding='utf-8').read()
-    #        zip_obj.writestr(fp.split('/')[-1], data)
-    #    zip_obj.close()
-    #    buff.flush()
-    #    ret_zip = buff.getvalue()
-    #    buff.close()
-
-    # ...instead we just create an empty file...
-    with zipfile.ZipFile('dummy.zip', 'w') as pdb_file:
-        pass
-
-    response.write(pdb_file)
-    return response
 
 
 # Start of ActionType
@@ -1294,36 +1334,6 @@ class DiscoursePostView(viewsets.ViewSet):
             return Response({"message": "No Posts Found"})
         else:
             return Response({"Posts": posts})
-
-
-def create_csv_from_dict(input_dict, title=None, filename=None):
-    """Write a CSV file containing data from an input dictionary and return a URL
-    to the file in the media directory.
-    """
-    if not filename:
-        filename = 'download'
-
-    media_root = settings.MEDIA_ROOT
-    unique_dir = str(uuid.uuid4())
-    # /code/media/downloads/unique_dir
-    download_path = os.path.join(media_root, 'downloads', unique_dir)
-    os.makedirs(download_path, exist_ok=True)
-
-    download_file = os.path.join(download_path, filename)
-
-    # Remove file if it already exists
-    if os.path.isfile(download_file):
-        os.remove(download_file)
-
-    with open(download_file, "w", newline='', encoding='utf-8') as csvfile:
-        if title:
-            csvfile.write(title)
-            csvfile.write("\n")
-
-    df = pd.DataFrame.from_dict(input_dict)
-    df.to_csv(download_file, mode='a', header=True, index=False)
-
-    return download_file
 
 
 class DictToCsv(viewsets.ViewSet):
