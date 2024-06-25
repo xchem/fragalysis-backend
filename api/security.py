@@ -387,7 +387,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             not restrict_to_membership
             or settings.DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP
         ):
-            proposals.update(self._get_open_proposals())
+            proposals.update(self.get_open_proposals())
 
         # Return the set() as a list()
         return list(proposals)
