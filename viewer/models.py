@@ -261,6 +261,7 @@ class Compound(models.Model):
     )
     description = models.TextField(blank=True, null=True)
     comments = models.TextField(blank=True, null=True)
+    inchi_key = models.CharField(db_index=True, max_length=27, blank=True)
 
     objects = models.Manager()
     filter_manager = CompoundDataManager()
@@ -951,6 +952,12 @@ class ComputedSet(models.Model):
     upload_datetime = models.DateTimeField(
         null=True, help_text="The datetime the upload was completed"
     )
+    computed_molecules = models.ManyToManyField(
+        "ComputedMolecule",
+        through="ComputedSetComputedMolecule",
+        through_fields=("computed_set", "computed_molecule"),
+        related_name="computed_set",
+    )
 
     def __str__(self) -> str:
         target_title: str = self.target.title if self.target else "None"
@@ -978,7 +985,6 @@ class ComputedMolecule(models.Model):
         null=True,
         blank=True,
     )
-    computed_set = models.ForeignKey(ComputedSet, on_delete=models.CASCADE)
     name = models.CharField(
         max_length=50, help_text="A combination of Target and Identifier"
     )
@@ -1021,6 +1027,7 @@ class ComputedMolecule(models.Model):
         max_length=255,
         help_text="Link to pdb file; user-uploaded pdb or pdb.experiment.pdb_info",
     )
+    version = models.PositiveSmallIntegerField(null=False, default=1)
 
     def __str__(self) -> str:
         return f"{self.smiles}"
@@ -1033,6 +1040,24 @@ class ComputedMolecule(models.Model):
             self.compound,
             self.site_observation_code,
         )
+
+
+class ComputedSetComputedMolecule(models.Model):
+    computed_set = models.ForeignKey(ComputedSet, null=False, on_delete=models.CASCADE)
+    computed_molecule = models.ForeignKey(
+        ComputedMolecule, null=False, on_delete=models.CASCADE
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "computed_set",
+                    "computed_molecule",
+                ],
+                name="unique_computedsetcomputedmolecule",
+            ),
+        ]
 
 
 class ScoreDescription(models.Model):

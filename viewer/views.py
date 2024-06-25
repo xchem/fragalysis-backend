@@ -457,7 +457,6 @@ class UploadCSet(APIView):
                         request.session[_SESSION_ERROR],
                     )
                     return redirect('viewer:upload_cset')
-
             # You cannot validate or upload a set
             # unless the user is part of the Target's project (proposal)
             # even if the target is 'open'.
@@ -569,7 +568,34 @@ class UploadCSet(APIView):
                 assert selected_set
                 written_sdf_filename = selected_set.written_sdf_filename
                 selected_set_name = selected_set.name
+
+                # related objects:
+                # - ComputedSetComputedMolecule
+                # - ComputedMolecule
+                # - NumericalScoreValues
+                # - TextScoreValues
+                # - ComputedMolecule_computed_inspirations
+                # - Compound
+
+                # all but ComputedMolecule are handled automatically
+                # but (because of the m2m), have to delete those
+                # separately
+
+                # select ComputedMolecule objects that are in this set
+                # and not in any other sets
+                # fmt: off
+                selected_set.computed_molecules.exclude(
+                    pk__in=models.ComputedMolecule.objects.filter(
+                        computed_set__in=models.ComputedSet.objects.filter(
+                            target=selected_set.target,
+                        ).exclude(
+                            pk=selected_set.pk,
+                        ),
+                    ),
+                ).delete()
+                # fmt: on
                 selected_set.delete()
+
                 # ...and the original (expected) file
                 if os.path.isfile(written_sdf_filename):
                     os.remove(written_sdf_filename)

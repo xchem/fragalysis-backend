@@ -1,11 +1,9 @@
 import contextlib
 import functools
 import hashlib
-import itertools
 import logging
 import math
 import os
-import string
 import tarfile
 import uuid
 from collections.abc import Callable
@@ -13,7 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import yaml
 from celery import Task
@@ -46,6 +44,7 @@ from viewer.models import (
     XtalformQuatAssembly,
     XtalformSite,
 )
+from viewer.utils import alphanumerator
 
 logger = logging.getLogger(__name__)
 
@@ -275,29 +274,6 @@ def calculate_sha256(filepath) -> str:
         for chunk in iter(lambda: f.read(4096), b""):
             sha256_hash.update(chunk)
     return sha256_hash.hexdigest()
-
-
-def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
-    """Return alphabetic generator (A, B .. AA, AB...) starting from a specified point."""
-
-    # since product requries finite maximum return string length set
-    # to 10 characters. that should be enough for fragalysis (and to
-    # cause database issues)
-    generator = (
-        "".join(word)
-        for word in itertools.chain.from_iterable(
-            itertools.product(string.ascii_lowercase, repeat=i) for i in range(1, 11)
-        )
-    )
-
-    # Drop values until the starting point is reached
-    if start_from is not None and start_from != '':
-        start_from = start_from.lower()
-        generator = itertools.dropwhile(lambda x: x != start_from, generator)  # type: ignore[assignment]
-        # and drop one more, then it starts from after the start from as it should
-        _ = next(generator)
-
-    return generator
 
 
 def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
