@@ -216,7 +216,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         q_filter = self._get_q_filter(proposal_list)
         return self.queryset.filter(q_filter).distinct()
 
-    def _get_open_proposals(self):
+    def get_open_proposals(self):
         """
         Returns the set of proposals anybody can access.
         These consist of any Projects that are marked "open_to_public"

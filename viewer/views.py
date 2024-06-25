@@ -190,11 +190,13 @@ def get_open_targets(request):
     target_names = []
     target_ids = []
 
+    open_proposals: set = ISpyBSafeQuerySet().get_open_proposals()
     for t in targets:
         for p in t.project_id.all():
-            if 'OPEN' in p.title:
+            if p.title in open_proposals:
                 target_names.append(t.title)
                 target_ids.append(t.id)
+                break
 
     return HttpResponse(
         json.dumps({'target_names': target_names, 'target_ids': target_ids})
