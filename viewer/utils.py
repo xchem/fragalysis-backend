@@ -23,7 +23,6 @@ from django.http import JsonResponse
 from rdkit import Chem
 
 from scoring.models import SiteObservationGroup, SiteObvsSiteObservationGroup
-from viewer.views import logger
 
 from .models import (
     SiteObservation,
