@@ -25,7 +25,8 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 @cache
 class CachedContent:
-    """A static class managing caches proposals/visits for each user.
+    """
+    A static class managing caches proposals/visits for each user.
     Proposals should be collected when has_expired() returns True.
     Content can be written (when the cache for the user has expired)
     and read using the set/get methods.
@@ -185,9 +186,22 @@ def ping_configured_connector() -> bool:
 
 
 class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+    """
+    This ISpyBSafeQuerySet, which inherits from the DRF viewsets.ReadOnlyModelViewSet,
+    is used for all views that need to yield (filter) view objects based on a
+    user's proposal membership. This requires the view to define the property
+    "filter_permissions" to enable this class to navigate to the view object's Project
+    (proposal/visit).
+
+    As the ISpyBSafeQuerySet is based on a ReadOnlyModelViewSet, which only provides
+    implementations for list() and retrieve() methods, the user will need to provide
+    "mixins" for any additional methods the view needs to support (PATCH, PUT, DELETE).
+    """
+
     def get_queryset(self):
         """
-        Optionally restricts the returned purchases to a given proposals
+        Restricts the returned records to those that belong to proposals
+        the user has access to. Without a user only 'open' proposals are returned.
         """
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user(self.request.user)
@@ -199,7 +213,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # Must have a foreign key to a Project for this filter to work.
         # get_q_filter() returns a Q expression for filtering
-        q_filter = self.get_q_filter(proposal_list)
+        q_filter = self._get_q_filter(proposal_list)
         return self.queryset.filter(q_filter).distinct()
 
     def _get_open_proposals(self):
@@ -267,8 +281,8 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         return cached_prop_ids
 
     def _get_proposals_from_connector(self, user, conn):
-        """Updates the USER_LIST_DICT with the results of a query
-        and marks it as populated.
+        """
+        Updates the user's proposal cache with the results of a query
         """
         assert user
         assert conn
@@ -327,8 +341,19 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         )
         CachedContent.set_content(user.username, prop_id_set)
 
+    def user_is_member_of_any_given_proposals(self, user, proposals):
+        """
+        Returns true if the user has access to any proposal in the given
+        proposals list.Only one needs to match for permission to be granted.
+        We 'restrict_to_membership' to only consider proposals the user
+        has explicit membership.
+        """
+        user_proposals = self.get_proposals_for_user(user, restrict_to_membership=True)
+        return any(proposal in user_proposals for proposal in proposals)
+
     def get_proposals_for_user(self, user, restrict_to_membership=False):
-        """Returns a list of proposals that the user has access to.
+        """
+        Returns a list of proposals that the user has access to.
 
         If 'restrict_to_membership' is set only those proposals/visits where the user
         is a member of the visit will be returned. Otherwise the 'public'
@@ -367,7 +392,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # Return the set() as a list()
         return list(proposals)
 
-    def get_q_filter(self, proposal_list):
+    def _get_q_filter(self, proposal_list):
         """Returns a Q expression representing a (potentially complex) table filter."""
         if self.filter_permissions:
             # Q-filter is based on the filter_permissions string

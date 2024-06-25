@@ -123,7 +123,12 @@ class Target(models.Model):
         return f"{self.title}"
 
     def __repr__(self) -> str:
-        return "<Target %r %r %r>" % (self.id, self.title, self.project_id)
+        return "<Target %r %r %r %r>" % (
+            self.id,
+            self.title,
+            self.display_name,
+            self.project_id,
+        )
 
 
 class ExperimentUpload(models.Model):

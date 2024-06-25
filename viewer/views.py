@@ -24,7 +24,7 @@ from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
-from rest_framework import permissions, status, viewsets
+from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
@@ -35,6 +35,7 @@ from api.security import ISpyBSafeQuerySet
 from api.utils import get_highlighted_diffs, get_params, pretty_request
 from service_status.models import Service
 from viewer import filters, models, serializers
+from viewer.permissions import IsObjectProposalMember
 from viewer.squonk2_agent import (
     AccessParams,
     CommonParams,
@@ -82,6 +83,107 @@ _SESSION_ERROR = 'session_error'
 _SESSION_MESSAGE = 'session_message'
 
 _SQ2A: Squonk2Agent = get_squonk2_agent()
+
+# ---------------------------
+# ENTRYPOINT FOR THE FRONTEND
+# ---------------------------
+
+
+def react(request):
+    """We "START HERE". This is the first API call that the front-end calls."""
+
+    discourse_api_key = settings.DISCOURSE_API_KEY
+
+    # Start building the context that will be passed to the template
+    context = {'legacy_url': settings.LEGACY_URL}
+
+    # Is the Squonk2 Agent configured?
+    logger.info("Checking whether Squonk2 is configured...")
+    sq2_rv = _SQ2A.configured()
+    if sq2_rv.success:
+        logger.info("Squonk2 is configured")
+        context['squonk_available'] = 'true'
+    else:
+        logger.info("Squonk2 is NOT configured")
+        context['squonk_available'] = 'false'
+
+    context['discourse_available'] = 'true' if discourse_api_key else 'false'
+    user = request.user
+    if user.is_authenticated:
+        context['discourse_host'] = ''
+        context['user_present_on_discourse'] = 'false'
+        # If user is authenticated and a discourse api key is available, then check discourse to
+        # see if user is set up and set up flag in context.
+        if discourse_api_key:
+            context['discourse_host'] = settings.DISCOURSE_HOST
+            _, _, user_id = check_discourse_user(user)
+            if user_id:
+                context['user_present_on_discourse'] = 'true'
+
+        # User is authenticated, so if Squonk can be called
+        # return the Squonk UI URL
+        # so the f/e knows where to go.
+        context['squonk_ui_url'] = ''
+        if sq2_rv.success and check_squonk_active(request):
+            context['squonk_ui_url'] = _SQ2A.get_ui_url()
+
+    return render(request, "viewer/react_temp.html", context)
+
+
+def save_pdb_zip(pdb_file):
+    zf = zipfile.ZipFile(pdb_file)
+    zip_lst = zf.namelist()
+    zfile = {}
+    zfile_hashvals: Dict[str, str] = {}
+    print(zip_lst)
+    for filename in zip_lst:
+        # only handle pdb files
+        if filename.split('.')[-1] == 'pdb':
+            f = filename.split('/')[0]
+            save_path = os.path.join(settings.MEDIA_ROOT, 'tmp', f)
+            if default_storage.exists(f):
+                rand_str = uuid.uuid4().hex
+                pdb_path = default_storage.save(
+                    save_path.replace('.pdb', f'-{rand_str}.pdb'),
+                    ContentFile(zf.read(filename)),
+                )
+            # Test if Protein object already exists
+            # code = filename.split('/')[-1].replace('.pdb', '')
+            # test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
+            # test_prot_objs = Protein.objects.filter(code=test_pdb_code)
+            #
+            # if len(test_prot_objs) > 0:
+            #     # make a unique pdb code as not to overwrite existing object
+            #     rand_str = uuid.uuid4().hex
+            #     test_pdb_code = f'{code}#{rand_str}'
+            #     zfile_hashvals[code] = rand_str
+            #
+            # fn = test_pdb_code + '.pdb'
+            #
+            # pdb_path = default_storage.save('tmp/' + fn,
+            #                                 ContentFile(zf.read(filename)))
+            else:
+                pdb_path = default_storage.save(
+                    save_path, ContentFile(zf.read(filename))
+                )
+            test_pdb_code = pdb_path.split('/')[-1].replace('.pdb', '')
+            zfile[test_pdb_code] = pdb_path
+
+    # Close the zip file
+    if zf:
+        zf.close()
+
+    return zfile, zfile_hashvals
+
+
+def save_tmp_file(myfile):
+    """Save file in temporary location for validation/upload processing"""
+
+    name = myfile.name
+    path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
+    tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+
+    return tmp_file
 
 
 class CompoundIdentifierTypeView(viewsets.ModelViewSet):
@@ -190,30 +292,29 @@ class ProjectView(ISpyBSafeQuerySet):
     filter_permissions = ""
 
 
-class TargetView(ISpyBSafeQuerySet):
-    """Targets (api/targets)"""
-
+class TargetView(mixins.UpdateModelMixin, ISpyBSafeQuerySet):
     queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
     filterset_fields = ("title",)
+    permission_classes = [IsObjectProposalMember]
 
     def patch(self, request, pk):
         try:
             target = self.queryset.get(pk=pk)
         except models.Target.DoesNotExist:
+            msg = f"Target pk={pk} does not exist"
+            logger.warning(msg)
             return Response(
-                {"message": f"Target pk={pk} does not exist"},
+                {"message": msg},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         serializer = self.serializer_class(target, data=request.data, partial=True)
         if serializer.is_valid():
-            logger.debug("serializer data: %s", serializer.validated_data)
-            serializer.save()
+            _ = serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            logger.debug("serializer error: %s", serializer.errors)
             return Response(
                 {"message": "wrong parameters"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -226,109 +327,6 @@ class CompoundView(ISpyBSafeQuerySet):
     serializer_class = serializers.CompoundSerializer
     filter_permissions = "project_id"
     filterset_class = filters.CompoundFilter
-
-
-def react(request):
-    """We "START HERE". This is the first API call that the front-end calls."""
-
-    discourse_api_key = settings.DISCOURSE_API_KEY
-
-    context = {}
-
-    # Legacy URL (a n optional prior stack)
-    # May be blank ('')
-    context['legacy_url'] = settings.LEGACY_URL
-
-    # Is the Squonk2 Agent configured?
-    logger.info("Checking whether Squonk2 is configured...")
-    sq2_rv = _SQ2A.configured()
-    if sq2_rv.success:
-        logger.info("Squonk2 is configured")
-        context['squonk_available'] = 'true'
-    else:
-        logger.info("Squonk2 is NOT configured")
-        context['squonk_available'] = 'false'
-
-    if discourse_api_key:
-        context['discourse_available'] = 'true'
-    else:
-        context['discourse_available'] = 'false'
-
-    user = request.user
-    if user.is_authenticated:
-        context['discourse_host'] = ''
-        context['user_present_on_discourse'] = 'false'
-        # If user is authenticated and a discourse api key is available, then check discourse to
-        # see if user is set up and set up flag in context.
-        if discourse_api_key:
-            context['discourse_host'] = settings.DISCOURSE_HOST
-            _, _, user_id = check_discourse_user(user)
-            if user_id:
-                context['user_present_on_discourse'] = 'true'
-
-        # If user is authenticated Squonk can be called then return the Squonk host
-        # so the Frontend can navigate to it
-        context['squonk_ui_url'] = ''
-        if sq2_rv.success and check_squonk_active(request):
-            context['squonk_ui_url'] = _SQ2A.get_ui_url()
-
-    return render(request, "viewer/react_temp.html", context)
-
-
-def save_pdb_zip(pdb_file):
-    zf = zipfile.ZipFile(pdb_file)
-    zip_lst = zf.namelist()
-    zfile = {}
-    zfile_hashvals: Dict[str, str] = {}
-    print(zip_lst)
-    for filename in zip_lst:
-        # only handle pdb files
-        if filename.split('.')[-1] == 'pdb':
-            f = filename.split('/')[0]
-            save_path = os.path.join(settings.MEDIA_ROOT, 'tmp', f)
-            if default_storage.exists(f):
-                rand_str = uuid.uuid4().hex
-                pdb_path = default_storage.save(
-                    save_path.replace('.pdb', f'-{rand_str}.pdb'),
-                    ContentFile(zf.read(filename)),
-                )
-            # Test if Protein object already exists
-            # code = filename.split('/')[-1].replace('.pdb', '')
-            # test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
-            # test_prot_objs = Protein.objects.filter(code=test_pdb_code)
-            #
-            # if len(test_prot_objs) > 0:
-            #     # make a unique pdb code as not to overwrite existing object
-            #     rand_str = uuid.uuid4().hex
-            #     test_pdb_code = f'{code}#{rand_str}'
-            #     zfile_hashvals[code] = rand_str
-            #
-            # fn = test_pdb_code + '.pdb'
-            #
-            # pdb_path = default_storage.save('tmp/' + fn,
-            #                                 ContentFile(zf.read(filename)))
-            else:
-                pdb_path = default_storage.save(
-                    save_path, ContentFile(zf.read(filename))
-                )
-            test_pdb_code = pdb_path.split('/')[-1].replace('.pdb', '')
-            zfile[test_pdb_code] = pdb_path
-
-    # Close the zip file
-    if zf:
-        zf.close()
-
-    return zfile, zfile_hashvals
-
-
-def save_tmp_file(myfile):
-    """Save file in temporary location for validation/upload processing"""
-
-    name = myfile.name
-    path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
-    tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
-
-    return tmp_file
 
 
 class UploadCSet(APIView):
@@ -1013,6 +1011,8 @@ class SessionProjectsView(viewsets.ModelViewSet):
     """
 
     queryset = models.SessionProject.objects.filter()
+    filter_permissions = "target__project_id"
+    filterset_fields = '__all__'
 
     def get_serializer_class(self):
         """Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request
@@ -1028,9 +1028,6 @@ class SessionProjectsView(viewsets.ModelViewSet):
             return serializers.SessionProjectReadSerializer
         # (POST, PUT, PATCH)
         return serializers.SessionProjectWriteSerializer
-
-    filter_permissions = "target_id__project_id"
-    filterset_fields = '__all__'
 
 
 class SessionActionsView(viewsets.ModelViewSet):
