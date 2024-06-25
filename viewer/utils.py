@@ -7,7 +7,6 @@ import shutil
 import string
 import tempfile
 import uuid
-import zipfile
 from pathlib import Path
 from typing import Dict, Generator, Optional
 from urllib.parse import urlparse
@@ -434,60 +433,12 @@ def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
     return generator
 
 
-def save_pdb_zip(pdb_file):
-    zf = zipfile.ZipFile(pdb_file)
-    zip_lst = zf.namelist()
-    zfile = {}
-    zfile_hashvals: Dict[str, str] = {}
-    print(zip_lst)
-    for filename in zip_lst:
-        # only handle pdb files
-        if filename.split('.')[-1] == 'pdb':
-            f = filename.split('/')[0]
-            save_path = os.path.join(settings.MEDIA_ROOT, 'tmp', f)
-            if default_storage.exists(f):
-                rand_str = uuid.uuid4().hex
-                pdb_path = default_storage.save(
-                    save_path.replace('.pdb', f'-{rand_str}.pdb'),
-                    ContentFile(zf.read(filename)),
-                )
-            # Test if Protein object already exists
-            # code = filename.split('/')[-1].replace('.pdb', '')
-            # test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
-            # test_prot_objs = Protein.objects.filter(code=test_pdb_code)
-            #
-            # if len(test_prot_objs) > 0:
-            #     # make a unique pdb code as not to overwrite existing object
-            #     rand_str = uuid.uuid4().hex
-            #     test_pdb_code = f'{code}#{rand_str}'
-            #     zfile_hashvals[code] = rand_str
-            #
-            # fn = test_pdb_code + '.pdb'
-            #
-            # pdb_path = default_storage.save('tmp/' + fn,
-            #                                 ContentFile(zf.read(filename)))
-            else:
-                pdb_path = default_storage.save(
-                    save_path, ContentFile(zf.read(filename))
-                )
-            test_pdb_code = pdb_path.split('/')[-1].replace('.pdb', '')
-            zfile[test_pdb_code] = pdb_path
-
-    # Close the zip file
-    if zf:
-        zf.close()
-
-    return zfile, zfile_hashvals
-
-
 def save_tmp_file(myfile):
     """Save file in temporary location for validation/upload processing"""
 
     name = myfile.name
     path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
-    tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
-
-    return tmp_file
+    return str(os.path.join(settings.MEDIA_ROOT, path))
 
 
 def create_csv_from_dict(input_dict, title=None, filename=None):

@@ -144,12 +144,8 @@ def react(request):
 
 def img_from_smiles(request):
     """Generate a 2D molecule image for a given smiles string"""
-    if "smiles" in request.GET:
-        smiles = request.GET["smiles"]
-        if smiles:
-            return get_params(smiles, request)
-        else:
-            return HttpResponse("Please insert SMILES")
+    if "smiles" in request.GET and (smiles := request.GET["smiles"]):
+        return get_params(smiles, request)
     else:
         return HttpResponse("Please insert SMILES")
 
@@ -158,7 +154,7 @@ def highlight_mol_diff(request):
     """Generate a 2D molecule image highlighting the difference between a
     reference and new molecule
     """
-    if 'prb_smiles' and 'ref_smiles' in request.GET:
+    if 'ref_smiles' in request.GET:
         return HttpResponse(get_highlighted_diffs(request))
     else:
         return HttpResponse("Please insert smiles for reference and probe")
@@ -233,9 +229,7 @@ def pset_download(request, name):
 
     response = HttpResponse(content_type='application/zip')
     filename = 'protein-set_' + name + '.zip'
-    response['Content-Disposition'] = (
-        'filename=%s' % filename
-    )  # force browser to download file
+    response['Content-Disposition'] = f'filename={filename}'
 
     # For the first stage (green release) of the XCA-based Fragalysis Stack
     # there are no PDB files.
