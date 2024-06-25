@@ -185,7 +185,7 @@ def ping_configured_connector() -> bool:
     return conn is not None
 
 
-class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     """
     This ISpyBSafeQuerySet, which inherits from the DRF viewsets.ReadOnlyModelViewSet,
     is used for all views that need to yield (filter) view objects based on a
@@ -411,9 +411,9 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return Q(title__in=proposal_list) | Q(open_to_public=True)
 
 
-class ISpyBSafeStaticFiles:
+class ISPyBSafeStaticFiles:
     def get_queryset(self):
-        query = ISpyBSafeQuerySet()
+        query = ISPyBSafeQuerySet()
         query.request = self.request
         query.filter_permissions = self.permission_string
         query.queryset = self.model.objects.filter()
@@ -459,7 +459,7 @@ class ISpyBSafeStaticFiles:
             raise Http404 from exc
 
 
-class ISpyBSafeStaticFiles2(ISpyBSafeStaticFiles):
+class ISPyBSafeStaticFiles2(ISPyBSafeStaticFiles):
     def get_response(self):
         logger.info("+ get_response called with: %s", self.input_string)
         # it wasn't working because found two objects with test file name

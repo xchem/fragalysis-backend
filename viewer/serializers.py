@@ -13,7 +13,7 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors
 from rest_framework import serializers
 
-from api.security import ISpyBSafeQuerySet
+from api.security import ISPyBSafeQuerySet
 from api.utils import draw_mol, validate_tas
 from viewer import models
 from viewer.target_loader import XTALFORMS_FILE
@@ -22,7 +22,7 @@ from viewer.utils import get_https_host
 
 logger = logging.getLogger(__name__)
 
-_ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
+_ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
 
 
 class FileSerializer(serializers.ModelSerializer):

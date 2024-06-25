@@ -29,7 +29,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
-from api.security import ISpyBSafeQuerySet
+from api.security import ISPyBSafeQuerySet
 from api.utils import get_highlighted_diffs, get_params, pretty_request
 from service_status.models import Service
 from viewer import filters, models, serializers
@@ -190,7 +190,7 @@ def get_open_targets(request):
     target_names = []
     target_ids = []
 
-    open_proposals: set = ISpyBSafeQuerySet().get_open_proposals()
+    open_proposals: set = ISPyBSafeQuerySet().get_open_proposals()
     for t in targets:
         for p in t.project_id.all():
             if p.title in open_proposals:
@@ -275,7 +275,7 @@ class CompoundIdentifierView(viewsets.ModelViewSet):
     filterset_fields = ["type", "compound"]
 
 
-class VectorsView(ISpyBSafeQuerySet):
+class VectorsView(ISPyBSafeQuerySet):
     """Vectors (api/vector)"""
 
     queryset = models.SiteObservation.filter_manager.filter_qs()
@@ -284,7 +284,7 @@ class VectorsView(ISpyBSafeQuerySet):
     filter_permissions = "experiment__experiment_upload__target__project_id"
 
 
-class MolecularPropertiesView(ISpyBSafeQuerySet):
+class MolecularPropertiesView(ISPyBSafeQuerySet):
     """Molecular properties (api/molprops)"""
 
     queryset = models.Compound.filter_manager.filter_qs()
@@ -293,7 +293,7 @@ class MolecularPropertiesView(ISpyBSafeQuerySet):
     filter_permissions = "experiment__experiment_upload__target__project_id"
 
 
-class GraphView(ISpyBSafeQuerySet):
+class GraphView(ISPyBSafeQuerySet):
     """Graph (api/graph)"""
 
     queryset = models.SiteObservation.filter_manager.filter_qs()
@@ -302,7 +302,7 @@ class GraphView(ISpyBSafeQuerySet):
     filter_permissions = "experiment__experiment_upload__target__project_id"
 
 
-class MolImageView(ISpyBSafeQuerySet):
+class MolImageView(ISPyBSafeQuerySet):
     """Molecule images (api/molimg)"""
 
     queryset = models.SiteObservation.objects.filter()
@@ -311,7 +311,7 @@ class MolImageView(ISpyBSafeQuerySet):
     filter_permissions = "experiment__experiment_upload__target__project_id"
 
 
-class CompoundImageView(ISpyBSafeQuerySet):
+class CompoundImageView(ISPyBSafeQuerySet):
     """Compound images (api/cmpdimg)"""
 
     queryset = models.Compound.filter_manager.filter_qs()
@@ -320,7 +320,7 @@ class CompoundImageView(ISpyBSafeQuerySet):
     filterset_class = filters.CmpdImgFilter
 
 
-class ProteinMapInfoView(ISpyBSafeQuerySet):
+class ProteinMapInfoView(ISPyBSafeQuerySet):
     """Protein map info (file) (api/protmap)"""
 
     queryset = models.SiteObservation.objects.all()
@@ -333,7 +333,7 @@ class ProteinMapInfoView(ISpyBSafeQuerySet):
     )
 
 
-class ProteinPDBInfoView(ISpyBSafeQuerySet):
+class ProteinPDBInfoView(ISPyBSafeQuerySet):
     """Protein apo pdb info (file) (api/protpdb)"""
 
     queryset = models.SiteObservation.objects.all()
@@ -346,7 +346,7 @@ class ProteinPDBInfoView(ISpyBSafeQuerySet):
     )
 
 
-class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
+class ProteinPDBBoundInfoView(ISPyBSafeQuerySet):
     """Protein bound pdb info (file) (api/protpdbbound)"""
 
     queryset = models.SiteObservation.filter_manager.filter_qs()
@@ -359,7 +359,7 @@ class ProteinPDBBoundInfoView(ISpyBSafeQuerySet):
     )
 
 
-class ProjectView(ISpyBSafeQuerySet):
+class ProjectView(ISPyBSafeQuerySet):
     """Projects (api/project)"""
 
     queryset = models.Project.objects.filter()
@@ -368,7 +368,7 @@ class ProjectView(ISpyBSafeQuerySet):
     filter_permissions = ""
 
 
-class TargetView(mixins.UpdateModelMixin, ISpyBSafeQuerySet):
+class TargetView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project_id"
@@ -396,7 +396,7 @@ class TargetView(mixins.UpdateModelMixin, ISpyBSafeQuerySet):
             )
 
 
-class CompoundView(ISpyBSafeQuerySet):
+class CompoundView(ISPyBSafeQuerySet):
     """Compounds (api/compounds)"""
 
     queryset = models.Compound.filter_manager.filter_qs()
@@ -545,7 +545,7 @@ class UploadCSet(APIView):
                     context['error_message'] = f'Unknown Target ({target})'
                     return render(request, 'viewer/upload-cset.html', context)
                 # What proposals is the user a member of?
-                ispyb_safe_query_set = ISpyBSafeQuerySet()
+                ispyb_safe_query_set = ISPyBSafeQuerySet()
                 user_proposals = ispyb_safe_query_set.get_proposals_for_user(
                     user, restrict_to_membership=True
                 )
@@ -1287,7 +1287,7 @@ class SessionProjectTagView(viewsets.ModelViewSet):
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
-class DownloadStructures(ISpyBSafeQuerySet):
+class DownloadStructures(ISPyBSafeQuerySet):
     """Uses a selected subset of the target data
     (proteins and booleans with suggested files) and creates a Zip file
     with the contents.
@@ -1425,7 +1425,7 @@ class DownloadStructures(ISpyBSafeQuerySet):
         return Response({"file_url": filename_url})
 
 
-class UploadTargetExperiments(ISpyBSafeQuerySet):
+class UploadTargetExperiments(ISPyBSafeQuerySet):
     serializer_class = serializers.TargetExperimentWriteSerializer
     permission_class = [permissions.IsAuthenticated]
     http_method_names = ('post',)
@@ -1577,7 +1577,7 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class TargetExperimentUploads(ISpyBSafeQuerySet):
+class TargetExperimentUploads(ISPyBSafeQuerySet):
     queryset = models.ExperimentUpload.objects.all()
     serializer_class = serializers.TargetExperimentReadSerializer
     permission_class = [permissions.IsAuthenticated]
@@ -1995,7 +1995,7 @@ class JobRequestView(APIView):
         # The user must be a member of the target access string.
         # (when AUTHENTICATE_UPLOAD is set)
         if settings.AUTHENTICATE_UPLOAD:
-            ispyb_safe_query_set = ISpyBSafeQuerySet()
+            ispyb_safe_query_set = ISPyBSafeQuerySet()
             user_proposals = ispyb_safe_query_set.get_proposals_for_user(
                 user, restrict_to_membership=True
             )
