@@ -170,12 +170,12 @@ def similarity_search(request):
     else:
         return HttpResponse("Please insert db_name")
     sql_query = """SELECT sub.*
-  FROM (
-    SELECT rdk.id,rdk.structure,rdk.idnumber
-      FROM vendordbs.enamine_real_dsi_molfps AS mfp
-      JOIN vendordbs.enamine_real_dsi AS rdk ON mfp.id = rdk.id
-      WHERE m @> qmol_from_smiles(%s) LIMIT 1000
-  ) sub;"""
+        FROM (
+            SELECT rdk.id,rdk.structure,rdk.idnumber
+            FROM vendordbs.enamine_real_dsi_molfps AS mfp
+            JOIN vendordbs.enamine_real_dsi AS rdk ON mfp.id = rdk.id
+            WHERE m @> qmol_from_smiles(%s) LIMIT 1000
+        ) sub;"""
     with connections[db_name].cursor() as cursor:
         cursor.execute(sql_query, [smiles])
         return HttpResponse(json.dumps(cursor.fetchall()))
@@ -915,7 +915,12 @@ class ActionTypeView(viewsets.ModelViewSet):
 
 
 # Start of Session Project
-class SessionProjectsView(viewsets.ModelViewSet):
+class SessionProjectsView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     """View to retrieve information about user projects (collection of sessions) (GET).
     Also used for saving project information (PUT, POST, PATCH).
     (api/session-projects).
@@ -924,67 +929,70 @@ class SessionProjectsView(viewsets.ModelViewSet):
     queryset = models.SessionProject.objects.filter()
     filter_permissions = "target__project_id"
     filterset_fields = '__all__'
+    permission_classes = [IsObjectProposalMember]
 
     def get_serializer_class(self):
-        """Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request
-
-        Returns
-        -------
-        Serializer (rest_framework.serializers.ModelSerializer):
-            - if GET: `viewer.serializers.SessionProjectReadSerializer`
-            - if other: `viewer.serializers.SessionProjectWriteSerializer`
-        """
         if self.request.method in ['GET']:
-            # GET
             return serializers.SessionProjectReadSerializer
-        # (POST, PUT, PATCH)
         return serializers.SessionProjectWriteSerializer
 
 
-class SessionActionsView(viewsets.ModelViewSet):
+class SessionActionsView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     """View to retrieve information about actions relating to sessions_project (GET).
     Also used for saving project action information (PUT, POST, PATCH).
     (api/session-actions).
     """
 
     queryset = models.SessionActions.objects.filter()
+    filter_permissions = "session_project__target__project_id"
     serializer_class = serializers.SessionActionsSerializer
+    permission_classes = [IsObjectProposalMember]
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
     filterset_fields = ('id', 'author', 'session_project', 'last_update_date')
 
 
-class SnapshotsView(viewsets.ModelViewSet):
+class SnapshotsView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     """View to retrieve information about user sessions (snapshots) (GET).
     Also used for saving session information (PUT, POST, PATCH). (api/snapshots)
     """
 
     queryset = models.Snapshot.objects.filter()
+    filter_permissions = "session_project__target__project_id"
+    filterset_class = filters.SnapshotFilter
+    permission_classes = [IsObjectProposalMember]
 
     def get_serializer_class(self):
-        """Determine which serializer to use based on whether the request is a GET or a POST, PUT or PATCH request
-
-        Returns
-        -------
-        Serializer (rest_framework.serializers.ModelSerializer):
-            - if GET: `viewer.serializers.SnapshotReadSerializer`
-            - if other: `viewer.serializers.SnapshotWriteSerializer`
-        """
         if self.request.method in ['GET']:
             return serializers.SnapshotReadSerializer
         return serializers.SnapshotWriteSerializer
 
-    filterset_class = filters.SnapshotFilter
 
-
-class SnapshotActionsView(viewsets.ModelViewSet):
+class SnapshotActionsView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     """View to retrieve information about actions relating to snapshots (GET).
     Also used for saving snapshot action information (PUT, POST, PATCH).
     (api/snapshot-actions).
     """
 
     queryset = models.SnapshotActions.objects.filter()
+    filter_permissions = "snapshot__session_project__target__project_id"
     serializer_class = serializers.SnapshotActionsSerializer
+    permission_classes = [IsObjectProposalMember]
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
     filterset_fields = (
