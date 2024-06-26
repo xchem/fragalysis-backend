@@ -1606,15 +1606,13 @@ class TargetExperimentUploads(ISPyBSafeQuerySet):
     http_method_names = ('get',)
 
 
-class SiteObservations(viewsets.ModelViewSet):
+class SiteObservations(ISPyBSafeQuerySet):
     queryset = models.SiteObservation.filter_manager.filter_qs().filter(
         superseded=False
     )
     serializer_class = serializers.SiteObservationReadSerializer
-    permission_class = [permissions.IsAuthenticated]
     filterset_class = filters.SiteObservationFilter
-    filter_permissions = "target__project_id"
-    http_method_names = ('get',)
+    filter_permissions = "experiment__experiment_upload__project"
 
 
 class CanonSites(viewsets.ModelViewSet):

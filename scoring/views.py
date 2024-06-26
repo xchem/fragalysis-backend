@@ -2,8 +2,9 @@ import json
 
 from django.http import HttpResponse
 from frag.conf.functions import generate_confs_for_vector
-from rest_framework import viewsets
+from rest_framework import mixins, viewsets
 
+from api.security import ISPyBSafeQuerySet
 from scoring.models import (
     CmpdChoice,
     ScoreChoice,
@@ -20,6 +21,7 @@ from scoring.serializers import (
     SiteObservationGroupSerializer,
     ViewSceneSerializer,
 )
+from viewer.permissions import IsObjectProposalMember
 
 
 class ViewSceneView(viewsets.ModelViewSet):
@@ -32,7 +34,12 @@ class ViewSceneView(viewsets.ModelViewSet):
         return self.partial_update(request, *args, **kwargs)
 
 
-class SiteObservationChoiceView(viewsets.ModelViewSet):
+class SiteObservationChoiceView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     queryset = SiteObservationChoice.objects.all()
     serializer_class = SiteObservationChoiceSerializer
     filterset_fields = (
@@ -41,12 +48,21 @@ class SiteObservationChoiceView(viewsets.ModelViewSet):
         "site_observation__experiment__experiment_upload__target",
         "choice_type",
     )
+    filter_permissions = "site_observation__experiment__experiment_upload__project"
+    permission_classes = [IsObjectProposalMember]
 
 
-class SiteObservationAnnotationView(viewsets.ModelViewSet):
+class SiteObservationAnnotationView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     queryset = SiteObservationAnnotation.objects.all()
     serializer_class = SiteObservationAnnotationSerializer
     filterset_fields = ("site_observation", "annotation_type")
+    filter_permissions = "site_observation__experiment__experiment_upload__project"
+    permission_classes = [IsObjectProposalMember]
 
 
 class CmpdChoiceView(viewsets.ModelViewSet):
@@ -67,10 +83,17 @@ class ScoreChoiceView(viewsets.ModelViewSet):
     )
 
 
-class SiteObservationGroupView(viewsets.ModelViewSet):
+class SiteObservationGroupView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     queryset = SiteObservationGroup.objects.all()
     serializer_class = SiteObservationGroupSerializer
     filterset_fields = ("group_type", "site_observation", "target", "description")
+    filter_permissions = "target__project_id"
+    permission_classes = [IsObjectProposalMember]
 
 
 def gen_conf_from_vect(request):
