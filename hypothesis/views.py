@@ -1,5 +1,6 @@
 from rest_framework import viewsets
 
+from api.security import ISPyBSafeQuerySet
 from hypothesis.models import Interaction, InteractionPoint, TargetResidue
 from hypothesis.serializers import (
     InteractionPointSerializer,
@@ -24,13 +25,15 @@ class InteractionView(viewsets.ReadOnlyModelViewSet):
     )
 
 
-class InteractionPointView(viewsets.ReadOnlyModelViewSet):
+class InteractionPointView(ISPyBSafeQuerySet):
     queryset = InteractionPoint.objects.all()
     serializer_class = InteractionPointSerializer
     filterset_fields = ("site_observation", "protein_atom_name", "molecule_atom_name")
+    filter_permissions = "targ_res__target_id__project_id"
 
 
-class TargetResidueView(viewsets.ReadOnlyModelViewSet):
+class TargetResidueView(ISPyBSafeQuerySet):
     queryset = TargetResidue.objects.all()
     serializer_class = TargetResidueSerialzier
     filterset_fields = ("target_id", "res_name", "res_num", "chain_id")
+    filter_permissions = "target_id__project_id"
