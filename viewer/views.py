@@ -268,10 +268,16 @@ class CompoundIdentifierTypeView(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
 
-class CompoundIdentifierView(viewsets.ModelViewSet):
+class CompoundIdentifierView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     queryset = models.CompoundIdentifier.objects.all()
     serializer_class = serializers.CompoundIdentifierSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    filter_permissions = "compound__project_id"
+    permission_classes = [IsObjectProposalMember]
     filterset_fields = ["type", "compound"]
 
 
@@ -1060,13 +1066,19 @@ class DSetUploadView(APIView):
         return HttpResponse(json.dumps(string))
 
 
-class ComputedSetView(viewsets.ModelViewSet):
+class ComputedSetView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     """Retrieve information about and delete computed sets."""
 
     queryset = models.ComputedSet.objects.filter()
     serializer_class = serializers.ComputedSetSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "target__project_id"
     filterset_fields = ('target', 'target__title')
+    permission_classes = [IsObjectProposalMember]
 
     http_method_names = ['get', 'head', 'delete']
 
@@ -1082,52 +1094,52 @@ class ComputedSetView(viewsets.ModelViewSet):
         return HttpResponse(status=204)
 
 
-class ComputedMoleculesView(viewsets.ReadOnlyModelViewSet):
+class ComputedMoleculesView(ISPyBSafeQuerySet):
     """Retrieve information about computed molecules - 3D info (api/compound-molecules)."""
 
     queryset = models.ComputedMolecule.objects.all()
     serializer_class = serializers.ComputedMoleculeSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "compound__project_id"
     filterset_fields = ('computed_set',)
 
 
-class NumericalScoresView(viewsets.ReadOnlyModelViewSet):
+class NumericalScoresView(ISPyBSafeQuerySet):
     """View to retrieve information about numerical computed molecule scores
     (api/numerical-scores).
     """
 
     queryset = models.NumericalScoreValues.objects.all()
     serializer_class = serializers.NumericalScoreSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "compound__compound__project_id"
     filterset_fields = ('compound', 'score')
 
 
-class TextScoresView(viewsets.ReadOnlyModelViewSet):
+class TextScoresView(ISPyBSafeQuerySet):
     """View to retrieve information about text computed molecule scores (api/text-scores)."""
 
     queryset = models.TextScoreValues.objects.all()
     serializer_class = serializers.TextScoreSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "compound__compound__project_id"
     filterset_fields = ('compound', 'score')
 
 
-class CompoundScoresView(viewsets.ReadOnlyModelViewSet):
+class CompoundScoresView(ISPyBSafeQuerySet):
     """View to retrieve descriptions of scores for a given name or computed set."""
 
     queryset = models.ScoreDescription.objects.all()
     serializer_class = serializers.ScoreDescriptionSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "computed_set__target__project_id"
     filterset_fields = ('computed_set', 'name')
 
 
-class ComputedMolAndScoreView(viewsets.ReadOnlyModelViewSet):
+class ComputedMolAndScoreView(ISPyBSafeQuerySet):
     """View to retrieve all information about molecules from a computed set
     along with all of their scores.
     """
 
     queryset = models.ComputedMolecule.objects.all()
     serializer_class = serializers.ComputedMolAndScoreSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "compound__project_id"
     filterset_fields = ('computed_set',)
 
 
