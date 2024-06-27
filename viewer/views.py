@@ -1275,11 +1275,18 @@ class TagCategoryView(viewsets.ModelViewSet):
     filterset_fields = ('id', 'category')
 
 
-class SiteObservationTagView(viewsets.ModelViewSet):
+class SiteObservationTagView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     """Set up/retrieve information about tags relating to Molecules (api/molecule_tag)"""
 
     queryset = models.SiteObservationTag.objects.all()
+    filter_permissions = "target__project_id"
     serializer_class = serializers.SiteObservationTagSerializer
+    permission_classes = [IsObjectProposalMember]
     filterset_fields = (
         'id',
         'tag',
@@ -1299,11 +1306,18 @@ class PoseView(viewsets.ModelViewSet):
     http_method_names = ('get', 'post', 'patch')
 
 
-class SessionProjectTagView(viewsets.ModelViewSet):
+class SessionProjectTagView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     """Set up/retrieve information about tags relating to Session Projects."""
 
     queryset = models.SessionProjectTag.objects.all()
+    filter_permissions = "target__project_id"
     serializer_class = serializers.SessionProjectTagSerializer
+    permission_classes = [IsObjectProposalMember]
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
@@ -1615,28 +1629,27 @@ class SiteObservations(ISPyBSafeQuerySet):
     filter_permissions = "experiment__experiment_upload__project"
 
 
-class CanonSites(viewsets.ModelViewSet):
+class CanonSites(ISPyBSafeQuerySet):
     queryset = models.CanonSite.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.CanonSiteReadSerializer
-    permission_class = [permissions.IsAuthenticated]
     filterset_class = filters.CanonSiteFilter
-    http_method_names = ('get',)
+    filter_permissions = (
+        "ref_conf_site__ref_site_observation__experiment__experiment_upload__project"
+    )
 
 
-class CanonSiteConfs(viewsets.ModelViewSet):
+class CanonSiteConfs(ISPyBSafeQuerySet):
     queryset = models.CanonSiteConf.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.CanonSiteConfReadSerializer
     filterset_class = filters.CanonSiteConfFilter
-    permission_class = [permissions.IsAuthenticated]
-    http_method_names = ('get',)
+    filter_permissions = "ref_site_observation__experiment__experiment_upload__project"
 
 
-class XtalformSites(viewsets.ModelViewSet):
+class XtalformSites(ISPyBSafeQuerySet):
     queryset = models.XtalformSite.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.XtalformSiteReadSerializer
     filterset_class = filters.XtalformSiteFilter
-    permission_class = [permissions.IsAuthenticated]
-    http_method_names = ('get',)
+    filter_permissions = "canon_site__ref_conf_site__ref_site_observation__experiment__experiment_upload__project"
 
 
 class JobFileTransferView(viewsets.ModelViewSet):
