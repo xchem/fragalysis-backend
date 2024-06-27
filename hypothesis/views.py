@@ -1,5 +1,3 @@
-from rest_framework import viewsets
-
 from api.security import ISPyBSafeQuerySet
 from hypothesis.models import Interaction, InteractionPoint, TargetResidue
 from hypothesis.serializers import (
@@ -9,7 +7,7 @@ from hypothesis.serializers import (
 )
 
 
-class InteractionView(viewsets.ReadOnlyModelViewSet):
+class InteractionView(ISPyBSafeQuerySet):
     queryset = Interaction.objects.filter()
     serializer_class = InteractionSerializer
     filterset_fields = (
@@ -23,6 +21,7 @@ class InteractionView(viewsets.ReadOnlyModelViewSet):
         "prot_smarts",
         "mol_smarts",
     )
+    filter_permissions = "interaction_point__targ_res__target_id__project_id"
 
 
 class InteractionPointView(ISPyBSafeQuerySet):

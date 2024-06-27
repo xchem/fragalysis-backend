@@ -2,7 +2,7 @@ import json
 
 from django.http import HttpResponse
 from frag.conf.functions import generate_confs_for_vector
-from rest_framework import mixins, viewsets
+from rest_framework import mixins
 
 from api.security import ISPyBSafeQuerySet
 from scoring.models import (
@@ -24,11 +24,18 @@ from scoring.serializers import (
 from viewer.permissions import IsObjectProposalMember
 
 
-class ViewSceneView(viewsets.ModelViewSet):
+class ViewSceneView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     queryset = ViewScene.objects.all().order_by("-modified")
     # filter_backends = (filters.DjangoFilterBackend,)
     serializer_class = ViewSceneSerializer
     filterset_fields = ("user_id", "uuid")
+    filter_permissions = "snapshot__session_project__target__project_id"
+    permission_classes = [IsObjectProposalMember]
 
     def put(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
@@ -65,13 +72,25 @@ class SiteObservationAnnotationView(
     permission_classes = [IsObjectProposalMember]
 
 
-class CmpdChoiceView(viewsets.ModelViewSet):
+class CmpdChoiceView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     queryset = CmpdChoice.objects.all()
     serializer_class = CmpdChoiceSerializer
     filterset_fields = ("user_id", "cmpd_id", "choice_type")
+    filter_permissions = "cmpd_id__project_id"
+    permission_classes = [IsObjectProposalMember]
 
 
-class ScoreChoiceView(viewsets.ModelViewSet):
+class ScoreChoiceView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     queryset = ScoreChoice.filter_manager.filter_qs()
     serializer_class = ScoreChoiceSerializer
     filterset_fields = (
@@ -81,6 +100,8 @@ class ScoreChoiceView(viewsets.ModelViewSet):
         "site_observation__experiment__experiment_upload__target",
         "choice_type",
     )
+    filter_permissions = "site_observation__experiment__experiment_upload__project"
+    permission_classes = [IsObjectProposalMember]
 
 
 class SiteObservationGroupView(

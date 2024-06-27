@@ -30,7 +30,7 @@ from rest_framework.views import APIView
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
 from api.security import ISPyBSafeQuerySet
-from api.utils import get_highlighted_diffs, get_params, pretty_request
+from api.utils import get_highlighted_diffs, get_img_from_smiles, pretty_request
 from service_status.models import Service
 from viewer import filters, models, serializers
 from viewer.permissions import IsObjectProposalMember
@@ -145,7 +145,7 @@ def react(request):
 def img_from_smiles(request):
     """Generate a 2D molecule image for a given smiles string"""
     if "smiles" in request.GET and (smiles := request.GET["smiles"]):
-        return get_params(smiles, request)
+        return get_img_from_smiles(smiles, request)
     else:
         return HttpResponse("Please insert SMILES")
 
