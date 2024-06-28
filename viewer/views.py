@@ -87,6 +87,8 @@ _SESSION_MESSAGE = 'session_message'
 
 _SQ2A: Squonk2Agent = get_squonk2_agent()
 
+_ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
+
 # ---------------------------
 # ENTRYPOINT FOR THE FRONTEND
 # ---------------------------
@@ -1067,8 +1069,6 @@ class DSetUploadView(APIView):
 
 
 class ComputedSetView(
-    mixins.UpdateModelMixin,
-    mixins.CreateModelMixin,
     mixins.DestroyModelMixin,
     ISPyBSafeQuerySet,
 ):
@@ -1321,7 +1321,10 @@ class SessionProjectTagView(
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
-class DownloadStructures(ISPyBSafeQuerySet):
+class DownloadStructures(
+    mixins.CreateModelMixin,
+    ISPyBSafeQuerySet,
+):
     """Uses a selected subset of the target data
     (proteins and booleans with suggested files) and creates a Zip file
     with the contents.
@@ -1414,6 +1417,13 @@ class DownloadStructures(ISPyBSafeQuerySet):
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         logger.info('Found Target record %r', target)
+        # Is the user part of the target's proposal?
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(request.user, target):
+            msg = 'You have not been given access to this Target'
+            logger.warning(msg)
+            content = {'message': msg}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
         proteins_list = [
             p.strip() for p in request.data.get('proteins', '').split(',') if p
         ]

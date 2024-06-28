@@ -341,6 +341,14 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         )
         CachedContent.set_content(user.username, prop_id_set)
 
+    def user_is_member_of_target(self, user, target):
+        """
+        Returns true if the user has access to any proposal the target belongs to.
+        """
+        target_proposals = [p.title for p in target.project_id.all()]
+        user_proposals = self.get_proposals_for_user(user, restrict_to_membership=True)
+        return any(proposal in user_proposals for proposal in target_proposals)
+
     def user_is_member_of_any_given_proposals(self, user, proposals):
         """
         Returns true if the user has access to any proposal in the given
