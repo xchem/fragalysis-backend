@@ -178,5 +178,5 @@ class FragspectCrystalView(ISPyBSafeQuerySet):
         "data_proc",
     )
     serializer_class = FragspectCrystalSerializer
-    filter_fields = {"crystal__target__title": ["iexact"]}
-    filter_permissions = "crystal__target__project_id"
+    filter_fields = {"crystal__target__target_name": ["iexact"]}
+    filter_permissions = "crystal__visit__proposal"
