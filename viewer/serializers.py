@@ -485,8 +485,15 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
 # (POST, PUT, PATCH)
 class SessionProjectWriteSerializer(serializers.ModelSerializer):
     def validate_target(self, value):
-        logger.info('value: %s', value)
-        logger.info('type(value): %s', type(value))
+        logger.info('context[request]: %s', self.context['request'])
+        logger.info('context[request].user: %s', self.context['request'].user)
+        user = self.context['request'].user
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("You must be logged in")
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, value):
+            raise serializers.ValidationError(
+                "You are not permitted to access the object's Target"
+            )
         return value
 
     class Meta:
