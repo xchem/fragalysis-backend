@@ -484,6 +484,10 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
 
 # (POST, PUT, PATCH)
 class SessionProjectWriteSerializer(serializers.ModelSerializer):
+    def validate_target(self, value):
+        logger.info('validate_target: %s', value)
+        return value
+
     class Meta:
         model = models.SessionProject
         fields = '__all__'
