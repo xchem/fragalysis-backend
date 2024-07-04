@@ -77,6 +77,8 @@ TAG_CATEGORIES = (
 )
 CURATED_TAG_CATEGORIES = ('Series', 'Forum', 'Other')
 
+META_HEADER = ('Code', 'Long code', 'Compound code', 'Smiles', 'Downloaded')
+
 
 class TagSubquery(Subquery):
     """Annotate SiteObservation with tag of given category"""
@@ -424,7 +426,7 @@ def _metadata_file_zip(ziparchive, target, site_observations):
 
     annotations = {}
     values = ['code', 'longcode', 'cmpd__compound_code', 'smiles', 'downloaded']
-    header = ['Code', 'Long code', 'Compound code', 'Smiles', 'Downloaded']
+    header = list(META_HEADER)
 
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'

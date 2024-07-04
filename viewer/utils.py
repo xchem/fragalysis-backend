@@ -15,11 +15,13 @@ from pathlib import Path
 from typing import Dict, Generator, Optional
 from urllib.parse import urlparse
 
+import pandas as pd
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.http import JsonResponse
+from download_structures import CURATED_TAG_CATEGORIES, META_HEADER, TAG_CATEGORIES
 from rdkit import Chem
 
 from scoring.models import SiteObservationGroup, SiteObvsSiteObservationGroup
@@ -28,6 +30,7 @@ from .models import (
     SiteObservation,
     SiteObservationTag,
     SiteObvsSiteObservationTag,
+    TagCategory,
     Target,
 )
 
@@ -440,3 +443,94 @@ def alphanumerator(
             _ = next(generator)
 
     return generator
+
+
+def sanitize_boolean_column(column):
+    """
+    Sanitize a DataFrame column to boolean values.
+    Handles various representations of booleans such as:
+    - Python booleans
+    - String representations ('True', 'False', 'true', 'false', 'yes', 'no')
+    - Numeric representations (1, 0)
+    """
+    # don't understans why it considers int and str numbers to be the same
+    true_values = {  # pylint: disable=duplicate-value
+        'true',
+        '1',
+        't',
+        'y',
+        'yes',
+        'True',
+        'TRUE',
+        True,
+        1,
+    }
+    false_values = {  # pylint: disable=duplicate-value
+        'false',
+        '0',
+        'f',
+        'n',
+        'no',
+        'False',
+        'FALSE',
+        False,
+        0,
+    }
+
+    def convert_to_boolean(value):
+        if value in true_values:
+            return True
+        elif value in false_values:
+            return False
+        else:
+            raise ValueError(f'Unexpected boolean value: {value}')
+
+    return column.apply(convert_to_boolean)
+
+
+def load_tags_from_csv(filename: str, target: Target):
+    df = pd.read_csv(filename)
+
+    l = list(META_HEADER) + list(TAG_CATEGORIES)
+    tag_columns = [k for k in df.columns if k not in l]
+
+    # I'm writing it atm so that existing tags will not be touched,
+    # let me know if this needs to change
+    existing = SiteObservationTag.objects.filter(
+        category__category__in=CURATED_TAG_CATEGORIES,
+        target=target,
+    ).values_list('tag', flat=True)
+    tag_columns = [k for k in tag_columns if k not in existing]
+
+    qs = SiteObservation.objects.filter(longcode__in=df['Long code'])
+
+    for column in tag_columns:
+        df[column] = sanitize_boolean_column(df[column])
+
+    cat = TagCategory.objects.get(category='Other')
+    with transaction.atomic():
+        try:
+            for tc in tag_columns:
+                so_group = SiteObservationGroup(target=target)
+                so_group.save()
+
+                so_tag = SiteObservationTag(
+                    tag=tc,
+                    tag_prefix='',
+                    upload_name=tc,
+                    category=cat,
+                    target=target,
+                    mol_group=so_group,
+                )
+
+                so_tag.save()
+                site_observations = qs.filter(
+                    longcode__in=df.loc[df[tc] == True]['Long code']
+                )
+                so_group.site_observation.add(*site_observations)
+                so_tag.site_observations.add(*site_observations)
+
+        except IntegrityError:
+            # TODO: need to give user feedback what went wrong but
+            # don't know which mechanim is going to be used
+            pass
