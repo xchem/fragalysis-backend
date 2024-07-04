@@ -575,6 +575,20 @@ PROPOSAL_REQUIRED: bool = True
 PUBLIC_TAS: str = os.environ.get("PUBLIC_TAS", "")
 PUBLIC_TAS_LIST: List[str] = PUBLIC_TAS.split(",") if PUBLIC_TAS else []
 
+# A comma-separated list of TAS values that are to be treated as 'restricted'
+# even if they're open. If this is defined the security module
+# uses this list and the associated users. So, if set
+# only the proposals given in TEST_RESTRICTED_TAS_LIST is returned
+# for those in the TEST_RESTRICTED_USERS_LIST.
+TEST_RESTRICTED_TAS: str = os.environ.get("TEST_RESTRICTED_TAS", "")
+TEST_RESTRICTED_TAS_LIST: List[str] = (
+    TEST_RESTRICTED_TAS.split(",") if TEST_RESTRICTED_TAS else []
+)
+TEST_RESTRICTED_USERS: str = os.environ.get("TEST_RESTRICTED_USERS", "")
+TEST_RESTRICTED_USERS_LIST: List[str] = (
+    TEST_RESTRICTED_USERS.split(",") if TEST_RESTRICTED_USERS else []
+)
+
 # Security/access control connector.
 # Currently one of 'ispyb' or 'ssh_ispyb'.
 SECURITY_CONNECTOR: str = os.environ.get("SECURITY_CONNECTOR", "ispyb").lower()
