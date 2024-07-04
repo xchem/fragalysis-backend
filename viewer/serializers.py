@@ -25,6 +25,27 @@ logger = logging.getLogger(__name__)
 _ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
 
 
+class ValidateTargetMixin:
+    """Mixin for serializers to check if user is allowed to create objects.
+
+    Requires target to be defined in the queryset (see managers) and
+    field 'target' to be defined in serilizer.
+
+    """
+
+    def validate_target(self, value):
+        user = self.context[  # type: ignore [attr-defined]
+            'request'
+        ].user  # pylint: disable=unknown-option-value
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("You must be logged in to create objects")
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, value):
+            raise serializers.ValidationError(
+                "You have not been given access the object's Target"
+            )
+        return value
+
+
 class FileSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.File
@@ -483,16 +504,16 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
 
 
 # (POST, PUT, PATCH)
-class SessionProjectWriteSerializer(serializers.ModelSerializer):
-    def validate_target(self, value):
-        user = self.context['request'].user
-        if not user or not user.is_authenticated:
-            raise serializers.ValidationError("You must be logged in to create objects")
-        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, value):
-            raise serializers.ValidationError(
-                "You have not been given access the object's Target"
-            )
-        return value
+class SessionProjectWriteSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+    # def validate_target(self, value):
+    #     user = self.context['request'].user
+    #     if not user or not user.is_authenticated:
+    #         raise serializers.ValidationError("You must be logged in to create objects")
+    #     if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, value):
+    #         raise serializers.ValidationError(
+    #             "You have not been given access the object's Target"
+    #         )
+    #     return value
 
     class Meta:
         model = models.SessionProject
@@ -855,7 +876,7 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class PoseSerializer(serializers.ModelSerializer):
+class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=models.SiteObservation.objects.all(),
@@ -864,6 +885,8 @@ class PoseSerializer(serializers.ModelSerializer):
         required=False, default=None, queryset=models.SiteObservation.objects.all()
     )
     main_site_observation_cmpd_code = serializers.SerializerMethodField()
+
+    target = serializers.PrimaryKeyRelatedField(queryset=models.Target.objects.all())
 
     def get_main_site_observation_cmpd_code(self, obj):
         return obj.main_site_observation.cmpd.compound_code
@@ -1041,4 +1064,5 @@ class PoseSerializer(serializers.ModelSerializer):
             'main_site_observation',
             'site_observations',
             'main_site_observation_cmpd_code',
+            'target',
         )
