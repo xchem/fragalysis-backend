@@ -225,13 +225,13 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         open_proposals = set(
             Project.objects.filter(open_to_public=True).values_list("title", flat=True)
         )
+        open_proposals.update(settings.PUBLIC_TAS_LIST)
         # Begin Temporary Test Code (1247)
         # Remove any public proposal that's in the restricted list.
         for tas in settings.TEST_RESTRICTED_TAS_LIST:
             if tas in open_proposals:
                 open_proposals.remove(tas)
         # End Temporary Test Code (1247)
-        open_proposals.update(settings.PUBLIC_TAS_LIST)
         return open_proposals
 
     def _get_proposals_for_user_from_django(self, user):
@@ -405,7 +405,7 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # Begin Temporary Test Code (1247)
         # Add test fixed proposals to the given user?
-        if user.username in settings.TEST_RESTRICTED_USERS:
+        if user.username in settings.TEST_RESTRICTED_USERS_LIST:
             logger.warning(
                 "Adding test restricted proposals for '%s' (%s)",
                 user.username,
