@@ -28,22 +28,37 @@ _ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
 class ValidateTargetMixin:
     """Mixin for serializers to check if user is allowed to create objects.
 
-    Requires target to be defined in the queryset (see managers) and
-    field 'target' to be defined in serilizer.
+    Requires target to be defined in the queryset (see managers). If
+    the serializer defines a validate() method, it needs to call
+    super().validate first.
 
     """
 
-    def validate_target(self, value):
+    target = serializers.CharField(read_only=True)
+
+    def validate(self, data):
+        logger.debug('validate target mixin running')
+
+        try:
+            # target must exist in request
+            target = models.Target.objects.get(
+                pk=self.context['request'].data['target']  # type: ignore [attr-defined]
+            )
+        except models.Target.DoesNotExist as exc:
+            raise serializers.ValidationError(
+                f"Target object id={self.context['request'].data['target']} does not exist"  # type: ignore [attr-defined]
+            ) from exc
+
         user = self.context[  # type: ignore [attr-defined]
             'request'
         ].user  # pylint: disable=unknown-option-value
         if not user or not user.is_authenticated:
             raise serializers.ValidationError("You must be logged in to create objects")
-        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, value):
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, target):
             raise serializers.ValidationError(
                 "You have not been given access the object's Target"
             )
-        return value
+        return data
 
 
 class FileSerializer(serializers.ModelSerializer):
@@ -58,7 +73,7 @@ class CompoundIdentifierTypeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class CompoundIdentifierSerializer(serializers.ModelSerializer):
+class CompoundIdentifierSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     class Meta:
         model = models.CompoundIdentifier
         fields = '__all__'
@@ -552,7 +567,7 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
 
 
 # (POST, PUT, PATCH)
-class SnapshotWriteSerializer(serializers.ModelSerializer):
+class SnapshotWriteSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     class Meta:
         model = models.Snapshot
         fields = (
@@ -571,7 +586,7 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 
 
 # (GET, POST, PUT, PATCH)
-class SnapshotActionsSerializer(serializers.ModelSerializer):
+class SnapshotActionsSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
@@ -579,7 +594,7 @@ class SnapshotActionsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ComputedSetSerializer(serializers.ModelSerializer):
+class ComputedSetSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     class Meta:
         model = models.ComputedSet
         fields = '__all__'
@@ -698,7 +713,7 @@ class TagCategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SiteObservationTagSerializer(serializers.ModelSerializer):
+class SiteObservationTagSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True, queryset=models.SiteObservation.objects.all()
     )
@@ -718,7 +733,7 @@ class SiteObservationTagSerializer(serializers.ModelSerializer):
         }
 
 
-class SessionProjectTagSerializer(serializers.ModelSerializer):
+class SessionProjectTagSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     class Meta:
         model = models.SessionProjectTag
         fields = '__all__'
@@ -744,14 +759,14 @@ class DownloadStructuresSerializer(serializers.Serializer):
 
 # Start of Serializers for Squonk Jobs
 # (GET)
-class JobFileTransferReadSerializer(serializers.ModelSerializer):
+class JobFileTransferReadSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobFileTransfer
         fields = '__all__'
 
 
 # (POST, PUT, PATCH)
-class JobFileTransferWriteSerializer(serializers.ModelSerializer):
+class JobFileTransferWriteSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobFileTransfer
         fields = ("snapshot", "target", "squonk_project", "proteins", "compounds")
@@ -777,7 +792,7 @@ class JobRequestWriteSerializer(serializers.ModelSerializer):
         )
 
 
-class JobCallBackReadSerializer(serializers.ModelSerializer):
+class JobCallBackReadSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobRequest
         fields = (
@@ -789,7 +804,7 @@ class JobCallBackReadSerializer(serializers.ModelSerializer):
         )
 
 
-class JobCallBackWriteSerializer(serializers.ModelSerializer):
+class JobCallBackWriteSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     SQUONK_STATUS = ['PENDING', 'STARTED', 'SUCCESS', 'FAILURE', 'RETRY', 'REVOKED']
     job_status = serializers.ChoiceField(choices=SQUONK_STATUS, default="PENDING")
     state_transition_time = serializers.DateTimeField(source='job_status_datetime')
@@ -799,7 +814,7 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
         fields = ("job_status", "state_transition_time")
 
 
-class TargetExperimentReadSerializer(serializers.ModelSerializer):
+class TargetExperimentReadSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     class Meta:
         model = models.ExperimentUpload
         fields = '__all__'
@@ -825,7 +840,9 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
         )
 
 
-class TargetExperimentDownloadSerializer(serializers.ModelSerializer):
+class TargetExperimentDownloadSerializer(
+    ValidateTargetMixin, serializers.ModelSerializer
+):
     filename = serializers.CharField()
 
     class Meta:
@@ -885,8 +902,6 @@ class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
         required=False, default=None, queryset=models.SiteObservation.objects.all()
     )
     main_site_observation_cmpd_code = serializers.SerializerMethodField()
-
-    target = serializers.PrimaryKeyRelatedField(queryset=models.Target.objects.all())
 
     def get_main_site_observation_cmpd_code(self, obj):
         return obj.main_site_observation.cmpd.compound_code
@@ -954,7 +969,9 @@ class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
         - the pose they're being removed from is deleted when empty
 
         """
-        logger.info('+ validate: %s', data)
+        logger.info('+ validate data: %s', data)
+
+        data = super().validate(data)
 
         template = (
             "Site observation {} cannot be assigned to pose because "
@@ -1064,5 +1081,4 @@ class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
             'main_site_observation',
             'site_observations',
             'main_site_observation_cmpd_code',
-            'target',
         )

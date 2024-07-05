@@ -956,7 +956,7 @@ class SessionActionsView(
     (api/session-actions).
     """
 
-    queryset = models.SessionActions.objects.filter()
+    queryset = models.SessionActions.filter_manager.filter_qs()
     filter_permissions = "session_project__target__project_id"
     serializer_class = serializers.SessionActionsSerializer
     permission_classes = [IsObjectProposalMember]
@@ -975,7 +975,7 @@ class SnapshotsView(
     Also used for saving session information (PUT, POST, PATCH). (api/snapshots)
     """
 
-    queryset = models.Snapshot.objects.filter()
+    queryset = models.Snapshot.filter_manager.filter_qs()
     filter_permissions = "session_project__target__project_id"
     filterset_class = filters.SnapshotFilter
     permission_classes = [IsObjectProposalMember]
@@ -997,7 +997,7 @@ class SnapshotActionsView(
     (api/snapshot-actions).
     """
 
-    queryset = models.SnapshotActions.objects.filter()
+    queryset = models.SnapshotActions.filter_manager.filter_qs()
     filter_permissions = "snapshot__session_project__target__project_id"
     serializer_class = serializers.SnapshotActionsSerializer
     permission_classes = [IsObjectProposalMember]

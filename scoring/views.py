@@ -30,7 +30,7 @@ class ViewSceneView(
     mixins.DestroyModelMixin,
     ISPyBSafeQuerySet,
 ):
-    queryset = ViewScene.objects.all().order_by("-modified")
+    queryset = ViewScene.filter_manager.filter_qs().order_by("-modified")
     # filter_backends = (filters.DjangoFilterBackend,)
     serializer_class = ViewSceneSerializer
     filterset_fields = ("user_id", "uuid")
@@ -47,7 +47,7 @@ class SiteObservationChoiceView(
     mixins.DestroyModelMixin,
     ISPyBSafeQuerySet,
 ):
-    queryset = SiteObservationChoice.objects.all()
+    queryset = SiteObservationChoice.filter_manager.filter_qs()
     serializer_class = SiteObservationChoiceSerializer
     filterset_fields = (
         "user",
@@ -65,7 +65,7 @@ class SiteObservationAnnotationView(
     mixins.DestroyModelMixin,
     ISPyBSafeQuerySet,
 ):
-    queryset = SiteObservationAnnotation.objects.all()
+    queryset = SiteObservationAnnotation.filter_manager.filter_qs()
     serializer_class = SiteObservationAnnotationSerializer
     filterset_fields = ("site_observation", "annotation_type")
     filter_permissions = "site_observation__experiment__experiment_upload__project"
@@ -78,7 +78,7 @@ class CmpdChoiceView(
     mixins.DestroyModelMixin,
     ISPyBSafeQuerySet,
 ):
-    queryset = CmpdChoice.objects.all()
+    queryset = CmpdChoice.filter_manager.filter_qs()
     serializer_class = CmpdChoiceSerializer
     filterset_fields = ("user_id", "cmpd_id", "choice_type")
     filter_permissions = "cmpd_id__project_id"
