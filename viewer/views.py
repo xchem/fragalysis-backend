@@ -1116,6 +1116,12 @@ class DiscoursePostView(viewsets.ViewSet):
     def create(self, request):
         """Method to handle POST request and call discourse to create the post"""
         logger.info('+ DiscoursePostView.post')
+        if not request.user.is_authenticated:
+            content: Dict[str, Any] = {
+                'error': 'Only authenticated users can post content to Discourse'
+            }
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
         data = request.data
 
         logger.info('+ DiscoursePostView.post %s', json.dumps(data))
