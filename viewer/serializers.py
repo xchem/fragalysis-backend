@@ -566,7 +566,7 @@ class SnapshotReadSerializer(serializers.ModelSerializer):
 
 
 # (POST, PUT, PATCH)
-class SnapshotWriteSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class SnapshotWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Snapshot
         fields = (
