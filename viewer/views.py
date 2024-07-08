@@ -17,7 +17,6 @@ from dateutil.parser import parse
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import connections
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -160,27 +159,6 @@ def highlight_mol_diff(request):
         return HttpResponse(get_highlighted_diffs(request))
     else:
         return HttpResponse("Please insert smiles for reference and probe")
-
-
-def similarity_search(request):
-    if "smiles" in request.GET:
-        smiles = request.GET["smiles"]
-    else:
-        return HttpResponse("Please insert SMILES")
-    if "db_name" in request.GET:
-        db_name = request.GET["db_name"]
-    else:
-        return HttpResponse("Please insert db_name")
-    sql_query = """SELECT sub.*
-        FROM (
-            SELECT rdk.id,rdk.structure,rdk.idnumber
-            FROM vendordbs.enamine_real_dsi_molfps AS mfp
-            JOIN vendordbs.enamine_real_dsi AS rdk ON mfp.id = rdk.id
-            WHERE m @> qmol_from_smiles(%s) LIMIT 1000
-        ) sub;"""
-    with connections[db_name].cursor() as cursor:
-        cursor.execute(sql_query, [smiles])
-        return HttpResponse(json.dumps(cursor.fetchall()))
 
 
 def get_open_targets(request):
