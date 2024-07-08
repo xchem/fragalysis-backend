@@ -3,7 +3,6 @@ import logging
 import os
 import shlex
 import shutil
-import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -199,41 +198,6 @@ def cset_download(request, name):
         'Content-Disposition'
     ] = f'attachment; filename={name}.sdf'  # force browser to download file
     response.write(data)
-    return response
-
-
-def pset_download(request, name):
-    """View to download a zip file of all protein structures (apo) for a computed set
-    (viewer/compound_set/(<name>))
-    """
-    # Unused arguments
-    del request
-
-    response = HttpResponse(content_type='application/zip')
-    filename = 'protein-set_' + name + '.zip'
-    response['Content-Disposition'] = f'filename={filename}'
-
-    # For the first stage (green release) of the XCA-based Fragalysis Stack
-    # there are no PDB files.
-    #    compound_set = models.ComputedSet.objects.get(name=name)
-    #    computed_molecules = models.ComputedMolecule.objects.filter(computed_set=compound_set)
-    #    pdb_filepaths = list(set([c.pdb_info.path for c in computed_molecules]))
-    #    buff = StringIO()
-    #    zip_obj = zipfile.ZipFile(buff, 'w')
-    #    zip_obj.writestr('')
-    #    for fp in pdb_filepaths:
-    #        data = open(fp, 'r', encoding='utf-8').read()
-    #        zip_obj.writestr(fp.split('/')[-1], data)
-    #    zip_obj.close()
-    #    buff.flush()
-    #    ret_zip = buff.getvalue()
-    #    buff.close()
-
-    # ...instead we just create an empty file...
-    with zipfile.ZipFile('dummy.zip', 'w') as pdb_file:
-        pass
-
-    response.write(pdb_file)
     return response
 
 

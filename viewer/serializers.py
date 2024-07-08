@@ -161,7 +161,6 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Target
-        # TODO: it's missing protein_set. is it necessary anymore?
         fields = (
             "id",
             "title",
