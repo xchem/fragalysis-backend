@@ -202,7 +202,7 @@ def cset_download(request, name):
 # -----------------
 
 
-class CompoundIdentifierTypeView(viewsets.ModelViewSet):
+class CompoundIdentifierTypeView(viewsets.ReadOnlyModelViewSet):
     queryset = models.CompoundIdentifierType.objects.all()
     serializer_class = serializers.CompoundIdentifierTypeSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -916,7 +916,6 @@ class SnapshotsView(
     queryset = models.Snapshot.filter_manager.filter_qs()
     filter_permissions = "session_project__target__project_id"
     filterset_class = filters.SnapshotFilter
-    permission_classes = [IsObjectProposalMember]
 
     def get_serializer_class(self):
         if self.request.method in ['GET']:
@@ -1213,7 +1212,7 @@ class DictToCsv(viewsets.ViewSet):
 
 
 # Classes Relating to Tags
-class TagCategoryView(viewsets.ModelViewSet):
+class TagCategoryView(viewsets.ReadOnlyModelViewSet):
     """Set up and retrieve information about tag categories (api/tag_category)."""
 
     queryset = models.TagCategory.objects.all()
