@@ -341,6 +341,30 @@ class SnapshotDataManager(Manager):
         return self.get_queryset().filter_qs().filter(target=target.id)
 
 
+class SnapshotActionsQueryset(QuerySet):
+    def filter_qs(self):
+        SnapshotActions = apps.get_model("viewer", "SnapshotActions")
+        qs = SnapshotActions.objects.prefetch_related(
+            "session_project",
+            "session_project__target",
+        ).annotate(
+            target=F("session_project__target"),
+        )
+
+        return qs
+
+
+class SnapshotActionsDataManager(Manager):
+    def get_queryset(self):
+        return SnapshotActionsQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
 class SessionActionsQueryset(QuerySet):
     def filter_qs(self):
         SessionActions = apps.get_model("viewer", "SessionActions")

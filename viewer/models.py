@@ -23,6 +23,7 @@ from .managers import (
     QuatAssemblyDataManager,
     SessionActionsDataManager,
     SiteObservationDataManager,
+    SnapshotActionsDataManager,
     SnapshotDataManager,
     XtalformDataManager,
     XtalformQuatAssemblyDataManager,
@@ -786,7 +787,7 @@ class SnapshotActions(models.Model):
     actions = models.JSONField(encoder=DjangoJSONEncoder)
 
     objects = models.Manager()
-    filter_manager = SessionActionsDataManager()
+    filter_manager = SnapshotActionsDataManager()
 
     def __str__(self) -> str:
         return f"{self.author}"
