@@ -14,14 +14,11 @@ from celery import Celery
 from celery.result import AsyncResult
 from dateutil.parser import parse
 from django.conf import settings
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 from rest_framework import mixins, permissions, status, viewsets
-from rest_framework.exceptions import ParseError
 from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -68,7 +65,6 @@ from .tasks import (
     erase_compound_set_job_material,
     process_compound_set,
     process_compound_set_job_file,
-    process_design_sets,
     process_job_file_transfer,
     task_load_target,
     validate_compound_set,
@@ -971,43 +967,51 @@ class DSetUploadView(APIView):
     def put(self, request, format=None):  # pylint: disable=redefined-builtin
         """Method to handle PUT request and upload a design set"""
         # Don't need...
-        del format
+        del format, request
 
-        f = request.FILES['file']
-        set_type = request.PUT['type']
-        set_description = request.PUT['description']
+        # Unsupported for now, as part of 1247 (securing endpoints)
+        return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
-        # save uploaded file to temporary storage
-        name = f.name
-        path = default_storage.save('tmp/' + name, ContentFile(f.read()))
-        tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
+        # BEGIN removed as part of 1247 (securing endpoints)
+        #       This code is unused by the f/e
 
-        df = pd.read_csv(tmp_file)
-        mandatory_cols = ['set_name', 'smiles', 'identifier', 'inspirations']
-        actual_cols = df.columns
-        for col in mandatory_cols:
-            if col not in actual_cols:
-                raise ParseError(
-                    "The 4 following columns are mandatory: set_name, smiles, identifier, inspirations"
-                )
+        # f = request.FILES['file']
+        # set_type = request.PUT['type']
+        # set_description = request.PUT['description']
 
-        set_names, compounds = process_design_sets(df, set_type, set_description)
+        # # save uploaded file to temporary storage
+        # name = f.name
+        # path = default_storage.save('tmp/' + name, ContentFile(f.read()))
+        # tmp_file = str(os.path.join(settings.MEDIA_ROOT, path))
 
-        string = 'Design set(s) successfully created: '
+        # df = pd.read_csv(tmp_file)
+        # mandatory_cols = ['set_name', 'smiles', 'identifier', 'inspirations']
+        # actual_cols = df.columns
+        # for col in mandatory_cols:
+        #     if col not in actual_cols:
+        #         raise ParseError(
+        #             "The 4 following columns are mandatory: set_name, smiles, identifier, inspirations"
+        #         )
 
-        length = len(set_names)
-        string += str(length) + '; '
-        for i in range(0, length):
-            string += (
-                str(i + 1)
-                + ' - '
-                + set_names[i]
-                + ') number of compounds = '
-                + str(len(compounds[i]))
-                + '; '
-            )
+        # set_names, compounds = process_design_sets(df, set_type, set_description)
 
-        return HttpResponse(json.dumps(string))
+        # string = 'Design set(s) successfully created: '
+
+        # length = len(set_names)
+        # string += str(length) + '; '
+        # for i in range(0, length):
+        #     string += (
+        #         str(i + 1)
+        #         + ' - '
+        #         + set_names[i]
+        #         + ') number of compounds = '
+        #         + str(len(compounds[i]))
+        #         + '; '
+        #     )
+
+        # return HttpResponse(json.dumps(string))
+
+        # END removed as part of 1247 (securing endpoints)
 
 
 class ComputedSetView(
