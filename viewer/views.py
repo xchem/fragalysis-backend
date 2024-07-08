@@ -186,6 +186,17 @@ def cset_download(request, name):
     del request
 
     computed_set = models.ComputedSet.objects.get(name=name)
+    if not computed_set:
+        return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+    # Is the computed set available to the user?
+    if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
+        request.user, computed_set.target
+    ):
+        return HttpResponse(
+            "You are not a member of the CompoundSet's Target Proposal",
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     written_filename = computed_set.written_sdf_filename
     with open(written_filename, 'r', encoding='utf-8') as wf:
         data = wf.read()
@@ -1823,6 +1834,9 @@ class JobOverrideView(viewsets.ModelViewSet):
             content: Dict[str, Any] = {
                 'error': 'Only authenticated users can provide Job overrides'
             }
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+        if not user.is_staff:
+            content = {'error': 'Only STAFF (Admin) users can provide Job overrides'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Override is expected to be a JSON string,
