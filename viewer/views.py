@@ -1505,9 +1505,15 @@ class TaskStatus(APIView):
         trying to handle unknown tasks as best we can.
         """
         # Unused arguments
-        del request, args, kwargs
+        del args, kwargs
 
         logger.debug("task_id=%s", task_id)
+
+        if not request.user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+            content: Dict[str, Any] = {
+                'error': 'Only authenticated users can check the task status'
+            }
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
@@ -1527,9 +1533,26 @@ class TaskStatus(APIView):
         messages = []
         if hasattr(result, 'info'):
             if isinstance(result.info, dict):
+                # check if user is allowed to view task info
+                proposal = result.info.get('proposal_ref', '')
+
+                if proposal not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                    request.user
+                ):
+                    return Response(
+                        {'error': 'You are not a member of the proposal f"proposal"'},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
                 messages = result.info.get('description', [])
             elif isinstance(result.info, list):
-                messages = result.info
+                # this path should never materialize
+                logger.error('result.info attribute list instead of dict')
+                return Response(
+                    {'error': 'You are not a member of the proposal f"proposal"'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+                # messages = result.info
 
         started = result.state != 'PENDING'
         finished = result.ready()
