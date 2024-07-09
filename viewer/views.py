@@ -39,6 +39,7 @@ from viewer.squonk2_agent import (
     get_squonk2_agent,
 )
 from viewer.utils import (
+    CSV_TO_DICT_DOWNLOAD_ROOT,
     create_csv_from_dict,
     create_squonk_job_request_url,
     handle_uploaded_file,
@@ -1195,24 +1196,35 @@ class DictToCsv(viewsets.ViewSet):
     serializer_class = serializers.DictToCsvSerializer
 
     def list(self, request):
-        """Method to handle GET request"""
-        file_url = request.GET.get('file_url')
+        """Method to handle GET request.
+        If the file exists it is returned and then removed."""
+        file_url = request.GET.get('file_url', '')
         logger.info('file_url="%s"', file_url)
 
-        if file_url and os.path.isfile(file_url):
-            filename = str(Path(file_url).name)
-            with open(file_url, encoding='utf8') as csvfile:
+        # The file is expected to include a full path
+        # to a file in the dicttocsv directory.
+        real_file_url = os.path.realpath(file_url)
+        if (
+            os.path.commonpath([CSV_TO_DICT_DOWNLOAD_ROOT, real_file_url])
+            != CSV_TO_DICT_DOWNLOAD_ROOT
+        ):
+            return Response("Please provide a file_url for an existing DictToCsv file")
+
+        if os.path.isfile(real_file_url):
+            with open(real_file_url, encoding='utf8') as csvfile:
                 # return file and tidy up.
                 response = HttpResponse(csvfile, content_type='text/csv')
                 # response['Content-Disposition'] = 'attachment; filename=download.csv'
+                filename = str(Path(real_file_url).name)
                 response['Content-Disposition'] = f'attachment; filename={filename}'
-                shutil.rmtree(os.path.dirname(file_url), ignore_errors=True)
+                shutil.rmtree(os.path.dirname(real_file_url), ignore_errors=True)
                 return response
-        else:
-            return Response("Please provide a file_url for an existing file")
+        # File does not exist if we get here...
+        return Response("The given DictToCsv file does not exist")
 
     def create(self, request):
-        """Method to handle POST request"""
+        """Method to handle POST request. Creates a file that the user
+        is then expected to GET."""
         input_dict = request.data['dict']
         input_title = request.data['title']
         filename = request.data.get('filename', 'download.csv')

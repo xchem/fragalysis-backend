@@ -39,6 +39,12 @@ SDF_VERSION = 'ver_1.2'
 
 SDF_RECORD_SEPARATOR = '$$$$\n'
 
+# The root of all files constructed by 'dicttocsv'.
+# The directory must not contain anything but dicttocsv-generated files.
+# It certainly must not be the root of the media directory or any other directory in it.
+# Introduced during 1247 security review.
+CSV_TO_DICT_DOWNLOAD_ROOT = os.path.join(settings.MEDIA_ROOT, 'downloads', 'dicttocsv')
+
 
 def is_url(url: Optional[str]) -> bool:
     try:
@@ -447,10 +453,8 @@ def create_csv_from_dict(input_dict, title=None, filename=None):
     if not filename:
         filename = 'download'
 
-    media_root = settings.MEDIA_ROOT
     unique_dir = str(uuid.uuid4())
-    # /code/media/downloads/unique_dir
-    download_path = os.path.join(media_root, 'downloads', unique_dir)
+    download_path = os.path.join(CSV_TO_DICT_DOWNLOAD_ROOT, unique_dir)
     os.makedirs(download_path, exist_ok=True)
 
     download_file = os.path.join(download_path, filename)
