@@ -18,7 +18,7 @@ from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
-from rest_framework import mixins, permissions, status, viewsets
+from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -363,7 +363,7 @@ class CompoundView(ISPyBSafeQuerySet):
     filterset_class = filters.CompoundFilter
 
 
-class UploadCSet(mixins.CreateModelMixin, viewsets.ListAPIView):
+class UploadCSet(mixins.CreateModelMixin, generics.ListAPIView):
     """Render and control viewer/upload-cset.html - a page allowing upload of computed sets. Validation and
     upload tasks are defined in `viewer.compound_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
     response handling is done by `viewer.views.ValidateTaskView` and `viewer.views.UploadTaskView`
