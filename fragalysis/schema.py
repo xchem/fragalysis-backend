@@ -1,11 +1,11 @@
 import graphene
 import pandda.schema
+import xcdb.schema
 
 import hotspots.schema
 import hypothesis.schema
 import scoring.schema
 import viewer.schema
-import xcdb.schema
 
 
 class Query(
