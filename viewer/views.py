@@ -363,8 +363,8 @@ class CompoundView(ISPyBSafeQuerySet):
     filterset_class = filters.CompoundFilter
 
 
-class UploadCSet(APIView):
-    """Render and control viewer/upload-cset.html  - a page allowing upload of computed sets. Validation and
+class UploadCSet(mixins.CreateModelMixin, viewsets.ListAPIView):
+    """Render and control viewer/upload-cset.html - a page allowing upload of computed sets. Validation and
     upload tasks are defined in `viewer.compound_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
     response handling is done by `viewer.views.ValidateTaskView` and `viewer.views.UploadTaskView`
     """
@@ -406,8 +406,8 @@ class UploadCSet(APIView):
         }
         return render(request, 'viewer/upload-cset.html', context)
 
-    def post(self, request):
-        tag = '+ UploadCSet POST'
+    def create(self, request):
+        tag = '+ UploadCSet CREATE'
         logger.info('%s', pretty_request(request, tag=tag))
         logger.info('User=%s', str(request.user))
         #        logger.info('Auth=%s', str(request.auth))
