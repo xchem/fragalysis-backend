@@ -1,6 +1,5 @@
 import graphene
 import pandda.schema
-import xcdb.schema
 
 import hotspots.schema
 import hypothesis.schema
@@ -14,7 +13,6 @@ class Query(
     hotspots.schema.Query,
     pandda.schema.Query,
     scoring.schema.Query,
-    xcdb.schema.Query,
     graphene.ObjectType,
 ):
     # This class will inherit from multiple Queries

@@ -2,9 +2,7 @@ from django.conf.urls import include
 from django.urls import path
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
-from xcdb import views as xcdb_views
 
-# from xcdb import views as xchem_views
 from hotspots import views as hostpot_views
 from hypothesis import views as hypo_views
 from scoring import views as score_views
@@ -64,9 +62,6 @@ router.register("siteobservationgroup", score_views.SiteObservationGroupView)
 
 # Get the information
 router.register("siteobservationannotation", score_views.SiteObservationAnnotationView)
-
-# fragspect
-router.register("fragspect", xcdb_views.FragspectCrystalView)
 
 # discourse posts
 router.register(
