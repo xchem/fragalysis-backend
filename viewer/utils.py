@@ -441,8 +441,8 @@ def save_tmp_file(myfile):
 
 
 def create_csv_from_dict(input_dict, title=None, filename=None):
-    """Write a CSV file containing data from an input dictionary and return a URL
-    to the file in the media directory.
+    """Write a CSV file containing data from an input dictionary and return a full
+    to the file (in the media directory).
     """
     if not filename:
         filename = 'download'
