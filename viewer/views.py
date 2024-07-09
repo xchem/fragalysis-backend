@@ -166,7 +166,7 @@ def get_open_targets(request):
     target_names = []
     target_ids = []
 
-    open_proposals: set = ISPyBSafeQuerySet().get_open_proposals()
+    open_proposals: set = _ISPYB_SAFE_QUERY_SET.get_open_proposals()
     for t in targets:
         for p in t.project_id.all():
             if p.title in open_proposals:
@@ -503,15 +503,9 @@ class UploadCSet(APIView):
                     context['error_message'] = f'Unknown Target ({target})'
                     return render(request, 'viewer/upload-cset.html', context)
                 # What proposals is the user a member of?
-                ispyb_safe_query_set = ISPyBSafeQuerySet()
-                user_proposals = ispyb_safe_query_set.get_proposals_for_user(
-                    user, restrict_to_membership=True
-                )
-                user_is_member = any(
-                    target_project.title in user_proposals
-                    for target_project in target_record.project_id.all()
-                )
-                if not user_is_member:
+                if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
+                    user, target_record
+                ):
                     context[
                         'error_message'
                     ] = f"You cannot load compound sets for '{target}'. You are not a member of any of its Proposals"
@@ -2017,14 +2011,14 @@ class JobRequestView(APIView):
             return Response(content, status=status.HTTP_404_NOT_FOUND)
         # The user must be a member of the target access string.
         # (when AUTHENTICATE_UPLOAD is set)
-        if settings.AUTHENTICATE_UPLOAD:
-            ispyb_safe_query_set = ISPyBSafeQuerySet()
-            user_proposals = ispyb_safe_query_set.get_proposals_for_user(
-                user, restrict_to_membership=True
+        if (
+            settings.AUTHENTICATE_UPLOAD
+            and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+                user, [project.title]
             )
-            if project.title not in user_proposals:
-                content = {'error': f"You are not a member of '{project.title}'"}
-                return Response(content, status=status.HTTP_403_FORBIDDEN)
+        ):
+            content = {'error': f"You are not a member of '{project.title}'"}
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Check the user can use this Squonk2 facility.
         # To do this we need to setup a couple of API parameter objects.

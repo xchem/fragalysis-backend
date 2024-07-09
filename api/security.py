@@ -358,7 +358,7 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def user_is_member_of_any_given_proposals(self, user, proposals):
         """
         Returns true if the user has access to any proposal in the given
-        proposals list.Only one needs to match for permission to be granted.
+        proposals list. Only one needs to match for permission to be granted.
         We 'restrict_to_membership' to only consider proposals the user
         has explicit membership.
         """
