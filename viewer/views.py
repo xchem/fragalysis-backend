@@ -406,7 +406,7 @@ class UploadCSet(mixins.CreateModelMixin, generics.ListAPIView):
         }
         return render(request, 'viewer/upload-cset.html', context)
 
-    def create(self, request):
+    def post(self, request):
         tag = '+ UploadCSet CREATE'
         logger.info('%s', pretty_request(request, tag=tag))
         logger.info('User=%s', str(request.user))
