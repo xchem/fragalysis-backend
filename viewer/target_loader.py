@@ -2001,7 +2001,9 @@ class TargetLoader:
     def _generate_poses(self):
         values = ["canon_site_conf__canon_site", "cmpd"]
         # fmt: off
-        pose_groups = SiteObservation.objects.exclude(
+        pose_groups = SiteObservation.filter_manager.by_target(
+            self.target,
+        ).exclude(
             canon_site_conf__canon_site__isnull=True,
         ).exclude(
             cmpd__isnull=True,
@@ -2034,16 +2036,23 @@ class TargetLoader:
                 pose.save()
             except MultipleObjectsReturned:
                 # must be a follow-up upload. create new pose, but
-                # only add observatons that are not yet assigned
+                # only add observatons that are not yet assigned (if
+                # these exist)
                 pose_items = pose_items.filter(pose__isnull=True)
-                sample = pose_items.first()
-                pose = Pose(
-                    canon_site=sample.canon_site_conf.canon_site,
-                    compound=sample.cmpd,
-                    main_site_observation=sample,
-                    display_name=sample.code,
-                )
-                pose.save()
+                if pose_items.exists():
+                    sample = pose_items.first()
+                    pose = Pose(
+                        canon_site=sample.canon_site_conf.canon_site,
+                        compound=sample.cmpd,
+                        main_site_observation=sample,
+                        display_name=sample.code,
+                    )
+                    pose.save()
+                else:
+                    # I don't know if this can happen but this (due to
+                    # other bugs) is what allowed me to find this
+                    # error. Make a note in the logs.
+                    logger.warning("No observations left to assign to pose")
 
             # finally add observations to the (new or existing) pose
             for obvs in pose_items:
