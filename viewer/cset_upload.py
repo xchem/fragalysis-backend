@@ -339,7 +339,6 @@ class MolOps:
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
         molecule_name = mol.GetProp('_Name')
-        version = mol.GetProp('version')
 
         compound: Compound = self.create_mol(
             inchi, compound_set.target, name=molecule_name
@@ -449,8 +448,9 @@ class MolOps:
                     existing_computed_molecules.append(k)
 
         if len(existing_computed_molecules) == 1:
-            logger.info(
-                'Using existing ComputedMolecule %s', existing_computed_molecules[0]
+            logger.warning(
+                'Using existing ComputedMolecule %s and overwriting its metadata',
+                existing_computed_molecules[0],
             )
             computed_molecule = existing_computed_molecules[0]
         elif len(existing_computed_molecules) > 1:
@@ -485,7 +485,6 @@ class MolOps:
         computed_molecule.pdb = lhs_so
         # TODO: this is wrong
         computed_molecule.pdb_info = pdb_info
-        computed_molecule.version = version
         # Extract possible reference URL and Rationale
         # URLs have to be valid URLs and rationals must contain more than one word
         ref_url: Optional[str] = (
