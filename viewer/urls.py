@@ -6,7 +6,7 @@ app_name = 'viewer'
 
 urlpatterns = [
     re_path(r"^react/*", views.react, name="react"),
-    path("upload_cset/", views.UploadCSet, name="upload_cset"),
+    path("upload_cset/", views.UploadCSet.as_view(), name="upload_cset"),
     path(
         "validate_task/<uuid:validate_task_id>/",
         views.ValidateTaskView.as_view(),
