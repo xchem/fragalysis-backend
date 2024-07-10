@@ -681,9 +681,6 @@ class ValidateTaskView(View):
                     - html (str): html of task outcome - success message or html table of errors & fail message
 
         """
-        # Unused arguments
-        del request
-
         logger.info('+ ValidateTaskView.get')
         validate_task_id_str = str(validate_task_id)
 
@@ -707,6 +704,28 @@ class ValidateTaskView(View):
             # Response from validation is a tuple
             validate_dict = results[1]
             validated = results[2]
+            # [3] comes from task in tasks.py, 4th element in task payload tuple
+            task_data = results[3]
+
+            if isinstance(task_data, dict) and 'target' in task_data.keys():
+                target_name = task_data['target']
+                try:
+                    target = models.Target.objects.get(title=target_name)
+                    if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
+                        request.user, target
+                    ):
+                        return Response(
+                            {'error': "You are not a member of the Target's proposal"},
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
+                except models.Target.DoesNotExist:
+                    # the name is filled from db, so this not existing would be extraordinary
+                    logger.error('Target %s not found', target_name)
+                    return Response(
+                        {'error': f'Target {target_name} not found'},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
             if validated:
                 response_data[
                     'html'
@@ -789,9 +808,6 @@ class UploadTaskView(View):
                         - processed (str): 'None'
                         - html (str): message to tell the user their data was not processed
         """
-        # Unused arguments
-        del request
-
         logger.debug('+ UploadTaskView.get')
         upload_task_id_str = str(upload_task_id)
         task = AsyncResult(upload_task_id_str)
@@ -833,6 +849,15 @@ class UploadTaskView(View):
                     response_data['validated'] = 'Validated'
                     cset_name = results[1]
                     cset = models.ComputedSet.objects.get(name=cset_name)
+
+                    if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
+                        request.user, cset.target
+                    ):
+                        return Response(
+                            {'error': "You are not a member of the Target's proposal"},
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
+
                     name = cset.name
                     response_data['results'] = {}
                     response_data['results']['cset_download_url'] = (
