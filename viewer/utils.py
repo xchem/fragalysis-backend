@@ -415,8 +415,17 @@ def restore_curated_tags(filename: str) -> None:
         logger.error(exc)
 
 
-def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
-    """Return alphabetic generator (A, B .. AA, AB...) starting from a specified point."""
+def alphanumerator(
+    start_from: str = "", drop_first: bool = True
+) -> Generator[str, None, None]:
+    """Return alphabetic generator (A, B .. AA, AB...) starting from a specified point.
+
+    drop_first - as per workflow, usually it's given the last letter
+    of previous sequence so the the next in the pipeline should be
+    start_from + 1. drop_first = False indicates this is not necessary
+    and start_from will be the first the iterator produces
+
+    """
 
     # since product requries finite maximum return string length set
     # to 10 characters. that should be enough for fragalysis (and to
@@ -432,8 +441,9 @@ def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
     if start_from is not None and start_from != '':
         start_from = start_from.lower()
         generator = itertools.dropwhile(lambda x: x != start_from, generator)  # type: ignore[assignment]
-        # and drop one more, then it starts from after the start from as it should
-        _ = next(generator)
+        if drop_first:
+            # drop one more, then it starts from after the start from as it should
+            _ = next(generator)
 
     return generator
 
