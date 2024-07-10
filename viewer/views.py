@@ -1960,6 +1960,12 @@ class JobRequestView(APIView):
             job_requests = models.JobRequest.objects.all()
 
         for jr in job_requests:
+            # Skip any JobRequests the user does not have access to
+            if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+                user, [jr.project.title]
+            ):
+                continue
+            # An opportunity to update JobRequest timestamps?
             if not jr.job_has_finished():
                 logger.info(
                     '+ JobRequest.get (id=%s) has not finished (job_status=%s)',
