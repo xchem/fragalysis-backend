@@ -448,8 +448,9 @@ class MolOps:
                     existing_computed_molecules.append(k)
 
         if len(existing_computed_molecules) == 1:
-            logger.info(
-                'Using existing ComputedMolecule %s', existing_computed_molecules[0]
+            logger.warning(
+                'Using existing ComputedMolecule %s and overwriting its metadata',
+                existing_computed_molecules[0],
             )
             computed_molecule = existing_computed_molecules[0]
         elif len(existing_computed_molecules) > 1:
