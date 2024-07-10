@@ -1027,7 +1027,6 @@ class ComputedMolecule(models.Model):
         max_length=255,
         help_text="Link to pdb file; user-uploaded pdb or pdb.experiment.pdb_info",
     )
-    version = models.PositiveSmallIntegerField(null=False, default=1)
 
     def __str__(self) -> str:
         return f"{self.smiles}"
