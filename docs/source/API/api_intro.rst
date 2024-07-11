@@ -23,7 +23,7 @@ The most common operations are:
 
 A more complex overview of these methods (and others) is available here: https://www.w3schools.com/tags/ref_httpmethods.asp
 
-A more thorough explaination of RESTful APIs is available here: https://searchapparchitecture.techtarget.com/definition/RESTful-API
+A more thorough explanation of RESTful APIs is available here: https://searchapparchitecture.techtarget.com/definition/RESTful-API
 
 Django REST framework (DRF)
 ---------------------------
