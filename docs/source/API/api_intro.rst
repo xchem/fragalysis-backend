@@ -68,7 +68,9 @@ _open_, i.e. available to all.
 As a general policy open data is visible to anyone, even if they are not authenticated
 (logged in) but there is a policy that only logged-in users can modify or create open
 data. More specifically users are required to be a member of (associated with) the
-:code:`Project`` the object belongs to.
+:code:`Project`` the object belongs to. To this end almost all endpoints
+are required to check the object's Project (the Proposal/Visit) in order to determine
+whether the User is permitted access.
 
 .. note::
     A user is 'associated' with a :code:`Project` (aka Proposal/Visit) if the security module in the
@@ -82,9 +84,12 @@ and must _strive_ to ensure that the user is associated with the :code:`Project`
 the data belongs to.
 
 In order to check whether the user has access to the object that is being created
-or altered, each method must identify the :code:`Project` that the object belongs.
+or altered, each method must either identify the :code:`Project` that the object belongs to,
+or there has to be a navigable path from any table record that might contain "sensitive" material
+to one or more records in the :code:`Project` table.
 Given a :code:`Project` is is a relatively simple task to check that the user
-has been given access to us using the security module as described above.
+has been given access to us using the security module as described above, and
+the code in the :code:`security` module relies on this pattern.
 
 These actions ar simplified through the use of the :code:`ISpyBSafeQuerySet` class
 to filter objects when reading and the :code:`IsObjectProposalMember` class to
@@ -104,6 +109,7 @@ required: -
 - :code:`mixins.DestroyModelMixin` - when supporting delete (DELETE)
 
 For further information refer to the `mixins`_ documentation on the DRF site.
+
 
 EXAMPLE - Model, Serializer, View and URL for Target model
 ----------------------------------------------------------
