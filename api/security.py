@@ -353,7 +353,15 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """
         target_proposals = [p.title for p in target.project_id.all()]
         user_proposals = self.get_proposals_for_user(user, restrict_to_membership=True)
-        return any(proposal in user_proposals for proposal in target_proposals)
+        is_member = any(proposal in user_proposals for proposal in target_proposals)
+        if not is_member:
+            logger.warning(
+                "Failed membership check user='%s' target='%s' target_proposals=%s",
+                user.username,
+                target.title,
+                target_proposals,
+            )
+        return is_member
 
     def user_is_member_of_any_given_proposals(self, user, proposals):
         """
@@ -363,7 +371,14 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         has explicit membership.
         """
         user_proposals = self.get_proposals_for_user(user, restrict_to_membership=True)
-        return any(proposal in user_proposals for proposal in proposals)
+        is_member = any(proposal in user_proposals for proposal in proposals)
+        if not is_member:
+            logger.warning(
+                "Failed membership check user='%s' proposals=%s",
+                user.username,
+                proposals,
+            )
+        return is_member
 
     def get_proposals_for_user(self, user, restrict_to_membership=False):
         """
