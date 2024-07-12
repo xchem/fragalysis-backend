@@ -26,22 +26,16 @@ logger = logging.getLogger(__name__)
 _ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
 
 
-class ValidateTargetMixin:
+class ValidateProjectMixin:
     """Mixin for serializers to check if user is allowed to create objects.
 
-    Requires target to be defined in the queryset (see managers). If
-    the serializer defines a validate() method, it needs to call
-    super().validate first.
-
+    Requires a 'filter_permissions' member in the corresponding View.
+    This is used to navigate to the Project object from the data map
+    given to the validate() method.
     """
 
-    target = serializers.CharField(read_only=True)
-
     def validate(self, data):
-        logger.debug('validate target mixin running')
-
         # User must be logged in
-        #
         user = self.context['request'].user  # type: ignore [attr-defined]
         if not user or not user.is_authenticated:
             raise serializers.ValidationError("You must be logged in")
@@ -52,27 +46,30 @@ class ValidateTargetMixin:
             )
         logger.info('view.filter_permissions=%s', view.filter_permissions)
 
-        # We're given a permissions string like this...
+        # We expect a filter_permissions string (defined in the View) like this...
         #     "compound__project_id"
-        # The supplied data map is therefore expected to have a "compound" key
-        # (which we call permission_object_key).
-        # And we use the 2nd half of the string (which we call object_project_path)
-        # to get to the Project object from the data object.
+        # In this example the supplied data map is therefore expected to have a
+        # "compound" key (which we extract into a variable called 'base_object_key').
+        # We use the 2nd half of the string (which we call 'project_path')
+        # to get to the Project object from 'data["compound"]'.
+        #
+        # If the filter_permissions string has no 2nd half (e.g. it's simply 'project_id')
+        # then the data is clearly expected to contain the Project object itself.
 
-        permission_object_key, object_project_path = view.filter_permissions.split(
-            '__', 1
+        base_object_key, project_path = view.filter_permissions.split('__', 1)
+        base_start_obj = data[base_object_key]
+        project_obj = (
+            getattr(base_start_obj, project_path) if project_path else base_start_obj
         )
-        permission_start_object = data[permission_object_key]
-        logger.info('data[%s]=%s', permission_object_key, permission_start_object)
-        project_object = getattr(permission_start_object, object_project_path)
         # Now get the proposals from the Project(s)...
-        if project_object.__class__.__name__ == "ManyRelatedManager":
+        if project_obj.__class__.__name__ == "ManyRelatedManager":
             # Potential for many proposals...
-            object_proposals = [p.title for p in project_object.all()]
+            object_proposals = [p.title for p in project_obj.all()]
         else:
             # Only one proposal...
-            object_proposals = [project_object.title]
-        # Now we have the proposals the object belongs to
+            object_proposals = [project_obj.title]
+
+        # Now we have the proposals (Project titles) the object belongs to,
         # has the user been associated (in IPSpyB) with any of them?
         if (
             object_proposals
@@ -100,7 +97,7 @@ class CompoundIdentifierTypeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class CompoundIdentifierSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class CompoundIdentifierSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.CompoundIdentifier
         fields = '__all__'
@@ -545,7 +542,7 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
 
 
 # (POST, PUT, PATCH)
-class SessionProjectWriteSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class SessionProjectWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     # def validate_target(self, value):
     #     user = self.context['request'].user
     #     if not user or not user.is_authenticated:
@@ -562,7 +559,7 @@ class SessionProjectWriteSerializer(ValidateTargetMixin, serializers.ModelSerial
 
 
 # (GET, POST, PUT, PATCH)
-class SessionActionsSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class SessionActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
@@ -612,7 +609,7 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 
 
 # (GET, POST, PUT, PATCH)
-class SnapshotActionsSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class SnapshotActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
@@ -620,7 +617,7 @@ class SnapshotActionsSerializer(ValidateTargetMixin, serializers.ModelSerializer
         fields = '__all__'
 
 
-class ComputedSetSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class ComputedSetSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.ComputedSet
         fields = '__all__'
@@ -739,7 +736,7 @@ class TagCategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SiteObservationTagSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class SiteObservationTagSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True, queryset=models.SiteObservation.objects.all()
     )
@@ -759,7 +756,7 @@ class SiteObservationTagSerializer(ValidateTargetMixin, serializers.ModelSeriali
         }
 
 
-class SessionProjectTagSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class SessionProjectTagSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.SessionProjectTag
         fields = '__all__'
@@ -785,14 +782,14 @@ class DownloadStructuresSerializer(serializers.Serializer):
 
 # Start of Serializers for Squonk Jobs
 # (GET)
-class JobFileTransferReadSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class JobFileTransferReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobFileTransfer
         fields = '__all__'
 
 
 # (POST, PUT, PATCH)
-class JobFileTransferWriteSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class JobFileTransferWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobFileTransfer
         fields = ("snapshot", "target", "squonk_project", "proteins", "compounds")
@@ -818,7 +815,7 @@ class JobRequestWriteSerializer(serializers.ModelSerializer):
         )
 
 
-class JobCallBackReadSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class JobCallBackReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobRequest
         fields = (
@@ -830,7 +827,7 @@ class JobCallBackReadSerializer(ValidateTargetMixin, serializers.ModelSerializer
         )
 
 
-class JobCallBackWriteSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class JobCallBackWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     SQUONK_STATUS = ['PENDING', 'STARTED', 'SUCCESS', 'FAILURE', 'RETRY', 'REVOKED']
     job_status = serializers.ChoiceField(choices=SQUONK_STATUS, default="PENDING")
     state_transition_time = serializers.DateTimeField(source='job_status_datetime')
@@ -840,7 +837,7 @@ class JobCallBackWriteSerializer(ValidateTargetMixin, serializers.ModelSerialize
         fields = ("job_status", "state_transition_time")
 
 
-class TargetExperimentReadSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.ExperimentUpload
         fields = '__all__'
@@ -867,7 +864,7 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
 
 
 class TargetExperimentDownloadSerializer(
-    ValidateTargetMixin, serializers.ModelSerializer
+    ValidateProjectMixin, serializers.ModelSerializer
 ):
     filename = serializers.CharField()
 
@@ -919,7 +916,7 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class PoseSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=models.SiteObservation.objects.all(),

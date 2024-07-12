@@ -8,10 +8,10 @@ from scoring.models import (
     SiteObservationGroup,
     ViewScene,
 )
-from viewer.serializers import ValidateTargetMixin
+from viewer.serializers import ValidateProjectMixin
 
 
-class ViewSceneSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class ViewSceneSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = ViewScene
         fields = (
@@ -26,7 +26,9 @@ class ViewSceneSerializer(ValidateTargetMixin, serializers.ModelSerializer):
         )
 
 
-class SiteObservationChoiceSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class SiteObservationChoiceSerializer(
+    ValidateProjectMixin, serializers.ModelSerializer
+):
     class Meta:
         model = SiteObservationChoice
         fields = (
@@ -39,7 +41,7 @@ class SiteObservationChoiceSerializer(ValidateTargetMixin, serializers.ModelSeri
 
 
 class SiteObservationAnnotationSerializer(
-    ValidateTargetMixin, serializers.ModelSerializer
+    ValidateProjectMixin, serializers.ModelSerializer
 ):
     class Meta:
         model = SiteObservationAnnotation
@@ -51,7 +53,7 @@ class SiteObservationAnnotationSerializer(
         )
 
 
-class CmpdChoiceSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class CmpdChoiceSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = CmpdChoice
         fields = (
@@ -63,7 +65,7 @@ class CmpdChoiceSerializer(ValidateTargetMixin, serializers.ModelSerializer):
         )
 
 
-class ScoreChoiceSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class ScoreChoiceSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = ScoreChoice
         fields = (
@@ -76,7 +78,7 @@ class ScoreChoiceSerializer(ValidateTargetMixin, serializers.ModelSerializer):
         )
 
 
-class SiteObservationGroupSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class SiteObservationGroupSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = SiteObservationGroup
         fields = (
