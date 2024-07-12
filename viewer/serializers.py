@@ -12,6 +12,7 @@ from frag.network.query import get_full_graph
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from api.security import ISPyBSafeQuerySet
 from api.utils import draw_mol, validate_tas
@@ -892,7 +893,8 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+# class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
+class PoseSerializer(serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=models.SiteObservation.objects.all(),
@@ -970,6 +972,8 @@ class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
         """
         logger.info('+ validate data: %s', data)
 
+        # Crete Security check (BEGIN)
+        #
         user = self.context['request'].user
         if not user or not user.is_authenticated:
             raise serializers.ValidationError("You must be logged in to create objects")
@@ -981,8 +985,35 @@ class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
         logger.info('view.filter_permissions=%s', view.filter_permissions)
         #        data = super().validate(data)
 
-        fp_start_key = view.filter_permissions.split('__')[0]
+        # We're given a permissions sting like this...
+        #     "compound__project_id"
+        # The supplied data map is likely to have a "compound" key (fp_start_key).
+        # And we use the 2nd half of the string (object_project_path_
+        # to get to the project from that object
+
+        fp_start_key, object_project_path = view.filter_permissions.split('__', 1)
         logger.info('data[%s]=%s', fp_start_key, data[fp_start_key])
+        start_object = data[fp_start_key]
+        project_object = getattr(start_object, object_project_path)
+        if project_object.__class__.__name__ == "ManyRelatedManager":
+            # Potential for many proposals...
+            object_proposals = [p.title for p in project_object.all()]
+        else:
+            # Only one proposal...
+            object_proposals = [project_object.title]
+        # Now we have the proposals the object belongs to
+        # has the user been associated (in IPSpyB) with any of them?
+        if (
+            object_proposals
+            and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+                user=user, proposals=object_proposals
+            )
+        ):
+            raise PermissionDenied(
+                detail="Your authority to access this object has not been given"
+            )
+        #
+        # Crete Security check (END)
 
         template = (
             "Site observation {} cannot be assigned to pose because "
