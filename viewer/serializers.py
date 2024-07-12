@@ -40,25 +40,51 @@ class ValidateTargetMixin:
     def validate(self, data):
         logger.debug('validate target mixin running')
 
-        try:
-            # target must exist in request
-            target = models.Target.objects.get(
-                pk=self.context['request'].data['target']  # type: ignore [attr-defined]
-            )
-        except models.Target.DoesNotExist as exc:
-            raise serializers.ValidationError(
-                f"Target object id={self.context['request'].data['target']} does not exist"  # type: ignore [attr-defined]
-            ) from exc
-
-        user = self.context[  # type: ignore [attr-defined]
-            'request'
-        ].user  # pylint: disable=unknown-option-value
+        # User must be logged in
+        #
+        user = self.context['request'].user  # type: ignore [attr-defined]
         if not user or not user.is_authenticated:
-            raise serializers.ValidationError("You must be logged in to create objects")
-        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, target):
-            raise serializers.ValidationError(
-                "You have not been given access the object's Target"
+            raise serializers.ValidationError("You must be logged in")
+        view = self.context['view']  # type: ignore [attr-defined]
+        if not hasattr(view, "filter_permissions"):
+            raise AttributeError(
+                "The view object must define a 'filter_permissions' property"
             )
+        logger.info('view.filter_permissions=%s', view.filter_permissions)
+
+        # We're given a permissions string like this...
+        #     "compound__project_id"
+        # The supplied data map is therefore expected to have a "compound" key
+        # (which we call permission_object_key).
+        # And we use the 2nd half of the string (which we call object_project_path)
+        # to get to the Project object from the data object.
+
+        permission_object_key, object_project_path = view.filter_permissions.split(
+            '__', 1
+        )
+        permission_start_object = data[permission_object_key]
+        logger.info('data[%s]=%s', permission_object_key, permission_start_object)
+        project_object = getattr(permission_start_object, object_project_path)
+        # Now get the proposals from the Project(s)...
+        if project_object.__class__.__name__ == "ManyRelatedManager":
+            # Potential for many proposals...
+            object_proposals = [p.title for p in project_object.all()]
+        else:
+            # Only one proposal...
+            object_proposals = [project_object.title]
+        # Now we have the proposals the object belongs to
+        # has the user been associated (in IPSpyB) with any of them?
+        if (
+            object_proposals
+            and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+                user=user, proposals=object_proposals
+            )
+        ):
+            raise PermissionDenied(
+                detail="Your authority to access this object has not been given"
+            )
+
+        # OK if we get here...
         return data
 
 
@@ -893,8 +919,7 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-# class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
-class PoseSerializer(serializers.ModelSerializer):
+class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=models.SiteObservation.objects.all(),
@@ -972,48 +997,7 @@ class PoseSerializer(serializers.ModelSerializer):
         """
         logger.info('+ validate data: %s', data)
 
-        # Crete Security check (BEGIN)
-        #
-        user = self.context['request'].user
-        if not user or not user.is_authenticated:
-            raise serializers.ValidationError("You must be logged in to create objects")
-        view = self.context['view']
-        if not hasattr(view, "filter_permissions"):
-            raise AttributeError(
-                "The view object must define a 'filter_permissions' property"
-            )
-        logger.info('view.filter_permissions=%s', view.filter_permissions)
-        #        data = super().validate(data)
-
-        # We're given a permissions sting like this...
-        #     "compound__project_id"
-        # The supplied data map is likely to have a "compound" key (fp_start_key).
-        # And we use the 2nd half of the string (object_project_path_
-        # to get to the project from that object
-
-        fp_start_key, object_project_path = view.filter_permissions.split('__', 1)
-        logger.info('data[%s]=%s', fp_start_key, data[fp_start_key])
-        start_object = data[fp_start_key]
-        project_object = getattr(start_object, object_project_path)
-        if project_object.__class__.__name__ == "ManyRelatedManager":
-            # Potential for many proposals...
-            object_proposals = [p.title for p in project_object.all()]
-        else:
-            # Only one proposal...
-            object_proposals = [project_object.title]
-        # Now we have the proposals the object belongs to
-        # has the user been associated (in IPSpyB) with any of them?
-        if (
-            object_proposals
-            and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
-                user=user, proposals=object_proposals
-            )
-        ):
-            raise PermissionDenied(
-                detail="Your authority to access this object has not been given"
-            )
-        #
-        # Crete Security check (END)
+        data = super().validate(data)
 
         template = (
             "Site observation {} cannot be assigned to pose because "
