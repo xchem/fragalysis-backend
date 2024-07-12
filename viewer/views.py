@@ -1295,13 +1295,18 @@ class SiteObservationTagView(
     )
 
 
-class PoseView(viewsets.ModelViewSet):
+class Pose(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     """Set up/retrieve information about Poses (api/poses)"""
 
     queryset = models.Pose.filter_manager.filter_qs()
+    filter_permissions = "compound__project_id"
     serializer_class = serializers.PoseSerializer
     filterset_class = filters.PoseFilter
-    http_method_names = ('get', 'post', 'patch')
 
 
 class SessionProjectTagView(

@@ -117,7 +117,7 @@ router.register(
     "canon_site_confs", viewer_views.CanonSiteConfs, basename='canon_site_confs'
 )
 router.register("xtalform_sites", viewer_views.XtalformSites, basename='xtalform_sites')
-router.register("poses", viewer_views.PoseView, basename='poses')
+router.register("poses", viewer_views.Pose, basename='poses')
 
 # Squonk Jobs
 router.register(
