@@ -982,7 +982,7 @@ class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
         #        data = super().validate(data)
 
         fp_start_key = view.filter_permissions.split('__')[0]
-        print('data[%s]=%s', fp_start_key, data[fp_start_key])
+        logger.info('data[%s]=%s', fp_start_key, data[fp_start_key])
 
         template = (
             "Site observation {} cannot be assigned to pose because "
