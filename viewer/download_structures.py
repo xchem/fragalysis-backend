@@ -140,6 +140,10 @@ zip_template = {
         'ligand_pdb': {},
         'ligand_mol': {},
         'ligand_smiles': {},
+        # additional ccp4 files, issue 1448
+        'event_file_crystallographic': {},
+        'diff_file_crystallographic': {},
+        'sigmaa_file_crystallographic': {},
     },
     'molecules': {
         'sdf_files': {},
@@ -812,6 +816,7 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                             )
                         )
                     else:
+                        # file not in upload
                         archive_path = str(apath.joinpath(param))
 
                     afile = [
@@ -820,11 +825,37 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                             archive_path=archive_path,
                         )
                     ]
+
                 else:
                     logger.warning('Unexpected param: %s', param)
                     continue
 
                 zip_contents['proteins'][param][so.code] = afile
+
+                # add additional ccp4 files (issue 1448)
+                ccps = ('sigmaa_file', 'diff_file', 'event_file')
+                if param in ccps:
+                    # these only come from siteobservation object
+                    model_attr = getattr(so, param)
+                    if model_attr and model_attr != 'None':
+                        apath = Path('aligned_files').joinpath(so.code)
+                        ccp_path = Path(model_attr.name)
+                        path = ccp_path.parent.joinpath(
+                            f'{ccp_path.stem}_crystallographic{ccp_path.suffix}'
+                        )
+                        archive_path = str(
+                            apath.joinpath(path.parts[-1].replace(so.longcode, so.code))
+                        )
+
+                        afile = [
+                            ArchiveFile(
+                                path=str(path),
+                                archive_path=archive_path,
+                            )
+                        ]
+                        zip_contents['proteins'][f'{param}_crystallographic'][
+                            so.code
+                        ] = afile
 
     zip_contents['molecules']['single_sdf_file'] = other_params['single_sdf_file']
     zip_contents['molecules']['sdf_info'] = other_params['sdf_info']
