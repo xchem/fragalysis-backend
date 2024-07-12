@@ -979,8 +979,10 @@ class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
                 "The view object must define a 'filter_permissions' property"
             )
         logger.info('view.filter_permissions=%s', view.filter_permissions)
-        logger.info('data=%s', data)
-        data = super().validate(data)
+        #        data = super().validate(data)
+
+        fp_start_key = view.filter_permissions.split('__')[0]
+        print('data[%s]=%s', fp_start_key, data[fp_start_key])
 
         template = (
             "Site observation {} cannot be assigned to pose because "
