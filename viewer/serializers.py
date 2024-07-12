@@ -970,6 +970,16 @@ class PoseSerializer(ValidateTargetMixin, serializers.ModelSerializer):
         """
         logger.info('+ validate data: %s', data)
 
+        user = self.context['request'].user
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("You must be logged in to create objects")
+        view = self.context['view']
+        if not hasattr(view, "filter_permissions"):
+            raise AttributeError(
+                "The view object must define a 'filter_permissions' property"
+            )
+        logger.info('view.filter_permissions=%s', view.filter_permissions)
+        logger.info('data=%s', data)
         data = super().validate(data)
 
         template = (
