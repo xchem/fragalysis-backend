@@ -892,7 +892,7 @@ class ActionTypeView(viewsets.ModelViewSet):
 
 
 # Start of Session Project
-class SessionProjectsView(
+class SessionProjectView(
     mixins.UpdateModelMixin,
     mixins.CreateModelMixin,
     mixins.DestroyModelMixin,
@@ -1295,7 +1295,7 @@ class SiteObservationTagView(
     )
 
 
-class Pose(
+class PoseView(
     mixins.UpdateModelMixin,
     mixins.CreateModelMixin,
     mixins.DestroyModelMixin,
@@ -1647,7 +1647,7 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class TargetExperimentUploads(ISPyBSafeQuerySet):
+class ExperimentUploadView(ISPyBSafeQuerySet):
     queryset = models.ExperimentUpload.objects.all()
     serializer_class = serializers.TargetExperimentReadSerializer
     permission_class = [permissions.IsAuthenticated]

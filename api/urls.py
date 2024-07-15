@@ -13,7 +13,7 @@ router = DefaultRouter()
 router.register("compounds", viewer_views.CompoundView, "compounds")
 router.register("targets", viewer_views.TargetView, "targets")
 router.register("projects", viewer_views.ProjectView)
-router.register("session-projects", viewer_views.SessionProjectsView)
+router.register("session-projects", viewer_views.SessionProjectView)
 router.register("snapshots", viewer_views.SnapshotsView)
 router.register("action-type", viewer_views.ActionTypeView)
 router.register("session-actions", viewer_views.SessionActionsView)
@@ -106,7 +106,7 @@ router.register(
 
 router.register(
     "target_experiment_uploads",
-    viewer_views.TargetExperimentUploads,
+    viewer_views.ExperimentUploadView,
     basename='target_experiment_uploads',
 )
 router.register(
@@ -117,7 +117,7 @@ router.register(
     "canon_site_confs", viewer_views.CanonSiteConfs, basename='canon_site_confs'
 )
 router.register("xtalform_sites", viewer_views.XtalformSites, basename='xtalform_sites')
-router.register("poses", viewer_views.Pose, basename='poses')
+router.register("poses", viewer_views.PoseView, basename='poses')
 
 # Squonk Jobs
 router.register(

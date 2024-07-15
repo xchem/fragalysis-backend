@@ -815,7 +815,7 @@ class JobRequestWriteSerializer(serializers.ModelSerializer):
         )
 
 
-class JobCallBackReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class JobCallBackReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.JobRequest
         fields = (
@@ -827,7 +827,7 @@ class JobCallBackReadSerializer(ValidateProjectMixin, serializers.ModelSerialize
         )
 
 
-class JobCallBackWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class JobCallBackWriteSerializer(serializers.ModelSerializer):
     SQUONK_STATUS = ['PENDING', 'STARTED', 'SUCCESS', 'FAILURE', 'RETRY', 'REVOKED']
     job_status = serializers.ChoiceField(choices=SQUONK_STATUS, default="PENDING")
     state_transition_time = serializers.DateTimeField(source='job_status_datetime')
