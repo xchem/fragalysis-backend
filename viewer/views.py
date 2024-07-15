@@ -1629,7 +1629,7 @@ class DownloadExperimentUploadView(viewsets.ModelViewSet):
         # Unused arguments
         del args, kwargs
 
-        logger.info("+ DownloadTargetExperiments.create called")
+        logger.info("+ DownloadExperimentUploadView.create called")
 
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
@@ -1644,7 +1644,7 @@ class DownloadExperimentUploadView(viewsets.ModelViewSet):
                     status=status.HTTP_403_FORBIDDEN,
                 )
             target: models.Target = serializer.validated_data['target']
-            if project not in target.project_id:
+            if project not in target.project_id.all():
                 return Response(
                     {'error': "The Target is not part of the given Project"},
                     status=status.HTTP_403_FORBIDDEN,
