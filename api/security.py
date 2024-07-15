@@ -342,12 +342,14 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         )
         CachedContent.set_content(user.username, prop_id_set)
 
-    def user_is_member_of_target(self, user, target):
+    def user_is_member_of_target(self, user, target, restrict_to_membership=True):
         """
         Returns true if the user has access to any proposal the target belongs to.
         """
         target_proposals = [p.title for p in target.project_id.all()]
-        user_proposals = self.get_proposals_for_user(user, restrict_to_membership=True)
+        user_proposals = self.get_proposals_for_user(
+            user, restrict_to_membership=restrict_to_membership
+        )
         is_member = any(proposal in user_proposals for proposal in target_proposals)
         if not is_member:
             logger.warning(
@@ -358,14 +360,18 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             )
         return is_member
 
-    def user_is_member_of_any_given_proposals(self, user, proposals):
+    def user_is_member_of_any_given_proposals(
+        self, user, proposals, restrict_to_membership=True
+    ):
         """
         Returns true if the user has access to any proposal in the given
         proposals list. Only one needs to match for permission to be granted.
         We 'restrict_to_membership' to only consider proposals the user
         has explicit membership.
         """
-        user_proposals = self.get_proposals_for_user(user, restrict_to_membership=True)
+        user_proposals = self.get_proposals_for_user(
+            user, restrict_to_membership=restrict_to_membership
+        )
         is_member = any(proposal in user_proposals for proposal in proposals)
         if not is_member:
             logger.warning(

@@ -1636,11 +1636,18 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
             target = serializer.validated_data['target']
             filename = serializer.validated_data['filename']
             logger.info("target=%s filename=%s", target, filename)
+            logger.info("type(target)=%s", type(target))
 
             # source_dir = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
             source_dir = Path(settings.MEDIA_ROOT).joinpath('tmp')
             file_path = source_dir.joinpath(filename)
             logger.info("source_path=%s file_path=%s", source_dir, file_path)
+            if not file_path.exists():
+                return Response(
+                    {'error': f"File '{filename}' not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
             wrapper = FileWrapper(open(file_path, 'rb'))
             response = FileResponse(wrapper, content_type='application/zip')
             response['Content-Disposition'] = (
