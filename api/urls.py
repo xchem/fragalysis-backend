@@ -14,7 +14,7 @@ router.register("compounds", viewer_views.CompoundView, "compounds")
 router.register("targets", viewer_views.TargetView, "targets")
 router.register("projects", viewer_views.ProjectView)
 router.register("session-projects", viewer_views.SessionProjectView)
-router.register("snapshots", viewer_views.SnapshotsView)
+router.register("snapshots", viewer_views.SnapshotView)
 router.register("action-type", viewer_views.ActionTypeView)
 router.register("session-actions", viewer_views.SessionActionsView)
 router.register("snapshot-actions", viewer_views.SnapshotActionsView)
@@ -24,7 +24,7 @@ router.register("compound-identifiers", viewer_views.CompoundIdentifierView)
 # Compounds sets
 router.register("compound-sets", viewer_views.ComputedSetView)
 router.register("compound-molecules", viewer_views.ComputedMoleculesView)
-router.register("numerical-scores", viewer_views.NumericalScoresView)
+router.register("numerical-scores", viewer_views.NumericalScoreValuesView)
 router.register("text-scores", viewer_views.TextScoresView)
 router.register("compound-scores", viewer_views.CompoundScoresView, "compound-scores")
 router.register(
@@ -69,7 +69,7 @@ router.register(
 )
 
 # Take a dictionary and return a csv
-router.register("dicttocsv", viewer_views.DictToCsv, basename='dicttocsv')
+router.register("dicttocsv", viewer_views.DictToCSVView, basename='dicttocsv')
 
 # tags
 router.register("tag_category", viewer_views.TagCategoryView, basename='tag_category')
@@ -110,13 +110,15 @@ router.register(
     basename='target_experiment_uploads',
 )
 router.register(
-    "site_observations", viewer_views.SiteObservations, basename='site_observations'
+    "site_observations", viewer_views.SiteObservationView, basename='site_observations'
 )
-router.register("canon_sites", viewer_views.CanonSites, basename='canon_sites')
+router.register("canon_sites", viewer_views.CanonSiteView, basename='canon_sites')
 router.register(
-    "canon_site_confs", viewer_views.CanonSiteConfs, basename='canon_site_confs'
+    "canon_site_confs", viewer_views.CanonSiteConfView, basename='canon_site_confs'
 )
-router.register("xtalform_sites", viewer_views.XtalformSites, basename='xtalform_sites')
+router.register(
+    "xtalform_sites", viewer_views.XtalformSiteView, basename='xtalform_sites'
+)
 router.register("poses", viewer_views.PoseView, basename='poses')
 
 # Squonk Jobs

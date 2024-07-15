@@ -179,7 +179,7 @@ def get_open_targets(request):
     )
 
 
-def cset_download(request, name):
+def computed_set_download(request, name):
     """View to download an SDF file of a ComputedSet by name
     (viewer/compound_set/(<name>)).
     """
@@ -934,7 +934,7 @@ class SessionActionsView(
     filterset_fields = ('id', 'author', 'session_project', 'last_update_date')
 
 
-class SnapshotsView(
+class SnapshotView(
     mixins.UpdateModelMixin,
     mixins.CreateModelMixin,
     mixins.DestroyModelMixin,
@@ -980,7 +980,7 @@ class SnapshotActionsView(
     )
 
 
-class DSetCSVParser(BaseParser):
+class DesignSetCSVParser(BaseParser):
     """
     CSV parser class specific to design set csv spec -
     sets media_type for DSetUploadView to text/csv
@@ -989,10 +989,10 @@ class DSetCSVParser(BaseParser):
     media_type = 'text/csv'
 
 
-class DSetUploadView(APIView):
+class DesignSetUploadView(APIView):
     """Upload a design set (PUT) from a csv file"""
 
-    parser_class = (DSetCSVParser,)
+    parser_class = (DesignSetCSVParser,)
 
     def put(self, request, format=None):  # pylint: disable=redefined-builtin
         """Method to handle PUT request and upload a design set"""
@@ -1079,7 +1079,7 @@ class ComputedMoleculesView(ISPyBSafeQuerySet):
     filterset_fields = ('computed_set',)
 
 
-class NumericalScoresView(ISPyBSafeQuerySet):
+class NumericalScoreValuesView(ISPyBSafeQuerySet):
     """View to retrieve information about numerical computed molecule scores
     (api/numerical-scores).
     """
@@ -1209,7 +1209,7 @@ class DiscoursePostView(viewsets.ViewSet):
             return Response({"Posts": posts})
 
 
-class DictToCsv(viewsets.ViewSet):
+class DictToCSVView(viewsets.ViewSet):
     """Takes a dictionary and returns a download link to a CSV file with the data."""
 
     serializer_class = serializers.DictToCsvSerializer
@@ -1656,7 +1656,7 @@ class ExperimentUploadView(ISPyBSafeQuerySet):
     http_method_names = ('get',)
 
 
-class SiteObservations(ISPyBSafeQuerySet):
+class SiteObservationView(ISPyBSafeQuerySet):
     queryset = models.SiteObservation.filter_manager.filter_qs().filter(
         superseded=False
     )
@@ -1665,7 +1665,7 @@ class SiteObservations(ISPyBSafeQuerySet):
     filter_permissions = "experiment__experiment_upload__project"
 
 
-class CanonSites(ISPyBSafeQuerySet):
+class CanonSiteView(ISPyBSafeQuerySet):
     queryset = models.CanonSite.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.CanonSiteReadSerializer
     filterset_class = filters.CanonSiteFilter
@@ -1674,14 +1674,14 @@ class CanonSites(ISPyBSafeQuerySet):
     )
 
 
-class CanonSiteConfs(ISPyBSafeQuerySet):
+class CanonSiteConfView(ISPyBSafeQuerySet):
     queryset = models.CanonSiteConf.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.CanonSiteConfReadSerializer
     filterset_class = filters.CanonSiteConfFilter
     filter_permissions = "ref_site_observation__experiment__experiment_upload__project"
 
 
-class XtalformSites(ISPyBSafeQuerySet):
+class XtalformSiteView(ISPyBSafeQuerySet):
     queryset = models.XtalformSite.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.XtalformSiteReadSerializer
     filterset_class = filters.XtalformSiteFilter
@@ -2442,7 +2442,7 @@ class JobAccessView(APIView):
         return Response(ok_response)
 
 
-class ServiceState(View):
+class ServiceStateView(View):
     def get(self, *args, **kwargs):
         """Poll external service status.
 
