@@ -1630,13 +1630,17 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
 
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
-            # project = serializer.validated_data['project']
-            # target = serializer.validated_data['target']
+            # To permit a download the user must be a member of the target's proposal
+            # (or the proposal must be open). The filename must also belong to an
+            # upload for the given Target.
+            target = serializer.validated_data['target']
             filename = serializer.validated_data['filename']
+            logger.info("target=%s filename=%s", target, filename)
 
             # source_dir = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
             source_dir = Path(settings.MEDIA_ROOT).joinpath('tmp')
             file_path = source_dir.joinpath(filename)
+            logger.info("source_path=%s file_path=%s", source_dir, file_path)
             wrapper = FileWrapper(open(file_path, 'rb'))
             response = FileResponse(wrapper, content_type='application/zip')
             response['Content-Disposition'] = (

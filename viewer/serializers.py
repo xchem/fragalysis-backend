@@ -863,9 +863,7 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
         )
 
 
-class TargetExperimentDownloadSerializer(
-    ValidateProjectMixin, serializers.ModelSerializer
-):
+class TargetExperimentDownloadSerializer(serializers.ModelSerializer):
     filename = serializers.CharField()
 
     class Meta:
