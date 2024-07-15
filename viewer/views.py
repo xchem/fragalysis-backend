@@ -1631,12 +1631,35 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
             # To permit a download the user must be a member of the target's proposal
-            # (or the proposal must be open). The filename must also belong to an
-            # upload for the given Target.
-            target = serializer.validated_data['target']
+            # (or the proposal must be open)
+            target: models.Target = serializer.validated_data['target']
+            if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
+                request.user, target, restrict_to_membership=False
+            ):
+                return Response(
+                    {'error': "You are not a member of the Target's Proposal"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Now we have to search for an ExperimentUpload that matches the Target
+            # and the filename combination.
             filename = serializer.validated_data['filename']
-            logger.info("target=%s filename=%s", target, filename)
-            logger.info("type(target)=%s", type(target))
+            exp_upload: Optional[
+                models.ExperimentUpload
+            ] = models.ExperimentUpload.objects.filter(
+                target=target,
+                file=filename,
+            ).first()
+            if not exp_upload:
+                return Response(
+                    {'error': "No ExperimentUpload matches your Target and Filename"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            logger.info(
+                "Found exp_upload=%s get_upload_path()=%s",
+                exp_upload,
+                exp_upload.get_upload_path(),
+            )
 
             # source_dir = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
             source_dir = Path(settings.MEDIA_ROOT).joinpath('tmp')
@@ -1644,7 +1667,7 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
             logger.info("source_path=%s file_path=%s", source_dir, file_path)
             if not file_path.exists():
                 return Response(
-                    {'error': f"File '{filename}' not found"},
+                    {'error': f"TargetExperiment file '{filename}' not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
