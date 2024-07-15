@@ -1632,12 +1632,18 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
         if serializer.is_valid():
             # To permit a download the user must be a member of the target's proposal
             # (or the proposal must be open)
-            target: models.Target = serializer.validated_data['target']
-            if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
-                request.user, target, restrict_to_membership=False
+            project: models.Project = serializer.validated_data['project']
+            if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+                request.user, [project.title], restrict_to_membership=False
             ):
                 return Response(
-                    {'error': "You are not a member of the Target's Proposal"},
+                    {'error': "You have no access to the Project"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            target: models.Target = serializer.validated_data['target']
+            if project not in target.project_id:
+                return Response(
+                    {'error': "The Target is not part of the given Project"},
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
