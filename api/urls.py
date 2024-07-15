@@ -87,19 +87,19 @@ router.register(
 # Download a zip file of the requested contents
 router.register(
     "download_structures",
-    viewer_views.DownloadStructures,
+    viewer_views.DownloadStructuresView,
     basename='download_structures',
 )
 
 # Experiments and Experiment (XChemAlign) upload support
 router.register(
     "upload_target_experiments",
-    viewer_views.UploadTargetExperiments,
+    viewer_views.UploadExperimentUploadView,
     basename='upload_target_experiments',
 )
 router.register(
     "download_target_experiments",
-    viewer_views.DownloadTargetExperiments,
+    viewer_views.DownloadExperimentUploadView,
     basename='download_target_experiments',
 )
 

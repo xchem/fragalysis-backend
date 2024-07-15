@@ -6,7 +6,7 @@ app_name = 'viewer'
 
 urlpatterns = [
     re_path(r"^react/*", views.react, name="react"),
-    path("upload_cset/", views.UploadCSet.as_view(), name="upload_cset"),
+    path("upload_cset/", views.UploadComputedSetView.as_view(), name="upload_cset"),
     path(
         "validate_task/<uuid:validate_task_id>/",
         views.ValidateTaskView.as_view(),
@@ -28,6 +28,10 @@ urlpatterns = [
     path("compound_set/<name>/", views.computed_set_download, name="compound_set"),
     path("upload_designs/", views.DesignSetUploadView.as_view(), name="upload_designs"),
     path("job_access/", views.JobAccessView.as_view(), name="job_access"),
-    path("task_status/<uuid:task_id>/", views.TaskStatus.as_view(), name="task_status"),
+    path(
+        "task_status/<uuid:task_id>/",
+        views.TaskStatusView.as_view(),
+        name="task_status",
+    ),
     path("service_state/", views.ServiceStateView.as_view(), name="service_state"),
 ]

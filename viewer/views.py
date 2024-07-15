@@ -363,14 +363,14 @@ class CompoundView(ISPyBSafeQuerySet):
     filterset_class = filters.CompoundFilter
 
 
-class UploadCSet(generics.ListCreateAPIView):
+class UploadComputedSetView(generics.ListCreateAPIView):
     """Render and control viewer/upload-cset.html - a page allowing upload of computed sets. Validation and
     upload tasks are defined in `viewer.compound_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
     response handling is done by `viewer.views.ValidateTaskView` and `viewer.views.UploadTaskView`
     """
 
     def get(self, request):
-        tag = '+ UploadCSet GET'
+        tag = '+ UploadComputedSetView GET'
         logger.info('%s', pretty_request(request, tag=tag))
         logger.info('User=%s', str(request.user))
         #        logger.info('Auth=%s', str(request.auth))
@@ -407,7 +407,7 @@ class UploadCSet(generics.ListCreateAPIView):
         return render(request, 'viewer/upload-cset.html', context)
 
     def post(self, request):
-        tag = '+ UploadCSet POST'
+        tag = '+ UploadComputedSetView POST'
         logger.info('%s', pretty_request(request, tag=tag))
         logger.info('User=%s', str(request.user))
         #        logger.info('Auth=%s', str(request.auth))
@@ -425,7 +425,7 @@ class UploadCSet(generics.ListCreateAPIView):
 
             user = self.request.user
             logger.info(
-                '+ UploadCSet POST user.id=%s choice="%s" target="%s" update_set="%s"',
+                '+ UploadComputedSetView POST user.id=%s choice="%s" target="%s" update_set="%s"',
                 user.id,
                 choice,
                 target,
@@ -442,7 +442,7 @@ class UploadCSet(generics.ListCreateAPIView):
                 else:
                     request.session[_SESSION_ERROR] = 'The set could not be found'
                     logger.warning(
-                        '- UploadCSet POST error_msg="%s"',
+                        '- UploadComputedSetView POST error_msg="%s"',
                         request.session[_SESSION_ERROR],
                     )
                     return redirect('viewer:upload_cset')
@@ -456,7 +456,7 @@ class UploadCSet(generics.ListCreateAPIView):
                         ' you must provide a Target and SDF file'
                     )
                     logger.warning(
-                        '- UploadCSet POST error_msg="%s"',
+                        '- UploadComputedSetView POST error_msg="%s"',
                         request.session[_SESSION_ERROR],
                     )
                     return redirect('viewer:upload_cset')
@@ -466,7 +466,7 @@ class UploadCSet(generics.ListCreateAPIView):
                         _SESSION_ERROR
                     ] = 'To Delete you must select an existing set'
                     logger.warning(
-                        '- UploadCSet POST error_msg="%s"',
+                        '- UploadComputedSetView POST error_msg="%s"',
                         request.session[_SESSION_ERROR],
                     )
                     return redirect('viewer:upload_cset')
@@ -487,7 +487,7 @@ class UploadCSet(generics.ListCreateAPIView):
                 # If so redirect...
                 if _SESSION_ERROR in request.session:
                     logger.warning(
-                        '- UploadCSet POST error_msg="%s"',
+                        '- UploadComputedSetView POST error_msg="%s"',
                         request.session[_SESSION_ERROR],
                     )
                     return redirect('viewer:upload_cset')
@@ -546,7 +546,7 @@ class UploadCSet(generics.ListCreateAPIView):
                 task_id = task_validate.id
                 task_status = task_validate.status
                 logger.info(
-                    '+ UploadCSet POST "Validate" task underway'
+                    '+ UploadComputedSetView POST "Validate" task underway'
                     ' (validate_task_id=%s (%s) validate_task_status=%s)',
                     task_id,
                     type(task_id),
@@ -580,7 +580,7 @@ class UploadCSet(generics.ListCreateAPIView):
                 task_id = task_upload.id
                 task_status = task_upload.status
                 logger.info(
-                    '+ UploadCSet POST "Upload" task underway'
+                    '+ UploadComputedSetView POST "Upload" task underway'
                     ' (upload_task_id=%s (%s) upload_task_status=%s)',
                     task_id,
                     type(task_id),
@@ -632,19 +632,22 @@ class UploadCSet(generics.ListCreateAPIView):
                     _SESSION_MESSAGE
                 ] = f'Compound set "{selected_set_name}" deleted'
 
-                logger.info('+ UploadCSet POST "Delete" done')
+                logger.info('+ UploadComputedSetView POST "Delete" done')
 
                 return redirect('viewer:upload_cset')
 
             else:
                 logger.warning(
-                    '+ UploadCSet POST unsupported submit_choice value (%s)', choice
+                    '+ UploadComputedSetView POST unsupported submit_choice value (%s)',
+                    choice,
                 )
 
         else:
-            logger.warning('- UploadCSet POST form.is_valid() returned False')
+            logger.warning(
+                '- UploadComputedSetView POST form.is_valid() returned False'
+            )
 
-        logger.info('- UploadCSet POST (leaving)')
+        logger.info('- UploadComputedSetView POST (leaving)')
 
         context = {'form': form}
         return render(request, 'viewer/upload-cset.html', context)
@@ -1324,7 +1327,7 @@ class SessionProjectTagView(
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
-class DownloadStructures(
+class DownloadStructuresView(
     mixins.CreateModelMixin,
     ISPyBSafeQuerySet,
 ):
@@ -1472,7 +1475,7 @@ class DownloadStructures(
         return Response({"file_url": filename_url})
 
 
-class UploadTargetExperiments(ISPyBSafeQuerySet):
+class UploadExperimentUploadView(ISPyBSafeQuerySet):
     serializer_class = serializers.TargetExperimentWriteSerializer
     permission_class = [permissions.IsAuthenticated]
     http_method_names = ('post',)
@@ -1540,7 +1543,7 @@ class UploadTargetExperiments(ISPyBSafeQuerySet):
         return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
-class TaskStatus(APIView):
+class TaskStatusView(APIView):
     def get(self, request, task_id, *args, **kwargs):
         """Given a task_id (a string) we try to return the status of the task,
         trying to handle unknown tasks as best we can.
@@ -1614,7 +1617,7 @@ class TaskStatus(APIView):
         return JsonResponse(data)
 
 
-class DownloadTargetExperiments(viewsets.ModelViewSet):
+class DownloadExperimentUploadView(viewsets.ModelViewSet):
     serializer_class = serializers.TargetExperimentDownloadSerializer
     permission_class = [permissions.IsAuthenticated]
     http_method_names = ('post',)
@@ -1758,7 +1761,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
 
     def create(self, request):
         """Method to handle POST request"""
-        logger.info('+ JobFileTransfer.post')
+        logger.info('+ JobFileTransferView.post')
         # Only authenticated users can transfer files to sqonk
         user = self.request.user
         if not user.is_authenticated:
@@ -1939,7 +1942,7 @@ class JobOverrideView(viewsets.ModelViewSet):
         return serializers.JobOverrideWriteSerializer
 
     def create(self, request):
-        logger.info('+ JobOverride.post')
+        logger.info('+ JobOverrideView.post')
         # Only authenticated users can transfer files to sqonk
         user = self.request.user
         if not user.is_authenticated:
@@ -1983,7 +1986,7 @@ class JobOverrideView(viewsets.ModelViewSet):
 
 class JobRequestView(APIView):
     def get(self, request):
-        logger.info('+ JobRequest.get')
+        logger.info('+ JobRequestView.get')
 
         user = self.request.user
         if not user.is_authenticated:
@@ -2006,10 +2009,10 @@ class JobRequestView(APIView):
         snapshot_id = request.query_params.get('snapshot', None)
 
         if snapshot_id:
-            logger.info('+ JobRequest.get snapshot_id=%s', snapshot_id)
+            logger.info('+ JobRequestView.get snapshot_id=%s', snapshot_id)
             job_requests = models.JobRequest.objects.filter(snapshot=int(snapshot_id))
         else:
-            logger.info('+ JobRequest.get snapshot_id=(unset)')
+            logger.info('+ JobRequestView.get snapshot_id=(unset)')
             job_requests = models.JobRequest.objects.all()
 
         for jr in job_requests:
@@ -2021,7 +2024,7 @@ class JobRequestView(APIView):
             # An opportunity to update JobRequest timestamps?
             if not jr.job_has_finished():
                 logger.info(
-                    '+ JobRequest.get (id=%s) has not finished (job_status=%s)',
+                    '+ JobRequestView.get (id=%s) has not finished (job_status=%s)',
                     jr.id,
                     jr.job_status,
                 )
@@ -2030,7 +2033,7 @@ class JobRequestView(APIView):
                 # To get the current status. To do this we'll need
                 # the 'callback context' we supplied when launching the Job.
                 logger.info(
-                    '+ JobRequest.get (id=%s, code=%s) getting update from Squonk...',
+                    '+ JobRequestView.get (id=%s, code=%s) getting update from Squonk...',
                     jr.id,
                     jr.code,
                 )
@@ -2040,14 +2043,14 @@ class JobRequestView(APIView):
                 # 'LOST', 'SUCCESS' or 'FAILURE'
                 if not sq2a_rv.success:
                     logger.warning(
-                        '+ JobRequest.get (id=%s, code=%s) check failed (%s)',
+                        '+ JobRequestView.get (id=%s, code=%s) check failed (%s)',
                         jr.id,
                         jr.code,
                         sq2a_rv.msg,
                     )
                 elif sq2a_rv.success and sq2a_rv.msg:
                     logger.info(
-                        '+ JobRequest.get (id=%s, code=%s) new status is (%s)',
+                        '+ JobRequestView.get (id=%s, code=%s) new status is (%s)',
                         jr.id,
                         jr.code,
                         sq2a_rv.msg,
@@ -2062,7 +2065,7 @@ class JobRequestView(APIView):
                     jr.save()
                 else:
                     logger.info(
-                        '+ JobRequest.get (id=%s, code=%s) is (probably) still running',
+                        '+ JobRequestView.get (id=%s, code=%s) is (probably) still running',
                         jr.id,
                         jr.code,
                     )
@@ -2071,7 +2074,7 @@ class JobRequestView(APIView):
             results.append(serializer.data)
 
         num_results = len(results)
-        logger.info('+ JobRequest.get num_results=%s', num_results)
+        logger.info('+ JobRequestView.get num_results=%s', num_results)
 
         # Simulate the original paged API response...
         content = {
@@ -2083,7 +2086,7 @@ class JobRequestView(APIView):
         return Response(content, status=status.HTTP_200_OK)
 
     def post(self, request):
-        logger.info('+ JobRequest.post')
+        logger.info('+ JobRequestView.post')
         # Only authenticated users can create squonk job requests
         # (unless 'AUTHENTICATE_UPLOAD' is False in settings.py)
         user = self.request.user
