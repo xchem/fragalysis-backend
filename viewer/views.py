@@ -5,7 +5,7 @@ import shlex
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from wsgiref.util import FileWrapper
 
 import pandas as pd
@@ -1644,33 +1644,40 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
             # Now we have to search for an ExperimentUpload that matches the Target
             # and the filename combination.
             filename = serializer.validated_data['filename']
-            exp_upload: Optional[
+            exp_uploads: List[
                 models.ExperimentUpload
             ] = models.ExperimentUpload.objects.filter(
                 target=target,
                 file=filename,
-            ).first()
-            if not exp_upload:
+            )
+            if len(exp_uploads) > 1:
+                return Response(
+                    {
+                        'error': "More than one ExperimentUpload matches your Target and Filename"
+                    },
+                    status=status.HTTP_400_INTERNAL_SERVER_ERROR,
+                )
+            elif len(exp_uploads) == 0:
                 return Response(
                     {'error': "No ExperimentUpload matches your Target and Filename"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
+            # Use the only experiment upload we found.
+            # We don't need the user's filename,
+            # it's embedded in the ExperimentUpload's file field
+            exp_upload: models.ExperimentUpload = exp_uploads[0]
+            file_path = exp_upload.get_upload_path()
             logger.info(
-                "Found exp_upload=%s get_upload_path()=%s",
+                "Found exp_upload=%s file_path=%s",
                 exp_upload,
-                exp_upload.get_upload_path(),
+                file_path,
             )
-
-            # source_dir = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
-            source_dir = Path(settings.MEDIA_ROOT).joinpath('tmp')
-            file_path = source_dir.joinpath(filename)
-            logger.info("source_path=%s file_path=%s", source_dir, file_path)
             if not file_path.exists():
                 return Response(
                     {'error': f"TargetExperiment file '{filename}' not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-
+            # Finally, return the file
             wrapper = FileWrapper(open(file_path, 'rb'))
             response = FileResponse(wrapper, content_type='application/zip')
             response['Content-Disposition'] = (
@@ -1678,6 +1685,7 @@ class DownloadTargetExperiments(viewsets.ModelViewSet):
             )
             response['Content-Length'] = os.path.getsize(file_path)
             return response
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

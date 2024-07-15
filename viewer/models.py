@@ -200,6 +200,15 @@ class ExperimentUpload(models.Model):
             .joinpath(self.upload_data_dir)
         )
 
+    def get_download_path(self):
+        """The path to the original uploaded file, used during downloads"""
+        return (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(self.task_id)
+            .joinpath(Path(str(self.file)))
+        )
+
 
 class Experiment(models.Model):
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
