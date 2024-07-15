@@ -1671,11 +1671,11 @@ class DownloadExperimentUploadView(viewsets.ModelViewSet):
                     {'error': "No ExperimentUpload matches your Target and Filename"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            # Use the only experiment upload we found.
-            # We don't need the user's filename,
-            # it's embedded in the ExperimentUpload's file field
+            # Use the only experiment upload found.
+            # We don't need the user's filename any more,
+            # it's embedded in the ExperimentUpload's file field.
             exp_upload: models.ExperimentUpload = exp_uploads[0]
-            file_path = exp_upload.get_upload_path()
+            file_path = exp_upload.get_download_path()
             logger.info(
                 "Found exp_upload=%s file_path=%s",
                 exp_upload,
