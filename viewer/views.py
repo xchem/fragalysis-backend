@@ -1221,7 +1221,7 @@ class DictToCSVView(viewsets.ViewSet):
         """Method to handle GET request.
         If the file exists it is returned and then removed."""
         file_url = request.GET.get('file_url', '')
-        logger.info('file_url="%s"', file_url)
+        logger.info('DictToCsv file_url="%s"', file_url)
 
         # The file is expected to include a full path
         # to a file in the dicttocsv directory.
