@@ -1255,16 +1255,14 @@ class DictToCSVView(viewsets.ViewSet):
         if not input_dict:
             return Response({"message": "Please provide a dictionary"})
         else:
-            filename_url = create_csv_from_dict(
-                input_dict, input_title, filename=filename
-            )
+            file_url = create_csv_from_dict(input_dict, input_title, filename=filename)
         logger.info(
             'Created file_url="%s" (size=%s)',
-            filename_url,
-            os.path.getsize(filename_url),
+            file_url,
+            os.path.getsize(file_url),
         )
 
-        return Response({"file_url": filename_url})
+        return Response({"file_url": file_url})
 
 
 # Classes Relating to Tags
