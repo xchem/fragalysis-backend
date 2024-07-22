@@ -1230,19 +1230,28 @@ class DictToCSVView(viewsets.ViewSet):
             os.path.commonpath([CSV_TO_DICT_DOWNLOAD_ROOT, real_file_url])
             != CSV_TO_DICT_DOWNLOAD_ROOT
         ):
+            logger.warning(
+                'DictToCsv path is invalid (file_url="%s" real_file_url="%s")',
+                file_url,
+                real_file_url,
+            )
             return Response("Please provide a file_url for an existing DictToCsv file")
+        elif not os.path.isfile(real_file_url):
+            logger.warning(
+                'DictToCsv file does not exist (file_url="%s" real_file_url="%s")',
+                file_url,
+                real_file_url,
+            )
+            return Response("The given DictToCsv file does not exist")
 
-        if os.path.isfile(real_file_url):
-            with open(real_file_url, encoding='utf8') as csvfile:
-                # return file and tidy up.
-                response = HttpResponse(csvfile, content_type='text/csv')
-                # response['Content-Disposition'] = 'attachment; filename=download.csv'
-                filename = str(Path(real_file_url).name)
-                response['Content-Disposition'] = f'attachment; filename={filename}'
-                shutil.rmtree(os.path.dirname(real_file_url), ignore_errors=True)
-                return response
-        # File does not exist if we get here...
-        return Response("The given DictToCsv file does not exist")
+        with open(real_file_url, encoding='utf8') as csvfile:
+            # return file and tidy up.
+            response = HttpResponse(csvfile, content_type='text/csv')
+            # response['Content-Disposition'] = 'attachment; filename=download.csv'
+            filename = str(Path(real_file_url).name)
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+            shutil.rmtree(os.path.dirname(real_file_url), ignore_errors=True)
+            return response
 
     def create(self, request):
         """Method to handle POST request. Creates a file that the user
