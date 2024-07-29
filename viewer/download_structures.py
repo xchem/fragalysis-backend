@@ -427,8 +427,24 @@ def _metadata_file_zip(ziparchive, target, site_observations):
     logger.info('+ Processing metadata')
 
     annotations = {}
-    values = ['code', 'longcode', 'cmpd__compound_code', 'smiles', 'downloaded']
-    header = ['Code', 'Long code', 'Compound code', 'Smiles', 'Downloaded']
+    values = [
+        'code',
+        'longcode',
+        'experiment__code',
+        'cmpd__compound_code',
+        'smiles',
+        'canon_site_conf__canon_site__centroid_res',
+        'downloaded',
+    ]
+    header = [
+        'Code',
+        'Long code',
+        'Experiment code',
+        'Compound code',
+        'Smiles',
+        'Centroid res',
+        'Downloaded',
+    ]
 
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'
