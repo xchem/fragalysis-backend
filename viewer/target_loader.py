@@ -1793,16 +1793,17 @@ class TargetLoader:
 
         logger.debug("data read and processed, adding tags")
 
-        canon_name_tag_map = {
-            k: v["centroid_res"] if "centroid_res" in v.keys() else "UNDEFINED"
-            for k, v in canon_sites_yaml.items()
-        }
+        # canon_name_tag_map = {
+        #     k: v["centroid_res"] if "centroid_res" in v.keys() else "UNDEFINED"
+        #     for k, v in canon_sites_yaml.items()
+        # }
 
         # tag site observations
         cat_canon = TagCategory.objects.get(category="CanonSites")
         for val in canon_site_objects.values():  # pylint: disable=no-member
             prefix = val.instance.canon_site_num
-            tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
+            # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
+            tag = val.versioned_key
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
@@ -1821,12 +1822,10 @@ class TargetLoader:
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
             )
-            tag = val.instance.name.split('+')[0]
+            # tag = val.instance.name.split('+')[0]
+            tag = val.instance.name
             so_list = [
-                site_observation_objects[k].instance
-                for k in val.index_data["members"]
-                # site_observations_versioned[k]
-                # for k in val.index_data["members"]
+                site_observation_objects[k].instance for k in val.index_data["members"]
             ]
             self._tag_observations(
                 tag, prefix, category=cat_conf, site_observations=so_list, hidden=True
@@ -1920,8 +1919,8 @@ class TargetLoader:
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
             )
-            # tag = f"{val.instance.xtalform.name} - {val.instance.xtalform_site_id}"
-            tag = val.instance.xtalform_site_id
+            # tag = val.instance.xtalform_site_id
+            tag = val.versioned_key
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
