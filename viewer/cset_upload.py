@@ -289,6 +289,11 @@ class MolOps:
                 inchi_key=inchi_key,
                 current_identifier=name,
             )
+            # This is a new compound.
+            # We must now set relationships to the Proposal that it applies to.
+            # (see m2ms-1485)
+            #
+            # FixMe
             cpd.save()
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
