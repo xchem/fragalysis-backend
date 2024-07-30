@@ -104,6 +104,25 @@ class TagSubquery(Subquery):
         # fmt: on
 
 
+class UploadTagSubquery(Subquery):
+    """Annotate SiteObservation with tag of given category"""
+
+    def __init__(self, category):
+        # fmt: off
+        query = SiteObservationTag.objects.filter(
+            pk=Subquery(
+                SiteObvsSiteObservationTag.objects.filter(
+                    site_observation=OuterRef(OuterRef('pk')),
+                    site_obvs_tag__category=TagCategory.objects.get(
+                        category=category,
+                    ),
+                ).values('site_obvs_tag')[:1]
+            )
+        ).values('upload_name')[0:1]
+        super().__init__(query)
+        # fmt: on
+
+
 class CuratedTagSubquery(Exists):
     """Annotate SiteObservation with tag of given category"""
 
@@ -448,9 +467,13 @@ def _metadata_file_zip(ziparchive, target, site_observations):
 
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'
+        upload_tag = f'upload_tag_{category.category.lower()}'
         values.append(tag)
-        header.append(category.category)
+        header.append(f'{category.category} alias')
         annotations[tag] = TagSubquery(category.category)
+        values.append(upload_tag)
+        header.append(f'{category.category} upload name')
+        annotations[upload_tag] = UploadTagSubquery(category.category)
 
     pattern = re.compile(r'\W+')  # non-alphanumeric characters
     for tag in SiteObservationTag.objects.filter(
