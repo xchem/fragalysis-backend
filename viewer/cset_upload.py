@@ -291,9 +291,17 @@ class MolOps:
             )
             # This is a new compound.
             # We must now set relationships to the Proposal that it applies to.
-            # (see m2ms-1485)
-            #
-            # FixMe
+            # We do this by copying the relationships from the Target.
+            num_target_proposals = len(target.project_id.all())
+            assert num_target_proposals > 0
+            if num_target_proposals > 1:
+                logger.warning(
+                    'Compound Target %s has more than one Proposal (%d)',
+                    target.title,
+                    num_target_proposals,
+                )
+            for project in target.project_set.all():
+                cpd.project_id.add(project)
             cpd.save()
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
