@@ -289,6 +289,7 @@ class MolOps:
                 inchi_key=inchi_key,
                 current_identifier=name,
             )
+            cpd.save()
             # This is a new compound.
             # We must now set relationships to the Proposal that it applies to.
             # We do this by copying the relationships from the Target.
