@@ -303,7 +303,6 @@ class MolOps:
                 )
             for project in target.project_set.all():
                 cpd.project_id.add(project)
-            cpd.save()
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
             # fetched by inchi_key, so this shouldn't ever create
