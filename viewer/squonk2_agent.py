@@ -723,7 +723,7 @@ class Squonk2Agent:
         target_access_string = self._get_target_access_string(access_id)
         assert target_access_string
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(
-            user, restrict_to_membership=True
+            user, restrict_public_to_membership=True
         )
         if not target_access_string in proposal_list:
             msg = (

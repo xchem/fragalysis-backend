@@ -1510,7 +1510,7 @@ class UploadExperimentUploadView(ISPyBSafeQuerySet):
                 return redirect(settings.LOGIN_URL)
             else:
                 if target_access_string not in self.get_proposals_for_user(
-                    user, restrict_to_membership=True
+                    user, restrict_public_to_membership=True
                 ):
                     return Response(
                         {
@@ -1644,7 +1644,7 @@ class DownloadExperimentUploadView(viewsets.ModelViewSet):
             # (or the proposal must be open)
             project: models.Project = serializer.validated_data['project']
             if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
-                request.user, [project.title], restrict_to_membership=False
+                request.user, [project.title], restrict_public_to_membership=False
             ):
                 return Response(
                     {'error': "You have no access to the Project"},
