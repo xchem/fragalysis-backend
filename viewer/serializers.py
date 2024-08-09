@@ -71,10 +71,14 @@ class ValidateProjectMixin:
 
         # Now we have the proposals (Project titles) the object belongs to,
         # has the user been associated (in IPSpyB) with any of them?
+        # We can always see (GET) objects that are open to the public.
+        restrict_public = False if self.context['request'].method == 'GET' else True  # type: ignore [attr-defined]
         if (
             object_proposals
             and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
-                user=user, proposals=object_proposals
+                user=user,
+                proposals=object_proposals,
+                restrict_public_to_membership=restrict_public,
             )
         ):
             raise PermissionDenied(
