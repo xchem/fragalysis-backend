@@ -52,9 +52,6 @@ logger = logging.getLogger(__name__)
 # assemblies and xtalforms
 XTALFORMS_FILE = "assemblies.yaml"
 
-# canon site tag names
-CANON_SITES_FILE = "canonical_sites.yaml"
-
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
 
@@ -1086,6 +1083,7 @@ class TargetLoader:
 
         Incoming data format:
         <id: str>:
+            centroid_res: <str>
             conformer_site_ids: <array[str]>
             global_reference_dtag: <str>
             reference_conformer_site_id: <str>
@@ -1109,6 +1107,9 @@ class TargetLoader:
         )
 
         residues = extract(key="residues", return_type=list)
+        centroid_res = extract(key="centroid_res")
+        conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
+        ref_conf_site_id = extract(key="reference_conformer_site_id")
 
         fields = {
             "name": canon_site_id,
@@ -1117,10 +1118,8 @@ class TargetLoader:
 
         defaults = {
             "residues": residues,
+            "centroid_res": centroid_res,
         }
-
-        conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
-        ref_conf_site_id = extract(key="reference_conformer_site_id")
 
         index_data = {
             "ref_conf_site": ref_conf_site_id,
@@ -1477,10 +1476,9 @@ class TargetLoader:
         config = self._load_yaml(config_file)
         meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
         xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
-        canon_sites_yaml = self._load_yaml(Path(upload_dir).joinpath(CANON_SITES_FILE))
 
         # this is the last file to load. if any of the files missing, don't continue
-        if not any([meta, config, xtalforms_yaml, canon_sites_yaml]):
+        if not any([meta, config, xtalforms_yaml]):
             msg = "Missing files in uploaded data, aborting"
             raise FileNotFoundError(msg)
 
@@ -1795,16 +1793,12 @@ class TargetLoader:
 
         logger.debug("data read and processed, adding tags")
 
-        canon_name_tag_map = {
-            k: v["centroid_res"] if "centroid_res" in v.keys() else "UNDEFINED"
-            for k, v in canon_sites_yaml.items()
-        }
-
         # tag site observations
         cat_canon = TagCategory.objects.get(category="CanonSites")
         for val in canon_site_objects.values():  # pylint: disable=no-member
             prefix = val.instance.canon_site_num
-            tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
+            # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
+            tag = val.versioned_key
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
@@ -1823,12 +1817,10 @@ class TargetLoader:
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
             )
-            tag = val.instance.name.split('+')[0]
+            # tag = val.instance.name.split('+')[0]
+            tag = val.instance.name
             so_list = [
-                site_observation_objects[k].instance
-                for k in val.index_data["members"]
-                # site_observations_versioned[k]
-                # for k in val.index_data["members"]
+                site_observation_objects[k].instance for k in val.index_data["members"]
             ]
             self._tag_observations(
                 tag, prefix, category=cat_conf, site_observations=so_list, hidden=True

@@ -409,6 +409,7 @@ class CanonSite(Versionable, models.Model):
     canon_site_num = models.IntegerField(
         null=True, help_text="numeric canon site id (enumerated on creation)"
     )
+    centroid_res = models.TextField(null=True)
 
     objects = models.Manager()
     filter_manager = CanonSiteDataManager()

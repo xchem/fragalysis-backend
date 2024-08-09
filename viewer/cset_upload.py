@@ -303,6 +303,19 @@ class MolOps:
             for project in target.project_set.all():
                 cpd.project_id.add(project)
             cpd.save()
+            # This is a new compound.
+            # We must now set relationships to the Proposal that it applies to.
+            # We do this by copying the relationships from the Target.
+            num_target_proposals = len(target.project_id.all())
+            assert num_target_proposals > 0
+            if num_target_proposals > 1:
+                logger.warning(
+                    'Compound Target %s has more than one Proposal (%d)',
+                    target.title,
+                    num_target_proposals,
+                )
+            for project in target.project_set.all():
+                cpd.project_id.add(project)
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
             # fetched by inchi_key, so this shouldn't ever create
