@@ -301,7 +301,7 @@ class MolOps:
                     target.title,
                     num_target_proposals,
                 )
-            for project in target.project_set.all():
+            for project in target.project_id.all():
                 cpd.project_id.add(project)
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
