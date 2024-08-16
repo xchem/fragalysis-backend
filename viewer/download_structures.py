@@ -465,15 +465,23 @@ def _metadata_file_zip(ziparchive, target, site_observations):
         'Downloaded',
     ]
 
+    # add auto-generated names before...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
-        tag = f'tag_{category.category.lower()}'
         upload_tag = f'upload_tag_{category.category.lower()}'
-        values.append(tag)
-        header.append(f'{category.category} alias')
-        annotations[tag] = TagSubquery(category.category)
         values.append(upload_tag)
         header.append(f'{category.category} upload name')
         annotations[upload_tag] = UploadTagSubquery(category.category)
+
+    # ... the aliases
+    for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
+        tag = f'tag_{category.category.lower()}'
+        values.append(tag)
+        header.append(f'{category.category} alias')
+        annotations[tag] = TagSubquery(category.category)
+
+    values.append('pose__display_name')
+    # annotations['Pose']
+    header.append('Pose')
 
     pattern = re.compile(r'\W+')  # non-alphanumeric characters
     for tag in SiteObservationTag.objects.filter(
@@ -498,7 +506,11 @@ def _metadata_file_zip(ziparchive, target, site_observations):
                 pk=OuterRef('pk'),
             ),
         )
-    ).annotate(**annotations).values_list(*values)
+    ).annotate(
+        **annotations
+    ).values_list(
+        *values
+    )
     # fmt: on
 
     buff = StringIO()
