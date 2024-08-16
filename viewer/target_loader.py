@@ -52,9 +52,6 @@ logger = logging.getLogger(__name__)
 # assemblies and xtalforms
 XTALFORMS_FILE = "assemblies.yaml"
 
-# canon site tag names
-CANON_SITES_FILE = "canonical_sites.yaml"
-
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
 
@@ -1084,6 +1081,7 @@ class TargetLoader:
 
         Incoming data format:
         <id: str>:
+            centroid_res: <str>
             conformer_site_ids: <array[str]>
             global_reference_dtag: <str>
             reference_conformer_site_id: <str>
@@ -1107,6 +1105,9 @@ class TargetLoader:
         )
 
         residues = extract(key="residues", return_type=list)
+        centroid_res = extract(key="centroid_res")
+        conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
+        ref_conf_site_id = extract(key="reference_conformer_site_id")
 
         fields = {
             "name": canon_site_id,
@@ -1115,10 +1116,8 @@ class TargetLoader:
 
         defaults = {
             "residues": residues,
+            "centroid_res": centroid_res,
         }
-
-        conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
-        ref_conf_site_id = extract(key="reference_conformer_site_id")
 
         index_data = {
             "ref_conf_site": ref_conf_site_id,
@@ -1475,10 +1474,9 @@ class TargetLoader:
         config = self._load_yaml(config_file)
         meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
         xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
-        canon_sites_yaml = self._load_yaml(Path(upload_dir).joinpath(CANON_SITES_FILE))
 
         # this is the last file to load. if any of the files missing, don't continue
-        if not any([meta, config, xtalforms_yaml, canon_sites_yaml]):
+        if not any([meta, config, xtalforms_yaml]):
             msg = "Missing files in uploaded data, aborting"
             raise FileNotFoundError(msg)
 
@@ -1793,16 +1791,12 @@ class TargetLoader:
 
         logger.debug("data read and processed, adding tags")
 
-        canon_name_tag_map = {
-            k: v["centroid_res"] if "centroid_res" in v.keys() else "UNDEFINED"
-            for k, v in canon_sites_yaml.items()
-        }
-
         # tag site observations
         cat_canon = TagCategory.objects.get(category="CanonSites")
         for val in canon_site_objects.values():  # pylint: disable=no-member
             prefix = val.instance.canon_site_num
-            tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
+            # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
+            tag = val.versioned_key
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
@@ -1821,12 +1815,10 @@ class TargetLoader:
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
             )
-            tag = val.instance.name.split('+')[0]
+            # tag = val.instance.name.split('+')[0]
+            tag = val.instance.name
             so_list = [
-                site_observation_objects[k].instance
-                for k in val.index_data["members"]
-                # site_observations_versioned[k]
-                # for k in val.index_data["members"]
+                site_observation_objects[k].instance for k in val.index_data["members"]
             ]
             self._tag_observations(
                 tag, prefix, category=cat_conf, site_observations=so_list, hidden=True
@@ -1920,8 +1912,8 @@ class TargetLoader:
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
             )
-            # tag = f"{val.instance.xtalform.name} - {val.instance.xtalform_site_id}"
-            tag = val.instance.xtalform_site_id
+            # tag = val.instance.xtalform_site_id
+            tag = val.versioned_key
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
@@ -2001,7 +1993,9 @@ class TargetLoader:
     def _generate_poses(self):
         values = ["canon_site_conf__canon_site", "cmpd"]
         # fmt: off
-        pose_groups = SiteObservation.objects.exclude(
+        pose_groups = SiteObservation.filter_manager.by_target(
+            self.target,
+        ).exclude(
             canon_site_conf__canon_site__isnull=True,
         ).exclude(
             cmpd__isnull=True,
@@ -2034,16 +2028,23 @@ class TargetLoader:
                 pose.save()
             except MultipleObjectsReturned:
                 # must be a follow-up upload. create new pose, but
-                # only add observatons that are not yet assigned
+                # only add observatons that are not yet assigned (if
+                # these exist)
                 pose_items = pose_items.filter(pose__isnull=True)
-                sample = pose_items.first()
-                pose = Pose(
-                    canon_site=sample.canon_site_conf.canon_site,
-                    compound=sample.cmpd,
-                    main_site_observation=sample,
-                    display_name=sample.code,
-                )
-                pose.save()
+                if pose_items.exists():
+                    sample = pose_items.first()
+                    pose = Pose(
+                        canon_site=sample.canon_site_conf.canon_site,
+                        compound=sample.cmpd,
+                        main_site_observation=sample,
+                        display_name=sample.code,
+                    )
+                    pose.save()
+                else:
+                    # I don't know if this can happen but this (due to
+                    # other bugs) is what allowed me to find this
+                    # error. Make a note in the logs.
+                    logger.warning("No observations left to assign to pose")
 
             # finally add observations to the (new or existing) pose
             for obvs in pose_items:

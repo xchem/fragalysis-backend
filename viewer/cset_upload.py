@@ -290,6 +290,19 @@ class MolOps:
                 current_identifier=name,
             )
             cpd.save()
+            # This is a new compound.
+            # We must now set relationships to the Proposal that it applies to.
+            # We do this by copying the relationships from the Target.
+            num_target_proposals = len(target.project_id.all())
+            assert num_target_proposals > 0
+            if num_target_proposals > 1:
+                logger.warning(
+                    'Compound Target %s has more than one Proposal (%d)',
+                    target.title,
+                    num_target_proposals,
+                )
+            for project in target.project_id.all():
+                cpd.project_id.add(project)
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
             # fetched by inchi_key, so this shouldn't ever create
@@ -339,7 +352,6 @@ class MolOps:
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
         molecule_name = mol.GetProp('_Name')
-        version = mol.GetProp('version')
 
         compound: Compound = self.create_mol(
             inchi, compound_set.target, name=molecule_name
@@ -449,8 +461,9 @@ class MolOps:
                     existing_computed_molecules.append(k)
 
         if len(existing_computed_molecules) == 1:
-            logger.info(
-                'Using existing ComputedMolecule %s', existing_computed_molecules[0]
+            logger.warning(
+                'Using existing ComputedMolecule %s and overwriting its metadata',
+                existing_computed_molecules[0],
             )
             computed_molecule = existing_computed_molecules[0]
         elif len(existing_computed_molecules) > 1:
@@ -485,7 +498,6 @@ class MolOps:
         computed_molecule.pdb = lhs_so
         # TODO: this is wrong
         computed_molecule.pdb_info = pdb_info
-        computed_molecule.version = version
         # Extract possible reference URL and Rationale
         # URLs have to be valid URLs and rationals must contain more than one word
         ref_url: Optional[str] = (

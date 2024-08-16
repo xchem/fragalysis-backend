@@ -106,6 +106,25 @@ class TagSubquery(Subquery):
         # fmt: on
 
 
+class UploadTagSubquery(Subquery):
+    """Annotate SiteObservation with tag of given category"""
+
+    def __init__(self, category):
+        # fmt: off
+        query = SiteObservationTag.objects.filter(
+            pk=Subquery(
+                SiteObvsSiteObservationTag.objects.filter(
+                    site_observation=OuterRef(OuterRef('pk')),
+                    site_obvs_tag__category=TagCategory.objects.get(
+                        category=category,
+                    ),
+                ).values('site_obvs_tag')[:1]
+            )
+        ).values('upload_name')[0:1]
+        super().__init__(query)
+        # fmt: on
+
+
 class CuratedTagSubquery(Exists):
     """Annotate SiteObservation with tag of given category"""
 
@@ -142,6 +161,10 @@ zip_template = {
         'ligand_pdb': {},
         'ligand_mol': {},
         'ligand_smiles': {},
+        # additional ccp4 files, issue 1448
+        'event_file_crystallographic': {},
+        'diff_file_crystallographic': {},
+        'sigmaa_file_crystallographic': {},
     },
     'molecules': {
         'sdf_files': {},
@@ -425,14 +448,42 @@ def _metadata_file_zip(ziparchive, target, site_observations):
     logger.info('+ Processing metadata')
 
     annotations = {}
-    values = ['code', 'longcode', 'cmpd__compound_code', 'smiles', 'downloaded']
-    header = list(META_HEADER)
+    values = [
+        'code',
+        'longcode',
+        'experiment__code',
+        'cmpd__compound_code',
+        'smiles',
+        'canon_site_conf__canon_site__centroid_res',
+        'downloaded',
+    ]
+    header = [
+        'Code',
+        'Long code',
+        'Experiment code',
+        'Compound code',
+        'Smiles',
+        'Centroid res',
+        'Downloaded',
+    ]
 
+    # add auto-generated names before...
+    for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
+        upload_tag = f'upload_tag_{category.category.lower()}'
+        values.append(upload_tag)
+        header.append(f'{category.category} upload name')
+        annotations[upload_tag] = UploadTagSubquery(category.category)
+
+    # ... the aliases
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'
         values.append(tag)
-        header.append(category.category)
+        header.append(f'{category.category} alias')
         annotations[tag] = TagSubquery(category.category)
+
+    values.append('pose__display_name')
+    # annotations['Pose']
+    header.append('Pose')
 
     pattern = re.compile(r'\W+')  # non-alphanumeric characters
     for tag in SiteObservationTag.objects.filter(
@@ -457,7 +508,11 @@ def _metadata_file_zip(ziparchive, target, site_observations):
                 pk=OuterRef('pk'),
             ),
         )
-    ).annotate(**annotations).values_list(*values)
+    ).annotate(
+        **annotations
+    ).values_list(
+        *values
+    )
     # fmt: on
 
     buff = StringIO()
@@ -814,6 +869,7 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                             )
                         )
                     else:
+                        # file not in upload
                         archive_path = str(apath.joinpath(param))
 
                     afile = [
@@ -822,11 +878,37 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                             archive_path=archive_path,
                         )
                     ]
+
                 else:
                     logger.warning('Unexpected param: %s', param)
                     continue
 
                 zip_contents['proteins'][param][so.code] = afile
+
+                # add additional ccp4 files (issue 1448)
+                ccps = ('sigmaa_file', 'diff_file', 'event_file')
+                if param in ccps:
+                    # these only come from siteobservation object
+                    model_attr = getattr(so, param)
+                    if model_attr and model_attr != 'None':
+                        apath = Path('aligned_files').joinpath(so.code)
+                        ccp_path = Path(model_attr.name)
+                        path = ccp_path.parent.joinpath(
+                            f'{ccp_path.stem}_crystallographic{ccp_path.suffix}'
+                        )
+                        archive_path = str(
+                            apath.joinpath(path.parts[-1].replace(so.longcode, so.code))
+                        )
+
+                        afile = [
+                            ArchiveFile(
+                                path=str(path),
+                                archive_path=archive_path,
+                            )
+                        ]
+                        zip_contents['proteins'][f'{param}_crystallographic'][
+                            so.code
+                        ] = afile
 
     zip_contents['molecules']['single_sdf_file'] = other_params['single_sdf_file']
     zip_contents['molecules']['sdf_info'] = other_params['sdf_info']

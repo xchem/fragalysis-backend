@@ -154,12 +154,11 @@ jobs:
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
-    - name: Test
-      run: >
-        docker-compose -f docker-compose.test.yml up
-        --build
-        --exit-code-from tests
-        --abort-on-container-exit
+    - name: Test (docker compose)
+      uses: hoverkraft-tech/compose-action@v2.0.1
+      with:
+        compose-file: ./docker-compose.test.yml
+        up-flags: --build --exit-code-from tests --abort-on-container-exit
       env:
         BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
         BE_IMAGE_TAG: ${{ steps.vars.outputs.tag }}

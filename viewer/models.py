@@ -396,6 +396,7 @@ class CanonSite(Versionable, models.Model):
     canon_site_num = models.IntegerField(
         null=True, help_text="numeric canon site id (enumerated on creation)"
     )
+    centroid_res = models.TextField(null=True)
 
     objects = models.Manager()
     filter_manager = CanonSiteDataManager()
@@ -1027,7 +1028,6 @@ class ComputedMolecule(models.Model):
         max_length=255,
         help_text="Link to pdb file; user-uploaded pdb or pdb.experiment.pdb_info",
     )
-    version = models.PositiveSmallIntegerField(null=False, default=1)
 
     def __str__(self) -> str:
         return f"{self.smiles}"
