@@ -15,6 +15,9 @@
 
  {% if user.is_authenticated %}
      var DJANGO_CONTEXT ={
+         {% if target_warning_message %}
+         target_warning_message: '{{ target_warning_message }}',
+         {% endif %}
          legacy_url: '{{ legacy_url }}',
          username: '{{ user.username }}',
          email: '{{ user.email|default:"noemail" }}',
@@ -25,12 +28,12 @@
          discourse_host: '{{ discourse_host }}',
          squonk_available: {{ squonk_available }},
          squonk_ui_url: '{{ squonk_ui_url }}'
-         {% if target_warning_message %}
-         target_warning_message: '{{ target_warning_message }}'
-         {% endif %}
      }
  {% else %}
      var DJANGO_CONTEXT = {
+         {% if target_warning_message %}
+         target_warning_message: '{{ target_warning_message }}',
+         {% endif %}
          legacy_url: '{{ legacy_url }}',
          username: 'NOT_LOGGED_IN',
          email: "noemail",
@@ -38,9 +41,6 @@
          authenticated: false,
          discourse_available: {{ discourse_available }},
          squonk_available: {{ squonk_available }}
-         {% if target_warning_message %}
-         target_warning_message: '{{ target_warning_message }}'
-         {% endif %}
      }
  {% endif %}
 
