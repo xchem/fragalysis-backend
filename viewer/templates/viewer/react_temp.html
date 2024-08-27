@@ -15,6 +15,9 @@
 
  {% if user.is_authenticated %}
      var DJANGO_CONTEXT ={
+         {% if target_warning_message %}
+         target_warning_message: '{{ target_warning_message }}',
+         {% endif %}
          legacy_url: '{{ legacy_url }}',
          username: '{{ user.username }}',
          email: '{{ user.email|default:"noemail" }}',
@@ -28,6 +31,9 @@
      }
  {% else %}
      var DJANGO_CONTEXT = {
+         {% if target_warning_message %}
+         target_warning_message: '{{ target_warning_message }}',
+         {% endif %}
          legacy_url: '{{ legacy_url }}',
          username: 'NOT_LOGGED_IN',
          email: "noemail",
