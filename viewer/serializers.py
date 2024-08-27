@@ -12,8 +12,9 @@ from frag.network.query import get_full_graph
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
-from api.security import ISpyBSafeQuerySet
+from api.security import ISPyBSafeQuerySet
 from api.utils import draw_mol, validate_tas
 from viewer import models
 from viewer.target_loader import XTALFORMS_FILE
@@ -22,7 +23,70 @@ from viewer.utils import get_https_host
 
 logger = logging.getLogger(__name__)
 
-_ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
+_ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
+
+
+class ValidateProjectMixin:
+    """Mixin for serializers to check if user is allowed to create objects.
+
+    Requires a 'filter_permissions' member in the corresponding View.
+    This is used to navigate to the Project object from the data map
+    given to the validate() method.
+    """
+
+    def validate(self, data):
+        # User must be logged in
+        user = self.context['request'].user  # type: ignore [attr-defined]
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("You must be logged in")
+        view = self.context['view']  # type: ignore [attr-defined]
+        if not hasattr(view, "filter_permissions"):
+            raise AttributeError(
+                "The view object must define a 'filter_permissions' property"
+            )
+        logger.info('view.filter_permissions=%s', view.filter_permissions)
+
+        # We expect a filter_permissions string (defined in the View) like this...
+        #     "compound__project_id"
+        # In this example the supplied data map is therefore expected to have a
+        # "compound" key (which we extract into a variable called 'base_object_key').
+        # We use the 2nd half of the string (which we call 'project_path')
+        # to get to the Project object from 'data["compound"]'.
+        #
+        # If the filter_permissions string has no 2nd half (e.g. it's simply 'project_id')
+        # then the data is clearly expected to contain the Project object itself.
+
+        base_object_key, project_path = view.filter_permissions.split('__', 1)
+        base_start_obj = data[base_object_key]
+        project_obj = (
+            getattr(base_start_obj, project_path) if project_path else base_start_obj
+        )
+        # Now get the proposals from the Project(s)...
+        if project_obj.__class__.__name__ == "ManyRelatedManager":
+            # Potential for many proposals...
+            object_proposals = [p.title for p in project_obj.all()]
+        else:
+            # Only one proposal...
+            object_proposals = [project_obj.title]
+
+        # Now we have the proposals (Project titles) the object belongs to,
+        # has the user been associated (in IPSpyB) with any of them?
+        # We can always see (GET) objects that are open to the public.
+        restrict_public = False if self.context['request'].method == 'GET' else True  # type: ignore [attr-defined]
+        if (
+            object_proposals
+            and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+                user=user,
+                proposals=object_proposals,
+                restrict_public_to_membership=restrict_public,
+            )
+        ):
+            raise PermissionDenied(
+                detail="Your authority to access this object has not been given"
+            )
+
+        # OK if we get here...
+        return data
 
 
 class FileSerializer(serializers.ModelSerializer):
@@ -37,7 +101,7 @@ class CompoundIdentifierTypeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class CompoundIdentifierSerializer(serializers.ModelSerializer):
+class CompoundIdentifierSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.CompoundIdentifier
         fields = '__all__'
@@ -125,7 +189,6 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Target
-        # TODO: it's missing protein_set. is it necessary anymore?
         fields = (
             "id",
             "title",
@@ -483,14 +546,24 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
 
 
 # (POST, PUT, PATCH)
-class SessionProjectWriteSerializer(serializers.ModelSerializer):
+class SessionProjectWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+    # def validate_target(self, value):
+    #     user = self.context['request'].user
+    #     if not user or not user.is_authenticated:
+    #         raise serializers.ValidationError("You must be logged in to create objects")
+    #     if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, value):
+    #         raise serializers.ValidationError(
+    #             "You have not been given access the object's Target"
+    #         )
+    #     return value
+
     class Meta:
         model = models.SessionProject
         fields = '__all__'
 
 
 # (GET, POST, PUT, PATCH)
-class SessionActionsSerializer(serializers.ModelSerializer):
+class SessionActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
@@ -540,7 +613,7 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 
 
 # (GET, POST, PUT, PATCH)
-class SnapshotActionsSerializer(serializers.ModelSerializer):
+class SnapshotActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
@@ -548,7 +621,7 @@ class SnapshotActionsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ComputedSetSerializer(serializers.ModelSerializer):
+class ComputedSetSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.ComputedSet
         fields = '__all__'
@@ -667,7 +740,7 @@ class TagCategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SiteObservationTagSerializer(serializers.ModelSerializer):
+class SiteObservationTagSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True, queryset=models.SiteObservation.objects.all()
     )
@@ -687,7 +760,7 @@ class SiteObservationTagSerializer(serializers.ModelSerializer):
         }
 
 
-class SessionProjectTagSerializer(serializers.ModelSerializer):
+class SessionProjectTagSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.SessionProjectTag
         fields = '__all__'
@@ -713,14 +786,14 @@ class DownloadStructuresSerializer(serializers.Serializer):
 
 # Start of Serializers for Squonk Jobs
 # (GET)
-class JobFileTransferReadSerializer(serializers.ModelSerializer):
+class JobFileTransferReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobFileTransfer
         fields = '__all__'
 
 
 # (POST, PUT, PATCH)
-class JobFileTransferWriteSerializer(serializers.ModelSerializer):
+class JobFileTransferWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobFileTransfer
         fields = ("snapshot", "target", "squonk_project", "proteins", "compounds")
@@ -768,7 +841,7 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
         fields = ("job_status", "state_transition_time")
 
 
-class TargetExperimentReadSerializer(serializers.ModelSerializer):
+class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.ExperimentUpload
         fields = '__all__'
@@ -845,7 +918,7 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class PoseSerializer(serializers.ModelSerializer):
+class PoseSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=models.SiteObservation.objects.all(),
@@ -921,7 +994,9 @@ class PoseSerializer(serializers.ModelSerializer):
         - the pose they're being removed from is deleted when empty
 
         """
-        logger.info('+ validate: %s', data)
+        logger.info('+ validate data: %s', data)
+
+        data = super().validate(data)
 
         template = (
             "Site observation {} cannot be assigned to pose because "

@@ -1,9 +1,9 @@
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
 
-from api.security import ISpyBSafeQuerySet
+from api.security import ISPyBSafeQuerySet
 
-_ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
+_ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
 
 
 class IsObjectProposalMember(permissions.BasePermission):

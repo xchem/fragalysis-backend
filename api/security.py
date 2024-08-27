@@ -185,7 +185,7 @@ def ping_configured_connector() -> bool:
     return conn is not None
 
 
-class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     """
     This ISpyBSafeQuerySet, which inherits from the DRF viewsets.ReadOnlyModelViewSet,
     is used for all views that need to yield (filter) view objects based on a
@@ -216,7 +216,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         q_filter = self._get_q_filter(proposal_list)
         return self.queryset.filter(q_filter).distinct()
 
-    def _get_open_proposals(self):
+    def get_open_proposals(self):
         """
         Returns the set of proposals anybody can access.
         These consist of any Projects that are marked "open_to_public"
@@ -226,6 +226,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             Project.objects.filter(open_to_public=True).values_list("title", flat=True)
         )
         open_proposals.update(settings.PUBLIC_TAS_LIST)
+        # End Temporary Test Code (1247)
         return open_proposals
 
     def _get_proposals_for_user_from_django(self, user):
@@ -341,36 +342,67 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         )
         CachedContent.set_content(user.username, prop_id_set)
 
-    def user_is_member_of_any_given_proposals(self, user, proposals):
+    def user_is_member_of_target(
+        self, user, target, restrict_public_to_membership=True
+    ):
+        """
+        Returns true if the user has access to any proposal the target belongs to.
+        """
+        target_proposals = [p.title for p in target.project_id.all()]
+        user_proposals = self.get_proposals_for_user(
+            user, restrict_public_to_membership=restrict_public_to_membership
+        )
+        is_member = any(proposal in user_proposals for proposal in target_proposals)
+        if not is_member:
+            logger.warning(
+                "Failed membership check user='%s' target='%s' target_proposals=%s",
+                user.username,
+                target.title,
+                target_proposals,
+            )
+        return is_member
+
+    def user_is_member_of_any_given_proposals(
+        self, user, proposals, restrict_public_to_membership=True
+    ):
         """
         Returns true if the user has access to any proposal in the given
-        proposals list.Only one needs to match for permission to be granted.
-        We 'restrict_to_membership' to only consider proposals the user
+        proposals list. Only one needs to match for permission to be granted.
+        We 'restrict_public_to_membership' to only consider proposals the user
         has explicit membership.
         """
-        user_proposals = self.get_proposals_for_user(user, restrict_to_membership=True)
-        return any(proposal in user_proposals for proposal in proposals)
+        user_proposals = self.get_proposals_for_user(
+            user, restrict_public_to_membership=restrict_public_to_membership
+        )
+        is_member = any(proposal in user_proposals for proposal in proposals)
+        if not is_member:
+            logger.warning(
+                "Failed membership check user='%s' proposals=%s",
+                user.username,
+                proposals,
+            )
+        return is_member
 
-    def get_proposals_for_user(self, user, restrict_to_membership=False):
+    def get_proposals_for_user(self, user, restrict_public_to_membership=False):
         """
         Returns a list of proposals that the user has access to.
 
-        If 'restrict_to_membership' is set only those proposals/visits where the user
+        If 'restrict_public_to_membership' is set only those proposals/visits where the user
         is a member of the visit will be returned. Otherwise the 'public'
-        proposals/visits will also be returned. Typically 'restrict_to_membership' is
+        proposals/visits will also be returned. Typically 'restrict_public_to_membership' is
         used for uploads/changes - this allows us to implement logic that (say)
         only permits explicit members of public proposals to add/load data for that
-        project (restrict_to_membership=True), but everyone can 'see' public data
-        (restrict_to_membership=False).
+        project (restrict_public_to_membership=True), but everyone can 'see' public data
+        (restrict_public_to_membership=False).
         """
         assert user
 
         proposals = set()
         ispyb_user = settings.ISPYB_USER
         logger.debug(
-            "ispyb_user=%s restrict_to_membership=%s (DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP=%s)",
+            "ispyb_user=%s restrict_public_to_membership=%s (DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP=%s)",
             ispyb_user,
-            restrict_to_membership,
+            restrict_public_to_membership,
             settings.DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP,
         )
         if ispyb_user:
@@ -384,10 +416,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # We have all the proposals where the user has authority.
         # Add open/public proposals?
         if (
-            not restrict_to_membership
+            not restrict_public_to_membership
             or settings.DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP
         ):
-            proposals.update(self._get_open_proposals())
+            proposals.update(self.get_open_proposals())
 
         # Return the set() as a list()
         return list(proposals)
@@ -411,9 +443,9 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return Q(title__in=proposal_list) | Q(open_to_public=True)
 
 
-class ISpyBSafeStaticFiles:
+class ISPyBSafeStaticFiles:
     def get_queryset(self):
-        query = ISpyBSafeQuerySet()
+        query = ISPyBSafeQuerySet()
         query.request = self.request
         query.filter_permissions = self.permission_string
         query.queryset = self.model.objects.filter()
@@ -459,7 +491,7 @@ class ISpyBSafeStaticFiles:
             raise Http404 from exc
 
 
-class ISpyBSafeStaticFiles2(ISpyBSafeStaticFiles):
+class ISPyBSafeStaticFiles2(ISPyBSafeStaticFiles):
     def get_response(self):
         logger.info("+ get_response called with: %s", self.input_string)
         # it wasn't working because found two objects with test file name

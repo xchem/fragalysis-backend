@@ -1,8 +1,3 @@
-"""
-utils.py
-
-Collection of technical methods tidied up in one location.
-"""
 import fnmatch
 import itertools
 import json
@@ -11,12 +6,17 @@ import os
 import shutil
 import string
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Dict, Generator, Optional
 from urllib.parse import urlparse
 
+import pandas as pd
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.http import JsonResponse
@@ -38,6 +38,12 @@ logger = logging.getLogger(__name__)
 SDF_VERSION = 'ver_1.2'
 
 SDF_RECORD_SEPARATOR = '$$$$\n'
+
+# The root of all files constructed by 'dicttocsv'.
+# The directory must not contain anything but dicttocsv-generated files.
+# It certainly must not be the root of the media directory or any other directory in it.
+# Introduced during 1247 security review.
+CSV_TO_DICT_DOWNLOAD_ROOT = os.path.join(settings.MEDIA_ROOT, 'downloads', 'dicttocsv')
 
 
 def is_url(url: Optional[str]) -> bool:
@@ -440,3 +446,85 @@ def alphanumerator(
             _ = next(generator)
 
     return generator
+
+
+def save_tmp_file(myfile):
+    """Save file in temporary location for validation/upload processing"""
+
+    name = myfile.name
+    path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
+    return str(os.path.join(settings.MEDIA_ROOT, path))
+
+
+def create_csv_from_dict(input_dict, title=None, filename=None):
+    """Write a CSV file containing data from an input dictionary and return a full
+    to the file (in the media directory).
+    """
+    if not filename:
+        filename = 'download'
+
+    unique_dir = str(uuid.uuid4())
+    download_path = os.path.join(CSV_TO_DICT_DOWNLOAD_ROOT, unique_dir)
+    os.makedirs(download_path, exist_ok=True)
+
+    download_file = os.path.join(download_path, filename)
+
+    # Remove file if it already exists
+    if os.path.isfile(download_file):
+        os.remove(download_file)
+
+    with open(download_file, "w", newline='', encoding='utf-8') as csvfile:
+        if title:
+            csvfile.write(title)
+            csvfile.write("\n")
+
+    df = pd.DataFrame.from_dict(input_dict)
+    df.to_csv(download_file, mode='a', header=True, index=False)
+
+    return download_file
+
+
+def email_task_completion(
+    contact_email, message_type, target_name, target_path=None, task_id=None
+):
+    """Notify user of upload completion"""
+
+    logger.info('+ email_notify_task_completion: ' + message_type + ' ' + target_name)
+    email_from = settings.EMAIL_HOST_USER
+
+    if contact_email == '' or not email_from:
+        # Only send email if configured.
+        return
+
+    if message_type == 'upload-success':
+        subject = 'Fragalysis: Target: ' + target_name + ' Uploaded'
+        message = (
+            'The upload of your target data is complete. Your target is available at: '
+            + str(target_path)
+        )
+    elif message_type == 'validate-success':
+        subject = 'Fragalysis: Target: ' + target_name + ' Validation'
+        message = (
+            'Your data was validated. It can now be uploaded using the upload option.'
+        )
+    else:
+        # Validation failure
+        subject = 'Fragalysis: Target: ' + target_name + ' Validation/Upload Failed'
+        message = (
+            'The validation/upload of your target data did not complete successfully. '
+            'Please navigate the following link to check the errors: validate_task/'
+            + str(task_id)
+        )
+
+    recipient_list = [
+        contact_email,
+    ]
+    logger.info('+ email_notify_task_completion email_from: %s', email_from)
+    logger.info('+ email_notify_task_completion subject: %s', subject)
+    logger.info('+ email_notify_task_completion message: %s', message)
+    logger.info('+ email_notify_task_completion contact_email: %s', contact_email)
+
+    # Send email - this should not prevent returning to the screen in the case of error.
+    send_mail(subject, message, email_from, recipient_list, fail_silently=True)
+    logger.info('- email_notify_task_completion')
+    return

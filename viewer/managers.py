@@ -315,3 +315,101 @@ class PoseDataManager(Manager):
 
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class SnapshotQueryset(QuerySet):
+    def filter_qs(self):
+        Snapshot = apps.get_model("viewer", "Snapshot")
+        qs = Snapshot.objects.prefetch_related(
+            "session_project",
+            "session_project__target",
+        ).annotate(
+            target=F("session_project__target"),
+        )
+
+        return qs
+
+
+class SnapshotDataManager(Manager):
+    def get_queryset(self):
+        return SnapshotQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class SnapshotActionsQueryset(QuerySet):
+    def filter_qs(self):
+        SnapshotActions = apps.get_model("viewer", "SnapshotActions")
+        qs = SnapshotActions.objects.prefetch_related(
+            "session_project",
+            "session_project__target",
+        ).annotate(
+            target=F("session_project__target"),
+        )
+
+        return qs
+
+
+class SnapshotActionsDataManager(Manager):
+    def get_queryset(self):
+        return SnapshotActionsQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class SessionActionsQueryset(QuerySet):
+    def filter_qs(self):
+        SessionActions = apps.get_model("viewer", "SessionActions")
+        qs = SessionActions.objects.prefetch_related(
+            "session_project",
+            "session_project__target",
+        ).annotate(
+            target=F("session_project__target"),
+        )
+
+        return qs
+
+
+class SessionActionsDataManager(Manager):
+    def get_queryset(self):
+        return SessionActionsQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class CompoundIdentifierQueryset(QuerySet):
+    def filter_qs(self):
+        CompoundIdentifier = apps.get_model("viewer", "CompoundIdentifier")
+        qs = CompoundIdentifier.objects.prefetch_related(
+            "cmpd_id__siteobservation",
+            "cmpd_id__siteobservation__experiment",
+            "cmpd_id__siteobservation__experiment__experiment_upload",
+            "cmpd_id__siteobservation__experiment__experiment_upload__target",
+        ).annotate(
+            target=F("cmpd_id__siteobservation__experiment__experiment_upload__target"),
+        )
+
+        return qs
+
+
+class CompoundIdentifierDataManager(Manager):
+    def get_queryset(self):
+        return CompoundIdentifierQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)

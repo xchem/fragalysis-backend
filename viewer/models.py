@@ -17,10 +17,14 @@ from .managers import (
     CanonSiteConfDataManager,
     CanonSiteDataManager,
     CompoundDataManager,
+    CompoundIdentifierDataManager,
     ExperimentDataManager,
     PoseDataManager,
     QuatAssemblyDataManager,
+    SessionActionsDataManager,
     SiteObservationDataManager,
+    SnapshotActionsDataManager,
+    SnapshotDataManager,
     XtalformDataManager,
     XtalformQuatAssemblyDataManager,
     XtalformSiteDataManager,
@@ -194,6 +198,15 @@ class ExperimentUpload(models.Model):
             .joinpath(self.task_id)
             .joinpath(Path(str(self.file)).stem)
             .joinpath(self.upload_data_dir)
+        )
+
+    def get_download_path(self):
+        """The path to the original uploaded file, used during downloads"""
+        return (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(self.task_id)
+            .joinpath(Path(str(self.file)))
         )
 
 
@@ -568,6 +581,9 @@ class CompoundIdentifier(models.Model):
     url = models.URLField(max_length=URL_LENGTH, null=True)
     name = models.CharField(max_length=NAME_LENGTH)
 
+    objects = models.Manager()
+    filter_manager = CompoundIdentifierDataManager()
+
     def __str__(self) -> str:
         return f"{self.name}"
 
@@ -683,6 +699,9 @@ class SessionActions(models.Model):
     last_update_date = models.DateTimeField(default=timezone.now)
     actions = models.JSONField(encoder=DjangoJSONEncoder)
 
+    objects = models.Manager()
+    filter_manager = SessionActionsDataManager()
+
     def __str__(self) -> str:
         return f"{self.author}"
 
@@ -738,6 +757,9 @@ class Snapshot(models.Model):
         help_text='Optional JSON field containing name/value pairs for future use',
     )
 
+    objects = models.Manager()
+    filter_manager = SnapshotDataManager()
+
     def __str__(self) -> str:
         return f"{self.title}"
 
@@ -773,6 +795,9 @@ class SnapshotActions(models.Model):
     snapshot = models.ForeignKey(Snapshot, on_delete=models.CASCADE)
     last_update_date = models.DateTimeField(default=timezone.now)
     actions = models.JSONField(encoder=DjangoJSONEncoder)
+
+    objects = models.Manager()
+    filter_manager = SnapshotActionsDataManager()
 
     def __str__(self) -> str:
         return f"{self.author}"

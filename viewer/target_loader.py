@@ -133,6 +133,7 @@ class UploadReportEntry:
 @dataclass
 class UploadReport:
     task: Task | None
+    proposal_ref: str
     stack: list[UploadReportEntry] = field(default_factory=list)
     upload_state: UploadState = UploadState.PROCESSING
     failed: bool = False
@@ -170,6 +171,7 @@ class UploadReport:
             self.task.update_state(
                 state=self.upload_state,
                 meta={
+                    "proposal_ref": self.proposal_ref,
                     "description": message,
                 },
             )
@@ -461,7 +463,7 @@ class TargetLoader:
         self.previous_version_dirs = None
         self.user_id = user_id
 
-        self.report = UploadReport(task=task)
+        self.report = UploadReport(task=task, proposal_ref=self.proposal_ref)
 
         self.raw_data.mkdir()
 
