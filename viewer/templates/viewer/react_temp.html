@@ -25,6 +25,9 @@
          discourse_host: '{{ discourse_host }}',
          squonk_available: {{ squonk_available }},
          squonk_ui_url: '{{ squonk_ui_url }}'
+         {% if target_warning_message %}
+         target_warning_message: '{{ target_warning_message }}'
+         {% endif %}
      }
  {% else %}
      var DJANGO_CONTEXT = {
@@ -35,6 +38,9 @@
          authenticated: false,
          discourse_available: {{ discourse_available }},
          squonk_available: {{ squonk_available }}
+         {% if target_warning_message %}
+         target_warning_message: '{{ target_warning_message }}'
+         {% endif %}
      }
  {% endif %}
 
