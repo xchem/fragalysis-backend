@@ -127,6 +127,9 @@ def react(request):
         if sq2_rv.success and check_squonk_active(request):
             context['squonk_ui_url'] = _SQ2A.get_ui_url()
 
+    if settings.TARGET_WARNING_MESSAGE:
+        context['target_warning_message'] = settings.TARGET_WARNING_MESSAGE
+
     return render(request, "viewer/react_temp.html", context)
 
 

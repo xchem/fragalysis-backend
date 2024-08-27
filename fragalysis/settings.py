@@ -630,6 +630,10 @@ SQUONK2_VERIFY_CERTIFICATES: str = os.environ.get("SQUONK2_VERIFY_CERTIFICATES",
 
 TARGET_LOADER_MEDIA_DIRECTORY: str = "target_loader_data"
 
+# A warning messages issued by the f/e.
+# Used, if set, to populate the 'target_warning_message' context variable
+TARGET_WARNING_MESSAGE: str = os.environ.get("TARGET_WARNING_MESSAGE", "")
+
 # The Target Access String (TAS) Python regular expression.
 # The Project title (the TAS) must match this expression to be valid.
 # See api/utils.py validate_tas() for the current implementation.
