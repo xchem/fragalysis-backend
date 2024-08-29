@@ -97,6 +97,12 @@ def react(request):
     via the 'context' variable used for the view's template.
     """
 
+    # ----
+    # NOTE: If you add or remove any context keys here
+    # ----  you MUST update the template that gets rendered
+    #       (viewer/react_temp.html) so that is matches
+    #       the keys you are creating and passing here.
+
     # Start building the context that will be passed to the template
     context = {'legacy_url': settings.LEGACY_URL}
 
@@ -133,7 +139,9 @@ def react(request):
 
     context['target_warning_message'] = settings.TARGET_WARNING_MESSAGE
 
-    return render(request, "viewer/react_temp.html", context)
+    render_template = "viewer/react_temp.html"
+    logger.info("Rendering %s with context=%s...", render_template, context)
+    return render(request, render_template, context)
 
 
 # --------------------
