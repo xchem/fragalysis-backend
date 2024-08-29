@@ -383,6 +383,7 @@ def restore_curated_tags(filename: str) -> None:
                 data['site_obvs_group'] = new_mol_groups_by_old_pk[
                     data['site_obvs_group_id']
                 ]
+                del data['site_obvs_group_id']
                 SiteObvsSiteObservationGroup(**data).save()
 
             so_so_tag_data = content.get(
@@ -407,6 +408,7 @@ def restore_curated_tags(filename: str) -> None:
                 data['site_obvs_tag'] = new_tags_by_old_pk.get(
                     data['site_obvs_tag_id'], None
                 )
+                del data['site_obvs_tag_id']
                 if data['site_obvs_tag']:
                     # tag may be missing if not restored
                     SiteObvsSiteObservationTag(**data).save()
