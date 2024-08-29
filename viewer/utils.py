@@ -337,7 +337,7 @@ def restore_curated_tags(filename: str) -> None:
                 if data['mol_group_id']:
                     data['mol_group_id'] = new_mol_groups_by_old_pk[
                         data['mol_group_id']
-                    ]
+                    ].pk
                 data['user'] = new_users_by_old_pk[data['user_id']]
                 del data['user_id']
                 tag = SiteObservationTag(**data)
@@ -381,7 +381,7 @@ def restore_curated_tags(filename: str) -> None:
                 del data['ann_site_obvs_longcode']
                 del data['site_observation_id']
                 data['site_obvs_group'] = new_mol_groups_by_old_pk[
-                    data['site_obvs_group']
+                    data['site_obvs_group_id']
                 ]
                 SiteObvsSiteObservationGroup(**data).save()
 
@@ -396,7 +396,7 @@ def restore_curated_tags(filename: str) -> None:
                     )
                 except SiteObservation.DoesNotExist:
                     logger.warning(
-                        'Tried to restore SiteObvsSiteObservationGroup for site_observation that does not exist: %s',
+                        'Tried to restore SiteObvsSiteObservationTag for site_observation that does not exist: %s',
                         data['ann_site_obvs_longcode'],
                     )
                     continue
@@ -405,7 +405,7 @@ def restore_curated_tags(filename: str) -> None:
                 del data['ann_site_obvs_longcode']
                 del data['site_observation_id']
                 data['site_obvs_tag'] = new_tags_by_old_pk.get(
-                    data['site_obvs_tag'], None
+                    data['site_obvs_tag_id'], None
                 )
                 if data['site_obvs_tag']:
                     # tag may be missing if not restored
