@@ -565,6 +565,14 @@ PROPOSAL_REQUIRED: bool = True
 PUBLIC_TAS: str = os.environ.get("PUBLIC_TAS", "")
 PUBLIC_TAS_LIST: List[str] = PUBLIC_TAS.split(",") if PUBLIC_TAS else []
 
+# A debug mechanism to allow us to manually add user and project associations.
+# The input is a comma-separated list of "user:project: pairs,
+# e.g. "user-1:lb32627-66,user2:lb32627-66"
+RESTRICTED_TAS_USERS: str = os.environ.get("RESTRICTED_TAS_USERS", "")
+RESTRICTED_TAS_USERS_LIST: List[str] = (
+    RESTRICTED_TAS_USERS.split(",") if RESTRICTED_TAS_USERS else []
+)
+
 # Security/access control connector.
 # Currently one of 'ispyb' or 'ssh_ispyb'.
 SECURITY_CONNECTOR: str = os.environ.get("SECURITY_CONNECTOR", "ispyb").lower()
