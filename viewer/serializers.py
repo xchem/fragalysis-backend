@@ -58,9 +58,19 @@ class ValidateProjectMixin:
 
         base_object_key, project_path = view.filter_permissions.split('__', 1)
         base_start_obj = data[base_object_key]
-        project_obj = (
-            getattr(base_start_obj, project_path) if project_path else base_start_obj
-        )
+        # Assume we're using the base object,
+        # but swap it out of there's a project path.
+        project_obj = base_start_obj
+        if project_path:
+            try:
+                project_obj = getattr(base_start_obj, project_path)
+            except AttributeError as exc:
+                # Something's gone wrong trying to lookup the project.
+                # Get the objects content and dump it for analysis...
+                msg = f"There is no Project at '{project_path}' ({view.filter_permissions})"
+                logger.error("%s - vars(base_start_obj)=%s", msg, vars(base_start_obj))
+                raise serializers.ValidationError(msg) from exc
+        assert project_obj
         # Now get the proposals from the Project(s)...
         if project_obj.__class__.__name__ == "ManyRelatedManager":
             # Potential for many proposals...
