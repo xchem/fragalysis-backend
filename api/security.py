@@ -23,6 +23,31 @@ from .remote_ispyb_connector import SSHConnector
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+def get_restricted_tas_user_proposal(user) -> set[str]:
+    """
+    Used for debugging access to restricted TAS projects.
+    settings.RESTRICTED_TAS_USERS_LIST is a list of strings that
+    contain "<user>:<tas>". We inspect this list, and if our user is in it
+    we collect and return them.
+
+    This should always return an empty set() in production.
+    """
+    assert user
+
+    response = set()
+    if settings.RESTRICTED_TAS_USERS_LIST:
+        for item in settings.RESTRICTED_TAS_USERS_LIST:
+            item_username, item_tas = item.split(':')
+            if item_username == user.username:
+                response.add(item_tas)
+
+    if response:
+        logger.warning(
+            'Returning restricted TAS "%s" for user "%s"', item_tas, user.username
+        )
+    return response
+
+
 @cache
 class CachedContent:
     """
@@ -420,6 +445,12 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             or settings.DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP
         ):
             proposals.update(self.get_open_proposals())
+
+        # Finally, add any restricted TAS proposals the user has access to.
+        # It uses an environment variable to arbitrarily add proposals for a given user.
+        # This is a debug mechanism and should not be used in production.
+        # Added during debug effort for 1491.
+        proposals.update(get_restricted_tas_user_proposal(user))
 
         # Return the set() as a list()
         return list(proposals)
