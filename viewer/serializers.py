@@ -65,9 +65,11 @@ class ValidateProjectMixin:
             try:
                 project_obj = getattr(base_start_obj, project_path)
             except AttributeError as exc:
-                raise serializers.ValidationError(
-                    f"There is no Project at path '{project_path}' ({view.filter_permissions})"
-                ) from exc
+                # Something's gone wrong trying to lookup the project.
+                # Get the objects content and dump it for analysis...
+                msg = f"There is no Project at '{project_path}' ({view.filter_permissions})"
+                logger.error("%s - vars(base_start_obj)=%s", msg, vars(base_start_obj))
+                raise serializers.ValidationError(msg) from exc
         assert project_obj
         # Now get the proposals from the Project(s)...
         if project_obj.__class__.__name__ == "ManyRelatedManager":
