@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Dict, Generator, Optional
 from urllib.parse import urlparse
 
+import numpy as np
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
@@ -474,6 +475,7 @@ def sanitize_boolean_column(column):
         0,
         None,
         '',
+        np.nan,
     }
 
     def convert_to_boolean(value):

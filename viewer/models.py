@@ -488,7 +488,7 @@ class SiteObservation(Versionable, models.Model):
     canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
     pose = models.ForeignKey(
         Pose,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="site_observations",
     )

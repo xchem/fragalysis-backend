@@ -124,6 +124,19 @@ def strip_alias(alias: str) -> str:
         return splits[1].strip()
 
 
+def strip_catname(tag: str) -> tuple[str | None, str]:
+    # tag names (tc) are coming in format like '[Other] P2 Wave 1'
+    # where [Other] is category. extract the name and category
+    splits = tag.split(']')
+    category_name = None
+    if len(splits) > 0:
+        category_name = splits[0].strip('[ ')
+        # if for some reason user decided to use brackets in tagname
+        tagname = ']'.join(splits[1:]).strip()
+
+    return category_name, tagname
+
+
 def validate_aliases(df) -> tuple[list[tuple[str, str]], list[str]]:
     """Check upload name and alias combinations.
 
@@ -135,7 +148,8 @@ def validate_aliases(df) -> tuple[list[tuple[str, str]], list[str]]:
         col_upload = f'{cat} upload name'
         col_alias = f'{cat} alias'
 
-        tag_groups = df.loc[:, [col_upload, col_alias]].groupby(col_upload)
+        tag_groups = df.loc[:, [col_upload, col_alias]].groupby(col_upload).groups
+        logger.debug('tag_groups :%s', tag_groups.keys)
         for tag in tag_groups.keys():
             name_groups = (
                 df.loc[tag_groups[tag], [col_upload, col_alias]]
@@ -201,6 +215,8 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
 
 
 def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ignore [return]
+    # from viewer.tags import load_tags_from_csv; from viewer.models import Target; target = Target.objects.get(title='A71EV2A'); load_tags_from_csv('metadata_modified_ok.xlsx', target)
+
     errors: list[str] = []
 
     try:
@@ -215,8 +231,10 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
             return errors
 
     tag_cols = get_tag_cols(df.columns)
+    tagnames = {strip_catname(k)[1]: strip_catname(k)[0] for k in tag_cols}
 
     for column in tag_cols:
+        df[column] = df[column].fillna(False)
         df[column] = sanitize_boolean_column(df[column])
 
     # header, _, _ = get_metadata_fields(target)
@@ -224,7 +242,7 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
     # upload_cols = get_upload_cols(df.columns)
     # alias_cols = get_alias_cols(df.columns)
 
-    tag_aliases, alias_errors = validate_aliases(df.columns)
+    tag_aliases, alias_errors = validate_aliases(df)
     errors.extend(alias_errors)
 
     with transaction.atomic():
@@ -258,100 +276,125 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
                 main_site_observation__experiment__experiment_upload__target=target,
             )
 
-            # poses got really complicated now. instead of just
-            # checking them I need to allow create, delete and
-            # reassign operations. but how?
+            # the spreadsheet is considered to be the new truth, make
+            # the db match. procedure:
+            # - delete poses that should be deleted
+            # - create a new ones
+            # - attach orphaned observations to poses
 
-            # if I loop over pose name and encounter one I don't have
-            # then need to create one. The observation that lists it
-            # will be assigned to it. also means, if this was a single
-            # observation in some other pose, this needs to be deleted
+            # NB! display name column is not guaranteed to be unique,
+            # but I have nothing else to go on from the file
+            pose_current = set(poses.values_list('display_name', flat=True))
+            pose_df = set(df[next(iter(POSE_COL.keys()))])
 
-            # hold on, is it really that complicated? if the
-            # spreadsheet represents the new truth, then I should be
-            # able to create new set of poses from it. if all cells
-            # are filled (each observation belongs into a pose) and
-            # there's no extra poses (each pose must have at least one
-            # observation) then surely it's job done, no?
+            pose_delete = pose_current.difference(pose_df)
+            pose_create = pose_df.difference(pose_current)
 
-            # how to check pose equality? I think all I have is name,
-            # observations belonging to pose and main observation. but
-            # name is user-changeable, so.. what then? if the name is
-            # changed, I consider a new pose?
-
-            # other than that - check all poses for equality:
-            # - name
-            # - observations belonging to it
-            # - main observation (name matches main obvs short code)
-
-            # non-matching options:
-            # - name not found: completely new pose
-            # - different number of observations in pose: add or remove
-            # - different main observation: change observation (if found by name)
-
-            # procedure:
-
-            pose_update = []
-            for so in qs:
-                pose_name = df.loc[df['Long code'] == so.code, POSE_COL]
+            poses.filter(display_name__in=pose_delete).delete()
+            for pose_name in pose_create:
+                logger.debug('fetching pose name %s', pose_name)
+                so_df = df.loc[
+                    df[next(iter(POSE_COL.keys()))] == pose_name, 'Long code'
+                ]
+                logger.debug('so_df %s', so_df)
+                so_qs = qs.filter(longcode__in=so_df)
+                logger.debug('pose so queryset: %s', so_qs)
                 try:
-                    pose = poses.get(display_name=pose_name)
-                except Pose.DoesNotExist:
-                    # TODO: notify user
-                    # errors = True
-                    continue
-                except MultipleObjectsReturned:
-                    # It's not actually ideal, using display_name, there's no guarantee it's unique
-                    # TODO: notify user
-                    # errors = True
-                    continue
+                    main_so = so_qs.get(code=pose_name)
+                except SiteObservation.DoesNotExist:
+                    # if the user is using custom pose name and it's
+                    # not traceable back to observation
+                    main_so = so_qs.first()
+                    logger.debug('first main_so: %s', main_so)
+
+                pose = Pose(
+                    canon_site=main_so.canon_site_conf.canon_site,
+                    compound=main_so.cmpd,
+                    main_site_observation=main_so,
+                    display_name=pose_name,
+                )
+                pose.save()
+
+                # attach rest of the observations
+                for so in so_qs:
+                    so.pose = pose
+                    so.save()
+
+            # refresh the poses and...
+            poses = Pose.objects.filter(
+                main_site_observation__experiment__experiment_upload__target=target,
+            )
+
+            # ...check if there's any observations that do not belong to correct pose
+            so_update = []
+            for so in qs:
+                pose_name = df.loc[
+                    df['Long code'] == so.longcode, next(iter(POSE_COL.keys()))
+                ]
+                if so.pose_display_name != pose_name:
+                    try:
+                        pose = poses.get(display_name=pose_name)
+                    except Pose.DoesNotExist as exc:
+                        msg = f'This should not have happened: {exc}'
+                        logger.error(msg)
+                        errors.append(msg)
+                        continue
+                    except MultipleObjectsReturned as exc:
+                        msg = f'This should not have happened: {exc}'
+                        logger.error(msg)
+                        errors.append(msg)
+                        continue
+
+                # either of these error conditions should happen, the
+                # first is taken care by creating all the missing sets
+                # above, and the other with the set operation that
+                # discards the duplicates. leavnig it in just in case
+                # something goes horribly wrong
 
                 # concrete pose found, continue
-                if so.pose.pk != pose.pk:
-                    so.pose = pose
-                    pose_update.append(so)
-                    # TODO: attach to update object
+                so.pose = pose
+                so_update.append(so)
 
-            SiteObservation.objects.bulk_update(pose_update, ['pose'])
-            # that's nice, but can it be done at all? poses need
-            # main_obvs, so any moving around would destroy this
+            SiteObservation.objects.bulk_update(so_update, ['pose'])
 
-            # the loaded file is treated as a new ground truth, all changes
-            # should be propagated to database including deleting the curated
-            # tags. therefore, start by deleting all previously created
-            # curated tags and recreate them from file
-            # update: no that won't work. deleting and recreating would kill history
             cats = TagCategory.objects.filter(category__in=CURATED_TAG_CATEGORIES)
-            existing_curated = SiteObservationTag.objects.filter(
+            curated_tags = SiteObservationTag.objects.filter(
                 category__category__in=cats,
                 target=target,
             )
 
-            # hold on, need the correct category
+            curated_db = set(curated_tags.values_list('tag', flat=True))
+            curated_df = set(tagnames.keys())
+            curated_delete = curated_db.difference(curated_df)
+            # curated_create = curated_df.difference(curated_db)
+            # curated_existing = curated_df.intersection(curated_db)
+
+            # delete those missing from the uploaded file
+            curated_tags.filter(tag__in=curated_delete).delete()
+
+            # create or update new tags from file
             for tc in tag_cols:
                 so_group = SiteObservationGroup(target=target)
                 so_group.save()
 
-                # tag names (tc) are coming in format like '[Other] P2
-                # Wave 1' where [Other] is category. extract the name
-                # and category
-                splits = tc.split(']')
-                if len(splits) > 0:
-                    category_name = splits[0].strip('[ ')
-                    # if for some reason user decided to use brackets in tagname
-                    tagname = ']'.join(splits[1:])
-                else:
+                category_name = tagnames[tc]
+                if not category_name:
                     # category not given in tagname, raise error, notify user
+                    msg = f'Category name not given for tag {tc}'
+                    logger.error(msg)
+                    errors.append(msg)
                     continue
 
                 try:
                     cat = cats.get(category=category_name)
                 except TagCategory.DoesNotExist:
-                    # TODO: notify user
+                    msg = f"Unknown category name '{category_name}'"
+                    logger.error(msg)
+                    errors.append(msg)
                     continue
 
                 try:
-                    so_tag = existing_curated.get(tag=tagname)
+                    so_tag = curated_tags.get(tag=tagname)
                     so_from_db = set(
                         so_tag.site_observations.values_list('pk', flat=True)
                     )
