@@ -1,9 +1,13 @@
+import logging
+
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
 
 from api.security import ISPyBSafeQuerySet
 
 _ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
+
+logger = logging.getLogger(__name__)
 
 
 class IsObjectProposalMember(permissions.BasePermission):
@@ -33,6 +37,16 @@ class IsObjectProposalMember(permissions.BasePermission):
         # django property reference, e.g. 'target__project_id'.
         object_proposals = []
         attr_value = getattr(obj, view.filter_permissions)
+
+        try:
+            attr_value = getattr(obj, view.filter_permissions)
+        except AttributeError as exc:
+            # Something's gone wrong trying to lookup the project.
+            # Get the objects content and dump it for analysis...
+            msg = f"There is no Project at {view.filter_permissions}"
+            logger.error("%s - vars(base_start_obj)=%s", msg, vars(obj))
+            raise PermissionDenied(msg) from exc
+
         if attr_value.__class__.__name__ == "ManyRelatedManager":
             # Potential for many proposals...
             object_proposals = [p.title for p in attr_value.all()]
