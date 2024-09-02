@@ -53,13 +53,14 @@ class IsObjectProposalMember(permissions.BasePermission):
         else:
             # Only one proposal...
             object_proposals = [attr_value.title]
+        if not object_proposals:
+            raise PermissionDenied(
+                detail="Authority cannot be granted - the object is not a part of any Project"
+            )
         # Now we have the proposals the object belongs to
         # has the user been associated (in IPSpyB) with any of them?
-        if (
-            object_proposals
-            and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
-                user=request.user, proposals=object_proposals
-            )
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+            user=request.user, proposals=object_proposals
         ):
             raise PermissionDenied(
                 detail="Your authority to access this object has not been given"
