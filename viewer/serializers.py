@@ -558,16 +558,6 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
 
 # (POST, PUT, PATCH)
 class SessionProjectWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
-    # def validate_target(self, value):
-    #     user = self.context['request'].user
-    #     if not user or not user.is_authenticated:
-    #         raise serializers.ValidationError("You must be logged in to create objects")
-    #     if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, value):
-    #         raise serializers.ValidationError(
-    #             "You have not been given access the object's Target"
-    #         )
-    #     return value
-
     class Meta:
         model = models.SessionProject
         fields = '__all__'
