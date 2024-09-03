@@ -919,7 +919,6 @@ class SessionProjectView(
     queryset = models.SessionProject.objects.filter()
     filter_permissions = "target__project_id"
     filterset_fields = '__all__'
-    permission_classes = [IsObjectProposalMember]
 
     def get_serializer_class(self):
         if self.request.method in ['GET']:

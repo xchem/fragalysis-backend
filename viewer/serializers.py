@@ -557,7 +557,7 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
 
 
 # (POST, PUT, PATCH)
-class SessionProjectWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SessionProjectWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SessionProject
         fields = '__all__'
