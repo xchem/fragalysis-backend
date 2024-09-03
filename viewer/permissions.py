@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
@@ -42,12 +43,19 @@ class IsObjectProposalMember(permissions.BasePermission):
             attr_value = getattr(obj, view.filter_permissions)
         except AttributeError as exc:
             # Something's gone wrong trying to lookup the project.
-            # Get the objects content and dump it for analysis...
+            # Log some 'interesting' contextual information...
+            logger.info('request=%r', request)
+            logger.info('view=%s', view.__class__.__name__)
+            logger.info('view.filter_permissions=%s', view.filter_permissions)
+            # Get the object's content and dump it for analysis...
             obj_class_name = obj.__class__.__name__
             msg = f"There is no Project at {view.filter_permissions}"
             logger.error(
                 "%s - obj=%s vars(base_start_obj)=%s", msg, obj_class_name, vars(obj)
             )
+            # Finally - before exiting - stack/traceback (who called us?)
+            traceback_info = traceback.format_exc()
+            logger.info('traceback=%s', traceback_info)
             raise PermissionDenied(msg) from exc
 
         if attr_value.__class__.__name__ == "ManyRelatedManager":

@@ -1,4 +1,5 @@
 import logging
+import traceback
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -44,7 +45,6 @@ class ValidateProjectMixin:
             raise AttributeError(
                 "The view object must define a 'filter_permissions' property"
             )
-        logger.info('view.filter_permissions=%s', view.filter_permissions)
 
         # We expect a filter_permissions string (defined in the View) like this...
         #     "compound__project_id"
@@ -66,7 +66,12 @@ class ValidateProjectMixin:
                 project_obj = getattr(base_start_obj, project_path)
             except AttributeError as exc:
                 # Something's gone wrong trying to lookup the project.
-                # Get the objects content and dump it for analysis...
+                # Log some 'interesting' contextual information...
+                logger.info('context=%s', self.context)  # type: ignore [attr-defined]
+                logger.info('data=%s', data)
+                logger.info('view=%s', view.__class__.__name__)
+                logger.info('view.filter_permissions=%s', view.filter_permissions)
+                # Get the object's content and dump it for analysis...
                 bso_class_name = base_start_obj.__class__.__name__
                 msg = f"There is no Project at '{project_path}' ({view.filter_permissions})"
                 logger.error(
@@ -75,6 +80,9 @@ class ValidateProjectMixin:
                     bso_class_name,
                     vars(base_start_obj),
                 )
+                # Finally - before exiting - stack/traceback (who called us?)
+                traceback_info = traceback.format_exc()
+                logger.info('traceback=%s', traceback_info)
                 raise serializers.ValidationError(msg) from exc
         assert project_obj
         # Now get the proposals from the Project(s)...
