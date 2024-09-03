@@ -528,39 +528,36 @@ def _extra_files_zip(ziparchive, target):
 
     num_processed = 0
     num_extra_dir = 0
-    for experiment_upload in target.experimentupload_set.order_by('commit_datetime'):
-        extra_files = (
-            Path(settings.MEDIA_ROOT)
-            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(experiment_upload.task_id)
-        )
+    # taking the latest upload for now
 
-        # taking the latest upload for now
-        # add unpacked zip directory
-        extra_files = [d for d in list(extra_files.glob("*")) if d.is_dir()][0]
+    experiment_upload = target.experimentupload_set.order_by('commit_datetime').last()
+    extra_files = (
+        Path(settings.MEDIA_ROOT)
+        .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+        .joinpath(target.zip_archive.name)
+        .joinpath(experiment_upload.upload_data_dir)
+    )
 
-        # add upload_[d] dir
-        extra_files = next(extra_files.glob("upload_*"))
-        extra_files = extra_files.joinpath('extra_files')
+    extra_files = extra_files.joinpath('extra_files')
 
-        logger.debug('extra_files path 2: %s', extra_files)
-        logger.info('Processing extra files (%s)...', extra_files)
+    logger.debug('extra_files path 2: %s', extra_files)
+    logger.info('Processing extra files (%s)...', extra_files)
 
-        if extra_files.is_dir():
-            num_extra_dir = num_extra_dir + 1
-            for dirpath, _, files in os.walk(extra_files):
-                for file in files:
-                    filepath = os.path.join(dirpath, file)
-                    logger.info('Adding extra file "%s"...', filepath)
-                    ziparchive.write(
-                        filepath,
-                        os.path.join(
-                            f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
-                        ),
-                    )
-                    num_processed += 1
-        else:
-            logger.info('Directory does not exist (%s)...', extra_files)
+    if extra_files.is_dir():
+        num_extra_dir = num_extra_dir + 1
+        for dirpath, _, files in os.walk(extra_files):
+            for file in files:
+                filepath = os.path.join(dirpath, file)
+                logger.info('Adding extra file "%s"...', filepath)
+                ziparchive.write(
+                    filepath,
+                    os.path.join(
+                        f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
+                    ),
+                )
+                num_processed += 1
+    else:
+        logger.info('Directory does not exist (%s)...', extra_files)
 
     if num_processed == 0:
         logger.info('No extra files found')
@@ -571,44 +568,39 @@ def _extra_files_zip(ziparchive, target):
 def _yaml_files_zip(ziparchive, target, transforms_requested: bool = False) -> None:
     """Add all yaml files (except transforms) from upload to ziparchive"""
 
-    for experiment_upload in target.experimentupload_set.order_by('commit_datetime'):
-        yaml_paths = (
-            Path(settings.MEDIA_ROOT)
-            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(experiment_upload.task_id)
+    experiment_upload = target.experimentupload_set.order_by('commit_datetime').last()
+    yaml_paths = (
+        Path(settings.MEDIA_ROOT)
+        .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+        .joinpath(target.zip_archive.name)
+        .joinpath(experiment_upload.upload_data_dir)
+    )
+
+    transforms = [
+        Path(f.name).name
+        for f in (
+            experiment_upload.conformer_site_transforms,
+            experiment_upload.neighbourhood_transforms,
+            experiment_upload.reference_structure_transforms,
         )
+    ]
 
-        transforms = [
-            Path(f.name).name
-            for f in (
-                experiment_upload.neighbourhood_transforms,
-                experiment_upload.neighbourhood_transforms,
-                experiment_upload.neighbourhood_transforms,
-            )
-        ]
-        # taking the latest upload for now
-        # add unpacked zip directory
-        yaml_paths = [d for d in list(yaml_paths.glob("*")) if d.is_dir()][0]
+    archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
 
-        # add upload_[d] dir
-        yaml_paths = next(yaml_paths.glob("upload_*"))
+    yaml_files = [
+        f
+        for f in list(yaml_paths.glob("*.yaml"))
+        if f.is_file() and f.name not in transforms
+    ]
 
-        archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
+    logger.info('Processing yaml files (%s)...', yaml_files)
 
-        yaml_files = [
-            f
-            for f in list(yaml_paths.glob("*.yaml"))
-            if f.is_file() and f.name not in transforms
-        ]
-
-        logger.info('Processing yaml files (%s)...', yaml_files)
-
-        for file in yaml_files:
-            logger.info('Adding yaml file "%s"...', file)
-            if not transforms_requested and file.name == 'neighbourhoods.yaml':
-                # don't add this file if transforms are not requested
-                continue
-            ziparchive.write(file, str(Path(archive_path).joinpath(file.name)))
+    for file in yaml_files:
+        logger.info('Adding yaml file "%s"...', file)
+        if not transforms_requested and file.name == 'neighbourhoods.yaml':
+            # don't add this file if transforms are not requested
+            continue
+        ziparchive.write(file, str(Path(archive_path).joinpath(file.name)))
 
 
 def _document_file_zip(ziparchive, download_path, original_search, host):
