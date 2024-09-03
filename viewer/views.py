@@ -1301,7 +1301,6 @@ class SiteObservationTagView(
     queryset = models.SiteObservationTag.objects.all()
     filter_permissions = "target__project_id"
     serializer_class = serializers.SiteObservationTagSerializer
-    permission_classes = [IsObjectProposalMember]
     filterset_fields = (
         'id',
         'tag',
@@ -1337,7 +1336,6 @@ class SessionProjectTagView(
     queryset = models.SessionProjectTag.objects.all()
     filter_permissions = "target__project_id"
     serializer_class = serializers.SessionProjectTagSerializer
-    permission_classes = [IsObjectProposalMember]
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
