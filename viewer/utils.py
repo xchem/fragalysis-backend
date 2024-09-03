@@ -3,6 +3,7 @@ import itertools
 import json
 import logging
 import os
+import re
 import shutil
 import string
 import tempfile
@@ -530,3 +531,35 @@ def email_task_completion(
     send_mail(subject, message, email_from, recipient_list, fail_silently=True)
     logger.info('- email_notify_task_completion')
     return
+
+
+def sanitize_directory_name(name: str, path: Path | None = None) -> str:
+    """
+    Sanitize a string to ensure it only contains characters allowed in UNIX directory names.
+
+    Parameters:
+    name: The input string to sanitize.
+    path (optional): the parent directory where the directory would reside, to check if unique
+
+    Returns:
+    str: A sanitized string with only allowed characters.
+    """
+    # Define allowed characters regex
+    allowed_chars = re.compile(r'[^a-zA-Z0-9._-]')
+
+    # Replace disallowed characters with an underscore
+    sanitized_name = allowed_chars.sub('_', name.strip())
+
+    # Replace multiple underscores with a single underscore
+    sanitized_name = re.sub(r'__+', '_', sanitized_name)
+    if path:
+        target_dirs = [d.name for d in list(path.glob("*")) if d.is_dir()]
+        new_name = sanitized_name
+        suf = 1
+        while new_name in target_dirs:
+            suf = suf + 1
+            new_name = f'{sanitized_name}_{suf}'
+
+        sanitized_name = new_name
+
+    return sanitized_name

@@ -4,8 +4,8 @@ import hashlib
 import logging
 import math
 import os
+import shutil
 import tarfile
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -44,7 +44,7 @@ from viewer.models import (
     XtalformQuatAssembly,
     XtalformSite,
 )
-from viewer.utils import alphanumerator
+from viewer.utils import alphanumerator, sanitize_directory_name
 
 logger = logging.getLogger(__name__)
 
@@ -480,24 +480,32 @@ class TargetLoader:
 
         # give each upload a unique directory. since I already have
         # task_id, why not reuse it
+
+        # update: resolving issue 1311 introduced a bug, where
+        # subsequent uploads overwrote file paths and files appeared
+        # to be missing. changing the directory structure so this
+        # wouldn't be an issue, the new structure is
+        # target_loader_data/target_title/upload_(n)/...
         if task:
-            path = path.joinpath(str(task.request.id))
+            # path = path.joinpath(str(task.request.id))
             self.experiment_upload.task_id = task.request.id
-        else:
-            # unless of course I don't have task..
-            # TODO: i suspect this will never be used.
-            path_uuid = uuid.uuid4().hex
-            path = path.joinpath(path_uuid)
-            self.experiment_upload.task_id = path_uuid
+        # else:
+        #     # unless of course I don't have task..
+        #     # TODO: i suspect this will never be used.
+        #     path_uuid = uuid.uuid4().hex
+        #     path = path.joinpath(path_uuid)
+        #     self.experiment_upload.task_id = path_uuid
 
         # figure out absolute and relative paths to final
         # location. relative path is added to db field, this will be
         # used in url requests to retrieve the file. absolute path is
         # for moving the file to the final location
-        self._final_path = path.joinpath(self.bundle_name)
-        self._abs_final_path = (
-            Path(settings.MEDIA_ROOT).joinpath(path).joinpath(self.bundle_name)
-        )
+        # self._final_path = path.joinpath(self.bundle_name)
+        # self._abs_final_path = (
+        #     Path(settings.MEDIA_ROOT).joinpath(path).joinpath(self.bundle_name)
+        # )
+        self._final_path = path
+        self._abs_final_path = Path(settings.MEDIA_ROOT).joinpath(path)
         # but don't create now, this comes later
 
         # to be used in logging messages, if no task, means invoked
@@ -1501,6 +1509,21 @@ class TargetLoader:
             display_name=self.target_name,
         )
 
+        if target_created:
+            # mypy thinks target and target_name are None
+            target_dir = sanitize_directory_name(self.target_name, self.final_path)  # type: ignore [arg-type]
+            self.target.zip_archive = target_dir  # type: ignore [attr-defined]
+            self.target.save()  # type: ignore [attr-defined]
+        else:
+            # NB! using existing field zip_archive to point to the
+            # location of the archives, not the archives
+            # themselves. The field was unused, and because of the
+            # versioned uploads, there's no single archive anymore
+            target_dir = str(self.target.zip_archive)  # type: ignore [attr-defined]
+
+        self._final_path = self._final_path.joinpath(target_dir)
+        self._abs_final_path = self._abs_final_path.joinpath(target_dir)
+
         # TODO: original target loader's function get_create_projects
         # seems to handle more cases. adopt or copy
         visit = self.proposal_ref.split()[0]
@@ -2200,8 +2223,16 @@ def load_target(
 
 def _move_and_save_target_experiment(target_loader):
     # Move the uploaded file to its final location
-    target_loader.abs_final_path.mkdir(parents=True)
-    target_loader.raw_data.rename(target_loader.abs_final_path)
+    try:
+        target_loader.abs_final_path.mkdir(parents=True)
+    except FileExistsError:
+        # subsequent upload, directory already exists
+        pass
+    # target_loader.raw_data.rename(target_loader.abs_final_path)
+    shutil.move(
+        str(target_loader.raw_data.joinpath(target_loader.version_dir)),
+        str(target_loader.abs_final_path),
+    )
     Path(target_loader.bundle_path).rename(
         target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
     )
