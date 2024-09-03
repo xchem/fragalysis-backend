@@ -42,7 +42,11 @@ class IsObjectProposalMember(permissions.BasePermission):
             attr_value = getattr(obj, view.filter_permissions)
         except AttributeError as exc:
             # Something's gone wrong trying to lookup the project.
-            # Get the objects content and dump it for analysis...
+            # Log some 'interesting' contextual information...
+            logger.info('request=%r', request)
+            logger.info('view=%s', view.__class__.__name__)
+            logger.info('view.filter_permissions=%s', view.filter_permissions)
+            # Get the object's content and dump it for analysis...
             obj_class_name = obj.__class__.__name__
             msg = f"There is no Project at {view.filter_permissions}"
             logger.error(
