@@ -475,35 +475,21 @@ class TargetLoader:
         )
 
         # work out where the data finally lands
-        # path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
         path = Path(TARGET_LOADER_MEDIA_DIRECTORY)
 
-        # give each upload a unique directory. since I already have
-        # task_id, why not reuse it
-
+        # give each upload a unique directory
         # update: resolving issue 1311 introduced a bug, where
         # subsequent uploads overwrote file paths and files appeared
         # to be missing. changing the directory structure so this
         # wouldn't be an issue, the new structure is
         # target_loader_data/target_title/upload_(n)/...
         if task:
-            # path = path.joinpath(str(task.request.id))
             self.experiment_upload.task_id = task.request.id
-        # else:
-        #     # unless of course I don't have task..
-        #     # TODO: i suspect this will never be used.
-        #     path_uuid = uuid.uuid4().hex
-        #     path = path.joinpath(path_uuid)
-        #     self.experiment_upload.task_id = path_uuid
 
         # figure out absolute and relative paths to final
         # location. relative path is added to db field, this will be
         # used in url requests to retrieve the file. absolute path is
         # for moving the file to the final location
-        # self._final_path = path.joinpath(self.bundle_name)
-        # self._abs_final_path = (
-        #     Path(settings.MEDIA_ROOT).joinpath(path).joinpath(self.bundle_name)
-        # )
         self._final_path = path
         self._abs_final_path = Path(settings.MEDIA_ROOT).joinpath(path)
         # but don't create now, this comes later
@@ -1511,7 +1497,7 @@ class TargetLoader:
 
         if target_created:
             # mypy thinks target and target_name are None
-            target_dir = sanitize_directory_name(self.target_name, self.final_path)  # type: ignore [arg-type]
+            target_dir = sanitize_directory_name(self.target_name, self.abs_final_path)  # type: ignore [arg-type]
             self.target.zip_archive = target_dir  # type: ignore [attr-defined]
             self.target.save()  # type: ignore [attr-defined]
         else:
@@ -2228,7 +2214,7 @@ def _move_and_save_target_experiment(target_loader):
     except FileExistsError:
         # subsequent upload, directory already exists
         pass
-    # target_loader.raw_data.rename(target_loader.abs_final_path)
+
     shutil.move(
         str(target_loader.raw_data.joinpath(target_loader.version_dir)),
         str(target_loader.abs_final_path),

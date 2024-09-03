@@ -552,13 +552,16 @@ def sanitize_directory_name(name: str, path: Path | None = None) -> str:
 
     # Replace multiple underscores with a single underscore
     sanitized_name = re.sub(r'__+', '_', sanitized_name)
+    logger.debug('sanitized name: %s', sanitized_name)
     if path:
         target_dirs = [d.name for d in list(path.glob("*")) if d.is_dir()]
+        logger.debug('target dirs: %s', target_dirs)
         new_name = sanitized_name
         suf = 1
         while new_name in target_dirs:
             suf = suf + 1
             new_name = f'{sanitized_name}_{suf}'
+            logger.debug('looping suffix: %s', new_name)
 
         sanitized_name = new_name
 
