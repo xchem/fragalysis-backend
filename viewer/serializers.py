@@ -751,7 +751,7 @@ class TagCategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SiteObservationTagSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SiteObservationTagSerializer(serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True, queryset=models.SiteObservation.objects.all()
     )
@@ -771,7 +771,7 @@ class SiteObservationTagSerializer(ValidateProjectMixin, serializers.ModelSerial
         }
 
 
-class SessionProjectTagSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SessionProjectTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SessionProjectTag
         fields = '__all__'
