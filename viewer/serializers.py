@@ -44,7 +44,6 @@ class ValidateProjectMixin:
             raise AttributeError(
                 "The view object must define a 'filter_permissions' property"
             )
-        logger.info('view.filter_permissions=%s', view.filter_permissions)
 
         # We expect a filter_permissions string (defined in the View) like this...
         #     "compound__project_id"
@@ -66,9 +65,20 @@ class ValidateProjectMixin:
                 project_obj = getattr(base_start_obj, project_path)
             except AttributeError as exc:
                 # Something's gone wrong trying to lookup the project.
-                # Get the objects content and dump it for analysis...
+                # Log some 'interesting' contextual information...
+                logger.info('context=%s', self.context)  # type: ignore [attr-defined]
+                logger.info('data=%s', data)
+                logger.info('view=%s', view.__class__.__name__)
+                logger.info('view.filter_permissions=%s', view.filter_permissions)
+                # Get the object's content and dump it for analysis...
+                bso_class_name = base_start_obj.__class__.__name__
                 msg = f"There is no Project at '{project_path}' ({view.filter_permissions})"
-                logger.error("%s - vars(base_start_obj)=%s", msg, vars(base_start_obj))
+                logger.error(
+                    "%s - base_start_obj=%s vars(base_start_obj)=%s",
+                    msg,
+                    bso_class_name,
+                    vars(base_start_obj),
+                )
                 raise serializers.ValidationError(msg) from exc
         assert project_obj
         # Now get the proposals from the Project(s)...
@@ -78,18 +88,19 @@ class ValidateProjectMixin:
         else:
             # Only one proposal...
             object_proposals = [project_obj.title]
+        if not object_proposals:
+            raise PermissionDenied(
+                detail="Authority cannot be granted - the object is not a part of any Project"
+            )
 
         # Now we have the proposals (Project titles) the object belongs to,
         # has the user been associated (in IPSpyB) with any of them?
         # We can always see (GET) objects that are open to the public.
         restrict_public = False if self.context['request'].method == 'GET' else True  # type: ignore [attr-defined]
-        if (
-            object_proposals
-            and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
-                user=user,
-                proposals=object_proposals,
-                restrict_public_to_membership=restrict_public,
-            )
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+            user=user,
+            proposals=object_proposals,
+            restrict_public_to_membership=restrict_public,
         ):
             raise PermissionDenied(
                 detail="Your authority to access this object has not been given"
@@ -556,24 +567,14 @@ class SessionProjectReadSerializer(serializers.ModelSerializer):
 
 
 # (POST, PUT, PATCH)
-class SessionProjectWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
-    # def validate_target(self, value):
-    #     user = self.context['request'].user
-    #     if not user or not user.is_authenticated:
-    #         raise serializers.ValidationError("You must be logged in to create objects")
-    #     if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(user, value):
-    #         raise serializers.ValidationError(
-    #             "You have not been given access the object's Target"
-    #         )
-    #     return value
-
+class SessionProjectWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SessionProject
         fields = '__all__'
 
 
 # (GET, POST, PUT, PATCH)
-class SessionActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SessionActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
@@ -623,7 +624,7 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 
 
 # (GET, POST, PUT, PATCH)
-class SnapshotActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SnapshotActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
@@ -750,7 +751,7 @@ class TagCategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SiteObservationTagSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SiteObservationTagSerializer(serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True, queryset=models.SiteObservation.objects.all()
     )
@@ -770,7 +771,7 @@ class SiteObservationTagSerializer(ValidateProjectMixin, serializers.ModelSerial
         }
 
 
-class SessionProjectTagSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SessionProjectTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SessionProjectTag
         fields = '__all__'

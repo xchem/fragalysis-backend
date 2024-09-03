@@ -919,7 +919,6 @@ class SessionProjectView(
     queryset = models.SessionProject.objects.filter()
     filter_permissions = "target__project_id"
     filterset_fields = '__all__'
-    permission_classes = [IsObjectProposalMember]
 
     def get_serializer_class(self):
         if self.request.method in ['GET']:
@@ -941,7 +940,6 @@ class SessionActionsView(
     queryset = models.SessionActions.filter_manager.filter_qs()
     filter_permissions = "session_project__target__project_id"
     serializer_class = serializers.SessionActionsSerializer
-    permission_classes = [IsObjectProposalMember]
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
     filterset_fields = ('id', 'author', 'session_project', 'last_update_date')
@@ -981,7 +979,6 @@ class SnapshotActionsView(
     queryset = models.SnapshotActions.filter_manager.filter_qs()
     filter_permissions = "snapshot__session_project__target__project_id"
     serializer_class = serializers.SnapshotActionsSerializer
-    permission_classes = [IsObjectProposalMember]
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
     filterset_fields = (
@@ -1304,7 +1301,6 @@ class SiteObservationTagView(
     queryset = models.SiteObservationTag.objects.all()
     filter_permissions = "target__project_id"
     serializer_class = serializers.SiteObservationTagSerializer
-    permission_classes = [IsObjectProposalMember]
     filterset_fields = (
         'id',
         'tag',
@@ -1340,7 +1336,6 @@ class SessionProjectTagView(
     queryset = models.SessionProjectTag.objects.all()
     filter_permissions = "target__project_id"
     serializer_class = serializers.SessionProjectTagSerializer
-    permission_classes = [IsObjectProposalMember]
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
 
@@ -1441,7 +1436,10 @@ class DownloadStructuresView(
 
         logger.info('Found Target record %r', target)
         # Is the user part of the target's proposal?
-        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(request.user, target):
+        # (or is it a public target?)
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
+            request.user, target, restrict_public_to_membership=False
+        ):
             msg = 'You have not been given access to this Target'
             logger.warning(msg)
             content = {'message': msg}

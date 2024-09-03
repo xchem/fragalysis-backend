@@ -42,9 +42,16 @@ class IsObjectProposalMember(permissions.BasePermission):
             attr_value = getattr(obj, view.filter_permissions)
         except AttributeError as exc:
             # Something's gone wrong trying to lookup the project.
-            # Get the objects content and dump it for analysis...
+            # Log some 'interesting' contextual information...
+            logger.info('request=%r', request)
+            logger.info('view=%s', view.__class__.__name__)
+            logger.info('view.filter_permissions=%s', view.filter_permissions)
+            # Get the object's content and dump it for analysis...
+            obj_class_name = obj.__class__.__name__
             msg = f"There is no Project at {view.filter_permissions}"
-            logger.error("%s - vars(base_start_obj)=%s", msg, vars(obj))
+            logger.error(
+                "%s - obj=%s vars(base_start_obj)=%s", msg, obj_class_name, vars(obj)
+            )
             raise PermissionDenied(msg) from exc
 
         if attr_value.__class__.__name__ == "ManyRelatedManager":
@@ -53,13 +60,14 @@ class IsObjectProposalMember(permissions.BasePermission):
         else:
             # Only one proposal...
             object_proposals = [attr_value.title]
+        if not object_proposals:
+            raise PermissionDenied(
+                detail="Authority cannot be granted - the object is not a part of any Project"
+            )
         # Now we have the proposals the object belongs to
         # has the user been associated (in IPSpyB) with any of them?
-        if (
-            object_proposals
-            and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
-                user=request.user, proposals=object_proposals
-            )
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+            user=request.user, proposals=object_proposals
         ):
             raise PermissionDenied(
                 detail="Your authority to access this object has not been given"
