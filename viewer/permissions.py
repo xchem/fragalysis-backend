@@ -1,5 +1,4 @@
 import logging
-import traceback
 
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied
@@ -53,9 +52,6 @@ class IsObjectProposalMember(permissions.BasePermission):
             logger.error(
                 "%s - obj=%s vars(base_start_obj)=%s", msg, obj_class_name, vars(obj)
             )
-            # Finally - before exiting - stack/traceback (who called us?)
-            traceback_info = traceback.format_exc()
-            logger.info('traceback=%s', traceback_info)
             raise PermissionDenied(msg) from exc
 
         if attr_value.__class__.__name__ == "ManyRelatedManager":
