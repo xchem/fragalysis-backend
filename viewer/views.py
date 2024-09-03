@@ -940,7 +940,6 @@ class SessionActionsView(
     queryset = models.SessionActions.filter_manager.filter_qs()
     filter_permissions = "session_project__target__project_id"
     serializer_class = serializers.SessionActionsSerializer
-    permission_classes = [IsObjectProposalMember]
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
     filterset_fields = ('id', 'author', 'session_project', 'last_update_date')
@@ -980,7 +979,6 @@ class SnapshotActionsView(
     queryset = models.SnapshotActions.filter_manager.filter_qs()
     filter_permissions = "snapshot__session_project__target__project_id"
     serializer_class = serializers.SnapshotActionsSerializer
-    permission_classes = [IsObjectProposalMember]
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
     filterset_fields = (

@@ -1,5 +1,4 @@
 import logging
-import traceback
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -80,9 +79,6 @@ class ValidateProjectMixin:
                     bso_class_name,
                     vars(base_start_obj),
                 )
-                # Finally - before exiting - stack/traceback (who called us?)
-                traceback_info = traceback.format_exc()
-                logger.info('traceback=%s', traceback_info)
                 raise serializers.ValidationError(msg) from exc
         assert project_obj
         # Now get the proposals from the Project(s)...
@@ -578,7 +574,7 @@ class SessionProjectWriteSerializer(serializers.ModelSerializer):
 
 
 # (GET, POST, PUT, PATCH)
-class SessionActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SessionActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
@@ -628,7 +624,7 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 
 
 # (GET, POST, PUT, PATCH)
-class SnapshotActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SnapshotActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
