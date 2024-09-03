@@ -574,7 +574,7 @@ class SessionProjectWriteSerializer(serializers.ModelSerializer):
 
 
 # (GET, POST, PUT, PATCH)
-class SessionActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SessionActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
@@ -624,7 +624,7 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
 
 
 # (GET, POST, PUT, PATCH)
-class SnapshotActionsSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+class SnapshotActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
 
     class Meta:
