@@ -43,8 +43,11 @@ class IsObjectProposalMember(permissions.BasePermission):
         except AttributeError as exc:
             # Something's gone wrong trying to lookup the project.
             # Get the objects content and dump it for analysis...
+            obj_class_name = obj.__class__.__name__
             msg = f"There is no Project at {view.filter_permissions}"
-            logger.error("%s - vars(base_start_obj)=%s", msg, vars(obj))
+            logger.error(
+                "%s - obj=%s vars(base_start_obj)=%s", msg, obj_class_name, vars(obj)
+            )
             raise PermissionDenied(msg) from exc
 
         if attr_value.__class__.__name__ == "ManyRelatedManager":

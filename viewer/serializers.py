@@ -67,8 +67,14 @@ class ValidateProjectMixin:
             except AttributeError as exc:
                 # Something's gone wrong trying to lookup the project.
                 # Get the objects content and dump it for analysis...
+                bso_class_name = base_start_obj.__class__.__name__
                 msg = f"There is no Project at '{project_path}' ({view.filter_permissions})"
-                logger.error("%s - vars(base_start_obj)=%s", msg, vars(base_start_obj))
+                logger.error(
+                    "%s - base_start_obj=%s vars(base_start_obj)=%s",
+                    msg,
+                    bso_class_name,
+                    vars(base_start_obj),
+                )
                 raise serializers.ValidationError(msg) from exc
         assert project_obj
         # Now get the proposals from the Project(s)...
