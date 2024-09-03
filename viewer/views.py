@@ -1436,7 +1436,10 @@ class DownloadStructuresView(
 
         logger.info('Found Target record %r', target)
         # Is the user part of the target's proposal?
-        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(request.user, target):
+        # (or is it a public target?)
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
+            request.user, target, restrict_public_to_membership=False
+        ):
             msg = 'You have not been given access to this Target'
             logger.warning(msg)
             content = {'message': msg}
