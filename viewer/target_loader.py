@@ -1807,10 +1807,19 @@ class TargetLoader:
         for val in canon_site_objects.values():  # pylint: disable=no-member
             prefix = val.instance.canon_site_num
             # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
-            tag = val.versioned_key
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
+            try:
+                tag = val.versioned_key.split('-')[1]
+                main_obvs = val.instance.ref_conf_site.ref_site_observation
+                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
+                    "code_prefix"
+                ]
+                tag = f"{code_prefix}{tag}"
+            except IndexError:
+                tag = val.versioned_key
+
             self._tag_observations(
                 tag, prefix, category=cat_canon, site_observations=so_list
             )
@@ -1826,11 +1835,21 @@ class TargetLoader:
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
             )
-            # tag = val.instance.name.split('+')[0]
-            tag = val.instance.name
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["members"]
             ]
+            # tag = val.instance.name.split('+')[0]
+            # tag = val.instance.name
+            try:
+                tag = val.instance.name.split('-')[1]
+                main_obvs = val.instance.ref_site_observation
+                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
+                    "code_prefix"
+                ]
+                tag = f"{code_prefix}{tag}"
+            except IndexError:
+                tag = val.instance.name
+
             self._tag_observations(
                 tag, prefix, category=cat_conf, site_observations=so_list, hidden=True
             )
@@ -1855,10 +1874,11 @@ class TargetLoader:
         cat_xtal = TagCategory.objects.get(category="Crystalforms")
         for val in xtalform_objects.values():  # pylint: disable=no-member
             prefix = f"F{val.instance.xtalform_num}"
-            tag = val.instance.name
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform=val.instance
             )
+            tag = val.instance.name
+
             self._tag_observations(
                 tag, prefix, category=cat_xtal, site_observations=so_list
             )
