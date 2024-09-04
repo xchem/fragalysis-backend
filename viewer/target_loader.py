@@ -1646,7 +1646,7 @@ class TargetLoader:
         )
 
         canon_site_objects = self.process_canon_site(yaml_data=canon_sites)
-        self._enumerate_objects(canon_site_objects, "canon_site_num")
+
         # NB! missing fk's:
         # - ref_conf_site
         # - quat_assembly
@@ -1672,7 +1672,6 @@ class TargetLoader:
         )
 
         # now can update CanonSite with ref_conf_site
-        # also, fill the canon_site_num field
         # TODO: ref_conf_site is with version, object's key isn't
         for val in canon_site_objects.values():  # pylint: disable=no-member
             val.instance.ref_conf_site = canon_site_conf_objects[
@@ -1804,7 +1803,32 @@ class TargetLoader:
 
         # tag site observations
         cat_canon = TagCategory.objects.get(category="CanonSites")
-        for val in canon_site_objects.values():  # pylint: disable=no-member
+        # sort canon sites by number of observations
+        # fmt: off
+        canon_sort_qs = CanonSite.objects.filter(
+            pk__in=[k.instance.pk for k in canon_site_objects.values() ], # pylint: disable=no-member
+        ).annotate(
+            # obvs=Count("canonsiteconf_set__siteobservation_set", default=0),
+            obvs=Count("canonsiteconf__siteobservation", default=0),
+        ).order_by("-obvs", "name")
+        # ordering by name is not strictly necessary, but
+        # makes the sorting consistent
+
+        # fmt: on
+
+        logger.debug('canon_site_order')
+        for site in canon_sort_qs:
+            logger.debug('%s: %s', site.name, site.obvs)
+
+        _canon_site_objects = {}
+        for site in canon_sort_qs:
+            key = f"{site.name}+{site.version}"
+            _canon_site_objects[key] = canon_site_objects[
+                key
+            ]  # pylint: disable=no-member
+
+        self._enumerate_objects(_canon_site_objects, "canon_site_num")
+        for val in _canon_site_objects.values():  # pylint: disable=no-member
             prefix = val.instance.canon_site_num
             # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
             so_list = SiteObservation.objects.filter(
