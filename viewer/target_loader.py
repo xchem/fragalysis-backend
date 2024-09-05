@@ -840,6 +840,7 @@ class TargetLoader:
             "cif_info": str(self._get_final_path(cif_info)),
             "map_info": map_info_paths,
             "prefix_tooltip": prefix_tooltip,
+            "code_prefix": code_prefix,
             # this doesn't seem to be present
             # pdb_sha256:
         }
@@ -1834,18 +1835,23 @@ class TargetLoader:
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
+            tag = val.versioned_key
             try:
-                tag = val.versioned_key.split('-')[1]
+                short_tag = val.versioned_key.split('-')[1][1:]
                 main_obvs = val.instance.ref_conf_site.ref_site_observation
                 code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
                     "code_prefix"
                 ]
-                tag = f"{code_prefix}{tag}"
+                short_tag = f"{code_prefix}{short_tag}"
             except IndexError:
-                tag = val.versioned_key
+                short_tag = tag
 
             self._tag_observations(
-                tag, prefix, category=cat_canon, site_observations=so_list
+                tag,
+                prefix,
+                category=cat_canon,
+                site_observations=so_list,
+                short_tag=short_tag,
             )
 
         logger.debug("canon_site objects tagged")
@@ -1863,19 +1869,24 @@ class TargetLoader:
                 site_observation_objects[k].instance for k in val.index_data["members"]
             ]
             # tag = val.instance.name.split('+')[0]
-            # tag = val.instance.name
+            tag = val.instance.name
             try:
-                tag = val.instance.name.split('-')[1]
+                short_tag = val.instance.name.split('-')[1][1:]
                 main_obvs = val.instance.ref_site_observation
                 code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
                     "code_prefix"
                 ]
-                tag = f"{code_prefix}{tag}"
+                short_tag = f"{code_prefix}{short_tag}"
             except IndexError:
-                tag = val.instance.name
+                short_tag = tag
 
             self._tag_observations(
-                tag, prefix, category=cat_conf, site_observations=so_list, hidden=True
+                tag,
+                prefix,
+                category=cat_conf,
+                site_observations=so_list,
+                hidden=True,
+                short_tag=short_tag,
             )
 
         logger.debug("conf_site objects tagged")
@@ -1967,17 +1978,28 @@ class TargetLoader:
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
             )
-            # tag = val.instance.xtalform_site_id
-            tag = val.versioned_key
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
+            tag = val.versioned_key
+            try:
+                # remove protein name and 'x'
+                short_tag = val.instance.xtalform_site_id.split('-')[1][1:]
+                main_obvs = val.instance.canon_site.ref_conf_site.ref_site_observation
+                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
+                    "code_prefix"
+                ]
+                short_tag = f"{code_prefix}{short_tag}"
+            except IndexError:
+                short_tag = tag
+
             self._tag_observations(
                 tag,
                 prefix,
                 category=cat_xtalsite,
                 site_observations=so_list,
                 hidden=True,
+                short_tag=short_tag,
             )
 
         logger.debug("xtalform_sites objects tagged")
@@ -2113,6 +2135,7 @@ class TargetLoader:
         category: TagCategory,
         site_observations: list,
         hidden: bool = False,
+        short_tag: str | None = None,
     ) -> None:
         try:
             # memo to self: description is set to tag, but there's
@@ -2140,6 +2163,8 @@ class TargetLoader:
             so_group.save()
 
         name = f"{prefix} - {tag}" if prefix else tag
+        short_tag = name if short_tag is None else f"{prefix} - {short_tag}"
+
         try:
             so_tag = SiteObservationTag.objects.get(
                 upload_name=name, target=self.target
@@ -2150,13 +2175,14 @@ class TargetLoader:
             so_tag.mol_group = so_group
         except SiteObservationTag.DoesNotExist:
             so_tag = SiteObservationTag(
-                tag=tag,
+                tag=short_tag,
                 tag_prefix=prefix,
                 upload_name=name,
                 category=category,
                 target=self.target,
                 mol_group=so_group,
                 hidden=hidden,
+                short_tag=short_tag,
             )
 
         so_tag.save()
