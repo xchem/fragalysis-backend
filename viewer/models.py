@@ -227,6 +227,7 @@ class Experiment(models.Model):
     type = models.PositiveSmallIntegerField(null=True)
     pdb_sha256 = models.TextField(null=True)
     prefix_tooltip = models.TextField(null=True)
+    code_prefix = models.TextField(null=True)
     compounds = models.ManyToManyField(
         "Compound",
         through="ExperimentCompound",

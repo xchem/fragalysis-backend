@@ -840,6 +840,7 @@ class TargetLoader:
             "cif_info": str(self._get_final_path(cif_info)),
             "map_info": map_info_paths,
             "prefix_tooltip": prefix_tooltip,
+            "code_prefix": code_prefix,
             # this doesn't seem to be present
             # pdb_sha256:
         }
