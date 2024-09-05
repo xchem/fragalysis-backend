@@ -575,39 +575,39 @@ def _extra_files_zip(ziparchive, target):
 def _yaml_files_zip(ziparchive, target, transforms_requested: bool = False) -> None:
     """Add all yaml files (except transforms) from upload to ziparchive"""
 
-    experiment_upload = target.experimentupload_set.order_by('commit_datetime').last()
-    yaml_paths = (
-        Path(settings.MEDIA_ROOT)
-        .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-        .joinpath(target.zip_archive.name)
-        .joinpath(experiment_upload.upload_data_dir)
-    )
-
-    transforms = [
-        Path(f.name).name
-        for f in (
-            experiment_upload.conformer_site_transforms,
-            experiment_upload.neighbourhood_transforms,
-            experiment_upload.reference_structure_transforms,
+    for experiment_upload in target.experimentupload_set.all():
+        yaml_paths = (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(target.zip_archive.name)
+            .joinpath(experiment_upload.upload_data_dir)
         )
-    ]
 
-    archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
+        transforms = [
+            Path(f.name).name
+            for f in (
+                experiment_upload.conformer_site_transforms,
+                experiment_upload.neighbourhood_transforms,
+                experiment_upload.reference_structure_transforms,
+            )
+        ]
 
-    yaml_files = [
-        f
-        for f in list(yaml_paths.glob("*.yaml"))
-        if f.is_file() and f.name not in transforms
-    ]
+        archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
 
-    logger.info('Processing yaml files (%s)...', yaml_files)
+        yaml_files = [
+            f
+            for f in list(yaml_paths.glob("*.yaml"))
+            if f.is_file() and f.name not in transforms
+        ]
 
-    for file in yaml_files:
-        logger.info('Adding yaml file "%s"...', file)
-        if not transforms_requested and file.name == 'neighbourhoods.yaml':
-            # don't add this file if transforms are not requested
-            continue
-        ziparchive.write(file, str(Path(archive_path).joinpath(file.name)))
+        logger.info('Processing yaml files (%s)...', yaml_files)
+
+        for file in yaml_files:
+            logger.info('Adding yaml file "%s"...', file)
+            if not transforms_requested and file.name == 'neighbourhoods.yaml':
+                # don't add this file if transforms are not requested
+                continue
+            ziparchive.write(file, str(Path(archive_path).joinpath(file.name)))
 
 
 def _document_file_zip(ziparchive, download_path, original_search, host):
