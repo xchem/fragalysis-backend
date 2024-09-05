@@ -238,29 +238,34 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     return content
 
 
-def _patch_molecule_name(site_observation):
-    """Patch the MOL or SDF file with molecule name.
+# def _patch_molecule_name(site_observation):
+#     """Patch the MOL or SDF file with molecule name.
 
-    Processes the content of ligand_mol attribute of the
-    site_observation object. Returns the content as string.
+#     Processes the content of ligand_mol attribute of the
+#     site_observation object. Returns the content as string.
 
-    Alternative to _read_and_patch_molecule_name function above
-    which operates on files. As ligand_mol is now stored as text,
-    slightly different approach was necessary.
+#     Alternative to _read_and_patch_molecule_name function above
+#     which operates on files. As ligand_mol is now stored as text,
+#     slightly different approach was necessary.
 
-    """
-    logger.debug('Patching MOL/SDF of "%s"', site_observation)
+#     """
+#     logger.debug('Patching MOL/SDF of "%s"', site_observation)
 
-    # Now read the file, checking the first line
-    # and setting it to the molecule name if it's blank.
-    lines = site_observation.ligand_mol_file.split('\n')
-    if not lines[0].strip():
-        lines[0] = site_observation.long_code
+#     path = Path(settings.MEDIA_ROOT).joinpath(site_observation.ligand_mol.name)
+#     with contextlib.suppress(TypeError, FileNotFoundError):
+#         with open(path, "r", encoding="utf-8") as f:
+#             lines = f.readlines()
 
-    # the db contents is mol file but what's requested here is
-    # sdf. add sdf separator
-    lines.append('$$$$\n')
-    return '\n'.join(lines)
+#     # Now read the file, checking the first line
+#     # and setting it to the molecule name if it's blank.
+#     # lines = site_observation.ligand_mol_file.split('\n')
+#     if not lines[0].strip():
+#         lines[0] = site_observation.long_code
+
+#     # the db contents is mol file but what's requested here is
+#     # sdf. add sdf separator
+#     lines.append('$$$$\n')
+#     return '\n'.join(lines)
 
 
 def _add_file_to_zip_aligned(ziparchive, code, archive_file):
@@ -299,7 +304,7 @@ def _add_file_to_zip_aligned(ziparchive, code, archive_file):
     elif archive_file.site_observation:
         ziparchive.writestr(
             archive_file.archive_path,
-            _patch_molecule_name(archive_file.site_observation),
+            _read_and_patch_molecule_name(filepath, archive_file.site_observation),
         )
         return True
     else:
@@ -326,7 +331,9 @@ def _add_file_to_sdf(combined_sdf_file, archive_file):
 
     if archive_file.path and archive_file.path != 'None':
         with open(combined_sdf_file, 'a', encoding='utf-8') as f_out:
-            patched_sdf_content = _patch_molecule_name(archive_file.site_observation)
+            patched_sdf_content = _read_and_patch_molecule_name(
+                archive_file.path, archive_file.site_observation
+            )
             f_out.write(patched_sdf_content)
         return True
     else:
@@ -891,22 +898,21 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
     zip_contents['molecules']['single_sdf_file'] = other_params['single_sdf_file']
     zip_contents['molecules']['sdf_info'] = other_params['sdf_info']
 
-    # sdf information is held as a file on the Molecule record.
     if other_params['sdf_info'] or other_params['single_sdf_file']:
         num_molecules_collected = 0
         num_missing_sd_files = 0
         for so in site_obvs:
-            if so.ligand_mol_file:
+            if so.ligand_mol:
                 # There is an SD file (normal)
-                # sdf info is now kept as text in db field
                 archive_path = str(
                     Path('aligned_files').joinpath(so.code).joinpath(f'{so.code}.sdf')
                 )
+                file_path = str(Path(settings.MEDIA_ROOT).joinpath(so.ligand_mol.name))
                 # path is ignored when writing sdfs but mandatory field
                 zip_contents['molecules']['sdf_files'].update(
                     {
                         ArchiveFile(
-                            path=archive_path,
+                            path=file_path,
                             archive_path=archive_path,
                             site_observation=so,
                         ): so.code
@@ -916,7 +922,7 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
             else:
                 # No file value (odd).
                 logger.warning(
-                    "SiteObservation record's 'ligand_mol_file' isn't set (%s)", so
+                    "SiteObservation record's 'ligand_mol' isn't set (%s)", so
                 )
                 num_missing_sd_files += 1
 

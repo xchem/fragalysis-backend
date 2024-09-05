@@ -535,7 +535,6 @@ class SiteObservation(Versionable, models.Model):
     smiles = models.TextField()
     seq_id = models.IntegerField()
     chain_id = models.CharField(max_length=1)
-    ligand_mol_file = models.TextField(null=True)
     ligand_mol = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )

@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from pathlib import Path
 from urllib.parse import urljoin
@@ -905,6 +906,18 @@ class JobOverrideWriteSerializer(serializers.ModelSerializer):
 class SiteObservationReadSerializer(serializers.ModelSerializer):
     compound_code = serializers.StringRelatedField()
     prefix_tooltip = serializers.StringRelatedField()
+
+    ligand_mol_file = serializers.SerializerMethodField()
+
+    def get_ligand_mol_file(self, obj):
+        contents = ''
+        if obj.ligand_mol:
+            path = Path(settings.MEDIA_ROOT).joinpath(obj.ligand_mol.name)
+            with contextlib.suppress(TypeError, FileNotFoundError):
+                with open(path, "r", encoding="utf-8") as f:
+                    contents = f.read()
+
+        return contents
 
     class Meta:
         model = models.SiteObservation
