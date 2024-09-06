@@ -195,8 +195,7 @@ class ExperimentUpload(models.Model):
         return (
             Path(settings.MEDIA_ROOT)
             .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(self.task_id)
-            .joinpath(Path(str(self.file)).stem)
+            .joinpath(self.target.zip_archive.name)
             .joinpath(self.upload_data_dir)
         )
 
@@ -205,7 +204,6 @@ class ExperimentUpload(models.Model):
         return (
             Path(settings.MEDIA_ROOT)
             .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(self.task_id)
             .joinpath(Path(str(self.file)))
         )
 
@@ -536,7 +534,6 @@ class SiteObservation(Versionable, models.Model):
     smiles = models.TextField()
     seq_id = models.IntegerField()
     chain_id = models.CharField(max_length=1)
-    ligand_mol_file = models.TextField(null=True)
     ligand_mol = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )

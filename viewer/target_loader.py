@@ -1358,7 +1358,6 @@ class TargetLoader:
             apo_desolv_file,
             apo_file,
             artefacts_file,
-            ligand_mol_file,
             sigmaa_file,
             diff_file,
             event_file,
@@ -1376,7 +1375,6 @@ class TargetLoader:
             ),
             recommended=(
                 "artefacts",
-                "ligand_mol",
                 "sigmaa_map",  # NB! keys in meta_aligner not yet updated
                 "diff_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
@@ -1386,18 +1384,6 @@ class TargetLoader:
             ),
             validate_files=validate_files,
         )
-
-        logger.debug('looking for ligand_mol: %s', ligand_mol_file)
-
-        mol_data = None
-        if ligand_mol_file:
-            with contextlib.suppress(TypeError, FileNotFoundError):
-                with open(
-                    self.raw_data.joinpath(ligand_mol_file),
-                    "r",
-                    encoding="utf-8",
-                ) as f:
-                    mol_data = f.read()
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
@@ -1425,7 +1411,6 @@ class TargetLoader:
             "ligand_mol": str(self._get_final_path(ligand_mol)),
             "ligand_smiles": str(self._get_final_path(ligand_smiles)),
             "pdb_header_file": "currently missing",
-            "ligand_mol_file": mol_data,
         }
 
         return ProcessedObject(
