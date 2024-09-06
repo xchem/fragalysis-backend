@@ -840,6 +840,7 @@ class TargetLoader:
             "cif_info": str(self._get_final_path(cif_info)),
             "map_info": map_info_paths,
             "prefix_tooltip": prefix_tooltip,
+            "code_prefix": code_prefix,
             # this doesn't seem to be present
             # pdb_sha256:
         }
@@ -1105,6 +1106,8 @@ class TargetLoader:
         conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
         ref_conf_site_id = extract(key="reference_conformer_site_id")
 
+        centroid_res = f"{centroid_res}_v{version}"
+
         fields = {
             "name": canon_site_id,
             "version": version,
@@ -1310,7 +1313,8 @@ class TargetLoader:
         experiment = experiments[experiment_id].instance
 
         longcode = (
-            f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
+            # f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
+            f"{experiment.code}_{chain}_{str(ligand)}_v{str(version)}"
         )
         key = f"{experiment.code}/{chain}/{str(ligand)}"
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
@@ -1631,7 +1635,7 @@ class TargetLoader:
         )
 
         canon_site_objects = self.process_canon_site(yaml_data=canon_sites)
-        self._enumerate_objects(canon_site_objects, "canon_site_num")
+
         # NB! missing fk's:
         # - ref_conf_site
         # - quat_assembly
@@ -1657,7 +1661,6 @@ class TargetLoader:
         )
 
         # now can update CanonSite with ref_conf_site
-        # also, fill the canon_site_num field
         # TODO: ref_conf_site is with version, object's key isn't
         for val in canon_site_objects.values():  # pylint: disable=no-member
             val.instance.ref_conf_site = canon_site_conf_objects[
@@ -1743,7 +1746,8 @@ class TargetLoader:
                         ]
                         # iter_pos = next(suffix)
                         # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
-                        code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+                        # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+                        code = f"{code_prefix}{so.experiment.code.split('-x')[1]}{next(suffix)}"
 
                         # test uniqueness for target
                         # TODO: this should ideally be solved by db engine, before
@@ -1789,35 +1793,92 @@ class TargetLoader:
 
         # tag site observations
         cat_canon = TagCategory.objects.get(category="CanonSites")
-        for val in canon_site_objects.values():  # pylint: disable=no-member
+        # sort canon sites by number of observations
+        # fmt: off
+        canon_sort_qs = CanonSite.objects.filter(
+            pk__in=[k.instance.pk for k in canon_site_objects.values() ], # pylint: disable=no-member
+        ).annotate(
+            # obvs=Count("canonsiteconf_set__siteobservation_set", default=0),
+            obvs=Count("canonsiteconf__siteobservation", default=0),
+        ).order_by("-obvs", "name")
+        # ordering by name is not strictly necessary, but
+        # makes the sorting consistent
+
+        # fmt: on
+
+        logger.debug('canon_site_order')
+        for site in canon_sort_qs:
+            logger.debug('%s: %s', site.name, site.obvs)
+
+        _canon_site_objects = {}
+        for site in canon_sort_qs:
+            key = f"{site.name}+{site.version}"
+            _canon_site_objects[key] = canon_site_objects[
+                key
+            ]  # pylint: disable=no-member
+
+        self._enumerate_objects(_canon_site_objects, "canon_site_num")
+        for val in _canon_site_objects.values():  # pylint: disable=no-member
             prefix = val.instance.canon_site_num
             # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
-            tag = val.versioned_key
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
+            tag = val.versioned_key
+            try:
+                short_tag = val.versioned_key.split('-')[1][1:]
+                main_obvs = val.instance.ref_conf_site.ref_site_observation
+                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
+                    "code_prefix"
+                ]
+                short_tag = f"{code_prefix}{short_tag}"
+            except IndexError:
+                short_tag = tag
+
             self._tag_observations(
-                tag, prefix, category=cat_canon, site_observations=so_list
+                tag,
+                prefix,
+                category=cat_canon,
+                site_observations=so_list,
+                short_tag=short_tag,
             )
 
         logger.debug("canon_site objects tagged")
 
         numerators = {}
         cat_conf = TagCategory.objects.get(category="ConformerSites")
-        for val in canon_site_conf_objects.values():  # pylint: disable=no-member
+        for val in canon_site_conf_objects.values():  # pylint:
+            # disable=no-member problem introduced with the sorting of
+            # canon sites (issue 1498). objects somehow go out of sync
+            val.instance.refresh_from_db()
             if val.instance.canon_site.canon_site_num not in numerators.keys():
                 numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
             prefix = (
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
             )
-            # tag = val.instance.name.split('+')[0]
-            tag = val.instance.name
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["members"]
             ]
+            # tag = val.instance.name.split('+')[0]
+            tag = val.instance.name
+            try:
+                short_tag = val.instance.name.split('-')[1][1:]
+                main_obvs = val.instance.ref_site_observation
+                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
+                    "code_prefix"
+                ]
+                short_tag = f"{code_prefix}{short_tag}"
+            except IndexError:
+                short_tag = tag
+
             self._tag_observations(
-                tag, prefix, category=cat_conf, site_observations=so_list, hidden=True
+                tag,
+                prefix,
+                category=cat_conf,
+                site_observations=so_list,
+                hidden=True,
+                short_tag=short_tag,
             )
 
         logger.debug("conf_site objects tagged")
@@ -1840,10 +1901,11 @@ class TargetLoader:
         cat_xtal = TagCategory.objects.get(category="Crystalforms")
         for val in xtalform_objects.values():  # pylint: disable=no-member
             prefix = f"F{val.instance.xtalform_num}"
-            tag = val.instance.name
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform=val.instance
             )
+            tag = val.instance.name
+
             self._tag_observations(
                 tag, prefix, category=cat_xtal, site_observations=so_list
             )
@@ -1908,17 +1970,28 @@ class TargetLoader:
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
             )
-            # tag = val.instance.xtalform_site_id
-            tag = val.versioned_key
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
+            tag = val.versioned_key
+            try:
+                # remove protein name and 'x'
+                short_tag = val.instance.xtalform_site_id.split('-')[1][1:]
+                main_obvs = val.instance.canon_site.ref_conf_site.ref_site_observation
+                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
+                    "code_prefix"
+                ]
+                short_tag = f"{code_prefix}{short_tag}"
+            except IndexError:
+                short_tag = tag
+
             self._tag_observations(
                 tag,
                 prefix,
                 category=cat_xtalsite,
                 site_observations=so_list,
                 hidden=True,
+                short_tag=short_tag,
             )
 
         logger.debug("xtalform_sites objects tagged")
@@ -2054,6 +2127,7 @@ class TargetLoader:
         category: TagCategory,
         site_observations: list,
         hidden: bool = False,
+        short_tag: str | None = None,
     ) -> None:
         try:
             # memo to self: description is set to tag, but there's
@@ -2081,6 +2155,9 @@ class TargetLoader:
             so_group.save()
 
         name = f"{prefix} - {tag}" if prefix else tag
+        tag = tag if short_tag is None else short_tag
+        short_name = name if short_tag is None else f"{prefix} - {short_tag}"
+
         try:
             so_tag = SiteObservationTag.objects.get(
                 upload_name=name, target=self.target
@@ -2098,6 +2175,7 @@ class TargetLoader:
                 target=self.target,
                 mol_group=so_group,
                 hidden=hidden,
+                short_tag=short_name,
             )
 
         so_tag.save()

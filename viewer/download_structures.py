@@ -784,6 +784,25 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
 
     # Read through zip_params to compile the parameters
     zip_contents: Dict[str, Any] = copy.deepcopy(zip_template)
+    site_obvs = site_obvs.annotate(
+        # would there be any point in
+        # a) adding a method to SiteObservation model_attr
+        # b) adding the value to database directly?
+        longlongcode=Concat(
+            F('experiment__code'),
+            Value('_'),
+            F('chain_id'),
+            Value('_'),
+            F('seq_id'),
+            Value('_'),
+            F('version'),
+            Value('_'),
+            F('canon_site_conf__canon_site__name'),
+            Value('+'),
+            F('canon_site_conf__canon_site__version'),
+            output_field=CharField(),
+        ),
+    )
     for so in site_obvs:
         for param in protein_params:
             if protein_params[param] is True:
@@ -806,9 +825,12 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     for f in model_attr:
                         # here the model_attr is already stringified
                         try:
-                            exp_path = re.search(r"x\d*", so.code).group(0)  # type: ignore[union-attr]
-                        except AttributeError:
-                            logger.error('Unexpected shortcodeformat: %s', so.code)
+                            exp_path = so.experiment.code.split('-x')[1]
+                        except IndexError:
+                            logger.error(
+                                'Unexpected experiment code format: %s',
+                                so.experiment.code,
+                            )
                             exp_path = so.code
 
                         apath = Path('crystallographic_files').joinpath(exp_path)
@@ -850,7 +872,7 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                             apath.joinpath(
                                 Path(model_attr.name)
                                 .parts[-1]
-                                .replace(so.longcode, so.code)
+                                .replace(so.longlongcode, so.code)
                             )
                         )
                     else:
@@ -882,7 +904,9 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                             f'{ccp_path.stem}_crystallographic{ccp_path.suffix}'
                         )
                         archive_path = str(
-                            apath.joinpath(path.parts[-1].replace(so.longcode, so.code))
+                            apath.joinpath(
+                                path.parts[-1].replace(so.longlongcode, so.code)
+                            )
                         )
 
                         afile = [
