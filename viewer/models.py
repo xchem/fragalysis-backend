@@ -195,8 +195,7 @@ class ExperimentUpload(models.Model):
         return (
             Path(settings.MEDIA_ROOT)
             .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(self.task_id)
-            .joinpath(Path(str(self.file)).stem)
+            .joinpath(self.target.zip_archive.name)
             .joinpath(self.upload_data_dir)
         )
 
@@ -205,7 +204,6 @@ class ExperimentUpload(models.Model):
         return (
             Path(settings.MEDIA_ROOT)
             .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(self.task_id)
             .joinpath(Path(str(self.file)))
         )
 

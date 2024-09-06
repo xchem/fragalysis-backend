@@ -134,19 +134,8 @@ class TargetSerializer(serializers.ModelSerializer):
     zip_archive = serializers.SerializerMethodField()
     metadata = serializers.SerializerMethodField()
 
-    def get_template_protein(self, obj):
-        exp_upload = (
-            models.ExperimentUpload.objects.filter(
-                target=obj,
-            )
-            .order_by('-commit_datetime')
-            .first()
-        )
-
-        yaml_path = exp_upload.get_upload_path()
-
-        # last components of path, need for reconstruction later
-        comps = yaml_path.parts[-2:]
+    def get_template_protein_path(self, experiment_upload) -> Path | None:
+        yaml_path = experiment_upload.get_upload_path()
 
         # and the file itself
         yaml_path = yaml_path.joinpath(XTALFORMS_FILE)
@@ -158,44 +147,56 @@ class TargetSerializer(serializers.ModelSerializer):
                     assemblies = contents["assemblies"]
                 except KeyError:
                     logger.error("No 'assemblies' section in '%s'", XTALFORMS_FILE)
-                    return ''
+                    return None
 
                 try:
                     first = list(assemblies.values())[0]
                 except IndexError:
                     logger.error("No assemblies in 'assemblies' section")
-                    return ''
+                    return None
 
                 try:
                     reference = first["reference"]
                 except KeyError:
                     logger.error("No assemblies in 'assemblies' section")
-                    return ''
+                    return None
 
                 ref_path = (
                     Path(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-                    .joinpath(exp_upload.task_id)
-                    .joinpath(comps[0])
-                    .joinpath(comps[1])
+                    .joinpath(experiment_upload.target.zip_archive.name)
+                    .joinpath(experiment_upload.upload_data_dir)
                     .joinpath("crystallographic_files")
                     .joinpath(reference)
                     .joinpath(f"{reference}.pdb")
                 )
                 logger.debug('ref_path: %s', ref_path)
                 if Path(settings.MEDIA_ROOT).joinpath(ref_path).is_file():
-                    request = self.context.get('request', None)
-                    if request is not None:
-                        return request.build_absolute_uri(
-                            Path(settings.MEDIA_URL).joinpath(ref_path)
-                        )
-                    else:
-                        return ''
+                    return ref_path
                 else:
                     logger.error("Reference pdb file doesn't exist")
-                    return ''
+                    return None
         else:
             logger.error("'%s' missing", XTALFORMS_FILE)
-            return ''
+            return None
+
+    def get_template_protein(self, obj):
+        # loop through exp uploads from latest to earliest, and try to
+        # find template protein
+        for exp_upload in models.ExperimentUpload.objects.filter(
+            target=obj,
+        ).order_by('-commit_datetime'):
+            path = self.get_template_protein_path(exp_upload)
+            if path is None:
+                continue
+            else:
+                request = self.context.get('request', None)
+                if request is not None:
+                    return request.build_absolute_uri(
+                        Path(settings.MEDIA_URL).joinpath(path)
+                    )
+                else:
+                    return None
+        return None
 
     def get_zip_archive(self, obj):
         # The if-check is because the filefield in target has null=True.
