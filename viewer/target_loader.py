@@ -2170,7 +2170,8 @@ class TargetLoader:
             so_group.save()
 
         name = f"{prefix} - {tag}" if prefix else tag
-        short_tag = name if short_tag is None else short_tag
+        tag = tag if short_tag is None else short_tag
+        short_name = name if short_tag is None else f"{prefix} - {short_tag}"
 
         try:
             so_tag = SiteObservationTag.objects.get(
@@ -2182,14 +2183,14 @@ class TargetLoader:
             so_tag.mol_group = so_group
         except SiteObservationTag.DoesNotExist:
             so_tag = SiteObservationTag(
-                tag=short_tag,
+                tag=tag,
                 tag_prefix=prefix,
                 upload_name=name,
                 category=category,
                 target=self.target,
                 mol_group=so_group,
                 hidden=hidden,
-                short_tag=f"{prefix} - {short_tag}",
+                short_tag=short_name,
             )
 
         so_tag.save()
