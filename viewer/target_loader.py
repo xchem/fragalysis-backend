@@ -1106,6 +1106,8 @@ class TargetLoader:
         conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
         ref_conf_site_id = extract(key="reference_conformer_site_id")
 
+        centroid_res = f"{centroid_res}_v{version}"
+
         fields = {
             "name": canon_site_id,
             "version": version,
@@ -1311,7 +1313,8 @@ class TargetLoader:
         experiment = experiments[experiment_id].instance
 
         longcode = (
-            f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
+            # f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
+            f"{experiment.code}_{chain}_{str(ligand)}_v{str(version)}"
         )
         key = f"{experiment.code}/{chain}/{str(ligand)}"
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
@@ -1758,7 +1761,8 @@ class TargetLoader:
                         ]
                         # iter_pos = next(suffix)
                         # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
-                        code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+                        # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+                        code = f"{code_prefix}{so.experiment.code.split('-x')[1]}{next(suffix)}"
 
                         # test uniqueness for target
                         # TODO: this should ideally be solved by db engine, before
@@ -1858,7 +1862,10 @@ class TargetLoader:
 
         numerators = {}
         cat_conf = TagCategory.objects.get(category="ConformerSites")
-        for val in canon_site_conf_objects.values():  # pylint: disable=no-member
+        for val in canon_site_conf_objects.values():  # pylint:
+            # disable=no-member problem introduced with the sorting of
+            # canon sites (issue 1498). objects somehow go out of sync
+            val.instance.refresh_from_db()
             if val.instance.canon_site.canon_site_num not in numerators.keys():
                 numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
             prefix = (
@@ -2163,7 +2170,8 @@ class TargetLoader:
             so_group.save()
 
         name = f"{prefix} - {tag}" if prefix else tag
-        short_tag = name if short_tag is None else f"{prefix} - {short_tag}"
+        tag = tag if short_tag is None else short_tag
+        short_name = name if short_tag is None else f"{prefix} - {short_tag}"
 
         try:
             so_tag = SiteObservationTag.objects.get(
@@ -2175,14 +2183,14 @@ class TargetLoader:
             so_tag.mol_group = so_group
         except SiteObservationTag.DoesNotExist:
             so_tag = SiteObservationTag(
-                tag=short_tag,
+                tag=tag,
                 tag_prefix=prefix,
                 upload_name=name,
                 category=category,
                 target=self.target,
                 mol_group=so_group,
                 hidden=hidden,
-                short_tag=short_tag,
+                short_tag=short_name,
             )
 
         so_tag.save()
