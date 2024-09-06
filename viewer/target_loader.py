@@ -1106,6 +1106,8 @@ class TargetLoader:
         conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
         ref_conf_site_id = extract(key="reference_conformer_site_id")
 
+        centroid_res = f"{centroid_res}_v{version}"
+
         fields = {
             "name": canon_site_id,
             "version": version,
@@ -1311,7 +1313,8 @@ class TargetLoader:
         experiment = experiments[experiment_id].instance
 
         longcode = (
-            f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
+            # f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
+            f"{experiment.code}_{chain}_{str(ligand)}_v{str(version)}"
         )
         key = f"{experiment.code}/{chain}/{str(ligand)}"
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
@@ -1758,7 +1761,8 @@ class TargetLoader:
                         ]
                         # iter_pos = next(suffix)
                         # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
-                        code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+                        # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+                        code = f"{code_prefix}{so.experiment.code.split('-x')[1]}{next(suffix)}"
 
                         # test uniqueness for target
                         # TODO: this should ideally be solved by db engine, before
