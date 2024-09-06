@@ -1862,7 +1862,10 @@ class TargetLoader:
 
         numerators = {}
         cat_conf = TagCategory.objects.get(category="ConformerSites")
-        for val in canon_site_conf_objects.values():  # pylint: disable=no-member
+        for val in canon_site_conf_objects.values():  # pylint:
+            # disable=no-member problem introduced with the sorting of
+            # canon sites (issue 1498). objects somehow go out of sync
+            val.instance.refresh_from_db()
             if val.instance.canon_site.canon_site_num not in numerators.keys():
                 numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
             prefix = (
@@ -2167,7 +2170,7 @@ class TargetLoader:
             so_group.save()
 
         name = f"{prefix} - {tag}" if prefix else tag
-        short_tag = name if short_tag is None else f"{prefix} - {short_tag}"
+        short_tag = name if short_tag is None else short_tag
 
         try:
             so_tag = SiteObservationTag.objects.get(
@@ -2186,7 +2189,7 @@ class TargetLoader:
                 target=self.target,
                 mol_group=so_group,
                 hidden=hidden,
-                short_tag=short_tag,
+                short_tag=f"{prefix} - {short_tag}",
             )
 
         so_tag.save()
