@@ -566,3 +566,8 @@ def sanitize_directory_name(name: str, path: Path | None = None) -> str:
         sanitized_name = new_name
 
     return sanitized_name
+
+
+def clean_object_id(name: str) -> str:
+    """Replace '/' and '+' with '/' in XCA object identifiers"""
+    return name.replace('+', '/').replace('_', '/')
