@@ -44,7 +44,7 @@ from viewer.models import (
     XtalformQuatAssembly,
     XtalformSite,
 )
-from viewer.utils import alphanumerator, sanitize_directory_name
+from viewer.utils import alphanumerator, clean_object_id, sanitize_directory_name
 
 logger = logging.getLogger(__name__)
 
@@ -407,7 +407,6 @@ def create_objects(func=None, *, depth=math.inf):
             # index data here probs
             result[instance_data.versioned_key] = m
 
-        result = {}
         if result:
             msg = "{} {} objects processed, {} created, {} fetched from database".format(
                 created + existing + failed,
@@ -2156,6 +2155,10 @@ class TargetLoader:
         name = f"{prefix} - {tag}" if prefix else tag
         tag = tag if short_tag is None else short_tag
         short_name = name if short_tag is None else f"{prefix} - {short_tag}"
+
+        tag = clean_object_id(tag)
+        name = clean_object_id(name)
+        short_name = clean_object_id(short_name)
 
         try:
             so_tag = SiteObservationTag.objects.get(
