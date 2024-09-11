@@ -336,13 +336,15 @@ def create_objects(func=None, *, depth=math.inf):
                         )
                         obj.save()
                         new = True
+                    except MultipleObjectsReturned:
+                        msg = "{}.get_or_create in {} returned multiple objects for {}".format(
+                            instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
+                            instance_data.key,
+                            instance_data.fields,
+                        )
+                        self.report.log(logging.ERROR, msg)
+                        failed = failed + 1
 
-                    # obj, new = instance_data.model_class.filter_manager.by_target(
-                    #     self.target
-                    # ).get_or_create(
-                    #     **instance_data.fields,
-                    #     defaults=instance_data.defaults,
-                    # )
                 else:
                     # no unique field requirements, just create new object
                     obj = instance_data.model_class(
@@ -355,15 +357,6 @@ def create_objects(func=None, *, depth=math.inf):
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     obj,
                 )
-
-            except MultipleObjectsReturned:
-                msg = "{}.get_or_create in {} returned multiple objects for {}".format(
-                    instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
-                    instance_data.key,
-                    instance_data.fields,
-                )
-                self.report.log(logging.ERROR, msg)
-                failed = failed + 1
             except IntegrityError:
                 msg = "{} object {} failed to save".format(
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
@@ -414,15 +407,21 @@ def create_objects(func=None, *, depth=math.inf):
             # index data here probs
             result[instance_data.versioned_key] = m
 
-        msg = "{} {} objects processed, {} created, {} fetched from database".format(
-            created + existing + failed,
-            next(  # pylint: disable=protected-access
-                iter(result.values())
-            ).instance._meta.model._meta.object_name,  # pylint: disable=protected-access
-            created,
-            existing,
-        )  # pylint: disable=protected-access
-        self.report.log(logging.INFO, msg)
+        result = {}
+        if result:
+            msg = "{} {} objects processed, {} created, {} fetched from database".format(
+                created + existing + failed,
+                next(  # pylint: disable=protected-access
+                    iter(result.values())
+                ).instance._meta.model._meta.object_name,  # pylint: disable=protected-access
+                created,
+                existing,
+            )  # pylint: disable=protected-access
+            self.report.log(logging.INFO, msg)
+        else:
+            # cannot continue when one object type is missing, abort
+            msg = f"No objects returned by {func.__name__}"
+            self.report.log(logging.ERROR, msg)
 
         # refresh all objects to make sure they're up to date.
         # this is specifically because of the superseded flag above -
