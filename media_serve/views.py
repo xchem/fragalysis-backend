@@ -1,6 +1,6 @@
 import logging
 
-from api.security import ISpyBSafeStaticFiles, ISpyBSafeStaticFiles2
+from api.security import ISPyBSafeStaticFiles, ISPyBSafeStaticFiles2
 from viewer.models import SiteObservation, Target
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def file_download(request, file_path):
     :return: the response (a redirect to nginx internal)
     """
     logger.info("+ Received file_download file path: %s", file_path)
-    ispy_b_static = ISpyBSafeStaticFiles2()
+    ispy_b_static = ISPyBSafeStaticFiles2()
     # ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
@@ -64,7 +64,7 @@ def tld_download(request, file_path):
     :return: the response (a redirect to nginx internal)
     """
     logger.info("+ Received tld_download file path: %s", file_path)
-    ispy_b_static = ISpyBSafeStaticFiles2()
+    ispy_b_static = ISPyBSafeStaticFiles2()
     # ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
@@ -88,7 +88,7 @@ def cspdb_download(request, file_path):
     :return: the response (a redirect to nginx internal)
     """
     logger.info("+ Received cspdb_download file path: %s", file_path)
-    ispy_b_static = ISpyBSafeStaticFiles2()
+    ispy_b_static = ISPyBSafeStaticFiles2()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
     # the following 2 aren't used atm
@@ -109,7 +109,7 @@ def bound_download(request, file_path):
     :param file_path: the file path we're getting from the static
     :return: the response (a redirect to nginx internal)
     """
-    ispy_b_static = ISpyBSafeStaticFiles()
+    ispy_b_static = ISPyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
     ispy_b_static.permission_string = "target_id__project_id"
@@ -127,7 +127,7 @@ def map_download(request, file_path):
     :param file_path: the file path we're getting from the static
     :return: the response (a redirect to nginx internal)
     """
-    ispy_b_static = ISpyBSafeStaticFiles()
+    ispy_b_static = ISPyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
     ispy_b_static.permission_string = "target_id__project_id"
@@ -163,7 +163,7 @@ def metadata_download(request, file_path):
     :param file_path: the file path we're getting from the static
     :return: the response (a redirect to nginx internal)
     """
-    ispy_b_static = ISpyBSafeStaticFiles()
+    ispy_b_static = ISPyBSafeStaticFiles()
     ispy_b_static.model = Target
     ispy_b_static.request = request
     ispy_b_static.permission_string = "project_id"
@@ -181,7 +181,7 @@ def archive_download(request, file_path):
     :param file_path: the file path we're getting from the static
     :return: the response (a redirect to nginx internal)
     """
-    ispy_b_static = ISpyBSafeStaticFiles()
+    ispy_b_static = ISPyBSafeStaticFiles()
     ispy_b_static.model = Target
     ispy_b_static.request = request
     ispy_b_static.permission_string = "project_id"

@@ -31,7 +31,6 @@ urlpatterns = [
     path("api/", include("api.urls")),
     path("media/", include("media_serve.urls")),
     path("scoring/", include("scoring.urls")),
-    path("xcdb/", include("xcdb.urls")),
     path("graphql/", GraphQLView.as_view(graphiql=True)),
     path('oidc/', include('mozilla_django_oidc.urls')),
     path(

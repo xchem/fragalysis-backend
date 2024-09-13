@@ -347,16 +347,6 @@ DATABASES = {
     }
 }
 
-if os.environ.get("BUILD_XCDB") == "yes":
-    DATABASES["xchem_db"] = {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("XCHEM_NAME", ""),
-        "USER": os.environ.get("XCHEM_USER", ""),
-        "PASSWORD": os.environ.get("XCHEM_PASSWORD", ""),
-        "HOST": os.environ.get("XCHEM_HOST", ""),
-        "PORT": os.environ.get("XCHEM_PORT", ""),
-    }
-
 CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKNOWN")
 if CHEMCENTRAL_DB_NAME != "UNKNOWN":
     DATABASES["chemcentral"] = {
@@ -575,6 +565,14 @@ PROPOSAL_REQUIRED: bool = True
 PUBLIC_TAS: str = os.environ.get("PUBLIC_TAS", "")
 PUBLIC_TAS_LIST: List[str] = PUBLIC_TAS.split(",") if PUBLIC_TAS else []
 
+# A debug mechanism to allow us to manually add user and project associations.
+# The input is a comma-separated list of "user:project: pairs,
+# e.g. "user-1:lb32627-66,user2:lb32627-66"
+RESTRICTED_TAS_USERS: str = os.environ.get("RESTRICTED_TAS_USERS", "")
+RESTRICTED_TAS_USERS_LIST: List[str] = (
+    RESTRICTED_TAS_USERS.split(",") if RESTRICTED_TAS_USERS else []
+)
+
 # Security/access control connector.
 # Currently one of 'ispyb' or 'ssh_ispyb'.
 SECURITY_CONNECTOR: str = os.environ.get("SECURITY_CONNECTOR", "ispyb").lower()
@@ -629,6 +627,10 @@ SQUONK2_ORG_OWNER_PASSWORD: str = os.environ.get("SQUONK2_ORG_OWNER_PASSWORD", "
 SQUONK2_VERIFY_CERTIFICATES: str = os.environ.get("SQUONK2_VERIFY_CERTIFICATES", "")
 
 TARGET_LOADER_MEDIA_DIRECTORY: str = "target_loader_data"
+
+# A warning messages issued by the f/e.
+# Used, if set, to populate the 'target_warning_message' context variable
+TARGET_WARNING_MESSAGE: str = os.environ.get("TARGET_WARNING_MESSAGE", "")
 
 # The Target Access String (TAS) Python regular expression.
 # The Project title (the TAS) must match this expression to be valid.

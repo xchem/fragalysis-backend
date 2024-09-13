@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from pathlib import Path
 from urllib.parse import urljoin
@@ -12,8 +13,9 @@ from frag.network.query import get_full_graph
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
-from api.security import ISpyBSafeQuerySet
+from api.security import ISPyBSafeQuerySet
 from api.utils import draw_mol, validate_tas
 from viewer import models
 from viewer.target_loader import XTALFORMS_FILE
@@ -22,7 +24,91 @@ from viewer.utils import get_https_host
 
 logger = logging.getLogger(__name__)
 
-_ISPYB_SAFE_QUERY_SET = ISpyBSafeQuerySet()
+_ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
+
+
+class ValidateProjectMixin:
+    """Mixin for serializers to check if user is allowed to create objects.
+
+    Requires a 'filter_permissions' member in the corresponding View.
+    This is used to navigate to the Project object from the data map
+    given to the validate() method.
+    """
+
+    def validate(self, data):
+        # User must be logged in
+        user = self.context['request'].user  # type: ignore [attr-defined]
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("You must be logged in")
+        view = self.context['view']  # type: ignore [attr-defined]
+        if not hasattr(view, "filter_permissions"):
+            raise AttributeError(
+                "The view object must define a 'filter_permissions' property"
+            )
+
+        # We expect a filter_permissions string (defined in the View) like this...
+        #     "compound__project_id"
+        # In this example the supplied data map is therefore expected to have a
+        # "compound" key (which we extract into a variable called 'base_object_key').
+        # We use the 2nd half of the string (which we call 'project_path')
+        # to get to the Project object from 'data["compound"]'.
+        #
+        # If the filter_permissions string has no 2nd half (e.g. it's simply 'project_id')
+        # then the data is clearly expected to contain the Project object itself.
+
+        base_object_key, project_path = view.filter_permissions.split('__', 1)
+        base_start_obj = data[base_object_key]
+        # Assume we're using the base object,
+        # but swap it out of there's a project path.
+        project_obj = base_start_obj
+        if project_path:
+            try:
+                project_obj = getattr(base_start_obj, project_path)
+            except AttributeError as exc:
+                # Something's gone wrong trying to lookup the project.
+                # Log some 'interesting' contextual information...
+                logger.info('context=%s', self.context)  # type: ignore [attr-defined]
+                logger.info('data=%s', data)
+                logger.info('view=%s', view.__class__.__name__)
+                logger.info('view.filter_permissions=%s', view.filter_permissions)
+                # Get the object's content and dump it for analysis...
+                bso_class_name = base_start_obj.__class__.__name__
+                msg = f"There is no Project at '{project_path}' ({view.filter_permissions})"
+                logger.error(
+                    "%s - base_start_obj=%s vars(base_start_obj)=%s",
+                    msg,
+                    bso_class_name,
+                    vars(base_start_obj),
+                )
+                raise serializers.ValidationError(msg) from exc
+        assert project_obj
+        # Now get the proposals from the Project(s)...
+        if project_obj.__class__.__name__ == "ManyRelatedManager":
+            # Potential for many proposals...
+            object_proposals = [p.title for p in project_obj.all()]
+        else:
+            # Only one proposal...
+            object_proposals = [project_obj.title]
+        if not object_proposals:
+            raise PermissionDenied(
+                detail="Authority cannot be granted - the object is not a part of any Project"
+            )
+
+        # Now we have the proposals (Project titles) the object belongs to,
+        # has the user been associated (in IPSpyB) with any of them?
+        # We can always see (GET) objects that are open to the public.
+        restrict_public = False if self.context['request'].method == 'GET' else True  # type: ignore [attr-defined]
+        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
+            user=user,
+            proposals=object_proposals,
+            restrict_public_to_membership=restrict_public,
+        ):
+            raise PermissionDenied(
+                detail="Your authority to access this object has not been given"
+            )
+
+        # OK if we get here...
+        return data
 
 
 class FileSerializer(serializers.ModelSerializer):
@@ -37,7 +123,7 @@ class CompoundIdentifierTypeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class CompoundIdentifierSerializer(serializers.ModelSerializer):
+class CompoundIdentifierSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.CompoundIdentifier
         fields = '__all__'
@@ -48,19 +134,8 @@ class TargetSerializer(serializers.ModelSerializer):
     zip_archive = serializers.SerializerMethodField()
     metadata = serializers.SerializerMethodField()
 
-    def get_template_protein(self, obj):
-        exp_upload = (
-            models.ExperimentUpload.objects.filter(
-                target=obj,
-            )
-            .order_by('-commit_datetime')
-            .first()
-        )
-
-        yaml_path = exp_upload.get_upload_path()
-
-        # last components of path, need for reconstruction later
-        comps = yaml_path.parts[-2:]
+    def get_template_protein_path(self, experiment_upload) -> Path | None:
+        yaml_path = experiment_upload.get_upload_path()
 
         # and the file itself
         yaml_path = yaml_path.joinpath(XTALFORMS_FILE)
@@ -72,44 +147,56 @@ class TargetSerializer(serializers.ModelSerializer):
                     assemblies = contents["assemblies"]
                 except KeyError:
                     logger.error("No 'assemblies' section in '%s'", XTALFORMS_FILE)
-                    return ''
+                    return None
 
                 try:
                     first = list(assemblies.values())[0]
                 except IndexError:
                     logger.error("No assemblies in 'assemblies' section")
-                    return ''
+                    return None
 
                 try:
                     reference = first["reference"]
                 except KeyError:
                     logger.error("No assemblies in 'assemblies' section")
-                    return ''
+                    return None
 
                 ref_path = (
                     Path(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-                    .joinpath(exp_upload.task_id)
-                    .joinpath(comps[0])
-                    .joinpath(comps[1])
+                    .joinpath(experiment_upload.target.zip_archive.name)
+                    .joinpath(experiment_upload.upload_data_dir)
                     .joinpath("crystallographic_files")
                     .joinpath(reference)
                     .joinpath(f"{reference}.pdb")
                 )
                 logger.debug('ref_path: %s', ref_path)
                 if Path(settings.MEDIA_ROOT).joinpath(ref_path).is_file():
-                    request = self.context.get('request', None)
-                    if request is not None:
-                        return request.build_absolute_uri(
-                            Path(settings.MEDIA_URL).joinpath(ref_path)
-                        )
-                    else:
-                        return ''
+                    return ref_path
                 else:
                     logger.error("Reference pdb file doesn't exist")
-                    return ''
+                    return None
         else:
             logger.error("'%s' missing", XTALFORMS_FILE)
-            return ''
+            return None
+
+    def get_template_protein(self, obj):
+        # loop through exp uploads from latest to earliest, and try to
+        # find template protein
+        for exp_upload in models.ExperimentUpload.objects.filter(
+            target=obj,
+        ).order_by('-commit_datetime'):
+            path = self.get_template_protein_path(exp_upload)
+            if path is None:
+                continue
+            else:
+                request = self.context.get('request', None)
+                if request is not None:
+                    return request.build_absolute_uri(
+                        Path(settings.MEDIA_URL).joinpath(path)
+                    )
+                else:
+                    return None
+        return None
 
     def get_zip_archive(self, obj):
         # The if-check is because the filefield in target has null=True.
@@ -125,7 +212,6 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Target
-        # TODO: it's missing protein_set. is it necessary anymore?
         fields = (
             "id",
             "title",
@@ -548,7 +634,7 @@ class SnapshotActionsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ComputedSetSerializer(serializers.ModelSerializer):
+class ComputedSetSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.ComputedSet
         fields = '__all__'
@@ -713,14 +799,14 @@ class DownloadStructuresSerializer(serializers.Serializer):
 
 # Start of Serializers for Squonk Jobs
 # (GET)
-class JobFileTransferReadSerializer(serializers.ModelSerializer):
+class JobFileTransferReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobFileTransfer
         fields = '__all__'
 
 
 # (POST, PUT, PATCH)
-class JobFileTransferWriteSerializer(serializers.ModelSerializer):
+class JobFileTransferWriteSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.JobFileTransfer
         fields = ("snapshot", "target", "squonk_project", "proteins", "compounds")
@@ -768,7 +854,7 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
         fields = ("job_status", "state_transition_time")
 
 
-class TargetExperimentReadSerializer(serializers.ModelSerializer):
+class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = models.ExperimentUpload
         fields = '__all__'
@@ -822,6 +908,18 @@ class SiteObservationReadSerializer(serializers.ModelSerializer):
     compound_code = serializers.StringRelatedField()
     prefix_tooltip = serializers.StringRelatedField()
 
+    ligand_mol_file = serializers.SerializerMethodField()
+
+    def get_ligand_mol_file(self, obj):
+        contents = ''
+        if obj.ligand_mol:
+            path = Path(settings.MEDIA_ROOT).joinpath(obj.ligand_mol.name)
+            with contextlib.suppress(TypeError, FileNotFoundError):
+                with open(path, "r", encoding="utf-8") as f:
+                    contents = f.read()
+
+        return contents
+
     class Meta:
         model = models.SiteObservation
         fields = '__all__'
@@ -845,7 +943,7 @@ class XtalformSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class PoseSerializer(serializers.ModelSerializer):
+class PoseSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     site_observations = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=models.SiteObservation.objects.all(),
@@ -921,7 +1019,9 @@ class PoseSerializer(serializers.ModelSerializer):
         - the pose they're being removed from is deleted when empty
 
         """
-        logger.info('+ validate: %s', data)
+        logger.info('+ validate data: %s', data)
+
+        data = super().validate(data)
 
         template = (
             "Site observation {} cannot be assigned to pose because "

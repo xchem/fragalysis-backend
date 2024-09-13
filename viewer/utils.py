@@ -1,23 +1,24 @@
-"""
-utils.py
-
-Collection of technical methods tidied up in one location.
-"""
 import fnmatch
 import itertools
 import json
 import logging
 import os
+import re
 import shutil
 import string
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Dict, Generator, Optional
 from urllib.parse import urlparse
 
 import numpy as np
+import pandas as pd
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.http import JsonResponse
@@ -39,6 +40,12 @@ logger = logging.getLogger(__name__)
 SDF_VERSION = 'ver_1.2'
 
 SDF_RECORD_SEPARATOR = '$$$$\n'
+
+# The root of all files constructed by 'dicttocsv'.
+# The directory must not contain anything but dicttocsv-generated files.
+# It certainly must not be the root of the media directory or any other directory in it.
+# Introduced during 1247 security review.
+CSV_TO_DICT_DOWNLOAD_ROOT = os.path.join(settings.MEDIA_ROOT, 'downloads', 'dicttocsv')
 
 
 def is_url(url: Optional[str]) -> bool:
@@ -332,7 +339,7 @@ def restore_curated_tags(filename: str) -> None:
                 if data['mol_group_id']:
                     data['mol_group_id'] = new_mol_groups_by_old_pk[
                         data['mol_group_id']
-                    ]
+                    ].pk
                 data['user'] = new_users_by_old_pk[data['user_id']]
                 del data['user_id']
                 tag = SiteObservationTag(**data)
@@ -376,8 +383,9 @@ def restore_curated_tags(filename: str) -> None:
                 del data['ann_site_obvs_longcode']
                 del data['site_observation_id']
                 data['site_obvs_group'] = new_mol_groups_by_old_pk[
-                    data['site_obvs_group']
+                    data['site_obvs_group_id']
                 ]
+                del data['site_obvs_group_id']
                 SiteObvsSiteObservationGroup(**data).save()
 
             so_so_tag_data = content.get(
@@ -391,7 +399,7 @@ def restore_curated_tags(filename: str) -> None:
                     )
                 except SiteObservation.DoesNotExist:
                     logger.warning(
-                        'Tried to restore SiteObvsSiteObservationGroup for site_observation that does not exist: %s',
+                        'Tried to restore SiteObvsSiteObservationTag for site_observation that does not exist: %s',
                         data['ann_site_obvs_longcode'],
                     )
                     continue
@@ -400,8 +408,9 @@ def restore_curated_tags(filename: str) -> None:
                 del data['ann_site_obvs_longcode']
                 del data['site_observation_id']
                 data['site_obvs_tag'] = new_tags_by_old_pk.get(
-                    data['site_obvs_tag'], None
+                    data['site_obvs_tag_id'], None
                 )
+                del data['site_obvs_tag_id']
                 if data['site_obvs_tag']:
                     # tag may be missing if not restored
                     SiteObvsSiteObservationTag(**data).save()
@@ -487,3 +496,129 @@ def sanitize_boolean_column(column):
             raise ValueError(f'Unexpected boolean value: {value}')
 
     return column.apply(convert_to_boolean)
+
+
+def save_tmp_file(myfile):
+    """Save file in temporary location for validation/upload processing"""
+
+    name = myfile.name
+    path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
+    return str(os.path.join(settings.MEDIA_ROOT, path))
+
+
+def create_csv_from_dict(input_dict, title=None, filename=None):
+    """Write a CSV file containing data from an input dictionary and return a full
+    to the file (in the media directory).
+    """
+    if not filename:
+        filename = 'download'
+
+    unique_dir = str(uuid.uuid4())
+    download_path = os.path.join(CSV_TO_DICT_DOWNLOAD_ROOT, unique_dir)
+    os.makedirs(download_path, exist_ok=True)
+
+    download_file = os.path.join(download_path, filename)
+
+    # Remove file if it already exists
+    if os.path.isfile(download_file):
+        os.remove(download_file)
+
+    with open(download_file, "w", newline='', encoding='utf-8') as csvfile:
+        if title:
+            csvfile.write(title)
+            csvfile.write("\n")
+
+    df = pd.DataFrame.from_dict(input_dict)
+    df.to_csv(download_file, mode='a', header=True, index=False)
+
+    return download_file
+
+
+def email_task_completion(
+    contact_email, message_type, target_name, target_path=None, task_id=None
+):
+    """Notify user of upload completion"""
+
+    logger.info('+ email_notify_task_completion: ' + message_type + ' ' + target_name)
+    email_from = settings.EMAIL_HOST_USER
+
+    if contact_email == '' or not email_from:
+        # Only send email if configured.
+        return
+
+    if message_type == 'upload-success':
+        subject = 'Fragalysis: Target: ' + target_name + ' Uploaded'
+        message = (
+            'The upload of your target data is complete. Your target is available at: '
+            + str(target_path)
+        )
+    elif message_type == 'validate-success':
+        subject = 'Fragalysis: Target: ' + target_name + ' Validation'
+        message = (
+            'Your data was validated. It can now be uploaded using the upload option.'
+        )
+    else:
+        # Validation failure
+        subject = 'Fragalysis: Target: ' + target_name + ' Validation/Upload Failed'
+        message = (
+            'The validation/upload of your target data did not complete successfully. '
+            'Please navigate the following link to check the errors: validate_task/'
+            + str(task_id)
+        )
+
+    recipient_list = [
+        contact_email,
+    ]
+    logger.info('+ email_notify_task_completion email_from: %s', email_from)
+    logger.info('+ email_notify_task_completion subject: %s', subject)
+    logger.info('+ email_notify_task_completion message: %s', message)
+    logger.info('+ email_notify_task_completion contact_email: %s', contact_email)
+
+    # Send email - this should not prevent returning to the screen in the case of error.
+    send_mail(subject, message, email_from, recipient_list, fail_silently=True)
+    logger.info('- email_notify_task_completion')
+    return
+
+
+def sanitize_directory_name(name: str, path: Path | None = None) -> str:
+    """
+    Sanitize a string to ensure it only contains characters allowed in UNIX directory names.
+
+    Parameters:
+    name: The input string to sanitize.
+    path (optional): the parent directory where the directory would reside, to check if unique
+
+    Returns:
+    str: A sanitized string with only allowed characters.
+    """
+    # Define allowed characters regex
+    allowed_chars = re.compile(r'[^a-zA-Z0-9._-]')
+
+    # Replace disallowed characters with an underscore
+    sanitized_name = allowed_chars.sub('_', name.strip())
+
+    # Replace multiple underscores with a single underscore
+    sanitized_name = re.sub(r'__+', '_', sanitized_name)
+    logger.debug('sanitized name: %s', sanitized_name)
+    if path:
+        target_dirs = [d.name for d in list(path.glob("*")) if d.is_dir()]
+        logger.debug('target dirs: %s', target_dirs)
+        new_name = sanitized_name
+        suf = 1
+        while new_name in target_dirs:
+            suf = suf + 1
+            new_name = f'{sanitized_name}_{suf}'
+            logger.debug('looping suffix: %s', new_name)
+
+        sanitized_name = new_name
+
+    return sanitized_name
+
+
+def clean_object_id(name: str) -> str:
+    """Replace '/' and '+' with '/' in XCA object identifiers"""
+    splits = name.split('-x')
+    if len(splits) > 1:
+        return f"{splits[0]}-x{splits[1].replace('+', '/').replace('_', '/')}"
+    else:
+        return name.replace('+', '/').replace('_', '/')

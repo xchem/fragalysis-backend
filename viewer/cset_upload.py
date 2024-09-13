@@ -289,6 +289,7 @@ class MolOps:
                 inchi_key=inchi_key,
                 current_identifier=name,
             )
+            # This is a new compound.
             cpd.save()
             # This is a new compound.
             # We must now set relationships to the Proposal that it applies to.
@@ -446,7 +447,18 @@ class MolOps:
                 # find distances between corresponding atoms of the
                 # two conformers. if any one exceeds the _DIST_LIMIT,
                 # consider it to be a new ComputedMolecule
-                _, _, atom_map = Chem.rdMolAlign.GetBestAlignmentTransform(mol, kmol)
+                try:
+                    _, _, atom_map = Chem.rdMolAlign.GetBestAlignmentTransform(
+                        mol, kmol
+                    )
+                except RuntimeError as exc:
+                    msg = (
+                        f'Failed to find alignment between {k.molecule_name} '
+                        + f'and {mol.GetProp("original ID")}'
+                    )
+                    logger.error(msg)
+                    raise RuntimeError(msg) from exc
+
                 molconf = mol.GetConformer()
                 kmolconf = kmol.GetConformer()
                 small_enough = True
