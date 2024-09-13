@@ -331,7 +331,7 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
                 pose_name = df.loc[
                     df['Long code'] == so.longcode, next(iter(POSE_COL.keys()))
                 ]
-                if so.pose_display_name != pose_name:
+                if so.pose.display_name != pose_name:
                     try:
                         pose = poses.get(display_name=pose_name)
                     except Pose.DoesNotExist as exc:
@@ -418,6 +418,8 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
                     so_group.site_observation.add(*site_observations)
                     so_tag.site_observations.add(*site_observations)
 
+            logger.debug('errors: %s', errors)
+            logger.debug('errors: %s', type(errors))
             if errors:
                 # TODO: pass on collected error messages
                 raise IntegrityError('smth')
