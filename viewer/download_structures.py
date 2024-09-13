@@ -482,6 +482,9 @@ def _metadata_file_zip(ziparchive, target, site_observations):
         header.append(f'{category.category} upload name')
         annotations[upload_tag] = UploadTagSubquery(category.category)
 
+    values.append('pose__display_name')
+    header.append('Pose')
+
     pattern = re.compile(r'\W+')  # non-alphanumeric characters
     for tag in SiteObservationTag.objects.filter(
         category__in=TagCategory.objects.filter(category__in=CURATED_TAG_CATEGORIES),
