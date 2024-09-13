@@ -84,6 +84,8 @@ services:
     - ./data/logs:/code/logs/
     - ./data/media:/code/media/
     - .:/code/
+    env_file:
+      - .env
     environment:
       AUTHENTICATE_UPLOAD: ${AUTHENTICATE_UPLOAD:-True}
       DEPLOYMENT_MODE: 'development'

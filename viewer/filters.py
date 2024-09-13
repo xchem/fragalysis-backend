@@ -1,3 +1,5 @@
+import logging
+
 import django_filters
 from django_filters import rest_framework as filters
 
@@ -11,6 +13,8 @@ from viewer.models import (
     Snapshot,
     XtalformSite,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SnapshotFilter(filters.FilterSet):

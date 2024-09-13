@@ -3,7 +3,13 @@ from django.db import models
 
 from viewer.models import Compound, SiteObservation, Snapshot, Target
 
-from .managers import ScoreChoiceDataManager
+from .managers import (
+    CmpdChoiceDataManager,
+    ScoreChoiceDataManager,
+    SiteObservationAnnotationDataManager,
+    SiteObservationChoiceDataManager,
+    ViewSceneDataManager,
+)
 
 
 class ViewScene(models.Model):
@@ -29,6 +35,9 @@ class ViewScene(models.Model):
     # for redirecting to project's snapshot
     snapshot = models.ForeignKey(Snapshot, null=True, on_delete=models.CASCADE)
 
+    objects = models.Manager()
+    filter_manager = ViewSceneDataManager()
+
 
 class SiteObservationChoice(models.Model):
     """
@@ -50,6 +59,9 @@ class SiteObservationChoice(models.Model):
     # Score -
     score = models.FloatField(null=True)
 
+    objects = models.Manager()
+    filter_manager = SiteObservationChoiceDataManager()
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -67,6 +79,9 @@ class SiteObservationAnnotation(models.Model):
     site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     annotation_type = models.CharField(max_length=50)
     annotation_text = models.CharField(max_length=100)
+
+    objects = models.Manager()
+    filter_manager = SiteObservationAnnotationDataManager()
 
     class Meta:
         constraints = [
@@ -127,6 +142,9 @@ class CmpdChoice(models.Model):
     # Score between 0 and 9; Convention for n memberd list -> num_in_list/(num_choices-1)
     # E.g.
     score = models.FloatField(null=True)
+
+    objects = models.Manager()
+    filter_manager = CmpdChoiceDataManager()
 
     class Meta:
         unique_together = ("user_id", "cmpd_id", "choice_type")

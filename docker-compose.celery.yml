@@ -1,0 +1,56 @@
+# Override compose file to enable celery services locally
+# Adds containers for beat and worker + minor tweaks for main backend
+
+# Run like:
+# sudo docker compose -f docker-compose.yml -f docker-compose.celery.yml up
+
+version: '3'
+
+services:
+
+  # The stack backend
+  backend:
+    env_file:
+      - .env
+    environment:
+      # Celery tasks run as intended here
+      CELERY_TASK_ALWAYS_EAGER: 'False'
+    healthcheck:
+      test: python manage.py --help || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
+
+
+  celery_worker:
+    command: sh -c "celery -A fragalysis worker -l info"
+    container_name: celery_worker
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    hostname: celery_worker
+    env_file:
+      - .env
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
+    restart: on-failure
+
+  celery_beat:
+    command: sh -c "celery -A fragalysis beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    container_name: celery_beat
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    hostname: celery_beat
+    env_file:
+      - .env
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
+    restart: on-failure

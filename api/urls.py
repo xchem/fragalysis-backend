@@ -3,20 +3,18 @@ from django.urls import path
 from rest_framework.authtoken import views as drf_views
 from rest_framework.routers import DefaultRouter
 
-# from xcdb import views as xchem_views
 from hotspots import views as hostpot_views
 from hypothesis import views as hypo_views
 from scoring import views as score_views
 from viewer import views as viewer_views
-from xcdb import views as xcdb_views
 
 router = DefaultRouter()
 # Register the basic data
 router.register("compounds", viewer_views.CompoundView, "compounds")
 router.register("targets", viewer_views.TargetView, "targets")
 router.register("projects", viewer_views.ProjectView)
-router.register("session-projects", viewer_views.SessionProjectsView)
-router.register("snapshots", viewer_views.SnapshotsView)
+router.register("session-projects", viewer_views.SessionProjectView)
+router.register("snapshots", viewer_views.SnapshotView)
 router.register("action-type", viewer_views.ActionTypeView)
 router.register("session-actions", viewer_views.SessionActionsView)
 router.register("snapshot-actions", viewer_views.SnapshotActionsView)
@@ -26,7 +24,7 @@ router.register("compound-identifiers", viewer_views.CompoundIdentifierView)
 # Compounds sets
 router.register("compound-sets", viewer_views.ComputedSetView)
 router.register("compound-molecules", viewer_views.ComputedMoleculesView)
-router.register("numerical-scores", viewer_views.NumericalScoresView)
+router.register("numerical-scores", viewer_views.NumericalScoreValuesView)
 router.register("text-scores", viewer_views.TextScoresView)
 router.register("compound-scores", viewer_views.CompoundScoresView, "compound-scores")
 router.register(
@@ -65,16 +63,13 @@ router.register("siteobservationgroup", score_views.SiteObservationGroupView)
 # Get the information
 router.register("siteobservationannotation", score_views.SiteObservationAnnotationView)
 
-# fragspect
-router.register("fragspect", xcdb_views.FragspectCrystalView)
-
 # discourse posts
 router.register(
     "discourse_post", viewer_views.DiscoursePostView, basename='discourse_post'
 )
 
 # Take a dictionary and return a csv
-router.register("dicttocsv", viewer_views.DictToCsv, basename='dicttocsv')
+router.register("dicttocsv", viewer_views.DictToCSVView, basename='dicttocsv')
 
 # tags
 router.register("tag_category", viewer_views.TagCategoryView, basename='tag_category')
@@ -92,36 +87,38 @@ router.register(
 # Download a zip file of the requested contents
 router.register(
     "download_structures",
-    viewer_views.DownloadStructures,
+    viewer_views.DownloadStructuresView,
     basename='download_structures',
 )
 
 # Experiments and Experiment (XChemAlign) upload support
 router.register(
     "upload_target_experiments",
-    viewer_views.UploadTargetExperiments,
+    viewer_views.UploadExperimentUploadView,
     basename='upload_target_experiments',
 )
 router.register(
     "download_target_experiments",
-    viewer_views.DownloadTargetExperiments,
+    viewer_views.DownloadExperimentUploadView,
     basename='download_target_experiments',
 )
 
 
 router.register(
     "target_experiment_uploads",
-    viewer_views.TargetExperimentUploads,
+    viewer_views.ExperimentUploadView,
     basename='target_experiment_uploads',
 )
 router.register(
-    "site_observations", viewer_views.SiteObservations, basename='site_observations'
+    "site_observations", viewer_views.SiteObservationView, basename='site_observations'
 )
-router.register("canon_sites", viewer_views.CanonSites, basename='canon_sites')
+router.register("canon_sites", viewer_views.CanonSiteView, basename='canon_sites')
 router.register(
-    "canon_site_confs", viewer_views.CanonSiteConfs, basename='canon_site_confs'
+    "canon_site_confs", viewer_views.CanonSiteConfView, basename='canon_site_confs'
 )
-router.register("xtalform_sites", viewer_views.XtalformSites, basename='xtalform_sites')
+router.register(
+    "xtalform_sites", viewer_views.XtalformSiteView, basename='xtalform_sites'
+)
 router.register("poses", viewer_views.PoseView, basename='poses')
 
 # Squonk Jobs

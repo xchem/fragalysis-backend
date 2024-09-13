@@ -67,7 +67,7 @@
 import os
 import sys
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
 
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -130,6 +130,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # 3rd
+    "django_celery_beat",
+    "django_celery_results",
     # My own apps
     "scoring",
     "network",
@@ -138,6 +141,7 @@ INSTALLED_APPS = [
     "hypothesis",
     "hotspots",
     "media_serve",
+    "service_status.apps.ServiceStatusConfig",
     # The XChem database model
     "xchem_db",
     # My utility apps
@@ -343,16 +347,6 @@ DATABASES = {
     }
 }
 
-if os.environ.get("BUILD_XCDB") == "yes":
-    DATABASES["xchem_db"] = {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("XCHEM_NAME", ""),
-        "USER": os.environ.get("XCHEM_USER", ""),
-        "PASSWORD": os.environ.get("XCHEM_PASSWORD", ""),
-        "HOST": os.environ.get("XCHEM_HOST", ""),
-        "PORT": os.environ.get("XCHEM_PORT", ""),
-    }
-
 CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKNOWN")
 if CHEMCENTRAL_DB_NAME != "UNKNOWN":
     DATABASES["chemcentral"] = {
@@ -430,6 +424,18 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 "filename": os.path.join(BASE_DIR, "logs/backend.log"),
                 "formatter": "simple",
             },
+            'service_status': {
+                'level': 'DEBUG',
+                'class': 'logging.handlers.RotatingFileHandler',
+                'filename': os.path.join(BASE_DIR, "logs/service_status.log"),
+                'formatter': 'simple',
+                "maxBytes": 5_000_000,
+                "backupCount": 10,
+            },
+        },
+        "root": {
+            "level": LOGGING_FRAMEWORK_ROOT_LEVEL,
+            "handlers": ["console", "rotating"],
         },
         'loggers': {
             'api.security': {'level': 'INFO'},
@@ -439,10 +445,11 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'mozilla_django_oidc': {'level': 'WARNING'},
             'urllib3': {'level': 'WARNING'},
             'paramiko': {'level': 'WARNING'},
-        },
-        "root": {
-            "level": LOGGING_FRAMEWORK_ROOT_LEVEL,
-            "handlers": ["console", "rotating"],
+            'service_status': {
+                'handlers': ['service_status', 'console'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
         },
     }
 
@@ -535,6 +542,16 @@ NEOMODEL_NEO4J_BOLT_URL: str = os.environ.get(
 NEO4J_QUERY: str = os.environ.get("NEO4J_QUERY", "neo4j")
 NEO4J_AUTH: str = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
 
+# Does it look like we're running in Kubernetes?
+# If so, let's get the namespace we're in - it will provide
+# useful discrimination material in log/metrics messages.
+# If there is no apparent namespace the variable will be 'None'.
+OUR_KUBERNETES_NAMESPACE: Optional[str] = None
+_NS_FILENAME: str = '/var/run/secrets/kubernetes.io/serviceaccount/namespace'
+if os.path.isfile(_NS_FILENAME):
+    with open(_NS_FILENAME, 'rt', encoding='utf8') as ns_file:
+        OUR_KUBERNETES_NAMESPACE = ns_file.read().strip()
+
 # These flags are used in the upload_tset form as follows.
 # Proposal Supported | Proposal Required | Proposal / View fields
 # Y                  | Y                 | Shown / Required
@@ -547,6 +564,14 @@ PROPOSAL_REQUIRED: bool = True
 # If so they'll be in the PUBLIC_TAS variable as a comma separated list.
 PUBLIC_TAS: str = os.environ.get("PUBLIC_TAS", "")
 PUBLIC_TAS_LIST: List[str] = PUBLIC_TAS.split(",") if PUBLIC_TAS else []
+
+# A debug mechanism to allow us to manually add user and project associations.
+# The input is a comma-separated list of "user:project: pairs,
+# e.g. "user-1:lb32627-66,user2:lb32627-66"
+RESTRICTED_TAS_USERS: str = os.environ.get("RESTRICTED_TAS_USERS", "")
+RESTRICTED_TAS_USERS_LIST: List[str] = (
+    RESTRICTED_TAS_USERS.split(",") if RESTRICTED_TAS_USERS else []
+)
 
 # Security/access control connector.
 # Currently one of 'ispyb' or 'ssh_ispyb'.
@@ -602,6 +627,10 @@ SQUONK2_ORG_OWNER_PASSWORD: str = os.environ.get("SQUONK2_ORG_OWNER_PASSWORD", "
 SQUONK2_VERIFY_CERTIFICATES: str = os.environ.get("SQUONK2_VERIFY_CERTIFICATES", "")
 
 TARGET_LOADER_MEDIA_DIRECTORY: str = "target_loader_data"
+
+# A warning messages issued by the f/e.
+# Used, if set, to populate the 'target_warning_message' context variable
+TARGET_WARNING_MESSAGE: str = os.environ.get("TARGET_WARNING_MESSAGE", "")
 
 # The Target Access String (TAS) Python regular expression.
 # The Project title (the TAS) must match this expression to be valid.

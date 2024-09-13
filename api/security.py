@@ -12,19 +12,46 @@ from django.conf import settings
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
-from ispyb.connector.mysqlsp.main import ISPyBNoResultException
+from ispyb.exception import ISPyBConnectionException, ISPyBNoResultException
 from rest_framework import viewsets
 
 from viewer.models import Project
 
+from .prometheus_metrics import PrometheusMetrics
 from .remote_ispyb_connector import SSHConnector
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+def get_restricted_tas_user_proposal(user) -> set[str]:
+    """
+    Used for debugging access to restricted TAS projects.
+    settings.RESTRICTED_TAS_USERS_LIST is a list of strings that
+    contain "<user>:<tas>". We inspect this list, and if our user is in it
+    we collect and return them.
+
+    This should always return an empty set() in production.
+    """
+    assert user
+
+    response = set()
+    if settings.RESTRICTED_TAS_USERS_LIST:
+        for item in settings.RESTRICTED_TAS_USERS_LIST:
+            item_username, item_tas = item.split(':')
+            if item_username == user.username:
+                response.add(item_tas)
+
+    if response:
+        logger.warning(
+            'Returning restricted TAS "%s" for user "%s"', item_tas, user.username
+        )
+    return response
+
+
 @cache
 class CachedContent:
-    """A static class managing caches proposals/visits for each user.
+    """
+    A static class managing caches proposals/visits for each user.
     Proposals should be collected when has_expired() returns True.
     Content can be written (when the cache for the user has expired)
     and read using the set/get methods.
@@ -51,19 +78,24 @@ class CachedContent:
                 has_expired = True
                 # Expired, reset the expiry time
                 CachedContent._timers[username] = now + CachedContent._cache_period
+        if has_expired:
+            logger.debug("Content expired for '%s'", username)
         return has_expired
 
     @staticmethod
     def get_content(username):
         with CachedContent._cache_lock:
             if username not in CachedContent._content:
-                CachedContent._content[username] = []
-        return CachedContent._content[username]
+                CachedContent._content[username] = set()
+        content = CachedContent._content[username]
+        logger.debug("Got content for '%s': %s", username, content)
+        return content
 
     @staticmethod
     def set_content(username, content) -> None:
         with CachedContent._cache_lock:
             CachedContent._content[username] = content.copy()
+            logger.debug("Set content for '%s': %s", username, content)
 
 
 def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
@@ -99,14 +131,21 @@ def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
     conn: Optional[SSHConnector] = None
     try:
         conn = SSHConnector(**credentials)
+    except ISPyBConnectionException:
+        # The ISPyB connection failed.
+        # Nothing else to do here, metrics are already updated
+        pass
     except Exception:
+        # Any other exception will be a problem with the SSH tunnel connection
+        PrometheusMetrics.failed_tunnel()
         if logging.DEBUG >= logger.level or force_error_display:
             logger.info("credentials=%s", credentials)
             logger.exception("Got the following exception creating Connector...")
+
     if conn:
-        logger.debug("Got remote connector")
+        logger.debug("Got remote ISPyB connector")
     else:
-        logger.debug("Failed to get a remote connector")
+        logger.debug("Failed to get a remote ISPyB connector")
 
     return conn
 
@@ -140,8 +179,10 @@ def get_conn(force_error_display=False) -> Optional[Connector]:
             logger.exception("Got the following exception creating Connector...")
     if conn:
         logger.debug("Got connector")
+        PrometheusMetrics.new_ispyb_connection()
     else:
         logger.debug("Did not get a connector")
+        PrometheusMetrics.failed_ispyb_connection()
 
     return conn
 
@@ -169,10 +210,23 @@ def ping_configured_connector() -> bool:
     return conn is not None
 
 
-class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
+    """
+    This ISpyBSafeQuerySet, which inherits from the DRF viewsets.ReadOnlyModelViewSet,
+    is used for all views that need to yield (filter) view objects based on a
+    user's proposal membership. This requires the view to define the property
+    "filter_permissions" to enable this class to navigate to the view object's Project
+    (proposal/visit).
+
+    As the ISpyBSafeQuerySet is based on a ReadOnlyModelViewSet, which only provides
+    implementations for list() and retrieve() methods, the user will need to provide
+    "mixins" for any additional methods the view needs to support (PATCH, PUT, DELETE).
+    """
+
     def get_queryset(self):
         """
-        Optionally restricts the returned purchases to a given proposals
+        Restricts the returned records to those that belong to proposals
+        the user has access to. Without a user only 'open' proposals are returned.
         """
         # The list of proposals this user can have
         proposal_list = self.get_proposals_for_user(self.request.user)
@@ -184,10 +238,10 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # Must have a foreign key to a Project for this filter to work.
         # get_q_filter() returns a Q expression for filtering
-        q_filter = self.get_q_filter(proposal_list)
+        q_filter = self._get_q_filter(proposal_list)
         return self.queryset.filter(q_filter).distinct()
 
-    def _get_open_proposals(self):
+    def get_open_proposals(self):
         """
         Returns the set of proposals anybody can access.
         These consist of any Projects that are marked "open_to_public"
@@ -197,6 +251,7 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             Project.objects.filter(open_to_public=True).values_list("title", flat=True)
         )
         open_proposals.update(settings.PUBLIC_TAS_LIST)
+        # End Temporary Test Code (1247)
         return open_proposals
 
     def _get_proposals_for_user_from_django(self, user):
@@ -231,30 +286,29 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
     def _get_proposals_for_user_from_ispyb(self, user):
         if CachedContent.has_expired(user.username):
-            logger.info("Cache has expired for '%s'", user.username)
+            PrometheusMetrics.new_proposal_cache_miss()
             if conn := get_configured_connector():
-                logger.debug("Got a connector for '%s'", user.username)
+                logger.info("Got a connector for '%s'", user.username)
                 self._get_proposals_from_connector(user, conn)
             else:
                 logger.warning("Failed to get a connector for '%s'", user.username)
-                self._mark_cache_collection_failure(user)
+        else:
+            PrometheusMetrics.new_proposal_cache_hit()
 
         # The cache has either been updated, has not changed or is empty.
         # Return what we have for the user. Public (open) proposals
         # will be added to what we return if necessary.
         cached_prop_ids = CachedContent.get_content(user.username)
-        logger.debug(
-            "Have %s cached Proposals for '%s': %s",
+        logger.info(
+            "Returning %s cached Proposals for '%s'",
             len(cached_prop_ids),
             user.username,
-            cached_prop_ids,
         )
-
         return cached_prop_ids
 
     def _get_proposals_from_connector(self, user, conn):
-        """Updates the USER_LIST_DICT with the results of a query
-        and marks it as populated.
+        """
+        Updates the user's proposal cache with the results of a query
         """
         assert user
         assert conn
@@ -302,9 +356,9 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             proposal_visit_str = f'{proposal_str}-{sn_str}'
             prop_id_set.update([proposal_str, proposal_visit_str])
 
-        # Always display the collected results for the user.
+        # Display the collected results for the user.
         # These will be cached.
-        logger.debug(
+        logger.info(
             "%s proposals from %s records for '%s': %s",
             len(prop_id_set),
             len(rs),
@@ -313,25 +367,67 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         )
         CachedContent.set_content(user.username, prop_id_set)
 
-    def get_proposals_for_user(self, user, restrict_to_membership=False):
-        """Returns a list of proposals that the user has access to.
+    def user_is_member_of_target(
+        self, user, target, restrict_public_to_membership=True
+    ):
+        """
+        Returns true if the user has access to any proposal the target belongs to.
+        """
+        target_proposals = [p.title for p in target.project_id.all()]
+        user_proposals = self.get_proposals_for_user(
+            user, restrict_public_to_membership=restrict_public_to_membership
+        )
+        is_member = any(proposal in user_proposals for proposal in target_proposals)
+        if not is_member:
+            logger.warning(
+                "Failed membership check user='%s' target='%s' target_proposals=%s",
+                user.username,
+                target.title,
+                target_proposals,
+            )
+        return is_member
 
-        If 'restrict_to_membership' is set only those proposals/visits where the user
+    def user_is_member_of_any_given_proposals(
+        self, user, proposals, restrict_public_to_membership=True
+    ):
+        """
+        Returns true if the user has access to any proposal in the given
+        proposals list. Only one needs to match for permission to be granted.
+        We 'restrict_public_to_membership' to only consider proposals the user
+        has explicit membership.
+        """
+        user_proposals = self.get_proposals_for_user(
+            user, restrict_public_to_membership=restrict_public_to_membership
+        )
+        is_member = any(proposal in user_proposals for proposal in proposals)
+        if not is_member:
+            logger.warning(
+                "Failed membership check user='%s' proposals=%s",
+                user.username,
+                proposals,
+            )
+        return is_member
+
+    def get_proposals_for_user(self, user, restrict_public_to_membership=False):
+        """
+        Returns a list of proposals that the user has access to.
+
+        If 'restrict_public_to_membership' is set only those proposals/visits where the user
         is a member of the visit will be returned. Otherwise the 'public'
-        proposals/visits will also be returned. Typically 'restrict_to_membership' is
+        proposals/visits will also be returned. Typically 'restrict_public_to_membership' is
         used for uploads/changes - this allows us to implement logic that (say)
         only permits explicit members of public proposals to add/load data for that
-        project (restrict_to_membership=True), but everyone can 'see' public data
-        (restrict_to_membership=False).
+        project (restrict_public_to_membership=True), but everyone can 'see' public data
+        (restrict_public_to_membership=False).
         """
         assert user
 
         proposals = set()
         ispyb_user = settings.ISPYB_USER
         logger.debug(
-            "ispyb_user=%s restrict_to_membership=%s (DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP=%s)",
+            "ispyb_user=%s restrict_public_to_membership=%s (DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP=%s)",
             ispyb_user,
-            restrict_to_membership,
+            restrict_public_to_membership,
             settings.DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP,
         )
         if ispyb_user:
@@ -345,15 +441,21 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # We have all the proposals where the user has authority.
         # Add open/public proposals?
         if (
-            not restrict_to_membership
+            not restrict_public_to_membership
             or settings.DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP
         ):
-            proposals.update(self._get_open_proposals())
+            proposals.update(self.get_open_proposals())
+
+        # Finally, add any restricted TAS proposals the user has access to.
+        # It uses an environment variable to arbitrarily add proposals for a given user.
+        # This is a debug mechanism and should not be used in production.
+        # Added during debug effort for 1491.
+        proposals.update(get_restricted_tas_user_proposal(user))
 
         # Return the set() as a list()
         return list(proposals)
 
-    def get_q_filter(self, proposal_list):
+    def _get_q_filter(self, proposal_list):
         """Returns a Q expression representing a (potentially complex) table filter."""
         if self.filter_permissions:
             # Q-filter is based on the filter_permissions string
@@ -372,9 +474,9 @@ class ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             return Q(title__in=proposal_list) | Q(open_to_public=True)
 
 
-class ISpyBSafeStaticFiles:
+class ISPyBSafeStaticFiles:
     def get_queryset(self):
-        query = ISpyBSafeQuerySet()
+        query = ISPyBSafeQuerySet()
         query.request = self.request
         query.filter_permissions = self.permission_string
         query.queryset = self.model.objects.filter()
@@ -420,7 +522,7 @@ class ISpyBSafeStaticFiles:
             raise Http404 from exc
 
 
-class ISpyBSafeStaticFiles2(ISpyBSafeStaticFiles):
+class ISPyBSafeStaticFiles2(ISPyBSafeStaticFiles):
     def get_response(self):
         logger.info("+ get_response called with: %s", self.input_string)
         # it wasn't working because found two objects with test file name

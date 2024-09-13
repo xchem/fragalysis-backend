@@ -104,6 +104,25 @@ class TagSubquery(Subquery):
         # fmt: on
 
 
+class UploadTagSubquery(Subquery):
+    """Annotate SiteObservation with tag of given category"""
+
+    def __init__(self, category):
+        # fmt: off
+        query = SiteObservationTag.objects.filter(
+            pk=Subquery(
+                SiteObvsSiteObservationTag.objects.filter(
+                    site_observation=OuterRef(OuterRef('pk')),
+                    site_obvs_tag__category=TagCategory.objects.get(
+                        category=category,
+                    ),
+                ).values('site_obvs_tag')[:1]
+            )
+        ).values('upload_name')[0:1]
+        super().__init__(query)
+        # fmt: on
+
+
 class CuratedTagSubquery(Exists):
     """Annotate SiteObservation with tag of given category"""
 
@@ -140,6 +159,10 @@ zip_template = {
         'ligand_pdb': {},
         'ligand_mol': {},
         'ligand_smiles': {},
+        # additional ccp4 files, issue 1448
+        'event_file_crystallographic': {},
+        'diff_file_crystallographic': {},
+        'sigmaa_file_crystallographic': {},
     },
     'molecules': {
         'sdf_files': {},
@@ -215,29 +238,34 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
     return content
 
 
-def _patch_molecule_name(site_observation):
-    """Patch the MOL or SDF file with molecule name.
+# def _patch_molecule_name(site_observation):
+#     """Patch the MOL or SDF file with molecule name.
 
-    Processes the content of ligand_mol attribute of the
-    site_observation object. Returns the content as string.
+#     Processes the content of ligand_mol attribute of the
+#     site_observation object. Returns the content as string.
 
-    Alternative to _read_and_patch_molecule_name function above
-    which operates on files. As ligand_mol is now stored as text,
-    slightly different approach was necessary.
+#     Alternative to _read_and_patch_molecule_name function above
+#     which operates on files. As ligand_mol is now stored as text,
+#     slightly different approach was necessary.
 
-    """
-    logger.debug('Patching MOL/SDF of "%s"', site_observation)
+#     """
+#     logger.debug('Patching MOL/SDF of "%s"', site_observation)
 
-    # Now read the file, checking the first line
-    # and setting it to the molecule name if it's blank.
-    lines = site_observation.ligand_mol_file.split('\n')
-    if not lines[0].strip():
-        lines[0] = site_observation.long_code
+#     path = Path(settings.MEDIA_ROOT).joinpath(site_observation.ligand_mol.name)
+#     with contextlib.suppress(TypeError, FileNotFoundError):
+#         with open(path, "r", encoding="utf-8") as f:
+#             lines = f.readlines()
 
-    # the db contents is mol file but what's requested here is
-    # sdf. add sdf separator
-    lines.append('$$$$\n')
-    return '\n'.join(lines)
+#     # Now read the file, checking the first line
+#     # and setting it to the molecule name if it's blank.
+#     # lines = site_observation.ligand_mol_file.split('\n')
+#     if not lines[0].strip():
+#         lines[0] = site_observation.long_code
+
+#     # the db contents is mol file but what's requested here is
+#     # sdf. add sdf separator
+#     lines.append('$$$$\n')
+#     return '\n'.join(lines)
 
 
 def _add_file_to_zip_aligned(ziparchive, code, archive_file):
@@ -276,7 +304,7 @@ def _add_file_to_zip_aligned(ziparchive, code, archive_file):
     elif archive_file.site_observation:
         ziparchive.writestr(
             archive_file.archive_path,
-            _patch_molecule_name(archive_file.site_observation),
+            _read_and_patch_molecule_name(filepath, archive_file.site_observation),
         )
         return True
     else:
@@ -303,7 +331,9 @@ def _add_file_to_sdf(combined_sdf_file, archive_file):
 
     if archive_file.path and archive_file.path != 'None':
         with open(combined_sdf_file, 'a', encoding='utf-8') as f_out:
-            patched_sdf_content = _patch_molecule_name(archive_file.site_observation)
+            patched_sdf_content = _read_and_patch_molecule_name(
+                archive_file.path, archive_file.site_observation
+            )
             f_out.write(patched_sdf_content)
         return True
     else:
@@ -423,14 +453,34 @@ def _metadata_file_zip(ziparchive, target, site_observations):
     logger.info('+ Processing metadata')
 
     annotations = {}
-    values = ['code', 'longcode', 'cmpd__compound_code', 'smiles', 'downloaded']
-    header = ['Code', 'Long code', 'Compound code', 'Smiles', 'Downloaded']
+    values = [
+        'code',
+        'longcode',
+        'experiment__code',
+        'cmpd__compound_code',
+        'smiles',
+        'canon_site_conf__canon_site__centroid_res',
+        'downloaded',
+    ]
+    header = [
+        'Code',
+        'Long code',
+        'Experiment code',
+        'Compound code',
+        'Smiles',
+        'Centroid res',
+        'Downloaded',
+    ]
 
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'
+        upload_tag = f'upload_tag_{category.category.lower()}'
         values.append(tag)
-        header.append(category.category)
+        header.append(f'{category.category} alias')
         annotations[tag] = TagSubquery(category.category)
+        values.append(upload_tag)
+        header.append(f'{category.category} upload name')
+        annotations[upload_tag] = UploadTagSubquery(category.category)
 
     pattern = re.compile(r'\W+')  # non-alphanumeric characters
     for tag in SiteObservationTag.objects.filter(
@@ -485,39 +535,36 @@ def _extra_files_zip(ziparchive, target):
 
     num_processed = 0
     num_extra_dir = 0
-    for experiment_upload in target.experimentupload_set.order_by('commit_datetime'):
-        extra_files = (
-            Path(settings.MEDIA_ROOT)
-            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(experiment_upload.task_id)
-        )
+    # taking the latest upload for now
 
-        # taking the latest upload for now
-        # add unpacked zip directory
-        extra_files = [d for d in list(extra_files.glob("*")) if d.is_dir()][0]
+    experiment_upload = target.experimentupload_set.order_by('commit_datetime').last()
+    extra_files = (
+        Path(settings.MEDIA_ROOT)
+        .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+        .joinpath(target.zip_archive.name)
+        .joinpath(experiment_upload.upload_data_dir)
+    )
 
-        # add upload_[d] dir
-        extra_files = next(extra_files.glob("upload_*"))
-        extra_files = extra_files.joinpath('extra_files')
+    extra_files = extra_files.joinpath('extra_files')
 
-        logger.debug('extra_files path 2: %s', extra_files)
-        logger.info('Processing extra files (%s)...', extra_files)
+    logger.debug('extra_files path 2: %s', extra_files)
+    logger.info('Processing extra files (%s)...', extra_files)
 
-        if extra_files.is_dir():
-            num_extra_dir = num_extra_dir + 1
-            for dirpath, _, files in os.walk(extra_files):
-                for file in files:
-                    filepath = os.path.join(dirpath, file)
-                    logger.info('Adding extra file "%s"...', filepath)
-                    ziparchive.write(
-                        filepath,
-                        os.path.join(
-                            f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
-                        ),
-                    )
-                    num_processed += 1
-        else:
-            logger.info('Directory does not exist (%s)...', extra_files)
+    if extra_files.is_dir():
+        num_extra_dir = num_extra_dir + 1
+        for dirpath, _, files in os.walk(extra_files):
+            for file in files:
+                filepath = os.path.join(dirpath, file)
+                logger.info('Adding extra file "%s"...', filepath)
+                ziparchive.write(
+                    filepath,
+                    os.path.join(
+                        f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
+                    ),
+                )
+                num_processed += 1
+    else:
+        logger.info('Directory does not exist (%s)...', extra_files)
 
     if num_processed == 0:
         logger.info('No extra files found')
@@ -528,27 +575,22 @@ def _extra_files_zip(ziparchive, target):
 def _yaml_files_zip(ziparchive, target, transforms_requested: bool = False) -> None:
     """Add all yaml files (except transforms) from upload to ziparchive"""
 
-    for experiment_upload in target.experimentupload_set.order_by('commit_datetime'):
+    for experiment_upload in target.experimentupload_set.all():
         yaml_paths = (
             Path(settings.MEDIA_ROOT)
             .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(experiment_upload.task_id)
+            .joinpath(target.zip_archive.name)
+            .joinpath(experiment_upload.upload_data_dir)
         )
 
         transforms = [
             Path(f.name).name
             for f in (
+                experiment_upload.conformer_site_transforms,
                 experiment_upload.neighbourhood_transforms,
-                experiment_upload.neighbourhood_transforms,
-                experiment_upload.neighbourhood_transforms,
+                experiment_upload.reference_structure_transforms,
             )
         ]
-        # taking the latest upload for now
-        # add unpacked zip directory
-        yaml_paths = [d for d in list(yaml_paths.glob("*")) if d.is_dir()][0]
-
-        # add upload_[d] dir
-        yaml_paths = next(yaml_paths.glob("upload_*"))
 
         archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
 
@@ -742,6 +784,25 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
 
     # Read through zip_params to compile the parameters
     zip_contents: Dict[str, Any] = copy.deepcopy(zip_template)
+    site_obvs = site_obvs.annotate(
+        # would there be any point in
+        # a) adding a method to SiteObservation model_attr
+        # b) adding the value to database directly?
+        longlongcode=Concat(
+            F('experiment__code'),
+            Value('_'),
+            F('chain_id'),
+            Value('_'),
+            F('seq_id'),
+            Value('_'),
+            F('version'),
+            Value('_'),
+            F('canon_site_conf__canon_site__name'),
+            Value('+'),
+            F('canon_site_conf__canon_site__version'),
+            output_field=CharField(),
+        ),
+    )
     for so in site_obvs:
         for param in protein_params:
             if protein_params[param] is True:
@@ -764,9 +825,12 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     for f in model_attr:
                         # here the model_attr is already stringified
                         try:
-                            exp_path = re.search(r"x\d*", so.code).group(0)  # type: ignore[union-attr]
-                        except AttributeError:
-                            logger.error('Unexpected shortcodeformat: %s', so.code)
+                            exp_path = so.experiment.code.split('-x')[1]
+                        except IndexError:
+                            logger.error(
+                                'Unexpected experiment code format: %s',
+                                so.experiment.code,
+                            )
                             exp_path = so.code
 
                         apath = Path('crystallographic_files').joinpath(exp_path)
@@ -808,10 +872,11 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                             apath.joinpath(
                                 Path(model_attr.name)
                                 .parts[-1]
-                                .replace(so.longcode, so.code)
+                                .replace(so.longlongcode, so.code)
                             )
                         )
                     else:
+                        # file not in upload
                         archive_path = str(apath.joinpath(param))
 
                     afile = [
@@ -820,31 +885,58 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                             archive_path=archive_path,
                         )
                     ]
+
                 else:
                     logger.warning('Unexpected param: %s', param)
                     continue
 
                 zip_contents['proteins'][param][so.code] = afile
 
+                # add additional ccp4 files (issue 1448)
+                ccps = ('sigmaa_file', 'diff_file', 'event_file')
+                if param in ccps:
+                    # these only come from siteobservation object
+                    model_attr = getattr(so, param)
+                    if model_attr and model_attr != 'None':
+                        apath = Path('aligned_files').joinpath(so.code)
+                        ccp_path = Path(model_attr.name)
+                        path = ccp_path.parent.joinpath(
+                            f'{ccp_path.stem}_crystallographic{ccp_path.suffix}'
+                        )
+                        archive_path = str(
+                            apath.joinpath(
+                                path.parts[-1].replace(so.longlongcode, so.code)
+                            )
+                        )
+
+                        afile = [
+                            ArchiveFile(
+                                path=str(path),
+                                archive_path=archive_path,
+                            )
+                        ]
+                        zip_contents['proteins'][f'{param}_crystallographic'][
+                            so.code
+                        ] = afile
+
     zip_contents['molecules']['single_sdf_file'] = other_params['single_sdf_file']
     zip_contents['molecules']['sdf_info'] = other_params['sdf_info']
 
-    # sdf information is held as a file on the Molecule record.
     if other_params['sdf_info'] or other_params['single_sdf_file']:
         num_molecules_collected = 0
         num_missing_sd_files = 0
         for so in site_obvs:
-            if so.ligand_mol_file:
+            if so.ligand_mol:
                 # There is an SD file (normal)
-                # sdf info is now kept as text in db field
                 archive_path = str(
                     Path('aligned_files').joinpath(so.code).joinpath(f'{so.code}.sdf')
                 )
+                file_path = str(Path(settings.MEDIA_ROOT).joinpath(so.ligand_mol.name))
                 # path is ignored when writing sdfs but mandatory field
                 zip_contents['molecules']['sdf_files'].update(
                     {
                         ArchiveFile(
-                            path=archive_path,
+                            path=file_path,
                             archive_path=archive_path,
                             site_observation=so,
                         ): so.code
@@ -854,7 +946,7 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
             else:
                 # No file value (odd).
                 logger.warning(
-                    "SiteObservation record's 'ligand_mol_file' isn't set (%s)", so
+                    "SiteObservation record's 'ligand_mol' isn't set (%s)", so
                 )
                 num_missing_sd_files += 1
 

@@ -305,20 +305,16 @@ def parse_xenons(input_smi):
     return bond_ids, bond_colours, e_mol.GetMol()
 
 
-def get_params(smiles, request):
+def get_img_from_smiles(smiles, request):
     # try:
     smiles = canon_input(smiles)
     # except:
     #     smiles = ""
-    height = None
     mol = None
     bond_id_list = []
     highlightBondColors = {}
-    if "height" in request.GET:
-        height = int(request.GET["height"])
-    width = None
-    if "width" in request.GET:
-        width = int(request.GET["width"])
+    height = int(request.GET.get("height", "128"))
+    width = int(request.GET.get("width", "128"))
     if "atom_indices" in request.GET:
         mol = Chem.MolFromSmiles(smiles)
         bond_id_list, highlightBondColors, mol = parse_atom_ids(
@@ -360,7 +356,7 @@ def get_highlighted_diffs(request):
 def mol_view(request):
     if "smiles" in request.GET:
         smiles = request.GET["smiles"].rstrip(".svg")
-        return get_params(smiles, request)
+        return get_img_from_smiles(smiles, request)
     else:
         return HttpResponse("Please insert SMILES")
 

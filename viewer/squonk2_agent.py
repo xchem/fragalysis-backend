@@ -21,7 +21,7 @@ from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 from wrapt import synchronized
 
-from api.security import ISpyBSafeQuerySet
+from api.security import ISPyBSafeQuerySet
 from viewer.models import Project, Squonk2Org, Squonk2Project, Squonk2Unit, Target, User
 
 _LOGGER: logging.Logger = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ class Squonk2Agent:
         # Used when we are given a tas (target access string).
         # It allows us to check that a user is permitted to use the access ID
         # and relies on ISPyB credentials present in the environment.
-        self.__ispyb_safe_query_set: ISpyBSafeQuerySet = ISpyBSafeQuerySet()
+        self.__ispyb_safe_query_set: ISPyBSafeQuerySet = ISPyBSafeQuerySet()
 
     def _get_user_name(self, user_id: int) -> str:
         # Gets the username (if id looks sensible)
@@ -723,7 +723,7 @@ class Squonk2Agent:
         target_access_string = self._get_target_access_string(access_id)
         assert target_access_string
         proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(
-            user, restrict_to_membership=True
+            user, restrict_public_to_membership=True
         )
         if not target_access_string in proposal_list:
             msg = (

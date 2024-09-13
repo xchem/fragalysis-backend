@@ -2,8 +2,9 @@ import json
 
 from django.http import HttpResponse
 from frag.conf.functions import generate_confs_for_vector
-from rest_framework import viewsets
+from rest_framework import mixins
 
+from api.security import ISPyBSafeQuerySet
 from scoring.models import (
     CmpdChoice,
     ScoreChoice,
@@ -20,20 +21,33 @@ from scoring.serializers import (
     SiteObservationGroupSerializer,
     ViewSceneSerializer,
 )
+from viewer.permissions import IsObjectProposalMember
 
 
-class ViewSceneView(viewsets.ModelViewSet):
-    queryset = ViewScene.objects.all().order_by("-modified")
+class ViewSceneView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
+    queryset = ViewScene.filter_manager.filter_qs().order_by("-modified")
     # filter_backends = (filters.DjangoFilterBackend,)
     serializer_class = ViewSceneSerializer
     filterset_fields = ("user_id", "uuid")
+    filter_permissions = "snapshot__session_project__target__project_id"
+    permission_classes = [IsObjectProposalMember]
 
     def put(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
 
 
-class SiteObservationChoiceView(viewsets.ModelViewSet):
-    queryset = SiteObservationChoice.objects.all()
+class SiteObservationChoiceView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
+    queryset = SiteObservationChoice.filter_manager.filter_qs()
     serializer_class = SiteObservationChoiceSerializer
     filterset_fields = (
         "user",
@@ -41,21 +55,42 @@ class SiteObservationChoiceView(viewsets.ModelViewSet):
         "site_observation__experiment__experiment_upload__target",
         "choice_type",
     )
+    filter_permissions = "site_observation__experiment__experiment_upload__project"
+    permission_classes = [IsObjectProposalMember]
 
 
-class SiteObservationAnnotationView(viewsets.ModelViewSet):
-    queryset = SiteObservationAnnotation.objects.all()
+class SiteObservationAnnotationView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
+    queryset = SiteObservationAnnotation.filter_manager.filter_qs()
     serializer_class = SiteObservationAnnotationSerializer
     filterset_fields = ("site_observation", "annotation_type")
+    filter_permissions = "site_observation__experiment__experiment_upload__project"
+    permission_classes = [IsObjectProposalMember]
 
 
-class CmpdChoiceView(viewsets.ModelViewSet):
-    queryset = CmpdChoice.objects.all()
+class CmpdChoiceView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
+    queryset = CmpdChoice.filter_manager.filter_qs()
     serializer_class = CmpdChoiceSerializer
     filterset_fields = ("user_id", "cmpd_id", "choice_type")
+    filter_permissions = "cmpd_id__project_id"
+    permission_classes = [IsObjectProposalMember]
 
 
-class ScoreChoiceView(viewsets.ModelViewSet):
+class ScoreChoiceView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     queryset = ScoreChoice.filter_manager.filter_qs()
     serializer_class = ScoreChoiceSerializer
     filterset_fields = (
@@ -65,12 +100,21 @@ class ScoreChoiceView(viewsets.ModelViewSet):
         "site_observation__experiment__experiment_upload__target",
         "choice_type",
     )
+    filter_permissions = "site_observation__experiment__experiment_upload__project"
+    permission_classes = [IsObjectProposalMember]
 
 
-class SiteObservationGroupView(viewsets.ModelViewSet):
+class SiteObservationGroupView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
     queryset = SiteObservationGroup.objects.all()
     serializer_class = SiteObservationGroupSerializer
     filterset_fields = ("group_type", "site_observation", "target", "description")
+    filter_permissions = "target__project_id"
+    permission_classes = [IsObjectProposalMember]
 
 
 def gen_conf_from_vect(request):

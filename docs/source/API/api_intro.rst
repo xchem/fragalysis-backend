@@ -23,7 +23,7 @@ The most common operations are:
 
 A more complex overview of these methods (and others) is available here: https://www.w3schools.com/tags/ref_httpmethods.asp
 
-A more thorough explaination of RESTful APIs is available here: https://searchapparchitecture.techtarget.com/definition/RESTful-API
+A more thorough explanation of RESTful APIs is available here: https://searchapparchitecture.techtarget.com/definition/RESTful-API
 
 Django REST framework (DRF)
 ---------------------------
@@ -50,6 +50,67 @@ user to filter by (:code:`filter_fields`) and what :code:`Response` we want to p
 Finally, we need to specify an :code:`endpoint` (i.e. URL) that the :code:`View` is served at, so the user can make
 requests against the web service.
 
+Basic style guidance
+--------------------
+All new methods (functions) in **views** _should_ inherit from classes defined in DRF.
+Some methods (functions) simply accept the :code:`request`, but this is older code.
+
+**Security**
+
+When writing a new API endpoint, it is important to consider the security implications
+of the data you are making available to the user. Much of the data in fragalysis is
+_open_, i.e. available to all.
+
+.. note::
+    Open data is data associated with any :code:`Project`
+    that has the :code:`open_to_public` flag set to :code:`True`.
+
+As a general policy open data is visible to anyone, even if they are not authenticated
+(logged in) but there is a policy that only logged-in users can modify or create open
+data. More specifically users are required to be a member of (associated with) the
+:code:`Project`` the object belongs to. To this end almost all endpoints
+are required to check the object's Project (the Proposal/Visit) in order to determine
+whether the User is permitted access.
+
+.. note::
+    A user is 'associated' with a :code:`Project` (aka Proposal/Visit) if the security module in the
+    project's :code:`api` package is able to find the user associated with the
+    :code:`Project` by querying an external database. In diamond
+    this is an **ISPyB** MySQL database external to the stack installation whose
+    credentials are supplied using environment variables.
+
+API methods that provide access to data they must ensure that the user is authenticated
+and must _strive_ to ensure that the user is associated with the :code:`Project` that
+the data belongs to.
+
+In order to check whether the user has access to the object that is being created
+or altered, each method must either identify the :code:`Project` that the object belongs to,
+or there has to be a navigable path from any table record that might contain "sensitive" material
+to one or more records in the :code:`Project` table.
+Given a :code:`Project` is is a relatively simple task to check that the user
+has been given access to us using the security module as described above, and
+the code in the :code:`security` module relies on this pattern.
+
+These actions ar simplified through the use of the :code:`ISpyBSafeQuerySet` class
+to filter objects when reading and the :code:`IsObjectProposalMember` class to
+check the user has access to the object when creating or altering it. These classes
+rely on the definition of :code:`filter_permissions` property to direct the
+search to the object's :code:`Project`.
+
+View classes must generally inherit from :code:`ISpyBSafeQuerySet`,
+which provides automatic filtering of objects. The :code:`ISpyBSafeQuerySet`
+inherits from th :code:`ReadOnlyModelViewSet` view set. If a view also needs to provide
+create, update or delete actions they should also inherit an appropriate
+DRF **mixin**, adding support for a method so support the functionality that is
+required: -
+
+- :code:`mixins.CreateModelMixin` - when supporting objects (POST)
+- :code:`mixins.UpdateModelMixin` - when supporting objects (PATCH)
+- :code:`mixins.DestroyModelMixin` - when supporting delete (DELETE)
+
+For further information refer to the `mixins`_ documentation on the DRF site.
+
+
 EXAMPLE - Model, Serializer, View and URL for Target model
 ----------------------------------------------------------
 
@@ -62,34 +123,11 @@ The Target model contains information about a protein target. In django, we defi
     from django.db import models
 
     class Target(models.Model):
-        """Django model to define a Target - a protein.
-
-        Parameters
-        ----------
-        title: CharField
-            The name of the target
-        init_date: DateTimeField
-            The date the target was initiated (autofield)
-        project_id: ManyToManyField
-            Links targets to projects for authentication
-        uniprot_id: Charfield
-            Optional field where a uniprot id can be stored
-        metadata: FileField
-            Optional file upload defining metadata about the target - can be used to add custom site labels
-        zip_archive: FileField
-            Link to zip file created from targets uploaded with the loader
-        """
-        # The title of the project_id -> userdefined
         title = models.CharField(unique=True, max_length=200)
-        # The date it was made
         init_date = models.DateTimeField(auto_now_add=True)
-        # A field to link projects and targets together
         project_id = models.ManyToManyField(Project)
-        # Indicates the uniprot_id id for the target. Is a unique key
         uniprot_id = models.CharField(max_length=100, null=True)
-        # metadatafile containing sites info for download
         metadata = models.FileField(upload_to="metadata/", null=True, max_length=255)
-        # zip archive to download uploaded data from
         zip_archive = models.FileField(upload_to="archive/", null=True, max_length=255)
 
 
@@ -129,6 +167,31 @@ can add extra fields, and add a method to define how we get the value of the fie
 :code:`Serializer` we have added the :code:`template_protein` field, and defined how we get its value with
 :code:`get_template_protein`.
 
+**Models**
+
+Model definitions should avoid inline documentation, and instead use the django
+:code:`help_text` parameter to provide this information. For example,
+instead of doing this: -
+
+.. code-block:: python
+
+    class Target(models.Model):
+        # The uniprot ID id for the target. A unique key
+        uniprot_id = models.CharField(max_length=100, null=True)
+
+
+Do this: -
+
+.. code-block:: python
+
+    class Target(models.Model):
+        uniprot_id = models.CharField(
+            max_length=100,
+            null=True,
+            help_text="The uniprot ID id for the target. A unique key",
+        )
+
+
 **View**
 
 This :code:`View` returns a list of information about a specific target, if you pass the :code:`title` parameter to the
@@ -141,7 +204,8 @@ of our standard views.
 
 Additionally, in the actual code, you will notice that :code:`TargetView(viewsets.ReadOnlyModelViewSet)` is replaced by
 :code:`TargetView(ISpyBSafeQuerySet)`. :code:`ISpyBSafeQuerySet` is a version of :code:`viewsets.ReadOnlyModelViewSet`
-that includes an authentication method specific for the deployment of fragalysis at https://fragalysis.diamond.ac.uk
+that includes an authentication method that filters records based omn a user's
+membership of the object's :code:`project`.
 
 .. code-block:: python
 
@@ -150,60 +214,10 @@ that includes an authentication method specific for the deployment of fragalysis
     from viewer.models import Target
 
     class TargetView(viewsets.ReadOnlyModelViewSet):
-        """ DjagnoRF view to retrieve info about targets
-
-           Methods
-           -------
-           url:
-               api/targets
-           queryset:
-               `viewer.models.Target.objects.filter()`
-           filter fields:
-               - `viewer.models.Target.title` - ?title=<str>
-           returns: JSON
-               - id: id of the target object
-               - title: name of the target
-               - project_id: list of the ids of the projects the target is linked to
-               - protein_set: list of the ids of the protein sets the target is linked to
-               - template_protein: the template protein displayed in fragalysis front-end for this target
-               - metadata: link to the metadata file for the target if it was uploaded
-               - zip_archive: link to the zip archive of the uploaded data
-
-           example output:
-
-               .. code-block:: javascript
-
-                   "results": [
-                    {
-                        "id": 62,
-                        "title": "Mpro",
-                        "project_id": [
-                            2
-                        ],
-                        "protein_set": [
-                            29281,
-                            29274,
-                            29259,
-                            29305,
-                            ...,
-                        ],
-                        "template_protein": "/media/pdbs/Mpro-x10417_0_apo.pdb",
-                        "metadata": "http://fragalysis.diamond.ac.uk/media/metadata/metadata_2FdP5OJ.csv",
-                        "zip_archive": "http://fragalysis.diamond.ac.uk/media/targets/Mpro.zip"
-                    }
-                ]
-
-           """
         queryset = Target.objects.filter()
         serializer_class = TargetSerializer
         filter_permissions = "project_id"
         filter_fields = ("title",)
-
-
-The docstring for this class is formatted in a way to allow a user or developer to easily read the docstring, and
-understand the URL to query, how the information is queried by django, what fields can be queried against, and what
-information is returned from a request against the views URL. All of the views in this documentation are written in the
-same way.
 
 **URL**
 
@@ -243,3 +257,5 @@ If we navigate to the URL :code:`<root>/api/targets/?title=<target_name>` we are
 
 This is a page automatically generated by DRF, and includes options to see what kinds of requests you can make against
 this endpoint.
+
+.. _mixins: https://www.django-rest-framework.org/tutorial/3-class-based-views/#using-mixins

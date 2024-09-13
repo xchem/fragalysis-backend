@@ -1,19 +1,17 @@
 import contextlib
 import functools
 import hashlib
-import itertools
 import logging
 import math
 import os
-import string
+import shutil
 import tarfile
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import yaml
 from celery import Task
@@ -46,16 +44,13 @@ from viewer.models import (
     XtalformQuatAssembly,
     XtalformSite,
 )
+from viewer.utils import alphanumerator, clean_object_id, sanitize_directory_name
 
 logger = logging.getLogger(__name__)
 
 # data that goes to tables are in the following files
 # assemblies and xtalforms
 XTALFORMS_FILE = "assemblies.yaml"
-
-# holding horses for now
-# # assigned xtalforms, not all are referenced in meta_aligner
-# ASSIGNED_XTALFORMS_FILE = "assigned_xtalforms.yaml"
 
 # target name, nothing else
 CONFIG_FILE = "config*.yaml"
@@ -138,6 +133,7 @@ class UploadReportEntry:
 @dataclass
 class UploadReport:
     task: Task | None
+    proposal_ref: str
     stack: list[UploadReportEntry] = field(default_factory=list)
     upload_state: UploadState = UploadState.PROCESSING
     failed: bool = False
@@ -175,6 +171,7 @@ class UploadReport:
             self.task.update_state(
                 state=self.upload_state,
                 meta={
+                    "proposal_ref": self.proposal_ref,
                     "description": message,
                 },
             )
@@ -278,29 +275,6 @@ def calculate_sha256(filepath) -> str:
     return sha256_hash.hexdigest()
 
 
-def alphanumerator(start_from: str = "") -> Generator[str, None, None]:
-    """Return alphabetic generator (A, B .. AA, AB...) starting from a specified point."""
-
-    # since product requries finite maximum return string length set
-    # to 10 characters. that should be enough for fragalysis (and to
-    # cause database issues)
-    generator = (
-        "".join(word)
-        for word in itertools.chain.from_iterable(
-            itertools.product(string.ascii_lowercase, repeat=i) for i in range(1, 11)
-        )
-    )
-
-    # Drop values until the starting point is reached
-    if start_from is not None and start_from != '':
-        start_from = start_from.lower()
-        generator = itertools.dropwhile(lambda x: x != start_from, generator)  # type: ignore[assignment]
-        # and drop one more, then it starts from after the start from as it should
-        _ = next(generator)
-
-    return generator
-
-
 def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
     # format something like XX01ZVNS2B-x0673/B/501/1
     # remove tailing '<separator>1'
@@ -362,13 +336,15 @@ def create_objects(func=None, *, depth=math.inf):
                         )
                         obj.save()
                         new = True
+                    except MultipleObjectsReturned:
+                        msg = "{}.get_or_create in {} returned multiple objects for {}".format(
+                            instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
+                            instance_data.key,
+                            instance_data.fields,
+                        )
+                        self.report.log(logging.ERROR, msg)
+                        failed = failed + 1
 
-                    # obj, new = instance_data.model_class.filter_manager.by_target(
-                    #     self.target
-                    # ).get_or_create(
-                    #     **instance_data.fields,
-                    #     defaults=instance_data.defaults,
-                    # )
                 else:
                     # no unique field requirements, just create new object
                     obj = instance_data.model_class(
@@ -381,15 +357,6 @@ def create_objects(func=None, *, depth=math.inf):
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
                     obj,
                 )
-
-            except MultipleObjectsReturned:
-                msg = "{}.get_or_create in {} returned multiple objects for {}".format(
-                    instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
-                    instance_data.key,
-                    instance_data.fields,
-                )
-                self.report.log(logging.ERROR, msg)
-                failed = failed + 1
             except IntegrityError:
                 msg = "{} object {} failed to save".format(
                     instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
@@ -440,15 +407,20 @@ def create_objects(func=None, *, depth=math.inf):
             # index data here probs
             result[instance_data.versioned_key] = m
 
-        msg = "{} {} objects processed, {} created, {} fetched from database".format(
-            created + existing + failed,
-            next(  # pylint: disable=protected-access
-                iter(result.values())
-            ).instance._meta.model._meta.object_name,  # pylint: disable=protected-access
-            created,
-            existing,
-        )  # pylint: disable=protected-access
-        self.report.log(logging.INFO, msg)
+        if result:
+            msg = "{} {} objects processed, {} created, {} fetched from database".format(
+                created + existing + failed,
+                next(  # pylint: disable=protected-access
+                    iter(result.values())
+                ).instance._meta.model._meta.object_name,  # pylint: disable=protected-access
+                created,
+                existing,
+            )  # pylint: disable=protected-access
+            self.report.log(logging.INFO, msg)
+        else:
+            # cannot continue when one object type is missing, abort
+            msg = f"No objects returned by {func.__name__}"
+            self.report.log(logging.ERROR, msg)
 
         # refresh all objects to make sure they're up to date.
         # this is specifically because of the superseded flag above -
@@ -489,7 +461,7 @@ class TargetLoader:
         self.previous_version_dirs = None
         self.user_id = user_id
 
-        self.report = UploadReport(task=task)
+        self.report = UploadReport(task=task, proposal_ref=self.proposal_ref)
 
         self.raw_data.mkdir()
 
@@ -501,29 +473,23 @@ class TargetLoader:
         )
 
         # work out where the data finally lands
-        # path = Path(settings.MEDIA_ROOT).joinpath(TARGET_LOADER_DATA)
         path = Path(TARGET_LOADER_MEDIA_DIRECTORY)
 
-        # give each upload a unique directory. since I already have
-        # task_id, why not reuse it
+        # give each upload a unique directory
+        # update: resolving issue 1311 introduced a bug, where
+        # subsequent uploads overwrote file paths and files appeared
+        # to be missing. changing the directory structure so this
+        # wouldn't be an issue, the new structure is
+        # target_loader_data/target_title/upload_(n)/...
         if task:
-            path = path.joinpath(str(task.request.id))
             self.experiment_upload.task_id = task.request.id
-        else:
-            # unless of course I don't have task..
-            # TODO: i suspect this will never be used.
-            path_uuid = uuid.uuid4().hex
-            path = path.joinpath(path_uuid)
-            self.experiment_upload.task_id = path_uuid
 
         # figure out absolute and relative paths to final
         # location. relative path is added to db field, this will be
         # used in url requests to retrieve the file. absolute path is
         # for moving the file to the final location
-        self._final_path = path.joinpath(self.bundle_name)
-        self._abs_final_path = (
-            Path(settings.MEDIA_ROOT).joinpath(path).joinpath(self.bundle_name)
-        )
+        self._final_path = path
+        self._abs_final_path = Path(settings.MEDIA_ROOT).joinpath(path)
         # but don't create now, this comes later
 
         # to be used in logging messages, if no task, means invoked
@@ -872,6 +838,7 @@ class TargetLoader:
             "cif_info": str(self._get_final_path(cif_info)),
             "map_info": map_info_paths,
             "prefix_tooltip": prefix_tooltip,
+            "code_prefix": code_prefix,
             # this doesn't seem to be present
             # pdb_sha256:
         }
@@ -1109,6 +1076,7 @@ class TargetLoader:
 
         Incoming data format:
         <id: str>:
+            centroid_res: <str>
             conformer_site_ids: <array[str]>
             global_reference_dtag: <str>
             reference_conformer_site_id: <str>
@@ -1132,6 +1100,11 @@ class TargetLoader:
         )
 
         residues = extract(key="residues", return_type=list)
+        centroid_res = extract(key="centroid_res")
+        conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
+        ref_conf_site_id = extract(key="reference_conformer_site_id")
+
+        centroid_res = f"{centroid_res}_v{version}"
 
         fields = {
             "name": canon_site_id,
@@ -1140,10 +1113,8 @@ class TargetLoader:
 
         defaults = {
             "residues": residues,
+            "centroid_res": centroid_res,
         }
-
-        conf_sites_ids = extract(key="conformer_site_ids", return_type=list)
-        ref_conf_site_id = extract(key="reference_conformer_site_id")
 
         index_data = {
             "ref_conf_site": ref_conf_site_id,
@@ -1329,7 +1300,6 @@ class TargetLoader:
             # wrong data item
             return None
 
-        idx, _ = strip_version(v_idx, separator="+")
         extract = functools.partial(
             self._extract,
             data=data,
@@ -1340,7 +1310,10 @@ class TargetLoader:
 
         experiment = experiments[experiment_id].instance
 
-        longcode = f"{experiment.code}_{chain}_{str(ligand)}_{str(idx)}"
+        longcode = (
+            # f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
+            f"{experiment.code}_{chain}_{str(ligand)}_v{str(version)}"
+        )
         key = f"{experiment.code}/{chain}/{str(ligand)}"
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
 
@@ -1383,7 +1356,6 @@ class TargetLoader:
             apo_desolv_file,
             apo_file,
             artefacts_file,
-            ligand_mol_file,
             sigmaa_file,
             diff_file,
             event_file,
@@ -1401,7 +1373,6 @@ class TargetLoader:
             ),
             recommended=(
                 "artefacts",
-                "ligand_mol",
                 "sigmaa_map",  # NB! keys in meta_aligner not yet updated
                 "diff_map",  # NB! keys in meta_aligner not yet updated
                 "event_map",
@@ -1411,18 +1382,6 @@ class TargetLoader:
             ),
             validate_files=validate_files,
         )
-
-        logger.debug('looking for ligand_mol: %s', ligand_mol_file)
-
-        mol_data = None
-        if ligand_mol_file:
-            with contextlib.suppress(TypeError, FileNotFoundError):
-                with open(
-                    self.raw_data.joinpath(ligand_mol_file),
-                    "r",
-                    encoding="utf-8",
-                ) as f:
-                    mol_data = f.read()
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
@@ -1450,7 +1409,6 @@ class TargetLoader:
             "ligand_mol": str(self._get_final_path(ligand_mol)),
             "ligand_smiles": str(self._get_final_path(ligand_smiles)),
             "pdb_header_file": "currently missing",
-            "ligand_mol_file": mol_data,
         }
 
         return ProcessedObject(
@@ -1501,7 +1459,7 @@ class TargetLoader:
         xtalforms_yaml = self._load_yaml(Path(upload_dir).joinpath(XTALFORMS_FILE))
 
         # this is the last file to load. if any of the files missing, don't continue
-        if not meta or not config or not xtalforms_yaml:
+        if not any([meta, config, xtalforms_yaml]):
             msg = "Missing files in uploaded data, aborting"
             raise FileNotFoundError(msg)
 
@@ -1523,6 +1481,21 @@ class TargetLoader:
             title=self.target_name,
             display_name=self.target_name,
         )
+
+        if target_created:
+            # mypy thinks target and target_name are None
+            target_dir = sanitize_directory_name(self.target_name, self.abs_final_path)  # type: ignore [arg-type]
+            self.target.zip_archive = target_dir  # type: ignore [attr-defined]
+            self.target.save()  # type: ignore [attr-defined]
+        else:
+            # NB! using existing field zip_archive to point to the
+            # location of the archives, not the archives
+            # themselves. The field was unused, and because of the
+            # versioned uploads, there's no single archive anymore
+            target_dir = str(self.target.zip_archive)  # type: ignore [attr-defined]
+
+        self._final_path = self._final_path.joinpath(target_dir)
+        self._abs_final_path = self._abs_final_path.joinpath(target_dir)
 
         # TODO: original target loader's function get_create_projects
         # seems to handle more cases. adopt or copy
@@ -1660,7 +1633,7 @@ class TargetLoader:
         )
 
         canon_site_objects = self.process_canon_site(yaml_data=canon_sites)
-        self._enumerate_objects(canon_site_objects, "canon_site_num")
+
         # NB! missing fk's:
         # - ref_conf_site
         # - quat_assembly
@@ -1684,27 +1657,8 @@ class TargetLoader:
             canon_sites=canon_sites_by_conf_sites,
             xtalforms=xtalform_objects,
         )
-        # enumerate xtalform_sites. a bit trickier than others because
-        # requires alphabetic enumeration
-        last_xtsite = (
-            XtalformSite.objects.filter(
-                pk__in=[
-                    k.instance.pk
-                    for k in xtalform_sites_objects.values()  # pylint: disable=no-member
-                ]
-            )
-            .order_by("-xtalform_site_num")[0]
-            .xtalform_site_num
-        )
-
-        xtnum = alphanumerator(start_from=last_xtsite)
-        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
-            if not val.instance.xtalform_site_num:
-                val.instance.xtalform_site_num = next(xtnum)
-                val.instance.save()
 
         # now can update CanonSite with ref_conf_site
-        # also, fill the canon_site_num field
         # TODO: ref_conf_site is with version, object's key isn't
         for val in canon_site_objects.values():  # pylint: disable=no-member
             val.instance.ref_conf_site = canon_site_conf_objects[
@@ -1790,7 +1744,8 @@ class TargetLoader:
                         ]
                         # iter_pos = next(suffix)
                         # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
-                        code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+                        # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+                        code = f"{code_prefix}{so.experiment.code.split('-x')[1]}{next(suffix)}"
 
                         # test uniqueness for target
                         # TODO: this should ideally be solved by db engine, before
@@ -1835,35 +1790,98 @@ class TargetLoader:
         logger.debug("data read and processed, adding tags")
 
         # tag site observations
-        for val in canon_site_objects.values():  # pylint: disable=no-member
+        cat_canon = TagCategory.objects.get(category="CanonSites")
+        # sort canon sites by number of observations
+        # fmt: off
+        canon_sort_qs = CanonSite.objects.filter(
+            pk__in=[k.instance.pk for k in canon_site_objects.values() ], # pylint: disable=no-member
+        ).annotate(
+            # obvs=Count("canonsiteconf_set__siteobservation_set", default=0),
+            obvs=Count("canonsiteconf__siteobservation", default=0),
+        ).order_by("-obvs", "name")
+        # ordering by name is not strictly necessary, but
+        # makes the sorting consistent
+
+        # fmt: on
+
+        logger.debug('canon_site_order')
+        for site in canon_sort_qs:
+            logger.debug('%s: %s', site.name, site.obvs)
+
+        _canon_site_objects = {}
+        for site in canon_sort_qs:
+            key = f"{site.name}+{site.version}"
+            _canon_site_objects[key] = canon_site_objects[
+                key
+            ]  # pylint: disable=no-member
+
+        self._enumerate_objects(_canon_site_objects, "canon_site_num")
+        for val in _canon_site_objects.values():  # pylint: disable=no-member
             prefix = val.instance.canon_site_num
-            tag = ''.join(val.instance.name.split('+')[1:-1])
+            # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
             so_list = SiteObservation.objects.filter(
                 canon_site_conf__canon_site=val.instance
             )
-            self._tag_observations(tag, prefix, "CanonSites", so_list)
+            tag = val.versioned_key
+            try:
+                short_tag = val.versioned_key.split('-')[1][1:]
+                main_obvs = val.instance.ref_conf_site.ref_site_observation
+                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
+                    "code_prefix"
+                ]
+                short_tag = f"{code_prefix}{short_tag}"
+            except IndexError:
+                short_tag = tag
+
+            self._tag_observations(
+                tag,
+                prefix,
+                category=cat_canon,
+                site_observations=so_list,
+                short_tag=short_tag,
+            )
 
         logger.debug("canon_site objects tagged")
 
         numerators = {}
-        for val in canon_site_conf_objects.values():  # pylint: disable=no-member
+        cat_conf = TagCategory.objects.get(category="ConformerSites")
+        for val in canon_site_conf_objects.values():  # pylint:
+            # disable=no-member problem introduced with the sorting of
+            # canon sites (issue 1498). objects somehow go out of sync
+            val.instance.refresh_from_db()
             if val.instance.canon_site.canon_site_num not in numerators.keys():
                 numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
             prefix = (
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
             )
-            tag = val.instance.name.split('+')[0]
             so_list = [
-                site_observation_objects[k].instance
-                for k in val.index_data["members"]
-                # site_observations_versioned[k]
-                # for k in val.index_data["members"]
+                site_observation_objects[k].instance for k in val.index_data["members"]
             ]
-            self._tag_observations(tag, prefix, "ConformerSites", so_list)
+            # tag = val.instance.name.split('+')[0]
+            tag = val.instance.name
+            try:
+                short_tag = val.instance.name.split('-')[1][1:]
+                main_obvs = val.instance.ref_site_observation
+                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
+                    "code_prefix"
+                ]
+                short_tag = f"{code_prefix}{short_tag}"
+            except IndexError:
+                short_tag = tag
+
+            self._tag_observations(
+                tag,
+                prefix,
+                category=cat_conf,
+                site_observations=so_list,
+                hidden=True,
+                short_tag=short_tag,
+            )
 
         logger.debug("conf_site objects tagged")
 
+        cat_quat = TagCategory.objects.get(category="Quatassemblies")
         for val in quat_assembly_objects.values():  # pylint: disable=no-member
             prefix = f"A{val.instance.assembly_num}"
             tag = val.instance.name
@@ -1872,30 +1890,107 @@ class TargetLoader:
                     quat_assembly=val.instance
                 ).values("xtalform")
             )
-            self._tag_observations(tag, prefix, "Quatassemblies", so_list)
+            self._tag_observations(
+                tag, prefix, category=cat_quat, site_observations=so_list
+            )
 
         logger.debug("quat_assembly objects tagged")
 
+        cat_xtal = TagCategory.objects.get(category="Crystalforms")
         for val in xtalform_objects.values():  # pylint: disable=no-member
             prefix = f"F{val.instance.xtalform_num}"
-            tag = val.instance.name
             so_list = SiteObservation.objects.filter(
                 xtalform_site__xtalform=val.instance
             )
-            self._tag_observations(tag, prefix, "Crystalforms", so_list)
+            tag = val.instance.name
+
+            self._tag_observations(
+                tag, prefix, category=cat_xtal, site_observations=so_list
+            )
 
         logger.debug("xtalform objects tagged")
 
-        for val in xtalform_sites_objects.values():  # pylint: disable=no-member
+        # enumerate xtalform_sites. a bit trickier than others because
+        # requires alphabetic enumeration starting from the letter of
+        # the chain and following from there
+
+        # sort the dictionary
+        # fmt: off
+        xtls_sort_qs = XtalformSite.objects.filter(
+            pk__in=[k.instance.pk for k in xtalform_sites_objects.values() ], # pylint: disable=no-member
+        ).annotate(
+            obvs=Count("canon_site__canonsiteconf__siteobservation", default=0),
+        ).order_by("-obvs", "xtalform_site_id")
+        # ordering by xtalform_site_id is not strictly necessary, but
+        # makes the sorting consistent
+
+        # fmt: on
+
+        _xtalform_sites_objects = {}
+        for xtl in xtls_sort_qs:
+            key = f"{xtl.xtalform_site_id}/{xtl.version}"
+            _xtalform_sites_objects[key] = xtalform_sites_objects[
+                key
+            ]  # pylint: disable=no-member
+
+        if self.version_number == 1:
+            # first upload, use the chain letter
+            xtnum = alphanumerator(
+                start_from=xtls_sort_qs[0].lig_chain.lower(), drop_first=False
+            )
+        else:
+            # subsequent upload, just use the latest letter as starting point
+            # fmt: off
+            last_xtsite = XtalformSite.objects.filter(
+                    pk__in=[
+                        k.instance.pk
+                        for k in _xtalform_sites_objects.values()  # pylint: disable=no-member
+                    ]
+                ).order_by(
+                    "-xtalform_site_num"
+                )[0].xtalform_site_num
+            # fmt: on
+            xtnum = alphanumerator(start_from=last_xtsite)
+
+            # this should be rare, as Frank said, all crystal-related
+            # issues should be resolved by the time of the first
+            # upload. In fact, I'll mark this momentous occasion here:
+            logger.warning("New XtalformSite objects added in subsequent uploads")
+
+        for val in _xtalform_sites_objects.values():  # pylint: disable=no-member
+            if not val.instance.xtalform_site_num:
+                val.instance.xtalform_site_num = next(xtnum)
+                val.instance.save()
+
+        cat_xtalsite = TagCategory.objects.get(category="CrystalformSites")
+        for val in _xtalform_sites_objects.values():  # pylint: disable=no-member
             prefix = (
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
             )
-            tag = f"{val.instance.xtalform.name} - {val.instance.xtalform_site_id}"
             so_list = [
                 site_observation_objects[k].instance for k in val.index_data["residues"]
             ]
-            self._tag_observations(tag, prefix, "CrystalformSites", so_list)
+            tag = val.versioned_key
+            try:
+                # remove protein name and 'x'
+                short_tag = val.instance.xtalform_site_id.split('-')[1][1:]
+                main_obvs = val.instance.canon_site.ref_conf_site.ref_site_observation
+                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
+                    "code_prefix"
+                ]
+                short_tag = f"{code_prefix}{short_tag}"
+            except IndexError:
+                short_tag = tag
+
+            self._tag_observations(
+                tag,
+                prefix,
+                category=cat_xtalsite,
+                site_observations=so_list,
+                hidden=True,
+                short_tag=short_tag,
+            )
 
         logger.debug("xtalform_sites objects tagged")
 
@@ -1906,7 +2001,7 @@ class TargetLoader:
         self._tag_observations(
             "New",
             "",
-            "Other",
+            TagCategory.objects.get(category="Other"),
             [
                 k.instance
                 for k in site_observation_objects.values()  # pylint: disable=no-member
@@ -1914,8 +2009,8 @@ class TargetLoader:
             ],
         )
 
-    def _load_yaml(self, yaml_file: Path) -> dict | None:
-        contents = None
+    def _load_yaml(self, yaml_file: Path) -> dict:
+        contents = {}
         try:
             with open(yaml_file, "r", encoding="utf-8") as file:
                 contents = yaml.safe_load(file)
@@ -1965,7 +2060,9 @@ class TargetLoader:
     def _generate_poses(self):
         values = ["canon_site_conf__canon_site", "cmpd"]
         # fmt: off
-        pose_groups = SiteObservation.objects.exclude(
+        pose_groups = SiteObservation.filter_manager.by_target(
+            self.target,
+        ).exclude(
             canon_site_conf__canon_site__isnull=True,
         ).exclude(
             cmpd__isnull=True,
@@ -1998,25 +2095,38 @@ class TargetLoader:
                 pose.save()
             except MultipleObjectsReturned:
                 # must be a follow-up upload. create new pose, but
-                # only add observatons that are not yet assigned
+                # only add observatons that are not yet assigned (if
+                # these exist)
                 pose_items = pose_items.filter(pose__isnull=True)
-                sample = pose_items.first()
-                pose = Pose(
-                    canon_site=sample.canon_site_conf.canon_site,
-                    compound=sample.cmpd,
-                    main_site_observation=sample,
-                    display_name=sample.code,
-                )
-                pose.save()
+                if pose_items.exists():
+                    sample = pose_items.first()
+                    pose = Pose(
+                        canon_site=sample.canon_site_conf.canon_site,
+                        compound=sample.cmpd,
+                        main_site_observation=sample,
+                        display_name=sample.code,
+                    )
+                    pose.save()
+                else:
+                    # I don't know if this can happen but this (due to
+                    # other bugs) is what allowed me to find this
+                    # error. Make a note in the logs.
+                    logger.warning("No observations left to assign to pose")
 
             # finally add observations to the (new or existing) pose
             for obvs in pose_items:
                 obvs.pose = pose
                 obvs.save()
 
-            self._tag_observations(pose.display_name, "P", "Pose", pose_items)
-
-    def _tag_observations(self, tag, prefix, category, so_list):
+    def _tag_observations(
+        self,
+        tag: str,
+        prefix: str,
+        category: TagCategory,
+        site_observations: list,
+        hidden: bool = False,
+        short_tag: str | None = None,
+    ) -> None:
         try:
             # memo to self: description is set to tag, but there's
             # no fk to tag, instead, tag has a fk to
@@ -2043,6 +2153,13 @@ class TargetLoader:
             so_group.save()
 
         name = f"{prefix} - {tag}" if prefix else tag
+        tag = tag if short_tag is None else short_tag
+        short_name = name if short_tag is None else f"{prefix} - {short_tag}"
+
+        tag = clean_object_id(tag)
+        name = clean_object_id(name)
+        short_name = clean_object_id(short_name)
+
         try:
             so_tag = SiteObservationTag.objects.get(
                 upload_name=name, target=self.target
@@ -2052,18 +2169,21 @@ class TargetLoader:
             # changing anything.
             so_tag.mol_group = so_group
         except SiteObservationTag.DoesNotExist:
-            so_tag = SiteObservationTag()
-            so_tag.tag = tag
-            so_tag.tag_prefix = prefix
-            so_tag.upload_name = name
-            so_tag.category = TagCategory.objects.get(category=category)
-            so_tag.target = self.target
-            so_tag.mol_group = so_group
+            so_tag = SiteObservationTag(
+                tag=tag,
+                tag_prefix=prefix,
+                upload_name=name,
+                category=category,
+                target=self.target,
+                mol_group=so_group,
+                hidden=hidden,
+                short_tag=short_name,
+            )
 
         so_tag.save()
 
-        so_group.site_observation.add(*so_list)
-        so_tag.site_observations.add(*so_list)
+        so_group.site_observation.add(*site_observations)
+        so_tag.site_observations.add(*site_observations)
 
     def _is_already_uploaded(self, target_created, project_created):
         if target_created or project_created:
@@ -2154,8 +2274,16 @@ def load_target(
 
 def _move_and_save_target_experiment(target_loader):
     # Move the uploaded file to its final location
-    target_loader.abs_final_path.mkdir(parents=True)
-    target_loader.raw_data.rename(target_loader.abs_final_path)
+    try:
+        target_loader.abs_final_path.mkdir(parents=True)
+    except FileExistsError:
+        # subsequent upload, directory already exists
+        pass
+
+    shutil.move(
+        str(target_loader.raw_data.joinpath(target_loader.version_dir)),
+        str(target_loader.abs_final_path),
+    )
     Path(target_loader.bundle_path).rename(
         target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
     )

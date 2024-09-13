@@ -8,9 +8,10 @@ from scoring.models import (
     SiteObservationGroup,
     ViewScene,
 )
+from viewer.serializers import ValidateProjectMixin
 
 
-class ViewSceneSerializer(serializers.ModelSerializer):
+class ViewSceneSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = ViewScene
         fields = (
@@ -25,25 +26,46 @@ class ViewSceneSerializer(serializers.ModelSerializer):
         )
 
 
-class SiteObservationChoiceSerializer(serializers.ModelSerializer):
+class SiteObservationChoiceSerializer(
+    ValidateProjectMixin, serializers.ModelSerializer
+):
     class Meta:
         model = SiteObservationChoice
-        fields = ("id", "user", "site_observation", "choice_type", "score")
+        fields = (
+            "id",
+            "user",
+            "site_observation",
+            "choice_type",
+            "score",
+        )
 
 
-class SiteObservationAnnotationSerializer(serializers.ModelSerializer):
+class SiteObservationAnnotationSerializer(
+    ValidateProjectMixin, serializers.ModelSerializer
+):
     class Meta:
         model = SiteObservationAnnotation
-        fields = ("id", "site_observation", "annotation_type", "annotation_text")
+        fields = (
+            "id",
+            "site_observation",
+            "annotation_type",
+            "annotation_text",
+        )
 
 
-class CmpdChoiceSerializer(serializers.ModelSerializer):
+class CmpdChoiceSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = CmpdChoice
-        fields = ("id", "user_id", "cmpd_id", "choice_type", "score")
+        fields = (
+            "id",
+            "user_id",
+            "cmpd_id",
+            "choice_type",
+            "score",
+        )
 
 
-class ScoreChoiceSerializer(serializers.ModelSerializer):
+class ScoreChoiceSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = ScoreChoice
         fields = (
@@ -56,7 +78,7 @@ class ScoreChoiceSerializer(serializers.ModelSerializer):
         )
 
 
-class SiteObservationGroupSerializer(serializers.ModelSerializer):
+class SiteObservationGroupSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     class Meta:
         model = SiteObservationGroup
         fields = (

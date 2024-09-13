@@ -7,20 +7,21 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
 from openpyxl.utils import get_column_letter
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
 
 django.setup()
+
 from django.conf import settings
-
-logger = logging.getLogger(__name__)
-
+from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.db.models import F, TextField, Value
+from django.db.models.expressions import Func
 from rdkit import Chem
-from rdkit.Chem import Crippen, Descriptors
 
 from viewer.models import (
     Compound,
@@ -34,7 +35,13 @@ from viewer.models import (
     TextScoreValues,
     User,
 )
-from viewer.utils import add_props_to_sdf_molecule, is_url, word_count
+from viewer.utils import add_props_to_sdf_molecule, alphanumerator, is_url, word_count
+
+logger = logging.getLogger(__name__)
+
+
+# maximum distance between corresponding atoms in poses
+_DIST_LIMIT = 0.5
 
 
 def dataType(a_str: str) -> str:
@@ -132,6 +139,7 @@ class MolOps:
         version,
         zfile,
         zfile_hashvals,
+        computed_set_name,
     ):
         self.user_id = user_id
         self.sdf_filename = sdf_filename
@@ -141,6 +149,7 @@ class MolOps:
         self.version = version
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
+        self.computed_set_name = computed_set_name
 
     def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
         for key in zfile_hashvals.keys():
@@ -254,41 +263,63 @@ class MolOps:
 
         return site_obvs
 
-    def create_mol(self, inchi, long_inchi=None, name=None) -> Compound:
+    def create_mol(self, inchi, target, name=None) -> Compound:
         # check for an existing compound, returning a Compound
-        if long_inchi:
-            cpd = Compound.objects.filter(long_inchi=long_inchi)
-            sanitized_mol = Chem.MolFromInchi(long_inchi, sanitize=True)
-        else:
-            cpd = Compound.objects.filter(inchi=inchi)
-            sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
 
-        new_mol = cpd[0] if len(cpd) != 0 else Compound()
-        new_mol.smiles = Chem.MolToSmiles(sanitized_mol)
-        new_mol.inchi = inchi
-        if long_inchi:
-            new_mol.long_inchi = long_inchi
-        new_mol.identifier = name
+        sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
+        Chem.RemoveStereochemistry(sanitized_mol)
+        inchi = Chem.inchi.MolToInchi(sanitized_mol)
+        inchi_key = Chem.InchiToInchiKey(inchi)
 
-        # descriptors
-        new_mol.mol_log_p = Crippen.MolLogP(sanitized_mol)
-        new_mol.mol_wt = float(Chem.rdMolDescriptors.CalcExactMolWt(sanitized_mol))
-        new_mol.heavy_atom_count = Chem.Lipinski.HeavyAtomCount(sanitized_mol)
-        new_mol.heavy_atom_mol_wt = float(Descriptors.HeavyAtomMolWt(sanitized_mol))
-        new_mol.nhoh_count = Chem.Lipinski.NHOHCount(sanitized_mol)
-        new_mol.no_count = Chem.Lipinski.NOCount(sanitized_mol)
-        new_mol.num_h_acceptors = Chem.Lipinski.NumHAcceptors(sanitized_mol)
-        new_mol.num_h_donors = Chem.Lipinski.NumHDonors(sanitized_mol)
-        new_mol.num_het_atoms = Chem.Lipinski.NumHeteroatoms(sanitized_mol)
-        new_mol.num_rot_bonds = Chem.Lipinski.NumRotatableBonds(sanitized_mol)
-        new_mol.num_val_electrons = Descriptors.NumValenceElectrons(sanitized_mol)
-        new_mol.ring_count = Chem.Lipinski.RingCount(sanitized_mol)
-        new_mol.tpsa = Chem.rdMolDescriptors.CalcTPSA(sanitized_mol)
+        try:
+            # NB! Max said there could be thousands of compounds per
+            # target so this distinct() here may become a problem
 
-        # make sure there is an id so inspirations can be added
-        new_mol.save()
+            # fmt: off
+            cpd = Compound.objects.filter(
+                computedmolecule__computed_set__target=target,
+            ).distinct().get(
+                inchi_key=inchi_key,
+            )
+            # fmt: on
+        except Compound.DoesNotExist:
+            cpd = Compound(
+                smiles=Chem.MolToSmiles(sanitized_mol),
+                inchi=inchi,
+                inchi_key=inchi_key,
+                current_identifier=name,
+            )
+            # This is a new compound.
+            cpd.save()
+            # This is a new compound.
+            # We must now set relationships to the Proposal that it applies to.
+            # We do this by copying the relationships from the Target.
+            num_target_proposals = len(target.project_id.all())
+            assert num_target_proposals > 0
+            if num_target_proposals > 1:
+                logger.warning(
+                    'Compound Target %s has more than one Proposal (%d)',
+                    target.title,
+                    num_target_proposals,
+                )
+            for project in target.project_id.all():
+                cpd.project_id.add(project)
+        except MultipleObjectsReturned as exc:
+            # NB! when processing new uploads, Compound is always
+            # fetched by inchi_key, so this shouldn't ever create
+            # duplicates. Ands LHS uploads do not create inchi_keys,
+            # so under normal operations duplicates should never
+            # occur. However there's nothing in the db to prevent
+            # this, so adding a catch clause and writing a meaningful
+            # message
+            logger.error(
+                'Duplicate compounds for target %s with inchi key %s.',
+                target.title,
+                inchi_key,
+            )
+            raise MultipleObjectsReturned from exc
 
-        return new_mol
+        return cpd
 
     def set_props(self, cpd, props, compound_set) -> List[ScoreDescription]:
         if 'ref_mols' and 'ref_pdb' not in list(props.keys()):
@@ -322,13 +353,9 @@ class MolOps:
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
         molecule_name = mol.GetProp('_Name')
-        long_inchi = None
-        if len(inchi) > 255:
-            long_inchi = inchi
-            inchi = inchi[:254]
 
         compound: Compound = self.create_mol(
-            inchi, name=molecule_name, long_inchi=long_inchi
+            inchi, compound_set.target, name=molecule_name
         )
 
         insp = mol.GetProp('ref_mols')
@@ -353,12 +380,7 @@ class MolOps:
                         'No matching molecules found for inspiration frag ' + i
                     )
 
-                if qs.count() > 1:
-                    ids = [m.cmpd.id for m in qs]
-                    ind = ids.index(max(ids))
-                    ref = qs[ind]
-                elif qs.count() == 1:
-                    ref = qs[0]
+                ref = qs.order_by('-cmpd_id').first()
 
             insp_frags.append(ref)
 
@@ -385,14 +407,75 @@ class MolOps:
 
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
-        existing_computed_molecules = ComputedMolecule.objects.filter(
-            molecule_name=molecule_name, smiles=smiles, computed_set=compound_set
+
+        # I think, realistically, I only need to check compound
+        # fmt: off
+        qs = ComputedMolecule.objects.filter(
+            compound=compound,
+        ).annotate(
+            # names come in format:
+            # target_name-sequential number-sequential letter,
+            # e.g. A71EV2A-1-a, hence grabbing the 3rd column
+            suffix=Func(
+                F('name'),
+                Value('-'),
+                Value(3),
+                function='split_part',
+                output_field=TextField(),
+            ),
         )
 
-        computed_molecule: Optional[ComputedMolecule] = None
+        if qs.exists():
+            suffix = next(
+                alphanumerator(start_from=qs.order_by('-suffix').first().suffix)
+            )
+        else:
+            suffix = 'a'
+
+        # distinct is ran on indexed field, so shouldn't be a problem
+        number = ComputedMolecule.objects.filter(
+            computed_set__target=compound_set.target,
+        ).values('id').distinct().count() + 1
+        # fmt: on
+
+        name = f'v{number}{suffix}'
+
+        existing_computed_molecules = []
+        for k in qs:
+            kmol = Chem.MolFromMolBlock(k.sdf_info)
+            if kmol:
+                # find distances between corresponding atoms of the
+                # two conformers. if any one exceeds the _DIST_LIMIT,
+                # consider it to be a new ComputedMolecule
+                try:
+                    _, _, atom_map = Chem.rdMolAlign.GetBestAlignmentTransform(
+                        mol, kmol
+                    )
+                except RuntimeError as exc:
+                    msg = (
+                        f'Failed to find alignment between {k.molecule_name} '
+                        + f'and {mol.GetProp("original ID")}'
+                    )
+                    logger.error(msg)
+                    raise RuntimeError(msg) from exc
+
+                molconf = mol.GetConformer()
+                kmolconf = kmol.GetConformer()
+                small_enough = True
+                for mol_atom, kmol_atom in atom_map:
+                    molpos = np.array(molconf.GetAtomPosition(mol_atom))
+                    kmolpos = np.array(kmolconf.GetAtomPosition(kmol_atom))
+                    distance = np.linalg.norm(molpos - kmolpos)
+                    if distance >= _DIST_LIMIT:
+                        small_enough = False
+                        break
+                if small_enough:
+                    existing_computed_molecules.append(k)
+
         if len(existing_computed_molecules) == 1:
-            logger.info(
-                'Using existing ComputedMolecule %s', existing_computed_molecules[0]
+            logger.warning(
+                'Using existing ComputedMolecule %s and overwriting its metadata',
+                existing_computed_molecules[0],
             )
             computed_molecule = existing_computed_molecules[0]
         elif len(existing_computed_molecules) > 1:
@@ -400,10 +483,10 @@ class MolOps:
             for exist in existing_computed_molecules:
                 logger.info('Deleting ComputedMolecule %s', exist)
                 exist.delete()
-            computed_molecule = ComputedMolecule()
-        if not computed_molecule:
+            computed_molecule = ComputedMolecule(name=name)
+        else:
             logger.info('Creating new ComputedMolecule')
-            computed_molecule = ComputedMolecule()
+            computed_molecule = ComputedMolecule(name=name)
 
         if isinstance(ref_so, SiteObservation):
             code = ref_so.code
@@ -414,14 +497,15 @@ class MolOps:
             pdb_info = ref_so
             lhs_so = None
 
-        assert computed_molecule
+        # I don't quite understand why the overwrite of existing
+        # compmol.. but this is how it was, not touching it now
+        # update: I think it's about updating metadata. moving
+        # name attribute out so it won't get overwritten
         computed_molecule.compound = compound
-        computed_molecule.computed_set = compound_set
         computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
         computed_molecule.site_observation_code = code
         computed_molecule.reference_code = code
         computed_molecule.molecule_name = molecule_name
-        computed_molecule.name = f"{target}-{computed_molecule.identifier}"
         computed_molecule.smiles = smiles
         computed_molecule.pdb = lhs_so
         # TODO: this is wrong
@@ -446,6 +530,8 @@ class MolOps:
             computed_molecule.computed_inspirations.add(insp_frag)
         # Done
         computed_molecule.save()
+
+        compound_set.computed_molecules.add(computed_molecule)
 
         # No update the molecule in the original file...
         add_props_to_sdf_molecule(
@@ -530,50 +616,51 @@ class MolOps:
             )
 
         # Do we have any existing ComputedSets?
-        # Ones with the same method and upload date?
-        today: datetime.date = datetime.date.today()
-        existing_sets: List[ComputedSet] = ComputedSet.objects.filter(
-            method=truncated_submitter_method, upload_date=today
-        ).all()
-        # If so, find the one with the highest ordinal.
-        latest_ordinal: int = 0
-        for exiting_set in existing_sets:
-            assert exiting_set.md_ordinal > 0
-            if exiting_set.md_ordinal > latest_ordinal:
-                latest_ordinal = exiting_set.md_ordinal
-        if latest_ordinal:
-            logger.info(
-                'Found existing ComputedSets for method "%s" on %s (%d) with ordinal=%d',
-                truncated_submitter_method,
-                str(today),
-                len(existing_sets),
-                latest_ordinal,
+        try:
+            computed_set = ComputedSet.objects.get(name=self.computed_set_name)
+            # refresh some attributes
+            computed_set.md_ordinal = F('md_ordinal') + 1
+            computed_set.upload_date = datetime.date.today()
+            computed_set.save()
+        except ComputedSet.DoesNotExist:
+            # no, create new
+
+            today: datetime.date = datetime.date.today()
+            new_ordinal: int = 1
+            try:
+                target = Target.objects.get(title=self.target)
+            except Target.DoesNotExist as exc:
+                # probably wrong target name supplied
+                logger.error('Target %s does not exist', self.target)
+                raise Target.DoesNotExist from exc
+
+            cs_name: str = (
+                f'{truncated_submitter_method}-{str(today)}-'
+                + f'{get_column_letter(new_ordinal)}'
             )
-        # ordinals are 1-based
-        new_ordinal: int = latest_ordinal + 1
+            logger.info('Creating new ComputedSet "%s"', cs_name)
 
-        # The computed set "name" consists of the "method",
-        # today's date and a 2-digit ordinal. The ordinal
-        # is used to distinguish between computed sets uploaded
-        # with the same method on the same day.
-        assert new_ordinal > 0
-        cs_name: str = f"{truncated_submitter_method}-{str(today)}-{get_column_letter(new_ordinal)}"
-        logger.info('Creating new ComputedSet "%s"', cs_name)
+            computed_set = ComputedSet(
+                name=cs_name,
+                md_ordinal=new_ordinal,
+                upload_date=today,
+                method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
+                target=target,
+                spec_version=float(self.version.strip('ver_')),
+            )
+            if self.user_id:
+                try:
+                    computed_set.owner_user = User.objects.get(id=self.user_id)
+                except User.DoesNotExist as exc:
+                    logger.error('User %s does not exist', self.user_id)
+                    raise User.DoesNotExist from exc
 
-        computed_set: ComputedSet = ComputedSet()
-        computed_set.name = cs_name
-        computed_set.md_ordinal = new_ordinal
-        computed_set.upload_date = today
-        computed_set.method = self.submitter_method[: ComputedSet.LENGTH_METHOD]
-        computed_set.target = Target.objects.get(title=self.target)
-        computed_set.spec_version = float(self.version.strip('ver_'))
-        if self.user_id:
-            computed_set.owner_user = User.objects.get(id=self.user_id)
-        else:
-            # The User ID may only be None if AUTHENTICATE_UPLOAD is False.
-            # Here the ComputedSet owner will take on a default (anonymous) value.
-            assert settings.AUTHENTICATE_UPLOAD is False
-        computed_set.save()
+            else:
+                # The User ID may only be None if AUTHENTICATE_UPLOAD is False.
+                # Here the ComputedSet owner will take on a default (anonymous) value.
+                assert settings.AUTHENTICATE_UPLOAD is False
+
+            computed_set.save()
 
         # check compound set folder exists.
         cmp_set_folder = os.path.join(
