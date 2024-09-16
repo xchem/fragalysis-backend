@@ -120,6 +120,9 @@ router.register(
     "xtalform_sites", viewer_views.XtalformSiteView, basename='xtalform_sites'
 )
 router.register("poses", viewer_views.PoseView, basename='poses')
+router.register(
+    "metadata_upload", viewer_views.UploadMetadataView, basename='metadata_upload'
+)
 
 # Squonk Jobs
 router.register(

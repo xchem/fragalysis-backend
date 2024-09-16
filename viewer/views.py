@@ -62,6 +62,7 @@ from .squonk_job_request import (
     create_squonk_job,
     get_squonk_job_config,
 )
+from .tags import load_tags_from_file
 from .tasks import (
     erase_compound_set_job_material,
     process_compound_set,
@@ -2527,3 +2528,59 @@ class ServiceStateView(View):
         return JsonResponse(
             {"service_states": list(Service.data_manager.to_frontend())}
         )
+
+
+class UploadMetadataView(ISPyBSafeQuerySet):
+    serializer_class = serializers.MetadataUploadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('post',)
+
+    def get_view_name(self):
+        return "Upload metadata"
+
+    def create(self, request, *args, **kwargs):
+        logger.info("+ UploadMetadataView.create called")
+        del args, kwargs
+
+        serializer = self.get_serializer_class()(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.debug("Serializer validated_data=%s", serializer.validated_data)
+
+        target_access_string = serializer.validated_data['target_access_string']
+        target_name = serializer.validated_data['target']
+        filename = serializer.validated_data['filename']
+
+        if settings.AUTHENTICATE_UPLOAD:
+            user = self.request.user
+            if not user.is_authenticated:
+                return redirect(settings.LOGIN_URL)
+            else:
+                if target_access_string not in self.get_proposals_for_user(
+                    user, restrict_public_to_membership=True
+                ):
+                    return Response(
+                        {
+                            "target_access_string": [
+                                f"You are not authorized to upload metadatadata to '{target_access_string}'"
+                            ]
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+        # TODO: add TAS to lookup (when ready)
+        try:
+            target = models.Target.objects.get(title=target_name)
+        except models.Target.DoesNotExist:
+            return Response(
+                {"target": [f"Target {target_name} does not exist"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # not celerifying it because seems fast enough
+        errors = load_tags_from_file(filename=filename, target=target)
+        if errors:
+            return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'sucess': True}, status=status.HTTP_200_OK)

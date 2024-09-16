@@ -500,7 +500,7 @@ class SiteObservation(Versionable, models.Model):
     canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
     pose = models.ForeignKey(
         Pose,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="site_observations",
     )
@@ -1348,7 +1348,7 @@ class SiteObservationTag(Tag):
     )
 
     def __str__(self) -> str:
-        return f"{self.site_observations}"
+        return f"{self.id}"
 
     def __repr__(self) -> str:
         return "<SiteObservationTag %r %r>" % (self.id, self.site_observations)

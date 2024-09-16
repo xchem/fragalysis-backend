@@ -8,7 +8,6 @@ import copy
 import json
 import logging
 import os
-import re
 import shutil
 import uuid
 import zipfile
@@ -20,19 +19,15 @@ from typing import Any, Dict
 
 import pandoc
 from django.conf import settings
-from django.db.models import CharField, Exists, F, OuterRef, Subquery, Value
+from django.db.models import Exists, F, OuterRef, Value
+from django.db.models.fields import CharField
 from django.db.models.functions import Concat
 
-from viewer.models import (
-    DownloadLinks,
-    SiteObservation,
-    SiteObservationTag,
-    SiteObvsSiteObservationTag,
-    TagCategory,
-)
+from viewer.models import DownloadLinks, SiteObservation
 from viewer.utils import clean_filename
 
 from .serializers import DownloadStructuresSerializer
+from .tags import get_metadata_fields
 
 logger = logging.getLogger(__name__)
 
@@ -67,71 +62,6 @@ _ZIP_FILEPATHS = {
     'extra_files': ('extra_files'),
     'readme': (''),
 }
-
-TAG_CATEGORIES = (
-    'ConformerSites',
-    'CanonSites',
-    'CrystalformSites',
-    'Quatassemblies',
-    'Crystalforms',
-)
-CURATED_TAG_CATEGORIES = ('Series', 'Forum', 'Other')
-
-
-class TagSubquery(Subquery):
-    """Annotate SiteObservation with tag of given category"""
-
-    def __init__(self, category):
-        # fmt: off
-        query = SiteObservationTag.objects.filter(
-            pk=Subquery(
-                SiteObvsSiteObservationTag.objects.filter(
-                    site_observation=OuterRef(OuterRef('pk')),
-                    site_obvs_tag__category=TagCategory.objects.get(
-                        category=category,
-                    ),
-                ).values('site_obvs_tag')[:1]
-            )
-        ).annotate(
-            combitag=Concat(
-                F('tag_prefix'),
-                Value(' - '),
-                F('tag'),
-                output_field=CharField(),
-            ),
-        ).values('combitag')[0:1]
-        super().__init__(query)
-        # fmt: on
-
-
-class UploadTagSubquery(Subquery):
-    """Annotate SiteObservation with tag of given category"""
-
-    def __init__(self, category):
-        # fmt: off
-        query = SiteObservationTag.objects.filter(
-            pk=Subquery(
-                SiteObvsSiteObservationTag.objects.filter(
-                    site_observation=OuterRef(OuterRef('pk')),
-                    site_obvs_tag__category=TagCategory.objects.get(
-                        category=category,
-                    ),
-                ).values('site_obvs_tag')[:1]
-            )
-        ).values('upload_name')[0:1]
-        super().__init__(query)
-        # fmt: on
-
-
-class CuratedTagSubquery(Exists):
-    """Annotate SiteObservation with tag of given category"""
-
-    def __init__(self, tag):
-        query = SiteObvsSiteObservationTag.objects.filter(
-            site_observation=OuterRef('pk'),
-            site_obvs_tag=tag,
-        )
-        super().__init__(query)
 
 
 @dataclass(frozen=True)
@@ -452,49 +382,7 @@ def _metadata_file_zip(ziparchive, target, site_observations):
     """Compile and add metadata file to archive."""
     logger.info('+ Processing metadata')
 
-    annotations = {}
-    values = [
-        'code',
-        'longcode',
-        'experiment__code',
-        'cmpd__compound_code',
-        'smiles',
-        'canon_site_conf__canon_site__centroid_res',
-        'downloaded',
-    ]
-    header = [
-        'Code',
-        'Long code',
-        'Experiment code',
-        'Compound code',
-        'Smiles',
-        'Centroid res',
-        'Downloaded',
-    ]
-
-    for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
-        tag = f'tag_{category.category.lower()}'
-        upload_tag = f'upload_tag_{category.category.lower()}'
-        values.append(tag)
-        header.append(f'{category.category} alias')
-        annotations[tag] = TagSubquery(category.category)
-        values.append(upload_tag)
-        header.append(f'{category.category} upload name')
-        annotations[upload_tag] = UploadTagSubquery(category.category)
-
-    values.append('pose__display_name')
-    header.append('Pose')
-
-    pattern = re.compile(r'\W+')  # non-alphanumeric characters
-    for tag in SiteObservationTag.objects.filter(
-        category__in=TagCategory.objects.filter(category__in=CURATED_TAG_CATEGORIES),
-        target=target,
-    ):
-        # for reasons unknown, mypy thinks tag is a string
-        tagname = f'tag_{pattern.sub("_", tag.tag).strip().lower()}'  # type: ignore[attr-defined]
-        values.append(tagname)
-        header.append(f'[{tag.category}] {tag.tag}')  # type: ignore[attr-defined]
-        annotations[tagname] = CuratedTagSubquery(tag)
+    header, annotations, values = get_metadata_fields(target)
 
     # fmt: off
     qs = SiteObservation.filter_manager.by_target(
@@ -508,7 +396,11 @@ def _metadata_file_zip(ziparchive, target, site_observations):
                 pk=OuterRef('pk'),
             ),
         )
-    ).annotate(**annotations).values_list(*values)
+    ).annotate(
+        **annotations
+    ).values_list(
+        *values
+    )
     # fmt: on
 
     buff = StringIO()

@@ -1132,3 +1132,9 @@ class PoseSerializer(ValidateProjectMixin, serializers.ModelSerializer):
             'site_observations',
             'main_site_observation_cmpd_code',
         )
+
+
+class MetadataUploadSerializer(serializers.Serializer):
+    filename = serializers.FileField()
+    target = serializers.CharField()
+    target_access_string = serializers.CharField()
