@@ -1348,7 +1348,7 @@ class SiteObservationTag(Tag):
     )
 
     def __str__(self) -> str:
-        return f"{self.site_observations}"
+        return f"{self.id}"
 
     def __repr__(self) -> str:
         return "<SiteObservationTag %r %r>" % (self.id, self.site_observations)

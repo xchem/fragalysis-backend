@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Dict, Generator, Optional
 from urllib.parse import urlparse
 
-import numpy as np
 import pandas as pd
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -450,52 +449,6 @@ def alphanumerator(
             _ = next(generator)
 
     return generator
-
-
-def sanitize_boolean_column(column):
-    """
-    Sanitize a DataFrame column to boolean values.
-    Handles various representations of booleans such as:
-    - Python booleans
-    - String representations ('True', 'False', 'true', 'false', 'yes', 'no')
-    - Numeric representations (1, 0)
-    """
-    # don't understans why it considers int and str numbers to be the same
-    true_values = {  # pylint: disable=duplicate-value
-        'true',
-        '1',
-        't',
-        'y',
-        'yes',
-        'True',
-        'TRUE',
-        True,
-        1,
-    }
-    false_values = {  # pylint: disable=duplicate-value
-        'false',
-        '0',
-        'f',
-        'n',
-        'no',
-        'False',
-        'FALSE',
-        False,
-        0,
-        None,
-        '',
-        np.nan,
-    }
-
-    def convert_to_boolean(value):
-        if value in true_values:
-            return True
-        elif value in false_values:
-            return False
-        else:
-            raise ValueError(f'Unexpected boolean value: {value}')
-
-    return column.apply(convert_to_boolean)
 
 
 def save_tmp_file(myfile):

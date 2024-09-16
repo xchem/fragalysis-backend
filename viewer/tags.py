@@ -2,6 +2,7 @@ import logging
 import re
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
@@ -18,7 +19,6 @@ from .models import (
     TagCategory,
     Target,
 )
-from .utils import sanitize_boolean_column
 
 logger = logging.getLogger(__name__)
 
@@ -108,13 +108,6 @@ def get_tag_cols(columns):
     ]
 
 
-# def get_upload_cols(columns):
-#     return  [k for k in columns if any(k == f'{cat} alias' for cat in TAG_CATEGORIES)]
-
-# def get_alias_cols(columns):
-#     return [k for k in columns if any(k == f'{cat} upload name' for cat in TAG_CATEGORIES)]
-
-
 def strip_alias(alias: str) -> str:
     """Strip prefix from alias if present"""
     splits = alias.split('-')
@@ -149,7 +142,6 @@ def validate_aliases(df) -> tuple[list[tuple[str, str]], list[str]]:
         col_alias = f'{cat} alias'
 
         tag_groups = df.loc[:, [col_upload, col_alias]].groupby(col_upload).groups
-        logger.debug('tag_groups :%s', tag_groups.keys)
         for tag in tag_groups.keys():
             name_groups = (
                 df.loc[tag_groups[tag], [col_upload, col_alias]]
@@ -161,9 +153,9 @@ def validate_aliases(df) -> tuple[list[tuple[str, str]], list[str]]:
                 result.append(next(iter(name_groups.keys())))
             else:
                 # this means multiple groups, multiple aliases for the same tag
-                msg = f"Inconsistent aliases for tag {tag}: " + ':'.join(
+                msg = f"Inconsistent aliases for tag '{tag}': " + ':'.join(
                     [
-                        f"{key[1]} in rows {row_idx}"
+                        f"'{key[1]}' in rows {list(row_idx)}"
                         for key, row_idx in name_groups.items()
                     ]
                 )
@@ -214,8 +206,8 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
     return header, annotations, values
 
 
-def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ignore [return]
-    # from viewer.tags import load_tags_from_csv; from viewer.models import Target; target = Target.objects.get(title='A71EV2A'); load_tags_from_csv('metadata_modified_ok.xlsx', target)
+def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ignore [return]
+    # from viewer.tags import load_tags_from_file; from viewer.models import Target; target = Target.objects.get(title='A71EV2A'); load_tags_from_file('metadata_modified_ok.xlsx', target)
 
     errors: list[str] = []
 
@@ -233,20 +225,26 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
     tag_cols = get_tag_cols(df.columns)
     tagnames = {strip_catname(k)[1]: strip_catname(k)[0] for k in tag_cols}
 
+    logger.debug('tag_cols :%s', tag_cols)
+
+    # a quick sanity check for file cols
+    header, _, _ = get_metadata_fields(target)
+    unknowns = [k for k in df.columns if k not in header and k not in tag_cols]
+    if unknowns:
+        for c in unknowns:
+            msg = f"Invalid column name: '{c}'"
+            logger.warning(msg)
+            errors.append(msg)
+
     for column in tag_cols:
         df[column] = df[column].fillna(False)
-        df[column] = sanitize_boolean_column(df[column])
-
-    # header, _, _ = get_metadata_fields(target)
-
-    # upload_cols = get_upload_cols(df.columns)
-    # alias_cols = get_alias_cols(df.columns)
+        df[column], errors = sanitize_boolean_column(df[column], errors)
 
     tag_aliases, alias_errors = validate_aliases(df)
     errors.extend(alias_errors)
 
-    with transaction.atomic():
-        try:
+    try:
+        with transaction.atomic():
             tags = SiteObservationTag.objects.filter(
                 category__category__in=TAG_CATEGORIES,
                 target=target,
@@ -270,6 +268,7 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
                     tag.tag = tagname
                     alias_update.append(tag)
 
+            logger.debug('alias updates %s', alias_update)
             SiteObservationTag.objects.bulk_update(alias_update, ['tag'])
 
             poses = Pose.objects.filter(
@@ -313,11 +312,13 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
                     main_site_observation=main_so,
                     display_name=pose_name,
                 )
+                logger.debug('so pose instance: %s', pose)
                 pose.save()
 
                 # attach rest of the observations
                 for so in so_qs:
                     so.pose = pose
+                    logger.debug('so instance: %s', so)
                     so.save()
 
             # refresh the poses and...
@@ -330,7 +331,7 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
             for so in qs:
                 pose_name = df.loc[
                     df['Long code'] == so.longcode, next(iter(POSE_COL.keys()))
-                ]
+                ].to_numpy()[0]
                 if so.pose.display_name != pose_name:
                     try:
                         pose = poses.get(display_name=pose_name)
@@ -345,39 +346,40 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
                         errors.append(msg)
                         continue
 
-                # either of these error conditions should happen, the
-                # first is taken care by creating all the missing sets
-                # above, and the other with the set operation that
-                # discards the duplicates. leavnig it in just in case
-                # something goes horribly wrong
+                    # either of these error conditions should happen, the
+                    # first is taken care by creating all the missing sets
+                    # above, and the other with the set operation that
+                    # discards the duplicates. leavnig it in just in case
+                    # something goes horribly wrong
 
-                # concrete pose found, continue
-                so.pose = pose
-                so_update.append(so)
+                    # concrete pose found, continue
+                    so.pose = pose
+                    so_update.append(so)
 
+            logger.debug('so bulk update %s', so_update)
             SiteObservation.objects.bulk_update(so_update, ['pose'])
 
             cats = TagCategory.objects.filter(category__in=CURATED_TAG_CATEGORIES)
             curated_tags = SiteObservationTag.objects.filter(
-                category__category__in=cats,
+                category__in=cats,
                 target=target,
             )
 
             curated_db = set(curated_tags.values_list('tag', flat=True))
             curated_df = set(tagnames.keys())
             curated_delete = curated_db.difference(curated_df)
-            # curated_create = curated_df.difference(curated_db)
-            # curated_existing = curated_df.intersection(curated_db)
 
             # delete those missing from the uploaded file
             curated_tags.filter(tag__in=curated_delete).delete()
 
             # create or update new tags from file
             for tc in tag_cols:
+                category_name, tagname = strip_catname(tc)
                 so_group = SiteObservationGroup(target=target)
+                logger.debug('so group instance: %s', so_group)
                 so_group.save()
 
-                category_name = tagnames[tc]
+                # category_name = tagnames[tc]
                 if not category_name:
                     # category not given in tagname, raise error, notify user
                     msg = f'Category name not given for tag {tc}'
@@ -400,13 +402,15 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
                     )
                 except SiteObservationTag.DoesNotExist:
                     so_tag = SiteObservationTag(
-                        tag=tc,
+                        tag=tagname,
                         tag_prefix='',
-                        upload_name=tc,
+                        upload_name=tagname,
                         category=cat,
                         target=target,
                         mol_group=so_group,
+                        short_tag=tagname,
                     )
+                    logger.debug('so tag instance: %s', so_tag)
                     so_tag.save()
 
                 site_observations = qs.filter(
@@ -418,13 +422,61 @@ def load_tags_from_csv(filename: str, target: Target) -> list[str]:  # type: ign
                     so_group.site_observation.add(*site_observations)
                     so_tag.site_observations.add(*site_observations)
 
-            logger.debug('errors: %s', errors)
-            logger.debug('errors: %s', type(errors))
             if errors:
-                # TODO: pass on collected error messages
-                raise IntegrityError('smth')
+                # log all errors
+                logger.info('Errors found processing metadata file:')
+                for line in errors:
+                    logger.info('err: %s', line)
+                raise IntegrityError('Errors encountered when processing metadata file')
 
-        except IntegrityError:
-            # TODO: need to give user feedback what went wrong but
-            # don't know which mechanim is going to be used
-            return errors
+    except IntegrityError:
+        # TODO: need to give user feedback what went wrong but
+        # don't know which mechanim is going to be used
+        return errors
+
+
+def sanitize_boolean_column(column, errors):
+    """
+    Sanitize a DataFrame column to boolean values.
+    Handles various representations of booleans such as:
+    - Python booleans
+    - String representations ('True', 'False', 'true', 'false', 'yes', 'no')
+    - Numeric representations (1, 0)
+    """
+    # don't understans why it considers int and str numbers to be the same
+    true_values = {  # pylint: disable=duplicate-value
+        'true',
+        '1',
+        't',
+        'y',
+        'yes',
+        'True',
+        'TRUE',
+        True,
+        1,
+    }
+    false_values = {  # pylint: disable=duplicate-value
+        'false',
+        '0',
+        'f',
+        'n',
+        'no',
+        'False',
+        'FALSE',
+        False,
+        0,
+        None,
+        '',
+        np.nan,
+    }
+
+    def convert_to_boolean(value, column, errors):
+        if value in true_values:
+            return True
+        elif value in false_values:
+            return False
+        else:
+            errors.append(f"Invalid boolean value '{value}' in column '{column}'")
+            return value
+
+    return column.apply(convert_to_boolean, args=(column.name, errors)), errors
