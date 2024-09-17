@@ -332,7 +332,7 @@ def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ig
                 pose_name = df.loc[
                     df['Long code'] == so.longcode, next(iter(POSE_COL.keys()))
                 ].to_numpy()[0]
-                if so.pose.display_name != pose_name:
+                if so.pose is None or so.pose.display_name != pose_name:
                     try:
                         pose = poses.get(display_name=pose_name)
                     except Pose.DoesNotExist as exc:
