@@ -7,6 +7,7 @@ from viewer.models import (
     CanonSite,
     CanonSiteConf,
     Compound,
+    Experiment,
     Pose,
     QuatAssembly,
     SiteObservation,
@@ -57,6 +58,12 @@ class SiteObservationFilter(TargetFilterMixin):
 class CanonSiteFilter(TargetFilterMixin):
     class Meta:
         model = CanonSite
+        fields = ("target",)
+
+
+class ExperimentFilter(TargetFilterMixin):
+    class Meta:
+        model = Experiment
         fields = ("target",)
 
 
