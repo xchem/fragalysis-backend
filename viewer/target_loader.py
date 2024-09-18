@@ -523,7 +523,7 @@ class TargetLoader:
         obj_identifier: str,
         file_struct: list,
         validate_files: bool = True,
-    ) -> list[str]:
+    ) -> tuple[list[str], list[str]]:
         """Validate list of panddas event files.
 
         Special case of file validation, too complex to squeeze into
@@ -533,17 +533,20 @@ class TargetLoader:
         def logfunc(_, message):
             self.report.log(logging.WARNING, message)
 
-        result = []
+        paths = []
+        source_files = []
         for item in file_struct:
             fname, file_hash = self._check_file(item, obj_identifier, key, logfunc)
+            source_file = item.get("source_file", None)
             if not fname:
                 continue
 
             if validate_files:
                 self._check_file_hash(obj_identifier, key, fname, file_hash, logfunc)
-            result.append(fname)
+            paths.append(fname)
+            source_files.append(source_file)
 
-        return result
+        return paths, source_files
 
     def validate_files(
         self,
@@ -552,7 +555,7 @@ class TargetLoader:
         required: Iterable[str] = (),
         recommended: Iterable[str] = (),
         validate_files: bool = True,
-    ) -> list[str | None]:
+    ) -> list[tuple[str | None, str | None]]:
         """Check if file exists and if sha256 hash matches (if given).
 
         file struct can come in 2 configurations:
@@ -594,7 +597,7 @@ class TargetLoader:
                 # schema isn't looking for this file, ignore
                 continue
 
-            filename, file_hash = None, None
+            filename, file_hash, source_file = None, None, None
 
             # sort out the filename
             if isinstance(value, dict):
@@ -603,6 +606,8 @@ class TargetLoader:
                 )
                 if not filename:
                     continue
+
+                source_file = value.get("source_file", None)
 
                 if validate_files:
                     self._check_file_hash(
@@ -627,7 +632,7 @@ class TargetLoader:
         files = []
         for f in list(required) + list(recommended):
             try:
-                files.append(result[f])
+                files.append((result[f], source_file))
             except KeyError:
                 logfunc(
                     f,
@@ -637,7 +642,7 @@ class TargetLoader:
                         METADATA_FILE,
                     ),
                 )
-                files.append(None)  # type: ignore [arg-type]
+                files.append((None, None))  # type: ignore [arg-type]
 
         logger.debug("Returning files: %s", files)
 
@@ -753,9 +758,9 @@ class TargetLoader:
         )
 
         (  # pylint: disable=unbalanced-tuple-unpacking
-            pdb_info,
-            mtz_info,
-            cif_info,
+            pdb_info_t,
+            mtz_info_t,
+            cif_info_t,
         ) = self.validate_files(
             obj_identifier=experiment_name,
             file_struct=data["crystallographic_files"],
@@ -767,12 +772,16 @@ class TargetLoader:
             validate_files=validate_files,
         )
 
+        pdb_info, pdb_info_source_file = pdb_info_t
+        mtz_info, mtz_info_source_file = mtz_info_t
+        cif_info, cif_info_source_file = cif_info_t
+
         try:
             event_files = data["crystallographic_files"]["ligand_binding_events"]
         except KeyError:
             event_files = []
 
-        map_info_files = self.validate_map_files(
+        map_info_files, map_info_source_files = self.validate_map_files(
             key="ligand_binding_events",
             obj_identifier=experiment_name,
             file_struct=event_files,
@@ -836,7 +845,11 @@ class TargetLoader:
             "pdb_info": str(self._get_final_path(pdb_info)),
             "mtz_info": str(self._get_final_path(mtz_info)),
             "cif_info": str(self._get_final_path(cif_info)),
+            "pdb_info_source_file": pdb_info_source_file,
+            "mtz_info_source_file": mtz_info_source_file,
+            "cif_info_source_file": cif_info_source_file,
             "map_info": map_info_paths,
+            "map_info_source_files": map_info_source_files,
             "prefix_tooltip": prefix_tooltip,
             "code_prefix": code_prefix,
             # this doesn't seem to be present
@@ -1351,17 +1364,17 @@ class TargetLoader:
         xtalform_site = xtalform_sites[v_key]
 
         (  # pylint: disable=unbalanced-tuple-unpacking
-            bound_file,
-            apo_solv_file,
-            apo_desolv_file,
-            apo_file,
-            artefacts_file,
-            sigmaa_file,
-            diff_file,
-            event_file,
-            ligand_pdb,
-            ligand_mol,
-            ligand_smiles,
+            bound_file_t,
+            apo_solv_file_t,
+            apo_desolv_file_t,
+            apo_file_t,
+            artefacts_file_t,
+            sigmaa_file_t,
+            diff_file_t,
+            event_file_t,
+            ligand_pdb_t,
+            ligand_mol_t,
+            ligand_smiles_t,
         ) = self.validate_files(
             obj_identifier=experiment_id,
             file_struct=data,
@@ -1382,6 +1395,18 @@ class TargetLoader:
             ),
             validate_files=validate_files,
         )
+
+        bound_file = bound_file_t[0]
+        apo_solv_file = apo_solv_file_t[0]
+        apo_desolv_file = apo_desolv_file_t[0]
+        apo_file = apo_file_t[0]
+        artefacts_file = artefacts_file_t[0]
+        sigmaa_file = sigmaa_file_t[0]
+        diff_file = diff_file_t[0]
+        event_file = event_file_t[0]
+        ligand_pdb = ligand_pdb_t[0]
+        ligand_mol = ligand_mol_t[0]
+        ligand_smiles = ligand_smiles_t[0]
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
@@ -1547,6 +1572,10 @@ class TargetLoader:
             },
             required=(TRANS_NEIGHBOURHOOD, TRANS_CONF_SITE, TRANS_REF_STRUCT),
         )
+
+        trans_neighbourhood = trans_neighbourhood[0]
+        trans_conf_site = trans_conf_site[0]
+        trans_ref_struct = trans_ref_struct[0]
 
         self.experiment_upload.project = self.project
         self.experiment_upload.target = self.target

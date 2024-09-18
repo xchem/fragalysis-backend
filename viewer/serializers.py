@@ -931,6 +931,12 @@ class CanonSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ExperimentReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Experiment
+        fields = '__all__'
+
+
 class CanonSiteConfReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.CanonSiteConf

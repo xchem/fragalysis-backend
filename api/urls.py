@@ -113,6 +113,7 @@ router.register(
     "site_observations", viewer_views.SiteObservationView, basename='site_observations'
 )
 router.register("canon_sites", viewer_views.CanonSiteView, basename='canon_sites')
+router.register("experiments", viewer_views.ExperimentView, basename='experiments')
 router.register(
     "canon_site_confs", viewer_views.CanonSiteConfView, basename='canon_site_confs'
 )

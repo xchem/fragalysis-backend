@@ -1741,6 +1741,13 @@ class CanonSiteView(ISPyBSafeQuerySet):
     )
 
 
+class ExperimentView(ISPyBSafeQuerySet):
+    queryset = models.Experiment.filter_manager.filter_qs()
+    serializer_class = serializers.ExperimentReadSerializer
+    filterset_class = filters.ExperimentFilter
+    filter_permissions = "experiment_upload__project"
+
+
 class CanonSiteConfView(ISPyBSafeQuerySet):
     queryset = models.CanonSiteConf.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.CanonSiteConfReadSerializer

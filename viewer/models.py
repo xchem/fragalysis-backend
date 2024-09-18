@@ -215,13 +215,17 @@ class Experiment(models.Model):
     pdb_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    pdb_info_source_file = models.TextField(null=True)
     mtz_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    mtz_info_source_file = models.TextField(null=True)
     cif_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    cif_info_source_file = models.TextField(null=True)
     map_info = ArrayField(models.FileField(max_length=255), null=True)
+    map_info_source_files = ArrayField(models.TextField(null=True), null=True)
     type = models.PositiveSmallIntegerField(null=True)
     pdb_sha256 = models.TextField(null=True)
     prefix_tooltip = models.TextField(null=True)
