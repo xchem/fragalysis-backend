@@ -77,13 +77,12 @@ class Target(models.Model):
         (REVOKED, 'REVOKED'),
     )
 
-    title = models.CharField(
-        unique=True, max_length=200, help_text="A title, i.e. Mpro"
-    )
+    title = models.CharField(max_length=200, help_text="A title, i.e. Mpro")
     display_name = models.TextField(null=False, blank=True)
 
     init_date = models.DateTimeField(auto_now_add=True)
-    project_id = models.ManyToManyField(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+
     uniprot_id = models.CharField(
         max_length=100,
         null=True,
@@ -131,8 +130,19 @@ class Target(models.Model):
             self.id,
             self.title,
             self.display_name,
-            self.project_id,
+            self.project,
         )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "title",
+                    "project",
+                ],
+                name="unique_target_in_project",
+            ),
+        ]
 
 
 class ExperimentUpload(models.Model):

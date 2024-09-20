@@ -34,7 +34,7 @@ class IsObjectProposalMember(permissions.BasePermission):
             )
         # The object's proposal records (one or many) can be obtained via
         # the view's 'filter_permissions' property. A standard
-        # django property reference, e.g. 'target__project_id'.
+        # django property reference, e.g. 'target__project'.
         object_proposals = []
         attr_value = getattr(obj, view.filter_permissions)
 

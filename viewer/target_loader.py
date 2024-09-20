@@ -1502,9 +1502,16 @@ class TargetLoader:
             self.report.log(logging.ERROR, msg)
             raise KeyError(msg) from exc
 
+        # project needs to be created before target
+        # TODO: original target loader's function get_create_projects
+        # seems to handle more cases. adopt or copy
+        visit = self.proposal_ref.split()[0]
+        self.project, project_created = Project.objects.get_or_create(title=visit)
+
         self.target, target_created = Target.objects.get_or_create(
             title=self.target_name,
             display_name=self.target_name,
+            project=self.project,
         )
 
         if target_created:
@@ -1521,11 +1528,6 @@ class TargetLoader:
 
         self._final_path = self._final_path.joinpath(target_dir)
         self._abs_final_path = self._abs_final_path.joinpath(target_dir)
-
-        # TODO: original target loader's function get_create_projects
-        # seems to handle more cases. adopt or copy
-        visit = self.proposal_ref.split()[0]
-        self.project, project_created = Project.objects.get_or_create(title=visit)
 
         try:
             committer = get_user_model().objects.get(pk=self.user_id)
@@ -1552,9 +1554,7 @@ class TargetLoader:
             self.project.open_to_public = True
             self.project.save()
 
-        # populate m2m field
         assert self.target
-        self.target.project_id.add(self.project)
 
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking

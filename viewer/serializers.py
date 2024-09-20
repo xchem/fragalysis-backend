@@ -83,12 +83,7 @@ class ValidateProjectMixin:
                 raise serializers.ValidationError(msg) from exc
         assert project_obj
         # Now get the proposals from the Project(s)...
-        if project_obj.__class__.__name__ == "ManyRelatedManager":
-            # Potential for many proposals...
-            object_proposals = [p.title for p in project_obj.all()]
-        else:
-            # Only one proposal...
-            object_proposals = [project_obj.title]
+        object_proposals = project_obj.values_list('title', flat=True)
         if not object_proposals:
             raise PermissionDenied(
                 detail="Authority cannot be granted - the object is not a part of any Project"
@@ -216,7 +211,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "display_name",
-            "project_id",
+            "project",
             "default_squonk_project",
             "template_protein",
             "metadata",
@@ -226,7 +221,7 @@ class TargetSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "id": {"read_only": True},
             "title": {"read_only": True},
-            "project_id": {"read_only": True},
+            "project": {"read_only": True},
             "default_squonk_project": {"read_only": True},
             "template_protein": {"read_only": True},
             "metadata": {"read_only": True},
@@ -781,6 +776,9 @@ class SessionProjectTagSerializer(serializers.ModelSerializer):
 
 class DownloadStructuresSerializer(serializers.Serializer):
     target_name = serializers.CharField(max_length=200, default=None, allow_blank=True)
+    target_access_string = serializers.CharField(
+        max_length=200, default=None, allow_blank=True
+    )
     proteins = serializers.CharField(max_length=5000, default='', allow_blank=True)
     all_aligned_structures = serializers.BooleanField(default=False)
     pdb_info = serializers.BooleanField(default=False)

@@ -638,6 +638,7 @@ TARGET_WARNING_MESSAGE: str = os.environ.get("TARGET_WARNING_MESSAGE", "")
 # To simplify error messages when the match fails you can also
 # add an error message.
 TAS_REGEX: str = os.environ.get("TAS_REGEX", r"^(lb\d{5})(-(\d+)){0,1}$")
+
 TAS_REGEX_ERROR_MSG: str = os.environ.get(
     "TAS_REGEX_ERROR_MSG",
     "Must begin 'lb' followed by 5 digits, optionally followed by a hyphen and a number.",

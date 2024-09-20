@@ -298,6 +298,16 @@ def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ig
                 logger.debug('so_df %s', so_df)
                 so_qs = qs.filter(longcode__in=so_df)
                 logger.debug('pose so queryset: %s', so_qs)
+
+                if not so_qs.exists():
+                    msg = (
+                        f'No observations found for pose {pose_name}.'
+                        + ' Most likely upload data is incompatible with target data.'
+                    )
+                    logger.error(msg)
+                    errors.append(msg)
+                    continue
+
                 try:
                     main_so = so_qs.get(code=pose_name)
                 except SiteObservation.DoesNotExist:

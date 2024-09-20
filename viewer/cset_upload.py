@@ -140,6 +140,7 @@ class MolOps:
         zfile,
         zfile_hashvals,
         computed_set_name,
+        project_name,
     ):
         self.user_id = user_id
         self.sdf_filename = sdf_filename
@@ -150,6 +151,7 @@ class MolOps:
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
         self.computed_set_name = computed_set_name
+        self.project_name = project_name
 
     def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
         for key in zfile_hashvals.keys():
@@ -293,17 +295,7 @@ class MolOps:
             cpd.save()
             # This is a new compound.
             # We must now set relationships to the Proposal that it applies to.
-            # We do this by copying the relationships from the Target.
-            num_target_proposals = len(target.project_id.all())
-            assert num_target_proposals > 0
-            if num_target_proposals > 1:
-                logger.warning(
-                    'Compound Target %s has more than one Proposal (%d)',
-                    target.title,
-                    num_target_proposals,
-                )
-            for project in target.project_id.all():
-                cpd.project_id.add(project)
+            cpd.project_id.add(target.project)
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
             # fetched by inchi_key, so this shouldn't ever create
@@ -628,7 +620,9 @@ class MolOps:
             today: datetime.date = datetime.date.today()
             new_ordinal: int = 1
             try:
-                target = Target.objects.get(title=self.target)
+                target = Target.objects.get(
+                    title=self.target, project=self.project_name
+                )
             except Target.DoesNotExist as exc:
                 # probably wrong target name supplied
                 logger.error('Target %s does not exist', self.target)
