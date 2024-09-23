@@ -931,6 +931,12 @@ class CanonSiteReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ExperimentReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Experiment
+        fields = '__all__'
+
+
 class CanonSiteConfReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.CanonSiteConf
@@ -1132,3 +1138,9 @@ class PoseSerializer(ValidateProjectMixin, serializers.ModelSerializer):
             'site_observations',
             'main_site_observation_cmpd_code',
         )
+
+
+class MetadataUploadSerializer(serializers.Serializer):
+    filename = serializers.FileField()
+    target = serializers.CharField()
+    target_access_string = serializers.CharField()

@@ -215,13 +215,17 @@ class Experiment(models.Model):
     pdb_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    pdb_info_source_file = models.TextField(null=True)
     mtz_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    mtz_info_source_file = models.TextField(null=True)
     cif_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    cif_info_source_file = models.TextField(null=True)
     map_info = ArrayField(models.FileField(max_length=255), null=True)
+    map_info_source_files = ArrayField(models.TextField(null=True), null=True)
     type = models.PositiveSmallIntegerField(null=True)
     pdb_sha256 = models.TextField(null=True)
     prefix_tooltip = models.TextField(null=True)
@@ -500,7 +504,7 @@ class SiteObservation(Versionable, models.Model):
     canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
     pose = models.ForeignKey(
         Pose,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         related_name="site_observations",
     )
@@ -1348,7 +1352,7 @@ class SiteObservationTag(Tag):
     )
 
     def __str__(self) -> str:
-        return f"{self.site_observations}"
+        return f"{self.id}"
 
     def __repr__(self) -> str:
         return "<SiteObservationTag %r %r>" % (self.id, self.site_observations)
