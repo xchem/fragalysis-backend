@@ -67,6 +67,7 @@
 import os
 import sys
 from datetime import timedelta
+from pathlib import Path
 from typing import List, Optional
 
 import sentry_sdk
@@ -220,7 +221,8 @@ if SENTRY_DNS := os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS"):
         send_default_pii=True,
     )
 
-STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
+# STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
+STATIC_ROOT = Path(PROJECT_ROOT).joinpath("code").joinpath("static")
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "fragalysis", "../viewer/static")]
 STATICFILES_FINDERS = (
     "django.contrib.staticfiles.finders.FileSystemFinder",
@@ -363,7 +365,7 @@ USE_L10N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = "/static/"
+STATIC_URL = "/code/static/"
 MEDIA_ROOT = "/code/media/"
 MEDIA_URL = "/media/"
 
