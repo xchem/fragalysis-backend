@@ -1,4 +1,5 @@
 import ast
+import copy
 import datetime
 import logging
 import os
@@ -354,6 +355,10 @@ class MolOps:
         inchi = Chem.inchi.MolToInchi(mol)
         molecule_name = mol.GetProp('_Name')
 
+        flattened_copy = copy.deepcopy(mol)
+        Chem.RemoveStereochemistry(mol)
+        flat_inchi = Chem.inchi.MolToInchi(flattened_copy)
+
         compound: Compound = self.create_mol(
             inchi, compound_set.target, name=molecule_name
         )
@@ -442,6 +447,11 @@ class MolOps:
 
         existing_computed_molecules = []
         for k in qs:
+            if k.compound.inchi_key == flat_inchi:
+                # existing compound is a flattened copy of the new one, match found
+                existing_computed_molecules.append(k)
+                continue
+
             kmol = Chem.MolFromMolBlock(k.sdf_info)
             if kmol:
                 # find distances between corresponding atoms of the
