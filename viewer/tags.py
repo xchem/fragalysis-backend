@@ -207,7 +207,7 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
 
 
 def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ignore [return]
-    # from viewer.tags import load_tags_from_file; from viewer.models import Target; target = Target.objects.get(title='A71EV2A'); load_tags_from_file('metadata_modified_ok.xlsx', target)
+    # from viewer.tags import load_tags_from_file; from viewer.models import Target; target = Target.objects.get(pk=1); load_tags_from_file('metadata.csv', target)
 
     errors: list[str] = []
 
@@ -397,9 +397,6 @@ def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ig
 
                 try:
                     so_tag = curated_tags.get(tag=tagname)
-                    so_from_db = set(
-                        so_tag.site_observations.values_list('pk', flat=True)
-                    )
                 except SiteObservationTag.DoesNotExist:
                     so_tag = SiteObservationTag(
                         tag=tagname,
@@ -413,9 +410,12 @@ def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ig
                     logger.debug('so tag instance: %s', so_tag)
                     so_tag.save()
 
+                so_from_db = set(so_tag.site_observations.values_list('pk', flat=True))
+
                 site_observations = qs.filter(
                     longcode__in=df.loc[df[tc] == True]['Long code']
                 )
+
                 # compare observations from file and db, update only if different
                 so_from_df = set(site_observations.values_list('pk', flat=True))
                 if so_from_db != so_from_df:
