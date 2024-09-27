@@ -102,7 +102,6 @@ def process_compound_set(validate_output):
         zfile=zfile,
         zfile_hashvals=zfile_hashvals,
         computed_set_name=computed_set_name,
-        project_name=params['proposal_ref'],
     )
     compound_set = save_mols.task()
 
@@ -159,7 +158,6 @@ def validate_compound_set(task_params):
     user_id = task_params['user_id']
     sdf_file = task_params['sdf_file']
     target = task_params['target']
-    proposal_ref = task_params['proposal_ref']
     # Optional params
     zfile = task_params.get('zfile')
     update = task_params.get('update')
@@ -168,7 +166,6 @@ def validate_compound_set(task_params):
     logger.info('validate_compound_set() user_id=%s', user_id)
     logger.info('validate_compound_set() sdf_file=%s', sdf_file)
     logger.info('validate_compound_set() target=%s', target)
-    logger.info('validate_compound_set() proposal_ref=%s', proposal_ref)
     logger.info('validate_compound_set() update=%s', update)
 
     validated = True
@@ -190,7 +187,6 @@ def validate_compound_set(task_params):
         'user_id': user_id,
         'sdf': sdf_file,
         'target': target,
-        'proposal_ref': proposal_ref,
         'pdb_zip': zfile,
         'update': update,
     }

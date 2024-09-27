@@ -140,18 +140,16 @@ class MolOps:
         zfile,
         zfile_hashvals,
         computed_set_name,
-        project_name,
     ):
         self.user_id = user_id
         self.sdf_filename = sdf_filename
         self.submitter_name = submitter_name
         self.submitter_method = submitter_method
-        self.target = target
+        self.target_id = target
         self.version = version
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
         self.computed_set_name = computed_set_name
-        self.project_name = project_name
 
     def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
         for key in zfile_hashvals.keys():
@@ -619,13 +617,13 @@ class MolOps:
 
             today: datetime.date = datetime.date.today()
             new_ordinal: int = 1
+
             try:
-                target = Target.objects.get(
-                    title=self.target, project=self.project_name
-                )
+                target = Target.objects.get(pk=self.target_id)
             except Target.DoesNotExist as exc:
-                # probably wrong target name supplied
-                logger.error('Target %s does not exist', self.target)
+                # target's existance should be validated in the view,
+                # this could hardly happen
+                logger.error('Target %s does not exist', self.target_id)
                 raise Target.DoesNotExist from exc
 
             cs_name: str = (
@@ -677,7 +675,7 @@ class MolOps:
         for i in range(len(mols_to_process)):
             _ = self.process_mol(
                 mols_to_process[i],
-                self.target,
+                self.target_id,
                 computed_set,
                 sdf_filename,
                 self.zfile,

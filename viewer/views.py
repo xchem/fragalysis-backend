@@ -528,8 +528,7 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                 task_params = {
                     'user_id': user.id,
                     'sdf_file': tmp_sdf_file,
-                    'target': target,
-                    'proposal_ref': proposal_ref,
+                    'target': target.pk,
                 }
                 if tmp_pdb_file:
                     task_params['zfile'] = tmp_pdb_file
@@ -561,8 +560,7 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                 task_params = {
                     'user_id': user.id,
                     'sdf_file': tmp_sdf_file,
-                    'target': target,
-                    'proposal_ref': proposal_ref,
+                    'target': target.pk,
                 }
                 if tmp_pdb_file:
                     task_params['zfile'] = tmp_pdb_file
