@@ -89,6 +89,25 @@ class UploadTagSubquery(Subquery):
         # fmt: on
 
 
+class ShortTagSubquery(Subquery):
+    """Annotate SiteObservation with short tag of given category"""
+
+    def __init__(self, category):
+        # fmt: off
+        query = SiteObservationTag.objects.filter(
+            pk=Subquery(
+                SiteObvsSiteObservationTag.objects.filter(
+                    site_observation=OuterRef(OuterRef('pk')),
+                    site_obvs_tag__category=TagCategory.objects.get(
+                        category=category,
+                    ),
+                ).values('site_obvs_tag')[:1]
+            )
+        ).values('short_tag')[0:1]
+        super().__init__(query)
+        # fmt: on
+
+
 class CuratedTagSubquery(Exists):
     """Annotate SiteObservation with tag of given category"""
 
@@ -180,7 +199,14 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
         header.append(f'{category.category} upload name')
         annotations[upload_tag] = UploadTagSubquery(category.category)
 
-    # ... the aliases
+    # ... the short tags
+    for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
+        short_tag = f'short_tag_{category.category.lower()}'
+        values.append(short_tag)
+        header.append(f'{category.category} short tag')
+        annotations[short_tag] = ShortTagSubquery(category.category)
+
+    # ... and then aliases
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'
         values.append(tag)
