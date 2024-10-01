@@ -89,6 +89,25 @@ class UploadTagSubquery(Subquery):
         # fmt: on
 
 
+class ShortTagSubquery(Subquery):
+    """Annotate SiteObservation with short tag of given category"""
+
+    def __init__(self, category):
+        # fmt: off
+        query = SiteObservationTag.objects.filter(
+            pk=Subquery(
+                SiteObvsSiteObservationTag.objects.filter(
+                    site_observation=OuterRef(OuterRef('pk')),
+                    site_obvs_tag__category=TagCategory.objects.get(
+                        category=category,
+                    ),
+                ).values('site_obvs_tag')[:1]
+            )
+        ).values('short_tag')[0:1]
+        super().__init__(query)
+        # fmt: on
+
+
 class CuratedTagSubquery(Exists):
     """Annotate SiteObservation with tag of given category"""
 
@@ -180,7 +199,14 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
         header.append(f'{category.category} upload name')
         annotations[upload_tag] = UploadTagSubquery(category.category)
 
-    # ... the aliases
+    # ... the short tags
+    for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
+        short_tag = f'short_tag_{category.category.lower()}'
+        values.append(short_tag)
+        header.append(f'{category.category} short tag')
+        annotations[short_tag] = ShortTagSubquery(category.category)
+
+    # ... and then aliases
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'
         values.append(tag)
@@ -207,7 +233,7 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
 
 
 def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ignore [return]
-    # from viewer.tags import load_tags_from_file; from viewer.models import Target; target = Target.objects.get(title='A71EV2A'); load_tags_from_file('metadata_modified_ok.xlsx', target)
+    # from viewer.tags import load_tags_from_file; from viewer.models import Target; target = Target.objects.get(pk=1); load_tags_from_file('metadata.csv', target)
 
     errors: list[str] = []
 
@@ -407,9 +433,6 @@ def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ig
 
                 try:
                     so_tag = curated_tags.get(tag=tagname)
-                    so_from_db = set(
-                        so_tag.site_observations.values_list('pk', flat=True)
-                    )
                 except SiteObservationTag.DoesNotExist:
                     so_tag = SiteObservationTag(
                         tag=tagname,
@@ -423,9 +446,12 @@ def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ig
                     logger.debug('so tag instance: %s', so_tag)
                     so_tag.save()
 
+                so_from_db = set(so_tag.site_observations.values_list('pk', flat=True))
+
                 site_observations = qs.filter(
                     longcode__in=df.loc[df[tc] == True]['Long code']
                 )
+
                 # compare observations from file and db, update only if different
                 so_from_df = set(site_observations.values_list('pk', flat=True))
                 if so_from_db != so_from_df:
