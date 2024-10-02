@@ -1515,8 +1515,9 @@ class TargetLoader:
         )
 
         if target_created:
+            target_dir = f"{self.target_name}_{self.proposal_ref}"
             # mypy thinks target and target_name are None
-            target_dir = sanitize_directory_name(self.target_name, self.abs_final_path)  # type: ignore [arg-type]
+            target_dir = sanitize_directory_name(target_dir, self.abs_final_path)  # type: ignore [arg-type]
             self.target.zip_archive = target_dir  # type: ignore [attr-defined]
             self.target.save()  # type: ignore [attr-defined]
         else:
@@ -2314,7 +2315,7 @@ def _move_and_save_target_experiment(target_loader):
         str(target_loader.abs_final_path),
     )
     Path(target_loader.bundle_path).rename(
-        target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
+        target_loader.abs_final_path.joinpath(target_loader.data_bundle)
     )
 
     set_directory_permissions(target_loader.abs_final_path, 0o755)

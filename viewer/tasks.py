@@ -144,7 +144,7 @@ def validate_compound_set(task_params):
         - params (dict):
             - user_id (int): User record ID of user initiating the task
             - sdf (str): name of the uploaded sdf file
-            - target (str): name of the target that the computed set is associated with
+            - target (int): id of the target that the computed set is associated with
             - zfile: dictionary where key is the name of the file minus extension
                      and path, and value is the filename, which is saved to
                      temporary storage by `viewer.views.UploadCSet`

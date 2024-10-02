@@ -213,7 +213,7 @@ class MolOps:
         try:
             site_obvs = SiteObservation.objects.get(
                 code__contains=name,
-                experiment__experiment_upload__target__title=target,
+                experiment__experiment_upload__target__pk=target,
             )
         except SiteObservation.DoesNotExist:
             # Initial SiteObservation lookup failed.
@@ -226,7 +226,7 @@ class MolOps:
             # If all else fails then the site_obvs will be 'None'
             qs = SiteObservation.objects.filter(
                 code__contains=name,
-                experiment__experiment_upload__target__title=target,
+                experiment__experiment_upload__target__pk=target,
             )
             if qs.exists():
                 logger.info(
@@ -238,7 +238,7 @@ class MolOps:
                 alt_name = name.split(':')[0].split('_')[0]
                 qs = SiteObservation.objects.filter(
                     code__contains=alt_name,
-                    experiment__experiment_upload__target__title=target,
+                    experiment__experiment_upload__target__pk=target,
                 )
                 if qs.exists():
                     logger.info(
@@ -357,13 +357,13 @@ class MolOps:
             try:
                 site_obvs = SiteObservation.objects.get(
                     code=str(i),
-                    experiment__experiment_upload__target_id=compound_set.target,
+                    experiment__experiment_upload__target=compound_set.target,
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
                 qs = SiteObservation.objects.filter(
                     code=str(i.split(':')[0].split('_')[0]),
-                    experiment__experiment_upload__target_id=compound_set.target,
+                    experiment__experiment_upload__target=compound_set.target,
                 )
                 if not qs.exists():
                     raise Exception(  # pylint: disable=raise-missing-from
