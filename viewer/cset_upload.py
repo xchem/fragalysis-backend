@@ -3,6 +3,7 @@ import copy
 import datetime
 import logging
 import os
+import re
 import uuid
 import zipfile
 from pathlib import Path
@@ -20,8 +21,7 @@ from django.conf import settings
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db.models import F, TextField, Value
-from django.db.models.expressions import Func
+from django.db.models import F
 from rdkit import Chem
 
 from viewer.models import (
@@ -414,34 +414,26 @@ class MolOps:
         # Check if anything exists already...
 
         # I think, realistically, I only need to check compound
-        # fmt: off
+        # update: I used to annotate name components, with the new
+        # format, this is not necessary. or possible fmt: off
         qs = ComputedMolecule.objects.filter(
             compound=compound,
-        ).annotate(
-            # names come in format:
-            # target_name-sequential number-sequential letter,
-            # e.g. A71EV2A-1-a, hence grabbing the 3rd column
-            suffix=Func(
-                F('name'),
-                Value('-'),
-                Value(3),
-                function='split_part',
-                output_field=TextField(),
-            ),
-        )
+        ).order_by('name')
 
         if qs.exists():
-            suffix = next(
-                alphanumerator(start_from=qs.order_by('-suffix').first().suffix)
-            )
+            # not actually latest, just last according to sorting above
+            latest = qs.last()
+            # regex pattern - split name like 'v1a'
+            # ('(letters)(digits)(letters)' to components
+            groups = re.search(r'()(\d+)(\D+)', qs.last().name)
+            if groups is None or len(groups.groups()) != 3:
+                # just a quick sanity check
+                raise ValueError(f'Non-standard ComputedMolecule.name: {latest.name}')
+            number = groups.groups[1]  # type: ignore [index]
+            suffix = next(alphanumerator(start_from=groups.groups[2]))  # type: ignore [index]
         else:
             suffix = 'a'
-
-        # distinct is ran on indexed field, so shouldn't be a problem
-        number = ComputedMolecule.objects.filter(
-            computed_set__target=compound_set.target,
-        ).values('id').distinct().count() + 1
-        # fmt: on
+            number = 1
 
         name = f'v{number}{suffix}'
 
