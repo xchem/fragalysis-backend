@@ -113,10 +113,10 @@ class ProcessedObject:
 
     model_class: ModelBase
     fields: dict
-    key: str
+    key: str | tuple[str, str]
     defaults: dict = field(default_factory=dict)
     index_data: dict = field(default_factory=dict)
-    versioned_key: Optional[str] = ""
+    versioned_key: Optional[str | tuple[str, str]] = ""
 
 
 @dataclass
@@ -298,7 +298,7 @@ def create_objects(func=None, *, depth=math.inf):
     @functools.wraps(func)
     def wrapper_create_objects(
         self, *args, yaml_data: dict, **kwargs
-    ) -> dict[int | str, MetadataObject]:
+    ) -> dict[int | str | tuple[str, str], MetadataObject]:
         # logger.debug("+ wrapper_service_query")
         # logger.debug("args passed: %s", args)
         # logger.debug("kwargs passed: %s", kwargs)
@@ -818,11 +818,6 @@ class TargetLoader:
                 logging.ERROR, f"Unexpected status '{dstatus}' for {experiment_name}"
             )
 
-        try:
-            smiles = data["crystallographic_files"]["ligand_cif"]["smiles"]
-        except KeyError:
-            smiles = ""
-
         # if empty or key missing entirely, ensure code_prefix returns empty
         code_prefix = extract(key="code_prefix", level=logging.INFO)
         # ignoring type because tooltip dict can legitimately be empty
@@ -860,7 +855,6 @@ class TargetLoader:
 
         index_fields = {
             "xtalform": assigned_xtalform,
-            "smiles": smiles,
             "code_prefix": code_prefix,
         }
 
@@ -873,64 +867,65 @@ class TargetLoader:
             index_data=index_fields,
         )
 
-    @create_objects(depth=1)
+    @create_objects(depth=5)
     def process_compound(
         self,
         experiments: dict[int | str, MetadataObject],
-        item_data: tuple[str, dict] | None = None,
+        item_data: tuple[str, str, str, str, str, dict] | None = None,
         **kwargs,
     ) -> ProcessedObject | None:
         """Extract data from yaml block for creating Compound instance.
 
-        Incoming data format:
-        xtal_pdb: {file: <file path>, sha256: <hash>}
-        xtal_mtz: {file: <file path>, sha256: <hash>}
-        ligand_cif: {file: <file path>, sha256: <hash>, smiles: <smiles>}
-        panddas_event_files:
-        - {file: <file path>, sha256: <hash>,
-          model: <int>, chain: <char[1]>, res: <int>, index: <int>, bdc: <float>}
-        - {file: <file path>, sha256: <hash>,
-          model: <int>, chain: <char[1]>, res: <int>, index: <int>, bdc: <float>}
+        Incoming item_data format:
+        experiment_name <str>,
+        "crystallographic_files" <str>,
+        "ligand_cif" <str>,
+        "ligands" <str>,
+        ligand_key <strr>,
+        {
+            "smiles": smiles <str>
+        }
 
         NB! After creation, many2many with project needs to be populated
         """
         del kwargs
         assert item_data
         logger.debug("incoming data: %s", item_data)
-        protein_name, data = item_data
+
+        # remove non-compound objects
+        try:
+            experiment_name, _, _, _, ligand_key, data = item_data
+        except ValueError:
+            # wrong data item
+            return None
+
+        # more validation
         if (
-            "aligned_files" not in data.keys()
-            or not experiments[protein_name].new  # remove already saved objects
-            or "crystallographic_files" not in data.keys()
+            item_data[1] != "crystallographic_files"
+            or item_data[2] != "ligand_cif"
+            or item_data[3] != "ligands"
+            or not experiments[experiment_name].new  # remove already saved objects
         ):
             return None
 
-        try:
-            smiles = data["crystallographic_files"]["ligand_cif"]["smiles"]
-        except KeyError as exc:
-            # just setting the var to something
-            smiles = (
-                "crystallographic_files"
-                if exc.args[0] == "ligand_cif"
-                else "ligand_cif"
-            )
-            self.report.log(
-                logging.WARNING,
-                f"{exc} missing from {smiles} in '{protein_name}' experiment section",
-            )
+        smiles = data.get("smiles", None)
+        compound_code = data.get("compound_code", None)
+
+        if smiles is None and compound_code is None:
+            # gotta have at least something
             return None
 
         defaults = {
             "smiles": smiles,
-            "compound_code": data.get("compound_code", None),
+            "compound_code": compound_code,
         }
 
         return ProcessedObject(
             model_class=Compound,
             fields={},
             defaults=defaults,
-            key=protein_name,
-            versioned_key=protein_name,
+            key=(experiment_name, ligand_key),
+            versioned_key=(experiment_name, ligand_key),
         )
 
     @create_objects(depth=1)
@@ -1331,9 +1326,11 @@ class TargetLoader:
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
 
         smiles = extract(key="ligand_smiles_string")
+        ligand_name = extract(key="ligand_name")
 
         try:
-            compound = compounds[experiment_id].instance
+            compound = compounds[(experiment_id, ligand_name)].instance  # type: ignore[index]
+            # I don't understand the error above, I've definitely declared the tuple type
         except KeyError:
             # compound not saved on this round, but if this is not the
             # first upload, experiment and compound may have come from
@@ -1630,10 +1627,10 @@ class TargetLoader:
         # TODO: is it 1:1 relationship? looking at the meta_align it
         # seems to be, but why the m2m then?
         for (
-            comp_code,
+            comp_code,  # it's tuple here, (epx_name, ligand_key)
             comp_meta,
         ) in compound_objects.items():  # pylint: disable=no-member
-            experiment = experiment_objects[comp_code].instance
+            experiment = experiment_objects[comp_code[0]].instance
             experiment.compounds.add(comp_meta.instance)
             comp_meta.instance.project_id.add(self.experiment_upload.project)
 
