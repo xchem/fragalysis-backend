@@ -11,7 +11,6 @@ class Migration(migrations.Migration):
     ]
 
     def restruct_projects(apps, schema_editor):
-        Project = apps.get_model('viewer', 'Project')
         Target = apps.get_model('viewer', 'Target')
 
         # atm, target has m2m to project
