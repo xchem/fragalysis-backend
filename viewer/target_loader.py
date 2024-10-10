@@ -626,13 +626,13 @@ class TargetLoader:
                 continue
 
             # file key should go to result dict no matter what
-            result[key] = filename
+            result[key] = (filename, source_file)
             logger.debug("Adding key %s: %s", key, filename)
 
         files = []
         for f in list(required) + list(recommended):
             try:
-                files.append((result[f], source_file))
+                files.append(result[f])
             except KeyError:
                 logfunc(
                     f,
