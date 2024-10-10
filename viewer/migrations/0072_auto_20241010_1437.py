@@ -27,10 +27,10 @@ class Migration(migrations.Migration):
         root_path = Path(MEDIA_ROOT).joinpath(TARGET_LOADER_MEDIA_DIRECTORY)
         for target in Target.objects.all():
             new_archive_dir = sanitize_directory_name(
-                f"{target.zip_archive}_{target.project.title}",
+                f"{target.zip_archive.name}_{target.project.title}",
                 root_path,
             )
-            old_data_path = root_path.joinpath(target.zip_archive)
+            old_data_path = root_path.joinpath(target.zip_archive.name)
             new_data_path = root_path.joinpath(new_archive_dir)
 
             old_data_path.rename(new_data_path)
