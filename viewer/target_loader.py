@@ -626,13 +626,13 @@ class TargetLoader:
                 continue
 
             # file key should go to result dict no matter what
-            result[key] = filename
+            result[key] = (filename, source_file)
             logger.debug("Adding key %s: %s", key, filename)
 
         files = []
         for f in list(required) + list(recommended):
             try:
-                files.append((result[f], source_file))
+                files.append(result[f])
             except KeyError:
                 logfunc(
                     f,
@@ -2029,7 +2029,7 @@ class TargetLoader:
         # tag all new observations, so that the curator can find and
         # re-pose them
         self._tag_observations(
-            "New",
+            self.version_dir,
             "",
             TagCategory.objects.get(category="Other"),
             [
@@ -2037,6 +2037,7 @@ class TargetLoader:
                 for k in site_observation_objects.values()  # pylint: disable=no-member
                 if k.new
             ],
+            clean_ids=False,
         )
 
     def _load_yaml(self, yaml_file: Path) -> dict:
@@ -2156,6 +2157,7 @@ class TargetLoader:
         site_observations: list,
         hidden: bool = False,
         short_tag: str | None = None,
+        clean_ids: bool = True,
     ) -> None:
         try:
             # memo to self: description is set to tag, but there's
@@ -2186,9 +2188,10 @@ class TargetLoader:
         tag = tag if short_tag is None else short_tag
         short_name = name if short_tag is None else f"{prefix} - {short_tag}"
 
-        tag = clean_object_id(tag)
-        name = clean_object_id(name)
-        short_name = clean_object_id(short_name)
+        if clean_ids:
+            tag = clean_object_id(tag)
+            name = clean_object_id(name)
+            short_name = clean_object_id(short_name)
 
         try:
             so_tag = SiteObservationTag.objects.get(
