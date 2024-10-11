@@ -146,7 +146,7 @@ class MolOps:
         self.sdf_filename = sdf_filename
         self.submitter_name = submitter_name
         self.submitter_method = submitter_method
-        self.target = target
+        self.target_id = target
         self.version = version
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
@@ -214,7 +214,7 @@ class MolOps:
         try:
             site_obvs = SiteObservation.objects.get(
                 code__contains=name,
-                experiment__experiment_upload__target__title=target,
+                experiment__experiment_upload__target__pk=target,
             )
         except SiteObservation.DoesNotExist:
             # Initial SiteObservation lookup failed.
@@ -227,7 +227,7 @@ class MolOps:
             # If all else fails then the site_obvs will be 'None'
             qs = SiteObservation.objects.filter(
                 code__contains=name,
-                experiment__experiment_upload__target__title=target,
+                experiment__experiment_upload__target__pk=target,
             )
             if qs.exists():
                 logger.info(
@@ -239,7 +239,7 @@ class MolOps:
                 alt_name = name.split(':')[0].split('_')[0]
                 qs = SiteObservation.objects.filter(
                     code__contains=alt_name,
-                    experiment__experiment_upload__target__title=target,
+                    experiment__experiment_upload__target__pk=target,
                 )
                 if qs.exists():
                     logger.info(
@@ -294,17 +294,7 @@ class MolOps:
             cpd.save()
             # This is a new compound.
             # We must now set relationships to the Proposal that it applies to.
-            # We do this by copying the relationships from the Target.
-            num_target_proposals = len(target.project_id.all())
-            assert num_target_proposals > 0
-            if num_target_proposals > 1:
-                logger.warning(
-                    'Compound Target %s has more than one Proposal (%d)',
-                    target.title,
-                    num_target_proposals,
-                )
-            for project in target.project_id.all():
-                cpd.project_id.add(project)
+            cpd.project_id.add(target.project)
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
             # fetched by inchi_key, so this shouldn't ever create
@@ -372,13 +362,13 @@ class MolOps:
             try:
                 site_obvs = SiteObservation.objects.get(
                     code=str(i),
-                    experiment__experiment_upload__target_id=compound_set.target,
+                    experiment__experiment_upload__target=compound_set.target,
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
                 qs = SiteObservation.objects.filter(
                     code=str(i.split(':')[0].split('_')[0]),
-                    experiment__experiment_upload__target_id=compound_set.target,
+                    experiment__experiment_upload__target=compound_set.target,
                 )
                 if not qs.exists():
                     raise Exception(  # pylint: disable=raise-missing-from
@@ -629,11 +619,13 @@ class MolOps:
 
             today: datetime.date = datetime.date.today()
             new_ordinal: int = 1
+
             try:
-                target = Target.objects.get(title=self.target)
+                target = Target.objects.get(pk=self.target_id)
             except Target.DoesNotExist as exc:
-                # probably wrong target name supplied
-                logger.error('Target %s does not exist', self.target)
+                # target's existance should be validated in the view,
+                # this could hardly happen
+                logger.error('Target %s does not exist', self.target_id)
                 raise Target.DoesNotExist from exc
 
             cs_name: str = (
@@ -685,7 +677,7 @@ class MolOps:
         for i in range(len(mols_to_process)):
             _ = self.process_mol(
                 mols_to_process[i],
-                self.target,
+                self.target_id,
                 computed_set,
                 sdf_filename,
                 self.zfile,

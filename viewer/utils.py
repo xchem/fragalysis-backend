@@ -302,7 +302,7 @@ def restore_curated_tags(filename: str) -> None:
             )
             for data in so_group_data:
                 try:
-                    target = targets.get(title=data['ann_target_name'])
+                    target = targets.get(pk=data['target_id'])
                 except Target.DoesNotExist:
                     logger.warning(
                         'Tried to restore SiteObservationGroup for target that does not exist: %s',
@@ -324,7 +324,7 @@ def restore_curated_tags(filename: str) -> None:
             )
             for data in so_tag_data:
                 try:
-                    target = targets.get(title=data['ann_target_name'])
+                    target = targets.get(pk=data['target_id'])
                 except Target.DoesNotExist:
                     logger.warning(
                         'Tried to restore SiteObservationTag for target that does not exist: %s',

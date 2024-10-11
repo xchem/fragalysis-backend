@@ -1502,14 +1502,22 @@ class TargetLoader:
             self.report.log(logging.ERROR, msg)
             raise KeyError(msg) from exc
 
+        # project needs to be created before target
+        # TODO: original target loader's function get_create_projects
+        # seems to handle more cases. adopt or copy
+        visit = self.proposal_ref.split()[0]
+        self.project, project_created = Project.objects.get_or_create(title=visit)
+
         self.target, target_created = Target.objects.get_or_create(
             title=self.target_name,
             display_name=self.target_name,
+            project=self.project,
         )
 
         if target_created:
+            target_dir = f"{self.target_name}_{self.proposal_ref}"
             # mypy thinks target and target_name are None
-            target_dir = sanitize_directory_name(self.target_name, self.abs_final_path)  # type: ignore [arg-type]
+            target_dir = sanitize_directory_name(target_dir, self.abs_final_path)  # type: ignore [arg-type]
             self.target.zip_archive = target_dir  # type: ignore [attr-defined]
             self.target.save()  # type: ignore [attr-defined]
         else:
@@ -1521,11 +1529,6 @@ class TargetLoader:
 
         self._final_path = self._final_path.joinpath(target_dir)
         self._abs_final_path = self._abs_final_path.joinpath(target_dir)
-
-        # TODO: original target loader's function get_create_projects
-        # seems to handle more cases. adopt or copy
-        visit = self.proposal_ref.split()[0]
-        self.project, project_created = Project.objects.get_or_create(title=visit)
 
         try:
             committer = get_user_model().objects.get(pk=self.user_id)
@@ -1552,9 +1555,7 @@ class TargetLoader:
             self.project.open_to_public = True
             self.project.save()
 
-        # populate m2m field
         assert self.target
-        self.target.project_id.add(self.project)
 
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -2317,7 +2318,7 @@ def _move_and_save_target_experiment(target_loader):
         str(target_loader.abs_final_path),
     )
     Path(target_loader.bundle_path).rename(
-        target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
+        target_loader.abs_final_path.joinpath(target_loader.data_bundle)
     )
 
     set_directory_permissions(target_loader.abs_final_path, 0o755)

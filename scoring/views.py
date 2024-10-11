@@ -34,7 +34,7 @@ class ViewSceneView(
     # filter_backends = (filters.DjangoFilterBackend,)
     serializer_class = ViewSceneSerializer
     filterset_fields = ("user_id", "uuid")
-    filter_permissions = "snapshot__session_project__target__project_id"
+    filter_permissions = "snapshot__session_project__target__project"
     permission_classes = [IsObjectProposalMember]
 
     def put(self, request, *args, **kwargs):
@@ -113,7 +113,7 @@ class SiteObservationGroupView(
     queryset = SiteObservationGroup.objects.all()
     serializer_class = SiteObservationGroupSerializer
     filterset_fields = ("group_type", "site_observation", "target", "description")
-    filter_permissions = "target__project_id"
+    filter_permissions = "target__project"
     permission_classes = [IsObjectProposalMember]
 
 
