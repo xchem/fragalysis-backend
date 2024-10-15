@@ -635,6 +635,13 @@ class ComputedSetSerializer(ValidateProjectMixin, serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ComputedSetDownloadSerializer(serializers.ModelSerializer):
+    # validation is not called, so no reason to use it
+    class Meta:
+        model = models.ComputedSet
+        fields = ('name',)
+
+
 class ComputedMoleculeSerializer(serializers.ModelSerializer):
     # performance issue
     # inspiration_frags = MoleculeSerializer(read_only=True, many=True)

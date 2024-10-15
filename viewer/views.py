@@ -2594,4 +2594,67 @@ class UploadMetadataView(ISPyBSafeQuerySet):
         if errors:
             return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'sucess': True}, status=status.HTTP_200_OK)
+            return Response({'success': True}, status=status.HTTP_200_OK)
+
+
+class DownloadComputedSetView(ISPyBSafeQuerySet):
+    queryset = models.ComputedSet.objects.all()
+    filter_permissions = "target__project"
+    serializer_class = serializers.ComputedSetDownloadSerializer
+    permission_class = [permissions.IsAuthenticated]
+
+    def get_view_name(self):
+        return "Computed set download"
+
+    def post(self, request, *args, **kwargs):
+        logger.info("+ DownloadComputedSetView.create called")
+        del args, kwargs
+
+        logger.debug('self: %s', self)
+        logger.debug('request: %s', request)
+        logger.debug('data: %s', request.data)
+        # logger.debug('context: %s', self.context)
+
+        # If done like this, I'm bypassing the validation..
+
+        # serializer = self.get_serializer_class()(data=request.data, context={'request': request, 'view': self})
+        # logger.debug('serializer: %s', serializer)
+        # if not serializer.is_valid():
+        #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # logger.debug("Serializer validated_data=%s", serializer.validated_data)
+
+        # computed_set_name = serializer.validated_data['name']
+        # computed_set = models.ComputedSet.objects.get(name=computed_set_name)
+
+        computed_set_name = request.data['name']
+        try:
+            computed_set = models.ComputedSet.objects.get(name=computed_set_name)
+        except models.ComputedSet.DoesNotExist:
+            return Response(
+                {'error': f"ComputedSet '{computed_set_name}' not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # if computed_set.target.project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+        #     request.user, restrict_public_to_membership=False
+        # ):
+        #     return Response(
+        #         {'error': "You have no access to the Project"},
+        #         status=status.HTTP_403_FORBIDDEN,
+        #     )
+
+        # so now, get the file, and get the pdbs
+        sdf_file = Path(computed_set.written_sdf_filename)
+        if not sdf_file.exists():
+            return Response(
+                {'error': f"Uploaded file '{str(sdf_file.name)}' not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Finally, return the file
+        wrapper = FileWrapper(open(sdf_file, 'rb'))
+        response = FileResponse(wrapper, content_type='text/plain')
+        response['Content-Disposition'] = 'attachment; filename="%s"' % sdf_file.name
+        response['Content-Length'] = os.path.getsize(sdf_file)
+        return response

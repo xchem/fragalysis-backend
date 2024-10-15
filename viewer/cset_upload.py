@@ -419,8 +419,8 @@ class MolOps:
             if groups is None or len(groups.groups()) != 3:
                 # just a quick sanity check
                 raise ValueError(f'Non-standard ComputedMolecule.name: {latest.name}')
-            number = groups.groups[1]  # type: ignore [index]
-            suffix = next(alphanumerator(start_from=groups.groups[2]))  # type: ignore [index]
+            number = groups.groups()[1]  # type: ignore [index]
+            suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
             suffix = 'a'
             number = 1
