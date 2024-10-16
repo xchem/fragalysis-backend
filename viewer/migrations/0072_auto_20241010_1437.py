@@ -56,9 +56,12 @@ class Migration(migrations.Migration):
                     target_tarball = [p for p in old_data_path.glob("*") if p.is_file()][0]
 
                     upload_dir = next(target_subdir.glob('upload_*'))
-                    upload_dir.rename(new_data_path.joinpath(upload_dir.parts[-1]))
+                    # NB! move tarball first!
                     new_tarball_path = new_data_path.joinpath(target_tarball.name)
                     target_tarball.rename(new_tarball_path)
+                    # and then the rest of the data
+                    upload_dir.rename(new_data_path.joinpath(upload_dir.parts[-1]))
+
 
 
             target.zip_archive = new_archive_dir
