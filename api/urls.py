@@ -124,6 +124,11 @@ router.register("poses", viewer_views.PoseView, basename='poses')
 router.register(
     "metadata_upload", viewer_views.UploadMetadataView, basename='metadata_upload'
 )
+router.register(
+    "computedset_download",
+    viewer_views.DownloadComputedSetView,
+    basename='computedset_download',
+)
 
 # Squonk Jobs
 router.register(

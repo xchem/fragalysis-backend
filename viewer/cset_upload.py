@@ -168,8 +168,13 @@ class MolOps:
 
         new_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_field)
         old_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_fp)
-        old_filename.rename(new_filename)
-        os.chmod(new_filename, 0o755)
+
+        # there may be a case where 2 or more molfiles reference the
+        # same pdb. in this case, the old pdb is already renamed to
+        # new.
+        if old_filename.exists() and not new_filename.exists():
+            old_filename.rename(new_filename)
+            os.chmod(new_filename, 0o755)
 
         return str(pdb_field)
 
@@ -419,8 +424,8 @@ class MolOps:
             if groups is None or len(groups.groups()) != 3:
                 # just a quick sanity check
                 raise ValueError(f'Non-standard ComputedMolecule.name: {latest.name}')
-            number = groups.groups[1]  # type: ignore [index]
-            suffix = next(alphanumerator(start_from=groups.groups[2]))  # type: ignore [index]
+            number = groups.groups()[1]  # type: ignore [index]
+            suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
             suffix = 'a'
             number = 1
@@ -675,6 +680,9 @@ class MolOps:
         # Process the molecules
         logger.info('%s mols_to_process=%s', computed_set, len(mols_to_process))
         for i in range(len(mols_to_process)):
+            logger.debug(
+                'processing mol %s: %s', i, mols_to_process[i].GetProp('_Name')
+            )
             _ = self.process_mol(
                 mols_to_process[i],
                 self.target_id,

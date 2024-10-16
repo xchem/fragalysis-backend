@@ -1078,6 +1078,20 @@ class ComputedMolecule(models.Model):
             self.site_observation_code,
         )
 
+    def get_filename(self):
+        # strip the original filename from the auto-assigned name
+        # filename is stored in field like:
+        # computed_set_data/A0486a#c2b8d13c94bb40bb9bf9d244b05516d3.pdb_2e2245e16cca4961919c7f5fdd1d0ece
+        if self.pdb:
+            return Path(self.pdb_info.name).name
+        else:
+            fname = Path(self.pdb_info.name).name
+            if fname.find('#') > 0:
+                name = fname.split('#')[0]
+                return f'{name}.pdb'
+
+            return fname
+
 
 class ComputedSetComputedMolecule(models.Model):
     computed_set = models.ForeignKey(ComputedSet, null=False, on_delete=models.CASCADE)
