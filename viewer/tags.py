@@ -12,6 +12,9 @@ from django.db.models.functions import Concat
 from scoring.models import SiteObservationGroup
 
 from .models import (
+    Compound,
+    CompoundIdentifier,
+    CompoundIdentifierType,
     Pose,
     SiteObservation,
     SiteObservationTag,
@@ -119,6 +122,19 @@ class CuratedTagSubquery(Exists):
         super().__init__(query)
 
 
+class CustomIdentifierSubquery(Subquery):
+    """Annotate SiteObservation with short tag of given category"""
+
+    def __init__(self, identifier_type):
+        # fmt: off
+        query = CompoundIdentifier.objects.filter(
+            type__name=identifier_type,
+            compound=OuterRef('cmpd'),
+        ).values('name')[0:1]
+        super().__init__(query)
+        # fmt: on
+
+
 def get_tag_cols(columns):
     return [
         k
@@ -192,21 +208,21 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
     header: list[str] = list(META_HEADER.keys())
     values: list[str] = list(META_HEADER.values())
 
-    # add auto-generated names before...
+    # add auto-generated names first...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         upload_tag = f'upload_tag_{category.category.lower()}'
         values.append(upload_tag)
         header.append(f'{category.category} upload name')
         annotations[upload_tag] = UploadTagSubquery(category.category)
 
-    # ... the short tags
+    # ... then the short tags, ...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         short_tag = f'short_tag_{category.category.lower()}'
         values.append(short_tag)
         header.append(f'{category.category} short tag')
         annotations[short_tag] = ShortTagSubquery(category.category)
 
-    # ... and then aliases
+    # ... then aliases, ...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
         tag = f'tag_{category.category.lower()}'
         values.append(tag)
@@ -228,6 +244,19 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
         annotations[tagname] = CuratedTagSubquery(tag)
 
     # fmt: off
+
+    # and finally custom identifiers
+    custom_identifiers = CompoundIdentifierType.objects.filter(
+        name__in=CompoundIdentifier.objects.filter(
+            compound__in=Compound.filter_manager.by_target(target=target),
+        ).values('type'),
+    ).values_list('name', flat=True)
+    header.extend(custom_identifiers)
+    for identifier in custom_identifiers:
+        ann_name = pattern.sub('_', identifier).strip().lower() # type: ignore[attr-defined]
+        values.append(ann_name)
+        annotations[ann_name] = CustomIdentifierSubquery(identifier)
+
 
     return header, annotations, values
 

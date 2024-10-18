@@ -13,6 +13,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
+import pandas as pd
 import yaml
 from celery import Task
 from django.conf import settings
@@ -20,7 +21,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Model
+from django.db.models import Count, F, Model
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
@@ -31,6 +32,8 @@ from viewer.models import (
     CanonSite,
     CanonSiteConf,
     Compound,
+    CompoundIdentifier,
+    CompoundIdentifierType,
     Experiment,
     ExperimentUpload,
     Pose,
@@ -62,6 +65,9 @@ METADATA_FILE = "meta_aligner.yaml"
 TRANS_NEIGHBOURHOOD = "neighbourhood_transforms.yaml"
 TRANS_CONF_SITE = "conformer_site_transforms.yaml"
 TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
+
+CUSTOM_IDENTIFIER_FILE = "compounds_manual.csv"
+CUSTOM_IDENTIFIER_COLUMNS = ("xtal", "ligand_name", "compound_code")
 
 
 class UploadState(str, Enum):
@@ -2324,3 +2330,65 @@ def _move_and_save_target_experiment(target_loader):
     target_loader.report.final(f"{target_loader.data_bundle} uploaded successfully")
     target_loader.experiment_upload.message = target_loader.report.json()
     target_loader.experiment_upload.save()
+
+
+# when moving to class:
+# def import_compound_identifiers(self):
+def import_compound_identifiers(filename: str):
+    try:
+        # df = pd.read_csv(CUSTOM_IDENTIFIER_FILE)
+        df = pd.read_csv(filename)
+    except UnicodeDecodeError:
+        logger.debug("file import error")
+        # self.report.log(
+        #     logging.ERROR,
+        #     f"Error reading {CUSTOM_IDENTIFIER_FILE}, unexpected format",
+        # )
+        return
+
+    identifiers_from_file = set(
+        [k for k in df.columns if k not in CUSTOM_IDENTIFIER_COLUMNS]
+    )
+
+    # I think this is a bad idea, but it was explicitly in the spec
+    identifier_types = set(
+        CompoundIdentifierType.objects.values_list("name", flat=True)
+    )
+    new_identifiers = identifiers_from_file.difference(identifier_types)
+    for identifier in new_identifiers:
+        CompoundIdentifierType(name=identifier).save()
+
+    # you'd think I could supply the compounds processed, but I need a queryset..
+    compounds = Compound.objects.annotate(
+        exp_code=F("experiment__code"),
+    ).filter(
+        experiment__code__in=df["xtal"],
+    )
+
+    identifiers = CompoundIdentifierType.objects.all()
+
+    for idf in identifiers_from_file:
+        identifier = identifiers.get(name=idf)
+
+        for _, row in df.loc[
+            df[idf].notna(), list(CUSTOM_IDENTIFIER_COLUMNS) + [idf]
+        ].iterrows():
+            exp_code, ligand_name, compound_code, name = row
+            compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+
+            if compound.compound_code == compound_code:
+                CompoundIdentifier(
+                    type=identifier,
+                    compound=compound,
+                    name=name,
+                ).save()
+            else:
+                pass
+                # self.report.log(
+                #     logging.ERROR,
+                #     f"compound_code changed for {exp_code}, {ligand_name}",
+                # )
+
+            # memo to self: I tried using bulk_create here but it kept
+            # failing with a rather cryptic error message. worth
+            # revisiting when django has been upgraded
