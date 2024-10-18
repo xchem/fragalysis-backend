@@ -881,7 +881,7 @@ class TargetLoader:
         "crystallographic_files" <str>,
         "ligand_cif" <str>,
         "ligands" <str>,
-        ligand_key <strr>,
+        ligand_key <str>,
         {
             "smiles": smiles <str>
         }
@@ -918,6 +918,7 @@ class TargetLoader:
         defaults = {
             "smiles": smiles,
             "compound_code": compound_code,
+            "ligand_name": ligand_key,
         }
 
         return ProcessedObject(

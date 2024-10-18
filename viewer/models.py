@@ -278,6 +278,7 @@ class Compound(models.Model):
     description = models.TextField(blank=True, null=True)
     comments = models.TextField(blank=True, null=True)
     inchi_key = models.CharField(db_index=True, max_length=27, blank=True)
+    ligand_name = models.TextField(blank=True, default='LIG')
 
     objects = models.Manager()
     filter_manager = CompoundDataManager()
@@ -547,7 +548,6 @@ class SiteObservation(Versionable, models.Model):
     ligand_pdb = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
-
     objects = models.Manager()
     history = HistoricalRecords()
     filter_manager = SiteObservationDataManager()
