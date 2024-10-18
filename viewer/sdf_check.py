@@ -10,7 +10,7 @@ import logging
 import validators
 from rdkit import Chem
 
-from viewer.models import SiteObservation
+from viewer.models import SiteObservation, Target
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ def check_refmol(mol, validate_dict, target=None):
             ref_strip = ref_mol.strip()
             query = SiteObservation.objects.filter(
                 code=ref_strip,
-                experiment__experiment_upload__target__title=target,
+                experiment__experiment_upload__target__pk=target,
             )
             if len(query) == 0:
                 msg = f"No SiteObservation code contains '{ref_strip}'"
@@ -139,8 +139,9 @@ def check_pdb(mol, validate_dict, target=None, zfile=None):
 
     # If anything else given example x1408
     if target and not pdb_fn.endswith(".pdb"):
+        target_name = Target.objects.gte(pk=target).title
         query = SiteObservation.objects.filter(
-            code__contains=str(f'{target}-' + pdb_fn.split(':')[0].split('_')[0])
+            code__contains=str(f'{target_name}-' + pdb_fn.split(':')[0].split('_')[0])
         )
         if len(query) == 0:
             validate_dict = add_warning(

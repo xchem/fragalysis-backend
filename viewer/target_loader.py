@@ -626,13 +626,13 @@ class TargetLoader:
                 continue
 
             # file key should go to result dict no matter what
-            result[key] = filename
+            result[key] = (filename, source_file)
             logger.debug("Adding key %s: %s", key, filename)
 
         files = []
         for f in list(required) + list(recommended):
             try:
-                files.append((result[f], source_file))
+                files.append(result[f])
             except KeyError:
                 logfunc(
                     f,
@@ -1500,14 +1500,22 @@ class TargetLoader:
             self.report.log(logging.ERROR, msg)
             raise KeyError(msg) from exc
 
+        # project needs to be created before target
+        # TODO: original target loader's function get_create_projects
+        # seems to handle more cases. adopt or copy
+        visit = self.proposal_ref.split()[0]
+        self.project, project_created = Project.objects.get_or_create(title=visit)
+
         self.target, target_created = Target.objects.get_or_create(
             title=self.target_name,
             display_name=self.target_name,
+            project=self.project,
         )
 
         if target_created:
+            target_dir = f"{self.target_name}_{self.proposal_ref}"
             # mypy thinks target and target_name are None
-            target_dir = sanitize_directory_name(self.target_name, self.abs_final_path)  # type: ignore [arg-type]
+            target_dir = sanitize_directory_name(target_dir, self.abs_final_path)  # type: ignore [arg-type]
             self.target.zip_archive = target_dir  # type: ignore [attr-defined]
             self.target.save()  # type: ignore [attr-defined]
         else:
@@ -1519,11 +1527,6 @@ class TargetLoader:
 
         self._final_path = self._final_path.joinpath(target_dir)
         self._abs_final_path = self._abs_final_path.joinpath(target_dir)
-
-        # TODO: original target loader's function get_create_projects
-        # seems to handle more cases. adopt or copy
-        visit = self.proposal_ref.split()[0]
-        self.project, project_created = Project.objects.get_or_create(title=visit)
 
         try:
             committer = get_user_model().objects.get(pk=self.user_id)
@@ -1550,9 +1553,7 @@ class TargetLoader:
             self.project.open_to_public = True
             self.project.save()
 
-        # populate m2m field
         assert self.target
-        self.target.project_id.add(self.project)
 
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
@@ -2026,7 +2027,7 @@ class TargetLoader:
         # tag all new observations, so that the curator can find and
         # re-pose them
         self._tag_observations(
-            "New",
+            self.version_dir,
             "",
             TagCategory.objects.get(category="Other"),
             [
@@ -2034,6 +2035,7 @@ class TargetLoader:
                 for k in site_observation_objects.values()  # pylint: disable=no-member
                 if k.new
             ],
+            clean_ids=False,
         )
 
     def _load_yaml(self, yaml_file: Path) -> dict:
@@ -2153,6 +2155,7 @@ class TargetLoader:
         site_observations: list,
         hidden: bool = False,
         short_tag: str | None = None,
+        clean_ids: bool = True,
     ) -> None:
         try:
             # memo to self: description is set to tag, but there's
@@ -2183,9 +2186,10 @@ class TargetLoader:
         tag = tag if short_tag is None else short_tag
         short_name = name if short_tag is None else f"{prefix} - {short_tag}"
 
-        tag = clean_object_id(tag)
-        name = clean_object_id(name)
-        short_name = clean_object_id(short_name)
+        if clean_ids:
+            tag = clean_object_id(tag)
+            name = clean_object_id(name)
+            short_name = clean_object_id(short_name)
 
         try:
             so_tag = SiteObservationTag.objects.get(
@@ -2312,7 +2316,7 @@ def _move_and_save_target_experiment(target_loader):
         str(target_loader.abs_final_path),
     )
     Path(target_loader.bundle_path).rename(
-        target_loader.abs_final_path.parent.joinpath(target_loader.data_bundle)
+        target_loader.abs_final_path.joinpath(target_loader.data_bundle)
     )
 
     set_directory_permissions(target_loader.abs_final_path, 0o755)
