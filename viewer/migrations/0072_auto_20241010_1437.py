@@ -39,8 +39,12 @@ class Migration(migrations.Migration):
                 # move tarballs
                 for exp_upload in target.experimentupload_set.all():
                     tarball_path = root_path.joinpath(exp_upload.file.name)
-                    new_tarball_path = new_data_path.joinpath(exp_upload.file.name)
-                    tarball_path.rename(new_tarball_path)
+                    if tarball_path.exists():
+                        new_tarball_path = new_data_path.joinpath(exp_upload.file.name)
+                        tarball_path.rename(new_tarball_path)
+                    else:
+                        # some tarballs really do not exist on prod!
+                        print(f'Tarball {tarball_path.name} does not exist')
             else:
                 # old system, data path contains task_id
                 new_archive_dir = sanitize_directory_name(
