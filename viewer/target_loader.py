@@ -67,7 +67,6 @@ TRANS_CONF_SITE = "conformer_site_transforms.yaml"
 TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
 
 CUSTOM_IDENTIFIER_FILE = "compounds_manual.csv"
-CUSTOM_IDENTIFIER_COLUMNS = ("xtal", "ligand_name", "compound_code")
 
 
 class UploadState(str, Enum):
@@ -2044,6 +2043,94 @@ class TargetLoader:
             clean_ids=False,
         )
 
+        if (
+            Path(upload_dir)
+            .joinpath("extra_files")
+            .joinpath(CUSTOM_IDENTIFIER_FILE)
+            .exists()
+        ):
+            self.import_compound_identifiers()
+
+    def import_compound_identifiers(self):
+        try:
+            df = pd.read_csv(CUSTOM_IDENTIFIER_FILE)
+        except UnicodeDecodeError:
+            self.report.log(
+                logging.ERROR,
+                f"Error reading {CUSTOM_IDENTIFIER_FILE}, unexpected format",
+            )
+            return
+
+        key_cols = ["xtal", "ligand_name"]
+        extended_key_cols = key_cols + ["compound_code"]
+        non_idf_cols = extended_key_cols + ["compound_code_update"]
+
+        identifiers_from_file = set([k for k in df.columns if k not in non_idf_cols])
+
+        # I think this is a bad idea, but it was explicitly in the spec
+        identifier_types = set(
+            CompoundIdentifierType.objects.values_list("name", flat=True)
+        )
+        new_identifiers = identifiers_from_file.difference(identifier_types)
+        for identifier in new_identifiers:
+            CompoundIdentifierType(name=identifier).save()
+
+        # you'd think I could supply the compounds processed, but I need a queryset..
+        compounds = Compound.objects.annotate(
+            exp_code=F("experiment__code"),
+        ).filter(
+            experiment__code__in=df["xtal"],
+        )
+
+        # validate cols, compound code should be unchanged
+        for _, row in df[extended_key_cols].iterrows():
+            exp_code, ligand_name, compound_code = row
+            compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+            if compound.compound_code != compound_code:
+                self.report.log(
+                    logging.ERROR,
+                    (
+                        f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
+                        + " use 'compound_code_update' column instead."
+                    ),
+                )
+
+        # but if the correct column is supplied, then update
+        if "compound_code_update" in df.columns:
+            for _, row in df.loc[
+                df["compound_code_update"].notna(), non_idf_cols
+            ].iterrows():
+                exp_code, ligand_name, _, compound_code_update = row
+                compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+                compound.compound_code = compound_code_update
+                compound.save()
+
+        identifiers = CompoundIdentifierType.objects.all()
+
+        for idf in identifiers_from_file:
+            identifier = identifiers.get(name=idf)
+
+            for _, row in df.loc[df[idf].notna(), key_cols + [idf]].iterrows():
+                exp_code, ligand_name, name = row
+                compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+
+                try:
+                    CompoundIdentifier(
+                        type=identifier,
+                        compound=compound,
+                        name=name,
+                    ).save()
+                except IntegrityError as exc:
+                    # most probably a duplicate
+                    self.report.log(
+                        logging.ERROR,
+                        exc.args[0],
+                    )
+
+                # memo to self: I tried using bulk_create here but it kept
+                # failing with a rather cryptic error message. worth
+                # revisiting when django has been upgraded
+
     def _load_yaml(self, yaml_file: Path) -> dict:
         contents = {}
         try:
@@ -2330,65 +2417,3 @@ def _move_and_save_target_experiment(target_loader):
     target_loader.report.final(f"{target_loader.data_bundle} uploaded successfully")
     target_loader.experiment_upload.message = target_loader.report.json()
     target_loader.experiment_upload.save()
-
-
-# when moving to class:
-# def import_compound_identifiers(self):
-def import_compound_identifiers(filename: str):
-    try:
-        # df = pd.read_csv(CUSTOM_IDENTIFIER_FILE)
-        df = pd.read_csv(filename)
-    except UnicodeDecodeError:
-        logger.debug("file import error")
-        # self.report.log(
-        #     logging.ERROR,
-        #     f"Error reading {CUSTOM_IDENTIFIER_FILE}, unexpected format",
-        # )
-        return
-
-    identifiers_from_file = set(
-        [k for k in df.columns if k not in CUSTOM_IDENTIFIER_COLUMNS]
-    )
-
-    # I think this is a bad idea, but it was explicitly in the spec
-    identifier_types = set(
-        CompoundIdentifierType.objects.values_list("name", flat=True)
-    )
-    new_identifiers = identifiers_from_file.difference(identifier_types)
-    for identifier in new_identifiers:
-        CompoundIdentifierType(name=identifier).save()
-
-    # you'd think I could supply the compounds processed, but I need a queryset..
-    compounds = Compound.objects.annotate(
-        exp_code=F("experiment__code"),
-    ).filter(
-        experiment__code__in=df["xtal"],
-    )
-
-    identifiers = CompoundIdentifierType.objects.all()
-
-    for idf in identifiers_from_file:
-        identifier = identifiers.get(name=idf)
-
-        for _, row in df.loc[
-            df[idf].notna(), list(CUSTOM_IDENTIFIER_COLUMNS) + [idf]
-        ].iterrows():
-            exp_code, ligand_name, compound_code, name = row
-            compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
-
-            if compound.compound_code == compound_code:
-                CompoundIdentifier(
-                    type=identifier,
-                    compound=compound,
-                    name=name,
-                ).save()
-            else:
-                pass
-                # self.report.log(
-                #     logging.ERROR,
-                #     f"compound_code changed for {exp_code}, {ligand_name}",
-                # )
-
-            # memo to self: I tried using bulk_create here but it kept
-            # failing with a rather cryptic error message. worth
-            # revisiting when django has been upgraded

@@ -595,6 +595,18 @@ class CompoundIdentifier(models.Model):
     objects = models.Manager()
     filter_manager = CompoundIdentifierDataManager()
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "type",
+                    "compound",
+                    "name",
+                ],
+                name="unique_compoundidentifier",
+            ),
+        ]
+
     def __str__(self) -> str:
         return f"{self.name}"
 
