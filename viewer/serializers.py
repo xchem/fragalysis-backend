@@ -260,8 +260,8 @@ class CompoundSerializer(serializers.ModelSerializer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Limit the queryset to only identifiers related to this compound
-        if self.instance:
+        # limit the identifiers queryset to only the onses related to this compound
+        if self.instance and isinstance(self.instance, models.Compound):
             self.fields[
                 'current_identifier'
             ].queryset = self.instance.all_identifiers.all()
