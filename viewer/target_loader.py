@@ -2043,6 +2043,7 @@ class TargetLoader:
             clean_ids=False,
         )
 
+        # import compound identifier file, if present
         if (
             Path(upload_dir)
             .joinpath("extra_files")
@@ -2115,11 +2116,18 @@ class TargetLoader:
                 compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
 
                 try:
-                    CompoundIdentifier(
+                    compound_identifier = CompoundIdentifier(
                         type=identifier,
                         compound=compound,
                         name=name,
-                    ).save()
+                    )
+                    compound_identifier.save()
+
+                    # set the preferred identifier to first non-empty
+                    if not compound.current_identifier:
+                        compound.current_identifier = compound_identifier
+                        compound.save()
+
                 except IntegrityError as exc:
                     # most probably a duplicate
                     self.report.log(

@@ -264,19 +264,13 @@ class Compound(models.Model):
     inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
     compound_code = models.TextField(null=True)
-    current_identifier = models.CharField(
-        max_length=255,
-        db_index=True,
+    current_identifier = models.ForeignKey(
+        'CompoundIdentifier',
         blank=True,
         null=True,
-        help_text='The identifier for this compound that is used in Fragalysis to'
-        ' represent its 3D molecule (optional)',
-    )
-    all_identifiers = models.TextField(
-        blank=True,
-        null=True,
-        help_text='A comma separated list of all identifiers that have been used in'
-        ' the past to represent this 2D compound',
+        on_delete=models.SET_NULL,
+        related_name='+',
+        help_text='The preferred alias for this compound.',
     )
     project_id = models.ManyToManyField(Project)
     inspirations = models.ManyToManyField(
@@ -588,7 +582,11 @@ class CompoundIdentifier(models.Model):
     type = models.ForeignKey(
         CompoundIdentifierType, to_field='name', on_delete=models.CASCADE
     )
-    compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    compound = models.ForeignKey(
+        Compound,
+        on_delete=models.CASCADE,
+        related_name="all_identifiers",
+    )
     url = models.URLField(null=True)
     name = models.TextField(null=False)
 
