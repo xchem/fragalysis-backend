@@ -2028,8 +2028,9 @@ class TargetLoader:
 
         # tag all new observations, so that the curator can find and
         # re-pose them
+        datestr = timezone.now().date().strftime('%Y-%m-%d')
         self._tag_observations(
-            self.version_dir,
+            f"{self.version_dir} {datestr}",
             "",
             TagCategory.objects.get(category="Other"),
             [
