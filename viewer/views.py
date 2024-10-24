@@ -312,7 +312,7 @@ class TargetView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project"
-    filterset_fields = ("title",)
+    filterset_fields = ("id", "title", "project")
     permission_classes = [IsObjectProposalMember]
 
     def patch(self, request, pk):
