@@ -1051,7 +1051,7 @@ class ComputedSetView(
     queryset = models.ComputedSet.objects.filter()
     serializer_class = serializers.ComputedSetSerializer
     filter_permissions = "target__project"
-    filterset_fields = ('target', 'target__title')
+    filterset_fields = ('target', 'target__title', 'target__project')
     permission_classes = [IsObjectProposalMember]
 
     http_method_names = ['get', 'head', 'delete']
