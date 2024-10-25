@@ -165,6 +165,10 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
         for next_line in f_in:
             content += next_line
 
+    # add sdf marker, the file read is mol but the combined file is sdf
+    if Path(path).suffix.lower() != '.sdf':
+        content += '$$$$\n\n'
+
     return content
 
 
