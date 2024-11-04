@@ -3,7 +3,9 @@ import logging
 import os
 import shlex
 import shutil
+import zipfile
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from wsgiref.util import FileWrapper
@@ -179,45 +181,14 @@ def get_open_targets(request):
 
     open_proposals: set = _ISPYB_SAFE_QUERY_SET.get_open_proposals()
     for t in targets:
-        for p in t.project_id.all():
-            if p.title in open_proposals:
-                target_names.append(t.title)
-                target_ids.append(t.id)
-                break
+        if t.project.title in open_proposals:
+            target_names.append(t.title)
+            target_ids.append(t.id)
+            break
 
     return HttpResponse(
         json.dumps({'target_names': target_names, 'target_ids': target_ids})
     )
-
-
-def computed_set_download(request, name):
-    """View to download an SDF file of a ComputedSet by name
-    (viewer/compound_set/(<name>)).
-    """
-    # Unused arguments
-    del request
-
-    computed_set = models.ComputedSet.objects.get(name=name)
-    if not computed_set:
-        return HttpResponse(status=status.HTTP_404_NOT_FOUND)
-    # Is the computed set available to the user?
-    if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
-        request.user, computed_set.target
-    ):
-        return HttpResponse(
-            "You are not a member of the CompoundSet's Target Proposal",
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    written_filename = computed_set.written_sdf_filename
-    with open(written_filename, 'r', encoding='utf-8') as wf:
-        data = wf.read()
-    response = HttpResponse(content_type='text/plain')
-    response[
-        'Content-Disposition'
-    ] = f'attachment; filename={name}.sdf'  # force browser to download file
-    response.write(data)
-    return response
 
 
 # -----------------
@@ -250,7 +221,7 @@ class VectorsView(ISPyBSafeQuerySet):
     queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.VectorsSerializer
     filterset_class = filters.VectorFilter
-    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filter_permissions = "experiment__experiment_upload__target__project"
 
 
 class MolecularPropertiesView(ISPyBSafeQuerySet):
@@ -259,7 +230,7 @@ class MolecularPropertiesView(ISPyBSafeQuerySet):
     queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.MolpropsSerializer
     filterset_class = filters.MolpropsFilter
-    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filter_permissions = "experiment__experiment_upload__target__project"
 
 
 class GraphView(ISPyBSafeQuerySet):
@@ -268,7 +239,7 @@ class GraphView(ISPyBSafeQuerySet):
     queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.GraphSerializer
     filterset_class = filters.GraphFilter
-    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filter_permissions = "experiment__experiment_upload__target__project"
 
 
 class MolImageView(ISPyBSafeQuerySet):
@@ -277,7 +248,7 @@ class MolImageView(ISPyBSafeQuerySet):
     queryset = models.SiteObservation.objects.filter()
     serializer_class = serializers.MolImageSerializer
     filterset_class = filters.MolImgFilter
-    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filter_permissions = "experiment__experiment_upload__target__project"
 
 
 class CompoundImageView(ISPyBSafeQuerySet):
@@ -294,7 +265,7 @@ class ProteinMapInfoView(ISPyBSafeQuerySet):
 
     queryset = models.SiteObservation.objects.all()
     serializer_class = serializers.ProtMapInfoSerializer
-    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filter_permissions = "experiment__experiment_upload__target__project"
     filterset_fields = (
         "code",
         "experiment__experiment_upload__target",
@@ -307,7 +278,7 @@ class ProteinPDBInfoView(ISPyBSafeQuerySet):
 
     queryset = models.SiteObservation.objects.all()
     serializer_class = serializers.ProtPDBInfoSerializer
-    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filter_permissions = "experiment__experiment_upload__target__project"
     filterset_fields = (
         "code",
         "experiment__experiment_upload__target",
@@ -320,7 +291,7 @@ class ProteinPDBBoundInfoView(ISPyBSafeQuerySet):
 
     queryset = models.SiteObservation.filter_manager.filter_qs()
     serializer_class = serializers.ProtPDBBoundInfoSerializer
-    filter_permissions = "experiment__experiment_upload__target__project_id"
+    filter_permissions = "experiment__experiment_upload__target__project"
     filterset_fields = (
         "code",
         "experiment__experiment_upload__target",
@@ -340,7 +311,7 @@ class ProjectView(ISPyBSafeQuerySet):
 class TargetView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "project"
     filterset_fields = ("title",)
     permission_classes = [IsObjectProposalMember]
 
@@ -431,7 +402,8 @@ class UploadComputedSetView(generics.ListCreateAPIView):
             choice = request.POST['submit_choice']
             # The 'sdf_file' and 'target_name' are only required for upload/update
             sdf_file = request.FILES.get('sdf_file')
-            target = request.POST.get('target_name')
+            target_name = request.POST.get('target_name')
+            proposal_ref = request.POST.get('proposal_ref')
             update_set = request.POST.get('update_set')
 
             user = self.request.user
@@ -439,7 +411,7 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                 '+ UploadComputedSetView POST user.id=%s choice="%s" target="%s" update_set="%s"',
                 user.id,
                 choice,
-                target,
+                target_name,
                 update_set,
             )
 
@@ -458,17 +430,18 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                     )
                     return redirect('viewer:upload_cset')
 
-            # If validating or uploading we need a Target and SDF file.
+            # If validating or uploading we need a Target, and SDF file.
             # If updating or deleting we need an update set (that's not 'None')
             if choice in ['V', 'U']:
-                if sdf_file is None or target is None:
-                    request.session[_SESSION_ERROR] = (
+                if sdf_file is None or target_name is None or not proposal_ref:
+                    err_msg = (
                         'To Validate or Upload'
-                        ' you must provide a Target and SDF file'
+                        + ' you must provide a Target, Proposal ref. and SDF file'
                     )
+                    request.session[_SESSION_ERROR] = err_msg
                     logger.warning(
                         '- UploadComputedSetView POST error_msg="%s"',
-                        request.session[_SESSION_ERROR],
+                        err_msg,
                     )
                     return redirect('viewer:upload_cset')
             elif choice in ['D']:
@@ -481,6 +454,36 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                         request.session[_SESSION_ERROR],
                     )
                     return redirect('viewer:upload_cset')
+
+            try:
+                project = models.Project.objects.get(title=proposal_ref)
+            except models.Project.DoesNotExist:
+                request.session[_SESSION_ERROR] = f'Proposal {proposal_ref} not found'
+                logger.warning(
+                    '- UploadComputedSetView POST error_msg="%s"',
+                    request.session[_SESSION_ERROR],
+                )
+                return redirect('viewer:upload_cset')
+
+            if (
+                settings.AUTHENTICATE_UPLOAD
+                and project.title
+                not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(request.user)
+            ):
+                context = {
+                    'error_message': f"You cannot load compound sets for '{target_name}'. You are not a member of any of its Proposals"
+                }
+                return render(request, 'viewer/upload-cset.html', context)
+
+            try:
+                target = models.Target.objects.get(title=target_name, project=project)
+            except models.Target.DoesNotExist:
+                request.session[_SESSION_ERROR] = f'Target {target_name} not found'
+                logger.warning(
+                    '- UploadComputedSetView POST error_msg="%s"',
+                    request.session[_SESSION_ERROR],
+                )
+                return redirect('viewer:upload_cset')
 
             # If uploading (updating) or deleting
             # the set owner cannot be anonymous
@@ -502,25 +505,6 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                         request.session[_SESSION_ERROR],
                     )
                     return redirect('viewer:upload_cset')
-            # You cannot validate or upload a set
-            # unless the user is part of the Target's project (proposal)
-            # even if the target is 'open'.
-            if choice in ['V', 'U'] and settings.AUTHENTICATE_UPLOAD:
-                assert target
-                context = {}
-                # The target must be part of a proposal that the user is a member of.
-                target_record = models.Target.objects.filter(title=target).first()
-                if not target_record:
-                    context['error_message'] = f'Unknown Target ({target})'
-                    return render(request, 'viewer/upload-cset.html', context)
-                # What proposals is the user a member of?
-                if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
-                    user, target_record
-                ):
-                    context[
-                        'error_message'
-                    ] = f"You cannot load compound sets for '{target}'. You are not a member of any of its Proposals"
-                    return render(request, 'viewer/upload-cset.html', context)
 
             # Save uploaded sdf and zip to tmp storage
             tmp_pdb_file = None
@@ -546,7 +530,7 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                 task_params = {
                     'user_id': user.id,
                     'sdf_file': tmp_sdf_file,
-                    'target': target,
+                    'target': target.pk,
                 }
                 if tmp_pdb_file:
                     task_params['zfile'] = tmp_pdb_file
@@ -578,7 +562,7 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                 task_params = {
                     'user_id': user.id,
                     'sdf_file': tmp_sdf_file,
-                    'target': target,
+                    'target': target.pk,
                 }
                 if tmp_pdb_file:
                     task_params['zfile'] = tmp_pdb_file
@@ -716,22 +700,25 @@ class ValidateTaskView(View):
             # [3] comes from task in tasks.py, 4th element in task payload tuple
             task_data = results[3]
 
-            if isinstance(task_data, dict) and 'target' in task_data.keys():
-                target_name = task_data['target']
+            if isinstance(task_data, dict) and 'proposal_ref' in task_data.keys():
+                project_name = task_data['proposal_ref']
                 try:
-                    target = models.Target.objects.get(title=target_name)
-                    if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
-                        request.user, target
-                    ):
-                        return Response(
-                            {'error': "You are not a member of the Target's proposal"},
-                            status=status.HTTP_403_FORBIDDEN,
-                        )
-                except models.Target.DoesNotExist:
-                    # the name is filled from db, so this not existing would be extraordinary
-                    logger.error('Target %s not found', target_name)
+                    project = models.Project.objects.get(title=project_name)
+
+                except models.Project.DoesNotExist:
+                    logger.error('Project %s not found', project_name)
                     return Response(
-                        {'error': f'Target {target_name} not found'},
+                        {'error': f'Project {project_name} not found'},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+                if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                    request.user
+                ):
+                    return Response(
+                        {
+                            'error': "You are not a member of the proposal {project_name}"
+                        },
                         status=status.HTTP_403_FORBIDDEN,
                     )
 
@@ -918,7 +905,7 @@ class SessionProjectView(
     """
 
     queryset = models.SessionProject.objects.filter()
-    filter_permissions = "target__project_id"
+    filter_permissions = "target__project"
     filterset_fields = '__all__'
 
     def get_serializer_class(self):
@@ -939,7 +926,7 @@ class SessionActionsView(
     """
 
     queryset = models.SessionActions.filter_manager.filter_qs()
-    filter_permissions = "session_project__target__project_id"
+    filter_permissions = "session_project__target__project"
     serializer_class = serializers.SessionActionsSerializer
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
@@ -957,7 +944,7 @@ class SnapshotView(
     """
 
     queryset = models.Snapshot.filter_manager.filter_qs()
-    filter_permissions = "session_project__target__project_id"
+    filter_permissions = "session_project__target__project"
     filterset_class = filters.SnapshotFilter
 
     def get_serializer_class(self):
@@ -978,7 +965,7 @@ class SnapshotActionsView(
     """
 
     queryset = models.SnapshotActions.filter_manager.filter_qs()
-    filter_permissions = "snapshot__session_project__target__project_id"
+    filter_permissions = "snapshot__session_project__target__project"
     serializer_class = serializers.SnapshotActionsSerializer
 
     #   Note: jsonField for Actions will need specific queries - can introduce if needed.
@@ -1063,7 +1050,7 @@ class ComputedSetView(
 
     queryset = models.ComputedSet.objects.filter()
     serializer_class = serializers.ComputedSetSerializer
-    filter_permissions = "target__project_id"
+    filter_permissions = "target__project"
     filterset_fields = ('target', 'target__title')
     permission_classes = [IsObjectProposalMember]
 
@@ -1115,7 +1102,7 @@ class CompoundScoresView(ISPyBSafeQuerySet):
 
     queryset = models.ScoreDescription.objects.all()
     serializer_class = serializers.ScoreDescriptionSerializer
-    filter_permissions = "computed_set__target__project_id"
+    filter_permissions = "computed_set__target__project"
     filterset_fields = ('computed_set', 'name')
 
 
@@ -1300,7 +1287,7 @@ class SiteObservationTagView(
     """Set up/retrieve information about tags relating to Molecules (api/molecule_tag)"""
 
     queryset = models.SiteObservationTag.objects.all()
-    filter_permissions = "target__project_id"
+    filter_permissions = "target__project"
     serializer_class = serializers.SiteObservationTagSerializer
     filterset_fields = (
         'id',
@@ -1335,7 +1322,7 @@ class SessionProjectTagView(
     """Set up/retrieve information about tags relating to Session Projects."""
 
     queryset = models.SessionProjectTag.objects.all()
-    filter_permissions = "target__project_id"
+    filter_permissions = "target__project"
     serializer_class = serializers.SessionProjectTagSerializer
     filterset_fields = ('id', 'tag', 'category', 'target', 'session_projects')
 
@@ -1353,7 +1340,7 @@ class DownloadStructuresView(
 
     queryset = models.Target.objects.all()
     serializer_class = serializers.DownloadStructuresSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "project"
     filterset_fields = ('title', 'id')
 
     def list(self, request):
@@ -1416,6 +1403,12 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         # Dynamic files
+        if 'target_access_string' not in request.data:
+            content = {
+                'message': 'If no file_url, a target_access_string must be provided'
+            }
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
         if 'target_name' not in request.data:
             content = {
                 'message': 'If no file_url, a target_name (title) must be provided'
@@ -1423,28 +1416,36 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         target_name = request.data['target_name']
+        project_name = request.data['target_access_string']
         target = None
         logger.info('Given target_name "%s"', target_name)
 
         # Check target_name is valid:
         try:
-            target = self.queryset.get(title=target_name)
+            project = models.Project.objects.get(title=project_name)
+        except models.Project.DoesNotExist:
+            msg = f'Project "{project_name}" does not exist'
+            logger.warning(msg)
+            content = {'message': msg}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+            request.user
+        ):
+            msg = f'User "{request.user.username}" is not a member of {project_name}'
+            logger.warning(msg)
+            content = {'message': msg}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            target = self.queryset.get(title=target_name, project=project)
         except models.Target.DoesNotExist:
-            msg = f'Either the Target "{target_name}" is not present or you are not permitted access it'
+            msg = f'Target "{target_name}" does not exist under project {project.title}'
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         logger.info('Found Target record %r', target)
-        # Is the user part of the target's proposal?
-        # (or is it a public target?)
-        if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
-            request.user, target, restrict_public_to_membership=False
-        ):
-            msg = 'You have not been given access to this Target'
-            logger.warning(msg)
-            content = {'message': msg}
-            return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         proteins_list = [
             p.strip() for p in request.data.get('proteins', '').split(',') if p
@@ -1652,15 +1653,15 @@ class DownloadExperimentUploadView(viewsets.ModelViewSet):
             # To permit a download the user must be a member of the target's proposal
             # (or the proposal must be open)
             project: models.Project = serializer.validated_data['project']
-            if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
-                request.user, [project.title], restrict_public_to_membership=False
+            if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                request.user, restrict_public_to_membership=False
             ):
                 return Response(
                     {'error': "You have no access to the Project"},
                     status=status.HTTP_403_FORBIDDEN,
                 )
             target: models.Target = serializer.validated_data['target']
-            if project not in target.project_id.all():
+            if project != target.project.title:
                 return Response(
                     {'error': "The Target is not part of the given Project"},
                     status=status.HTTP_403_FORBIDDEN,
@@ -1719,7 +1720,7 @@ class ExperimentUploadView(ISPyBSafeQuerySet):
     serializer_class = serializers.TargetExperimentReadSerializer
     permission_class = [permissions.IsAuthenticated]
     filterset_fields = ("target", "project")
-    filter_permissions = "target__project_id"
+    filter_permissions = "target__project"
     http_method_names = ('get',)
 
 
@@ -1766,7 +1767,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
     """Squonk Job file transfer (api/job_file_transfer)"""
 
     queryset = models.JobFileTransfer.objects.filter()
-    filter_permissions = "target__project_id"
+    filter_permissions = "target__project"
     filterset_fields = (
         'id',
         'snapshot',
@@ -2559,26 +2560,31 @@ class UploadMetadataView(ISPyBSafeQuerySet):
         target_name = serializer.validated_data['target']
         filename = serializer.validated_data['filename']
 
-        if settings.AUTHENTICATE_UPLOAD:
-            user = self.request.user
-            if not user.is_authenticated:
-                return redirect(settings.LOGIN_URL)
-            else:
-                if target_access_string not in self.get_proposals_for_user(
-                    user, restrict_public_to_membership=True
-                ):
-                    return Response(
-                        {
-                            "target_access_string": [
-                                f"You are not authorized to upload metadatadata to '{target_access_string}'"
-                            ]
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-
-        # TODO: add TAS to lookup (when ready)
         try:
-            target = models.Target.objects.get(title=target_name)
+            project = models.Project.objects.get(title=target_access_string)
+        except models.Project.DoesNotExist:
+            return Response(
+                {
+                    "target_access_string": [
+                        f"Project {target_access_string} does not exist"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+            request.user
+        ):
+            msg = f'User "{request.user.username}" is not a member of {target_access_string}'
+            logger.warning(msg)
+            content = {'message': msg}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        if settings.AUTHENTICATE_UPLOAD and not self.request.user.is_authenticated:
+            return redirect(settings.LOGIN_URL)
+
+        try:
+            target = models.Target.objects.get(title=target_name, project=project)
         except models.Target.DoesNotExist:
             return Response(
                 {"target": [f"Target {target_name} does not exist"]},
@@ -2590,4 +2596,83 @@ class UploadMetadataView(ISPyBSafeQuerySet):
         if errors:
             return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'sucess': True}, status=status.HTTP_200_OK)
+            return Response({'success': True}, status=status.HTTP_200_OK)
+
+
+class DownloadComputedSetView(ISPyBSafeQuerySet):
+    queryset = models.ComputedSet.objects.all()
+    filter_permissions = "target__project"
+    serializer_class = serializers.ComputedSetDownloadSerializer
+    permission_class = [permissions.IsAuthenticated]
+
+    def get_view_name(self):
+        return "Computed set download"
+
+    def post(self, request, *args, **kwargs):
+        logger.info("+ DownloadComputedSetView.create called")
+        del args, kwargs
+
+        logger.debug('data: %s', request.data)
+
+        # If done like this, it's bypassing the validation..
+        computed_set_name = request.data['name']
+        try:
+            computed_set = models.ComputedSet.objects.get(name=computed_set_name)
+        except models.ComputedSet.DoesNotExist:
+            return Response(
+                {'error': f"ComputedSet '{computed_set_name}' not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if (
+            computed_set.target.project.title
+            not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                request.user, restrict_public_to_membership=False
+            )
+        ):
+            return Response(
+                {'error': "You have no access to the Project"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # so now, get the file, and get the pdbs
+        sdf_file = Path(computed_set.written_sdf_filename)
+        if not sdf_file.exists():
+            return Response(
+                {'error': f"Uploaded file '{str(sdf_file.name)}' not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        pdbs = computed_set.computed_molecules.filter(pdb__isnull=True)
+        if pdbs.exists():
+            # custom pdbs exist, zip all together and return an archive
+            zip_buffer = BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
+                with open(sdf_file, 'rb') as contents:
+                    ziparchive.writestr(f'{sdf_file.name}.sdf', contents.read())
+                for f in pdbs:
+                    fpath = Path(settings.MEDIA_ROOT).joinpath(f.pdb_info.name)
+                    if fpath.is_file():
+                        with open(fpath, 'rb') as contents:
+                            ziparchive.writestr(f.get_filename(), contents.read())
+                    else:
+                        ziparchive.writestr(f'{f.get_filename()}_MISSING', r'')
+
+            response = HttpResponse(
+                zip_buffer.getvalue(), content_type='application/zip'
+            )
+            response['Content-Disposition'] = (
+                'attachment; filename="%s"' % f'{computed_set.name}.zip'
+            )
+            response['Content-Length'] = zip_buffer.getbuffer().nbytes
+            return response
+
+        else:
+            # no custom pdbs, return sdf
+            wrapper = FileWrapper(open(sdf_file, 'rb'))
+            response = FileResponse(wrapper, content_type='text/plain')
+            response['Content-Disposition'] = (
+                'attachment; filename="%s"' % sdf_file.name
+            )
+            response['Content-Length'] = os.path.getsize(sdf_file)
+            return response

@@ -1,7 +1,9 @@
 import ast
+import copy
 import datetime
 import logging
 import os
+import re
 import uuid
 import zipfile
 from pathlib import Path
@@ -19,8 +21,7 @@ from django.conf import settings
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db.models import F, TextField, Value
-from django.db.models.expressions import Func
+from django.db.models import F
 from rdkit import Chem
 
 from viewer.models import (
@@ -145,7 +146,7 @@ class MolOps:
         self.sdf_filename = sdf_filename
         self.submitter_name = submitter_name
         self.submitter_method = submitter_method
-        self.target = target
+        self.target_id = target
         self.version = version
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
@@ -167,8 +168,13 @@ class MolOps:
 
         new_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_field)
         old_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_fp)
-        old_filename.rename(new_filename)
-        os.chmod(new_filename, 0o755)
+
+        # there may be a case where 2 or more molfiles reference the
+        # same pdb. in this case, the old pdb is already renamed to
+        # new.
+        if old_filename.exists() and not new_filename.exists():
+            old_filename.rename(new_filename)
+            os.chmod(new_filename, 0o755)
 
         return str(pdb_field)
 
@@ -213,7 +219,7 @@ class MolOps:
         try:
             site_obvs = SiteObservation.objects.get(
                 code__contains=name,
-                experiment__experiment_upload__target__title=target,
+                experiment__experiment_upload__target__pk=target,
             )
         except SiteObservation.DoesNotExist:
             # Initial SiteObservation lookup failed.
@@ -226,7 +232,7 @@ class MolOps:
             # If all else fails then the site_obvs will be 'None'
             qs = SiteObservation.objects.filter(
                 code__contains=name,
-                experiment__experiment_upload__target__title=target,
+                experiment__experiment_upload__target__pk=target,
             )
             if qs.exists():
                 logger.info(
@@ -238,7 +244,7 @@ class MolOps:
                 alt_name = name.split(':')[0].split('_')[0]
                 qs = SiteObservation.objects.filter(
                     code__contains=alt_name,
-                    experiment__experiment_upload__target__title=target,
+                    experiment__experiment_upload__target__pk=target,
                 )
                 if qs.exists():
                     logger.info(
@@ -293,17 +299,7 @@ class MolOps:
             cpd.save()
             # This is a new compound.
             # We must now set relationships to the Proposal that it applies to.
-            # We do this by copying the relationships from the Target.
-            num_target_proposals = len(target.project_id.all())
-            assert num_target_proposals > 0
-            if num_target_proposals > 1:
-                logger.warning(
-                    'Compound Target %s has more than one Proposal (%d)',
-                    target.title,
-                    num_target_proposals,
-                )
-            for project in target.project_id.all():
-                cpd.project_id.add(project)
+            cpd.project_id.add(target.project)
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
             # fetched by inchi_key, so this shouldn't ever create
@@ -354,6 +350,10 @@ class MolOps:
         inchi = Chem.inchi.MolToInchi(mol)
         molecule_name = mol.GetProp('_Name')
 
+        flattened_copy = copy.deepcopy(mol)
+        Chem.RemoveStereochemistry(mol)
+        flat_inchi = Chem.inchi.MolToInchi(flattened_copy)
+
         compound: Compound = self.create_mol(
             inchi, compound_set.target, name=molecule_name
         )
@@ -367,13 +367,13 @@ class MolOps:
             try:
                 site_obvs = SiteObservation.objects.get(
                     code=str(i),
-                    experiment__experiment_upload__target_id=compound_set.target,
+                    experiment__experiment_upload__target=compound_set.target,
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
                 qs = SiteObservation.objects.filter(
                     code=str(i.split(':')[0].split('_')[0]),
-                    experiment__experiment_upload__target_id=compound_set.target,
+                    experiment__experiment_upload__target=compound_set.target,
                 )
                 if not qs.exists():
                     raise Exception(  # pylint: disable=raise-missing-from
@@ -409,39 +409,36 @@ class MolOps:
         # Check if anything exists already...
 
         # I think, realistically, I only need to check compound
-        # fmt: off
+        # update: I used to annotate name components, with the new
+        # format, this is not necessary. or possible fmt: off
         qs = ComputedMolecule.objects.filter(
             compound=compound,
-        ).annotate(
-            # names come in format:
-            # target_name-sequential number-sequential letter,
-            # e.g. A71EV2A-1-a, hence grabbing the 3rd column
-            suffix=Func(
-                F('name'),
-                Value('-'),
-                Value(3),
-                function='split_part',
-                output_field=TextField(),
-            ),
-        )
+        ).order_by('name')
 
         if qs.exists():
-            suffix = next(
-                alphanumerator(start_from=qs.order_by('-suffix').first().suffix)
-            )
+            # not actually latest, just last according to sorting above
+            latest = qs.last()
+            # regex pattern - split name like 'v1a'
+            # ('(letters)(digits)(letters)' to components
+            groups = re.search(r'()(\d+)(\D+)', qs.last().name)
+            if groups is None or len(groups.groups()) != 3:
+                # just a quick sanity check
+                raise ValueError(f'Non-standard ComputedMolecule.name: {latest.name}')
+            number = groups.groups()[1]  # type: ignore [index]
+            suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
             suffix = 'a'
-
-        # distinct is ran on indexed field, so shouldn't be a problem
-        number = ComputedMolecule.objects.filter(
-            computed_set__target=compound_set.target,
-        ).values('id').distinct().count() + 1
-        # fmt: on
+            number = 1
 
         name = f'v{number}{suffix}'
 
         existing_computed_molecules = []
         for k in qs:
+            if k.compound.inchi_key == flat_inchi:
+                # existing compound is a flattened copy of the new one, match found
+                existing_computed_molecules.append(k)
+                continue
+
             kmol = Chem.MolFromMolBlock(k.sdf_info)
             if kmol:
                 # find distances between corresponding atoms of the
@@ -627,11 +624,13 @@ class MolOps:
 
             today: datetime.date = datetime.date.today()
             new_ordinal: int = 1
+
             try:
-                target = Target.objects.get(title=self.target)
+                target = Target.objects.get(pk=self.target_id)
             except Target.DoesNotExist as exc:
-                # probably wrong target name supplied
-                logger.error('Target %s does not exist', self.target)
+                # target's existance should be validated in the view,
+                # this could hardly happen
+                logger.error('Target %s does not exist', self.target_id)
                 raise Target.DoesNotExist from exc
 
             cs_name: str = (
@@ -681,9 +680,12 @@ class MolOps:
         # Process the molecules
         logger.info('%s mols_to_process=%s', computed_set, len(mols_to_process))
         for i in range(len(mols_to_process)):
+            logger.debug(
+                'processing mol %s: %s', i, mols_to_process[i].GetProp('_Name')
+            )
             _ = self.process_mol(
                 mols_to_process[i],
-                self.target,
+                self.target_id,
                 computed_set,
                 sdf_filename,
                 self.zfile,

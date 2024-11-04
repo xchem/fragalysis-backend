@@ -5,28 +5,6 @@ from viewer.models import SiteObservation, Target
 
 logger = logging.getLogger(__name__)
 
-# def prot_download(request, file_path):
-#     """
-#     Download a protein by nginx redirect
-#     :param request: the initial request
-#     :param file_path: the file path we're getting from the static
-#     :return: the response (a redirect to nginx internal)
-#     """
-#     logger.info("+ Received file_download file path: %s", file_path)
-#     ispy_b_static = ISpyBSafeStaticFiles2()
-#     ispy_b_static.model = SiteObservation
-#     ispy_b_static.request = request
-#     # ispy_b_static.permission_string = "target_id__project_id"
-#     # ispy_b_static.permission_string = "target__project_id"
-#     ispy_b_static.permission_string = "experiment__experiment_upload__target__project_id"
-#     # ispy_b_static.field_name = "pdb_info"
-#     ispy_b_static.field_name = "apo_file"
-#     ispy_b_static.content_type = "application/x-pilot"
-#     ispy_b_static.prefix = "/pdbs/"
-#     # ispy_b_static.prefix = "/target_loader_data/"
-#     ispy_b_static.input_string = file_path
-#     return ispy_b_static.get_response()
-
 
 def file_download(request, file_path):
     """
@@ -40,11 +18,8 @@ def file_download(request, file_path):
     # ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
-    # ispy_b_static.permission_string = "target_id__project_id"
     # the following 2 aren't used atm
-    ispy_b_static.permission_string = (
-        "experiment__experiment_upload__target__project_id"
-    )
+    ispy_b_static.permission_string = "experiment__experiment_upload__target__project"
     # ispy_b_static.field_name = "pdb_info"
     ispy_b_static.field_name = "apo_file"
     ispy_b_static.content_type = "application/x-pilot"
@@ -68,11 +43,8 @@ def tld_download(request, file_path):
     # ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
-    # ispy_b_static.permission_string = "target_id__project_id"
     # the following 2 aren't used atm
-    ispy_b_static.permission_string = (
-        "experiment__experiment_upload__target__project_id"
-    )
+    ispy_b_static.permission_string = "experiment__experiment_upload__target__project"
     ispy_b_static.field_name = "apo_file"
     ispy_b_static.content_type = "application/x-pilot"
     ispy_b_static.prefix = "/target_loader_data/"
@@ -92,9 +64,7 @@ def cspdb_download(request, file_path):
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
     # the following 2 aren't used atm
-    ispy_b_static.permission_string = (
-        "experiment__experiment_upload__target__project_id"
-    )
+    ispy_b_static.permission_string = "experiment__experiment_upload__target__project"
     ispy_b_static.field_name = "apo_file"
     ispy_b_static.content_type = "application/x-pilot"
     ispy_b_static.prefix = "/computed_set_data/"
@@ -112,7 +82,7 @@ def bound_download(request, file_path):
     ispy_b_static = ISPyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
-    ispy_b_static.permission_string = "target_id__project_id"
+    ispy_b_static.permission_string = "target_id__project"
     ispy_b_static.field_name = "bound_info"
     ispy_b_static.content_type = "application/x-pilot"
     ispy_b_static.prefix = "/bound/"
@@ -130,7 +100,7 @@ def map_download(request, file_path):
     ispy_b_static = ISPyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
-    ispy_b_static.permission_string = "target_id__project_id"
+    ispy_b_static.permission_string = "target_id__project"
 
     substrings = file_path.split('.')[0].split('_')
     substring = [x for x in substrings if x in ['2fofc', 'fofc', 'event']]
@@ -166,7 +136,7 @@ def metadata_download(request, file_path):
     ispy_b_static = ISPyBSafeStaticFiles()
     ispy_b_static.model = Target
     ispy_b_static.request = request
-    ispy_b_static.permission_string = "project_id"
+    ispy_b_static.permission_string = "project"
     ispy_b_static.field_name = "metadata"
     ispy_b_static.content_type = "application/x-pilot"
     ispy_b_static.prefix = "/metadata/"
@@ -184,7 +154,7 @@ def archive_download(request, file_path):
     ispy_b_static = ISPyBSafeStaticFiles()
     ispy_b_static.model = Target
     ispy_b_static.request = request
-    ispy_b_static.permission_string = "project_id"
+    ispy_b_static.permission_string = "project"
     ispy_b_static.field_name = "zip_archive"
     ispy_b_static.content_type = "application/zip"
     ispy_b_static.prefix = "/targets/"

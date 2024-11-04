@@ -373,17 +373,16 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         """
         Returns true if the user has access to any proposal the target belongs to.
         """
-        target_proposals = [p.title for p in target.project_id.all()]
         user_proposals = self.get_proposals_for_user(
             user, restrict_public_to_membership=restrict_public_to_membership
         )
-        is_member = any(proposal in user_proposals for proposal in target_proposals)
+        is_member = target.project.title in user_proposals
         if not is_member:
             logger.warning(
                 "Failed membership check user='%s' target='%s' target_proposals=%s",
                 user.username,
-                target.title,
-                target_proposals,
+                target.pk,
+                target.project.title,
             )
         return is_member
 

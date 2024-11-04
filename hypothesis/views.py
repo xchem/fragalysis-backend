@@ -21,18 +21,18 @@ class InteractionView(ISPyBSafeQuerySet):
         "prot_smarts",
         "mol_smarts",
     )
-    filter_permissions = "interaction_point__targ_res__target_id__project_id"
+    filter_permissions = "interaction_point__targ_res__target_id__project"
 
 
 class InteractionPointView(ISPyBSafeQuerySet):
     queryset = InteractionPoint.objects.all()
     serializer_class = InteractionPointSerializer
     filterset_fields = ("site_observation", "protein_atom_name", "molecule_atom_name")
-    filter_permissions = "targ_res__target_id__project_id"
+    filter_permissions = "targ_res__target_id__project"
 
 
 class TargetResidueView(ISPyBSafeQuerySet):
     queryset = TargetResidue.objects.all()
     serializer_class = TargetResidueSerialzier
     filterset_fields = ("target_id", "res_name", "res_num", "chain_id")
-    filter_permissions = "target_id__project_id"
+    filter_permissions = "target_id__project"

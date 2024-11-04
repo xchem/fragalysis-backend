@@ -397,8 +397,8 @@ def get_create_projects(target, proposal_ref, proposal_code='lb'):
     # If not open then delete users for the project and re-add them based on supplied fed-ids.
     delete_users(project)
 
-    # Update project_id on target.
-    target.project_id.add(project)
+    # Update project on target.
+    target.project = project
 
     # The remaining words in proposal_ref (if any)
     # are expected to be fedid's (user IDs) which are used to find user information.
