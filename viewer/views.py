@@ -2635,44 +2635,34 @@ class DownloadComputedSetView(ISPyBSafeQuerySet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # so now, get the file, and get the pdbs
-        sdf_file = Path(computed_set.written_sdf_filename)
-        if not sdf_file.exists():
-            return Response(
-                {'error': f"Uploaded file '{str(sdf_file.name)}' not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        zip_buffer = BytesIO()
 
+        sdfs = models.ComputedSet.history.filter(
+            written_sdf_filename__isnull=False,
+        )
         pdbs = computed_set.computed_molecules.filter(pdb__isnull=True)
-        if pdbs.exists():
-            # custom pdbs exist, zip all together and return an archive
-            zip_buffer = BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
-                with open(sdf_file, 'rb') as contents:
-                    ziparchive.writestr(f'{sdf_file.name}.sdf', contents.read())
-                for f in pdbs:
-                    fpath = Path(settings.MEDIA_ROOT).joinpath(f.pdb_info.name)
-                    if fpath.is_file():
-                        with open(fpath, 'rb') as contents:
-                            ziparchive.writestr(f.get_filename(), contents.read())
-                    else:
-                        ziparchive.writestr(f'{f.get_filename()}_MISSING', r'')
 
-            response = HttpResponse(
-                zip_buffer.getvalue(), content_type='application/zip'
-            )
-            response['Content-Disposition'] = (
-                'attachment; filename="%s"' % f'{computed_set.name}.zip'
-            )
-            response['Content-Length'] = zip_buffer.getbuffer().nbytes
-            return response
+        # so now, get the file, and get the pdbs
+        with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
+            for sdf in sdfs:
+                sdf_file = Path(sdf.written_sdf_filename)
+                if sdf_file.exists():
+                    with open(sdf_file, 'rb') as contents:
+                        ziparchive.writestr(str(sdf.submitted_sdf), contents.read())
+                else:
+                    ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
 
-        else:
-            # no custom pdbs, return sdf
-            wrapper = FileWrapper(open(sdf_file, 'rb'))
-            response = FileResponse(wrapper, content_type='text/plain')
-            response['Content-Disposition'] = (
-                'attachment; filename="%s"' % sdf_file.name
-            )
-            response['Content-Length'] = os.path.getsize(sdf_file)
-            return response
+            for f in pdbs:
+                fpath = Path(settings.MEDIA_ROOT).joinpath(f.pdb_info.name)
+                if fpath.is_file():
+                    with open(fpath, 'rb') as contents:
+                        ziparchive.writestr(f.get_filename(), contents.read())
+                else:
+                    ziparchive.writestr(f'{f.get_filename()}_MISSING', r'')
+
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = (
+            'attachment; filename="%s"' % f'{computed_set.name}.zip'
+        )
+        response['Content-Length'] = zip_buffer.getbuffer().nbytes
+        return response

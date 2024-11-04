@@ -997,6 +997,9 @@ class ComputedSet(models.Model):
         related_name="computed_set",
     )
 
+    objects = models.Manager()
+    history = HistoricalRecords()
+
     def __str__(self) -> str:
         target_title: str = self.target.title if self.target else "None"
         return f"{self.name} {target_title}"

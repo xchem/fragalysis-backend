@@ -701,9 +701,15 @@ class MolOps:
             )
 
         # move and save the compound set
-        new_filename = f'{settings.MEDIA_ROOT}{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{computed_set.name}.sdf'
+        new_filename = (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.COMPUTED_SET_MEDIA_DIRECTORY)
+            .joinpath(
+                f'{computed_set.name}_upload_{computed_set.md_ordinal}_{Path(sdf_filename).name}'
+            )
+        )
         os.rename(sdf_filename, new_filename)
-        computed_set.submitted_sdf = sdf_filename
+        computed_set.submitted_sdf = Path(sdf_filename).name
         computed_set.written_sdf_filename = new_filename
         computed_set.save()
 
