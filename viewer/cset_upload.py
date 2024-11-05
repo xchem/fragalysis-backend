@@ -317,27 +317,23 @@ class MolOps:
 
         return cpd
 
-    def set_props(self, cpd, props, compound_set) -> List[ScoreDescription]:
+    def set_props(self, cpd, props, score_descriptions) -> List[ScoreDescription]:
         if 'ref_mols' and 'ref_pdb' not in list(props.keys()):
             raise Exception('ref_mols and ref_pdb not set!')
-        set_obj = ScoreDescription.objects.filter(computed_set=compound_set)
-        assert set_obj
 
-        set_props_list = [s.name for s in set_obj]
-        for key in list(props.keys()):
-            if key in set_props_list not in ['ref_mols', 'ref_pdb', 'original SMILES']:
-                if dataType(str(props[key])) == 'TEXT':
-                    score_value = TextScoreValues()
-                else:
-                    score_value = NumericalScoreValues()
-                score_value.score = ScoreDescription.objects.get(
-                    computed_set=compound_set, name=key
-                )
-                score_value.value = props[key]
-                score_value.compound = cpd
-                score_value.save()
+        for sd in score_descriptions:
+            logger.debug('sd: %s', sd)
+            if dataType(str(props[sd.name])) == 'TEXT':
+                score_value = TextScoreValues()
+            else:
+                score_value = NumericalScoreValues()
 
-        return set_obj
+            score_value.value = props[sd.name]
+            score_value.compound = cpd
+            score_value.score = sd
+            score_value.save()
+
+        return score_descriptions
 
     def set_mol(
         self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
@@ -550,15 +546,22 @@ class MolOps:
         )[0]
 
     def process_mol(
-        self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
+        self,
+        mol,
+        target,
+        compound_set,
+        filename,
+        score_descriptions,
+        zfile=None,
+        zfile_hashvals=None,
     ) -> List[ScoreDescription]:
         cpd = self.set_mol(mol, target, compound_set, filename, zfile, zfile_hashvals)
         other_props = mol.GetPropsAsDict()
-        return self.set_props(cpd, other_props, compound_set)
+        return self.set_props(cpd, other_props, score_descriptions)
 
     def set_descriptions(
         self, filename, computed_set: ComputedSet
-    ) -> List[Chem.rdchem.Mol]:
+    ) -> tuple[List[Chem.rdchem.Mol], List[ScoreDescription]]:
         suppl = Chem.SDMolSupplier(str(filename))
         description_mol = suppl[0]
 
@@ -577,6 +580,9 @@ class MolOps:
         computed_set.save()
 
         description_dict = description_mol.GetPropsAsDict()
+        # score descriptions for this upload, doesn't matter if
+        # created or existing
+        score_descriptions = []
         for key in description_dict.keys():
             if key in descriptions_needed and key not in [
                 'ref_mols',
@@ -585,13 +591,14 @@ class MolOps:
                 'Name',
                 'original SMILES',
             ]:
-                _ = ScoreDescription.objects.get_or_create(
+                description, _ = ScoreDescription.objects.get_or_create(
                     computed_set=computed_set,
                     name=key,
                     description=description_dict[key],
                 )
+                score_descriptions.append(description)
 
-        return mols
+        return mols, score_descriptions
 
     def task(self) -> ComputedSet:
         # Truncate submitted method (lower-case)?
@@ -673,7 +680,7 @@ class MolOps:
         # This also sets the submitter and method URL properties of the computed set
         # while also saving it.
         sdf_filename = str(self.sdf_filename)
-        mols_to_process = self.set_descriptions(
+        mols_to_process, score_descriptions = self.set_descriptions(
             filename=sdf_filename, computed_set=computed_set
         )
 
@@ -688,14 +695,21 @@ class MolOps:
                 self.target_id,
                 computed_set,
                 sdf_filename,
+                score_descriptions,
                 self.zfile,
                 self.zfile_hashvals,
             )
 
         # move and save the compound set
-        new_filename = f'{settings.MEDIA_ROOT}{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{computed_set.name}.sdf'
+        new_filename = (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.COMPUTED_SET_MEDIA_DIRECTORY)
+            .joinpath(
+                f'{computed_set.name}_upload_{computed_set.md_ordinal}_{Path(sdf_filename).name}'
+            )
+        )
         os.rename(sdf_filename, new_filename)
-        computed_set.submitted_sdf = sdf_filename
+        computed_set.submitted_sdf = Path(sdf_filename).name
         computed_set.written_sdf_filename = new_filename
         computed_set.save()
 
