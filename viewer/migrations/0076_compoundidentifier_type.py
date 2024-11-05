@@ -11,9 +11,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
+        # migrations.AddField(
+        #     model_name='compoundidentifier',
+        #     name='type',
+        #     field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='viewer.compoundidentifiertype'),
+        # ),
+        # continuing the migration tweak that started in 0074
+        migrations.RenameField(
             model_name='compoundidentifier',
-            name='type',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='viewer.compoundidentifiertype'),
+            old_name='name_type',
+            new_name='type',
         ),
     ]
