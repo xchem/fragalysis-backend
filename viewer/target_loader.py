@@ -920,10 +920,19 @@ class TargetLoader:
             # gotta have at least something
             return None
 
+        modeled_smiles_soakdb = data.get("modeled_smiles_soakdb", None)
+        modeled_smiles_canon = data.get("modeled_smiles_canon", None)
+        soaked_smiles_soakdb = data.get("soaked_smiles_soakdb", None)
+        soaked_smiles_canon = data.get("soaked_smiles_canon", None)
+
         defaults = {
             "smiles": smiles,
             "compound_code": compound_code,
             "ligand_name": ligand_key,
+            "modeled_smiles_soakdb": modeled_smiles_soakdb,
+            "modeled_smiles_canon": modeled_smiles_canon,
+            "soaked_smiles_soakdb": soaked_smiles_soakdb,
+            "soaked_smiles_canon": soaked_smiles_canon,
         }
 
         return ProcessedObject(

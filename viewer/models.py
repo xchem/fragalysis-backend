@@ -283,6 +283,10 @@ class Compound(models.Model):
     comments = models.TextField(blank=True, null=True)
     inchi_key = models.CharField(db_index=True, max_length=27, blank=True)
     ligand_name = models.TextField(blank=True, default='LIG')
+    modeled_smiles_soakdb = models.TextField(blank=True, null=True)
+    modeled_smiles_canon = models.TextField(blank=True, null=True)
+    soaked_smiles_soakdb = models.TextField(blank=True, null=True)
+    soaked_smiles_canon = models.TextField(blank=True, null=True)
 
     objects = models.Manager()
     filter_manager = CompoundDataManager()
