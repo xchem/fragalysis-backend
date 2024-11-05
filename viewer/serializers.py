@@ -245,6 +245,26 @@ class CompoundSerializer(serializers.ModelSerializer):
             "description",
             "comments",
         )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "inchi": {"read_only": True},
+            "smiles": {"read_only": True},
+            "current_identifier": {"read_only": False},
+            "all_identifiers": {"read_only": True},
+            "project_id": {"read_only": True},
+            "compound_code": {"read_only": True},
+            "inspirations": {"read_only": True},
+            "description": {"read_only": True},
+            "comments": {"read_only": True},
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # limit the identifiers queryset to only the onses related to this compound
+        if self.instance and isinstance(self.instance, models.Compound):
+            self.fields[
+                'current_identifier'
+            ].queryset = self.instance.all_identifiers.all()
 
 
 class SiteObservationSerializer(serializers.ModelSerializer):

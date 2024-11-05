@@ -336,7 +336,7 @@ class TargetView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
             )
 
 
-class CompoundView(ISPyBSafeQuerySet):
+class CompoundView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     """Compounds (api/compounds)"""
 
     queryset = models.Compound.filter_manager.filter_qs()

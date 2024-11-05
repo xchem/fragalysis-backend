@@ -264,19 +264,13 @@ class Compound(models.Model):
     inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
     compound_code = models.TextField(null=True)
-    current_identifier = models.CharField(
-        max_length=255,
-        db_index=True,
+    current_identifier = models.OneToOneField(
+        'CompoundIdentifier',
         blank=True,
         null=True,
-        help_text='The identifier for this compound that is used in Fragalysis to'
-        ' represent its 3D molecule (optional)',
-    )
-    all_identifiers = models.TextField(
-        blank=True,
-        null=True,
-        help_text='A comma separated list of all identifiers that have been used in'
-        ' the past to represent this 2D compound',
+        on_delete=models.SET_NULL,
+        related_name='+',
+        help_text='The preferred alias for this compound.',
     )
     project_id = models.ManyToManyField(Project)
     inspirations = models.ManyToManyField(
@@ -288,6 +282,7 @@ class Compound(models.Model):
     description = models.TextField(blank=True, null=True)
     comments = models.TextField(blank=True, null=True)
     inchi_key = models.CharField(db_index=True, max_length=27, blank=True)
+    ligand_name = models.TextField(blank=True, default='LIG')
 
     objects = models.Manager()
     filter_manager = CompoundDataManager()
@@ -557,7 +552,6 @@ class SiteObservation(Versionable, models.Model):
     ligand_pdb = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
-
     objects = models.Manager()
     history = HistoricalRecords()
     filter_manager = SiteObservationDataManager()
@@ -575,26 +569,41 @@ class SiteObservation(Versionable, models.Model):
 
 
 class CompoundIdentifierType(models.Model):
-    NAME_LENGTH = 20
-    name = models.CharField(max_length=NAME_LENGTH)
+    name = models.TextField(primary_key=True)
 
     def __str__(self) -> str:
         return f"{self.name}"
 
     def __repr__(self) -> str:
-        return "<CompoundIdentifierType %r %r>" % (self.id, self.name)
+        return "<CompoundIdentifierType %r>" % (self.name)
 
 
 class CompoundIdentifier(models.Model):
-    NAME_LENGTH = 40
-    URL_LENGTH = 200
-    type = models.ForeignKey(CompoundIdentifierType, on_delete=models.CASCADE)
-    compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
-    url = models.URLField(max_length=URL_LENGTH, null=True)
-    name = models.CharField(max_length=NAME_LENGTH)
+    type = models.ForeignKey(
+        CompoundIdentifierType, to_field='name', on_delete=models.CASCADE
+    )
+    compound = models.ForeignKey(
+        Compound,
+        on_delete=models.CASCADE,
+        related_name="all_identifiers",
+    )
+    url = models.URLField(null=True)
+    name = models.TextField(null=False)
 
     objects = models.Manager()
     filter_manager = CompoundIdentifierDataManager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "type",
+                    "compound",
+                    "name",
+                ],
+                name="unique_compoundidentifier",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.name}"

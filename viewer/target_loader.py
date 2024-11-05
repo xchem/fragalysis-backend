@@ -13,6 +13,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
+import pandas as pd
 import yaml
 from celery import Task
 from django.conf import settings
@@ -20,7 +21,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Model
+from django.db.models import Count, F, Model
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
@@ -31,6 +32,8 @@ from viewer.models import (
     CanonSite,
     CanonSiteConf,
     Compound,
+    CompoundIdentifier,
+    CompoundIdentifierType,
     Experiment,
     ExperimentUpload,
     Pose,
@@ -62,6 +65,8 @@ METADATA_FILE = "meta_aligner.yaml"
 TRANS_NEIGHBOURHOOD = "neighbourhood_transforms.yaml"
 TRANS_CONF_SITE = "conformer_site_transforms.yaml"
 TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
+
+CUSTOM_IDENTIFIER_FILE = "compounds_manual.csv"
 
 
 class UploadState(str, Enum):
@@ -113,10 +118,10 @@ class ProcessedObject:
 
     model_class: ModelBase
     fields: dict
-    key: str
+    key: str | tuple[str, str]
     defaults: dict = field(default_factory=dict)
     index_data: dict = field(default_factory=dict)
-    versioned_key: Optional[str] = ""
+    versioned_key: Optional[str | tuple[str, str]] = ""
 
 
 @dataclass
@@ -298,7 +303,7 @@ def create_objects(func=None, *, depth=math.inf):
     @functools.wraps(func)
     def wrapper_create_objects(
         self, *args, yaml_data: dict, **kwargs
-    ) -> dict[int | str, MetadataObject]:
+    ) -> dict[int | str | tuple[str, str], MetadataObject]:
         # logger.debug("+ wrapper_service_query")
         # logger.debug("args passed: %s", args)
         # logger.debug("kwargs passed: %s", kwargs)
@@ -818,11 +823,6 @@ class TargetLoader:
                 logging.ERROR, f"Unexpected status '{dstatus}' for {experiment_name}"
             )
 
-        try:
-            smiles = data["crystallographic_files"]["ligand_cif"]["smiles"]
-        except KeyError:
-            smiles = ""
-
         # if empty or key missing entirely, ensure code_prefix returns empty
         code_prefix = extract(key="code_prefix", level=logging.INFO)
         # ignoring type because tooltip dict can legitimately be empty
@@ -860,7 +860,6 @@ class TargetLoader:
 
         index_fields = {
             "xtalform": assigned_xtalform,
-            "smiles": smiles,
             "code_prefix": code_prefix,
         }
 
@@ -873,64 +872,66 @@ class TargetLoader:
             index_data=index_fields,
         )
 
-    @create_objects(depth=1)
+    @create_objects(depth=5)
     def process_compound(
         self,
         experiments: dict[int | str, MetadataObject],
-        item_data: tuple[str, dict] | None = None,
+        item_data: tuple[str, str, str, str, str, dict] | None = None,
         **kwargs,
     ) -> ProcessedObject | None:
         """Extract data from yaml block for creating Compound instance.
 
-        Incoming data format:
-        xtal_pdb: {file: <file path>, sha256: <hash>}
-        xtal_mtz: {file: <file path>, sha256: <hash>}
-        ligand_cif: {file: <file path>, sha256: <hash>, smiles: <smiles>}
-        panddas_event_files:
-        - {file: <file path>, sha256: <hash>,
-          model: <int>, chain: <char[1]>, res: <int>, index: <int>, bdc: <float>}
-        - {file: <file path>, sha256: <hash>,
-          model: <int>, chain: <char[1]>, res: <int>, index: <int>, bdc: <float>}
+        Incoming item_data format:
+        experiment_name <str>,
+        "crystallographic_files" <str>,
+        "ligand_cif" <str>,
+        "ligands" <str>,
+        ligand_key <str>,
+        {
+            "smiles": smiles <str>
+        }
 
         NB! After creation, many2many with project needs to be populated
         """
         del kwargs
         assert item_data
         logger.debug("incoming data: %s", item_data)
-        protein_name, data = item_data
+
+        # remove non-compound objects
+        try:
+            experiment_name, _, _, _, ligand_key, data = item_data
+        except ValueError:
+            # wrong data item
+            return None
+
+        # more validation
         if (
-            "aligned_files" not in data.keys()
-            or not experiments[protein_name].new  # remove already saved objects
-            or "crystallographic_files" not in data.keys()
+            item_data[1] != "crystallographic_files"
+            or item_data[2] != "ligand_cif"
+            or item_data[3] != "ligands"
+            or not experiments[experiment_name].new  # remove already saved objects
         ):
             return None
 
-        try:
-            smiles = data["crystallographic_files"]["ligand_cif"]["smiles"]
-        except KeyError as exc:
-            # just setting the var to something
-            smiles = (
-                "crystallographic_files"
-                if exc.args[0] == "ligand_cif"
-                else "ligand_cif"
-            )
-            self.report.log(
-                logging.WARNING,
-                f"{exc} missing from {smiles} in '{protein_name}' experiment section",
-            )
+        smiles = data.get("smiles", None)
+        compound_code = data.get("compound_code", None)
+
+        if smiles is None and compound_code is None:
+            # gotta have at least something
             return None
 
         defaults = {
             "smiles": smiles,
-            "compound_code": data.get("compound_code", None),
+            "compound_code": compound_code,
+            "ligand_name": ligand_key,
         }
 
         return ProcessedObject(
             model_class=Compound,
             fields={},
             defaults=defaults,
-            key=protein_name,
-            versioned_key=protein_name,
+            key=(experiment_name, ligand_key),
+            versioned_key=(experiment_name, ligand_key),
         )
 
     @create_objects(depth=1)
@@ -1331,9 +1332,11 @@ class TargetLoader:
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
 
         smiles = extract(key="ligand_smiles_string")
+        ligand_name = extract(key="ligand_name")
 
         try:
-            compound = compounds[experiment_id].instance
+            compound = compounds[(experiment_id, ligand_name)].instance  # type: ignore[index]
+            # I don't understand the error above, I've definitely declared the tuple type
         except KeyError:
             # compound not saved on this round, but if this is not the
             # first upload, experiment and compound may have come from
@@ -1631,10 +1634,10 @@ class TargetLoader:
         # TODO: is it 1:1 relationship? looking at the meta_align it
         # seems to be, but why the m2m then?
         for (
-            comp_code,
+            comp_code,  # it's tuple here, (epx_name, ligand_key)
             comp_meta,
         ) in compound_objects.items():  # pylint: disable=no-member
-            experiment = experiment_objects[comp_code].instance
+            experiment = experiment_objects[comp_code[0]].instance
             experiment.compounds.add(comp_meta.instance)
             comp_meta.instance.project_id.add(self.experiment_upload.project)
 
@@ -2040,6 +2043,102 @@ class TargetLoader:
             ],
             clean_ids=False,
         )
+
+        # import compound identifier file, if present
+        if (
+            Path(upload_dir)
+            .joinpath("extra_files")
+            .joinpath(CUSTOM_IDENTIFIER_FILE)
+            .exists()
+        ):
+            self.import_compound_identifiers()
+
+    def import_compound_identifiers(self):
+        try:
+            df = pd.read_csv(CUSTOM_IDENTIFIER_FILE)
+        except UnicodeDecodeError:
+            self.report.log(
+                logging.ERROR,
+                f"Error reading {CUSTOM_IDENTIFIER_FILE}, unexpected format",
+            )
+            return
+
+        key_cols = ["xtal", "ligand_name"]
+        extended_key_cols = key_cols + ["compound_code"]
+        non_idf_cols = extended_key_cols + ["compound_code_update"]
+
+        identifiers_from_file = set([k for k in df.columns if k not in non_idf_cols])
+
+        # I think this is a bad idea, but it was explicitly in the spec
+        identifier_types = set(
+            CompoundIdentifierType.objects.values_list("name", flat=True)
+        )
+        new_identifiers = identifiers_from_file.difference(identifier_types)
+        for identifier in new_identifiers:
+            CompoundIdentifierType(name=identifier).save()
+
+        # you'd think I could supply the compounds processed, but I need a queryset..
+        compounds = Compound.objects.annotate(
+            exp_code=F("experiment__code"),
+        ).filter(
+            experiment__code__in=df["xtal"],
+        )
+
+        # validate cols, compound code should be unchanged
+        for _, row in df[extended_key_cols].iterrows():
+            exp_code, ligand_name, compound_code = row
+            compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+            if compound.compound_code != compound_code:
+                self.report.log(
+                    logging.ERROR,
+                    (
+                        f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
+                        + " use 'compound_code_update' column instead."
+                    ),
+                )
+
+        # but if the correct column is supplied, then update
+        if "compound_code_update" in df.columns:
+            for _, row in df.loc[
+                df["compound_code_update"].notna(), non_idf_cols
+            ].iterrows():
+                exp_code, ligand_name, _, compound_code_update = row
+                compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+                compound.compound_code = compound_code_update
+                compound.save()
+
+        identifiers = CompoundIdentifierType.objects.all()
+
+        for idf in identifiers_from_file:
+            identifier = identifiers.get(name=idf)
+
+            for _, row in df.loc[df[idf].notna(), key_cols + [idf]].iterrows():
+                exp_code, ligand_name, name = row
+                compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+
+                try:
+                    compound_identifier = CompoundIdentifier(
+                        type=identifier,
+                        compound=compound,
+                        name=name,
+                    )
+                    compound_identifier.save()
+
+                    # set the preferred identifier to first non-empty
+                    if not compound.current_identifier:
+                        compound.current_identifier = compound_identifier
+                        compound.save()
+
+                except IntegrityError as exc:
+                    # most probably a duplicate
+                    self.report.log(
+                        logging.ERROR,
+                        exc.args[0],
+                    )
+
+                # memo to self: I tried using bulk_create here but it kept
+                # failing with a rather cryptic error message. worth
+                # revisiting when django has been upgraded
 
     def _load_yaml(self, yaml_file: Path) -> dict:
         contents = {}
