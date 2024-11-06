@@ -18,9 +18,13 @@ class Migration(migrations.Migration):
         # ),
         # continuing the migration tweak that started in 0074
         migrations.RunPython(lambda apps, schema_editor: print('migration 0076')),
-        migrations.RenameField(
+        # migrations.RenameField(
+        #     model_name='compoundidentifier',
+        #     old_name='name_type',
+        #     new_name='type',
+        # ),
+        migrations.RemoveField(
             model_name='compoundidentifier',
-            old_name='name_type',
-            new_name='type',
+            name='name_type',
         ),
     ]
