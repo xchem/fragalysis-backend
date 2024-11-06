@@ -10,6 +10,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(lambda apps, schema_editor: print('migration 0075')),
         migrations.RemoveField(
             model_name='compoundidentifier',
             name='type',

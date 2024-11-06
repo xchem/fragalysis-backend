@@ -10,6 +10,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(lambda apps, schema_editor: print('migration 0078')),
         migrations.AddConstraint(
             model_name='compoundidentifier',
             constraint=models.UniqueConstraint(fields=('type', 'compound', 'name'), name='unique_compoundidentifier'),

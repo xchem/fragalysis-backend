@@ -21,21 +21,25 @@ class Migration(migrations.Migration):
 
     # with my edits:
     operations = [
+        migrations.RunPython(lambda apps, schema_editor: print('first migration')),
         migrations.AlterField(
             model_name='compoundidentifiertype',
             name='name',
             field=models.TextField(unique=True),
         ),
         # add new foreign key field to CompoundIdentifier
+        migrations.RunPython(lambda apps, schema_editor: print('second migration')),
         migrations.AddField(
             model_name='compoundidentifier',
             name='name_type',
             field=models.ForeignKey(null=True, to_field='name', on_delete=django.db.models.deletion.CASCADE, to='viewer.compoundidentifiertype'),
         ),
         # populate values in new field
+        migrations.RunPython(lambda apps, schema_editor: print('third migration, data')),
         migrations.RunPython(fk_to_new_type, reverse_fk_to_new_type),
 
         # continue with the original migration, remove field, set the new pk
+        migrations.RunPython(lambda apps, schema_editor: print('fourth migration')),
         migrations.RemoveField(
             model_name='compoundidentifiertype',
             name='id',
@@ -45,6 +49,7 @@ class Migration(migrations.Migration):
         #     name='name',
         #     field=models.TextField(),
         # ),
+        migrations.RunPython(lambda apps, schema_editor: print('last migration')),
         migrations.AlterField(
             model_name='compoundidentifiertype',
             name='name',

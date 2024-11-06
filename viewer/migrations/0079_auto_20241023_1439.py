@@ -11,10 +11,12 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(lambda apps, schema_editor: print('migration 0079, first')),
         migrations.RemoveField(
             model_name='compound',
             name='all_identifiers',
         ),
+        migrations.RunPython(lambda apps, schema_editor: print('migration 0079, second')),
         migrations.AlterField(
             model_name='compound',
             name='current_identifier',

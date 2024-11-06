@@ -11,6 +11,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(lambda apps, schema_editor: print('migration 0081')),
         migrations.AlterField(
             model_name='compound',
             name='current_identifier',
