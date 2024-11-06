@@ -106,7 +106,7 @@ services:
       OIDC_RENEW_ID_TOKEN_EXPIRY_MINUTES: '210'
       # Public target access strings?
       # A comma-separated list of Project titles.
-      PUBLIC_TAS: lb18145-1
+      PUBLIC_TAS: ${PUBLIC_TAS:-lb18145-1}
       # Squonk configuration
       SQUONK2_VERIFY_CERTIFICATES: 'No'
       SQUONK2_UNIT_BILLING_DAY: 3
