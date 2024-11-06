@@ -19,66 +19,28 @@ class Migration(migrations.Migration):
     def reverse_temporary_name(apps, schema_editor):
         pass
 
-    def relink_type(apps, schema_editor):
-        CompoundIdentifier = apps.get_model('viewer', 'CompoundIdentifier')
-        CompoundIdentifierType = apps.get_model('viewer', 'CompoundIdentifierType')
 
-        for idf in CompoundIdentifier.objects.all():
-            idf.type = CompoundIdentifierType.objects.get(name=idf.name_type)
-            idf.save()
-
-    def reverse_relink_type(apps, schema_editor):
-        pass
-
-    # with my edits:
+    # this contains some edits, the automatically constructed
+    # migration was not in the correct order, so I had to move things
+    # around to preserve data
     operations = [
-        # migrations.RunPython(lambda apps, schema_editor: print('first migration')),
-        # migrations.AlterField(
-        #     model_name='compoundidentifiertype',
-        #     name='name',
-        #     field=models.TextField(unique=True),
-        # ),
-        # add new foreign key field to CompoundIdentifier
-        # migrations.RunPython(lambda apps, schema_editor: print('second migration')),
-        # migrations.AddField(
-        #     model_name='compoundidentifier',
-        #     name='name_type',
-        #     field=models.ForeignKey(null=True, to_field='name', on_delete=django.db.models.deletion.CASCADE, to='viewer.compoundidentifiertype'),
-        # ),
         migrations.AddField(
             model_name='compoundidentifier',
             name='name_type',
             field=models.TextField(null=True),
         ),
-        # populate values in new field
-        migrations.RunPython(lambda apps, schema_editor: print('third migration, data')),
         migrations.RunPython(temporary_name, reverse_temporary_name),
-
-        # continue with the original migration, remove field, set the new pk
-        migrations.RunPython(lambda apps, schema_editor: print('fourth migration')),
         migrations.RemoveField(
             model_name='compoundidentifier',
             name='type',
         ),
-        migrations.RunPython(lambda apps, schema_editor: print('fifth migration')),
         migrations.RemoveField(
             model_name='compoundidentifiertype',
             name='id',
         ),
-        # migrations.AlterField(
-        #     model_name='compoundidentifier',
-        #     name='name',
-        #     field=models.TextField(),
-        # ),
-        migrations.RunPython(lambda apps, schema_editor: print('6th migration')),
         migrations.AlterField(
             model_name='compoundidentifiertype',
             name='name',
             field=models.TextField(primary_key=True, serialize=False),
         ),
-        # migrations.RemoveField(
-        #     model_name='compoundidentifiertype',
-        #     name='id',
-        # ),
-
     ]

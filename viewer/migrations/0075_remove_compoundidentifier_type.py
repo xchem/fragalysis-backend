@@ -22,11 +22,6 @@ class Migration(migrations.Migration):
         pass
 
     operations = [
-        migrations.RunPython(lambda apps, schema_editor: print('migration 0075')),
-        # migrations.RemoveField(
-        #     model_name='compoundidentifier',
-        #     name='type',
-        # ),
         migrations.AddField(
             model_name='compoundidentifier',
             name='type',
