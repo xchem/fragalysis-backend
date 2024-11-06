@@ -10,6 +10,29 @@ class Migration(migrations.Migration):
         ('viewer', '0078_compoundidentifier_unique_compoundidentifier'),
     ]
 
+    # def temporary_name(apps, schema_editor):
+    #     Compound = apps.get_model('viewer', 'Compound')
+
+    #     for compound in Compound.objects.all():
+    #         compound.id_current_identifier = compound.type.name
+    #         compound.save()
+
+    # def reverse_temporary_name(apps, schema_editor):
+    #     pass
+
+    # def relink_type(apps, schema_editor):
+    #     CompoundIdentifier = apps.get_model('viewer', 'CompoundIdentifier')
+    #     CompoundIdentifierType = apps.get_model('viewer', 'CompoundIdentifierType')
+
+    #     for idf in CompoundIdentifier.objects.all():
+    #         idf.type = CompoundIdentifierType.objects.get(name=idf.name_type)
+    #         idf.save()
+
+    # def reverse_relink_type(apps, schema_editor):
+    #     pass
+
+
+
     operations = [
         migrations.RunPython(lambda apps, schema_editor: print('migration 0079, first')),
         migrations.RemoveField(
@@ -17,6 +40,12 @@ class Migration(migrations.Migration):
             name='all_identifiers',
         ),
         migrations.RunPython(lambda apps, schema_editor: print('migration 0079, second')),
+        # migrations.AddField(
+        #     model_name='compoundid',
+        #     name='name_current_identifier',
+        #     field=models.TextField(null=True),
+        # ),
+        # migrations.RunPython(temporary_name, reverse_temporary_name),
         migrations.AlterField(
             model_name='compound',
             name='current_identifier',

@@ -293,7 +293,7 @@ class MolOps:
                 smiles=Chem.MolToSmiles(sanitized_mol),
                 inchi=inchi,
                 inchi_key=inchi_key,
-                current_identifier=name,
+                description=name,
             )
             # This is a new compound.
             cpd.save()
