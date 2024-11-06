@@ -32,6 +32,17 @@ class Migration(migrations.Migration):
     #     pass
 
 
+    def move_contents(apps, schema_editor):
+        Compound = apps.get_model('viewer', 'Compound')
+
+        for compound in Compound.objects.all():
+            compound.description = compound.current_identifier
+            compound.save()
+
+    def reverse_move_contents(apps, schema_editor):
+        pass
+
+
 
     operations = [
         migrations.RunPython(lambda apps, schema_editor: print('migration 0079, first')),
@@ -39,14 +50,19 @@ class Migration(migrations.Migration):
             model_name='compound',
             name='all_identifiers',
         ),
+
         migrations.RunPython(lambda apps, schema_editor: print('migration 0079, second')),
         # migrations.AddField(
         #     model_name='compoundid',
         #     name='name_current_identifier',
         #     field=models.TextField(null=True),
         # ),
-        # migrations.RunPython(temporary_name, reverse_temporary_name),
-        migrations.AlterField(
+        migrations.RunPython(move_contents, reverse_move_contents),
+        migrations.RemoveField(
+            model_name='compound',
+            name='current_identifier',
+        ),
+        migrations.AddField(
             model_name='compound',
             name='current_identifier',
             field=models.ForeignKey(blank=True, help_text='The preferred alias for this compound.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to='viewer.compoundidentifier'),
