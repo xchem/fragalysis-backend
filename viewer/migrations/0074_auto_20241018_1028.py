@@ -53,6 +53,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='compoundidentifiertype',
             name='name',
-            field=models.TextField(primary_key=True, serialize=False),
+            field=models.TextField(primary_key=True, unique=True, serialize=False),
         ),
     ]
