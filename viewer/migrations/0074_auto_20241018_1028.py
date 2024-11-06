@@ -21,6 +21,11 @@ class Migration(migrations.Migration):
 
     # with my edits:
     operations = [
+        migrations.AlterField(
+            model_name='compoundidentifiertype',
+            name='name',
+            field=models.TextField(unique=True),
+        ),
         # add new foreign key field to CompoundIdentifier
         migrations.AddField(
             model_name='compoundidentifier',
@@ -35,11 +40,11 @@ class Migration(migrations.Migration):
             model_name='compoundidentifiertype',
             name='id',
         ),
-        migrations.AlterField(
-            model_name='compoundidentifier',
-            name='name',
-            field=models.TextField(),
-        ),
+        # migrations.AlterField(
+        #     model_name='compoundidentifier',
+        #     name='name',
+        #     field=models.TextField(),
+        # ),
         migrations.AlterField(
             model_name='compoundidentifiertype',
             name='name',
