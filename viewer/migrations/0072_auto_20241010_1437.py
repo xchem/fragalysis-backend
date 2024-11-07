@@ -6,6 +6,7 @@ from django.db import migrations
 
 from fragalysis.settings import MEDIA_ROOT, TARGET_LOADER_MEDIA_DIRECTORY
 
+from viewer.models import ComputedMolecule
 from viewer.utils import sanitize_directory_name
 
 
@@ -29,13 +30,19 @@ class Migration(migrations.Migration):
 
 
             if target.zip_archive:
+                if target.zip_archive.name.endswith(target.project.title):
+                    # probably already processed. due to resource path
+                    # glitch, this migration was applied twice in prod
+                    continue
+
                 old_data_path = root_path.joinpath(target.zip_archive.name)
                 new_archive_dir = sanitize_directory_name(
                     f"{target.zip_archive.name}_{target.project.title}",
                     root_path,
                 )
                 new_data_path = root_path.joinpath(new_archive_dir)
-                old_data_path.rename(new_data_path)
+                if not new_data_path.exists():
+                    old_data_path.rename(new_data_path)
                 # move tarballs
                 for exp_upload in target.experimentupload_set.all():
                     tarball_path = root_path.joinpath(exp_upload.file.name)
@@ -75,6 +82,105 @@ class Migration(migrations.Migration):
     def unmove_data(apps, schema_editor):
         pass
 
+    @staticmethod
+    def update_path(value, target_dir):
+        if value:
+            path = Path(str(value))
+            parts = list(path.parts)
+            if len(parts) > 2 and parts[1] != target_dir:
+                parts[1] = target_dir
+                value = str(Path(*parts))
+
+        return value
+
+
+    @staticmethod
+    def update_field(instance, field, target_dir):
+        value = getattr(instance, field, None)
+        path = Migration.update_path(value, target_dir)
+        setattr(instance, field, path)
+
+        return instance
+
+
+    def update_file_names(apps, schema_editor):
+        # this is delibarately skipping historical models
+        ExperimentUpload = apps.get_model('viewer', 'ExperimentUpload')
+        Experiment = apps.get_model('viewer', 'Experiment')
+        SiteObservation = apps.get_model('viewer', 'SiteObservation')
+        ComputedMolecule = apps.get_model('viewer', 'ComputedMolecule')
+
+        experiment_upload_fields = (
+            'neighbourhood_transforms',
+            'conformer_site_transforms',
+            'reference_structure_transforms',
+        )
+
+        experiment_fields = (
+            'pdb_info',
+            'pdb_info_source_file',
+            'mtz_info',
+            'mtz_info_source_file',
+            'cif_info',
+            'cif_info_source_file',
+        )
+
+        experiment_arr_fields = 'map_info_source_files'
+
+        site_observation_fields = (
+            'bound_file',
+            'apo_solv_file',
+            'apo_desolv_file',
+            'apo_file',
+            'sigmaa_file',
+            'diff_file',
+            'event_file',
+            'artefacts_file',
+            'pdb_header_file',
+            'ligand_mol',
+            'ligand_smiles',
+            'ligand_pdb',
+        )
+
+        for instance in ExperimentUpload.objects.all():
+            target_dir = instance.target.zip_archive.name
+            for field in experiment_upload_fields:
+                instance = Migration.update_field(instance, field, target_dir)
+
+            instance.save()
+
+        for instance in Experiment.objects.all():
+            target_dir = instance.experiment_upload.target.zip_archive.name
+            for field in experiment_fields:
+                instance = Migration.update_field(instance, field, target_dir)
+
+            value = getattr(instance, experiment_arr_fields, None)
+            if value:
+                paths = [Migration.update_path(v, target_dir) for v in value]
+                setattr(instance, experiment_arr_fields, paths)
+
+
+            instance.save()
+
+        for instance in SiteObservation.objects.all():
+            target_dir = instance.experiment.experiment_upload.target.zip_archive.name
+            for field in site_observation_fields:
+                instance = Migration.update_field(instance, field, target_dir)
+
+            instance.save()
+
+        for instance in ComputedMolecule.objects.all():
+            target_dir = instance.computed_set.all()[0].target.zip_archive.name
+            for field in site_observation_fields:
+                instance = Migration.update_field(instance, field, target_dir)
+
+            instance.save()
+
+
+    def reverse_update_file_names(apps, schema_editor):
+        pass
+
     operations = [
-        migrations.RunPython(move_data, unmove_data)
+        migrations.RunPython(move_data, unmove_data),
+        migrations.RunPython(update_file_names, reverse_update_file_names),
     ]
