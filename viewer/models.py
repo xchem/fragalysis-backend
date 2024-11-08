@@ -556,6 +556,9 @@ class SiteObservation(Versionable, models.Model):
     ligand_pdb = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    ligand_sdf = models.FileField(
+        upload_to="target_loader_data/", null=True, max_length=255
+    )
     objects = models.Manager()
     history = HistoricalRecords()
     filter_manager = SiteObservationDataManager()
