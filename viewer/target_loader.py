@@ -1311,6 +1311,7 @@ class TargetLoader:
           pdb_apo_solv:  <file path>,
           pdb_apo_desolv:  <file path>,
           ligand_mol:  <file path>,
+          ligand_mol:  <file path>,
           ligand_pdb:  <file path>,
           ligand_smiles: <smiles>,
         }
@@ -1387,6 +1388,7 @@ class TargetLoader:
             ligand_pdb_t,
             ligand_mol_t,
             ligand_smiles_t,
+            ligand_sdf_t,
         ) = self.validate_files(
             obj_identifier=experiment_id,
             file_struct=data,
@@ -1404,6 +1406,7 @@ class TargetLoader:
                 "ligand_pdb",
                 "ligand_mol",
                 "ligand_smiles",
+                "ligand_sdf",
             ),
             validate_files=validate_files,
         )
@@ -1419,6 +1422,7 @@ class TargetLoader:
         ligand_pdb = ligand_pdb_t[0]
         ligand_mol = ligand_mol_t[0]
         ligand_smiles = ligand_smiles_t[0]
+        ligand_sdf = ligand_sdf_t[0]
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
@@ -1445,7 +1449,8 @@ class TargetLoader:
             "ligand_pdb": str(self._get_final_path(ligand_pdb)),
             "ligand_mol": str(self._get_final_path(ligand_mol)),
             "ligand_smiles": str(self._get_final_path(ligand_smiles)),
-            "pdb_header_file": "currently missing",
+            "ligand_sdf": str(self._get_final_path(ligand_sdf)),
+            "pdb_header_file": None,
         }
 
         return ProcessedObject(
