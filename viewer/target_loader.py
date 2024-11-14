@@ -2059,17 +2059,15 @@ class TargetLoader:
         )
 
         # import compound identifier file, if present
-        if (
-            Path(upload_dir)
-            .joinpath("extra_files")
-            .joinpath(CUSTOM_IDENTIFIER_FILE)
-            .exists()
-        ):
-            self.import_compound_identifiers()
+        alias_file_path = (
+            Path(upload_dir).joinpath("extra_files").joinpath(CUSTOM_IDENTIFIER_FILE)
+        )
+        if alias_file_path.exists():
+            self.import_compound_identifiers(alias_file_path)
 
-    def import_compound_identifiers(self):
+    def import_compound_identifiers(self, alias_file_path):
         try:
-            df = pd.read_csv(CUSTOM_IDENTIFIER_FILE)
+            df = pd.read_csv(alias_file_path)
         except UnicodeDecodeError:
             self.report.log(
                 logging.ERROR,
