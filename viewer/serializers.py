@@ -18,6 +18,7 @@ from rest_framework.exceptions import PermissionDenied
 from api.security import ISPyBSafeQuerySet
 from api.utils import draw_mol, validate_tas
 from viewer import models
+from viewer.cset_upload import EMPTY_VALUES
 from viewer.target_loader import XTALFORMS_FILE
 from viewer.target_set_upload import sanitize_mol
 from viewer.utils import get_https_host
@@ -696,7 +697,24 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
     numerical_scores = serializers.SerializerMethodField()
     text_scores = serializers.SerializerMethodField()
     pdb_info = serializers.SerializerMethodField()
-    # score_descriptions = serializers.SerializerMethodField()
+
+    # avoid 'nan' values in returned data
+    # TODO: as the input is now validated, at some point it may make
+    # more sense to clean the db and get rid of this method
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        result = {}
+        for key, value in data.items():
+            if key == 'text_scores':
+                inner_result = {}
+                for inner_key, inner_value in value.items():
+                    inner_value = None if inner_value in EMPTY_VALUES else inner_value
+                    inner_result[inner_key] = inner_value
+                result[key] = inner_result
+            else:
+                result[key] = value
+
+        return result
 
     class Meta:
         model = models.ComputedMolecule
@@ -711,7 +729,6 @@ class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
             "computed_inspirations",
             "numerical_scores",
             "text_scores",
-            # "score_descriptions",
         )
 
     def get_numerical_scores(self, obj):
