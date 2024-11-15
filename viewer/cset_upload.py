@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+from dateutil.parser import parse
 from openpyxl.utils import get_column_letter
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
@@ -18,9 +19,10 @@ import django
 django.setup()
 
 from django.conf import settings
-from django.core.exceptions import MultipleObjectsReturned
+from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.validators import validate_email
 from django.db.models import F
 from rdkit import Chem
 
@@ -43,6 +45,23 @@ logger = logging.getLogger(__name__)
 
 # maximum distance between corresponding atoms in poses
 _DIST_LIMIT = 0.5
+
+EMPTY_VALUES = (
+    'nan',
+    '',
+    None,
+    np.nan,
+)
+
+
+HEADER_MOL_FIELDS = (
+    'ref_url',
+    'method',
+    'submitter_name',
+    'submitter_institution',
+    'submitter_email',
+    'generation_date',
+)
 
 
 def dataType(a_str: str) -> str:
@@ -321,14 +340,19 @@ class MolOps:
         if 'ref_mols' and 'ref_pdb' not in list(props.keys()):
             raise Exception('ref_mols and ref_pdb not set!')
 
-        for sd in score_descriptions:
+        for sd, val in score_descriptions.items():
             logger.debug('sd: %s', sd)
+            logger.debug('sd.name, val: %s: %s', sd.name, val)
             if dataType(str(props[sd.name])) == 'TEXT':
                 score_value = TextScoreValues()
             else:
                 score_value = NumericalScoreValues()
 
-            score_value.value = props[sd.name]
+            if sd.name in HEADER_MOL_FIELDS:
+                score_value.value = val
+            else:
+                score_value.value = props[sd.name]
+
             score_value.compound = cpd
             score_value.score = sd
             score_value.save()
@@ -536,13 +560,19 @@ class MolOps:
         return computed_molecule
 
     def get_submission_info(self, description_mol) -> ComputedSetSubmitter:
-        y_m_d = description_mol.GetProp('generation_date').split('-')
+        datestring = description_mol.GetProp('generation_date')
+        try:
+            date = parse(datestring, dayfirst=True)
+        except ValueError as exc:
+            logger.error('"%s" is not a valid date', datestring)
+            raise ValueError from exc
+
         return ComputedSetSubmitter.objects.get_or_create(
             name=description_mol.GetProp('submitter_name'),
             method=description_mol.GetProp('method'),
             email=description_mol.GetProp('submitter_email'),
             institution=description_mol.GetProp('submitter_institution'),
-            generation_date=datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
+            generation_date=date,
         )[0]
 
     def process_mol(
@@ -561,7 +591,7 @@ class MolOps:
 
     def set_descriptions(
         self, filename, computed_set: ComputedSet
-    ) -> tuple[List[Chem.rdchem.Mol], List[ScoreDescription]]:
+    ) -> tuple[List[Chem.rdchem.Mol], dict[str, ScoreDescription]]:
         suppl = Chem.SDMolSupplier(str(filename))
         description_mol = suppl[0]
 
@@ -580,9 +610,11 @@ class MolOps:
         computed_set.save()
 
         description_dict = description_mol.GetPropsAsDict()
+        logger.debug('index mol original values: %s', description_dict)
         # score descriptions for this upload, doesn't matter if
         # created or existing
-        score_descriptions = []
+        score_descriptions = {}
+        errors = []
         for key in description_dict.keys():
             if key in descriptions_needed and key not in [
                 'ref_mols',
@@ -596,7 +628,28 @@ class MolOps:
                     name=key,
                     description=description_dict[key],
                 )
-                score_descriptions.append(description)
+
+                value = description_dict[key]
+
+                if key in HEADER_MOL_FIELDS:
+                    if value in EMPTY_VALUES:
+                        msg = f'Empty value for {key} in header molecule'
+                        errors.append(msg)
+                        logger.error(msg)
+                    if key == 'submitter_email':
+                        try:
+                            validate_email(value)
+                        except ValidationError as exc:
+                            msg = f'"{value}" is not a valid email'
+                            logger.error(msg)
+                            errors.append(msg)
+                            raise ValidationError(msg) from exc
+
+                score_descriptions[description] = value
+
+        logger.debug('index mol values: %s', score_descriptions.values())
+        if errors:
+            raise ValueError(errors)
 
         return mols, score_descriptions
 
