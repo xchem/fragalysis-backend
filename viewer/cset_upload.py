@@ -288,7 +288,7 @@ class MolOps:
 
         return site_obvs
 
-    def create_mol(self, inchi, target, name=None) -> Compound:
+    def create_mol(self, inchi, target, name=None) -> tuple[Compound, str]:
         # check for an existing compound, returning a Compound
 
         sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
@@ -296,17 +296,17 @@ class MolOps:
         inchi = Chem.inchi.MolToInchi(sanitized_mol)
         inchi_key = Chem.InchiToInchiKey(inchi)
 
+        qs = Compound.objects.filter(
+            computedmolecule__computed_set__target=target,
+        )
+        cpd_number = '1'
         try:
             # NB! Max said there could be thousands of compounds per
             # target so this distinct() here may become a problem
+            cpd = qs.distinct().get(inchi_key=inchi_key)
 
-            # fmt: off
-            cpd = Compound.objects.filter(
-                computedmolecule__computed_set__target=target,
-            ).distinct().get(
-                inchi_key=inchi_key,
-            )
-            # fmt: on
+            # memo to self: I'm not setting cpd_number here, because
+            # it's read from computedmol name
         except Compound.DoesNotExist:
             cpd = Compound(
                 smiles=Chem.MolToSmiles(sanitized_mol),
@@ -319,6 +319,7 @@ class MolOps:
             # This is a new compound.
             # We must now set relationships to the Proposal that it applies to.
             cpd.project_id.add(target.project)
+            cpd_number = str(qs.count() + 1)
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
             # fetched by inchi_key, so this shouldn't ever create
@@ -334,7 +335,7 @@ class MolOps:
             )
             raise MultipleObjectsReturned from exc
 
-        return cpd
+        return cpd, cpd_number
 
     def set_props(self, cpd, props, score_descriptions) -> List[ScoreDescription]:
         if 'ref_mols' and 'ref_pdb' not in list(props.keys()):
@@ -374,7 +375,7 @@ class MolOps:
         Chem.RemoveStereochemistry(mol)
         flat_inchi = Chem.inchi.MolToInchi(flattened_copy)
 
-        compound: Compound = self.create_mol(
+        compound, number = self.create_mol(
             inchi, compound_set.target, name=molecule_name
         )
 
@@ -448,7 +449,7 @@ class MolOps:
             suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
             suffix = 'a'
-            number = 1
+            # number = 1
 
         name = f'v{number}{suffix}'
 

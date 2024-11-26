@@ -1502,13 +1502,16 @@ class UploadExperimentUploadView(ISPyBSafeQuerySet):
 
     def create(self, request, *args, **kwargs):
         logger.info("+ UploadTargetExperiments.create called")
+        logger.debug("UploadTargetExperiments serializer data: %s", request.data)
         del args, kwargs
 
         serializer = self.get_serializer_class()(data=request.data)
         if not serializer.is_valid():
+            logger.debug("serializer not valid: %s", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         logger.debug("Serializer validated_data=%s", serializer.validated_data)
+        logger.debug("User=%s", self.request.user)
 
         target_access_string = serializer.validated_data['target_access_string']
         contact_email = serializer.validated_data['contact_email']
