@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+from dateutil.parser import parse
 from openpyxl.utils import get_column_letter
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
@@ -18,9 +19,10 @@ import django
 django.setup()
 
 from django.conf import settings
-from django.core.exceptions import MultipleObjectsReturned
+from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.validators import validate_email
 from django.db.models import F
 from rdkit import Chem
 
@@ -43,6 +45,23 @@ logger = logging.getLogger(__name__)
 
 # maximum distance between corresponding atoms in poses
 _DIST_LIMIT = 0.5
+
+EMPTY_VALUES = (
+    'nan',
+    '',
+    None,
+    np.nan,
+)
+
+
+HEADER_MOL_FIELDS = (
+    'ref_url',
+    'method',
+    'submitter_name',
+    'submitter_institution',
+    'submitter_email',
+    'generation_date',
+)
 
 
 def dataType(a_str: str) -> str:
@@ -269,7 +288,7 @@ class MolOps:
 
         return site_obvs
 
-    def create_mol(self, inchi, target, name=None) -> Compound:
+    def create_mol(self, inchi, target, name=None) -> tuple[Compound, str]:
         # check for an existing compound, returning a Compound
 
         sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
@@ -277,29 +296,30 @@ class MolOps:
         inchi = Chem.inchi.MolToInchi(sanitized_mol)
         inchi_key = Chem.InchiToInchiKey(inchi)
 
+        qs = Compound.objects.filter(
+            computedmolecule__computed_set__target=target,
+        )
+        cpd_number = '1'
         try:
             # NB! Max said there could be thousands of compounds per
             # target so this distinct() here may become a problem
+            cpd = qs.distinct().get(inchi_key=inchi_key)
 
-            # fmt: off
-            cpd = Compound.objects.filter(
-                computedmolecule__computed_set__target=target,
-            ).distinct().get(
-                inchi_key=inchi_key,
-            )
-            # fmt: on
+            # memo to self: I'm not setting cpd_number here, because
+            # it's read from computedmol name
         except Compound.DoesNotExist:
             cpd = Compound(
                 smiles=Chem.MolToSmiles(sanitized_mol),
                 inchi=inchi,
                 inchi_key=inchi_key,
-                current_identifier=name,
+                description=name,
             )
             # This is a new compound.
             cpd.save()
             # This is a new compound.
             # We must now set relationships to the Proposal that it applies to.
             cpd.project_id.add(target.project)
+            cpd_number = str(qs.count() + 1)
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
             # fetched by inchi_key, so this shouldn't ever create
@@ -315,29 +335,30 @@ class MolOps:
             )
             raise MultipleObjectsReturned from exc
 
-        return cpd
+        return cpd, cpd_number
 
-    def set_props(self, cpd, props, compound_set) -> List[ScoreDescription]:
+    def set_props(self, cpd, props, score_descriptions) -> List[ScoreDescription]:
         if 'ref_mols' and 'ref_pdb' not in list(props.keys()):
             raise Exception('ref_mols and ref_pdb not set!')
-        set_obj = ScoreDescription.objects.filter(computed_set=compound_set)
-        assert set_obj
 
-        set_props_list = [s.name for s in set_obj]
-        for key in list(props.keys()):
-            if key in set_props_list not in ['ref_mols', 'ref_pdb', 'original SMILES']:
-                if dataType(str(props[key])) == 'TEXT':
-                    score_value = TextScoreValues()
-                else:
-                    score_value = NumericalScoreValues()
-                score_value.score = ScoreDescription.objects.get(
-                    computed_set=compound_set, name=key
-                )
-                score_value.value = props[key]
-                score_value.compound = cpd
-                score_value.save()
+        for sd, val in score_descriptions.items():
+            logger.debug('sd: %s', sd)
+            logger.debug('sd.name, val: %s: %s', sd.name, val)
+            if dataType(str(props[sd.name])) == 'TEXT':
+                score_value = TextScoreValues()
+            else:
+                score_value = NumericalScoreValues()
 
-        return set_obj
+            if sd.name in HEADER_MOL_FIELDS:
+                score_value.value = val
+            else:
+                score_value.value = props[sd.name]
+
+            score_value.compound = cpd
+            score_value.score = sd
+            score_value.save()
+
+        return score_descriptions
 
     def set_mol(
         self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
@@ -354,7 +375,7 @@ class MolOps:
         Chem.RemoveStereochemistry(mol)
         flat_inchi = Chem.inchi.MolToInchi(flattened_copy)
 
-        compound: Compound = self.create_mol(
+        compound, number = self.create_mol(
             inchi, compound_set.target, name=molecule_name
         )
 
@@ -428,7 +449,7 @@ class MolOps:
             suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
             suffix = 'a'
-            number = 1
+            # number = 1
 
         name = f'v{number}{suffix}'
 
@@ -540,25 +561,38 @@ class MolOps:
         return computed_molecule
 
     def get_submission_info(self, description_mol) -> ComputedSetSubmitter:
-        y_m_d = description_mol.GetProp('generation_date').split('-')
+        datestring = description_mol.GetProp('generation_date')
+        try:
+            date = parse(datestring, dayfirst=True)
+        except ValueError as exc:
+            logger.error('"%s" is not a valid date', datestring)
+            raise ValueError from exc
+
         return ComputedSetSubmitter.objects.get_or_create(
             name=description_mol.GetProp('submitter_name'),
             method=description_mol.GetProp('method'),
             email=description_mol.GetProp('submitter_email'),
             institution=description_mol.GetProp('submitter_institution'),
-            generation_date=datetime.date(int(y_m_d[0]), int(y_m_d[1]), int(y_m_d[2])),
+            generation_date=date,
         )[0]
 
     def process_mol(
-        self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
+        self,
+        mol,
+        target,
+        compound_set,
+        filename,
+        score_descriptions,
+        zfile=None,
+        zfile_hashvals=None,
     ) -> List[ScoreDescription]:
         cpd = self.set_mol(mol, target, compound_set, filename, zfile, zfile_hashvals)
         other_props = mol.GetPropsAsDict()
-        return self.set_props(cpd, other_props, compound_set)
+        return self.set_props(cpd, other_props, score_descriptions)
 
     def set_descriptions(
         self, filename, computed_set: ComputedSet
-    ) -> List[Chem.rdchem.Mol]:
+    ) -> tuple[List[Chem.rdchem.Mol], dict[str, ScoreDescription]]:
         suppl = Chem.SDMolSupplier(str(filename))
         description_mol = suppl[0]
 
@@ -577,6 +611,11 @@ class MolOps:
         computed_set.save()
 
         description_dict = description_mol.GetPropsAsDict()
+        logger.debug('index mol original values: %s', description_dict)
+        # score descriptions for this upload, doesn't matter if
+        # created or existing
+        score_descriptions = {}
+        errors = []
         for key in description_dict.keys():
             if key in descriptions_needed and key not in [
                 'ref_mols',
@@ -585,13 +624,35 @@ class MolOps:
                 'Name',
                 'original SMILES',
             ]:
-                _ = ScoreDescription.objects.get_or_create(
+                description, _ = ScoreDescription.objects.get_or_create(
                     computed_set=computed_set,
                     name=key,
                     description=description_dict[key],
                 )
 
-        return mols
+                value = description_dict[key]
+
+                if key in HEADER_MOL_FIELDS:
+                    if value in EMPTY_VALUES:
+                        msg = f'Empty value for {key} in header molecule'
+                        errors.append(msg)
+                        logger.error(msg)
+                    if key == 'submitter_email':
+                        try:
+                            validate_email(value)
+                        except ValidationError as exc:
+                            msg = f'"{value}" is not a valid email'
+                            logger.error(msg)
+                            errors.append(msg)
+                            raise ValidationError(msg) from exc
+
+                score_descriptions[description] = value
+
+        logger.debug('index mol values: %s', score_descriptions.values())
+        if errors:
+            raise ValueError(errors)
+
+        return mols, score_descriptions
 
     def task(self) -> ComputedSet:
         # Truncate submitted method (lower-case)?
@@ -673,7 +734,7 @@ class MolOps:
         # This also sets the submitter and method URL properties of the computed set
         # while also saving it.
         sdf_filename = str(self.sdf_filename)
-        mols_to_process = self.set_descriptions(
+        mols_to_process, score_descriptions = self.set_descriptions(
             filename=sdf_filename, computed_set=computed_set
         )
 
@@ -688,14 +749,21 @@ class MolOps:
                 self.target_id,
                 computed_set,
                 sdf_filename,
+                score_descriptions,
                 self.zfile,
                 self.zfile_hashvals,
             )
 
         # move and save the compound set
-        new_filename = f'{settings.MEDIA_ROOT}{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{computed_set.name}.sdf'
+        new_filename = (
+            Path(settings.MEDIA_ROOT)
+            .joinpath(settings.COMPUTED_SET_MEDIA_DIRECTORY)
+            .joinpath(
+                f'{computed_set.name}_upload_{computed_set.md_ordinal}_{Path(sdf_filename).name}'
+            )
+        )
         os.rename(sdf_filename, new_filename)
-        computed_set.submitted_sdf = sdf_filename
+        computed_set.submitted_sdf = Path(sdf_filename).name
         computed_set.written_sdf_filename = new_filename
         computed_set.save()
 

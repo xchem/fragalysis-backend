@@ -44,7 +44,7 @@ _ZIP_FILEPATHS = {
     'apo_desolv_file': ('aligned'),  # SiteObservation: apo_desolv_file
     'bound_file': ('aligned'),  # SiteObservation: bound_file
     'sdf_info': ('aligned'),  # SiteObservation: ligand_mol_file (indirectly)
-    'ligand_mol': ('aligned'),  # SiteObservation: ligand_mol
+    'ligand_sdf': ('aligned'),  # SiteObservation: ligand_sdf
     'ligand_smiles': ('aligned'),  # SiteObservation: ligand_smiles
     'ligand_pdb': ('aligned'),  # SiteObservation: ligand_pdb
     'smiles_info': (''),  # SiteObservation: smiles_info (indirectly)
@@ -87,7 +87,7 @@ zip_template = {
         'diff_file': {},
         'sigmaa_file': {},
         'ligand_pdb': {},
-        'ligand_mol': {},
+        'ligand_sdf': {},
         'ligand_smiles': {},
         # additional ccp4 files, issue 1448
         'event_file_crystallographic': {},
@@ -755,7 +755,7 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     'artefacts_file',
                     'pdb_header_file',
                     'ligand_pdb',
-                    'ligand_mol',
+                    'ligand_sdf',
                     'ligand_smiles',
                     'diff_file',
                 ]:
@@ -825,12 +825,12 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
         num_molecules_collected = 0
         num_missing_sd_files = 0
         for so in site_obvs:
-            if so.ligand_mol:
+            if so.ligand_sdf:
                 # There is an SD file (normal)
                 archive_path = str(
                     Path('aligned_files').joinpath(so.code).joinpath(f'{so.code}.sdf')
                 )
-                file_path = str(Path(settings.MEDIA_ROOT).joinpath(so.ligand_mol.name))
+                file_path = str(Path(settings.MEDIA_ROOT).joinpath(so.ligand_sdf.name))
                 # path is ignored when writing sdfs but mandatory field
                 zip_contents['molecules']['sdf_files'].update(
                     {
@@ -845,7 +845,7 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
             else:
                 # No file value (odd).
                 logger.warning(
-                    "SiteObservation record's 'ligand_mol' isn't set (%s)", so
+                    "SiteObservation record's 'ligand_sdf' isn't set (%s)", so
                 )
                 num_missing_sd_files += 1
 
@@ -899,7 +899,7 @@ def get_download_params(request):
         'apo_solv_file': serializer.validated_data['all_aligned_structures'],
         'apo_desolv_file': serializer.validated_data['all_aligned_structures'],
         'ligand_pdb': serializer.validated_data['all_aligned_structures'],
-        'ligand_mol': serializer.validated_data['all_aligned_structures'],
+        'ligand_sdf': serializer.validated_data['all_aligned_structures'],
         'ligand_smiles': serializer.validated_data['all_aligned_structures'],
         'cif_info': serializer.validated_data['cif_info'],
         'mtz_info': serializer.validated_data['mtz_info'],
