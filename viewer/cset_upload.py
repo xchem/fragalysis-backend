@@ -41,6 +41,8 @@ from viewer.models import (
 )
 from viewer.utils import add_props_to_sdf_molecule, alphanumerator, is_url, word_count
 
+from .sdf_check import add_warning
+
 logger = logging.getLogger(__name__)
 
 
@@ -336,19 +338,13 @@ class MolOps:
             # occur. However there's nothing in the db to prevent
             # this, so adding a catch clause and writing a meaningful
             # message
-            logger.error(
-                'Duplicate compounds for target %s with inchi key %s.',
-                target.title,
-                inchi_key,
-            )
-            raise MultipleObjectsReturned from exc
+            msg = f'Duplicate compounds for target {target.title} with inchi key {inchi_key}.'
+            logger.error(msg)
+            raise IntegrityError(msg) from exc
 
         return cpd, cpd_number
 
     def set_props(self, cpd, props, score_descriptions) -> List[ScoreDescription]:
-        if 'ref_mols' and 'ref_pdb' not in list(props.keys()):
-            raise Exception('ref_mols and ref_pdb not set!')
-
         for sd, val in score_descriptions.items():
             logger.debug('sd: %s', sd)
             logger.debug('sd.name, val: %s: %s', sd.name, val)
@@ -405,7 +401,7 @@ class MolOps:
                     experiment__experiment_upload__target=compound_set.target,
                 )
                 if not qs.exists():
-                    raise Exception(  # pylint: disable=raise-missing-from
+                    raise IntegrityError(  # pylint: disable=raise-missing-from
                         'No matching molecules found for inspiration frag ' + i
                     )
 
@@ -439,7 +435,7 @@ class MolOps:
 
         # I think, realistically, I only need to check compound
         # update: I used to annotate name components, with the new
-        # format, this is not necessary. or possible fmt: off
+        # format, this is not necessary. or possible
         qs = ComputedMolecule.objects.filter(
             compound=compound,
         ).order_by('name')
@@ -452,7 +448,9 @@ class MolOps:
             groups = re.search(r'()(\d+)(\D+)', qs.last().name)
             if groups is None or len(groups.groups()) != 3:
                 # just a quick sanity check
-                raise ValueError(f'Non-standard ComputedMolecule.name: {latest.name}')
+                raise IntegrityError(
+                    f'Non-standard ComputedMolecule.name: {latest.name}'
+                )
             number = groups.groups()[1]  # type: ignore [index]
             suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
@@ -483,7 +481,7 @@ class MolOps:
                         + f'and {mol.GetProp("original ID")}'
                     )
                     logger.error(msg)
-                    raise RuntimeError(msg) from exc
+                    raise IntegrityError(msg) from exc
 
                 molconf = mol.GetConformer()
                 kmolconf = kmol.GetConformer()
@@ -573,8 +571,9 @@ class MolOps:
         try:
             date = parse(datestring, dayfirst=True)
         except ValueError as exc:
-            logger.error('"%s" is not a valid date', datestring)
-            raise ValueError from exc
+            msg = f'"{datestring}" is not a valid date'
+            logger.error(msg)
+            raise IntegrityError(msg) from exc
 
         return ComputedSetSubmitter.objects.get_or_create(
             name=description_mol.GetProp('submitter_name'),
@@ -593,10 +592,35 @@ class MolOps:
         score_descriptions,
         zfile=None,
         zfile_hashvals=None,
-    ) -> List[ScoreDescription]:
-        cpd = self.set_mol(mol, target, compound_set, filename, zfile, zfile_hashvals)
+    ) -> None:
+        molecule_name = mol.GetProp('_Name')
+        logger.debug('+ process_mol %s', molecule_name)
+
         other_props = mol.GetPropsAsDict()
-        return self.set_props(cpd, other_props, score_descriptions)
+        skip_mol = False
+        for prop in ['ref_mols', 'ref_pdb'] + list(HEADER_MOL_FIELDS):
+            if prop not in other_props.keys():
+                self.messages = add_warning(
+                    molecule_name=molecule_name,
+                    field=prop,
+                    warning_string=f'Property {prop} missing',
+                    validate_dict=self.messages,
+                )
+                skip_mol = True
+            elif other_props[prop] in EMPTY_VALUES:
+                self.messages = add_warning(
+                    molecule_name=molecule_name,
+                    field=prop,
+                    warning_string=f'Property {prop} undefined',
+                    validate_dict=self.messages,
+                )
+                skip_mol = True
+
+        if not skip_mol:
+            cpd = self.set_mol(
+                mol, target, compound_set, filename, zfile, zfile_hashvals
+            )
+            self.set_props(cpd, other_props, score_descriptions)
 
     def set_descriptions(
         self, filename, computed_set: ComputedSet
@@ -648,17 +672,16 @@ class MolOps:
                     if key == 'submitter_email':
                         try:
                             validate_email(value)
-                        except ValidationError as exc:
+                        except ValidationError:
                             msg = f'"{value}" is not a valid email'
                             logger.error(msg)
                             errors.append(msg)
-                            raise ValidationError(msg) from exc
 
                 score_descriptions[description] = value
 
         logger.debug('index mol values: %s', score_descriptions.values())
         if errors:
-            raise ValueError(errors)
+            raise IntegrityError(errors)
 
         return mols, score_descriptions
 
@@ -701,8 +724,9 @@ class MolOps:
                     except Target.DoesNotExist as exc:
                         # target's existance should be validated in the view,
                         # this could hardly happen
-                        logger.error('Target %s does not exist', self.target_id)
-                        raise Target.DoesNotExist from exc
+                        msg = f'Target {self.target_id} does not exist'
+                        logger.error(msg)
+                        raise IntegrityError(msg) from exc
 
                     cs_name: str = (
                         f'{truncated_submitter_method}-{str(today)}-'
@@ -722,8 +746,9 @@ class MolOps:
                         try:
                             computed_set.owner_user = User.objects.get(id=self.user_id)
                         except User.DoesNotExist as exc:
-                            logger.error('User %s does not exist', self.user_id)
-                            raise User.DoesNotExist from exc
+                            msg = f'User {self.user_id} does not exist'
+                            logger.error(msg)
+                            raise IntegrityError(msg) from exc
 
                     else:
                         # The User ID may only be None if AUTHENTICATE_UPLOAD is False.
@@ -746,7 +771,7 @@ class MolOps:
                     logger.debug(
                         'processing mol %s: %s', i, mols_to_process[i].GetProp('_Name')
                     )
-                    _ = self.process_mol(
+                    self.process_mol(
                         mols_to_process[i],
                         self.target_id,
                         computed_set,
@@ -759,8 +784,12 @@ class MolOps:
             # clean up previously written files. this is not ideal,
             # they should be written to a tempdir or something, like
             # in target loader. TODO for later
-            for p in self.zfile.values():
-                Path(p).unlink()
+            try:
+                for p in self.zfile.values():
+                    Path(p).unlink()
+            except AttributeError:
+                # zfile is None, nothing to do
+                pass
 
             raise ValueError(exc.args[0]) from exc
 

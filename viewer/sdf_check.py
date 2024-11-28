@@ -269,8 +269,9 @@ def check_field_populated(mol, validate_dict):
     :return: Updates validate dictionary with pass/fail message
     """
 
-    # Compuslory fields
-    compulsory_fields = ['ref_pdb', 'ref_mols', 'original SMILES']
+    # Compuslory fields (after 1589)
+    # compulsory_fields = ['ref_pdb', 'ref_mols', 'original SMILES']
+    compulsory_fields = ['original SMILES']
 
     property_dict = mol.GetPropsAsDict()
     for key, value in property_dict.items():
