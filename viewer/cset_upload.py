@@ -15,6 +15,7 @@ from openpyxl.utils import get_column_letter
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 import django
+from django.db import IntegrityError, transaction
 
 django.setup()
 
@@ -170,6 +171,13 @@ class MolOps:
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
         self.computed_set_name = computed_set_name
+
+        # using the same mechanism to pass messages as validation
+        self.messages: dict[str, Any] = {
+            'molecule_name': [],
+            'field': [],
+            'warning_string': [],
+        }
 
     def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
         for key in zfile_hashvals.keys():
@@ -654,73 +662,109 @@ class MolOps:
 
         return mols, score_descriptions
 
-    def task(self) -> ComputedSet:
+    def task(self) -> tuple[ComputedSet, dict]:
         # Truncate submitted method (lower-case)?
         truncated_submitter_method: str = 'unspecified'
-        if self.submitter_method:
-            truncated_submitter_method = self.submitter_method[
-                : ComputedSet.LENGTH_METHOD_IN_NAME
-            ]
-            if len(self.submitter_method) > len(truncated_submitter_method):
-                logger.warning(
-                    'ComputedSet submitter method is too long (%s). Truncated to "%s"',
-                    self.submitter_method,
-                    truncated_submitter_method,
-                )
-        else:
-            logger.warning(
-                'ComputedSet submitter method is not set. Using "%s"',
-                truncated_submitter_method,
-            )
-
-        # Do we have any existing ComputedSets?
         try:
-            computed_set = ComputedSet.objects.get(name=self.computed_set_name)
-            # refresh some attributes
-            computed_set.md_ordinal = F('md_ordinal') + 1
-            computed_set.upload_date = datetime.date.today()
-            computed_set.save()
-        except ComputedSet.DoesNotExist:
-            # no, create new
+            with transaction.atomic():
+                if self.submitter_method:
+                    truncated_submitter_method = self.submitter_method[
+                        : ComputedSet.LENGTH_METHOD_IN_NAME
+                    ]
+                    if len(self.submitter_method) > len(truncated_submitter_method):
+                        logger.warning(
+                            'ComputedSet submitter method is too long (%s). Truncated to "%s"',
+                            self.submitter_method,
+                            truncated_submitter_method,
+                        )
+                else:
+                    logger.warning(
+                        'ComputedSet submitter method is not set. Using "%s"',
+                        truncated_submitter_method,
+                    )
 
-            today: datetime.date = datetime.date.today()
-            new_ordinal: int = 1
-
-            try:
-                target = Target.objects.get(pk=self.target_id)
-            except Target.DoesNotExist as exc:
-                # target's existance should be validated in the view,
-                # this could hardly happen
-                logger.error('Target %s does not exist', self.target_id)
-                raise Target.DoesNotExist from exc
-
-            cs_name: str = (
-                f'{truncated_submitter_method}-{str(today)}-'
-                + f'{get_column_letter(new_ordinal)}'
-            )
-            logger.info('Creating new ComputedSet "%s"', cs_name)
-
-            computed_set = ComputedSet(
-                name=cs_name,
-                md_ordinal=new_ordinal,
-                upload_date=today,
-                method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
-                target=target,
-                spec_version=float(self.version.strip('ver_')),
-            )
-            if self.user_id:
+                # Do we have any existing ComputedSets?
                 try:
-                    computed_set.owner_user = User.objects.get(id=self.user_id)
-                except User.DoesNotExist as exc:
-                    logger.error('User %s does not exist', self.user_id)
-                    raise User.DoesNotExist from exc
+                    computed_set = ComputedSet.objects.get(name=self.computed_set_name)
+                    # refresh some attributes
+                    computed_set.md_ordinal = F('md_ordinal') + 1
+                    computed_set.upload_date = datetime.date.today()
+                    computed_set.save()
+                except ComputedSet.DoesNotExist:
+                    # no, create new
 
-            else:
-                # The User ID may only be None if AUTHENTICATE_UPLOAD is False.
-                # Here the ComputedSet owner will take on a default (anonymous) value.
-                assert settings.AUTHENTICATE_UPLOAD is False
+                    today: datetime.date = datetime.date.today()
+                    new_ordinal: int = 1
 
-            computed_set.save()
+                    try:
+                        target = Target.objects.get(pk=self.target_id)
+                    except Target.DoesNotExist as exc:
+                        # target's existance should be validated in the view,
+                        # this could hardly happen
+                        logger.error('Target %s does not exist', self.target_id)
+                        raise Target.DoesNotExist from exc
+
+                    cs_name: str = (
+                        f'{truncated_submitter_method}-{str(today)}-'
+                        + f'{get_column_letter(new_ordinal)}'
+                    )
+                    logger.info('Creating new ComputedSet "%s"', cs_name)
+
+                    computed_set = ComputedSet(
+                        name=cs_name,
+                        md_ordinal=new_ordinal,
+                        upload_date=today,
+                        method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
+                        target=target,
+                        spec_version=float(self.version.strip('ver_')),
+                    )
+                    if self.user_id:
+                        try:
+                            computed_set.owner_user = User.objects.get(id=self.user_id)
+                        except User.DoesNotExist as exc:
+                            logger.error('User %s does not exist', self.user_id)
+                            raise User.DoesNotExist from exc
+
+                    else:
+                        # The User ID may only be None if AUTHENTICATE_UPLOAD is False.
+                        # Here the ComputedSet owner will take on a default (anonymous) value.
+                        assert settings.AUTHENTICATE_UPLOAD is False
+
+                    computed_set.save()
+
+                # Set descriptions in return for the Molecules.
+                # This also sets the submitter and method URL properties of the computed set
+                # while also saving it.
+                sdf_filename = str(self.sdf_filename)
+                mols_to_process, score_descriptions = self.set_descriptions(
+                    filename=sdf_filename, computed_set=computed_set
+                )
+
+                # Process the molecules
+                logger.info('%s mols_to_process=%s', computed_set, len(mols_to_process))
+                for i in range(len(mols_to_process)):
+                    logger.debug(
+                        'processing mol %s: %s', i, mols_to_process[i].GetProp('_Name')
+                    )
+                    _ = self.process_mol(
+                        mols_to_process[i],
+                        self.target_id,
+                        computed_set,
+                        sdf_filename,
+                        score_descriptions,
+                        self.zfile,
+                        self.zfile_hashvals,
+                    )
+        except IntegrityError as exc:
+            # clean up previously written files. this is not ideal,
+            # they should be written to a tempdir or something, like
+            # in target loader. TODO for later
+            for p in self.zfile.values():
+                Path(p).unlink()
+
+            raise ValueError(exc.args[0]) from exc
+
+        # assuming no errors, write the files
 
         # check compound set folder exists.
         cmp_set_folder = os.path.join(
@@ -729,30 +773,6 @@ class MolOps:
         if not os.path.isdir(cmp_set_folder):
             logger.info('Making ComputedSet folder (%s)', cmp_set_folder)
             os.mkdir(cmp_set_folder)
-
-        # Set descriptions in return for the Molecules.
-        # This also sets the submitter and method URL properties of the computed set
-        # while also saving it.
-        sdf_filename = str(self.sdf_filename)
-        mols_to_process, score_descriptions = self.set_descriptions(
-            filename=sdf_filename, computed_set=computed_set
-        )
-
-        # Process the molecules
-        logger.info('%s mols_to_process=%s', computed_set, len(mols_to_process))
-        for i in range(len(mols_to_process)):
-            logger.debug(
-                'processing mol %s: %s', i, mols_to_process[i].GetProp('_Name')
-            )
-            _ = self.process_mol(
-                mols_to_process[i],
-                self.target_id,
-                computed_set,
-                sdf_filename,
-                score_descriptions,
-                self.zfile,
-                self.zfile_hashvals,
-            )
 
         # move and save the compound set
         new_filename = (
@@ -769,7 +789,7 @@ class MolOps:
 
         logger.info('Created %s', computed_set)
 
-        return computed_set
+        return computed_set, self.messages
 
 
 def blank_mol_vals(sdf_file) -> Tuple[str, str, str]:
