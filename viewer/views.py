@@ -717,7 +717,7 @@ class ValidateTaskView(View):
                 ):
                     return Response(
                         {
-                            'error': "You are not a member of the proposal {project_name}"
+                            'error': f"You are not a member of the proposal {project_name}"
                         },
                         status=status.HTTP_403_FORBIDDEN,
                     )
@@ -840,14 +840,63 @@ class UploadTaskView(View):
                     response_data['html'] = html_table
 
                     return JsonResponse(response_data)
+
+                elif results[0] == 'process':
+                    # section added to pass warnings to user after successful processing
+                    logger.debug('processed warnings: %s', results[2])
+                    # Upload/Update output tasks send back a tuple
+                    response_data['results'] = {}
+                    response_data['validated'] = 'Validated'
+                    cset_name = results[1]
+                    cset = models.ComputedSet.objects.get(name=cset_name)
+
+                    if (
+                        settings.AUTHENTICATE_UPLOAD
+                        and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
+                            request.user, cset.target
+                        )
+                    ):
+                        # TODO: this will break if wrong user accesses
+                        # it, but with the given flow, this is very
+                        # unlikely to happen
+                        logger.debug('User not recognised')
+                        return JsonResponse(
+                            {
+                                'error_message': "You are not a member of the Target's proposal"
+                            },
+                        )
+
+                    name = cset.name
+
+                    response_data['results']['cset_download_url'] = (
+                        '/viewer/compound_set/%s' % name
+                    )
+                    response_data['results']['pset_download_url'] = (
+                        '/viewer/protein_set/%s' % name
+                    )
+
+                    process_messages = results[2]
+                    # set pandas options to display all column data
+                    if len(next(iter(process_messages.values()))) > 0:
+                        pd.set_option('display.max_colwidth', -1)
+                        table = pd.DataFrame.from_dict(process_messages)
+                        html_table = '''<p> Your data was uploaded with warnings</p>'''
+                        html_table += table.to_html()
+                        response_data['html'] = html_table
+
+                    return JsonResponse(response_data)
+
                 else:
                     # Upload/Update output tasks send back a tuple
                     response_data['validated'] = 'Validated'
                     cset_name = results[1]
                     cset = models.ComputedSet.objects.get(name=cset_name)
 
-                    if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
-                        request.user, cset.target
+                    if (
+                        settings.AUTHENTICATE_UPLOAD
+                        and not _ISPYB_SAFE_QUERY_SET.user_is_member_of_target(
+                            request.user, cset.target
+                        )
                     ):
                         return Response(
                             {'error': "You are not a member of the Target's proposal"},
