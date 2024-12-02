@@ -944,7 +944,7 @@ class ComputedSet(models.Model):
 
     LENGTH_METHOD_IN_NAME: int = 20
 
-    name = models.CharField(max_length=50, unique=True, primary_key=True)
+    name = models.TextField(null=False)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
     submitted_sdf = models.FileField(
         upload_to='computed_set_data/',
@@ -1015,6 +1015,17 @@ class ComputedSet(models.Model):
 
     objects = models.Manager()
     history = HistoricalRecords()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "name",
+                    "target",
+                ],
+                name="unique_computedsetname_target",
+            ),
+        ]
 
     def __str__(self) -> str:
         target_title: str = self.target.title if self.target else "None"
