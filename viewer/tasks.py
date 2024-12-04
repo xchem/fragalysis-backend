@@ -85,7 +85,7 @@ def process_compound_set(validate_output):
         logger.warning('process_compound_set() EXIT params=%s (not validated)', params)
         return process_stage, validate_dict, validated
 
-    computed_set_name = params.get('update', None)
+    computed_set_id = params.get('update', None)
     submitter_name, submitter_method, blank_version = blank_mol_vals(params['sdf'])
     zfile, zfile_hashvals = PdbOps().run(params)
 
@@ -100,14 +100,12 @@ def process_compound_set(validate_output):
         version=blank_version,
         zfile=zfile,
         zfile_hashvals=zfile_hashvals,
-        computed_set_name=computed_set_name,
+        computed_set_id=computed_set_id,
     )
     compound_set, process_messages = save_mols.task()
 
-    logger.info(
-        'process_compound_set() EXIT (CompoundSet.name="%s")', compound_set.name
-    )
-    return 'process', compound_set.name, process_messages
+    logger.info('process_compound_set() EXIT (CompoundSet.id="%s")', compound_set.id)
+    return 'process', compound_set.id, process_messages
 
 
 @shared_task
@@ -645,14 +643,12 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
     # Task linking is a bit of a mess atm,
     # if something went wrong we'll get a tuple, not a dictionary.
     if isinstance(task_params, list) and task_params[0] == 'process':
-        cs_name: str = task_params[2]
-        logger.info(
-            'Upload successful (%d) ComputedSet.name="%s"', job_request_id, cs_name
-        )
+        cs_id: str = task_params[2]
+        logger.info('Upload successful (%d) ComputedSet.id="%s"', job_request_id, cs_id)
         job_request.upload_status = 'SUCCESS'
         # We're given a compound set name.
         # Get its record and put that into the JobRequest...
-        cs = ComputedSet.objects.get(name=cs_name)
+        cs = ComputedSet.objects.get(pk=cs_id)
         assert cs
         job_request.computed_set = cs
     else:

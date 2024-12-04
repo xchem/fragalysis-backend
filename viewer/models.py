@@ -18,6 +18,7 @@ from .managers import (
     CanonSiteDataManager,
     CompoundDataManager,
     CompoundIdentifierDataManager,
+    ComputedSetDataManager,
     ExperimentDataManager,
     PoseDataManager,
     QuatAssemblyDataManager,
@@ -1014,6 +1015,7 @@ class ComputedSet(models.Model):
     )
 
     objects = models.Manager()
+    filter_manager = ComputedSetDataManager()
     history = HistoricalRecords()
 
     class Meta:
@@ -1032,7 +1034,7 @@ class ComputedSet(models.Model):
         return f"{self.name} {target_title}"
 
     def __repr__(self) -> str:
-        return "<ComputedSet %r %r>" % (self.name, self.target)
+        return "<ComputedSet %r %r %r>" % (self.id, self.name, self.target)
 
 
 class ComputedMolecule(models.Model):

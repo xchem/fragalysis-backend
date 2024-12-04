@@ -7,6 +7,7 @@ from viewer.models import (
     CanonSite,
     CanonSiteConf,
     Compound,
+    ComputedSet,
     Experiment,
     Pose,
     QuatAssembly,
@@ -125,3 +126,15 @@ class AssemblyFilter(TargetFilterMixin):
     class Meta:
         model = QuatAssembly
         fields = ("target",)
+
+
+class ComputedSetFilter(filters.FilterSet):
+    project = django_filters.CharFilter(
+        field_name="project",
+        lookup_expr="icontains",
+        label="Project",
+    )
+
+    class Meta:
+        model = ComputedSet
+        fields = ("name", "target", "project")

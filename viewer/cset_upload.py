@@ -162,7 +162,7 @@ class MolOps:
         version,
         zfile,
         zfile_hashvals,
-        computed_set_name,
+        computed_set_id,
     ):
         self.user_id = user_id
         self.sdf_filename = sdf_filename
@@ -172,7 +172,7 @@ class MolOps:
         self.version = version
         self.zfile = zfile
         self.zfile_hashvals = zfile_hashvals
-        self.computed_set_name = computed_set_name
+        self.computed_set_id = computed_set_id
 
         # using the same mechanism to pass messages as validation
         self.messages: dict[str, Any] = {
@@ -708,12 +708,13 @@ class MolOps:
 
                 # Do we have any existing ComputedSets?
                 try:
-                    computed_set = ComputedSet.objects.get(name=self.computed_set_name)
+                    computed_set = ComputedSet.objects.get(pk=self.computed_set_id)
                     # refresh some attributes
                     computed_set.md_ordinal = F('md_ordinal') + 1
                     computed_set.upload_date = datetime.date.today()
                     computed_set.save()
-                except ComputedSet.DoesNotExist:
+                except (ValueError, ComputedSet.DoesNotExist):
+                    # ValueError when pk is None
                     # no, create new
 
                     today: datetime.date = datetime.date.today()
@@ -732,16 +733,30 @@ class MolOps:
                         f'{truncated_submitter_method}-{str(today)}-'
                         + f'{get_column_letter(new_ordinal)}'
                     )
-                    logger.info('Creating new ComputedSet "%s"', cs_name)
 
-                    computed_set = ComputedSet(
-                        name=cs_name,
-                        md_ordinal=new_ordinal,
-                        upload_date=today,
-                        method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
-                        target=target,
-                        spec_version=float(self.version.strip('ver_')),
-                    )
+                    # now that I have a name, I can check whether this
+                    # target already has this set
+                    try:
+                        # this feels wrong, I think it's better if the
+                        # object is resolved in the view.. or maybe in
+                        # validate task..
+                        computed_set = ComputedSet.objects.get(
+                            name=cs_name,
+                            target=target,
+                        )
+                    except ComputedSet.DoesNotExist:
+                        # and only now create new set
+                        logger.info('Creating new ComputedSet "%s"', cs_name)
+
+                        computed_set = ComputedSet(
+                            name=cs_name,
+                            md_ordinal=new_ordinal,
+                            upload_date=today,
+                            method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
+                            target=target,
+                            spec_version=float(self.version.strip('ver_')),
+                        )
+
                     if self.user_id:
                         try:
                             computed_set.owner_user = User.objects.get(id=self.user_id)

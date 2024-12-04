@@ -21,6 +21,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 from rest_framework import generics, mixins, permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -419,10 +420,9 @@ class UploadComputedSetView(generics.ListCreateAPIView):
             # and the user has to be the owner.
             selected_set: Optional[models.ComputedSet] = None
             if update_set and update_set != 'None':
-                computed_set_query = models.ComputedSet.objects.filter(name=update_set)
-                if computed_set_query:
-                    selected_set = computed_set_query[0]
-                else:
+                try:
+                    selected_set = models.ComputedSet.objects.get(pk=update_set)
+                except models.ComputedSet.DoesNotExist:
                     request.session[_SESSION_ERROR] = 'The set could not be found'
                     logger.warning(
                         '- UploadComputedSetView POST error_msg="%s"',
@@ -847,8 +847,8 @@ class UploadTaskView(View):
                     # Upload/Update output tasks send back a tuple
                     response_data['results'] = {}
                     response_data['validated'] = 'Validated'
-                    cset_name = results[1]
-                    cset = models.ComputedSet.objects.get(name=cset_name)
+                    cset_id = int(results[1])
+                    cset = models.ComputedSet.objects.get(pk=cset_id)
 
                     if (
                         settings.AUTHENTICATE_UPLOAD
@@ -866,13 +866,11 @@ class UploadTaskView(View):
                             },
                         )
 
-                    name = cset.name
-
                     response_data['results']['cset_download_url'] = (
-                        '/viewer/compound_set/%s' % name
+                        '/viewer/compound_set/%s' % cset.id
                     )
                     response_data['results']['pset_download_url'] = (
-                        '/viewer/protein_set/%s' % name
+                        '/viewer/protein_set/%s' % cset.id
                     )
 
                     process_messages = results[2]
@@ -903,13 +901,12 @@ class UploadTaskView(View):
                             status=status.HTTP_403_FORBIDDEN,
                         )
 
-                    name = cset.name
                     response_data['results'] = {}
                     response_data['results']['cset_download_url'] = (
-                        '/viewer/compound_set/%s' % name
+                        '/viewer/compound_set/%s' % cset.id
                     )
                     response_data['results']['pset_download_url'] = (
-                        '/viewer/protein_set/%s' % name
+                        '/viewer/protein_set/%s' % cset.id
                     )
 
                     return JsonResponse(response_data)
@@ -1097,11 +1094,12 @@ class ComputedSetView(
 ):
     """Retrieve information about and delete computed sets."""
 
-    queryset = models.ComputedSet.objects.filter()
+    queryset = models.ComputedSet.filter_manager.filter_qs()
     serializer_class = serializers.ComputedSetSerializer
     filter_permissions = "target__project"
-    filterset_fields = ('target', 'target__title', 'target__project')
     permission_classes = [IsObjectProposalMember]
+    # permission_classes = [permissions.IsAuthenticated, IsObjectProposalMember]
+    filterset_class = filters.ComputedSetFilter
 
     http_method_names = ['get', 'head', 'delete']
 
@@ -1115,6 +1113,62 @@ class ComputedSetView(
         computed_set = get_object_or_404(models.ComputedSet, pk=pk)
         computed_set.delete()
         return HttpResponse(status=204)
+
+    @action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        """Download a specific ComputedSet by ID."""
+
+        try:
+            computed_set = models.ComputedSet.objects.get(id=pk)
+        except models.ComputedSet.DoesNotExist:
+            return Response(
+                # {'error': f"ComputedSet '{computed_set_id}' not found"},
+                {'error': f"ComputedSet '{pk}' not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if (
+            computed_set.target.project.title
+            not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                request.user, restrict_public_to_membership=False
+            )
+        ):
+            return Response(
+                {'error': "You have no access to the Project"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        zip_buffer = BytesIO()
+
+        sdfs = models.ComputedSet.history.filter(
+            written_sdf_filename__isnull=False,
+        )
+        pdbs = computed_set.computed_molecules.filter(pdb__isnull=True)
+
+        # so now, get the file, and get the pdbs
+        with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
+            for sdf in sdfs:
+                sdf_file = Path(sdf.written_sdf_filename)
+                if sdf_file.exists():
+                    with open(sdf_file, 'rb') as contents:
+                        ziparchive.writestr(str(sdf.submitted_sdf), contents.read())
+                else:
+                    ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
+
+            for f in pdbs:
+                fpath = Path(settings.MEDIA_ROOT).joinpath(f.pdb_info.name)
+                if fpath.is_file():
+                    with open(fpath, 'rb') as contents:
+                        ziparchive.writestr(f.get_filename(), contents.read())
+                else:
+                    ziparchive.writestr(f'{f.get_filename()}_MISSING', r'')
+
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = (
+            'attachment; filename="%s"' % f'{computed_set.name}.zip'
+        )
+        response['Content-Length'] = zip_buffer.getbuffer().nbytes
+        return response
 
 
 class ComputedMoleculesView(ISPyBSafeQuerySet):
@@ -2649,72 +2703,3 @@ class UploadMetadataView(ISPyBSafeQuerySet):
             return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'success': True}, status=status.HTTP_200_OK)
-
-
-class DownloadComputedSetView(ISPyBSafeQuerySet):
-    queryset = models.ComputedSet.objects.all()
-    filter_permissions = "target__project"
-    serializer_class = serializers.ComputedSetDownloadSerializer
-    permission_class = [permissions.IsAuthenticated]
-
-    def get_view_name(self):
-        return "Computed set download"
-
-    def post(self, request, *args, **kwargs):
-        logger.info("+ DownloadComputedSetView.create called")
-        del args, kwargs
-
-        logger.debug('data: %s', request.data)
-
-        # If done like this, it's bypassing the validation..
-        computed_set_name = request.data['name']
-        try:
-            computed_set = models.ComputedSet.objects.get(name=computed_set_name)
-        except models.ComputedSet.DoesNotExist:
-            return Response(
-                {'error': f"ComputedSet '{computed_set_name}' not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if (
-            computed_set.target.project.title
-            not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                request.user, restrict_public_to_membership=False
-            )
-        ):
-            return Response(
-                {'error': "You have no access to the Project"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        zip_buffer = BytesIO()
-
-        sdfs = models.ComputedSet.history.filter(
-            written_sdf_filename__isnull=False,
-        )
-        pdbs = computed_set.computed_molecules.filter(pdb__isnull=True)
-
-        # so now, get the file, and get the pdbs
-        with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
-            for sdf in sdfs:
-                sdf_file = Path(sdf.written_sdf_filename)
-                if sdf_file.exists():
-                    with open(sdf_file, 'rb') as contents:
-                        ziparchive.writestr(str(sdf.submitted_sdf), contents.read())
-                else:
-                    ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
-
-            for f in pdbs:
-                fpath = Path(settings.MEDIA_ROOT).joinpath(f.pdb_info.name)
-                if fpath.is_file():
-                    with open(fpath, 'rb') as contents:
-                        ziparchive.writestr(f.get_filename(), contents.read())
-                else:
-                    ziparchive.writestr(f'{f.get_filename()}_MISSING', r'')
-
-        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
-        response['Content-Disposition'] = (
-            'attachment; filename="%s"' % f'{computed_set.name}.zip'
-        )
-        response['Content-Length'] = zip_buffer.getbuffer().nbytes
-        return response
