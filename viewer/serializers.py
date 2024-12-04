@@ -218,6 +218,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "metadata",
             "zip_archive",
             "upload_status",
+            "alias_order",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -228,6 +229,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "metadata": {"read_only": True},
             "zip_archive": {"read_only": True},
             "upload_status": {"read_only": True},
+            "alias_order": {"read_only": False},
         }
 
 
