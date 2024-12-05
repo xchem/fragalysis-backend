@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import uuid
 from dataclasses import dataclass
@@ -574,6 +575,16 @@ class SiteObservation(Versionable, models.Model):
             self.experiment,
             self.cmpd,
         )
+
+    def get_ligand_mol_file(self):
+        contents = ''
+        if self.ligand_mol:
+            path = Path(settings.MEDIA_ROOT).joinpath(self.ligand_mol.name)
+            with contextlib.suppress(TypeError, FileNotFoundError):
+                with open(path, "r", encoding="utf-8") as f:
+                    contents = f.read()
+
+        return contents
 
 
 class CompoundIdentifierType(models.Model):

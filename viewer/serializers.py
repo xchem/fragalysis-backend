@@ -1,4 +1,3 @@
-import contextlib
 import logging
 from pathlib import Path
 from urllib.parse import urljoin
@@ -481,18 +480,15 @@ class VectorsSerializer(serializers.ModelSerializer):
     vectors = serializers.SerializerMethodField()
 
     def get_vectors(self, obj):
+        ligand_mol_file = obj.get_ligand_mol_file()
         out_data = {}
-        if obj.ligand_mol_file:
+        if ligand_mol_file:
             try:
-                out_data["3d"] = get_3d_vects_for_mol(
-                    obj.ligand_mol_file, iso_labels=False
-                )
+                out_data["3d"] = get_3d_vects_for_mol(ligand_mol_file, iso_labels=False)
             # temporary patch
             except IndexError:
-                out_data["3d"] = get_3d_vects_for_mol(
-                    obj.ligand_mol_file, iso_labels=True
-                )
-            out_data["indices"] = get_vect_indices_for_mol(obj.ligand_mol_file)
+                out_data["3d"] = get_3d_vects_for_mol(ligand_mol_file, iso_labels=True)
+            out_data["indices"] = get_vect_indices_for_mol(ligand_mol_file)
         return out_data
 
     class Meta:
@@ -955,14 +951,7 @@ class SiteObservationReadSerializer(serializers.ModelSerializer):
     ligand_mol_file = serializers.SerializerMethodField()
 
     def get_ligand_mol_file(self, obj):
-        contents = ''
-        if obj.ligand_mol:
-            path = Path(settings.MEDIA_ROOT).joinpath(obj.ligand_mol.name)
-            with contextlib.suppress(TypeError, FileNotFoundError):
-                with open(path, "r", encoding="utf-8") as f:
-                    contents = f.read()
-
-        return contents
+        return obj.get_ligand_mol_file()
 
     class Meta:
         model = models.SiteObservation
