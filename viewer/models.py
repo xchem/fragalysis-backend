@@ -121,6 +121,7 @@ class Target(models.Model):
     upload_datetime = models.DateTimeField(
         null=True, help_text='The datetime the upload was completed'
     )
+    alias_order = ArrayField(models.TextField(), null=True)
 
     def __str__(self) -> str:
         return f"{self.title}"
