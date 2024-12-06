@@ -25,7 +25,7 @@ from viewer.target_loader import load_target
 
 from .cset_upload import MolOps, PdbOps, blank_mol_vals
 from .models import ComputedSet, JobFileTransfer, JobRequest, SiteObservation
-from .sdf_check import (
+from .sdf_check import (  # check_refmol,
     add_warning,
     check_blank_mol_props,
     check_blank_prop,
@@ -33,7 +33,6 @@ from .sdf_check import (
     check_field_populated,
     check_mol_props,
     check_name_characters,
-    check_refmol,
     check_SMILES,
     check_ver_name,
 )
@@ -103,12 +102,12 @@ def process_compound_set(validate_output):
         zfile_hashvals=zfile_hashvals,
         computed_set_name=computed_set_name,
     )
-    compound_set = save_mols.task()
+    compound_set, process_messages = save_mols.task()
 
     logger.info(
         'process_compound_set() EXIT (CompoundSet.name="%s")', compound_set.name
     )
-    return 'process', compound_set.name
+    return 'process', compound_set.name, process_messages
 
 
 @shared_task
@@ -310,7 +309,7 @@ def validate_compound_set(task_params):
                 molecule_name = m.GetProp('_Name')
             validate_dict = check_name_characters(molecule_name, validate_dict)
             # validate_dict = check_pdb(m, validate_dict, target, zfile)
-            validate_dict = check_refmol(m, validate_dict, target)
+            # validate_dict = check_refmol(m, validate_dict, target)
             validate_dict = check_field_populated(m, validate_dict)
             validate_dict = check_SMILES(m, validate_dict)
 
