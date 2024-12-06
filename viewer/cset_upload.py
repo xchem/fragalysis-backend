@@ -620,7 +620,6 @@ class MolOps:
 
         # if any header mol fields are defined on non-header molecules those values are ignored and a warning shown
         for prop in HEADER_MOL_FIELDS:
-
             if prop not in other_props.keys():
                 # non-header molecules don't need header fields
                 continue
