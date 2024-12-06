@@ -598,12 +598,14 @@ class MolOps:
 
         other_props = mol.GetPropsAsDict()
         skip_mol = False
-        for prop in ['ref_mols', 'ref_pdb'] + list(HEADER_MOL_FIELDS):
+
+        # if ref_mols or ref_pdb is missing skip the molecule
+        for prop in ['ref_mols', 'ref_pdb']:
             if prop not in other_props.keys():
                 self.messages = add_warning(
                     molecule_name=molecule_name,
                     field=prop,
-                    warning_string=f'Property {prop} missing',
+                    warning_string=f'Property {prop} missing. Skipping molecule!',
                     validate_dict=self.messages,
                 )
                 skip_mol = True
@@ -611,10 +613,29 @@ class MolOps:
                 self.messages = add_warning(
                     molecule_name=molecule_name,
                     field=prop,
-                    warning_string=f'Property {prop} undefined',
+                    warning_string=f'Property {prop} undefined. Skipping molecule!',
                     validate_dict=self.messages,
                 )
                 skip_mol = True
+
+        # if any header mol fields are defined on non-header molecules those values are ignored and a warning shown
+        for prop in HEADER_MOL_FIELDS:
+
+            if prop not in other_props.keys():
+                # non-header molecules don't need header fields
+                continue
+            
+            if other_props[prop] not in EMPTY_VALUES:
+                # header fields in non-header molecules have values ignored
+                self.messages = add_warning(
+                    molecule_name=molecule_name,
+                    field=prop,
+                    warning_string=f'Property {prop} value {other_props[prop]} ignored.',
+                    validate_dict=self.messages,
+                )
+            
+            # get rid of the header field property on the non-header molecule
+            del other_props[prop]
 
         if not skip_mol:
             cpd = self.set_mol(
