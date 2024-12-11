@@ -1354,7 +1354,7 @@ class TargetLoader:
             try:
                 logger.debug('exp: %s, %s', experiment, experiments[experiment_id].new)
                 compound = experiment.compounds.get(
-                    smiles=experiments[experiment_id].index_data["smiles"]
+                    ligand_name=ligand_name,
                 )
             except Compound.DoesNotExist:
                 # really doensn't exist, can happen
