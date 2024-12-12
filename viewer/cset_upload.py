@@ -50,62 +50,62 @@ logger = logging.getLogger(__name__)
 _DIST_LIMIT = 0.5
 
 EMPTY_VALUES = (
-    'nan',
-    '',
+    "nan",
+    "",
     None,
     np.nan,
 )
 
 
 HEADER_MOL_FIELDS = (
-    'ref_url',
-    'method',
-    'submitter_name',
-    'submitter_institution',
-    'submitter_email',
-    'generation_date',
+    "ref_url",
+    "method",
+    "submitter_name",
+    "submitter_institution",
+    "submitter_email",
+    "generation_date",
 )
 
 
 def dataType(a_str: str) -> str:
     lean_str = a_str.strip()
     if not lean_str:
-        return 'BLANK'
+        return "BLANK"
 
     try:
         t = ast.literal_eval(lean_str)
     except (ValueError, SyntaxError):
-        return 'TEXT'
+        return "TEXT"
     else:
         if type(t) in [int, int, float, bool]:
             if t in [
                 True,
                 False,
-                'TRUE',
-                'FALSE',
-                'true',
-                'false',
-                'yes',
-                'no',
-                'YES',
-                'NO',
-                'Yes',
-                'No',
+                "TRUE",
+                "FALSE",
+                "true",
+                "false",
+                "yes",
+                "no",
+                "YES",
+                "NO",
+                "Yes",
+                "No",
                 "Y",
                 "N",
                 "y",
                 "n",
             ]:
-                return 'BIT'
+                return "BIT"
             if type(t) is int or type(t) is int:
-                return 'INT'
+                return "INT"
             if type(t) is float:
-                return 'FLOAT'
+                return "FLOAT"
 
             # Can't get here?
             assert False
         else:
-            return 'TEXT'
+            return "TEXT"
 
 
 class PdbOps:
@@ -121,10 +121,10 @@ class PdbOps:
             zfile_hashvals = {}
             for filename in zip_lst:
                 # only handle pdb files
-                if filename.split('.')[-1] == 'pdb':
+                if filename.split(".")[-1] == "pdb":
                     # Test if Protein object already exists
-                    code = filename.split('/')[-1].replace('.pdb', '')
-                    test_pdb_code = filename.split('/')[-1].replace('.pdb', '')
+                    code = filename.split("/")[-1].replace(".pdb", "")
+                    test_pdb_code = filename.split("/")[-1].replace(".pdb", "")
                     test_site_obvs_objs = SiteObservation.objects.filter(
                         code=test_pdb_code
                     )
@@ -132,12 +132,12 @@ class PdbOps:
                     if len(test_site_obvs_objs) != 0:
                         # make a unique pdb code as not to overwrite existing object
                         rand_str = uuid.uuid4().hex
-                        test_pdb_code = f'{code}#{rand_str}'
+                        test_pdb_code = f"{code}#{rand_str}"
                         zfile_hashvals[code] = rand_str
 
-                    fn = f'{test_pdb_code}.pdb'
+                    fn = f"{test_pdb_code}.pdb"
                     pdb_path = default_storage.save(
-                        f'tmp/{fn}', ContentFile(zf.read(filename))
+                        f"tmp/{fn}", ContentFile(zf.read(filename))
                     )
                     zfile[test_pdb_code] = pdb_path
 
@@ -148,7 +148,7 @@ class PdbOps:
         return zfile, zfile_hashvals
 
     def run(self, params) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, str]]]:
-        return self.save_pdb_zip(params['pdb_zip'])
+        return self.save_pdb_zip(params["pdb_zip"])
 
 
 class MolOps:
@@ -176,15 +176,15 @@ class MolOps:
 
         # using the same mechanism to pass messages as validation
         self.messages: dict[str, Any] = {
-            'molecule_name': [],
-            'field': [],
-            'warning_string': [],
+            "molecule_name": [],
+            "field": [],
+            "warning_string": [],
         }
 
     def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
         for key in zfile_hashvals.keys():
             if key == pdb_code:
-                pdb_code = f'{pdb_code}#{zfile_hashvals[pdb_code]}'
+                pdb_code = f"{pdb_code}#{zfile_hashvals[pdb_code]}"
 
         try:
             pdb_fp = zfile[pdb_code]
@@ -192,7 +192,7 @@ class MolOps:
             return None
 
         # ensure filename uniqueness
-        pdb_fn = '_'.join([zfile[pdb_code].split('/')[-1], uuid.uuid4().hex])
+        pdb_fn = "_".join([zfile[pdb_code].split("/")[-1], uuid.uuid4().hex])
         pdb_field = Path(settings.COMPUTED_SET_MEDIA_DIRECTORY).joinpath(pdb_fn)
 
         new_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_field)
@@ -224,11 +224,11 @@ class MolOps:
             )
             return None
 
-        pdb_fn = mol.GetProp(property_name).split('/')[-1]
+        pdb_fn = mol.GetProp(property_name).split("/")[-1]
 
         if zfile:
             # pdb archive uploaded. referenced pdb file may or may not be included
-            pdb_code = pdb_fn.replace('.pdb', '')
+            pdb_code = pdb_fn.replace(".pdb", "")
             pdb_file = self.process_pdb(
                 pdb_code=pdb_code,
                 zfile=zfile,
@@ -238,7 +238,7 @@ class MolOps:
                 return pdb_file
             else:
                 logger.info(
-                    'No protein pdb (%s) found in zipfile',
+                    "No protein pdb (%s) found in zipfile",
                     pdb_fn,
                 )
 
@@ -253,7 +253,7 @@ class MolOps:
         except SiteObservation.DoesNotExist:
             # Initial SiteObservation lookup failed.
             logger.warning(
-                'Failed to get SiteObservation object (target=%s name=%s)',
+                "Failed to get SiteObservation object (target=%s name=%s)",
                 compound_set.target.title,
                 name,
             )
@@ -265,25 +265,25 @@ class MolOps:
             )
             if qs.exists():
                 logger.info(
-                    'Found SiteObservation containing name=%s qs=%s',
+                    "Found SiteObservation containing name=%s qs=%s",
                     name,
                     qs,
                 )
             else:
-                alt_name = name.split(':')[0].split('_')[0]
+                alt_name = name.split(":")[0].split("_")[0]
                 qs = SiteObservation.objects.filter(
                     code__contains=alt_name,
                     experiment__experiment_upload__target__pk=target,
                 )
                 if qs.exists():
                     logger.info(
-                        'Found SiteObservation containing alternative name=%s qs=%s',
+                        "Found SiteObservation containing alternative name=%s qs=%s",
                         alt_name,
                         qs,
                     )
             if qs.count() > 0:
                 logger.debug(
-                    'Found alternative (target=%s name=%s)',
+                    "Found alternative (target=%s name=%s)",
                     compound_set.target.title,
                     name,
                 )
@@ -291,7 +291,7 @@ class MolOps:
 
         if not site_obvs:
             logger.warning(
-                'No SiteObservation found (target=%s pdb_fn=%s)',
+                "No SiteObservation found (target=%s pdb_fn=%s)",
                 compound_set.target.title,
                 pdb_fn,
             )
@@ -309,7 +309,7 @@ class MolOps:
         qs = Compound.objects.filter(
             computedmolecule__computed_set__target=target,
         )
-        cpd_number = '1'
+        cpd_number = "1"
         try:
             # NB! Max said there could be thousands of compounds per
             # target so this distinct() here may become a problem
@@ -338,7 +338,7 @@ class MolOps:
             # occur. However there's nothing in the db to prevent
             # this, so adding a catch clause and writing a meaningful
             # message
-            msg = f'Duplicate compounds for target {target.title} with inchi key {inchi_key}.'
+            msg = f"Duplicate compounds for target {target.title} with inchi key {inchi_key}."
             logger.error(msg)
             raise IntegrityError(msg) from exc
 
@@ -346,9 +346,9 @@ class MolOps:
 
     def set_props(self, cpd, props, score_descriptions) -> List[ScoreDescription]:
         for sd, val in score_descriptions.items():
-            logger.debug('sd: %s', sd)
-            logger.debug('sd.name, val: %s: %s', sd.name, val)
-            if dataType(str(props[sd.name])) == 'TEXT':
+            logger.debug("sd: %s", sd)
+            logger.debug("sd.name, val: %s: %s", sd.name, val)
+            if dataType(str(props[sd.name])) == "TEXT":
                 score_value = TextScoreValues()
             else:
                 score_value = NumericalScoreValues()
@@ -373,7 +373,7 @@ class MolOps:
 
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
-        molecule_name = mol.GetProp('_Name')
+        molecule_name = mol.GetProp("_Name")
 
         flattened_copy = copy.deepcopy(mol)
         Chem.RemoveStereochemistry(mol)
@@ -383,8 +383,8 @@ class MolOps:
             inchi, compound_set.target, name=molecule_name
         )
 
-        insp = mol.GetProp('ref_mols')
-        insp = insp.split(',')
+        insp = mol.GetProp("ref_mols")
+        insp = insp.split(",")
         insp = [i.strip() for i in insp]
         insp_frags = []
         for i in insp:
@@ -397,19 +397,19 @@ class MolOps:
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
                 qs = SiteObservation.objects.filter(
-                    code=str(i.split(':')[0].split('_')[0]),
+                    code=str(i.split(":")[0].split("_")[0]),
                     experiment__experiment_upload__target=compound_set.target,
                 )
                 if not qs.exists():
                     raise IntegrityError(  # pylint: disable=raise-missing-from
-                        'No matching molecules found for inspiration frag ' + i
+                        "No matching molecules found for inspiration frag " + i
                     )
 
-                ref = qs.order_by('-cmpd_id').first()
+                ref = qs.order_by("-cmpd_id").first()
 
             insp_frags.append(ref)
 
-        ref_property = 'ref_pdb'
+        ref_property = "ref_pdb"
         # data in ref ref_pdb field may be one of 2 things:
         # - siteobservation's short code (code field)
         # - pdb file in uploaded zipfile
@@ -423,7 +423,7 @@ class MolOps:
         )
         if not ref_so:
             logger.warning(
-                'Failed to get a Reference SiteObservation (%s) for %s, %s, %s',
+                "Failed to get a Reference SiteObservation (%s) for %s, %s, %s",
                 ref_property,
                 mol,
                 target,
@@ -438,26 +438,26 @@ class MolOps:
         # format, this is not necessary. or possible
         qs = ComputedMolecule.objects.filter(
             compound=compound,
-        ).order_by('name')
+        ).order_by("name")
 
         if qs.exists():
             # not actually latest, just last according to sorting above
             latest = qs.last()
             # regex pattern - split name like 'v1a'
             # ('(letters)(digits)(letters)' to components
-            groups = re.search(r'()(\d+)(\D+)', qs.last().name)
+            groups = re.search(r"()(\d+)(\D+)", qs.last().name)
             if groups is None or len(groups.groups()) != 3:
                 # just a quick sanity check
                 raise IntegrityError(
-                    f'Non-standard ComputedMolecule.name: {latest.name}'
+                    f"Non-standard ComputedMolecule.name: {latest.name}"
                 )
             number = groups.groups()[1]  # type: ignore [index]
             suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
-            suffix = 'a'
+            suffix = "a"
             # number = 1
 
-        name = f'v{number}{suffix}'
+        name = f"v{number}{suffix}"
 
         existing_computed_molecules = []
         for k in qs:
@@ -477,7 +477,7 @@ class MolOps:
                     )
                 except RuntimeError as exc:
                     msg = (
-                        f'Failed to find alignment between {k.molecule_name} '
+                        f"Failed to find alignment between {k.molecule_name} "
                         + f'and {mol.GetProp("original ID")}'
                     )
                     logger.error(msg)
@@ -498,18 +498,18 @@ class MolOps:
 
         if len(existing_computed_molecules) == 1:
             logger.warning(
-                'Using existing ComputedMolecule %s and overwriting its metadata',
+                "Using existing ComputedMolecule %s and overwriting its metadata",
                 existing_computed_molecules[0],
             )
             computed_molecule = existing_computed_molecules[0]
         elif len(existing_computed_molecules) > 1:
-            logger.warning('Deleting existing ComputedMolecules (more than 1 found')
+            logger.warning("Deleting existing ComputedMolecules (more than 1 found")
             for exist in existing_computed_molecules:
-                logger.info('Deleting ComputedMolecule %s', exist)
+                logger.info("Deleting ComputedMolecule %s", exist)
                 exist.delete()
             computed_molecule = ComputedMolecule(name=name)
         else:
-            logger.info('Creating new ComputedMolecule')
+            logger.info("Creating new ComputedMolecule")
             computed_molecule = ComputedMolecule(name=name)
 
         if isinstance(ref_so, SiteObservation):
@@ -537,11 +537,11 @@ class MolOps:
         # Extract possible reference URL and Rationale
         # URLs have to be valid URLs and rationals must contain more than one word
         ref_url: Optional[str] = (
-            mol.GetProp('ref_url') if mol.HasProp('ref_url') else None
+            mol.GetProp("ref_url") if mol.HasProp("ref_url") else None
         )
         computed_molecule.ref_url = ref_url if is_url(ref_url) else None
         rationale: Optional[str] = (
-            mol.GetProp('rationale') if mol.HasProp('rationale') else None
+            mol.GetProp("rationale") if mol.HasProp("rationale") else None
         )
         computed_molecule.rationale = rationale if word_count(rationale) > 1 else None
         # To avoid the error...
@@ -567,7 +567,7 @@ class MolOps:
         return computed_molecule
 
     def get_submission_info(self, description_mol) -> ComputedSetSubmitter:
-        datestring = description_mol.GetProp('generation_date')
+        datestring = description_mol.GetProp("generation_date")
         try:
             date = parse(datestring, dayfirst=True)
         except ValueError as exc:
@@ -576,10 +576,10 @@ class MolOps:
             raise IntegrityError(msg) from exc
 
         return ComputedSetSubmitter.objects.get_or_create(
-            name=description_mol.GetProp('submitter_name'),
-            method=description_mol.GetProp('method'),
-            email=description_mol.GetProp('submitter_email'),
-            institution=description_mol.GetProp('submitter_institution'),
+            name=description_mol.GetProp("submitter_name"),
+            method=description_mol.GetProp("method"),
+            email=description_mol.GetProp("submitter_email"),
+            institution=description_mol.GetProp("submitter_institution"),
             generation_date=date,
         )[0]
 
@@ -593,17 +593,19 @@ class MolOps:
         zfile=None,
         zfile_hashvals=None,
     ) -> None:
-        molecule_name = mol.GetProp('_Name')
-        logger.debug('+ process_mol %s', molecule_name)
+        molecule_name = mol.GetProp("_Name")
+        logger.debug("+ process_mol %s", molecule_name)
 
         other_props = mol.GetPropsAsDict()
         skip_mol = False
-        for prop in ['ref_mols', 'ref_pdb'] + list(HEADER_MOL_FIELDS):
+
+        # if ref_mols or ref_pdb is missing skip the molecule
+        for prop in ["ref_mols", "ref_pdb"]:
             if prop not in other_props.keys():
                 self.messages = add_warning(
                     molecule_name=molecule_name,
                     field=prop,
-                    warning_string=f'Property {prop} missing',
+                    warning_string=f"Property {prop} missing. Skipping molecule!",
                     validate_dict=self.messages,
                 )
                 skip_mol = True
@@ -611,10 +613,28 @@ class MolOps:
                 self.messages = add_warning(
                     molecule_name=molecule_name,
                     field=prop,
-                    warning_string=f'Property {prop} undefined',
+                    warning_string=f"Property {prop} undefined. Skipping molecule!",
                     validate_dict=self.messages,
                 )
                 skip_mol = True
+
+        # if any header mol fields are defined on non-header molecules those values are ignored and a warning shown
+        for prop in HEADER_MOL_FIELDS:
+            if prop not in other_props.keys():
+                # non-header molecules don't need header fields
+                continue
+
+            if other_props[prop] not in EMPTY_VALUES:
+                # header fields in non-header molecules have values ignored
+                self.messages = add_warning(
+                    molecule_name=molecule_name,
+                    field=prop,
+                    warning_string=f"Property {prop} value {other_props[prop]} ignored.",
+                    validate_dict=self.messages,
+                )
+
+            # get rid of the header field property on the non-header molecule
+            del other_props[prop]
 
         if not skip_mol:
             cpd = self.set_mol(
@@ -638,23 +658,23 @@ class MolOps:
         )
 
         computed_set.submitter = self.get_submission_info(description_mol)
-        if description_mol.HasProp('ref_url'):
-            computed_set.method_url = description_mol.GetProp('ref_url')
+        if description_mol.HasProp("ref_url"):
+            computed_set.method_url = description_mol.GetProp("ref_url")
         computed_set.save()
 
         description_dict = description_mol.GetPropsAsDict()
-        logger.debug('index mol original values: %s', description_dict)
+        logger.debug("index mol original values: %s", description_dict)
         # score descriptions for this upload, doesn't matter if
         # created or existing
         score_descriptions = {}
         errors = []
         for key in description_dict.keys():
             if key in descriptions_needed and key not in [
-                'ref_mols',
-                'ref_pdb',
-                'index',
-                'Name',
-                'original SMILES',
+                "ref_mols",
+                "ref_pdb",
+                "index",
+                "Name",
+                "original SMILES",
             ]:
                 description, _ = ScoreDescription.objects.get_or_create(
                     computed_set=computed_set,
@@ -666,10 +686,10 @@ class MolOps:
 
                 if key in HEADER_MOL_FIELDS:
                     if value in EMPTY_VALUES:
-                        msg = f'Empty value for {key} in header molecule'
+                        msg = f"Empty value for {key} in header molecule"
                         errors.append(msg)
                         logger.error(msg)
-                    if key == 'submitter_email':
+                    if key == "submitter_email":
                         try:
                             validate_email(value)
                         except ValidationError:
@@ -679,7 +699,7 @@ class MolOps:
 
                 score_descriptions[description] = value
 
-        logger.debug('index mol values: %s', score_descriptions.values())
+        logger.debug("index mol values: %s", score_descriptions.values())
         if errors:
             raise IntegrityError(errors)
 
@@ -687,7 +707,7 @@ class MolOps:
 
     def task(self) -> tuple[ComputedSet, dict]:
         # Truncate submitted method (lower-case)?
-        truncated_submitter_method: str = 'unspecified'
+        truncated_submitter_method: str = "unspecified"
         try:
             with transaction.atomic():
                 if self.submitter_method:
@@ -710,7 +730,7 @@ class MolOps:
                 try:
                     computed_set = ComputedSet.objects.get(pk=self.computed_set_id)
                     # refresh some attributes
-                    computed_set.md_ordinal = F('md_ordinal') + 1
+                    computed_set.md_ordinal = F("md_ordinal") + 1
                     computed_set.upload_date = datetime.date.today()
                     computed_set.save()
                 except (ValueError, ComputedSet.DoesNotExist):
@@ -725,13 +745,13 @@ class MolOps:
                     except Target.DoesNotExist as exc:
                         # target's existance should be validated in the view,
                         # this could hardly happen
-                        msg = f'Target {self.target_id} does not exist'
+                        msg = f"Target {self.target_id} does not exist"
                         logger.error(msg)
                         raise IntegrityError(msg) from exc
 
                     cs_name: str = (
-                        f'{truncated_submitter_method}-{str(today)}-'
-                        + f'{get_column_letter(new_ordinal)}'
+                        f"{truncated_submitter_method}-{str(today)}-"
+                        + f"{get_column_letter(new_ordinal)}"
                     )
 
                     # now that I have a name, I can check whether this
@@ -761,7 +781,7 @@ class MolOps:
                         try:
                             computed_set.owner_user = User.objects.get(id=self.user_id)
                         except User.DoesNotExist as exc:
-                            msg = f'User {self.user_id} does not exist'
+                            msg = f"User {self.user_id} does not exist"
                             logger.error(msg)
                             raise IntegrityError(msg) from exc
 
@@ -781,10 +801,10 @@ class MolOps:
                 )
 
                 # Process the molecules
-                logger.info('%s mols_to_process=%s', computed_set, len(mols_to_process))
+                logger.info("%s mols_to_process=%s", computed_set, len(mols_to_process))
                 for i in range(len(mols_to_process)):
                     logger.debug(
-                        'processing mol %s: %s', i, mols_to_process[i].GetProp('_Name')
+                        "processing mol %s: %s", i, mols_to_process[i].GetProp("_Name")
                     )
                     self.process_mol(
                         mols_to_process[i],
@@ -815,7 +835,7 @@ class MolOps:
             settings.MEDIA_ROOT, settings.COMPUTED_SET_MEDIA_DIRECTORY
         )
         if not os.path.isdir(cmp_set_folder):
-            logger.info('Making ComputedSet folder (%s)', cmp_set_folder)
+            logger.info("Making ComputedSet folder (%s)", cmp_set_folder)
             os.mkdir(cmp_set_folder)
 
         # move and save the compound set
@@ -823,7 +843,7 @@ class MolOps:
             Path(settings.MEDIA_ROOT)
             .joinpath(settings.COMPUTED_SET_MEDIA_DIRECTORY)
             .joinpath(
-                f'{computed_set.name}_upload_{computed_set.md_ordinal}_{Path(sdf_filename).name}'
+                f"{computed_set.name}_upload_{computed_set.md_ordinal}_{Path(sdf_filename).name}"
             )
         )
         os.rename(sdf_filename, new_filename)
@@ -831,7 +851,7 @@ class MolOps:
         computed_set.written_sdf_filename = new_filename
         computed_set.save()
 
-        logger.info('Created %s', computed_set)
+        logger.info("Created %s", computed_set)
 
         return computed_set, self.messages
 
@@ -842,23 +862,23 @@ def blank_mol_vals(sdf_file) -> Tuple[str, str, str]:
     """
     suppl = Chem.SDMolSupplier(sdf_file)
     if not suppl:
-        return '', '', ''
+        return "", "", ""
     # print('%d mols detected (including blank mol)' % (len(suppl),))
     blank_mol = suppl[0]
     if not blank_mol:
-        return '', '', ''
+        return "", "", ""
 
     # Get submitter name/info for passing into upload to get unique name
-    submitter_name = ''
-    if blank_mol.HasProp('submitter_name'):
-        submitter_name = blank_mol.GetProp('submitter_name')
+    submitter_name = ""
+    if blank_mol.HasProp("submitter_name"):
+        submitter_name = blank_mol.GetProp("submitter_name")
 
-    submitter_method = ''
-    if blank_mol.HasProp('method'):
-        submitter_method = blank_mol.GetProp('method')
+    submitter_method = ""
+    if blank_mol.HasProp("method"):
+        submitter_method = blank_mol.GetProp("method")
 
-    version = ''
-    if blank_mol.HasProp('_Name'):
-        version = blank_mol.GetProp('_Name')
+    version = ""
+    if blank_mol.HasProp("_Name"):
+        version = blank_mol.GetProp("_Name")
 
     return submitter_name, submitter_method, version

@@ -1354,7 +1354,7 @@ class TargetLoader:
             try:
                 logger.debug('exp: %s, %s', experiment, experiments[experiment_id].new)
                 compound = experiment.compounds.get(
-                    smiles=experiments[experiment_id].index_data["smiles"]
+                    ligand_name=ligand_name,
                 )
             except Compound.DoesNotExist:
                 # really doensn't exist, can happen
@@ -2079,13 +2079,20 @@ class TargetLoader:
         extended_key_cols = key_cols + ["compound_code"]
         non_idf_cols = extended_key_cols + ["compound_code_update"]
 
-        identifiers_from_file = set([k for k in df.columns if k not in non_idf_cols])
+        identifiers_from_file = [k for k in df.columns if k not in non_idf_cols]
+
+        # mypy is doing it's thing again
+        if not self.target.alias_order:  # type: ignore[attr-defined]
+            self.target.alias_order = identifiers_from_file  # type: ignore[attr-defined]
+            self.target.save()  # type: ignore[attr-defined]
+
+        identifiers_from_file = set(identifiers_from_file)  # type: ignore[assignment]
 
         # I think this is a bad idea, but it was explicitly in the spec
         identifier_types = set(
             CompoundIdentifierType.objects.values_list("name", flat=True)
         )
-        new_identifiers = identifiers_from_file.difference(identifier_types)
+        new_identifiers = identifiers_from_file.difference(identifier_types)  # type: ignore[attr-defined]
         for identifier in new_identifiers:
             CompoundIdentifierType(name=identifier).save()
 
