@@ -237,7 +237,7 @@ def check_blank_prop(blank_mol, validate_dict):
     # Properties to ignore
     prop_ignore_list = ['ref_mols', 'ref_pdb']
 
-    for key, value in zip(list(property_dict.keys()), list(property_dict.values())):
+    for key, value in property_dict.items():
         if value == '' and key not in prop_ignore_list:
             validate_dict = add_warning(
                 molecule_name=blank_mol.GetProp('_Name'),
@@ -269,11 +269,12 @@ def check_field_populated(mol, validate_dict):
     :return: Updates validate dictionary with pass/fail message
     """
 
-    # Compuslory fields
-    compulsory_fields = ['ref_pdb', 'ref_mols', 'original SMILES']
+    # Compuslory fields (after 1589)
+    # compulsory_fields = ['ref_pdb', 'ref_mols', 'original SMILES']
+    compulsory_fields = ['original SMILES']
 
     property_dict = mol.GetPropsAsDict()
-    for key, value in zip(list(property_dict.keys()), list(property_dict.values())):
+    for key, value in property_dict.items():
         if value == '' and key in compulsory_fields:
             validate_dict = add_warning(
                 molecule_name=mol.GetProp('_Name'),

@@ -38,6 +38,43 @@ services:
       - .env
     image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
     restart: on-failure
+    volumes:
+    - ./data/logs:/code/logs/
+    - ./data/media:/code/media/
+    - .:/code/
+    environment:
+      AUTHENTICATE_UPLOAD: ${AUTHENTICATE_UPLOAD:-True}
+      DEPLOYMENT_MODE: 'development'
+      POSTGRESQL_USER: postgres
+      # Comma-separated dforced errors (infections?)
+      INFECTIONS: ''
+      # Celery tasks need to run synchronously
+      CELERY_TASK_ALWAYS_EAGER: 'False'
+      # Error reporting and default/root log-level
+      FRAGALYSIS_BACKEND_SENTRY_DNS: ${FRAGALYSIS_BACKEND_SENTRY_DNS}
+      LOGGING_FRAMEWORK_ROOT_LEVEL: ${LOGGING_FRAMEWORK_ROOT_LEVEL:-INFO}
+      # Keycloak configuration
+      OIDC_KEYCLOAK_REALM: ${OIDC_KEYCLOAK_REALM}
+      OIDC_RP_CLIENT_ID: ${OIDC_RP_CLIENT_ID:-fragalysis-local}
+      OIDC_RP_CLIENT_SECRET: ${OIDC_RP_CLIENT_SECRET}
+      OIDC_AS_CLIENT_ID: ${OIDC_AS_CLIENT_ID:-account-server-api}
+      OIDC_DM_CLIENT_ID: ${OIDC_DM_CLIENT_ID:-data-manager-api}
+      OIDC_RENEW_ID_TOKEN_EXPIRY_MINUTES: '210'
+      # Public target access strings?
+      # A comma-separated list of Project titles.
+      PUBLIC_TAS: ${PUBLIC_TAS:-lb18145-1}
+      # Squonk configuration
+      SQUONK2_VERIFY_CERTIFICATES: 'No'
+      SQUONK2_UNIT_BILLING_DAY: 3
+      SQUONK2_PRODUCT_FLAVOUR: BRONZE
+      SQUONK2_SLUG: fs-local
+      SQUONK2_ORG_OWNER: ${SQUONK2_ORG_OWNER}
+      SQUONK2_ORG_OWNER_PASSWORD: ${SQUONK2_ORG_OWNER_PASSWORD}
+      SQUONK2_ORG_UUID: ${SQUONK2_ORG_UUID}
+      SQUONK2_UI_URL: ${SQUONK2_UI_URL}
+      SQUONK2_DMAPI_URL: ${SQUONK2_DMAPI_URL}
+      SQUONK2_ASAPI_URL: ${SQUONK2_ASAPI_URL}
+      PROXY_FORWARDED_PROTO_HEADER: ${PROXY_FORWARDED_PROTO_HEADER:-http}
 
   celery_beat:
     command: sh -c "celery -A fragalysis beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"

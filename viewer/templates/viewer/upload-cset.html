@@ -74,6 +74,7 @@
         <p class="has-text-centered" id="links"></p>
         <p class="has-text-centered" id="validate-id"></p>
         <p class="has-text-centered" id="upload-id"></p>
+        <p class="has-text-centered" id="upload_warnings"></p>
     </body>
 
     {% if error_message %}
@@ -161,8 +162,8 @@
 
                       }
                       if (validatedStatus === 'Validated') {
-                          clearTimer('Your files were uploaded! The download links are:');
 
+                          clearTimer('Your files were uploaded! The download links are:');
                           var url_a = response.data.results.cset_download_url;
                           var content = document.getElementById('links');
                           var a = document.createElement("a");
@@ -182,6 +183,10 @@
                           b.title = 'protein set';
                           b.href = url_b;
                           content.appendChild(b);
+                          if (response.data.html) {
+                              var content = document.getElementById('upload_warnings');
+                              content.innerHTML = response.data.html;
+                          }
 
                       }
                       var moleculesProcessed = response.data.processed;
@@ -220,6 +225,6 @@
             progressTitle.innerHTML = message;
           }
          </script>
-    {% endif %}
+     {% endif %}
 
 {% endblock %}
