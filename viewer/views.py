@@ -1553,17 +1553,19 @@ class UploadExperimentUploadView(viewsets.ViewSet):
 
     def create(self, request, *args, **kwargs):
         logger.info("+ UploadTargetExperiments.create called")
+        # logger.debug('request.data :%s', request.data)
         logger.debug('args :%s', args)
         logger.debug('kwargs :%s', kwargs)
         logger.debug('request :%s', request)
-        logger.debug('request.POST :%s', request.POST)
-        logger.debug('request.user :%s', request.user)
-        logger.debug('request.user.is_authenticated :%s', request.user.is_authenticated)
-        logger.debug('request.auth :%s', request.auth)
-        logger.debug('request.authenticators :%s', request.authenticators)
-        logger.debug('request dir :%s', dir(request))
+
+        # logger.debug('request.POST :%s', request.POST)
+        # logger.debug('request.user :%s', request.user)
+        # logger.debug('request.user.is_authenticated :%s', request.user.is_authenticated)
+        # logger.debug('request.auth :%s', request.auth)
+        # logger.debug('request.authenticators :%s', request.authenticators)
+        # logger.debug('request dir :%s', dir(request))
         logger.debug('request.headers :%s', request.headers)
-        logger.debug('request.headers django-user :%s', request.headers['django-user'])
+        # logger.debug('request.headers django-user :%s', request.headers['django-user'])
         del args, kwargs
 
         serializer = self.get_serializer_class()(data=request.data)
@@ -1575,7 +1577,6 @@ class UploadExperimentUploadView(viewsets.ViewSet):
         logger.debug("User=%s", self.request.user)
 
         target_access_string = serializer.validated_data['target_access_string']
-        contact_email = serializer.validated_data['contact_email']
         filename = serializer.validated_data['file']
 
         if settings.AUTHENTICATE_UPLOAD:
@@ -1646,7 +1647,6 @@ class UploadExperimentUploadView(viewsets.ViewSet):
         task = task_load_target.delay(
             data_bundle=str(target_file),
             proposal_ref=target_access_string,
-            contact_email=contact_email,
             user_id=request.user.pk,
         )
         logger.info("+ UploadTargetExperiments.create got Celery id %s", task.task_id)
