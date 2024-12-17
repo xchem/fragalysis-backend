@@ -1952,7 +1952,11 @@ class TargetLoader:
             tag = val.instance.name
 
             self._tag_observations(
-                tag, prefix, category=cat_xtal, site_observations=so_list
+                tag,
+                prefix,
+                category=cat_xtal,
+                site_observations=so_list,
+                clean_ids=False,
             )
 
         logger.debug("xtalform objects tagged")
