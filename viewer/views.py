@@ -1553,19 +1553,9 @@ class UploadExperimentUploadView(viewsets.ViewSet):
 
     def create(self, request, *args, **kwargs):
         logger.info("+ UploadTargetExperiments.create called")
-        # logger.debug('request.data :%s', request.data)
-        logger.debug('args :%s', args)
-        logger.debug('kwargs :%s', kwargs)
-        logger.debug('request :%s', request)
+        logger.debug('request.data :%s', request.data)
+        logger.debug('request.user :%s', request.user)
 
-        # logger.debug('request.POST :%s', request.POST)
-        # logger.debug('request.user :%s', request.user)
-        # logger.debug('request.user.is_authenticated :%s', request.user.is_authenticated)
-        # logger.debug('request.auth :%s', request.auth)
-        # logger.debug('request.authenticators :%s', request.authenticators)
-        # logger.debug('request dir :%s', dir(request))
-        logger.debug('request.headers :%s', request.headers)
-        # logger.debug('request.headers django-user :%s', request.headers['django-user'])
         del args, kwargs
 
         serializer = self.get_serializer_class()(data=request.data)
