@@ -16,6 +16,7 @@ from celery import Celery
 from celery.result import AsyncResult
 from dateutil.parser import parse
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1541,17 +1542,22 @@ class DownloadStructuresView(
         return Response({"file_url": filename_url})
 
 
-class UploadExperimentUploadView(ISPyBSafeQuerySet):
-    serializer_class = serializers.TargetExperimentWriteSerializer
-    permission_class = [permissions.IsAuthenticated]
+class UploadExperimentUploadView(viewsets.ViewSet):
     http_method_names = ('post',)
 
     def get_view_name(self):
         return "Upload Target Experiments"
 
+    def get_serializer_class(self):
+        return serializers.TargetExperimentWriteSerializer
+
     def create(self, request, *args, **kwargs):
         logger.info("+ UploadTargetExperiments.create called")
-        logger.debug("UploadTargetExperiments serializer data: %s", request.data)
+        logger.debug('request.data :%s', request.data)
+
+        # logger.debug('request.POST :%s', request.POST)
+        logger.debug('request.user :%s', request.user)
+
         del args, kwargs
 
         serializer = self.get_serializer_class()(data=request.data)
@@ -1563,16 +1569,47 @@ class UploadExperimentUploadView(ISPyBSafeQuerySet):
         logger.debug("User=%s", self.request.user)
 
         target_access_string = serializer.validated_data['target_access_string']
-        contact_email = serializer.validated_data['contact_email']
         filename = serializer.validated_data['file']
 
         if settings.AUTHENTICATE_UPLOAD:
-            user = self.request.user
+            if self.request.user.username == 'asap-service':
+                logger.warning(
+                    'Upload attempted with "%s" service account, trying uploader-supplied user',
+                    self.request.user.username,
+                )
+                if 'django-user' in request.headers.keys():
+                    try:
+                        user = get_user_model().objects.get(
+                            username=request.headers['django-user']
+                        )
+                    except get_user_model().DoesNotExist:
+                        msg = (
+                            f'Upload from "{self.request.user.username}" '
+                            + 'service account but fragalysis user not found'
+                        )
+                        logger.error(msg)
+                        return Response(
+                            {'error': msg}, status=status.HTTP_403_FORBIDDEN
+                        )
+                else:
+                    msg = (
+                        f'Upload from "{self.request.user.username}" service '
+                        'account but fragalysis user not supplied'
+                    )
+                    logger.error(msg)
+                    return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
+
+            else:
+                user = self.request.user
+
             if not user.is_authenticated:
                 return redirect(settings.LOGIN_URL)
             else:
-                if target_access_string not in self.get_proposals_for_user(
-                    user, restrict_public_to_membership=True
+                if (
+                    target_access_string
+                    not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                        user, restrict_public_to_membership=True
+                    )
                 ):
                     return Response(
                         {
@@ -1602,7 +1639,6 @@ class UploadExperimentUploadView(ISPyBSafeQuerySet):
         task = task_load_target.delay(
             data_bundle=str(target_file),
             proposal_ref=target_access_string,
-            contact_email=contact_email,
             user_id=request.user.pk,
         )
         logger.info("+ UploadTargetExperiments.create got Celery id %s", task.task_id)
@@ -2718,3 +2754,31 @@ class DownloadComputedSetView(ISPyBSafeQuerySet):
         )
         response['Content-Length'] = zip_buffer.getbuffer().nbytes
         return response
+
+
+class TokenView(APIView):
+    def get(self, request, *args, **kwargs):
+        """Return authentication token"""
+        # Unused arguments
+        del args, kwargs
+
+        logger.debug("request.headers=%s", request.headers)
+
+        if not request.user.is_authenticated:
+            content: Dict[str, Any] = {
+                'error': 'You need to be logged in to get a token'
+            }
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            sessionid = request.COOKIES['sessionid']
+        except KeyError:
+            return Response(
+                {'error': 'Session could not be found, are you logged in?'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(
+            {'sessionid': sessionid},
+            status=status.HTTP_200_OK,
+        )
