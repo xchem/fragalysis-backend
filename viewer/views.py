@@ -1554,6 +1554,8 @@ class UploadExperimentUploadView(viewsets.ViewSet):
     def create(self, request, *args, **kwargs):
         logger.info("+ UploadTargetExperiments.create called")
         logger.debug('request.data :%s', request.data)
+
+        # logger.debug('request.POST :%s', request.POST)
         logger.debug('request.user :%s', request.user)
 
         del args, kwargs
@@ -2752,3 +2754,31 @@ class DownloadComputedSetView(ISPyBSafeQuerySet):
         )
         response['Content-Length'] = zip_buffer.getbuffer().nbytes
         return response
+
+
+class TokenView(APIView):
+    def get(self, request, *args, **kwargs):
+        """Return authentication token"""
+        # Unused arguments
+        del args, kwargs
+
+        logger.debug("request.headers=%s", request.headers)
+
+        if not request.user.is_authenticated:
+            content: Dict[str, Any] = {
+                'error': 'You need to be logged in to get a token'
+            }
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            sessionid = request.COOKIES['sessionid']
+        except KeyError:
+            return Response(
+                {'error': 'Session could not be found, are you logged in?'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(
+            {'sessionid': sessionid},
+            status=status.HTTP_200_OK,
+        )
