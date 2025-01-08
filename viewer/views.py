@@ -1544,12 +1544,10 @@ class DownloadStructuresView(
 
 class UploadExperimentUploadView(viewsets.ViewSet):
     http_method_names = ('post',)
+    serializer_class = serializers.TargetExperimentWriteSerializer
 
     def get_view_name(self):
         return "Upload Target Experiments"
-
-    def get_serializer_class(self):
-        return serializers.TargetExperimentWriteSerializer
 
     def create(self, request, *args, **kwargs):
         logger.info("+ UploadTargetExperiments.create called")
@@ -1560,7 +1558,7 @@ class UploadExperimentUploadView(viewsets.ViewSet):
 
         del args, kwargs
 
-        serializer = self.get_serializer_class()(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         if not serializer.is_valid():
             logger.debug("serializer not valid: %s", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
