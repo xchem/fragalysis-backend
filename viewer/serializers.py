@@ -902,7 +902,6 @@ class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSeri
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
-    contact_email = serializers.EmailField(required=False, default=None)
 
     def validate(self, data):
         """Verify TAS is correctly formed."""
@@ -915,7 +914,6 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
         model = models.ExperimentUpload
         fields = (
             'target_access_string',
-            'contact_email',
             'file',
         )
 

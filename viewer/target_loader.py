@@ -1952,7 +1952,11 @@ class TargetLoader:
             tag = val.instance.name
 
             self._tag_observations(
-                tag, prefix, category=cat_xtal, site_observations=so_list
+                tag,
+                prefix,
+                category=cat_xtal,
+                site_observations=so_list,
+                clean_ids=False,
             )
 
         logger.debug("xtalform objects tagged")
@@ -2365,12 +2369,9 @@ class TargetLoader:
 def load_target(
     data_bundle,
     proposal_ref=None,
-    contact_email=None,
     user_id=None,
     task=None,
 ):
-    # TODO: do I need to sniff out correct archive format?
-    del contact_email
     with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
         target_loader = TargetLoader(
             data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
