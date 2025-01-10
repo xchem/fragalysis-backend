@@ -443,6 +443,8 @@ def create_objects(func=None, *, depth=math.inf):
 def validate_data_version(
     data_version: str, o_major: int | None = None, o_minor: int | None = None
 ) -> Tuple[bool, str]:
+    logger.debug('+ validate_data_version, data_version: %s', data_version)
+    logger.debug('o_major: %s; o_minor: %s', o_major, o_minor)
     splits = data_version.split('.')
 
     if len(splits) != 2:
@@ -450,17 +452,20 @@ def validate_data_version(
 
     try:
         i_major = int(splits[0])
-        i_minor = int(splits[0])
+        i_minor = int(splits[1])
     except ValueError:
         return False, f"Non-numeric version number: {data_version}"
 
+    logger.debug('i_major: %s; i_minor: %s', i_major, i_minor)
+
     s_major, s_minor = [int(k) for k in settings.XCA_DATA_FORMAT_VERSION.split('.')]
+    logger.debug('s_major: %s; s_minor: %s', s_major, s_minor)
 
     if i_major != s_major:
         return (
             False,
-            f"Data major version mismatch: {settings.XCA_DATA_FORMAT_VERSION} "
-            + f"expected, {data_version} supplied",
+            f"Data major version mismatch: '{s_major}' "
+            + f"expected, '{i_major}' uploaded",
         )
 
     if o_major and o_major < i_major:
@@ -473,7 +478,7 @@ def validate_data_version(
         return (
             True,
             f"Data minor version mismatch: {settings.XCA_DATA_FORMAT_VERSION} "
-            + f"expected, {data_version} supplied",
+            + f"expected, {data_version} uploaded",
         )
 
     if o_minor and o_minor < i_minor:
@@ -1590,7 +1595,7 @@ class TargetLoader:
         data_format_version = meta["data_format_version"]
 
         # check for previous uploads
-        previous_uploads = ExperimentUpload.objets.filter(
+        previous_uploads = ExperimentUpload.objects.filter(
             target=self.target,
             project=self.project,
         )
