@@ -2002,7 +2002,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
             'transfer_status': job_transfer.transfer_status,
             'transfer_task_id': str(job_transfer_task),
         }
-        return Response(content, status=status.HTTP_200_OK)
+        return Response(content, status=status.HTTP_202_ACCEPTED)
 
 
 class JobConfigView(viewsets.ReadOnlyModelViewSet):
@@ -2267,7 +2267,7 @@ class JobRequestView(APIView):
         logger.info('SUCCESS (job_id=%s squonk_url_ext=%s)', job_id, squonk_url_ext)
 
         content = {'id': job_id, 'squonk_url_ext': squonk_url_ext}
-        return Response(content, status=status.HTTP_200_OK)
+        return Response(content, status=status.HTTP_202_ACCEPTED)
 
 
 class JobCallBackView(viewsets.ModelViewSet):
