@@ -128,24 +128,22 @@ def validate_file_transfer_files(
 
     if request.data['proteins']:
         # Get first part of protein code
-        proteins_list = [
-            p.strip().split(":")[0] for p in request.data['proteins'].split(',')
+        protein_longcode_part_list = [
+            p.strip().split("_")[0] for p in request.data['proteins'].split(',')
         ]
-        logger.info('+ Given proteins=%s', proteins_list)
+        logger.info('+ Given protein_longcode_part_list=%s', protein_longcode_part_list)
 
         proteins = []
-        for code_first_part in proteins_list:
+        for protein_longcode_part in protein_longcode_part_list:
             site_obvs = SiteObservation.objects.filter(
-                code__contains=code_first_part
+                longcode__contains=protein_longcode_part
             ).values()
             if site_obvs.exists():
                 proteins.append(site_obvs.first())
             else:
                 error[
                     'message'
-                ] = 'Please enter valid protein code for' + ': {} '.format(
-                    code_first_part
-                )
+                ] = f'Please enter valid protein code for: {protein_longcode_part}'
                 error['status'] = status.HTTP_404_NOT_FOUND
                 return error, proteins, compounds
 
@@ -165,9 +163,7 @@ def validate_file_transfer_files(
             if comp.exists():
                 compounds.append(comp.first())
             else:
-                error[
-                    'message'
-                ] = 'Please enter valid compound name for' + ': {} '.format(compound)
+                error['message'] = f'Please enter valid compound name for: {compound}'
                 error['status'] = status.HTTP_404_NOT_FOUND
                 return error, proteins, compounds
 
