@@ -157,6 +157,5 @@ urlpatterns = [
     path("", include(router.urls)),
     path("auth/", drf_views.obtain_auth_token, name="auth"),
     path("swagger/", schema_view),
-    path("job_request/", viewer_views.JobRequestView.as_view(), name="job_request"),
     path('token/', viewer_views.TokenView.as_view(), name="token_view"),
 ]

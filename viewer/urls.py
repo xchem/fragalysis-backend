@@ -27,6 +27,7 @@ urlpatterns = [
     path("open_targets/", views.get_open_targets, name="get_open_targets"),
     path("upload_designs/", views.DesignSetUploadView.as_view(), name="upload_designs"),
     path("job_access/", views.JobAccessView.as_view(), name="job_access"),
+    path("job_request/", views.JobRequestView, name="job_request"),
     path(
         "task_status/<uuid:task_id>/",
         views.TaskStatusView.as_view(),

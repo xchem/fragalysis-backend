@@ -873,7 +873,7 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         resp = None
-        url = f'{self.__CFG_SQUONK2_DMAPI_URL}/api'
+        url = f'{self.__CFG_SQUONK2_DMAPI_URL}/api/'
         try:
             resp = requests.head(
                 url, verify=self.__verify_certificates, timeout=REQUEST_TIMEOUT_S
@@ -886,9 +886,9 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         resp = None
-        url = f'{self.__CFG_SQUONK2_ASAPI_URL}/api'
+        url = f'{self.__CFG_SQUONK2_ASAPI_URL}/api/'
         try:
-            resp = requests.head(
+            resp = requests.get(
                 url, verify=self.__verify_certificates, timeout=REQUEST_TIMEOUT_S
             )
         except Exception:
