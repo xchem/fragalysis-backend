@@ -881,20 +881,20 @@ class Squonk2Agent:
         except Exception:
             _LOGGER.error('Exception checking DM at %s', url)
         if resp is None or resp.status_code != 308:
-            msg = f'Squonk2 DM is not responding from {url}'
+            msg = f'Squonk2 DM is not responding from {url} (HEAD request resp={resp})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         resp = None
         url = f'{self.__CFG_SQUONK2_ASAPI_URL}/api/'
         try:
-            resp = requests.get(
+            resp = requests.head(
                 url, verify=self.__verify_certificates, timeout=REQUEST_TIMEOUT_S
             )
         except Exception:
             _LOGGER.error('Exception checking AS at %s', url)
         if resp is None or resp.status_code != 308:
-            msg = f'Squonk2 AS is not responding from {url}'
+            msg = f'Squonk2 AS is not responding from {url} (HEAD request resp={resp})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
