@@ -902,6 +902,9 @@ class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSeri
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
+    file = serializers.FileField(required=False)
+    data_version = serializers.CharField(required=False)
+    target_name = serializers.CharField(required=False)
 
     def validate(self, data):
         """Verify TAS is correctly formed."""
@@ -915,6 +918,8 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
         fields = (
             'target_access_string',
             'file',
+            'data_version',
+            'target_name',
         )
 
 

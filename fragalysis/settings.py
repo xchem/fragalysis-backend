@@ -655,3 +655,7 @@ FE_NAMESPACE: str = os.environ.get("FE_NAMESPACE", "undefined")
 FE_IMAGE_TAG: str = os.environ.get("FE_IMAGE_TAG", "undefined")
 STACK_NAMESPACE: str = os.environ.get("STACK_NAMESPACE", "undefined")
 STACK_VERSION: str = os.environ.get("STACK_VERSION", "undefined")
+
+
+# XChem Align data format
+XCA_DATA_FORMAT_VERSION = "2.2"
