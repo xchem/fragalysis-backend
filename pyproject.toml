@@ -6,6 +6,7 @@ authors = ["Rachael Skyner <rachael.skyner@diamond.ac.uk>"]
 license = "Apache-2.0"
 readme = "README.md"
 packages = [{include = "fragalysis_backend"}]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11.3"
