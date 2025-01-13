@@ -41,7 +41,7 @@ from viewer.squonk2_agent import (
     Squonk2AgentRv,
     get_squonk2_agent,
 )
-from viewer.target_loader import validate_data_version
+from viewer.target_loader import split_version, validate_data_version
 from viewer.utils import (
     CSV_TO_DICT_DOWNLOAD_ROOT,
     create_csv_from_dict,
@@ -1619,8 +1619,26 @@ class UploadExperimentUploadView(viewsets.ViewSet):
                     )
 
         if 'data_version' in serializer.validated_data.keys():
+            try:
+                major, minor = split_version(serializer.validated_data['data_version'])
+            except ValueError as exc:
+                return Response(
+                    {
+                        'success': False,
+                        'message': exc.args[0],
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            try:
+                target_name = serializer.validated_data['target_name']
+            except KeyError:
+                return Response(
+                    {'success': False, 'message': 'Target name not given'},
+                    status=status.HTTP_200_OK,
+                )
+
             val_result, msg = validate_data_version(
-                serializer.validated_data['data_version']
+                major, minor, target_name=target_name, project_name=target_access_string
             )
             return Response(
                 {
