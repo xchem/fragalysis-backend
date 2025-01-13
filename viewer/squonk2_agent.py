@@ -880,7 +880,7 @@ class Squonk2Agent:
             )
         except Exception:
             _LOGGER.error('Exception checking DM at %s', url)
-        if resp is None or resp.status_code != 308:
+        if resp is None or resp.status_code != 200:
             msg = f'Squonk2 DM is not responding from {url} (HEAD request resp={resp})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
@@ -893,7 +893,7 @@ class Squonk2Agent:
             )
         except Exception:
             _LOGGER.error('Exception checking AS at %s', url)
-        if resp is None or resp.status_code != 308:
+        if resp is None or resp.status_code != 200:
             msg = f'Squonk2 AS is not responding from {url} (HEAD request resp={resp})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
