@@ -122,6 +122,26 @@ def validate_file_transfer_files(
         list of validated proteins (SiteObservation)
         list of validated computed molecules (ComputedMolecule)
     """
+
+    # V2 Development Node (achristie)
+    #
+    # We're given a request that contains comma-separated "proteins", and "compounds",
+    # and a "target", "snapshot" and "session_project" record IDs.
+    #
+    # In Fragalysis V1 all the files (proteins or compounds) are provided using
+    # relative paths from the media directory. In V2 the objects have changed,
+    # and maybe all we need to do is check and return files?
+    #
+    # The user is already validated against the Target so here we check the given
+    # protein and compound references and return a dictionary of
+    # errors, and lits of corresponding records for them.
+    # The calling code relies on file references in the objects we return
+    # (originally a code and name) so that the files can be located.
+    # This list of objects is then stored in a FileTransfer record, whose reference
+    # is then passed to the Celery task 'process_job_file_transfer'
+    # (and ultimately to the 'process_file_transfer()' function in tasks.py)
+    # to transfer the files to Squonk.
+
     error: Dict[str, str] = {}
     proteins: List[SiteObservation] = []
     compounds: List[ComputedMolecule] = []
