@@ -2134,7 +2134,7 @@ class JobRequestView(APIView):
             ):
                 continue
             # An opportunity to update JobRequest timestamps?
-            if not jr.job_has_finished():
+            if not jr.job_finish_datetime:
                 logger.info(
                     '+ JobRequestView.get (id=%s) has not finished (job_status=%s)',
                     jr.id,
