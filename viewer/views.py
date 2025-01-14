@@ -2403,7 +2403,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         # command's outputs is not fully understood.
         # The command is a string that we split and search.
         job_output = ''
-        jr_job_info_msg = jr.squonk_job_info[1]
+        jr_job_info_msg = jr.squonk_job_info['msg']
         command = jr_job_info_msg.get('command')
         command_parts = shlex.split(command)
         outfile_index = 0

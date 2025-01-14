@@ -2,6 +2,7 @@
 squonk_job_file_request Functions for creating squonk Jobs.
 
 """
+import dataclasses
 import datetime
 import json
 import logging
@@ -212,7 +213,6 @@ def create_squonk_job(request):
         callback_context=job_request.code,
         specification=json.loads(squonk_job_spec),
     )
-    logger.info('+ create_squonk_job(%s) type(result)=%s', job_name, type(result))
     logger.info('+ create_squonk_job(%s) result=%s', job_name, result)
 
     if not result.success:
@@ -228,7 +228,7 @@ def create_squonk_job(request):
     # We can now commit the JobRequest record so that it's ready
     # for use by any callbacks. The 'result' will contain the callback token
     # and the Job's decoded command (that will be interrogated when the Job s complete)
-    job_request.squonk_job_info = result
+    job_request.squonk_job_info = dataclasses.asdict(result)
     job_request.job_start_datetime = datetime.datetime.now(datetime.timezone.utc)
     job_request.save()
 
