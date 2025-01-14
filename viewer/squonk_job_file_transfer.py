@@ -10,7 +10,7 @@ from django.conf import settings
 from rest_framework import status
 from squonk2.dm_api import DmApi
 
-from viewer.models import ComputedMolecule, JobFileTransfer, SiteObservation
+from viewer.models import JobFileTransfer, SiteObservation
 
 logger = get_task_logger(__name__)
 
@@ -106,8 +106,17 @@ def process_file_transfer(auth_token, job_transfer_id):
 
 def validate_file_transfer_files(
     request,
-) -> Tuple[Dict[str, str], List[SiteObservation], List[ComputedMolecule]]:
-    """Check the request and return a list of proteins and/or computed molecule objects
+) -> Tuple[Dict[str, str], List[SiteObservation], List[SiteObservation]]:
+    """Check the request and return a list of proteins and/or computed molecule objects.
+
+    We're given a request that contains comma-separated "proteins", and "compounds",
+    and "target access", "target", "snapshot" and "session_project" record IDs.
+    Each protein and compound is a full path to a file relative to the media directory.
+    We just need to ensure that a SiteObservation exists (there should only be one)
+    and it belongs to the given target.
+
+    The user is already validated against the Target so here we check the given
+    protein and compound references exist, and they belong to the Target.
 
     Args:
         request
@@ -117,81 +126,57 @@ def validate_file_transfer_files(
         list of validated computed molecules (ComputedMolecule)
     """
 
-    # V2 Development Note (achristie)
-    #
-    # We're given a request that contains comma-separated "proteins", and "compounds",
-    # and "target access", "target", "snapshot" and "session_project" record IDs.
-    #
-    # In Fragalysis V1 all the files (proteins or compounds) are provided using
-    # relative paths from the media directory. In V2 the objects have changed,
-    # and maybe all we need to do is check and return files?
-    #
-    # The user is already validated against the Target so here we check the given
-    # protein and compound references and return a dictionary of
-    # errors, and lits of corresponding records for them.
-    # The calling code relies on file references in the objects we return
-    # (originally a code and name) so that the files can be located.
-    # This list of objects is then stored in a FileTransfer record, whose reference
-    # is then passed to the Celery task 'process_job_file_transfer'
-    # (and ultimately to the 'process_file_transfer()' function in tasks.py)
-    # to transfer the files to Squonk.
-
     error: Dict[str, str] = {}
-    proteins: List[SiteObservation] = []
-    compounds: List[ComputedMolecule] = []
+    protein_site_observations: List[SiteObservation] = []
+    compound_site_observations: List[SiteObservation] = []
 
     if request.data['proteins']:
         # Get first part of protein code
-        protein_longcode_part_list = [
-            p.strip().split("_")[0] for p in request.data['proteins'].split(',')
+        protein_paths_and_files = [
+            p.strip() for p in request.data['proteins'].split(',')
         ]
-        logger.info('+ Given protein_longcode_part_list=%s', protein_longcode_part_list)
+        for protein_path_and_file in protein_paths_and_files:
+            # It's a filename
+            if protein_path_and_file.endswith('_apo-desolv.pdb'):
+                if site_obs := SiteObservation.objects.filter(
+                    apo_desolv_file=protein_path_and_file
+                ).first():
+                    protein_site_observations.append(site_obs)
+                else:
+                    error['message'] = f'Unknown Protein: {protein_path_and_file}'
+                    error['status'] = status.HTTP_404_NOT_FOUND
+                    return error, protein_site_observations, compound_site_observations
 
-        proteins = []
-        for protein_longcode_part in protein_longcode_part_list:
-            site_obvs = SiteObservation.objects.filter(
-                longcode__contains=protein_longcode_part
-            ).values()
-            if site_obvs.exists():
-                proteins.append(site_obvs.first())
-            else:
-                error[
-                    'message'
-                ] = f'Please enter valid protein code for: {protein_longcode_part}'
-                error['status'] = status.HTTP_404_NOT_FOUND
-                return error, proteins, compounds
-
-        if len(proteins) == 0:
+        if not protein_site_observations:
             error['message'] = 'API expects a list of comma-separated protein codes'
             error['status'] = status.HTTP_404_NOT_FOUND
-            return error, proteins, compounds
+            return error, protein_site_observations, compound_site_observations
 
     if request.data['compounds']:
-        # Get compounds
-        compounds_list = [c.strip() for c in request.data['compounds'].split(',')]
-        logger.info('+ Given compounds=%s', compounds_list)
-
-        compounds = []
-        for compound in compounds_list:
-            comp = ComputedMolecule.objects.filter(name=compound).values()
-            if comp.exists():
-                compounds.append(comp.first())
+        compound_paths_and_files = [
+            p.strip() for p in request.data['compounds'].split(',')
+        ]
+        for compound_path_and_file in compound_paths_and_files:
+            if site_obs := SiteObservation.objects.filter(
+                ligand_mol=compound_path_and_file
+            ).first():
+                compound_site_observations.append(site_obs)
             else:
-                error['message'] = f'Please enter valid compound name for: {compound}'
+                error['message'] = f'Unknown Compound: {compound_path_and_file}'
                 error['status'] = status.HTTP_404_NOT_FOUND
-                return error, proteins, compounds
+                return error, protein_site_observations, compound_site_observations
 
-        if len(compounds) == 0:
+        if not compound_site_observations:
             error['message'] = 'API expects a list of comma-separated compound names'
-            error['status'] = status.HTTP_404_NOT_FOUND
-            return error, proteins, compounds
+            error['status'] = status.HTTP_400_BAD_REQUEST
+            return error, protein_site_observations, compound_site_observations
 
-    if proteins or compounds:
-        return error, proteins, compounds
-    else:
-        error['message'] = (
-            'A valid set of protein codes and/or a list of valid'
-            ' compound names must be provided'
-        )
-        error['status'] = status.HTTP_404_NOT_FOUND
-        return error, proteins, compounds
+    if protein_site_observations or compound_site_observations:
+        return error, protein_site_observations, compound_site_observations
+
+    error['message'] = (
+        'A valid set of protein codes and/or a list of valid'
+        ' compound names must be provided'
+    )
+    error['status'] = status.HTTP_400_BAD_REQUEST
+    return error, protein_site_observations, compound_site_observations
