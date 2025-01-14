@@ -123,10 +123,10 @@ def validate_file_transfer_files(
         list of validated computed molecules (ComputedMolecule)
     """
 
-    # V2 Development Node (achristie)
+    # V2 Development Note (achristie)
     #
     # We're given a request that contains comma-separated "proteins", and "compounds",
-    # and a "target", "snapshot" and "session_project" record IDs.
+    # and "target access", "target", "snapshot" and "session_project" record IDs.
     #
     # In Fragalysis V1 all the files (proteins or compounds) are provided using
     # relative paths from the media directory. In V2 the objects have changed,
