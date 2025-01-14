@@ -194,6 +194,7 @@ def create_squonk_job(request):
     logger.info('+ create_squonk_job() job_name=%s', job_name)
     logger.info('+ create_squonk_job(%s) callback_url=%s', job_name, callback_url)
     logger.info('+ create_squonk_job(%s) callback_token=%s', job_name, callback_token)
+    logger.info('+ create_squonk_job(%s) squonk_job_spec=%s', job_name, squonk_job_spec)
 
     # Dry-run the Job execution (this provides us with the 'command', which is
     # placed in the JobRecord's squonk_job_info).
@@ -246,7 +247,7 @@ def create_squonk_job(request):
         specification=json.loads(squonk_job_spec),
         timeout_s=8,
     )
-    logger.debug(result)
+    logger.info('+ create_squonk_job(%s) result=%s', job_name, result)
 
     if not result.success:
         logger.warning(
