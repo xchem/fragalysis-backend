@@ -543,9 +543,10 @@ def process_job_file_transfer(auth_token, jt_id):
     try:
         process_file_transfer(auth_token, job_transfer.id)
     except RuntimeError as error:
-        logger.error('- File transfer (id=%s) [RuntimeError "%s"]', jt_id, error)
         job_transfer.transfer_status = "FAILURE"
+        job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
         job_transfer.save()
+        logger.error('- File transfer (id=%s) [RuntimeError "%s"]', jt_id, error)
     else:
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
@@ -553,7 +554,7 @@ def process_job_file_transfer(auth_token, jt_id):
         job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
         job_transfer.save()
-        logger.info('+ File transfer (id=%s) [SUCCESS]', jt_id)
+        logger.info('- File transfer (id=%s) [SUCCESS]', jt_id)
 
     return job_transfer.transfer_status
 
