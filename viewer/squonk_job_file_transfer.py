@@ -39,7 +39,6 @@ def process_file_transfer(auth_token, job_transfer_id):
     num_proteins_to_transfer = len(job_transfer.proteins)
     num_compounds_to_transfer = len(job_transfer.compounds)
     num_to_transfer = num_proteins_to_transfer + num_compounds_to_transfer
-    idx = 0
     logger.info(
         '+ Transfer (id=%s) num_to_transfer=%s (%s + %s)',
         job_transfer_id,
@@ -64,11 +63,7 @@ def process_file_transfer(auth_token, job_transfer_id):
     logger.info(
         '+ Transfer (id=%s) squonk_directory=%s', job_transfer_id, squonk_directory
     )
-    # All the files (proteins or compounds) are provided using relative
-    # paths from the media directory. So we can join the tow lists
-    # and treat them the same
-    all_filename_refs = job_transfer.proteins + job_transfer.compounds
-    if all_filename_refs:
+    if all_filename_refs := job_transfer.proteins + job_transfer.compounds:
         logger.info('+ Collecting files (id=%s)', job_transfer_id)
         file_list = []
         for filename_ref in all_filename_refs:
@@ -100,7 +95,6 @@ def process_file_transfer(auth_token, job_transfer_id):
         logger.debug(result)
 
         if result.success:
-            idx += 1
             job_transfer.transfer_progress = 100
             job_transfer.save()
             logger.info('+ Transferred files (id=%s)', job_transfer_id)
