@@ -126,6 +126,8 @@ def validate_file_transfer_files(
         list of validated computed molecules (ComputedMolecule)
     """
 
+    logger.info('+ Validating file transfer files...')
+
     error: Dict[str, str] = {}
     protein_site_observations: List[SiteObservation] = []
     compound_site_observations: List[SiteObservation] = []
@@ -152,6 +154,11 @@ def validate_file_transfer_files(
             error['status'] = status.HTTP_404_NOT_FOUND
             return error, protein_site_observations, compound_site_observations
 
+        logger.info(
+            "+ Validated proteins (SiteObservations) [%d]",
+            len(protein_site_observations),
+        )
+
     if request.data['compounds']:
         compound_paths_and_files = [
             p.strip() for p in request.data['compounds'].split(',')
@@ -171,7 +178,17 @@ def validate_file_transfer_files(
             error['status'] = status.HTTP_400_BAD_REQUEST
             return error, protein_site_observations, compound_site_observations
 
+        logger.info(
+            "+ Validated compounds (SiteObservations) [%d]",
+            len(compound_site_observations),
+        )
+
     if protein_site_observations or compound_site_observations:
+        logger.info(
+            "- Validated file transfer files (%d, %d)",
+            len(protein_site_observations),
+            len(compound_site_observations),
+        )
         return error, protein_site_observations, compound_site_observations
 
     error['message'] = (
