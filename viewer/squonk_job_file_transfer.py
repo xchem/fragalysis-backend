@@ -3,6 +3,7 @@ Fragalysis to Squonk.
 """
 import os
 import urllib.parse
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 from celery.utils.log import get_task_logger
@@ -106,8 +107,9 @@ def process_file_transfer(auth_token, job_transfer_id):
 
 def validate_file_transfer_files(
     request,
-) -> Tuple[Dict[str, str], List[SiteObservation], List[SiteObservation]]:
-    """Check the request and return a list of proteins and/or computed molecule objects.
+) -> Tuple[Dict[str, str], List[Path], List[Path]]:
+    """Check the request and return a list of proteins and/or computed molecule file
+    path references (paths relative to the media directory).
 
     We're given a request that contains comma-separated "proteins", and "compounds",
     and "target access", "target", "snapshot" and "session_project" record IDs.
@@ -129,8 +131,8 @@ def validate_file_transfer_files(
     logger.info('+ Validating file transfer files...')
 
     error: Dict[str, str] = {}
-    protein_site_observations: List[SiteObservation] = []
-    compound_site_observations: List[SiteObservation] = []
+    protein_files: List[Path] = []
+    compound_files: List[Path] = []
 
     if request.data['proteins']:
         # Get first part of protein code
@@ -140,23 +142,23 @@ def validate_file_transfer_files(
         for protein_path_and_file in protein_paths_and_files:
             # It's a filename
             if protein_path_and_file.endswith('_apo-desolv.pdb'):
-                if site_obs := SiteObservation.objects.filter(
+                if SiteObservation.objects.filter(
                     apo_desolv_file=protein_path_and_file
                 ).first():
-                    protein_site_observations.append(site_obs)
+                    protein_files.append(Path(protein_path_and_file))
                 else:
                     error['message'] = f'Unknown Protein: {protein_path_and_file}'
                     error['status'] = status.HTTP_404_NOT_FOUND
-                    return error, protein_site_observations, compound_site_observations
+                    return error, protein_files, compound_files
 
-        if not protein_site_observations:
+        if not protein_files:
             error['message'] = 'API expects a list of comma-separated protein codes'
             error['status'] = status.HTTP_404_NOT_FOUND
-            return error, protein_site_observations, compound_site_observations
+            return error, protein_files, compound_files
 
         logger.info(
             "+ Validated proteins (SiteObservations) [%d]",
-            len(protein_site_observations),
+            len(protein_files),
         )
 
     if request.data['compounds']:
@@ -164,36 +166,36 @@ def validate_file_transfer_files(
             p.strip() for p in request.data['compounds'].split(',')
         ]
         for compound_path_and_file in compound_paths_and_files:
-            if site_obs := SiteObservation.objects.filter(
+            if SiteObservation.objects.filter(
                 ligand_mol=compound_path_and_file
             ).first():
-                compound_site_observations.append(site_obs)
+                compound_files.append(Path(compound_path_and_file))
             else:
                 error['message'] = f'Unknown Compound: {compound_path_and_file}'
                 error['status'] = status.HTTP_404_NOT_FOUND
-                return error, protein_site_observations, compound_site_observations
+                return error, protein_files, compound_files
 
-        if not compound_site_observations:
+        if not compound_files:
             error['message'] = 'API expects a list of comma-separated compound names'
             error['status'] = status.HTTP_400_BAD_REQUEST
-            return error, protein_site_observations, compound_site_observations
+            return error, protein_files, compound_files
 
         logger.info(
             "+ Validated compounds (SiteObservations) [%d]",
-            len(compound_site_observations),
+            len(compound_files),
         )
 
-    if protein_site_observations or compound_site_observations:
+    if protein_files or compound_files:
         logger.info(
             "- Validated file transfer files (%d, %d)",
-            len(protein_site_observations),
-            len(compound_site_observations),
+            len(protein_files),
+            len(compound_files),
         )
-        return error, protein_site_observations, compound_site_observations
+        return error, protein_files, compound_files
 
     error['message'] = (
         'A valid set of protein codes and/or a list of valid'
         ' compound names must be provided'
     )
     error['status'] = status.HTTP_400_BAD_REQUEST
-    return error, protein_site_observations, compound_site_observations
+    return error, protein_files, compound_files

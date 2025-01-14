@@ -1915,7 +1915,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Check the existence of the files that are expected to be transferred
-        error, proteins, compounds = validate_file_transfer_files(request)
+        error, protein_files, compound_files = validate_file_transfer_files(request)
         if error:
             return Response(error['message'], status=error['status'])
 
@@ -1956,8 +1956,10 @@ class JobFileTransferView(viewsets.ModelViewSet):
 
         job_transfer = models.JobFileTransfer()
         job_transfer.user = request.user
-        job_transfer.proteins = [p['code'] for p in proteins]
-        job_transfer.compounds = [c['name'] for c in compounds]
+        job_transfer.proteins = [str(path_and_file) for path_and_file in protein_files]
+        job_transfer.compounds = [
+            str(path_and_file) for path_and_file in compound_files
+        ]
         # We should use a foreign key,
         # but to avoid migration issues with the existing code
         # we continue to use the project UUID string field.
