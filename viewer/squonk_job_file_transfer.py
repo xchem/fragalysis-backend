@@ -48,13 +48,6 @@ def process_file_transfer(auth_token, job_transfer_id):
         num_compounds_to_transfer,
     )
 
-    # The base directory for the source of the files we are transferring?
-    # We expect files to include a path relative to TARGET_LOADER_MEDIA_DIRECTORY
-    FILE_ROOT = os.path.join(
-        settings.MEDIA_ROOT, settings.TARGET_LOADER_MEDIA_DIRECTORY
-    )
-    logger.info('+ Transfer (id=%s) FILE_ROOT=%s', job_transfer_id, FILE_ROOT)
-
     # Build the Squonk2 Project directory where files will be placed
     # e.g. "/fragalysis-files/hjyx".
     target = job_transfer.target
@@ -75,9 +68,9 @@ def process_file_transfer(auth_token, job_transfer_id):
                 '+ Collecting %s (target=%s) (id=%s)', filename, target, job_transfer_id
             )
             # File is expected to exist in the media directory
-            file_path = os.path.join(FILE_ROOT, filename)
+            file_path = os.path.join(settings.MEDIA_ROOT, filename)
             if not os.path.isfile(file_path):
-                msg = f'No such protein file {file_path} (id={job_transfer_id})'
+                msg = f'No such file {file_path} (id={job_transfer_id})'
                 logger.error(msg)
                 raise RuntimeError(msg)
             file_list.append(file_path)
