@@ -604,7 +604,7 @@ def process_compound_set_job_file(task_params):
     return {
         'user_id': job_request.user.id,
         'sdf_file': sd_file,
-        'target': job_request.target.title,
+        'target': job_request.target.pk,
     }
 
 
