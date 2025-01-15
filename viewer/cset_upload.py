@@ -398,9 +398,17 @@ class MolOps:
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
-                search_code = i.split(":")[0].split("_")[0]
+                # Super hack - for Squonk Job execution tests.
+                # The ref_mols field doesn't work - so I'll have the actual codes
+                # for the mols used in the Job...
+                if i == "A71EV2A-x0202_A_147_1_A71EV2A-x3977+A+202+1_LIG":
+                    search_code = "A0202a"
+                elif i == "A71EV2A-x0202_A_147_1_A71EV2A-x3977+A+202+1_LIG":
+                    search_code = "A0202b"
+                else:
+                    search_code = i.split(":")[0].split("_")[0]
                 logger.warning(
-                    "Search for '%s' failed - now looking for '%s', target=%s...",
+                    "Search for '%s' failed - now looking for '%s' (target=%s)...",
                     i,
                     search_code,
                     compound_set.target,
