@@ -391,11 +391,6 @@ class MolOps:
         logger.info("Iterating through insp %s", insp)
         for i in insp:
             # try exact match first
-            logger.info(
-                "Looking for SiteObservation code=%s, target=%s...",
-                i,
-                compound_set.target,
-            )
             try:
                 site_obvs = SiteObservation.objects.get(
                     code=str(i),
@@ -403,9 +398,10 @@ class MolOps:
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
-                search_code = i.split(":")[0].split("-")[0]
-                logger.info(
-                    "That failed - now looking for SiteObservation search_code=%s, target=%s...",
+                search_code = i.split(":")[0].split("_")[0]
+                logger.warning(
+                    "Search for '%s' failed - now looking for '%s', target=%s...",
+                    i,
                     search_code,
                     compound_set.target,
                 )
