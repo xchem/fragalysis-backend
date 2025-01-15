@@ -406,7 +406,7 @@ class MolOps:
                 search_code = i.split(":")[0].split("_")[0]
                 logger.info(
                     "That failed - now looking for SiteObservation search_code=%s, target=%s...",
-                    i,
+                    search_code,
                     compound_set.target,
                 )
                 qs = SiteObservation.objects.filter(
