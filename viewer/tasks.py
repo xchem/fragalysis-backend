@@ -643,7 +643,7 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
     # Task linking is a bit of a mess atm,
     # if something went wrong we'll get a tuple, not a dictionary.
     if isinstance(task_params, list) and task_params[0] == 'process':
-        cs_name: str = task_params[2]
+        cs_name: str = task_params[1]
         logger.info(
             'Upload successful (%d) ComputedSet.name="%s"', job_request_id, cs_name
         )
