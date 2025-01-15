@@ -403,7 +403,7 @@ class MolOps:
                 # for the mols used in the Job...
                 if i == "A71EV2A-x0202_A_147_1_A71EV2A-x3977+A+202+1_LIG":
                     search_code = "A0202a"
-                elif i == "A71EV2A-x0202_A_147_1_A71EV2A-x3977+A+202+1_LIG":
+                elif i == "A71EV2A-x0202_A_201_1_A71EV2A-x0488+A+147+1_LIG":
                     search_code = "A0202b"
                 else:
                     search_code = i.split(":")[0].split("_")[0]
