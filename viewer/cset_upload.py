@@ -403,7 +403,7 @@ class MolOps:
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
-                search_code = i.split(":")[0].split("_")[0]
+                search_code = i.split(":")[0].split("-")[0]
                 logger.info(
                     "That failed - now looking for SiteObservation search_code=%s, target=%s...",
                     search_code,
