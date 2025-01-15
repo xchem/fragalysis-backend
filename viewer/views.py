@@ -1918,6 +1918,8 @@ class JobFileTransferView(viewsets.ModelViewSet):
         error, protein_files, compound_files = validate_file_transfer_files(request)
         if error:
             return Response(error['message'], status=error['status'])
+        assert protein_files
+        assert compound_files
 
         # Create new file transfer job
         logger.info('+ Calling ensure_project() to get the Squonk2 Project...')
