@@ -384,11 +384,18 @@ class MolOps:
         )
 
         insp = mol.GetProp("ref_mols")
+        logger.info("Handling ref_mols value of '%s'", insp)
         insp = insp.split(",")
         insp = [i.strip() for i in insp]
         insp_frags = []
+        logger.info("Iterating through insp %s", insp)
         for i in insp:
             # try exact match first
+            logger.info(
+                "Looking for SiteObservation code=%s, target=%s...",
+                i,
+                compound_set.target,
+            )
             try:
                 site_obvs = SiteObservation.objects.get(
                     code=str(i),
@@ -396,8 +403,14 @@ class MolOps:
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
+                search_code = i.split(":")[0].split("_")[0]
+                logger.info(
+                    "That failed - now looking for SiteObservation search_code=%s, target=%s...",
+                    i,
+                    compound_set.target,
+                )
                 qs = SiteObservation.objects.filter(
-                    code=str(i.split(":")[0].split("_")[0]),
+                    code=str(search_code),
                     experiment__experiment_upload__target=compound_set.target,
                 )
                 if not qs.exists():
