@@ -2032,10 +2032,6 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
         job_collection = request.query_params.get('job_collection', None)
         job_name = request.query_params.get('job_name', None)
         job_version = request.query_params.get('job_version', None)
-        # User must provide collection, name and version
-        if not job_collection or not job_name or not job_version:
-            content = {'Please provide job_collection, job_name and job_version'}
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         content = get_squonk_job_config(
             request,
@@ -2043,6 +2039,11 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
             job_name=job_name,
             job_version=job_version,
         )
+        if not content:
+            content = {
+                f'No such job configuration (job_collection={job_collection}, job_name={job_name}, version={job_version})'
+            }
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         return Response(content)
 

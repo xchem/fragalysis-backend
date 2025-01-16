@@ -62,21 +62,20 @@ def get_squonk_job_config(
     if not job_name:
         # No name provided - return all
         return available_jobs
-    else:
-        # Got a job name (and collection and version)
-        for job in available_jobs['jobs']:
-            if (
-                job['job'] == job_name
-                and job['collection'] == job_collection
-                and job['version'] == job_version
-            ):
-                result = DmApi.get_job(auth_token, job_id=job['id'])
-                # This either returns the definition or the squonk message.
-                return result.msg
-        return {
-            'Job not found'
-            f' (collection={job_collection} name={job_name} version={job_version}'
-        }
+
+    # Got a job name (and collection and version)
+    for job in available_jobs['jobs']:
+        if (
+            job['job'] == job_name
+            and job['collection'] == job_collection
+            and job['version'] == job_version
+        ):
+            result = DmApi.get_job(auth_token, job_id=job['id'])
+            # This either returns the definition or the squonk message.
+            return result.msg
+
+    # Job not found
+    return None
 
 
 def create_squonk_job(request):
