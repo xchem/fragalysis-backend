@@ -2095,7 +2095,7 @@ class JobOverrideView(viewsets.ModelViewSet):
         job_override.author = user
         job_override.save()
 
-        return Response({"id": job_override.id})
+        return Response({"id": job_override.id}, status=status.HTTP_201_CREATED)
 
 
 class JobRequestView(APIView):
