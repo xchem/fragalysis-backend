@@ -895,9 +895,25 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
 
 
 class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+    tarball = serializers.CharField()
+
     class Meta:
         model = models.ExperimentUpload
-        fields = '__all__'
+        fields = (
+            'target',
+            'project',
+            'tarball',
+            'commit_datetime',
+            'committer',
+            'task_id',
+            'neighbourhood_transforms',
+            'conformer_site_transforms',
+            'reference_structure_transforms',
+            'upload_data_dir',
+            'upload_version',
+            'data_version_major',
+            'data_version_minor',
+        )
 
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
