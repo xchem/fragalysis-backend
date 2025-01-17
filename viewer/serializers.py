@@ -895,16 +895,35 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
 
 
 class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
-    tarball = serializers.CharField()
+    tarball = serializers.SerializerMethodField()
+    target_name = serializers.CharField()
+    proposal_number = serializers.CharField()
+    committer_name = serializers.CharField()
+
+    def get_tarball(self, obj):
+        request = self.context.get('request')
+        path = (
+            Path(settings.MEDIA_URL)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(obj.target.zip_archive.name)
+            .joinpath(obj.file.name)
+        )
+        if request:
+            return request.build_absolute_uri(path)
+        else:
+            return None
 
     class Meta:
         model = models.ExperimentUpload
         fields = (
             'target',
+            'target_name',
             'project',
+            'proposal_number',
             'tarball',
             'commit_datetime',
             'committer',
+            'committer_name',
             'task_id',
             'neighbourhood_transforms',
             'conformer_site_transforms',

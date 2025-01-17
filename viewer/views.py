@@ -17,9 +17,6 @@ from celery.result import AsyncResult
 from dateutil.parser import parse
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db.models import F, Value
-from django.db.models.fields import CharField
-from django.db.models.functions import Concat
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1837,20 +1834,7 @@ class DownloadExperimentUploadView(viewsets.ModelViewSet):
 
 
 class ExperimentUploadView(ISPyBSafeQuerySet):
-    queryset = models.ExperimentUpload.objects.annotate(
-        tarball=Concat(
-            Value(settings.TARGET_LOADER_MEDIA_DIRECTORY),
-            Value('/'),
-            F('target__zip_archive'),
-            Value('/'),
-            F('file'),
-            output_field=CharField(),
-        ),
-    ).order_by(
-        'project',
-        'target__title',
-        'upload_version',
-    )
+    queryset = models.ExperimentUpload.upload_manager.annotated_qs()
     serializer_class = serializers.TargetExperimentReadSerializer
     permission_class = [permissions.IsAuthenticated]
     filterset_class = filters.ExperimentUploadFilter
