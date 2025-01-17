@@ -131,4 +131,10 @@ class AssemblyFilter(TargetFilterMixin):
 class ExperimentUploadFilter(filters.FilterSet):
     class Meta:
         model = ExperimentUpload
-        fields = ("target", "project", "data_version_major", "data_version_minor")
+        fields = (
+            "target",
+            "project",
+            "committer",
+            "data_version_major",
+            "data_version_minor",
+        )
