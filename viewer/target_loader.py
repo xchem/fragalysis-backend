@@ -445,6 +445,76 @@ def create_objects(func=None, *, depth=math.inf):
     return wrapper_create_objects
 
 
+def split_version(version_number: str) -> tuple[int, int]:
+    splits = version_number.split('.')
+
+    if len(splits) != 2:
+        raise ValueError("Unrecognised data format, should be <major>.<minor>")
+
+    try:
+        major = int(splits[0])
+        minor = int(splits[1])
+    except ValueError as exc:
+        raise ValueError(f"Non-numeric version number: {version_number}") from exc
+
+    return major, minor
+
+
+def validate_data_version(
+    major: int,
+    minor: int,
+    o_major: int | None = None,
+    o_minor: int | None = None,
+    target_name: str | None = None,
+    project_name: str | None = None,
+) -> Tuple[bool, str]:
+    logger.debug('major: %s; minor: %s', major, minor)
+    logger.debug('o_major: %s; o_minor: %s', o_major, o_minor)
+
+    s_major, s_minor = [int(k) for k in settings.XCA_DATA_FORMAT_VERSION.split('.')]
+    logger.debug('s_major: %s; s_minor: %s', s_major, s_minor)
+
+    if major != s_major:
+        return (
+            False,
+            f"Data major version mismatch: '{s_major}' "
+            + f"expected, '{major}' uploaded",
+        )
+
+    # alternatively, if target- and project name are given (likely pre-upload check):
+    if target_name and project_name and not o_major and not o_minor:
+        previous_uploads = ExperimentUpload.objects.filter(
+            target__title=target_name,
+            project__title=project_name,
+        )
+        if previous_uploads.exists():
+            last_upload = previous_uploads.order_by('upload_version').last()
+            o_major = last_upload.data_version_major
+            o_minor = last_upload.data_version_minor
+
+    if o_major and o_major < major:
+        return False, (
+            f"Incoming data major version '{major}' does not match previous upload: "
+            + f"'{o_major}'. Please delete the target and prepare new upload"
+        )
+
+    if minor != s_minor:
+        return (
+            True,
+            f"Data minor version mismatch: {settings.XCA_DATA_FORMAT_VERSION} "
+            + f"expected, {major}.{minor} uploaded",
+        )
+
+    if o_minor and o_minor < minor:
+        return True, (
+            f"Incoming data minor version '{minor}' does not match previous upload: "
+            + f"'{o_minor}'"
+        )
+
+    # absolutely nothing went wrong
+    return True, ''
+
+
 class TargetLoader:
     def __init__(
         self,
@@ -1558,6 +1628,39 @@ class TargetLoader:
         self.version_dir = meta["version_dir"]
         self.previous_version_dirs = meta["previous_version_dirs"]
         prefix_tooltips = meta.get("code_prefix_tooltips", {})
+        data_format_version = str(meta["data_format_version"])
+
+        try:
+            major, minor = split_version(data_format_version)
+        except ValueError as exc:
+            self.report.log(logging.ERROR, exc.args[0])
+            # throw a fatal error, but assign version numbers to
+            # see if more errors are caught
+            major = 0
+            minor = 0
+
+        # check for previous uploads
+        previous_uploads = ExperimentUpload.objects.filter(
+            target=self.target,
+            project=self.project,
+        )
+        if previous_uploads.exists():
+            last_upload = previous_uploads.order_by('upload_version').last()
+
+            version_validated, ver_val_msg = validate_data_version(
+                major,
+                minor,
+                o_major=last_upload.data_version_major,
+                o_minor=last_upload.data_version_minor,
+            )
+        else:
+            version_validated, ver_val_msg = validate_data_version(major, minor)
+
+        if not version_validated:
+            self.report.log(logging.ERROR, ver_val_msg)
+
+        if version_validated and ver_val_msg:
+            self.report.log(logging.WARNING, ver_val_msg)
 
         # TODO: is it here where I can figure out if this has already been uploaded?
         if self._is_already_uploaded(target_created, project_created):
@@ -1609,6 +1712,8 @@ class TargetLoader:
         )
         self.experiment_upload.upload_data_dir = self.version_dir
         self.experiment_upload.upload_version = self.version_number
+        self.experiment_upload.data_version_major = major
+        self.experiment_upload.data_version_minor = minor
         self.experiment_upload.save()
 
         (  # pylint: disable=unbalanced-tuple-unpacking

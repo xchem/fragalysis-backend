@@ -8,6 +8,7 @@ from viewer.models import (
     CanonSiteConf,
     Compound,
     Experiment,
+    ExperimentUpload,
     Pose,
     QuatAssembly,
     SiteObservation,
@@ -125,3 +126,15 @@ class AssemblyFilter(TargetFilterMixin):
     class Meta:
         model = QuatAssembly
         fields = ("target",)
+
+
+class ExperimentUploadFilter(filters.FilterSet):
+    class Meta:
+        model = ExperimentUpload
+        fields = (
+            "target",
+            "project",
+            "committer",
+            "data_version_major",
+            "data_version_minor",
+        )

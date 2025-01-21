@@ -20,6 +20,7 @@ from .managers import (
     CompoundDataManager,
     CompoundIdentifierDataManager,
     ExperimentDataManager,
+    ExperimentUploadDataManager,
     PoseDataManager,
     QuatAssemblyDataManager,
     SessionActionsDataManager,
@@ -196,6 +197,11 @@ class ExperimentUpload(models.Model):
     )
     upload_data_dir = models.TextField(null=True)
     upload_version = models.PositiveSmallIntegerField(default=1)
+    data_version_major = models.PositiveSmallIntegerField(default=0)
+    data_version_minor = models.PositiveSmallIntegerField(default=0)
+
+    objects = models.Manager()
+    upload_manager = ExperimentUploadDataManager()
 
     def __str__(self) -> str:
         return f"{self.project}"
