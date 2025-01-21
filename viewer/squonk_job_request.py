@@ -7,7 +7,7 @@ import datetime
 import json
 import logging
 import os
-from urllib.parse import urljoin
+from urllib.parse import unquote, urljoin
 
 import shortuuid
 from squonk2.dm_api import DmApi
@@ -97,7 +97,7 @@ def create_squonk_job(request):
     snapshot_id = request.data['snapshot']
     session_project_id = request.data['session_project']
     squonk_job_name = request.data['squonk_job_name']
-    squonk_job_spec = request.data['squonk_job_spec']
+    squonk_job_spec = unquote(str(request.data['squonk_job_spec']))
 
     logger.info('+ access_id=%s', access_id)
     logger.info('+ target_id=%s', target_id)
