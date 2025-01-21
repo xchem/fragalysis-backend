@@ -2500,7 +2500,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         return HttpResponse(status=204)
 
 
-class JobAccessView(APIView):
+class JobAccessView(viewsets.ReadOnlyModelViewSet):
     """JobAccess (api/job_access)
 
     Django view that calls Squonk to allow a user (who is able to see a Job)
@@ -2509,7 +2509,7 @@ class JobAccessView(APIView):
     the Job 'owner', who always has access.
     """
 
-    def get(self, request):
+    def list(self, request):
         """Method to handle GET request"""
         query_params = request.query_params
         logger.info('+ JobAccessView/GET %s', json.dumps(query_params))
