@@ -67,6 +67,19 @@ HEADER_MOL_FIELDS = (
 )
 
 
+# How do we get the 'prefix' and 'version' from the MOL Name.
+# (used at the moment to handle mol_refs in Squonk-generated SD files).
+# They look like this: -
+#   A71EV2A-x0379_A_147_1_A71EV2A-x0379+A+147+1_LIG
+#   ------------------- -
+#      "Prefix"      "Version"
+# And we want a 'long code' from this, e.g.: -
+#   A71EV2A-x0379_A_147_v1
+_re_ref_mol_long_code = re.compile(
+    r"(?P<prefix>([^_]*)_(\S+)_(\d+))_(?P<version>\d+)_(.*)"
+)
+
+
 def dataType(a_str: str) -> str:
     lean_str = a_str.strip()
     if not lean_str:
@@ -398,23 +411,28 @@ class MolOps:
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
-                # Super hack - for Squonk Job execution tests.
-                # The ref_mols field doesn't work - so I'll have the actual codes
-                # for the mols used in the Job...
-                if i == "A71EV2A-x0202_A_147_1_A71EV2A-x3977+A+202+1_LIG":
-                    search_code = "A0202a"
-                elif i == "A71EV2A-x0202_A_201_1_A71EV2A-x0488+A+147+1_LIG":
-                    search_code = "A0202b"
-                else:
-                    search_code = i.split(":")[0].split("_")[0]
+                # A hack - for Squonk Job execution tests.
+                # The ref_mols field doesn't contain a long or short code to simplify lookups.
+                # To get to a long code we can use the defined reg-ex pattern.
+                long_code = ""
+                re_match = _re_ref_mol_long_code.match(i)
+                if re_match:
+                    prefix = re_match.group('prefix')
+                    version_number = re_match.group('version')
+                    # Long code is the 'prefix' and the 'version' (with a 'v')
+                    long_code = f"{prefix}_v{version_number})"
+                if not long_code:
+                    raise IntegrityError(  # pylint: disable=raise-missing-from
+                        f"Could not find long-code pattern in {i}"
+                    )
                 logger.warning(
                     "Search for '%s' failed - now looking for '%s' (target=%s)...",
                     i,
-                    search_code,
+                    long_code,
                     compound_set.target,
                 )
                 qs = SiteObservation.objects.filter(
-                    code=str(search_code),
+                    longcode=long_code,
                     experiment__experiment_upload__target=compound_set.target,
                 )
                 if not qs.exists():
