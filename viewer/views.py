@@ -2100,7 +2100,7 @@ class JobOverrideView(viewsets.ModelViewSet):
 
 
 class JobRequestView(viewsets.ModelViewSet):
-    queryset = models.JobFileTransfer.objects.filter()
+    queryset = models.JobRequest.objects.filter()
 
     def get_serializer_class(self):
         if self.request.method in ['GET']:
@@ -2108,7 +2108,7 @@ class JobRequestView(viewsets.ModelViewSet):
         # (POST, PUT, PATCH)
         return serializers.JobRequestWriteSerializer
 
-    def get(self, request):
+    def list(self, request):
         logger.info('+ JobRequestView.get')
 
         user = self.request.user
@@ -2208,7 +2208,7 @@ class JobRequestView(viewsets.ModelViewSet):
         }
         return Response(content, status=status.HTTP_200_OK)
 
-    def post(self, request):
+    def create(self, request):
         logger.info('+ JobRequestView.post')
         # Only authenticated users can create squonk job requests
         # (unless 'AUTHENTICATE_UPLOAD' is False in settings.py)
