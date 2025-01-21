@@ -431,15 +431,18 @@ class MolOps:
                     long_code,
                     compound_set.target,
                 )
-                qs = SiteObservation.objects.filter(
-                    longcode=long_code,
-                    experiment__experiment_upload__target=compound_set.target,
-                )
-                if not qs.exists():
+                try:
+                    qs = SiteObservation.objects.filter(
+                        longcode=long_code,
+                        experiment__experiment_upload__target=compound_set.target,
+                    )
+                except SiteObservation.DoesNotExist:
                     raise IntegrityError(  # pylint: disable=raise-missing-from
-                        "No matching molecules found for inspiration frag " + i
+                        f"No matching molecules found for inspiration frag {i}"
                     )
 
+                # Why order-by here and not above?
+                # And - is the response ever not 0 or 1 records?
                 ref = qs.order_by("-cmpd_id").first()
 
             insp_frags.append(ref)
