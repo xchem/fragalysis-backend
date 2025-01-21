@@ -420,7 +420,7 @@ class MolOps:
                     prefix = re_match.group('prefix')
                     version_number = re_match.group('version')
                     # Long code is the 'prefix' and the 'version' (with a 'v')
-                    long_code = f"{prefix}_v{version_number})"
+                    long_code = f"{prefix}_v{version_number}"
                 if not long_code:
                     raise IntegrityError(  # pylint: disable=raise-missing-from
                         f"Could not find long-code pattern in {i}"
