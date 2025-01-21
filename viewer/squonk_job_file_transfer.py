@@ -5,6 +5,7 @@ import os
 import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import unquote
 
 from celery.utils.log import get_task_logger
 from django.conf import settings
@@ -104,7 +105,7 @@ def validate_file_transfer_files(
     """Check the request and return a list of proteins and/or computed molecule file
     path references (paths relative to the media directory).
 
-    We're given a request that contains comma-separated "proteins", and "compounds",
+    We're given a request that contains comma-separated URL-encoded "proteins", and "compounds",
     and "target access", "target", "snapshot" and "session_project" record IDs.
     Each protein and compound is a full path to a file relative to the media directory.
     We just need to ensure that a SiteObservation exists (there should only be one)
@@ -130,7 +131,7 @@ def validate_file_transfer_files(
     if request.data['proteins']:
         # Get first part of protein code
         protein_paths_and_files = [
-            p.strip() for p in request.data['proteins'].split(',')
+            unquote(p.strip()) for p in request.data['proteins'].split(',')
         ]
         for protein_path_and_file in protein_paths_and_files:
             if protein_path_and_file.endswith('_apo-desolv.pdb'):
@@ -159,7 +160,7 @@ def validate_file_transfer_files(
 
     if request.data['compounds']:
         compound_paths_and_files = [
-            p.strip() for p in request.data['compounds'].split(',')
+            unquote(p.strip()) for p in request.data['compounds'].split(',')
         ]
         for compound_path_and_file in compound_paths_and_files:
             if not SiteObservation.objects.filter(
