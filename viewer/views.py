@@ -2099,7 +2099,7 @@ class JobOverrideView(viewsets.ModelViewSet):
         return Response({"id": job_override.id}, status=status.HTTP_201_CREATED)
 
 
-class JobRequestView(APIView):
+class JobRequestView(generics.ListCreateAPIView):
     def get(self, request):
         logger.info('+ JobRequestView.get')
 
