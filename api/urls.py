@@ -130,6 +130,8 @@ router.register(
     basename='computedset_download',
 )
 
+# The 'dangerous' Database 'reset' endpoint
+router.register("reset", viewer_views.ResetView, basename='reset')
 
 # Squonk Jobs
 router.register(
@@ -138,7 +140,7 @@ router.register(
 router.register("job_callback", viewer_views.JobCallBackView, basename='job_callback')
 router.register("job_config", viewer_views.JobConfigView, basename='job_config')
 router.register("job_override", viewer_views.JobOverrideView, basename='job_override')
-
+router.register("job_request", viewer_views.JobRequestView, basename="job_request")
 
 from rest_framework import response, schemas
 from rest_framework.decorators import api_view, renderer_classes

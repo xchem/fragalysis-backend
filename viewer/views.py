@@ -2608,6 +2608,17 @@ class JobAccessView(APIView):
         return Response(ok_response)
 
 
+class ResetView(viewsets.ModelViewSet):
+    """Resets the database. Available only on developer stacks."""
+
+    def create(self, request):
+        """Method to handle POST request (reset)"""
+        del request
+        logger.info('+ ResetView.post')
+
+        return Response("", status=status.HTTP_204_NO_CONTENT)
+
+
 class ServiceStateView(View):
     def get(self, *args, **kwargs):
         """Poll external service status.
