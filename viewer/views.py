@@ -2099,7 +2099,15 @@ class JobOverrideView(viewsets.ModelViewSet):
         return Response({"id": job_override.id}, status=status.HTTP_201_CREATED)
 
 
-class JobRequestView(generics.ListCreateAPIView):
+class JobRequestView(viewsets.ModelViewSet):
+    queryset = models.JobFileTransfer.objects.filter()
+
+    def get_serializer_class(self):
+        if self.request.method in ['GET']:
+            return serializers.JobRequestReadSerializer
+        # (POST, PUT, PATCH)
+        return serializers.JobRequestWriteSerializer
+
     def get(self, request):
         logger.info('+ JobRequestView.get')
 
