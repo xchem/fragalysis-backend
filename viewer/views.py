@@ -2532,7 +2532,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         return HttpResponse(status=204)
 
 
-class JobAccessView(mixins.ListModelMixin):
+class JobAccessView(viewsets.GenericViewSet, mixins.ListModelMixin):
     """JobAccess (api/job_access)
 
     Django view that calls Squonk to allow a user (who is able to see a Job)
@@ -2540,10 +2540,6 @@ class JobAccessView(mixins.ListModelMixin):
     must have access to the corresponding Fragalysis Project. This can be called by
     the Job 'owner', who always has access.
     """
-
-    # To satisfy the ReadOnlyModelViewSet...
-    queryset = models.JobRequest.objects.filter()
-    serializer_class = serializers.JobAccessReadSerializer
 
     def list(self, request):
         """Method to handle a general GET request. All we do here is custom logic,
