@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.conf.urls import include
 from django.urls import path
 from rest_framework.authtoken import views as drf_views
@@ -159,9 +158,5 @@ urlpatterns = [
     path("auth/", drf_views.obtain_auth_token, name="auth"),
     path("swagger/", schema_view),
     path('token/', viewer_views.TokenView.as_view(), name="token_view"),
+    path("reset/", viewer_views.ResetView.as_view(), name='reset'),
 ]
-
-# The _dangerous_ database and media 'reset' endpoint.
-# Available only when the deployment is NOT 'PRODUCTION'
-if settings.DEPLOYMENT_MODE != "PRODUCTION":
-    urlpatterns += [path("reset/", viewer_views.ResetView.as_view(), name='reset')]
