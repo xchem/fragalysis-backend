@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.conf.urls import include
 from django.urls import path
 from rest_framework.authtoken import views as drf_views
@@ -130,9 +131,6 @@ router.register(
     basename='computedset_download',
 )
 
-# The 'dangerous' Database 'reset' endpoint
-router.register("reset", viewer_views.ResetView, basename='reset')
-
 # Squonk Jobs
 router.register(
     "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'
@@ -162,3 +160,8 @@ urlpatterns = [
     path("swagger/", schema_view),
     path('token/', viewer_views.TokenView.as_view(), name="token_view"),
 ]
+
+# The _dangerous_ database and media 'reset' endpoint.
+# Available only when the deployment is NOT 'PRODUCTION'
+if settings.DEPLOYMENT_MODE != "PRODUCTION":
+    urlpatterns += [path("reset/", viewer_views.ResetView.as_view(), name='reset')]

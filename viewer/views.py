@@ -1904,7 +1904,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
     def create(self, request):
         """Method to handle POST request"""
         logger.info('+ JobFileTransferView.post')
-        # Only authenticated users can transfer files to sqonk
+        # Only authenticated users can transfer files to squonk
         user = self.request.user
         if not user.is_authenticated:
             content: Dict[str, Any] = {
@@ -2541,7 +2541,7 @@ class JobAccessView(viewsets.ReadOnlyModelViewSet):
     the Job 'owner', who always has access.
     """
 
-    def list(self, request):
+    def retrieve(self, request):
         """Method to handle GET request"""
         query_params = request.query_params
         logger.info('+ JobAccessView/GET %s', json.dumps(query_params))
@@ -2649,14 +2649,23 @@ class JobAccessView(viewsets.ReadOnlyModelViewSet):
 
 
 class ResetView(viewsets.ModelViewSet):
-    """Resets the database. Available only on developer stacks."""
+    """Resets the database. Typically only available as a URL when the
+    stack deployment mode is _NOT_ 'PRODUCTION'. Additionally, it is only
+    available to the Django superuser, or anyone with"""
 
     def create(self, request):
         """Method to handle POST request (reset)"""
         del request
         logger.info('+ ResetView.post')
 
-        return Response("", status=status.HTTP_204_NO_CONTENT)
+        user = self.request.user
+        if not user.is_authenticated or not user.is_staff:
+            content: Dict[str, Any] = {
+                'error': 'Only STAFF (Admin) users can use this endpoint'
+            }
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        return Response(status=status.HTTP_205_RESET_CONTENT)
 
 
 class ServiceStateView(View):
