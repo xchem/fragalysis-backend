@@ -2656,7 +2656,6 @@ class ResetView(APIView):
     available to the Django superuser, or anyone with"""
 
     def post(self, request):
-        del request
         logger.info('+ ResetView.post')
 
         logger.warning(
