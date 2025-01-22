@@ -2541,6 +2541,10 @@ class JobAccessView(viewsets.ReadOnlyModelViewSet):
     the Job 'owner', who always has access.
     """
 
+    # To satisfy the ReadOnlyModelViewSet...
+    queryset = models.JobRequest.objects.filter()
+    serializer_class = serializers.JobAccessReadSerializer
+
     def retrieve(self, request):
         """Method to handle GET request"""
         query_params = request.query_params
