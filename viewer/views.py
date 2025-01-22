@@ -2544,7 +2544,7 @@ class JobAccessView(viewsets.GenericViewSet, mixins.ListModelMixin):
     def list(self, request):
         """Method to handle a general GET request. All we do here is custom logic,
         the user cannot use this endpoint to get anything, it simply provides
-        user-accesss to a Job in Squonk."""
+        user-access to a Job in Squonk."""
         query_params = request.query_params
         logger.info('+ JobAccessView/GET %s', json.dumps(query_params))
 
@@ -2655,8 +2655,7 @@ class ResetView(APIView):
     stack deployment mode is _NOT_ 'PRODUCTION'. Additionally, it is only
     available to the Django superuser, or anyone with"""
 
-    def get(self, request):
-        """Method to handle POST request (reset)"""
+    def post(self, request):
         del request
         logger.info('+ ResetView.post')
 
@@ -2665,6 +2664,10 @@ class ResetView(APIView):
             content: Dict[str, Any] = {
                 'error': 'Only STAFF (Admin) users can use this endpoint'
             }
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+        if settings.DEPLOYMENT_MODE == 'PRODUCTION':
+            content = {'error': 'This endpoint is not available in PRODUCTION mode'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         return Response(status=status.HTTP_205_RESET_CONTENT)
