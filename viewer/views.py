@@ -2659,6 +2659,14 @@ class ResetView(APIView):
         del request
         logger.info('+ ResetView.post')
 
+        logger.warning(
+            'Called by %s (is_authenticated=%s, is_staff=%s) DEPLOYMENT_MODE=%s',
+            request.user.username,
+            request.user.is_authenticated,
+            request.user.is_staff,
+            settings.DEPLOYMENT_MODE,
+        )
+
         user = self.request.user
         if not user.is_authenticated or not user.is_staff:
             content: Dict[str, Any] = {
