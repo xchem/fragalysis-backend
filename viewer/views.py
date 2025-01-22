@@ -2532,7 +2532,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         return HttpResponse(status=204)
 
 
-class JobAccessView(viewsets.ReadOnlyModelViewSet):
+class JobAccessView(mixins.ListModelMixin):
     """JobAccess (api/job_access)
 
     Django view that calls Squonk to allow a user (who is able to see a Job)
@@ -2545,8 +2545,10 @@ class JobAccessView(viewsets.ReadOnlyModelViewSet):
     queryset = models.JobRequest.objects.filter()
     serializer_class = serializers.JobAccessReadSerializer
 
-    def retrieve(self, request):
-        """Method to handle GET request"""
+    def list(self, request):
+        """Method to handle a general GET request. All we do here is custom logic,
+        the user cannot use this endpoint to get anything, it simply provides
+        user-accesss to a Job in Squonk."""
         query_params = request.query_params
         logger.info('+ JobAccessView/GET %s', json.dumps(query_params))
 
