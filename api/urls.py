@@ -158,5 +158,4 @@ urlpatterns = [
     path("auth/", drf_views.obtain_auth_token, name="auth"),
     path("swagger/", schema_view),
     path('token/', viewer_views.TokenView.as_view(), name="token_view"),
-    path("reset/", viewer_views.ResetView.as_view(), name='reset'),
 ]

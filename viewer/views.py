@@ -2650,36 +2650,6 @@ class JobAccessView(viewsets.GenericViewSet, mixins.ListModelMixin):
         return Response(ok_response)
 
 
-class ResetView(APIView):
-    """Resets the database. Typically only available as a URL when the
-    stack deployment mode is _NOT_ 'PRODUCTION'. Additionally, it is only
-    available to the Django superuser, or anyone with"""
-
-    def post(self, request):
-        logger.info('+ ResetView.post')
-
-        logger.warning(
-            'Called by %s (is_authenticated=%s, is_staff=%s) DEPLOYMENT_MODE=%s',
-            request.user.username,
-            request.user.is_authenticated,
-            request.user.is_staff,
-            settings.DEPLOYMENT_MODE,
-        )
-
-        user = self.request.user
-        if not user.is_authenticated or not user.is_staff:
-            content: Dict[str, Any] = {
-                'error': 'Only STAFF (Admin) users can use this endpoint'
-            }
-            return Response(content, status=status.HTTP_403_FORBIDDEN)
-
-        if settings.DEPLOYMENT_MODE == 'PRODUCTION':
-            content = {'error': 'This endpoint is not available in PRODUCTION mode'}
-            return Response(content, status=status.HTTP_403_FORBIDDEN)
-
-        return Response(status=status.HTTP_205_RESET_CONTENT)
-
-
 class ServiceStateView(View):
     def get(self, *args, **kwargs):
         """Poll external service status.
