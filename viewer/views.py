@@ -2648,12 +2648,12 @@ class JobAccessView(viewsets.ReadOnlyModelViewSet):
         return Response(ok_response)
 
 
-class ResetView(viewsets.ModelViewSet):
+class ResetView(APIView):
     """Resets the database. Typically only available as a URL when the
     stack deployment mode is _NOT_ 'PRODUCTION'. Additionally, it is only
     available to the Django superuser, or anyone with"""
 
-    def create(self, request):
+    def get(self, request):
         """Method to handle POST request (reset)"""
         del request
         logger.info('+ ResetView.post')
