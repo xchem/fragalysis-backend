@@ -532,6 +532,9 @@ class MolOps:
                         small_enough = False
                         break
                 if small_enough:
+                    logger.info(
+                        "Adding 'similar' molecule to existing ComputedMolecule %s", k
+                    )
                     existing_computed_molecules.append(k)
 
         if len(existing_computed_molecules) == 1:
@@ -674,7 +677,15 @@ class MolOps:
             # get rid of the header field property on the non-header molecule
             del other_props[prop]
 
-        if not skip_mol:
+        if skip_mol:
+            logger.warning("Skipping molecule '%s'", molecule_name)
+        else:
+            logger.info(
+                "Calling set_mol() (name=%s target=%s compund_set=%s)...",
+                molecule_name,
+                target,
+                compound_set,
+            )
             cpd = self.set_mol(
                 mol, target, compound_set, filename, zfile, zfile_hashvals
             )

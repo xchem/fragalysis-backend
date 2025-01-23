@@ -107,6 +107,8 @@ def process_compound_set(validate_output):
     logger.info(
         'process_compound_set() EXIT (CompoundSet.name="%s")', compound_set.name
     )
+    logger.info('process_compound_set() process_messages=%s', process_messages)
+
     return 'process', compound_set.name, process_messages
 
 
