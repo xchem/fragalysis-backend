@@ -130,7 +130,6 @@ router.register(
     basename='computedset_download',
 )
 
-
 # Squonk Jobs
 router.register(
     "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'
@@ -138,7 +137,8 @@ router.register(
 router.register("job_callback", viewer_views.JobCallBackView, basename='job_callback')
 router.register("job_config", viewer_views.JobConfigView, basename='job_config')
 router.register("job_override", viewer_views.JobOverrideView, basename='job_override')
-
+router.register("job_request", viewer_views.JobRequestView, basename="job_request")
+router.register("job_access", viewer_views.JobAccessView, basename="job_access")
 
 from rest_framework import response, schemas
 from rest_framework.decorators import api_view, renderer_classes
@@ -157,6 +157,5 @@ urlpatterns = [
     path("", include(router.urls)),
     path("auth/", drf_views.obtain_auth_token, name="auth"),
     path("swagger/", schema_view),
-    path("job_request/", viewer_views.JobRequestView.as_view(), name="job_request"),
     path('token/', viewer_views.TokenView.as_view(), name="token_view"),
 ]

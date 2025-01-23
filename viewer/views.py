@@ -1904,7 +1904,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
     def create(self, request):
         """Method to handle POST request"""
         logger.info('+ JobFileTransferView.post')
-        # Only authenticated users can transfer files to sqonk
+        # Only authenticated users can transfer files to squonk
         user = self.request.user
         if not user.is_authenticated:
             content: Dict[str, Any] = {
@@ -1947,9 +1947,11 @@ class JobFileTransferView(viewsets.ModelViewSet):
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         # Check the existence of the files that are expected to be transferred
-        error, proteins, compounds = validate_file_transfer_files(request)
+        error, protein_files, compound_files = validate_file_transfer_files(request)
         if error:
             return Response(error['message'], status=error['status'])
+        assert protein_files
+        assert compound_files
 
         # Create new file transfer job
         logger.info('+ Calling ensure_project() to get the Squonk2 Project...')
@@ -1988,8 +1990,10 @@ class JobFileTransferView(viewsets.ModelViewSet):
 
         job_transfer = models.JobFileTransfer()
         job_transfer.user = request.user
-        job_transfer.proteins = [p['code'] for p in proteins]
-        job_transfer.compounds = [c['name'] for c in compounds]
+        job_transfer.proteins = [str(path_and_file) for path_and_file in protein_files]
+        job_transfer.compounds = [
+            str(path_and_file) for path_and_file in compound_files
+        ]
         # We should use a foreign key,
         # but to avoid migration issues with the existing code
         # we continue to use the project UUID string field.
@@ -2034,7 +2038,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
             'transfer_status': job_transfer.transfer_status,
             'transfer_task_id': str(job_transfer_task),
         }
-        return Response(content, status=status.HTTP_200_OK)
+        return Response(content, status=status.HTTP_202_ACCEPTED)
 
 
 class JobConfigView(viewsets.ReadOnlyModelViewSet):
@@ -2060,10 +2064,6 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
         job_collection = request.query_params.get('job_collection', None)
         job_name = request.query_params.get('job_name', None)
         job_version = request.query_params.get('job_version', None)
-        # User must provide collection, name and version
-        if not job_collection or not job_name or not job_version:
-            content = {'Please provide job_collection, job_name and job_version'}
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         content = get_squonk_job_config(
             request,
@@ -2071,6 +2071,11 @@ class JobConfigView(viewsets.ReadOnlyModelViewSet):
             job_name=job_name,
             job_version=job_version,
         )
+        if not content:
+            content = {
+                f'No such job configuration (job_collection={job_collection}, job_name={job_name}, version={job_version})'
+            }
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         return Response(content)
 
@@ -2123,11 +2128,19 @@ class JobOverrideView(viewsets.ModelViewSet):
         job_override.author = user
         job_override.save()
 
-        return Response({"id": job_override.id})
+        return Response({"id": job_override.id}, status=status.HTTP_201_CREATED)
 
 
-class JobRequestView(APIView):
-    def get(self, request):
+class JobRequestView(viewsets.ModelViewSet):
+    queryset = models.JobRequest.objects.filter()
+
+    def get_serializer_class(self):
+        if self.request.method in ['GET']:
+            return serializers.JobRequestReadSerializer
+        # (POST, PUT, PATCH)
+        return serializers.JobRequestWriteSerializer
+
+    def list(self, request):
         logger.info('+ JobRequestView.get')
 
         user = self.request.user
@@ -2164,7 +2177,7 @@ class JobRequestView(APIView):
             ):
                 continue
             # An opportunity to update JobRequest timestamps?
-            if not jr.job_has_finished():
+            if not jr.job_finish_datetime:
                 logger.info(
                     '+ JobRequestView.get (id=%s) has not finished (job_status=%s)',
                     jr.id,
@@ -2227,7 +2240,7 @@ class JobRequestView(APIView):
         }
         return Response(content, status=status.HTTP_200_OK)
 
-    def post(self, request):
+    def create(self, request):
         logger.info('+ JobRequestView.post')
         # Only authenticated users can create squonk job requests
         # (unless 'AUTHENTICATE_UPLOAD' is False in settings.py)
@@ -2299,7 +2312,7 @@ class JobRequestView(APIView):
         logger.info('SUCCESS (job_id=%s squonk_url_ext=%s)', job_id, squonk_url_ext)
 
         content = {'id': job_id, 'squonk_url_ext': squonk_url_ext}
-        return Response(content, status=status.HTTP_200_OK)
+        return Response(content, status=status.HTTP_202_ACCEPTED)
 
 
 class JobCallBackView(viewsets.ModelViewSet):
@@ -2433,7 +2446,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         # command's outputs is not fully understood.
         # The command is a string that we split and search.
         job_output = ''
-        jr_job_info_msg = jr.squonk_job_info[1]
+        jr_job_info_msg = jr.squonk_job_info['msg']
         command = jr_job_info_msg.get('command')
         command_parts = shlex.split(command)
         outfile_index = 0
@@ -2519,7 +2532,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         return HttpResponse(status=204)
 
 
-class JobAccessView(APIView):
+class JobAccessView(viewsets.GenericViewSet, mixins.ListModelMixin):
     """JobAccess (api/job_access)
 
     Django view that calls Squonk to allow a user (who is able to see a Job)
@@ -2528,8 +2541,10 @@ class JobAccessView(APIView):
     the Job 'owner', who always has access.
     """
 
-    def get(self, request):
-        """Method to handle GET request"""
+    def list(self, request):
+        """Method to handle a general GET request. All we do here is custom logic,
+        the user cannot use this endpoint to get anything, it simply provides
+        user-access to a Job in Squonk."""
         query_params = request.query_params
         logger.info('+ JobAccessView/GET %s', json.dumps(query_params))
 

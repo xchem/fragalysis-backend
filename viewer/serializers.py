@@ -894,6 +894,12 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
         fields = ("job_status", "state_transition_time")
 
 
+class JobAccessReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.JobRequest
+        fields = '__all__'
+
+
 class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
     tarball = serializers.SerializerMethodField()
     target_name = serializers.CharField()

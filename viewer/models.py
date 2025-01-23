@@ -1476,8 +1476,9 @@ class JobFileTransfer(models.Model):
     sub_path = ShortUUIDField(
         length=4, alphabet="abcdefghijklmnopqrstuvwxyz", null=True
     )
+    # A list of files (paths and files relative to MEDIA_ROOT)...
     proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
-    # Not used in phase 1
+    # A list of files (paths and files relative to MEDIA_ROOT)...
     compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     transfer_task_id = models.CharField(null=True, max_length=50)
     transfer_status = models.CharField(choices=STATUS, default=PENDING, max_length=7)

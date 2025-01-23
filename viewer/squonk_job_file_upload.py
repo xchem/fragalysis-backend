@@ -140,7 +140,7 @@ def process_compound_set_file(
     jr = JobRequest.objects.get(id=jr_id)
 
     # The callback token is required to make Squonk API calls from the callback context
-    jr_job_info_msg = jr.squonk_job_info[1]
+    jr_job_info_msg = jr.squonk_job_info['msg']
     callback_token = jr_job_info_msg.get('callback_token')
     logger.info("Squonk API callback_token=%s", callback_token)
 
