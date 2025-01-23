@@ -122,10 +122,7 @@ _METADATA_FILE = 'metadata.csv'
 
 def _additional_scripts_zip(ziparchive, scripts) -> None:
     for script_url, script_path in scripts.items():
-        # zip_url = script_url.rstrip('/') + '/archive/refs/heads/main.zip'
-        zip_url = (
-            script_url.rstrip('/') + '/not/a/real/path/archive/refs/heads/main.zip'
-        )
+        zip_url = script_url.rstrip('/') + '/archive/refs/heads/main.zip'
         response = requests.get(zip_url)
         try:
             response.raise_for_status()
