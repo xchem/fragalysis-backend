@@ -397,11 +397,9 @@ class MolOps:
         )
 
         insp = mol.GetProp("ref_mols")
-        logger.info("Handling ref_mols value of '%s'", insp)
         insp = insp.split(",")
         insp = [i.strip() for i in insp]
         insp_frags = []
-        logger.info("Iterating through insp %s", insp)
         for i in insp:
             # try exact match first
             try:
@@ -532,9 +530,6 @@ class MolOps:
                         small_enough = False
                         break
                 if small_enough:
-                    logger.info(
-                        "Adding 'similar' molecule to existing ComputedMolecule %s", k
-                    )
                     existing_computed_molecules.append(k)
 
         if len(existing_computed_molecules) == 1:
@@ -550,7 +545,7 @@ class MolOps:
                 exist.delete()
             computed_molecule = ComputedMolecule(name=name)
         else:
-            logger.info("Creating new ComputedMolecule")
+            logger.info("Creating new ComputedMolecule (name=%s)", name)
             computed_molecule = ComputedMolecule(name=name)
 
         if isinstance(ref_so, SiteObservation):
@@ -563,7 +558,7 @@ class MolOps:
             lhs_so = None
 
         # I don't quite understand why the overwrite of existing
-        # compmol.. but this is how it was, not touching it now
+        # compmol ... but this is how it was, not touching it now
         # update: I think it's about updating metadata. moving
         # name attribute out so it won't get overwritten
         computed_molecule.compound = compound
@@ -680,12 +675,6 @@ class MolOps:
         if skip_mol:
             logger.warning("Skipping molecule '%s'", molecule_name)
         else:
-            logger.info(
-                "Calling set_mol() (name=%s target=%s compund_set=%s)...",
-                molecule_name,
-                target,
-                compound_set,
-            )
             cpd = self.set_mol(
                 mol, target, compound_set, filename, zfile, zfile_hashvals
             )

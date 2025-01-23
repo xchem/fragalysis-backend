@@ -154,7 +154,7 @@ def validate_file_transfer_files(
                     )
 
         logger.info(
-            "+ Validated proteins (SiteObservations) [%d]",
+            "- Validated proteins (SiteObservations) [%d]",
             len(protein_files),
         )
 
@@ -180,7 +180,7 @@ def validate_file_transfer_files(
                 )
 
         logger.info(
-            "+ Validated compounds (SiteObservations) [%d]",
+            "- Validated compounds (SiteObservations) [%d]",
             len(compound_files),
         )
 
