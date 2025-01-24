@@ -21,7 +21,7 @@ logger = get_task_logger(__name__)
 
 def job_success_handler(
     jr: JobRequest,
-    transition_time: datetime,
+    transition_time_utc: datetime,
 ) -> HttpResponse:
     """Logic to start Squonk Job results retrieval. Called normally from the
     JobCallback endpoint on successful Job completion of a Job. The code here
@@ -29,7 +29,7 @@ def job_success_handler(
     be used from the JobRequestView (that can be triggered by a manual refresh).
     """
     assert jr
-    assert transition_time
+    assert transition_time_utc
 
     assert jr.job_status == 'SUCCESS'
 
@@ -80,7 +80,7 @@ def job_success_handler(
     # with the path and filename already discoverd...
     task_params = {
         'jr_id': jr.id,
-        'transition_time': transition_time,
+        'transition_time': str(transition_time_utc),
         'job_output_path': job_output_path,
         'job_output_filename': job_output_filename,
     }
