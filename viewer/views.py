@@ -60,12 +60,12 @@ from .download_structures import (
 )
 from .forms import CSetForm
 from .squonk_job_file_transfer import validate_file_transfer_files
-from .squonk_job_file_upload import initiate_job_result_retrieval
 from .squonk_job_request import (
     check_squonk_active,
     create_squonk_job,
     get_squonk_job_config,
 )
+from .squonk_job_success_handler import job_success_handler
 from .tags import load_tags_from_file
 from .tasks import (
     process_compound_set,
@@ -2439,7 +2439,7 @@ class JobCallBackView(viewsets.ModelViewSet):
             return HttpResponse(status=204)
 
         # SUCCESS ... automatic upload?
-        return initiate_job_result_retrieval(jr, transition_time)
+        return job_success_handler(jr, transition_time)
 
 
 class JobAccessView(viewsets.GenericViewSet, mixins.ListModelMixin):
