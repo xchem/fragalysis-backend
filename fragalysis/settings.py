@@ -634,6 +634,14 @@ SQUONK2_ORG_OWNER: str = os.environ.get("SQUONK2_ORG_OWNER", "")
 SQUONK2_ORG_OWNER_PASSWORD: str = os.environ.get("SQUONK2_ORG_OWNER_PASSWORD", "")
 # Do we verify Squonk2 SSL certificates ("yes" or "no").
 SQUONK2_VERIFY_CERTIFICATES: str = os.environ.get("SQUONK2_VERIFY_CERTIFICATES", "")
+# Use the Squonk2 refresh mechanism to retrieve results.
+# If set (and not in production mode) the callback is not used to retrieve results.
+# This feature is expected to be used for local deployments of the stack where
+# Squonk can be used to launch Jobs but where the callback mechanism is not available.
+SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS: bool = False
+if os.environ.get("SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS") == "True":
+    assert DEPLOYMENT_MODE != "PRODUCTION"
+    SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS = True
 
 TARGET_LOADER_MEDIA_DIRECTORY: str = "target_loader_data"
 

@@ -1,10 +1,9 @@
 import json
 import logging
 import os
-import shlex
 import shutil
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -61,6 +60,7 @@ from .download_structures import (
 )
 from .forms import CSetForm
 from .squonk_job_file_transfer import validate_file_transfer_files
+from .squonk_job_file_upload import initiate_job_result_retrieval
 from .squonk_job_request import (
     check_squonk_active,
     create_squonk_job,
@@ -68,9 +68,7 @@ from .squonk_job_request import (
 )
 from .tags import load_tags_from_file
 from .tasks import (
-    erase_compound_set_job_material,
     process_compound_set,
-    process_compound_set_job_file,
     process_job_file_transfer,
     task_load_target,
     validate_compound_set,
@@ -2210,7 +2208,7 @@ class JobRequestView(viewsets.ModelViewSet):
                         jr.code,
                         sq2a_rv.msg,
                     )
-                    transition_time = str(datetime.utcnow())
+                    transition_time = str(datetime.now(timezone.utc))
                     transition_time_utc = parse(transition_time).replace(
                         tzinfo=pytz.UTC
                     )
@@ -2348,8 +2346,16 @@ class JobCallBackView(viewsets.ModelViewSet):
         jr = models.JobRequest.objects.get(code=code)
         logger.info('+ JobCallBackView.update(code=%s) jr=%s', code, jr)
 
+        if settings.SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS:
+            # Result handling is done in the JobRequest refresh.
+            logger.warning(
+                '- SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS is set, ignoring callbacks'
+            )
+            return HttpResponse(status=204)
+
         # request.data is rendered as a dictionary
         if not request.data:
+            logger.warning('- code=%s ignoring (no data)', code)
             return HttpResponse(status=204)
 
         j_status = request.data['job_status']
@@ -2363,7 +2369,7 @@ class JobCallBackView(viewsets.ModelViewSet):
 
         if not status_changed:
             logger.info(
-                '+ JobCallBackView.update(code=%s) status=%s ignoring (no status change)',
+                '- code=%s status=%s ignoring (no status change)',
                 code,
                 status,
             )
@@ -2379,7 +2385,7 @@ class JobCallBackView(viewsets.ModelViewSet):
                 request.data['instance_id']
             )
             logger.info(
-                "+ JobCallBackView.update(code=%s) jr.squonk_url_ext='%s'",
+                "code=%s jr.squonk_url_ext='%s'",
                 code,
                 jr.squonk_url_ext,
             )
@@ -2388,10 +2394,9 @@ class JobCallBackView(viewsets.ModelViewSet):
         # assuming UTC.
         transition_time = request.data.get('state_transition_time')
         if not transition_time:
-            transition_time = str(datetime.utcnow())
+            transition_time = str(datetime.now(timezone.utc))
             logger.warning(
-                "+ JobCallBackView.update(code=%s) callback is missing state_transition_time"
-                " (using '%s')",
+                "code=%s callback is missing state_transition_time (using '%s')",
                 code,
                 transition_time,
             )
@@ -2399,7 +2404,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         jr.job_status_datetime = transition_time_utc
 
         logger.info(
-            '+ JobCallBackView.update(code=%s) status=%s transition_time=%s (new status)',
+            'code=%s status=%s transition_time=%s (new status)',
             code,
             status,
             transition_time,
@@ -2408,7 +2413,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         # If the Job's start-time is not set, set it.
         if not jr.job_start_datetime:
             logger.info(
-                '+ JobCallBackView.update(code=%s) setting job START datetime (%s)',
+                'code=%s setting job START datetime (%s)',
                 code,
                 transition_time,
             )
@@ -2419,7 +2424,7 @@ class JobCallBackView(viewsets.ModelViewSet):
         # of values...
         if not jr.job_finish_datetime and status in ('SUCCESS', 'FAILURE', 'REVOKED'):
             logger.info(
-                '+ JobCallBackView.update(code=%s) Setting job FINISH datetime (%s)',
+                'code=%s Setting job FINISH datetime (%s)',
                 code,
                 transition_time,
             )
@@ -2430,106 +2435,11 @@ class JobCallBackView(viewsets.ModelViewSet):
 
         if j_status != 'SUCCESS':
             # Go no further unless SUCCESS
+            logger.info('- code=%s waiting for SUCCESS', code)
             return HttpResponse(status=204)
-
-        logger.info(
-            '+ JobCallBackView.update(code=%s) job finished (SUCCESS).'
-            ' Can we upload the results?',
-            code,
-        )
 
         # SUCCESS ... automatic upload?
-        #
-        # Only continue if the target file is 'merged.sdf'.
-        # For now there must be an '--outfile' in the job info's 'command'.
-        # Here we have hard-coded the expectations because the logic to identify the
-        # command's outputs is not fully understood.
-        # The command is a string that we split and search.
-        job_output = ''
-        jr_job_info_msg = jr.squonk_job_info['msg']
-        command = jr_job_info_msg.get('command')
-        command_parts = shlex.split(command)
-        outfile_index = 0
-        while (
-            outfile_index < len(command_parts)
-            and command_parts[outfile_index] != '--outfile'
-        ):
-            outfile_index += 1
-        # Found '--command'?
-        if (
-            command_parts[outfile_index] == '--outfile'
-            and outfile_index < len(command_parts) - 1
-        ):
-            # Yes ... the filename is the next item in the list
-            job_output = command_parts[outfile_index + 1]
-        job_output_path = '/' + os.path.dirname(job_output)
-        job_output_filename = os.path.basename(job_output)
-
-        logging.info(
-            '+ JobCallBackView.update(code=%s) job_output_path="%s"',
-            code,
-            job_output_path,
-        )
-        logging.info(
-            '+ JobCallBackView.update(code=%s) job_output_filename="%s"',
-            code,
-            job_output_filename,
-        )
-
-        # If it's not suitably named, leave
-        expected_squonk_filename = 'merged.sdf'
-        if job_output_filename != expected_squonk_filename:
-            # Incorrectly named file - nothing to get/upload.
-            logger.info(
-                '+ JobCallBackView.update(code=%s) SUCCESS but not uploading.'
-                ' Expected "%s" as job_output_filename.'
-                ' Found "%s"',
-                code,
-                expected_squonk_filename,
-                job_output_filename,
-            )
-            return HttpResponse(status=204)
-
-        if jr.upload_status != 'PENDING':
-            logger.warning(
-                '+ JobCallBackView.update(code=%s) SUCCESS but ignoring.'
-                ' upload_status=%s (already uploading?)',
-                code,
-                jr.upload_status,
-            )
-            return HttpResponse(status=204)
-
-        # Change of status and SUCCESS
-        # - mark the job upload as 'started'
-        jr.upload_status = "STARTED"
-        jr.save()
-
-        # Initiate an upload (and removal) of files from Squonk.
-        # Which requires the linking of several tasks.
-        # We star the process with 'process_compound_set_job_file'
-        # with the path and filename already discoverd...
-        task_params = {
-            'jr_id': jr.id,
-            'transition_time': transition_time,
-            'job_output_path': job_output_path,
-            'job_output_filename': job_output_filename,
-        }
-        task_upload = (
-            process_compound_set_job_file.s(task_params)
-            | validate_compound_set.s()
-            | process_compound_set.s()
-            | erase_compound_set_job_material.s(job_request_id=jr.id)
-        ).apply_async()
-
-        logger.info(
-            '+ JobCallBackView.update(code=%s)'
-            ' started process_job_file_upload(%s) task_upload=%s',
-            code,
-            jr.id,
-            task_upload,
-        )
-
-        return HttpResponse(status=204)
+        return initiate_job_result_retrieval(jr, transition_time)
 
 
 class JobAccessView(viewsets.GenericViewSet, mixins.ListModelMixin):
