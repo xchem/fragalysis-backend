@@ -2139,7 +2139,7 @@ class JobRequestView(viewsets.ModelViewSet):
         return serializers.JobRequestWriteSerializer
 
     def list(self, request):
-        logger.info('+ JobRequestView.get')
+        logger.info('+ JobRequestView.list')
 
         user = self.request.user
         if not user.is_authenticated:
@@ -2154,19 +2154,18 @@ class JobRequestView(viewsets.ModelViewSet):
             content = {'error': f'The Squonk2 Agent is not configured ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        # Iterate through each record, for JobRequests that are not 'finished'
-        # we call into Squonk to get an update. We then return the (possibly) updated
-        # records to the caller.
-
         results = []
-        snapshot_id = request.query_params.get('snapshot', None)
-
-        if snapshot_id:
-            logger.info('+ JobRequestView.get snapshot_id=%s', snapshot_id)
+        if snapshot_id := request.query_params.get('snapshot', None):
+            logger.info('snapshot_id=%s', snapshot_id)
             job_requests = models.JobRequest.objects.filter(snapshot=int(snapshot_id))
         else:
-            logger.info('+ JobRequestView.get snapshot_id=(unset)')
+            logger.info('snapshot_id=(unset)')
             job_requests = models.JobRequest.objects.all()
+
+        # Iterate through each record, for JobRequests that are not 'finished'
+        # we call into Squonk to get an update. We then return the (possibly) updated
+        # records to the caller. Depending on the configuration we may also handle
+        # retrieval of Job results (normally handled by the JobRequest callback).
 
         for jr in job_requests:
             # Skip any JobRequests the user does not have access to
@@ -2174,19 +2173,21 @@ class JobRequestView(viewsets.ModelViewSet):
                 user, [jr.project.title]
             ):
                 continue
+
             # An opportunity to update JobRequest timestamps?
+            # And handle any results (if configured to do so)
             if not jr.job_finish_datetime:
                 logger.info(
-                    '+ JobRequestView.get (id=%s) has not finished (job_status=%s)',
+                    'id=%s has not finished (job_status=%s)',
                     jr.id,
                     jr.job_status,
                 )
 
-                # Job's not finished, an opportunity to call into Squonk
+                # The Job's not finished, an opportunity to call into Squonk
                 # To get the current status. To do this we'll need
-                # the 'callback context' we supplied when launching the Job.
+                # the 'callback context' supplied when launching the Job.
                 logger.info(
-                    '+ JobRequestView.get (id=%s, code=%s) getting update from Squonk...',
+                    'id=%s, code=%s getting update from Squonk...',
                     jr.id,
                     jr.code,
                 )
@@ -2196,29 +2197,45 @@ class JobRequestView(viewsets.ModelViewSet):
                 # 'LOST', 'SUCCESS' or 'FAILURE'
                 if not sq2a_rv.success:
                     logger.warning(
-                        '+ JobRequestView.get (id=%s, code=%s) check failed (%s)',
+                        'id=%s, code=%s check failed (%s)',
                         jr.id,
                         jr.code,
                         sq2a_rv.msg,
                     )
+
                 elif sq2a_rv.success and sq2a_rv.msg:
+                    # Job is finished because the response is successful
+                    # and we have a msg (a string like 'SUCCESS)
+
                     logger.info(
-                        '+ JobRequestView.get (id=%s, code=%s) new status is (%s)',
+                        'id=%s code=%s new status is %s',
                         jr.id,
                         jr.code,
                         sq2a_rv.msg,
                     )
-                    transition_time = str(datetime.now(timezone.utc))
-                    transition_time_utc = parse(transition_time).replace(
-                        tzinfo=pytz.UTC
-                    )
+
+                    # Our best guess at the transition time (the time now).
+                    # The actual Job transition time may have been earlier.
+                    transition_time_utc = datetime.now(timezone.utc)
+
                     jr.job_status = sq2a_rv.msg
                     jr.job_status_datetime = transition_time_utc
                     jr.job_finish_datetime = transition_time_utc
                     jr.save()
+
+                    # Configured to also handle the results (for successful jobs)
+                    # (part of m2ms-1649)? And we haven't already started
+                    # the upload process.
+                    if (
+                        settings.SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS
+                        and jr.job_status == 'SUCCESS'
+                        and jr.upload_status == 'PENDING'
+                    ):
+                        _ = job_success_handler(jr, transition_time_utc)
+
                 else:
                     logger.info(
-                        '+ JobRequestView.get (id=%s, code=%s) is (probably) still running',
+                        'id=%s, code=%s is (probably) still running',
                         jr.id,
                         jr.code,
                     )
@@ -2227,7 +2244,7 @@ class JobRequestView(viewsets.ModelViewSet):
             results.append(serializer.data)
 
         num_results = len(results)
-        logger.info('+ JobRequestView.get num_results=%s', num_results)
+        logger.info('num_results=%s', num_results)
 
         # Simulate the original paged API response...
         content = {
@@ -2439,7 +2456,7 @@ class JobCallBackView(viewsets.ModelViewSet):
             return HttpResponse(status=204)
 
         # SUCCESS ... automatic upload?
-        return job_success_handler(jr, transition_time)
+        return job_success_handler(jr, transition_time_utc)
 
 
 class JobAccessView(viewsets.GenericViewSet, mixins.ListModelMixin):
