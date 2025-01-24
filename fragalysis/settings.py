@@ -639,7 +639,7 @@ SQUONK2_VERIFY_CERTIFICATES: str = os.environ.get("SQUONK2_VERIFY_CERTIFICATES",
 # This feature is expected to be used for local deployments of the stack where
 # Squonk can be used to launch Jobs but where the callback mechanism is not available.
 SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS: bool = False
-if os.environ.get("SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS") == "True":
+if os.environ.get("SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS") == "Yes":
     assert DEPLOYMENT_MODE != "PRODUCTION"
     SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS = True
 
