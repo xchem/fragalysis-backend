@@ -2156,11 +2156,17 @@ class JobRequestView(viewsets.ModelViewSet):
 
         results = []
         if snapshot_id := request.query_params.get('snapshot', None):
-            logger.info('snapshot_id=%s', snapshot_id)
+            snapshot_msg: str = f'snapshot_id={snapshot_id}'
+            logger.info(snapshot_msg)
             job_requests = models.JobRequest.objects.filter(snapshot=int(snapshot_id))
         else:
-            logger.info('snapshot_id=(unset)')
+            snapshot_msg = 'snapshot_id=(unset)'
             job_requests = models.JobRequest.objects.all()
+
+        if not job_requests:
+            logger.info('No JobRequests found (%s)', snapshot_msg)
+        else:
+            logger.info('Found %d JobRequests (%s)', len(job_requests), snapshot_msg)
 
         # Iterate through each record, for JobRequests that are not 'finished'
         # we call into Squonk to get an update. We then return the (possibly) updated
@@ -2168,15 +2174,29 @@ class JobRequestView(viewsets.ModelViewSet):
         # retrieval of Job results (normally handled by the JobRequest callback).
 
         for jr in job_requests:
+            logger.info(
+                'Processing JobRequest id=%d (project=%s snapshot_id=%s)',
+                jr.id,
+                jr.project.title,
+                snapshot_id,
+            )
+
             # Skip any JobRequests the user does not have access to
             if not _ISPYB_SAFE_QUERY_SET.user_is_member_of_any_given_proposals(
                 user, [jr.project.title]
             ):
+                logger.info('id=%d (access not granted)', jr.id)
                 continue
 
             # An opportunity to update JobRequest timestamps?
             # And handle any results (if configured to do so)
-            if not jr.job_finish_datetime:
+            if jr.job_finish_datetime:
+                logger.info(
+                    'id=%d ha already finished (job_finish_datetime=%s)',
+                    jr.id,
+                    jr.job_finish_datetime,
+                )
+            else:
                 logger.info(
                     'id=%s has not finished (job_status=%s)',
                     jr.id,
@@ -2231,6 +2251,7 @@ class JobRequestView(viewsets.ModelViewSet):
                         and jr.job_status == 'SUCCESS'
                         and jr.upload_status == 'PENDING'
                     ):
+                        logger.info("id=%s running job_success_handler()...")
                         _ = job_success_handler(jr, transition_time_utc)
 
                 else:
