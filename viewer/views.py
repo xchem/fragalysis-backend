@@ -2211,7 +2211,10 @@ class JobRequestView(viewsets.ModelViewSet):
                     jr.id,
                     jr.code,
                 )
-                sq2a_rv = _SQ2A.get_instance_execution_status(jr.code)
+
+                # We need to make the call to Squonk2 as the API user.
+                user_auth_token = request.session['oidc_access_token']
+                sq2a_rv = _SQ2A.get_instance_execution_status(user_auth_token, jr.code)
                 # If the job's now finished, update the record.
                 # If the call was successful we'll get None (not finished),
                 # 'LOST', 'SUCCESS' or 'FAILURE'
