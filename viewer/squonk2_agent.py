@@ -1105,12 +1105,11 @@ class Squonk2Agent:
                 i_status = 'FAILURE' if i_task['exit_code'] != 0 else 'SUCCESS'
             else:
                 i_status = None
-        else:
+        elif num_tasks > 1:
             msg = f'More than one Task found ({num_tasks}) for callback context "{callback_context}"'
             _LOGGER.warning(msg)
-
-        if i_status and i_status == 'LOST':
-            msg = f'No Task found for callback context "{callback_context}", assume "LOST"'
+        else:
+            msg = f'No Task found for callback context "{callback_context}", assume "LOST" for now'
             _LOGGER.warning(msg)
 
         return Squonk2AgentRv(success=True, msg=i_status)

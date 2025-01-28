@@ -2192,7 +2192,7 @@ class JobRequestView(viewsets.ModelViewSet):
             # And handle any results (if configured to do so)
             if jr.job_finish_datetime:
                 logger.info(
-                    'id=%d ha already finished (job_finish_datetime=%s)',
+                    'id=%d has already finished (job_finish_datetime=%s)',
                     jr.id,
                     jr.job_finish_datetime,
                 )
@@ -2223,10 +2223,16 @@ class JobRequestView(viewsets.ModelViewSet):
                         sq2a_rv.msg,
                     )
 
-                elif sq2a_rv.success and sq2a_rv.msg:
-                    # Job is finished because the response is successful
-                    # and we have a msg (a string like 'SUCCESS)
+                elif sq2a_rv.msg and sq2a_rv.msg == 'LOST':
+                    logger.info(
+                        'id=%s, code=%s job lost (%s) or currently unknown',
+                        jr.id,
+                        jr.code,
+                        sq2a_rv.msg,
+                    )
 
+                elif sq2a_rv.msg:
+                    # A change of STATUS - and it's stopped!
                     logger.info(
                         'id=%s code=%s new status is %s',
                         jr.id,
@@ -2237,29 +2243,20 @@ class JobRequestView(viewsets.ModelViewSet):
                     # Our best guess at the transition time (the time now).
                     # The actual Job transition time may have been earlier.
                     transition_time_utc = datetime.now(timezone.utc)
-
                     jr.job_status = sq2a_rv.msg
                     jr.job_status_datetime = transition_time_utc
                     jr.job_finish_datetime = transition_time_utc
                     jr.save()
 
-                    # Configured to also handle the results (for successful jobs)
-                    # (part of m2ms-1649)? And we haven't already started
-                    # the upload process.
                     if (
-                        settings.SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS
-                        and jr.job_status == 'SUCCESS'
-                        and jr.upload_status == 'PENDING'
+                        jr.job_status == 'SUCCESS'
+                        and settings.SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS
                     ):
                         logger.info("id=%s running job_success_handler()...")
                         _ = job_success_handler(jr, transition_time_utc)
 
                 else:
-                    logger.info(
-                        'id=%s, code=%s is (probably) still running',
-                        jr.id,
-                        jr.code,
-                    )
+                    logger.info("id=%s code=%s job is running", jr.id, jr.code)
 
             serializer = serializers.JobRequestReadSerializer(jr)
             results.append(serializer.data)
