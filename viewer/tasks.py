@@ -107,6 +107,8 @@ def process_compound_set(validate_output):
     logger.info(
         'process_compound_set() EXIT (CompoundSet.name="%s")', compound_set.name
     )
+    logger.info('process_compound_set() process_messages=%s', process_messages)
+
     return 'process', compound_set.name, process_messages
 
 
@@ -502,16 +504,13 @@ def validate_target_set(target_zip, target=None, proposal=None, email=None):
 
 
 @celery_app.task(bind=True)
-def task_load_target(
-    self, data_bundle=None, proposal_ref=None, contact_email=None, user_id=None
-):
+def task_load_target(self, data_bundle=None, proposal_ref=None, user_id=None):
     logger.info(
         'TASK %s load_target launched, target_zip=%s', self.request.id, data_bundle
     )
     load_target(
         data_bundle,
         proposal_ref=proposal_ref,
-        contact_email=contact_email,
         user_id=user_id,
         task=self,
     )
@@ -546,9 +545,10 @@ def process_job_file_transfer(auth_token, jt_id):
     try:
         process_file_transfer(auth_token, job_transfer.id)
     except RuntimeError as error:
-        logger.error('- File transfer (id=%s) [RuntimeError "%s"]', jt_id, error)
         job_transfer.transfer_status = "FAILURE"
+        job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
         job_transfer.save()
+        logger.error('- File transfer (id=%s) [RuntimeError "%s"]', jt_id, error)
     else:
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
@@ -556,7 +556,7 @@ def process_job_file_transfer(auth_token, jt_id):
         job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
         job_transfer.save()
-        logger.info('+ File transfer (id=%s) [SUCCESS]', jt_id)
+        logger.info('- File transfer (id=%s) [SUCCESS]', jt_id)
 
     return job_transfer.transfer_status
 
@@ -606,7 +606,7 @@ def process_compound_set_job_file(task_params):
     return {
         'user_id': job_request.user.id,
         'sdf_file': sd_file,
-        'target': job_request.target.title,
+        'target': job_request.target.pk,
     }
 
 
@@ -645,7 +645,7 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
     # Task linking is a bit of a mess atm,
     # if something went wrong we'll get a tuple, not a dictionary.
     if isinstance(task_params, list) and task_params[0] == 'process':
-        cs_name: str = task_params[2]
+        cs_name: str = task_params[1]
         logger.info(
             'Upload successful (%d) ComputedSet.name="%s"', job_request_id, cs_name
         )

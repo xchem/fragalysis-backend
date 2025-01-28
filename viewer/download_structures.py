@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 import pandoc
+import requests
 from django.conf import settings
 from django.db.models import Exists, F, OuterRef, Value
 from django.db.models.fields import CharField
@@ -28,6 +29,9 @@ from viewer.utils import clean_filename
 
 from .serializers import DownloadStructuresSerializer
 from .tags import get_metadata_fields
+
+# from urllib.parse import urlsplit
+
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +65,11 @@ _ZIP_FILEPATHS = {
     'trans_matrix_info': (''),
     'extra_files': ('extra_files'),
     'readme': (''),
+}
+
+# {urls:path in archive} to scripts to be automatically included in downloads
+_SCRIPTS = {
+    'https://github.com/xchem/fragalysis-pymol-scripts': 'pymol',
 }
 
 
@@ -109,6 +118,33 @@ _ERROR_FILE = 'errors.csv'
 
 # unlike v1, metadata doesn't exist anymore, needs compiling
 _METADATA_FILE = 'metadata.csv'
+
+
+def _additional_scripts_zip(ziparchive, scripts) -> None:
+    for script_url, script_path in scripts.items():
+        zip_url = script_url.rstrip('/') + '/archive/refs/heads/main.zip'
+        response = requests.get(zip_url)
+        try:
+            response.raise_for_status()
+        except Exception as exc:
+            # repo_name = Path(urlsplit(script_url).path).name
+            ziparchive.writestr(f'scripts/ERROR_DOWNLOADING_{script_path}', str(exc))
+
+        try:
+            with zipfile.ZipFile(BytesIO(response.content)) as zip_file:
+                script_path = Path('scripts', script_path)
+                for zip_info in zip_file.infolist():
+                    if zip_info.is_dir():
+                        continue  # Skip directories
+                    file_data = zip_file.read(zip_info.filename)
+                    archive_path = script_path.joinpath(
+                        *Path(zip_info.filename).parts[1:]
+                    )
+                    # ziparchive.writestr(f'scripts/{zip_info.filename}', file_data)
+                    ziparchive.writestr(str(archive_path), file_data)
+        except zipfile.BadZipFile as exc:
+            # repo_name = Path(urlsplit(script_url).path).name
+            ziparchive.writestr(f'scripts/ERROR_DOWNLOADING_{script_path}', str(exc))
 
 
 def _is_mol_or_sdf(path):
@@ -645,6 +681,8 @@ def _create_structures_zip(
         )
 
         _document_file_zip(ziparchive, download_path, original_search, host)
+
+        _additional_scripts_zip(ziparchive, _SCRIPTS)
 
         error_file.close()
         if errors > 0:

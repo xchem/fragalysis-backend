@@ -2,11 +2,12 @@
 squonk_job_file_request Functions for creating squonk Jobs.
 
 """
+import dataclasses
 import datetime
 import json
 import logging
 import os
-from urllib.parse import urljoin
+from urllib.parse import unquote, urljoin
 
 import shortuuid
 from squonk2.dm_api import DmApi
@@ -61,21 +62,20 @@ def get_squonk_job_config(
     if not job_name:
         # No name provided - return all
         return available_jobs
-    else:
-        # Got a job name (and collection and version)
-        for job in available_jobs['jobs']:
-            if (
-                job['job'] == job_name
-                and job['collection'] == job_collection
-                and job['version'] == job_version
-            ):
-                result = DmApi.get_job(auth_token, job_id=job['id'])
-                # This either returns the definition or the squonk message.
-                return result.msg
-        return {
-            'Job not found'
-            f' (collection={job_collection} name={job_name} version={job_version}'
-        }
+
+    # Got a job name (and collection and version)
+    for job in available_jobs['jobs']:
+        if (
+            job['job'] == job_name
+            and job['collection'] == job_collection
+            and job['version'] == job_version
+        ):
+            result = DmApi.get_job(auth_token, job_id=job['id'])
+            # This either returns the definition or the squonk message.
+            return result.msg
+
+    # Job not found
+    return None
 
 
 def create_squonk_job(request):
@@ -97,7 +97,7 @@ def create_squonk_job(request):
     snapshot_id = request.data['snapshot']
     session_project_id = request.data['session_project']
     squonk_job_name = request.data['squonk_job_name']
-    squonk_job_spec = request.data['squonk_job_spec']
+    squonk_job_spec = unquote(str(request.data['squonk_job_spec']))
 
     logger.info('+ access_id=%s', access_id)
     logger.info('+ target_id=%s', target_id)
@@ -194,6 +194,7 @@ def create_squonk_job(request):
     logger.info('+ create_squonk_job() job_name=%s', job_name)
     logger.info('+ create_squonk_job(%s) callback_url=%s', job_name, callback_url)
     logger.info('+ create_squonk_job(%s) callback_token=%s', job_name, callback_token)
+    logger.info('+ create_squonk_job(%s) squonk_job_spec=%s', job_name, squonk_job_spec)
 
     # Dry-run the Job execution (this provides us with the 'command', which is
     # placed in the JobRecord's squonk_job_info).
@@ -211,7 +212,7 @@ def create_squonk_job(request):
         callback_context=job_request.code,
         specification=json.loads(squonk_job_spec),
     )
-    logger.debug(result)
+    logger.info('+ create_squonk_job(%s) result=%s', job_name, result)
 
     if not result.success:
         logger.warning(
@@ -226,8 +227,8 @@ def create_squonk_job(request):
     # We can now commit the JobRequest record so that it's ready
     # for use by any callbacks. The 'result' will contain the callback token
     # and the Job's decoded command (that will be interrogated when the Job s complete)
-    job_request.squonk_job_info = result
-    job_request.job_start_datetime = datetime.datetime.utcnow()
+    job_request.squonk_job_info = dataclasses.asdict(result)
+    job_request.job_start_datetime = datetime.datetime.now(datetime.timezone.utc)
     job_request.save()
 
     # Now start the job 'for real'...
@@ -246,7 +247,7 @@ def create_squonk_job(request):
         specification=json.loads(squonk_job_spec),
         timeout_s=8,
     )
-    logger.debug(result)
+    logger.info('+ create_squonk_job(%s) result=%s', job_name, result)
 
     if not result.success:
         logger.warning(

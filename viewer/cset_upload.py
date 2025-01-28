@@ -67,6 +67,19 @@ HEADER_MOL_FIELDS = (
 )
 
 
+# How do we get the 'prefix' and 'version' from the MOL Name.
+# (used at the moment to handle mol_refs in Squonk-generated SD files).
+# They look like this: -
+#   A71EV2A-x0379_A_147_1_A71EV2A-x0379+A+147+1_LIG
+#   ------------------- -
+#      "Prefix"      "Version"
+# And we want a 'long code' from this, e.g.: -
+#   A71EV2A-x0379_A_147_v1
+_re_ref_mol_long_code = re.compile(
+    r"(?P<prefix>([^_]*)_(\S+)_(\d+))_(?P<version>\d+)_(.*)"
+)
+
+
 def dataType(a_str: str) -> str:
     lean_str = a_str.strip()
     if not lean_str:
@@ -396,15 +409,38 @@ class MolOps:
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:
-                qs = SiteObservation.objects.filter(
-                    code=str(i.split(":")[0].split("_")[0]),
-                    experiment__experiment_upload__target=compound_set.target,
-                )
-                if not qs.exists():
+                # A hack - for Squonk Job execution tests.
+                # The ref_mols field doesn't contain a long or short code to simplify lookups.
+                # To get to a long code we can use the defined reg-ex pattern.
+                long_code = ""
+                re_match = _re_ref_mol_long_code.match(i)
+                if re_match:
+                    prefix = re_match.group('prefix')
+                    version_number = re_match.group('version')
+                    # Long code is the 'prefix' and the 'version' (with a 'v')
+                    long_code = f"{prefix}_v{version_number}"
+                if not long_code:
                     raise IntegrityError(  # pylint: disable=raise-missing-from
-                        "No matching molecules found for inspiration frag " + i
+                        f"Could not find long-code pattern in {i}"
+                    )
+                logger.warning(
+                    "Search for '%s' failed - now looking for '%s' (target=%s)...",
+                    i,
+                    long_code,
+                    compound_set.target,
+                )
+                try:
+                    qs = SiteObservation.objects.filter(
+                        longcode=long_code,
+                        experiment__experiment_upload__target=compound_set.target,
+                    )
+                except SiteObservation.DoesNotExist:
+                    raise IntegrityError(  # pylint: disable=raise-missing-from
+                        f"No matching molecules found for inspiration frag {i}"
                     )
 
+                # Why order-by here and not above?
+                # And - is the response ever not 0 or 1 records?
                 ref = qs.order_by("-cmpd_id").first()
 
             insp_frags.append(ref)
@@ -509,7 +545,7 @@ class MolOps:
                 exist.delete()
             computed_molecule = ComputedMolecule(name=name)
         else:
-            logger.info("Creating new ComputedMolecule")
+            logger.info("Creating new ComputedMolecule (name=%s)", name)
             computed_molecule = ComputedMolecule(name=name)
 
         if isinstance(ref_so, SiteObservation):
@@ -522,7 +558,7 @@ class MolOps:
             lhs_so = None
 
         # I don't quite understand why the overwrite of existing
-        # compmol.. but this is how it was, not touching it now
+        # compmol ... but this is how it was, not touching it now
         # update: I think it's about updating metadata. moving
         # name attribute out so it won't get overwritten
         computed_molecule.compound = compound
@@ -636,7 +672,9 @@ class MolOps:
             # get rid of the header field property on the non-header molecule
             del other_props[prop]
 
-        if not skip_mol:
+        if skip_mol:
+            logger.warning("Skipping molecule '%s'", molecule_name)
+        else:
             cpd = self.set_mol(
                 mol, target, compound_set, filename, zfile, zfile_hashvals
             )

@@ -349,6 +349,13 @@ DATABASES = {
     }
 }
 
+# Telling django extensions (reset_db for example)
+# that our the django prometheus engine is a postgresql engine...
+# (otherwise it'll complain that it doesn't know how to handle it)
+DJANGO_EXTENSIONS_RESET_DB_POSTGRESQL_ENGINES = [
+    "django_prometheus.db.backends.postgresql"
+]
+
 CHEMCENTRAL_DB_NAME = os.environ.get("CHEMCENT_DB_NAME", "UNKNOWN")
 if CHEMCENTRAL_DB_NAME != "UNKNOWN":
     DATABASES["chemcentral"] = {
@@ -655,3 +662,7 @@ FE_NAMESPACE: str = os.environ.get("FE_NAMESPACE", "undefined")
 FE_IMAGE_TAG: str = os.environ.get("FE_IMAGE_TAG", "undefined")
 STACK_NAMESPACE: str = os.environ.get("STACK_NAMESPACE", "undefined")
 STACK_VERSION: str = os.environ.get("STACK_VERSION", "undefined")
+
+
+# XChem Align data format
+XCA_DATA_FORMAT_VERSION = "2.2"

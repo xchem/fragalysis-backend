@@ -20,6 +20,7 @@ from .managers import (
     CompoundDataManager,
     CompoundIdentifierDataManager,
     ExperimentDataManager,
+    ExperimentUploadDataManager,
     PoseDataManager,
     QuatAssemblyDataManager,
     SessionActionsDataManager,
@@ -196,6 +197,11 @@ class ExperimentUpload(models.Model):
     )
     upload_data_dir = models.TextField(null=True)
     upload_version = models.PositiveSmallIntegerField(default=1)
+    data_version_major = models.PositiveSmallIntegerField(default=0)
+    data_version_minor = models.PositiveSmallIntegerField(default=0)
+
+    objects = models.Manager()
+    upload_manager = ExperimentUploadDataManager()
 
     def __str__(self) -> str:
         return f"{self.project}"
@@ -1470,8 +1476,9 @@ class JobFileTransfer(models.Model):
     sub_path = ShortUUIDField(
         length=4, alphabet="abcdefghijklmnopqrstuvwxyz", null=True
     )
+    # A list of files (paths and files relative to MEDIA_ROOT)...
     proteins = models.JSONField(encoder=DjangoJSONEncoder, null=True)
-    # Not used in phase 1
+    # A list of files (paths and files relative to MEDIA_ROOT)...
     compounds = models.JSONField(encoder=DjangoJSONEncoder, null=True)
     transfer_task_id = models.CharField(null=True, max_length=50)
     transfer_status = models.CharField(choices=STATUS, default=PENDING, max_length=7)

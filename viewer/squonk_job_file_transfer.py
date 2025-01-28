@@ -3,14 +3,16 @@ Fragalysis to Squonk.
 """
 import os
 import urllib.parse
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import unquote
 
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from rest_framework import status
 from squonk2.dm_api import DmApi
 
-from viewer.models import ComputedMolecule, JobFileTransfer, SiteObservation
+from viewer.models import JobFileTransfer, SiteObservation
 
 logger = get_task_logger(__name__)
 
@@ -39,7 +41,6 @@ def process_file_transfer(auth_token, job_transfer_id):
     num_proteins_to_transfer = len(job_transfer.proteins)
     num_compounds_to_transfer = len(job_transfer.compounds)
     num_to_transfer = num_proteins_to_transfer + num_compounds_to_transfer
-    idx = 0
     logger.info(
         '+ Transfer (id=%s) num_to_transfer=%s (%s + %s)',
         job_transfer_id,
@@ -47,13 +48,6 @@ def process_file_transfer(auth_token, job_transfer_id):
         num_proteins_to_transfer,
         num_compounds_to_transfer,
     )
-
-    # The base directory for the source of the files we are transferring?
-    # We expect files to include a path relative to TARGET_LOADER_MEDIA_DIRECTORY
-    FILE_ROOT = os.path.join(
-        settings.MEDIA_ROOT, settings.TARGET_LOADER_MEDIA_DIRECTORY
-    )
-    logger.info('+ Transfer (id=%s) FILE_ROOT=%s', job_transfer_id, FILE_ROOT)
 
     # Build the Squonk2 Project directory where files will be placed
     # e.g. "/fragalysis-files/hjyx".
@@ -64,11 +58,7 @@ def process_file_transfer(auth_token, job_transfer_id):
     logger.info(
         '+ Transfer (id=%s) squonk_directory=%s', job_transfer_id, squonk_directory
     )
-    # All the files (proteins or compounds) are provided using relative
-    # paths from the media directory. So we can join the tow lists
-    # and treat them the same
-    all_filename_refs = job_transfer.proteins + job_transfer.compounds
-    if all_filename_refs:
+    if all_filename_refs := job_transfer.proteins + job_transfer.compounds:
         logger.info('+ Collecting files (id=%s)', job_transfer_id)
         file_list = []
         for filename_ref in all_filename_refs:
@@ -79,9 +69,9 @@ def process_file_transfer(auth_token, job_transfer_id):
                 '+ Collecting %s (target=%s) (id=%s)', filename, target, job_transfer_id
             )
             # File is expected to exist in the media directory
-            file_path = os.path.join(FILE_ROOT, filename)
+            file_path = os.path.join(settings.MEDIA_ROOT, filename)
             if not os.path.isfile(file_path):
-                msg = f'No such protein file {file_path} (id={job_transfer_id})'
+                msg = f'No such file {file_path} (id={job_transfer_id})'
                 logger.error(msg)
                 raise RuntimeError(msg)
             file_list.append(file_path)
@@ -100,7 +90,6 @@ def process_file_transfer(auth_token, job_transfer_id):
         logger.debug(result)
 
         if result.success:
-            idx += 1
             job_transfer.transfer_progress = 100
             job_transfer.save()
             logger.info('+ Transferred files (id=%s)', job_transfer_id)
@@ -112,8 +101,18 @@ def process_file_transfer(auth_token, job_transfer_id):
 
 def validate_file_transfer_files(
     request,
-) -> Tuple[Dict[str, str], List[SiteObservation], List[ComputedMolecule]]:
-    """Check the request and return a list of proteins and/or computed molecule objects
+) -> Tuple[Optional[Dict[str, str]], Optional[List[Path]], Optional[List[Path]]]:
+    """Check the request and return a list of proteins and/or computed molecule file
+    path references (paths relative to the media directory).
+
+    We're given a request that contains comma-separated URL-encoded "proteins", and "compounds",
+    and "target access", "target", "snapshot" and "session_project" record IDs.
+    Each protein and compound is a full path to a file relative to the media directory.
+    We just need to ensure that a SiteObservation exists (there should only be one)
+    and it belongs to the given target.
+
+    The user is already validated against the Target so here we check the given
+    protein and compound references exist, and they belong to the Target.
 
     Args:
         request
@@ -122,66 +121,85 @@ def validate_file_transfer_files(
         list of validated proteins (SiteObservation)
         list of validated computed molecules (ComputedMolecule)
     """
-    error: Dict[str, str] = {}
-    proteins: List[SiteObservation] = []
-    compounds: List[ComputedMolecule] = []
+
+    target_id = request.data['target']
+    logger.info('+ Validating file transfer files ()...')
+
+    protein_files: List[Path] = []
+    compound_files: List[Path] = []
 
     if request.data['proteins']:
         # Get first part of protein code
-        proteins_list = [
-            p.strip().split(":")[0] for p in request.data['proteins'].split(',')
+        protein_paths_and_files = [
+            unquote(p.strip()) for p in request.data['proteins'].split(',')
         ]
-        logger.info('+ Given proteins=%s', proteins_list)
+        for protein_path_and_file in protein_paths_and_files:
+            if protein_path_and_file.endswith('_apo-desolv.pdb'):
+                if not (
+                    s_ob := SiteObservation.objects.filter(
+                        apo_desolv_file=protein_path_and_file
+                    ).first()
+                ):
+                    return tfr_validation_error(
+                        f'Unknown Protein: {protein_path_and_file}',
+                        status.HTTP_404_NOT_FOUND,
+                    )
 
-        proteins = []
-        for code_first_part in proteins_list:
-            site_obvs = SiteObservation.objects.filter(
-                code__contains=code_first_part
-            ).values()
-            if site_obvs.exists():
-                proteins.append(site_obvs.first())
-            else:
-                error[
-                    'message'
-                ] = 'Please enter valid protein code for' + ': {} '.format(
-                    code_first_part
-                )
-                error['status'] = status.HTTP_404_NOT_FOUND
-                return error, proteins, compounds
+                if s_ob.experiment.experiment_upload.target.id == target_id:
+                    protein_files.append(Path(protein_path_and_file))
+                else:
+                    return tfr_validation_error(
+                        f'Protein does not belong to Target: {protein_path_and_file}',
+                        status.HTTP_400_BAD_REQUEST,
+                    )
 
-        if len(proteins) == 0:
-            error['message'] = 'API expects a list of comma-separated protein codes'
-            error['status'] = status.HTTP_404_NOT_FOUND
-            return error, proteins, compounds
+        logger.info(
+            "- Validated proteins (SiteObservations) [%d]",
+            len(protein_files),
+        )
 
     if request.data['compounds']:
-        # Get compounds
-        compounds_list = [c.strip() for c in request.data['compounds'].split(',')]
-        logger.info('+ Given compounds=%s', compounds_list)
+        compound_paths_and_files = [
+            unquote(p.strip()) for p in request.data['compounds'].split(',')
+        ]
+        for compound_path_and_file in compound_paths_and_files:
+            if not SiteObservation.objects.filter(
+                ligand_mol=compound_path_and_file
+            ).first():
+                return tfr_validation_error(
+                    f'Unknown Compound: {compound_path_and_file}',
+                    status.HTTP_404_NOT_FOUND,
+                )
 
-        compounds = []
-        for compound in compounds_list:
-            comp = ComputedMolecule.objects.filter(name=compound).values()
-            if comp.exists():
-                compounds.append(comp.first())
+            if s_ob.experiment.experiment_upload.target.id == target_id:
+                compound_files.append(Path(compound_path_and_file))
             else:
-                error[
-                    'message'
-                ] = 'Please enter valid compound name for' + ': {} '.format(compound)
-                error['status'] = status.HTTP_404_NOT_FOUND
-                return error, proteins, compounds
+                return tfr_validation_error(
+                    f'Compound does not belong to Target: {compound_path_and_file}',
+                    status.HTTP_400_BAD_REQUEST,
+                )
 
-        if len(compounds) == 0:
-            error['message'] = 'API expects a list of comma-separated compound names'
-            error['status'] = status.HTTP_404_NOT_FOUND
-            return error, proteins, compounds
-
-    if proteins or compounds:
-        return error, proteins, compounds
-    else:
-        error['message'] = (
-            'A valid set of protein codes and/or a list of valid'
-            ' compound names must be provided'
+        logger.info(
+            "- Validated compounds (SiteObservations) [%d]",
+            len(compound_files),
         )
-        error['status'] = status.HTTP_404_NOT_FOUND
-        return error, proteins, compounds
+
+    if not protein_files and not compound_files:
+        return tfr_validation_error(
+            'A valid set of protein codes and/or a list of valid compound names must be provided',
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    logger.info(
+        "- Validated file transfer files (%d, %d)",
+        len(protein_files),
+        len(compound_files),
+    )
+    return None, protein_files, compound_files
+
+
+def tfr_validation_error(
+    error: str, status_code: int
+) -> Tuple[Dict[str, Any], None, None]:
+    """Returns the error and HTTP status code as a tuple for a response."""
+    return {'message': error, 'status': status_code}, None, None

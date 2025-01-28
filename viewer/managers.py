@@ -413,3 +413,34 @@ class CompoundIdentifierDataManager(Manager):
 
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class ExperimentUploadQueryset(QuerySet):
+    def annotated_qs(self):
+        ExperimentUpload = apps.get_model("viewer", "ExperimentUpload")
+        qs = ExperimentUpload.objects.prefetch_related(
+            "target",
+            "project",
+        ).annotate(
+            target_name=F("target__title"),
+            proposal_number=F("project__title"),
+            committer_name=F("committer__username"),
+        )
+
+        return qs
+
+
+class ExperimentUploadDataManager(Manager):
+    def get_queryset(self):
+        return ExperimentUploadQueryset(self.model, using=self._db)
+
+    def annotated_qs(self):
+        return (
+            self.get_queryset()
+            .annotated_qs()
+            .order_by(
+                'project',
+                'target__title',
+                'upload_version',
+            )
+        )
