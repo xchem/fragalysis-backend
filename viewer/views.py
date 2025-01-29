@@ -2248,6 +2248,8 @@ class JobRequestView(viewsets.ModelViewSet):
                     transition_time_utc = datetime.now(timezone.utc)
                     jr.job_status = sq2a_rv.msg
                     jr.job_status_datetime = transition_time_utc
+                    if not jr.job_start_datetime:
+                        jr.job_start_datetime = transition_time_utc
                     jr.job_finish_datetime = transition_time_utc
                     jr.save()
 
