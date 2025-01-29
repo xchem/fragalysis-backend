@@ -2250,7 +2250,8 @@ class JobRequestView(viewsets.ModelViewSet):
                     jr.job_status_datetime = transition_time_utc
                     if not jr.job_start_datetime:
                         jr.job_start_datetime = transition_time_utc
-                    jr.job_finish_datetime = transition_time_utc
+                    if not jr.job_finish_datetime:
+                        jr.job_finish_datetime = transition_time_utc
                     jr.save()
 
                     if (
