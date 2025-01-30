@@ -27,9 +27,9 @@ if not username or not password:
     password = 'UNSECURED'
 if User.objects.filter(username=username).count()==0:
     User.objects.create_superuser(username, email, password)
-    print('Superuser created.')
+    print(f'Superuser created ({username}|{password}).')
 else:
-    print('Superuser creation skipped.')
+    print('Superuser creation skipped - an admin user already exists.')
 "
 printf "$script" | python manage.py shell
 
