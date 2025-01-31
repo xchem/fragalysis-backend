@@ -593,6 +593,20 @@ class SiteObservation(Versionable, models.Model):
         return contents
 
 
+class QualityStatusType(models.Model):
+    status = models.TextField(primary_key=True)
+
+
+class SiteObservationQualityStatus(models.Model):
+    site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
+    status = models.ForeignKey(QualityStatusType, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(default=timezone.now)
+    auto_assigned = models.BooleanField(default=False)
+    main_status = models.BooleanField(default=False)
+    comment = models.TextField()
+
+
 class CompoundIdentifierType(models.Model):
     name = models.TextField(primary_key=True)
 

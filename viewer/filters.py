@@ -12,6 +12,7 @@ from viewer.models import (
     Pose,
     QuatAssembly,
     SiteObservation,
+    SiteObservationQualityStatus,
     Snapshot,
     XtalformSite,
 )
@@ -137,4 +138,17 @@ class ExperimentUploadFilter(filters.FilterSet):
             "committer",
             "data_version_major",
             "data_version_minor",
+        )
+
+
+class SiteObservationQualityStatusFilter(filters.FilterSet):
+    class Meta:
+        model = SiteObservationQualityStatus
+        fields = (
+            "site_observation",
+            "status",
+            "user",
+            "timestamp",
+            "auto_assigned",
+            "main_status",
         )

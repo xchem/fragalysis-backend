@@ -4,6 +4,7 @@ import hashlib
 import logging
 import math
 import os
+import random
 import shutil
 import tarfile
 from collections.abc import Callable
@@ -38,8 +39,10 @@ from viewer.models import (
     ExperimentUpload,
     Pose,
     Project,
+    QualityStatusType,
     QuatAssembly,
     SiteObservation,
+    SiteObservationQualityStatus,
     SiteObservationTag,
     TagCategory,
     Target,
@@ -1523,12 +1526,17 @@ class TargetLoader:
             "pdb_header_file": None,
         }
 
+        index_data = {
+            "auto_build_score": random.random(),
+        }
+
         return ProcessedObject(
             model_class=SiteObservation,
             fields=fields,
             defaults=defaults,
             key=key,
             versioned_key=v_key,
+            index_data=index_data,
         )
 
     def process_bundle(self):
@@ -2174,6 +2182,13 @@ class TargetLoader:
         if alias_file_path.exists():
             self.import_compound_identifiers(alias_file_path)
 
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            if val.new:
+                self._assign_observation_quality_status(
+                    val.instance,
+                    val.index_data["auto_build_score"],
+                )
+
     def import_compound_identifiers(self, alias_file_path):
         try:
             df = pd.read_csv(alias_file_path)
@@ -2469,6 +2484,23 @@ class TargetLoader:
         except TypeError:
             # received invalid path
             return None
+
+    def _assign_observation_quality_status(self, site_observation, score) -> None:
+        if score > 0.7:
+            status = QualityStatusType.objects.get(status="GOOD")
+        elif score <= 0.7 and score > 0.4:
+            status = QualityStatusType.objects.get(status="MEDIOCRE")
+        else:
+            status = QualityStatusType.objects.get(status="BAD")
+
+        SiteObservationQualityStatus(
+            site_observation=site_observation,
+            status=status,
+            user=None,
+            auto_assigned=True,
+            main_status=False,
+            comment="Created on load",
+        ).save()
 
 
 def load_target(

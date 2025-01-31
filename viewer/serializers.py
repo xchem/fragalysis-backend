@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 
 import yaml
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import Count
@@ -1221,3 +1222,25 @@ class MetadataUploadSerializer(serializers.Serializer):
     filename = serializers.FileField()
     target = serializers.CharField()
     target_access_string = serializers.CharField()
+
+
+class SiteObservationQualityStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SiteObservationQualityStatus
+        fields = '__all__'
+        extra_kwargs = {
+            "auto_assigned": {"read_only": True},
+            "timestamp": {"read_only": True},
+            "user": {"read_only": True},
+        }
+
+    def create(self, validated_data):
+        logger.debug('validated_data: %s', validated_data)
+        user = self.context["request"].user
+
+        # fragalysis has its own anonymous user
+        if user.is_anonymous:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        validated_data["user"] = user
+        return super().create(validated_data)

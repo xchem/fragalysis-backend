@@ -2827,3 +2827,13 @@ class TokenView(APIView):
             {'sessionid': sessionid},
             status=status.HTTP_200_OK,
         )
+
+
+class SiteObservationQualityStatusView(
+    mixins.CreateModelMixin,
+    ISPyBSafeQuerySet,
+):
+    queryset = models.SiteObservationQualityStatus.objects.all()
+    serializer_class = serializers.SiteObservationQualityStatusSerializer
+    filterset_class = filters.SiteObservationQualityStatusFilter
+    filter_permissions = "site_observation__experiment__experiment_upload__project"
