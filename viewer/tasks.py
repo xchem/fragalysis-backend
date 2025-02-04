@@ -636,7 +636,7 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
     # Upload done (successfully or not).
     # 'task_params' (a list/tuple) is expected to be the return value of
     # 'process_compound_set()' so set the upload status. We expect to find
-    # 'process_stage' [index 0] and 'compound_set_name' [index 1].
+    # 'process_stage' [index 0] and 'compound_set.id' [index 1].
     #
 
     # Inter-task parameter linking is a bit of a mess atm,
@@ -657,9 +657,9 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
                 'Upload successful (%d) ComputedSet.id="%s"', job_request_id, cs_id
             )
             job_request.upload_status = 'SUCCESS'
-            # We're given a compound set name.
+            # We're given a compound set is.
             # Get its record and put that into the JobRequest...
-            cs = ComputedSet.objects.get(name=cs_id)
+            cs = ComputedSet.objects.get(pk=cs_id)
             assert cs
             job_request.computed_set = cs
         else:
