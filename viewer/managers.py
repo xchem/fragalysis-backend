@@ -415,6 +415,27 @@ class CompoundIdentifierDataManager(Manager):
         return self.get_queryset().filter_qs().filter(target=target.id)
 
 
+class ComputedSetQueryset(QuerySet):
+    def filter_qs(self):
+        ComputedSet = apps.get_model("viewer", "ComputedSet")
+        qs = ComputedSet.objects.annotate(
+            project=F("target__project__title"),
+        )
+
+        return qs
+
+
+class ComputedSetDataManager(Manager):
+    def get_queryset(self):
+        return ComputedSetQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().filter_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
 class ExperimentUploadQueryset(QuerySet):
     def annotated_qs(self):
         ExperimentUpload = apps.get_model("viewer", "ExperimentUpload")

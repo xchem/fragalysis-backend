@@ -32,14 +32,18 @@ class IsObjectProposalMember(permissions.BasePermission):
             raise AttributeError(
                 "The view object must define a 'filter_permissions' property"
             )
-        # The object's proposal records (one or many) can be obtained via
-        # the view's 'filter_permissions' property. A standard
-        # django property reference, e.g. 'target__project'.
-        object_proposals = []
-        attr_value = getattr(obj, view.filter_permissions)
+        # The object's proposal records (one or many) can be obtained
+        # via the view's 'filter_permissions' property. A standard
+        # django property reference, e.g. 'target__project'. Adding
+        # '__title' because values_list lookup does not resolve
+        # objects but returns attribute value.
 
         try:
-            attr_value = getattr(obj, view.filter_permissions)
+            object_proposals = list(
+                obj.__class__.objects.filter(
+                    pk=obj.pk,
+                ).values_list(f'{view.filter_permissions}__title', flat=True)
+            )
         except AttributeError as exc:
             # Something's gone wrong trying to lookup the project.
             # Log some 'interesting' contextual information...
@@ -54,12 +58,6 @@ class IsObjectProposalMember(permissions.BasePermission):
             )
             raise PermissionDenied(msg) from exc
 
-        if attr_value.__class__.__name__ == "ManyRelatedManager":
-            # Potential for many proposals...
-            object_proposals = [p.title for p in attr_value.all()]
-        else:
-            # Only one proposal...
-            object_proposals = [attr_value.title]
         if not object_proposals:
             raise PermissionDenied(
                 detail="Authority cannot be granted - the object is not a part of any Project"
