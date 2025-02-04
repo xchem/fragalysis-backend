@@ -873,28 +873,28 @@ class Squonk2Agent:
             return Squonk2AgentRv(success=False, msg=msg)
 
         resp = None
-        url = f'{self.__CFG_SQUONK2_DMAPI_URL}/api'
+        url = f'{self.__CFG_SQUONK2_DMAPI_URL}/api/'
         try:
             resp = requests.head(
                 url, verify=self.__verify_certificates, timeout=REQUEST_TIMEOUT_S
             )
         except Exception:
             _LOGGER.error('Exception checking DM at %s', url)
-        if resp is None or resp.status_code != 308:
-            msg = f'Squonk2 DM is not responding from {url}'
+        if resp is None or resp.status_code != 200:
+            msg = f'Squonk2 DM is not responding from {url} (HEAD request resp={resp})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
         resp = None
-        url = f'{self.__CFG_SQUONK2_ASAPI_URL}/api'
+        url = f'{self.__CFG_SQUONK2_ASAPI_URL}/api/'
         try:
             resp = requests.head(
                 url, verify=self.__verify_certificates, timeout=REQUEST_TIMEOUT_S
             )
         except Exception:
             _LOGGER.error('Exception checking AS at %s', url)
-        if resp is None or resp.status_code != 308:
-            msg = f'Squonk2 AS is not responding from {url}'
+        if resp is None or resp.status_code != 200:
+            msg = f'Squonk2 AS is not responding from {url} (HEAD request resp={resp})'
             _LOGGER.error(msg)
             return Squonk2AgentRv(success=False, msg=msg)
 
@@ -1059,11 +1059,14 @@ class Squonk2Agent:
         return SuccessRv
 
     @synchronized
-    def get_instance_execution_status(self, callback_context: str) -> Squonk2AgentRv:
+    def get_instance_execution_status(
+        self, token, callback_context: str
+    ) -> Squonk2AgentRv:
         """A blocking method that attempt to get the execution status (success/failure)
         of an instance (a Job) based on the given callback context. The status (string)
         is returned as the Squonk2AgentRv.msg value.
         """
+        assert token
         assert callback_context
 
         if _TEST_MODE:
@@ -1084,7 +1087,7 @@ class Squonk2Agent:
         # callback context that Fragalysis provided.
         # For the filters we provide we should only get one Task.
         dm_rv: DmApiRv = DmApi.get_tasks(
-            self.__org_owner_dm_token,
+            token,
             exclude_removal=True,
             exclude_purpose='FILE.DATASET.PROJECT',
             instance_callback_context=callback_context,
@@ -1105,12 +1108,11 @@ class Squonk2Agent:
                 i_status = 'FAILURE' if i_task['exit_code'] != 0 else 'SUCCESS'
             else:
                 i_status = None
-        else:
+        elif num_tasks > 1:
             msg = f'More than one Task found ({num_tasks}) for callback context "{callback_context}"'
             _LOGGER.warning(msg)
-
-        if i_status and i_status == 'LOST':
-            msg = f'No Task found for callback context "{callback_context}", assume "LOST"'
+        else:
+            msg = f'No Task found for callback context "{callback_context}", assume "LOST" for now'
             _LOGGER.warning(msg)
 
         return Squonk2AgentRv(success=True, msg=i_status)

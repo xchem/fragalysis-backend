@@ -9,6 +9,7 @@ from viewer.models import (
     Compound,
     ComputedSet,
     Experiment,
+    ExperimentUpload,
     Pose,
     QuatAssembly,
     SiteObservation,
@@ -138,3 +139,15 @@ class ComputedSetFilter(filters.FilterSet):
     class Meta:
         model = ComputedSet
         fields = ("name", "target", "project")
+
+
+class ExperimentUploadFilter(filters.FilterSet):
+    class Meta:
+        model = ExperimentUpload
+        fields = (
+            "target",
+            "project",
+            "committer",
+            "data_version_major",
+            "data_version_minor",
+        )

@@ -1,3 +1,4 @@
+import collections
 import datetime
 import logging
 import os
@@ -500,16 +501,13 @@ def validate_target_set(target_zip, target=None, proposal=None, email=None):
 
 
 @celery_app.task(bind=True)
-def task_load_target(
-    self, data_bundle=None, proposal_ref=None, contact_email=None, user_id=None
-):
+def task_load_target(self, data_bundle=None, proposal_ref=None, user_id=None):
     logger.info(
         'TASK %s load_target launched, target_zip=%s', self.request.id, data_bundle
     )
     load_target(
         data_bundle,
         proposal_ref=proposal_ref,
-        contact_email=contact_email,
         user_id=user_id,
         task=self,
     )
@@ -544,9 +542,10 @@ def process_job_file_transfer(auth_token, jt_id):
     try:
         process_file_transfer(auth_token, job_transfer.id)
     except RuntimeError as error:
-        logger.error('- File transfer (id=%s) [RuntimeError "%s"]', jt_id, error)
         job_transfer.transfer_status = "FAILURE"
+        job_transfer.transfer_datetime = datetime.datetime.now(datetime.timezone.utc)
         job_transfer.save()
+        logger.error('- File transfer (id=%s) [RuntimeError "%s"]', jt_id, error)
     else:
         # Update the transfer datetime for comparison with the target upload datetime.
         # This should only be done on a successful upload.
@@ -554,7 +553,7 @@ def process_job_file_transfer(auth_token, jt_id):
         job_transfer.transfer_progress = 100.00
         job_transfer.transfer_status = "SUCCESS"
         job_transfer.save()
-        logger.info('+ File transfer (id=%s) [SUCCESS]', jt_id)
+        logger.info('- File transfer (id=%s) [SUCCESS]', jt_id)
 
     return job_transfer.transfer_status
 
@@ -604,7 +603,7 @@ def process_compound_set_job_file(task_params):
     return {
         'user_id': job_request.user.id,
         'sdf_file': sd_file,
-        'target': job_request.target.title,
+        'target': job_request.target.pk,
     }
 
 
@@ -634,34 +633,55 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
     job_request = JobRequest.objects.get(id=job_request_id)
     logger.info('+ TASK Erasing job material job_request %s', job_request)
 
-    # Upload done (successfully or not)
-    # 'task_params' (a dictionary) is expected to be
-    # the return value of 'process_compound_set()'
-    # so set the upload status. We expect to find
-    # 'process_stage' and 'compound_set_name'.
+    # Upload done (successfully or not).
+    # 'task_params' (a list/tuple) is expected to be the return value of
+    # 'process_compound_set()' so set the upload status. We expect to find
+    # 'process_stage' [index 0] and 'compound_set_name' [index 1].
     #
-    # Task linking is a bit of a mess atm,
-    # if something went wrong we'll get a tuple, not a dictionary.
-    if isinstance(task_params, list) and task_params[0] == 'process':
-        cs_id: str = task_params[2]
-        logger.info('Upload successful (%d) ComputedSet.id="%s"', job_request_id, cs_id)
-        job_request.upload_status = 'SUCCESS'
-        # We're given a compound set name.
-        # Get its record and put that into the JobRequest...
-        cs = ComputedSet.objects.get(pk=cs_id)
-        assert cs
-        job_request.computed_set = cs
+
+    # Inter-task parameter linking is a bit of a mess atm,
+    # for now deal with tuple, or list (i.e. any "Sequence").
+    #
+    # Assume failure...
+    job_request.upload_status = 'FAILURE'
+    if (
+        isinstance(task_params, collections.abc.Sequence)
+        and not isinstance(task_params, str)
+        and len(task_params) > 1
+    ):
+        process_stage = task_params[0]
+        if process_stage == 'process':
+            # We've come from the right task...
+            cs_id: str = task_params[1]
+            logger.info(
+                'Upload successful (%d) ComputedSet.id="%s"', job_request_id, cs_id
+            )
+            job_request.upload_status = 'SUCCESS'
+            # We're given a compound set name.
+            # Get its record and put that into the JobRequest...
+            cs = ComputedSet.objects.get(name=cs_id)
+            assert cs
+            job_request.computed_set = cs
+        else:
+            logger.warning(
+                "Upload failed (%d) - incorrect process_stage. Expected 'process', got '%s'."
+                " task_params=%s",
+                job_request_id,
+                process_stage,
+                task_params,
+            )
     else:
-        # Failed validation?
+        # Invalid task_params
         logger.info(
-            '- TASK Upload failed (%d) - task_params=%s', job_request_id, task_params
+            "- TASK Upload failed (%d) - unexpected task_params value."
+            " Need a Sequence of more than 1 item, got '%s'",
+            job_request_id,
+            task_params,
         )
-        logger.warning(
-            'Upload failed (%d) - process_stage value not satisfied', job_request_id
-        )
-        job_request.upload_status = 'FAILURE'
+
+    assert job_request.upload_status in {'SUCCESS', 'FAILURE'}
     job_request.save()
-    logger.info('+ TASK Erased and updated job_request %s', job_request)
+    logger.info('+ TASK Erased and updated JobRequest %s', job_request)
 
     # Always erase uploaded data
     delete_media_sub_directory(get_upload_sub_directory(job_request))

@@ -10,6 +10,7 @@ that contains an 'outfile' declaration (e.g. "abc-molecules.sdf".).
 """
 import json
 import os
+from datetime import datetime
 
 from celery.utils.log import get_task_logger
 from squonk2.dm_api import DmApi
@@ -61,7 +62,9 @@ $$$$
 _JOB_PARAM_FILE_SUFFIX = '.meta.json'
 
 
-def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
+def _insert_sdf_blank_mol(
+    job_request: JobRequest, transition_time: str, sdf_filename: str
+) -> None:
     # Do nothing if the first line of the file matches the version we're about to set.
     blank_present = False
     with open(sdf_filename, 'r', encoding='utf-8') as in_file:
@@ -78,7 +81,7 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
     if ref_url.endswith('/'):
         ref_url += job_request.squonk_url_ext
     else:
-        ref_url += '/' + job_request.squonk_url_ext
+        ref_url += f'/{job_request.squonk_url_ext}'
 
     # Compound set method.
     # This is restricted to 50 characters atm.
@@ -87,19 +90,19 @@ def _insert_sdf_blank_mol(job_request, transition_time, sdf_filename):
     instance_uuid = os.path.split(job_request.squonk_url_ext)[1]
     method = f'sq2-{instance_uuid}'
 
-    # The transition time is an ISO8601 string,
-    # with the date on the left of the 'T'
+    # The transition time is simply a Python datetime string,
+    # with the date on the left of the ' '
 
     variables = {
         'sdf_version': SDF_VERSION,
         'submitter_name': job_request.user.username,
         'submitter_email': job_request.user.email,
-        'generation_date': transition_time.split('T')[0],
+        'generation_date': transition_time.split(' ')[0],
         'method': method,
         'ref_url': ref_url,
     }
     blank_mol = _SDF_BLANK_MOL_TEMPLATE.format(**variables)
-    tmp_filename = sdf_filename + '.tmp'
+    tmp_filename = f'{sdf_filename}.tmp'
     with open(tmp_filename, 'w', encoding='utf-8') as tmp_file:
         tmp_file.write(blank_mol)
         with open(sdf_filename, 'r', encoding='utf-8') as in_file:
@@ -115,15 +118,18 @@ def get_upload_sub_directory(job_request):
 
 
 def process_compound_set_file(
-    jr_id, transition_time, job_output_path, job_output_filename
-):
+    jr_id: int,
+    transition_time_utc: datetime,
+    job_output_path: str,
+    job_output_filename: str,
+) -> str:
     """Check the DM project for the expected file(s) and upload them.
     This code also applies the parameters to the uploaded compound set file.
     The full path to the uploaded/modified file is returned.
 
     Args:
-        The user's authentication token
         The JobRequest record ID
+        The Job end time
         The Job's output file path (prefixed with '/' and relative to the project root)
         The Job's filename (pathless, and an SD-File)
 
@@ -133,14 +139,14 @@ def process_compound_set_file(
 
     logger.info('Processing job compound file (%s)...', jr_id)
 
-    logger.info("Squonk transition_time='%s'", transition_time)
+    logger.info("Squonk transition_time='%s'", transition_time_utc)
     logger.info("Squonk job_output_path='%s'", job_output_path)
     logger.info("Squonk job_output_filename='%s'", job_output_filename)
 
     jr = JobRequest.objects.get(id=jr_id)
 
     # The callback token is required to make Squonk API calls from the callback context
-    jr_job_info_msg = jr.squonk_job_info[1]
+    jr_job_info_msg = jr.squonk_job_info['msg']
     callback_token = jr_job_info_msg.get('callback_token')
     logger.info("Squonk API callback_token=%s", callback_token)
 
@@ -248,7 +254,7 @@ def process_compound_set_file(
     logger.info('Generating %s...', sdf_filename)
 
     # Insert our 'blank molecule' into the uploaded file...
-    _insert_sdf_blank_mol(jr, transition_time, tmp_sdf_filename)
+    _insert_sdf_blank_mol(jr, str(transition_time_utc), tmp_sdf_filename)
 
     # Insert annotations...
     # The param file is a Squonk ".meta.json" file.

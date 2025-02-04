@@ -15,16 +15,22 @@
             "uniqueItems": true,
             "format": "chemical/x-mdl-molfile",
             "items": {
-              "from": "lhs",
-              "enum": "{inputs_dir}/{target}-{item}.mol",
+              "from": {
+      				  "side": "lhs",
+      				  "file" : "ligand_mol"
+      			  },
+              "enum": "{inputs_dir}/{item}",
               "enumNames": "{item}"
             }
           },
           "protein": {
             "type": "string",
             "format": "chemical/x-pdb",
-            "from": "lhs",
-            "enum": "{inputs_dir}/{target}-{item}_apo-desolv.pdb",
+            "from": {
+              "side": "lhs",
+              "file" : "apo_desolv_file"
+            },
+            "enum": "{inputs_dir}/{item}",
             "enumNames": "{item}"
           }
         },

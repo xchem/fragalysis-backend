@@ -905,15 +905,58 @@ class JobCallBackWriteSerializer(serializers.ModelSerializer):
         fields = ("job_status", "state_transition_time")
 
 
+class JobAccessReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.JobRequest
+        fields = '__all__'
+
+
 class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSerializer):
+    tarball = serializers.SerializerMethodField()
+    target_name = serializers.CharField()
+    proposal_number = serializers.CharField()
+    committer_name = serializers.CharField()
+
+    def get_tarball(self, obj):
+        request = self.context.get('request')
+        path = (
+            Path(settings.MEDIA_URL)
+            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(obj.target.zip_archive.name)
+            .joinpath(obj.file.name)
+        )
+        if request:
+            return request.build_absolute_uri(path)
+        else:
+            return None
+
     class Meta:
         model = models.ExperimentUpload
-        fields = '__all__'
+        fields = (
+            'target',
+            'target_name',
+            'project',
+            'proposal_number',
+            'tarball',
+            'commit_datetime',
+            'committer',
+            'committer_name',
+            'task_id',
+            'neighbourhood_transforms',
+            'conformer_site_transforms',
+            'reference_structure_transforms',
+            'upload_data_dir',
+            'upload_version',
+            'data_version_major',
+            'data_version_minor',
+        )
 
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
-    contact_email = serializers.EmailField(required=False, default=None)
+    file = serializers.FileField(required=False)
+    data_version = serializers.CharField(required=False)
+    target_name = serializers.CharField(required=False)
 
     def validate(self, data):
         """Verify TAS is correctly formed."""
@@ -926,8 +969,9 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
         model = models.ExperimentUpload
         fields = (
             'target_access_string',
-            'contact_email',
             'file',
+            'data_version',
+            'target_name',
         )
 
 

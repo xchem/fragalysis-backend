@@ -2,13 +2,15 @@
 squonk_job_file_request Functions for creating squonk Jobs.
 
 """
+import dataclasses
 import datetime
 import json
 import logging
 import os
-from urllib.parse import urljoin
+from urllib.parse import unquote, urljoin
 
 import shortuuid
+from django.conf import settings
 from squonk2.dm_api import DmApi
 
 from viewer.models import JobFileTransfer, JobRequest, Project, Snapshot, Target
@@ -61,21 +63,20 @@ def get_squonk_job_config(
     if not job_name:
         # No name provided - return all
         return available_jobs
-    else:
-        # Got a job name (and collection and version)
-        for job in available_jobs['jobs']:
-            if (
-                job['job'] == job_name
-                and job['collection'] == job_collection
-                and job['version'] == job_version
-            ):
-                result = DmApi.get_job(auth_token, job_id=job['id'])
-                # This either returns the definition or the squonk message.
-                return result.msg
-        return {
-            'Job not found'
-            f' (collection={job_collection} name={job_name} version={job_version}'
-        }
+
+    # Got a job name (and collection and version)
+    for job in available_jobs['jobs']:
+        if (
+            job['job'] == job_name
+            and job['collection'] == job_collection
+            and job['version'] == job_version
+        ):
+            result = DmApi.get_job(auth_token, job_id=job['id'])
+            # This either returns the definition or the squonk message.
+            return result.msg
+
+    # Job not found
+    return None
 
 
 def create_squonk_job(request):
@@ -97,7 +98,7 @@ def create_squonk_job(request):
     snapshot_id = request.data['snapshot']
     session_project_id = request.data['session_project']
     squonk_job_name = request.data['squonk_job_name']
-    squonk_job_spec = request.data['squonk_job_spec']
+    squonk_job_spec = unquote(str(request.data['squonk_job_spec']))
 
     logger.info('+ access_id=%s', access_id)
     logger.info('+ target_id=%s', target_id)
@@ -109,7 +110,7 @@ def create_squonk_job(request):
     job_transfers = JobFileTransfer.objects.filter(snapshot=snapshot_id)
     if not job_transfers:
         logger.warning(
-            '+ create_squonk_job() - No JobFileTransfer object for snapshot %s',
+            'No JobFileTransfer object for snapshot %s',
             snapshot_id,
         )
         raise ValueError(
@@ -120,14 +121,12 @@ def create_squonk_job(request):
     job_transfer = JobFileTransfer.objects.filter(snapshot=snapshot_id).latest('id')
     if job_transfer.transfer_status != 'SUCCESS':
         logger.warning(
-            '+ create_squonk_job() - JobFileTransfer status is not SUCCESS (is %s)',
+            'JobFileTransfer status is not SUCCESS (is %s)',
             job_transfer.transfer_status,
         )
         raise ValueError('Job Transfer not complete')
 
-    logger.info(
-        '+ create_squonk_job() calling ensure_project() to get the Squonk2 Project'
-    )
+    logger.info('calling ensure_project() to get the Squonk2 Project')
 
     # This requires a Squonk2 Project (created by the Squonk2Agent).
     # It may be an existing project, or it might be a new project.
@@ -141,7 +140,7 @@ def create_squonk_job(request):
     sq2_rv = _SQ2A.ensure_project(common_params)
     if not sq2_rv.success:
         msg = (
-            f'+ create_squonk_job() - JobTransfer failed to get/create a Squonk2 Project'
+            f'JobTransfer failed to get/create a Squonk2 Project'
             f' for User "{user.username}", Access ID {access_id},'
             f' Target ID {target_id}, and SessionProject ID {session_project_id}.'
             f' Got "{sq2_rv.msg}".'
@@ -155,7 +154,7 @@ def create_squonk_job(request):
     squonk2_unit_name = sq2_rv.msg.unit.name
     squonk2_unit_uuid = sq2_rv.msg.unit.uuid
     logger.info(
-        '+ create_squonk_job() ensure_project() returned Project uuid=%s (unit="%s" unit_uuid=%s)',
+        'ensure_project() returned Project uuid=%s (unit="%s" unit_uuid=%s)',
         squonk2_project_uuid,
         squonk2_unit_name,
         squonk2_unit_uuid,
@@ -191,14 +190,15 @@ def create_squonk_job(request):
     # It is required to be a shortuuid of 22 characters using the default character set
     callback_token = shortuuid.uuid()
 
-    logger.info('+ create_squonk_job() job_name=%s', job_name)
-    logger.info('+ create_squonk_job(%s) callback_url=%s', job_name, callback_url)
-    logger.info('+ create_squonk_job(%s) callback_token=%s', job_name, callback_token)
+    logger.info('job_name=%s', job_name)
+    logger.info('"%s" callback_url=%s', job_name, callback_url)
+    logger.info('"%s" callback_token=%s', job_name, callback_token)
+    logger.info('"%s" squonk_job_spec=%s', job_name, squonk_job_spec)
 
     # Dry-run the Job execution (this provides us with the 'command', which is
     # placed in the JobRecord's squonk_job_info).
     logger.info(
-        '+ create_squonk_job(%s) code=%s calling DmApi.dry_run_job_instance()',
+        '"%s" code=%s calling DmApi.dry_run_job_instance()',
         job_name,
         job_request.code,
     )
@@ -211,11 +211,11 @@ def create_squonk_job(request):
         callback_context=job_request.code,
         specification=json.loads(squonk_job_spec),
     )
-    logger.debug(result)
+    logger.info('"%s" result=%s', job_name, result)
 
     if not result.success:
         logger.warning(
-            '+ create_squonk_job(%s) code=%s dry_run_job_instance() FAILED result=%s',
+            '"%s" code=%s dry_run_job_instance() FAILED result=%s',
             job_name,
             job_request.code,
             result,
@@ -226,13 +226,13 @@ def create_squonk_job(request):
     # We can now commit the JobRequest record so that it's ready
     # for use by any callbacks. The 'result' will contain the callback token
     # and the Job's decoded command (that will be interrogated when the Job s complete)
-    job_request.squonk_job_info = result
-    job_request.job_start_datetime = datetime.datetime.utcnow()
+    job_request.squonk_job_info = dataclasses.asdict(result)
+    job_request.job_start_datetime = datetime.datetime.now(datetime.timezone.utc)
     job_request.save()
 
     # Now start the job 'for real'...
     logger.info(
-        '+ create_squonk_job(%s) code=%s calling DmApi.start_job_instance()',
+        '"%s" code=%s calling DmApi.start_job_instance()',
         job_name,
         job_request.code,
     )
@@ -246,17 +246,17 @@ def create_squonk_job(request):
         specification=json.loads(squonk_job_spec),
         timeout_s=8,
     )
-    logger.debug(result)
+    logger.info('"%s" result=%s', job_name, result)
 
     if not result.success:
         logger.warning(
-            '+ create_squonk_job(%s) code=%s result=%s',
+            '"%s" code=%s result=%s',
             job_name,
             job_request.code,
             result,
         )
         logger.error(
-            '+ start_job_instance(%s) code=%s FAILED (job probably did not start)',
+            '"%s" code=%s FAILED (job probably did not start)',
             job_name,
             job_request.code,
         )
@@ -266,7 +266,7 @@ def create_squonk_job(request):
     job_instance_id = result.msg['instance_id']
     job_task_id = result.msg['task_id']
     logger.info(
-        '+ create_squonk_job(%s) code=%s SUCCESS (job_instance_id=%s job_task_id=%s)',
+        '"%s" code=%s SUCCESS (job_instance_id=%s job_task_id=%s)',
         job_name,
         job_request.code,
         job_instance_id,
@@ -277,5 +277,17 @@ def create_squonk_job(request):
     # so the front-end can use it immediately (we cannot set the JobRequest
     # `squonk_url_ext` here as it introduces a race-condition with the callback logic).
     squonk_url_ext = create_squonk_job_request_url(job_instance_id)
+
+    # If we are not expecting callbacks from Squonk then we can safely set the
+    # JobRequest record's squonk_url_ext value. Otherwise there are
+    # race conditions.
+    if settings.SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS:
+        logger.warning(
+            '"%s" Setting squonk_url_ext (%s). Normally set in the callback',
+            job_name,
+            squonk_url_ext,
+        )
+        job_request.squonk_url_ext = squonk_url_ext
+        job_request.save()
 
     return job_request.id, squonk_url_ext
