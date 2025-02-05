@@ -656,10 +656,21 @@ class ComputedSetSerializer(ValidateProjectMixin, serializers.ModelSerializer):
 
 
 class ComputedSetDownloadSerializer(serializers.ModelSerializer):
-    # validation is not called, so no reason to use it
+    project = serializers.CharField(source='target.project.title', read_only=True)
+
     class Meta:
         model = models.ComputedSet
-        fields = ('name',)
+        fields = ('id', 'name', 'target', 'project')
+
+
+class ComputedSetCreateSerializer(serializers.ModelSerializer):
+    # id = serializers.IntegerField(read_only=True)
+    class Meta:
+        model = models.ComputedSet
+        fields = ('id',)
+        extra_kwargs = {
+            "id": {"read_only": True},
+        }
 
 
 class ComputedMoleculeSerializer(serializers.ModelSerializer):
