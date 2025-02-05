@@ -2836,6 +2836,7 @@ class TokenView(APIView):
 
 class SiteObservationQualityStatusView(
     mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
     ISPyBSafeQuerySet,
 ):
     queryset = models.SiteObservationQualityStatus.objects.all()

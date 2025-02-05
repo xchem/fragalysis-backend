@@ -1255,3 +1255,21 @@ class SiteObservationQualityStatusSerializer(serializers.ModelSerializer):
 
         validated_data["user"] = user
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        updatable_fields = {
+            "comment",
+        }
+
+        # no update if auto assigned
+        if instance.auto_assigned:
+            return super().update(instance, {})
+
+        # update only allowed for users who created the status
+        if self.context["user"] != instance.user:
+            return super().update(instance, {})
+
+        for field in set(validated_data.keys()).difference(updatable_fields):
+            validated_data.pop(field, None)
+
+        return super().update(instance, validated_data)
