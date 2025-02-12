@@ -1506,10 +1506,13 @@ class TargetLoader:
             "cmpd": compound,
             "xtalform_site": xtalform_site,
             "canon_site_conf": canon_site_conf,
-            "smiles": smiles,
+            # "smiles": smiles,
             "seq_id": ligand,
             "chain_id": chain,
         }
+
+        # smiles removed from check fields aand removed to defaults as
+        # part of 1670
 
         defaults = {
             "bound_file": str(self._get_final_path(bound_file)),
@@ -1525,6 +1528,7 @@ class TargetLoader:
             "ligand_smiles": str(self._get_final_path(ligand_smiles)),
             "ligand_sdf": str(self._get_final_path(ligand_sdf)),
             "pdb_header_file": None,
+            "smiles": smiles,
         }
 
         index_data = {
