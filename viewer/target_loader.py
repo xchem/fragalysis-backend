@@ -762,6 +762,7 @@ class TargetLoader:
             if file_hash and file_hash != calculate_sha256(file_path):
                 logfunc(key, f"Invalid hash for file {filename}")
         else:
+            logger.debug("missing file: %s", file_path)
             logfunc(
                 key,
                 f"{key} referenced in {METADATA_FILE}: {obj_identifier} but not found in archive",
@@ -1505,10 +1506,13 @@ class TargetLoader:
             "cmpd": compound,
             "xtalform_site": xtalform_site,
             "canon_site_conf": canon_site_conf,
-            "smiles": smiles,
+            # "smiles": smiles,
             "seq_id": ligand,
             "chain_id": chain,
         }
+
+        # smiles removed from check fields aand removed to defaults as
+        # part of 1670
 
         defaults = {
             "bound_file": str(self._get_final_path(bound_file)),
@@ -1524,6 +1528,7 @@ class TargetLoader:
             "ligand_smiles": str(self._get_final_path(ligand_smiles)),
             "ligand_sdf": str(self._get_final_path(ligand_sdf)),
             "pdb_header_file": None,
+            "smiles": smiles,
         }
 
         index_data = {
@@ -2015,9 +2020,30 @@ class TargetLoader:
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
             )
-            so_list = [
-                site_observation_objects[k].instance for k in val.index_data["members"]
-            ]
+
+            so_list = []
+            for k in val.index_data["members"]:
+                try:
+                    so_list.append(site_observation_objects[k].instance)
+                except KeyError as exc:
+                    # this is something that started happening, people
+                    # removing experiments. check if exists:
+                    # the key looks something like A71EV2A-x4922/A/201/5
+                    exp_code = k.split("/")[0]
+                    if exp_code not in experiment_objects.keys():
+                        # this is the root cause, that's the situation
+                        # that's been happening
+                        self.report.log(
+                            logging.ERROR,
+                            f"Experiment {exp_code} missing from {METADATA_FILE}",
+                        )
+                    else:
+                        # this has not, handling it just in case
+                        self.report.log(
+                            logging.ERROR,
+                            f"SiteObservation {k} missing from {METADATA_FILE}",
+                        )
+
             # tag = val.instance.name.split('+')[0]
             tag = val.instance.name
             try:
@@ -2132,9 +2158,29 @@ class TargetLoader:
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
             )
-            so_list = [
-                site_observation_objects[k].instance for k in val.index_data["residues"]
-            ]
+
+            so_list = []
+            for k in val.index_data["residues"]:
+                try:
+                    so_list.append(site_observation_objects[k].instance)
+                except KeyError as exc:
+                    # this is something that started happening, people
+                    # removing experiments. check if exists:
+                    # the key looks something like A71EV2A-x4922/A/201/5
+                    exp_code = k.split("/")[0]
+                    if exp_code not in experiment_objects.keys():
+                        # this is the root cause, that's the situation
+                        # that's been happening
+                        self.report.log(
+                            logging.ERROR,
+                            f"Experiment {exp_code} missing from {METADATA_FILE}",
+                        )
+                    else:
+                        # this has not, handling it just in case
+                        self.report.log(
+                            logging.ERROR,
+                            f"SiteObservation {k} missing from {METADATA_FILE}",
+                        )
             tag = val.versioned_key
             try:
                 # remove protein name and 'x'
