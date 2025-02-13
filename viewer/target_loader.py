@@ -1500,7 +1500,7 @@ class TargetLoader:
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
-            "longcode": longcode,
+            # "longcode": longcode,
             "version": version,
             "experiment": experiment,
             "cmpd": compound,
@@ -1513,8 +1513,10 @@ class TargetLoader:
 
         # smiles removed from check fields aand removed to defaults as
         # part of 1670
+        # longcode removed as part of 1672, because broke superseding
 
         defaults = {
+            "longcode": longcode,
             "bound_file": str(self._get_final_path(bound_file)),
             "apo_solv_file": str(self._get_final_path(apo_solv_file)),
             "apo_desolv_file": str(self._get_final_path(apo_desolv_file)),
