@@ -2206,8 +2206,6 @@ class TargetLoader:
 
         logger.debug("xtalform_sites objects tagged")
 
-        self._generate_poses()
-
         # tag all new observations, so that the curator can find and
         # re-pose them
         datestr = timezone.now().date().strftime('%Y-%m-%d')
@@ -2223,6 +2221,11 @@ class TargetLoader:
             clean_ids=False,
         )
 
+        # see comment in method body if anything needs to be further
+        # added after this method
+        self._refresh_poses(site_observation_objects)
+        self._generate_poses()
+
         # import compound identifier file, if present
         alias_file_path = (
             Path(upload_dir).joinpath("extra_files").joinpath(CUSTOM_IDENTIFIER_FILE)
@@ -2230,6 +2233,7 @@ class TargetLoader:
         if alias_file_path.exists():
             self.import_compound_identifiers(alias_file_path)
 
+        # TODO: remove
         for val in site_observation_objects.values():  # pylint: disable=no-member
             if val.new:
                 self._assign_observation_quality_status(
@@ -2439,6 +2443,77 @@ class TargetLoader:
             for obvs in pose_items:
                 obvs.pose = pose
                 obvs.save()
+
+            if pose.main_site_observation.superseded:
+                new_main = (
+                    SiteObservation.filter_manager.by_target(
+                        self.target,
+                    )
+                    .filter(
+                        experiment=pose.main_site_observation.experiment,
+                        cmpd=pose.main_site_observation.cmpd,
+                        xtalform_site=pose.main_site_observation.xtalform_site,
+                        canon_site_conf=pose.main_site_observation.canon_site_conf,
+                        seq_id=pose.main_site_observation.seq_id,
+                        chain_id=pose.main_site_observation.chain_id,
+                    )
+                    .order_by(
+                        "-version",
+                    )
+                    .first()
+                )
+
+                pose.main_site_observation = new_main
+                pose.save()
+
+    def _refresh_poses(self, site_observation_objects):
+        """Assign new main_observation if existing one has been superseded
+
+        This is ran only on new site observation instances and
+        *before* the pose generation, this way it skips the user
+        modifications to poses.
+
+        """
+
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            if val.new:
+                qs = (
+                    SiteObservation.filter_manager.by_target(
+                        self.target,
+                    )
+                    .filter(
+                        experiment=val.instance.experiment,
+                        cmpd=val.instance.cmpd,
+                        xtalform_site=val.instance.xtalform_site,
+                        canon_site_conf=val.instance.canon_site_conf,
+                        seq_id=val.instance.seq_id,
+                        chain_id=val.instance.chain_id,
+                        superseded=True,
+                    )
+                    .order_by(
+                        "-version",
+                    )
+                )
+                # older version(s) exist
+                if qs.exists():
+                    previous_main = qs.first()
+
+                    # assign pose to new instance
+                    val.instance.pose = previous_main.pose
+                    val.instance.save()
+
+                    # and then set the pose's main
+                    previous_main.pose.main_site_observation = val.instance
+                    previous_main.pose.save()
+
+        # NB! this updates instances in the db but *not* in the
+        # site_observation_objects dict. This means if another method
+        # later operates on the site_observation instances inside the
+        # dict and saves them, the changes made here will be lost. atm
+        # the method is run at the end of the main processing method
+        # and nothing after that saves the instances so that's fine,
+        # but if something else needs to edit the observations,
+        # refresh_from_db needs to be called
 
     def _tag_observations(
         self,
