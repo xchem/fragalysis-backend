@@ -26,6 +26,7 @@ from .managers import (
     QuatAssemblyDataManager,
     SessionActionsDataManager,
     SiteObservationDataManager,
+    SiteObservationQualityStatusDataManager,
     SnapshotActionsDataManager,
     SnapshotDataManager,
     XtalformDataManager,
@@ -227,6 +228,32 @@ class ExperimentUpload(models.Model):
         )
 
 
+class QualityStatusType(models.Model):
+    status = models.TextField(primary_key=True)
+
+
+class RefinementStatusType(models.Model):
+    code = models.IntegerField(blank=True)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "code",
+                ],
+                name="unique_refinement_code",
+            ),
+        ]
+
+    def __repr__(self) -> str:
+        return "<RefinementStatusType %r %r %r>" % (
+            self.id,
+            self.code,
+            self.description,
+        )
+
+
 class Experiment(models.Model):
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
     code = models.TextField(null=True)
@@ -256,6 +283,11 @@ class Experiment(models.Model):
     )
     # need to set null=True due to the data saving order
     xtalform = models.ForeignKey("Xtalform", null=True, on_delete=models.CASCADE)
+    refinement_outcome = models.ForeignKey(
+        RefinementStatusType,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
 
     objects = models.Manager()
     filter_manager = ExperimentDataManager()
@@ -594,10 +626,6 @@ class SiteObservation(Versionable, models.Model):
         return contents
 
 
-class QualityStatusType(models.Model):
-    status = models.TextField(primary_key=True)
-
-
 class SiteObservationQualityStatus(models.Model):
     site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
     status = models.ForeignKey(QualityStatusType, on_delete=models.CASCADE)
@@ -606,6 +634,9 @@ class SiteObservationQualityStatus(models.Model):
     auto_assigned = models.BooleanField(default=False)
     main_status = models.BooleanField(default=False)
     comment = models.TextField()
+
+    objects = models.Manager()
+    filter_manager = SiteObservationQualityStatusDataManager()
 
 
 class CompoundIdentifierType(models.Model):
