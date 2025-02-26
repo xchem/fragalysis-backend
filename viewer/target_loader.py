@@ -2495,7 +2495,7 @@ class TargetLoader:
                     )
                 )
                 # older version(s) exist
-                if qs:
+                if qs.exists():
                     previous_main = qs.first()
 
                     # assign pose to new instance
