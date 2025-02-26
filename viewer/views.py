@@ -2839,7 +2839,7 @@ class SiteObservationQualityStatusView(
     mixins.UpdateModelMixin,
     ISPyBSafeQuerySet,
 ):
-    queryset = models.SiteObservationQualityStatus.objects.all()
+    queryset = models.SiteObservationQualityStatus.filter_manager.annotated_qs()
     serializer_class = serializers.SiteObservationQualityStatusSerializer
     filterset_class = filters.SiteObservationQualityStatusFilter
     filter_permissions = "site_observation__experiment__experiment_upload__project"

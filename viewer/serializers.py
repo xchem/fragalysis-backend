@@ -1236,6 +1236,10 @@ class MetadataUploadSerializer(serializers.Serializer):
 
 
 class SiteObservationQualityStatusSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(read_only=True)
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+
     class Meta:
         model = models.SiteObservationQualityStatus
         fields = '__all__'
@@ -1243,6 +1247,9 @@ class SiteObservationQualityStatusSerializer(serializers.ModelSerializer):
             "auto_assigned": {"read_only": True},
             "timestamp": {"read_only": True},
             "user": {"read_only": True},
+            "username": {"read_only": True},
+            "first_name": {"read_only": True},
+            "last_name": {"read_only": True},
         }
 
     def create(self, validated_data):

@@ -4,7 +4,8 @@ import hashlib
 import logging
 import math
 import os
-import random
+
+# import random
 import shutil
 import tarfile
 from collections.abc import Callable
@@ -1533,9 +1534,9 @@ class TargetLoader:
             "smiles": smiles,
         }
 
-        index_data = {
-            "auto_build_score": random.random(),
-        }
+        # index_data = {
+        #     "auto_build_score": random.random(),
+        # }
 
         return ProcessedObject(
             model_class=SiteObservation,
@@ -1543,7 +1544,7 @@ class TargetLoader:
             defaults=defaults,
             key=key,
             versioned_key=v_key,
-            index_data=index_data,
+            index_data={},
         )
 
     def process_bundle(self):
@@ -2238,7 +2239,7 @@ class TargetLoader:
             if val.new:
                 self._assign_observation_quality_status(
                     val.instance,
-                    val.index_data["auto_build_score"],
+                    # val.index_data["auto_build_score"],
                 )
 
     def import_compound_identifiers(self, alias_file_path):
@@ -2608,13 +2609,8 @@ class TargetLoader:
             # received invalid path
             return None
 
-    def _assign_observation_quality_status(self, site_observation, score) -> None:
-        if score > 0.7:
-            status = QualityStatusType.objects.get(status="GOOD")
-        elif score <= 0.7 and score > 0.4:
-            status = QualityStatusType.objects.get(status="MEDIOCRE")
-        else:
-            status = QualityStatusType.objects.get(status="BAD")
+    def _assign_observation_quality_status(self, site_observation) -> None:
+        status = QualityStatusType.objects.get(status="NONE")
 
         SiteObservationQualityStatus(
             site_observation=site_observation,

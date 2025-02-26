@@ -465,3 +465,26 @@ class ExperimentUploadDataManager(Manager):
                 'upload_version',
             )
         )
+
+
+class SiteObservationQualityStatusQueryset(QuerySet):
+    def annotated_qs(self):
+        SiteObservationQualityStatus = apps.get_model(
+            "viewer",
+            "SiteObservationQualityStatus",
+        )
+        qs = SiteObservationQualityStatus.objects.annotate(
+            username=F("user__username"),
+            first_name=F("user__first_name"),
+            last_name=F("user__last_name"),
+        )
+
+        return qs
+
+
+class SiteObservationQualityStatusDataManager(Manager):
+    def get_queryset(self):
+        return SiteObservationQualityStatusQueryset(self.model, using=self._db)
+
+    def annotated_qs(self):
+        return self.get_queryset().annotated_qs()
