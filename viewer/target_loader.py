@@ -4,6 +4,8 @@ import hashlib
 import logging
 import math
 import os
+
+# import random
 import shutil
 import tarfile
 from collections.abc import Callable
@@ -38,8 +40,10 @@ from viewer.models import (
     ExperimentUpload,
     Pose,
     Project,
+    QualityStatusType,
     QuatAssembly,
     SiteObservation,
+    SiteObservationQualityStatus,
     SiteObservationTag,
     TagCategory,
     Target,
@@ -759,6 +763,7 @@ class TargetLoader:
             if file_hash and file_hash != calculate_sha256(file_path):
                 logfunc(key, f"Invalid hash for file {filename}")
         else:
+            logger.debug("missing file: %s", file_path)
             logfunc(
                 key,
                 f"{key} referenced in {METADATA_FILE}: {obj_identifier} but not found in archive",
@@ -1496,18 +1501,23 @@ class TargetLoader:
 
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
-            "longcode": longcode,
+            # "longcode": longcode,
             "version": version,
             "experiment": experiment,
             "cmpd": compound,
             "xtalform_site": xtalform_site,
             "canon_site_conf": canon_site_conf,
-            "smiles": smiles,
+            # "smiles": smiles,
             "seq_id": ligand,
             "chain_id": chain,
         }
 
+        # smiles removed from check fields aand removed to defaults as
+        # part of 1670
+        # longcode removed as part of 1672, because broke superseding
+
         defaults = {
+            "longcode": longcode,
             "bound_file": str(self._get_final_path(bound_file)),
             "apo_solv_file": str(self._get_final_path(apo_solv_file)),
             "apo_desolv_file": str(self._get_final_path(apo_desolv_file)),
@@ -1521,7 +1531,12 @@ class TargetLoader:
             "ligand_smiles": str(self._get_final_path(ligand_smiles)),
             "ligand_sdf": str(self._get_final_path(ligand_sdf)),
             "pdb_header_file": None,
+            "smiles": smiles,
         }
+
+        # index_data = {
+        #     "auto_build_score": random.random(),
+        # }
 
         return ProcessedObject(
             model_class=SiteObservation,
@@ -1529,6 +1544,7 @@ class TargetLoader:
             defaults=defaults,
             key=key,
             versioned_key=v_key,
+            index_data={},
         )
 
     def process_bundle(self):
@@ -2007,9 +2023,30 @@ class TargetLoader:
                 f"{val.instance.canon_site.canon_site_num}"
                 + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
             )
-            so_list = [
-                site_observation_objects[k].instance for k in val.index_data["members"]
-            ]
+
+            so_list = []
+            for k in val.index_data["members"]:
+                try:
+                    so_list.append(site_observation_objects[k].instance)
+                except KeyError as exc:
+                    # this is something that started happening, people
+                    # removing experiments. check if exists:
+                    # the key looks something like A71EV2A-x4922/A/201/5
+                    exp_code = k.split("/")[0]
+                    if exp_code not in experiment_objects.keys():
+                        # this is the root cause, that's the situation
+                        # that's been happening
+                        self.report.log(
+                            logging.ERROR,
+                            f"Experiment {exp_code} missing from {METADATA_FILE}",
+                        )
+                    else:
+                        # this has not, handling it just in case
+                        self.report.log(
+                            logging.ERROR,
+                            f"SiteObservation {k} missing from {METADATA_FILE}",
+                        )
+
             # tag = val.instance.name.split('+')[0]
             tag = val.instance.name
             try:
@@ -2124,9 +2161,29 @@ class TargetLoader:
                 f"F{val.instance.xtalform.xtalform_num}"
                 + f"{val.instance.xtalform_site_num}"
             )
-            so_list = [
-                site_observation_objects[k].instance for k in val.index_data["residues"]
-            ]
+
+            so_list = []
+            for k in val.index_data["residues"]:
+                try:
+                    so_list.append(site_observation_objects[k].instance)
+                except KeyError as exc:
+                    # this is something that started happening, people
+                    # removing experiments. check if exists:
+                    # the key looks something like A71EV2A-x4922/A/201/5
+                    exp_code = k.split("/")[0]
+                    if exp_code not in experiment_objects.keys():
+                        # this is the root cause, that's the situation
+                        # that's been happening
+                        self.report.log(
+                            logging.ERROR,
+                            f"Experiment {exp_code} missing from {METADATA_FILE}",
+                        )
+                    else:
+                        # this has not, handling it just in case
+                        self.report.log(
+                            logging.ERROR,
+                            f"SiteObservation {k} missing from {METADATA_FILE}",
+                        )
             tag = val.versioned_key
             try:
                 # remove protein name and 'x'
@@ -2150,8 +2207,6 @@ class TargetLoader:
 
         logger.debug("xtalform_sites objects tagged")
 
-        self._generate_poses()
-
         # tag all new observations, so that the curator can find and
         # re-pose them
         datestr = timezone.now().date().strftime('%Y-%m-%d')
@@ -2167,12 +2222,25 @@ class TargetLoader:
             clean_ids=False,
         )
 
+        # see comment in method body if anything needs to be further
+        # added after this method
+        self._refresh_poses(site_observation_objects)
+        self._generate_poses()
+
         # import compound identifier file, if present
         alias_file_path = (
             Path(upload_dir).joinpath("extra_files").joinpath(CUSTOM_IDENTIFIER_FILE)
         )
         if alias_file_path.exists():
             self.import_compound_identifiers(alias_file_path)
+
+        # TODO: remove
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            if val.new:
+                self._assign_observation_quality_status(
+                    val.instance,
+                    # val.index_data["auto_build_score"],
+                )
 
     def import_compound_identifiers(self, alias_file_path):
         try:
@@ -2377,6 +2445,77 @@ class TargetLoader:
                 obvs.pose = pose
                 obvs.save()
 
+            if pose.main_site_observation.superseded:
+                new_main = (
+                    SiteObservation.filter_manager.by_target(
+                        self.target,
+                    )
+                    .filter(
+                        experiment=pose.main_site_observation.experiment,
+                        cmpd=pose.main_site_observation.cmpd,
+                        xtalform_site=pose.main_site_observation.xtalform_site,
+                        canon_site_conf=pose.main_site_observation.canon_site_conf,
+                        seq_id=pose.main_site_observation.seq_id,
+                        chain_id=pose.main_site_observation.chain_id,
+                    )
+                    .order_by(
+                        "-version",
+                    )
+                    .first()
+                )
+
+                pose.main_site_observation = new_main
+                pose.save()
+
+    def _refresh_poses(self, site_observation_objects):
+        """Assign new main_observation if existing one has been superseded
+
+        This is ran only on new site observation instances and
+        *before* the pose generation, this way it skips the user
+        modifications to poses.
+
+        """
+
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            if val.new:
+                qs = (
+                    SiteObservation.filter_manager.by_target(
+                        self.target,
+                    )
+                    .filter(
+                        experiment=val.instance.experiment,
+                        cmpd=val.instance.cmpd,
+                        xtalform_site=val.instance.xtalform_site,
+                        canon_site_conf=val.instance.canon_site_conf,
+                        seq_id=val.instance.seq_id,
+                        chain_id=val.instance.chain_id,
+                        superseded=True,
+                    )
+                    .order_by(
+                        "-version",
+                    )
+                )
+                # older version(s) exist
+                if qs.exists():
+                    previous_main = qs.first()
+
+                    # assign pose to new instance
+                    val.instance.pose = previous_main.pose
+                    val.instance.save()
+
+                    # and then set the pose's main
+                    previous_main.pose.main_site_observation = val.instance
+                    previous_main.pose.save()
+
+        # NB! this updates instances in the db but *not* in the
+        # site_observation_objects dict. This means if another method
+        # later operates on the site_observation instances inside the
+        # dict and saves them, the changes made here will be lost. atm
+        # the method is run at the end of the main processing method
+        # and nothing after that saves the instances so that's fine,
+        # but if something else needs to edit the observations,
+        # refresh_from_db needs to be called
+
     def _tag_observations(
         self,
         tag: str,
@@ -2469,6 +2608,18 @@ class TargetLoader:
         except TypeError:
             # received invalid path
             return None
+
+    def _assign_observation_quality_status(self, site_observation) -> None:
+        status = QualityStatusType.objects.get(status="NONE")
+
+        SiteObservationQualityStatus(
+            site_observation=site_observation,
+            status=status,
+            user=None,
+            auto_assigned=True,
+            main_status=False,
+            comment="Created on load",
+        ).save()
 
 
 def load_target(

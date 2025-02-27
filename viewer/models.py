@@ -19,12 +19,14 @@ from .managers import (
     CanonSiteDataManager,
     CompoundDataManager,
     CompoundIdentifierDataManager,
+    ComputedSetDataManager,
     ExperimentDataManager,
     ExperimentUploadDataManager,
     PoseDataManager,
     QuatAssemblyDataManager,
     SessionActionsDataManager,
     SiteObservationDataManager,
+    SiteObservationQualityStatusDataManager,
     SnapshotActionsDataManager,
     SnapshotDataManager,
     XtalformDataManager,
@@ -226,6 +228,32 @@ class ExperimentUpload(models.Model):
         )
 
 
+class QualityStatusType(models.Model):
+    status = models.TextField(primary_key=True)
+
+
+class RefinementStatusType(models.Model):
+    code = models.IntegerField(blank=True)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "code",
+                ],
+                name="unique_refinement_code",
+            ),
+        ]
+
+    def __repr__(self) -> str:
+        return "<RefinementStatusType %r %r %r>" % (
+            self.id,
+            self.code,
+            self.description,
+        )
+
+
 class Experiment(models.Model):
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
     code = models.TextField(null=True)
@@ -255,6 +283,11 @@ class Experiment(models.Model):
     )
     # need to set null=True due to the data saving order
     xtalform = models.ForeignKey("Xtalform", null=True, on_delete=models.CASCADE)
+    refinement_outcome = models.ForeignKey(
+        RefinementStatusType,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
 
     objects = models.Manager()
     filter_manager = ExperimentDataManager()
@@ -591,6 +624,19 @@ class SiteObservation(Versionable, models.Model):
                     contents = f.read()
 
         return contents
+
+
+class SiteObservationQualityStatus(models.Model):
+    site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)
+    status = models.ForeignKey(QualityStatusType, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(default=timezone.now)
+    auto_assigned = models.BooleanField(default=False)
+    main_status = models.BooleanField(default=False)
+    comment = models.TextField()
+
+    objects = models.Manager()
+    filter_manager = SiteObservationQualityStatusDataManager()
 
 
 class CompoundIdentifierType(models.Model):
@@ -962,7 +1008,7 @@ class ComputedSet(models.Model):
 
     LENGTH_METHOD_IN_NAME: int = 20
 
-    name = models.CharField(max_length=50, unique=True, primary_key=True)
+    name = models.TextField(null=False)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
     submitted_sdf = models.FileField(
         upload_to='computed_set_data/',
@@ -1032,14 +1078,26 @@ class ComputedSet(models.Model):
     )
 
     objects = models.Manager()
+    filter_manager = ComputedSetDataManager()
     history = HistoricalRecords()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "name",
+                    "target",
+                ],
+                name="unique_computedsetname_target",
+            ),
+        ]
 
     def __str__(self) -> str:
         target_title: str = self.target.title if self.target else "None"
         return f"{self.name} {target_title}"
 
     def __repr__(self) -> str:
-        return "<ComputedSet %r %r>" % (self.name, self.target)
+        return "<ComputedSet %r %r %r>" % (self.id, self.name, self.target)
 
 
 class ComputedMolecule(models.Model):

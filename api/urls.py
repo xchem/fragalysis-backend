@@ -112,6 +112,11 @@ router.register(
 router.register(
     "site_observations", viewer_views.SiteObservationView, basename='site_observations'
 )
+router.register(
+    "site_observation_quality",
+    viewer_views.SiteObservationQualityStatusView,
+    basename='site_observation_quality',
+)
 router.register("canon_sites", viewer_views.CanonSiteView, basename='canon_sites')
 router.register("experiments", viewer_views.ExperimentView, basename='experiments')
 router.register(
@@ -124,11 +129,11 @@ router.register("poses", viewer_views.PoseView, basename='poses')
 router.register(
     "metadata_upload", viewer_views.UploadMetadataView, basename='metadata_upload'
 )
-router.register(
-    "computedset_download",
-    viewer_views.DownloadComputedSetView,
-    basename='computedset_download',
-)
+# router.register(
+#     "computedset_download",
+#     viewer_views.DownloadComputedSetView,
+#     basename='computedset_download',
+# )
 
 # Squonk Jobs
 router.register(

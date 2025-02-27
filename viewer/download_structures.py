@@ -176,8 +176,6 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
 
     Do not call this function for files that are not MOL or SD files.
     """
-    assert _is_mol_or_sdf(path)
-
     logger.debug('Patching MOL/SDF "%s" molecule_name=%s', path, molecule_name)
 
     # The name will be set from file name
@@ -260,26 +258,32 @@ def _add_file_to_zip_aligned(ziparchive, code, archive_file):
 
     # calling str on archive_file.path because could be None
     filepath = str(Path(settings.MEDIA_ROOT).joinpath(str(archive_file.path)))
-    if Path(filepath).is_file():
-        if _is_mol_or_sdf(filepath):
-            # It's a MOL or SD file.
-            # Read and (potentially) adjust the file
-            # and add to the archive as a string.
-            content = _read_and_patch_molecule_name(filepath, molecule_name=code)
-            ziparchive.writestr(archive_file.archive_path, content)
-        else:
-            # Copy the file without modification
-            ziparchive.write(filepath, archive_file.archive_path)
-        return True
-    elif archive_file.site_observation:
-        ziparchive.writestr(
-            archive_file.archive_path,
-            _read_and_patch_molecule_name(filepath, archive_file.site_observation),
-        )
-        return True
-    else:
-        logger.warning('filepath "%s" is not a file', filepath)
-        _add_empty_file(ziparchive, archive_file.archive_path)
+    logger.debug(
+        'value and type of archive path: %s, %s',
+        archive_file.path,
+        type(archive_file.path),
+    )
+    if archive_file.path:
+        if Path(filepath).is_file():
+            if _is_mol_or_sdf(filepath):
+                # It's a MOL or SD file.
+                # Read and (potentially) adjust the file
+                # and add to the archive as a string.
+                content = _read_and_patch_molecule_name(filepath, molecule_name=code)
+                ziparchive.writestr(archive_file.archive_path, content)
+            else:
+                # Copy the file without modification
+                ziparchive.write(filepath, archive_file.archive_path)
+            return True
+        elif archive_file.site_observation:
+            ziparchive.writestr(
+                archive_file.archive_path,
+                _read_and_patch_molecule_name(filepath, archive_file.site_observation),
+            )
+            return True
+
+    logger.warning('filepath "%s" is not a file', filepath)
+    _add_empty_file(ziparchive, archive_file.archive_path)
 
     return False
 
@@ -869,6 +873,12 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     Path('aligned_files').joinpath(so.code).joinpath(f'{so.code}.sdf')
                 )
                 file_path = str(Path(settings.MEDIA_ROOT).joinpath(so.ligand_sdf.name))
+                # mypy, you make me do stupid things..
+                if Path(file_path).exists():
+                    # expects str
+                    file_path = str(file_path)
+                else:
+                    file_path = ''
                 # path is ignored when writing sdfs but mandatory field
                 zip_contents['molecules']['sdf_files'].update(
                     {

@@ -7,11 +7,13 @@ from viewer.models import (
     CanonSite,
     CanonSiteConf,
     Compound,
+    ComputedSet,
     Experiment,
     ExperimentUpload,
     Pose,
     QuatAssembly,
     SiteObservation,
+    SiteObservationQualityStatus,
     Snapshot,
     XtalformSite,
 )
@@ -128,6 +130,18 @@ class AssemblyFilter(TargetFilterMixin):
         fields = ("target",)
 
 
+class ComputedSetFilter(filters.FilterSet):
+    project = django_filters.CharFilter(
+        field_name="project",
+        lookup_expr="icontains",
+        label="Project",
+    )
+
+    class Meta:
+        model = ComputedSet
+        fields = ("name", "target", "project")
+
+
 class ExperimentUploadFilter(filters.FilterSet):
     class Meta:
         model = ExperimentUpload
@@ -137,4 +151,17 @@ class ExperimentUploadFilter(filters.FilterSet):
             "committer",
             "data_version_major",
             "data_version_minor",
+        )
+
+
+class SiteObservationQualityStatusFilter(filters.FilterSet):
+    class Meta:
+        model = SiteObservationQualityStatus
+        fields = (
+            "site_observation",
+            "status",
+            "user",
+            "timestamp",
+            "auto_assigned",
+            "main_status",
         )
