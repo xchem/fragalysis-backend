@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import CharField, Exists, F, OuterRef, Subquery, Value
+from django.db.models import CharField, Count, Exists, F, OuterRef, Subquery, Value
 from django.db.models.functions import Concat
 
 from scoring.models import SiteObservationGroup
@@ -17,6 +17,7 @@ from .models import (
     CompoundIdentifierType,
     Pose,
     SiteObservation,
+    SiteObservationQualityStatus,
     SiteObservationTag,
     SiteObvsSiteObservationTag,
     TagCategory,
@@ -256,6 +257,46 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
         ann_name = pattern.sub('_', identifier).strip().lower() # type: ignore[attr-defined]
         values.append(ann_name)
         annotations[ann_name] = CustomIdentifierSubquery(identifier)
+
+    # and finally-finally quality states
+    header.extend([
+        'Main status',
+        'GOOD count',
+        'MEDIOCRE count',
+        'BAD count',
+    ])
+    values.extend([
+        'main_status',
+        'count_good',
+        'count_mediocre',
+        'count_bad',
+    ])
+    annotations['main_status'] = Subquery(
+        SiteObservationQualityStatus.objects.filter(
+            site_observation=OuterRef('pk'),
+            main_status=True,
+        ).values('status')
+    )
+    annotations['count_good'] = Count(
+        SiteObservationQualityStatus.objects.filter(
+            site_observation=OuterRef('pk'),
+            status__status='GOOD',
+        ).values('status')
+    )
+    annotations['count_mediocre'] = Count(
+        SiteObservationQualityStatus.objects.filter(
+            site_observation=OuterRef('pk'),
+            status__status='MEDIOCRE',
+        ).values('status')
+    )
+    annotations['count_bad'] = Count(
+        SiteObservationQualityStatus.objects.filter(
+            site_observation=OuterRef('pk'),
+            status__status='BAD',
+        ).values('status')
+    )
+
+
 
 
     return header, annotations, values
