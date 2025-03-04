@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
@@ -637,6 +637,38 @@ class SiteObservationQualityStatus(models.Model):
 
     objects = models.Manager()
     filter_manager = SiteObservationQualityStatusDataManager()
+
+    def save(self, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                if self.main_status:
+                    # lock rows for update to avoid race conditions
+                    existing_main_statuses = (
+                        SiteObservationQualityStatus.objects.select_for_update()
+                        .filter(
+                            site_observation=self.site_observation, main_status=True
+                        )
+                        .exclude(id=self.id)
+                    )
+                    existing_main_statuses.update(main_status=False)
+
+                super().save(*args, **kwargs)
+        except IntegrityError as e:
+            # for some reason there's still a main status for this
+            # observation. This is most probably a temporary glitch
+            raise ValueError(
+                "Another main_status already exists for site_observation "
+                + f"{self.site_observation.id}"
+            ) from e
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["site_observation"],
+                condition=models.Q(main_status=True),
+                name="unique_main_status_per_site_observation",
+            )
+        ]
 
 
 class CompoundIdentifierType(models.Model):
