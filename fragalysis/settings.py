@@ -449,14 +449,14 @@ if not DISABLE_LOGGING_FRAMEWORK:
         'loggers': {
             'api.security': {'level': 'INFO'},
             'asyncio': {'level': 'WARNING'},
-            'celery': {'level': 'INFO'},
+            'celery': {'level': 'WARNING'},
             'django': {'level': 'ERROR'},
             'mozilla_django_oidc': {'level': 'WARNING'},
             'urllib3': {'level': 'WARNING'},
             'paramiko': {'level': 'WARNING'},
             'service_status': {
                 'handlers': ['service_status', 'console'],
-                'level': 'DEBUG',
+                'level': 'INFO',
                 'propagate': False,
             },
         },
