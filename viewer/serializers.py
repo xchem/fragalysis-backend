@@ -166,10 +166,13 @@ class TargetSerializer(serializers.ModelSerializer):
                     .joinpath(f"{reference}.pdb")
                 )
                 logger.debug('ref_path: %s', ref_path)
-                if Path(settings.MEDIA_ROOT).joinpath(ref_path).is_file():
+                media_ref_path: Path = Path(settings.MEDIA_ROOT).joinpath(ref_path)
+                if media_ref_path.is_file():
                     return ref_path
                 else:
-                    logger.error("Reference pdb file doesn't exist")
+                    logger.error(
+                        "Reference pdb file doesn't exist (%s)", media_ref_path
+                    )
                     return None
         else:
             logger.error("'%s' missing", XTALFORMS_FILE)

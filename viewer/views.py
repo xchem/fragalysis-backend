@@ -111,13 +111,12 @@ def react(request):
     context = {'legacy_url': settings.LEGACY_URL}
 
     # Is the Squonk2 Agent configured?
-    logger.info("Checking whether Squonk2 is configured...")
     sq2_rv = _SQ2A.configured()
     if sq2_rv.success:
-        logger.info("Squonk2 is configured")
+        logger.debug("Squonk2 is configured")
         context['squonk_available'] = 'true'
     else:
-        logger.info("Squonk2 is NOT configured")
+        logger.debug("Squonk2 is NOT configured")
         context['squonk_available'] = 'false'
 
     discourse_api_key = settings.DISCOURSE_API_KEY
@@ -144,7 +143,7 @@ def react(request):
     context['target_warning_message'] = settings.TARGET_WARNING_MESSAGE
 
     render_template = "viewer/react_temp.html"
-    logger.info("Rendering %s with context=%s...", render_template, context)
+    logger.debug("Rendering %s with context=%s...", render_template, context)
     return render(request, render_template, context)
 
 
