@@ -14,7 +14,6 @@ from viewer.squonk2_agent import get_squonk2_agent
 from .utils import State, service_query
 
 logger = logging.getLogger('service_status')
-logger.setLevel(logging.WARNING)
 
 # Default timeout for any request calls
 # Used for keycloak atm.
@@ -28,8 +27,8 @@ SERVICE_QUERY_TIMEOUT_S = 28
 # NB! first line of docstring is used as a display name
 
 
-# @shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
-# @service_query
+@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
+@service_query
 def test_query() -> str:
     """A dumb little test query.
 
