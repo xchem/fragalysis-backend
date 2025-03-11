@@ -412,6 +412,11 @@ if not DISABLE_LOGGING_FRAMEWORK:
     LOGGING = {
         "version": 1,
         "disable_existing_loggers": False,
+        'filters': {
+            'suppress_service_queries': {
+                '()': 'service_status.logging_filters.SuppressServiceQueryTasksFilter',
+            },
+        },
         "formatters": {
             "simple": {
                 "format": "%(asctime)s %(name)s.%(funcName)s():%(lineno)s %(levelname)s # %(message)s",
@@ -432,12 +437,14 @@ if not DISABLE_LOGGING_FRAMEWORK:
                 "backupCount": 10,
                 "filename": os.path.join(BASE_DIR, "logs/backend.log"),
                 "formatter": "simple",
+                'filters': ['suppress_service_queries'],
             },
             'service_status': {
                 'level': 'DEBUG',
                 'class': 'logging.handlers.RotatingFileHandler',
                 'filename': os.path.join(BASE_DIR, "logs/service_status.log"),
                 'formatter': 'simple',
+                'filters': ['suppress_service_queries'],
                 "maxBytes": 5_000_000,
                 "backupCount": 10,
             },
@@ -521,6 +528,7 @@ DUMMY_TAS: str = os.environ.get("DUMMY_TAS", "")
 # A colon (:) separated list of services to enable.
 # See "viewer/services.py" for the full list of supported services.
 ENABLE_SERVICE_STATUS: str = os.environ.get("ENABLE_SERVICE_STATUS", "")
+SERVICE_STATUS_LOGLEVEL = os.environ.get("SERVICE_STATUS_LOGLEVEL", "WARNING")
 
 # What infection have been set?
 # "Infections" are  built-in faults that can be induced by providing their names.

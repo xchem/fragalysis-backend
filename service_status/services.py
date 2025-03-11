@@ -14,7 +14,7 @@ from viewer.squonk2_agent import get_squonk2_agent
 from .utils import State, service_query
 
 logger = logging.getLogger('service_status')
-
+logger.setLevel(logging.WARNING)
 
 # Default timeout for any request calls
 # Used for keycloak atm.
@@ -35,17 +35,20 @@ def test_query() -> str:
 
     For testing.
     """
-    logger.debug('+ test_query')
     state = State.DEGRADED
     time.sleep(3)
     if random() > 0.2:
         state = State.ERROR
         if random() > 0.2:
             state = State.OK
+            logger.info('test_query result: %s', state.name)
         else:
             state = State.ERROR
+            logger.error('test_query result: %s', state.name)
 
-    logger.debug('end state: %s', state)
+    if state == State.DEGRADED:
+        logger.warning('test_query result: %s', state.name)
+
     return state.name
 
 
