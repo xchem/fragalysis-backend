@@ -11,6 +11,17 @@ experiment_status = (
     (4, "excluded"),
 )
 
+refinement_status = (
+    (0, "All Datasets"),
+    (1, "Analysis Pending"),
+    (2, "PANDDA model"),
+    (3, "In Refinement"),
+    (4, "CompChem Ready"),
+    (5, "Deposition Ready"),
+    (6, "Deposited"),
+    (7, "Analysed & Rejected"),
+)
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -23,7 +34,7 @@ class Migration(migrations.Migration):
             ExperimentStatusType(
                 status_code=code,
                 status=description,
-            )
+            ).save()
 
 
 
@@ -39,6 +50,22 @@ class Migration(migrations.Migration):
             exp.save()
 
 
+    def populate_refinements(apps, schema_editor):
+        RefinementStatusType = apps.get_model("viewer", "RefinementStatusType")
+        for code, description in refinement_status:
+            RefinementStatusType(
+                code=code,
+                description=description,
+            ).save()
+
+
+
+    def depopulate_refinements(apps, schema_editor):
+        RefinementStatusType = apps.get_model("viewer", "RefinementStatusType")
+        RefinementStatusType.objects.all().delete()
+
+
     operations = [
         migrations.RunPython(populate_status, depopulate_status),
+        migrations.RunPython(populate_refinements, depopulate_refinements),
     ]
