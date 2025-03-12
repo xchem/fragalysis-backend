@@ -254,10 +254,30 @@ class RefinementStatusType(models.Model):
         )
 
 
+class ExperimentStatusType(models.Model):
+    status_code = models.IntegerField(blank=True, null=True)
+    status = models.TextField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "status_code",
+                ],
+                name="unique_experiment_status",
+            ),
+        ]
+
+
 class Experiment(models.Model):
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
     code = models.TextField(null=True)
-    status = models.IntegerField(null=True)
+    status = models.ForeignKey(
+        ExperimentStatusType,
+        to_field='status_code',
+        on_delete=models.SET_NULL,
+        null=True,
+    )
     pdb_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )

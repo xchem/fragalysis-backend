@@ -580,6 +580,7 @@ class TargetLoader:
         self._target_root = None
         self.target = None
         self.project = None
+        self.excluded_crystals: list[str] = []
 
         # Initial (reassuring message)
         bundle_filename = os.path.basename(self.bundle_path)
@@ -1629,6 +1630,8 @@ class TargetLoader:
             # themselves. The field was unused, and because of the
             # versioned uploads, there's no single archive anymore
             target_dir = str(self.target.zip_archive)  # type: ignore [attr-defined]
+            # don't need this on first upload
+            self.excluded_crystals = meta.get("excluded_crystals", [])
 
         self._final_path = self._final_path.joinpath(target_dir)
         self._abs_final_path = self._abs_final_path.joinpath(target_dir)
