@@ -2,7 +2,7 @@ import logging
 
 from django.conf import settings
 
-_SERVICE_MODULE = 'service_status'
+_SERVICE_MODULE = "service_status"
 _SERVICE_LOG_LEVEL = getattr(logging, settings.SERVICE_STATUS_LOGLEVEL, logging.WARNING)
 
 
@@ -36,7 +36,7 @@ class SuppressServiceQueryTasksFilter(logging.Filter):
             return record.levelno >= _SERVICE_LOG_LEVEL
         else:
             if isinstance(record.args, dict):
-                name = record.args.get('name', '')
+                name = record.args.get("name", "")
                 if name.startswith(_SERVICE_MODULE):
                     return record.levelno >= _SERVICE_LOG_LEVEL
 
