@@ -412,9 +412,9 @@ if not DISABLE_LOGGING_FRAMEWORK:
     LOGGING = {
         "version": 1,
         "disable_existing_loggers": False,
-        'filters': {
-            'suppress_service_queries': {
-                '()': 'service_status.logging_filters.SuppressServiceQueryTasksFilter',
+        "filters": {
+            "suppress_service_queries": {
+                "()": "service_status.logging_filters.SuppressServiceQueryTasksFilter",
             },
         },
         "formatters": {
