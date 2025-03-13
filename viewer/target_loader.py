@@ -37,6 +37,7 @@ from viewer.models import (
     CompoundIdentifier,
     CompoundIdentifierType,
     Experiment,
+    ExperimentStatusType,
     ExperimentUpload,
     Pose,
     Project,
@@ -884,16 +885,18 @@ class TargetLoader:
 
         dstatus = extract(key="status")
 
-        status_codes = {
-            "new": 0,
-            "deprecated": 1,
-            "superseded": 2,
-            "unchanged": 3,
-        }
+        # status_codes = {
+        #     "new": 0,
+        #     "deprecated": 1,
+        #     "superseded": 2,
+        #     "unchanged": 3,
+        # }
 
         try:
-            status = status_codes[dstatus]
-        except KeyError:
+            # status = status_codes[dstatus]
+            status = ExperimentStatusType.objects.get(status=dstatus)
+        # except KeyError:
+        except ExperimentStatusType.DoesNotExist:
             status = -1
             self.report.log(
                 logging.ERROR, f"Unexpected status '{dstatus}' for {experiment_name}"
@@ -1760,6 +1763,17 @@ class TargetLoader:
                 "xtalform_sites",
             ),
         )
+
+        # just before actually processing objects, deprecate old
+        # crystals
+        # likely just a few objects at a time, if any
+        for exp in Experiment.filter_manager.by_target(
+            target=self.target,
+        ).filter(
+            code__in=self.excluded_crystals,
+        ):
+            exp.status = ExperimentStatusType.objects.get(status_code=4)
+            exp.save()
 
         experiment_objects = self.process_experiment(
             yaml_data=crystals, prefix_tooltips=prefix_tooltips
