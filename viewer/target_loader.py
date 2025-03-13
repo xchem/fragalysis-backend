@@ -1937,6 +1937,10 @@ class TargetLoader:
                     so.code = code
                     so.save()
 
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            # instances modified, and will be modified down the line, refresh
+            val.instance.refresh_from_db()
+
         # site_observations_versioned = {}
         # for val in site_observation_objects.values():  # pylint: disable=no-member
         #     site_observations_versioned[val.versioned_key] = val.instance
