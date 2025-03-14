@@ -1613,7 +1613,6 @@ class TargetLoader:
 
         self.target, target_created = Target.objects.get_or_create(
             title=self.target_name,
-            display_name=self.target_name,
             project=self.project,
         )
 
@@ -1622,6 +1621,7 @@ class TargetLoader:
             # mypy thinks target and target_name are None
             target_dir = sanitize_directory_name(target_dir, self.abs_final_path)  # type: ignore [arg-type]
             self.target.zip_archive = target_dir  # type: ignore [attr-defined]
+            self.target.display_name = self.target_name  # type: ignore [attr-defined]
             self.target.save()  # type: ignore [attr-defined]
         else:
             # NB! using existing field zip_archive to point to the
@@ -1936,6 +1936,10 @@ class TargetLoader:
 
                     so.code = code
                     so.save()
+
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            # instances modified, and will be modified down the line, refresh
+            val.instance.refresh_from_db()
 
         # site_observations_versioned = {}
         # for val in site_observation_objects.values():  # pylint: disable=no-member
