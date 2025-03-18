@@ -93,7 +93,18 @@ class CachedContent:
 
     @staticmethod
     def set_content(username, content) -> None:
+        """Replace the cached content for the user.
+        Only if the content size does not go down.
+        (The rejection of reduced content is part of #1719 investigation).
+        """
         with CachedContent._cache_lock:
+            if len(content) < len(CachedContent.get_content(username)):
+                logger.warning(
+                    "Not updating content for '%s' - size is smaller", username
+                )
+                logger.info("Rejected content for '%s': %s", username, content)
+                logger.info("Existing content for '%s': %s", username, content)
+                return
             CachedContent._content[username] = content.copy()
             logger.debug("Set content for '%s': %s", username, content)
 
