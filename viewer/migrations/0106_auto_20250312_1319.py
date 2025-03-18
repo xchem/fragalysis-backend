@@ -8,7 +8,7 @@ experiment_status = (
     (1, "deprecated"),
     (2, "superseded"),
     (3, "unchanged"),
-    (4, "excluded"),
+    (4, "newer_data_exists"),
 )
 
 refinement_status = (

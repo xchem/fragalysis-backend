@@ -291,6 +291,14 @@ def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
     return s[0 : s.rfind(separator)], int(s[s.rfind(separator) + 1 :])
 
 
+def longcode_from_tag(tag: str, separator: str = '/') -> str:
+    splits = tag.split(separator)
+    if splits:
+        splits[-1] = f"v{splits[-1]}"
+        return "_".join(splits)
+    return tag
+
+
 def create_objects(func=None, *, depth=math.inf):
     """Wrapper function for saving database objects.
 
@@ -1974,6 +1982,9 @@ class TargetLoader:
 
         logger.debug("data read and processed, adding tags")
 
+        # to be used in tagging, a necessity after the data exclusion (1674)
+        so_qs = SiteObservation.filter_manager.by_target(self.target)
+
         # tag site observations
         cat_canon = TagCategory.objects.get(category="CanonSites")
         # sort canon sites by number of observations
@@ -2046,22 +2057,20 @@ class TargetLoader:
                 try:
                     so_list.append(site_observation_objects[k].instance)
                 except KeyError as exc:
-                    # this is something that started happening, people
-                    # removing experiments. check if exists:
-                    # the key looks something like A71EV2A-x4922/A/201/5
-                    exp_code = k.split("/")[0]
-                    if exp_code not in experiment_objects.keys():
-                        # this is the root cause, that's the situation
-                        # that's been happening
-                        self.report.log(
-                            logging.ERROR,
-                            f"Experiment {exp_code} missing from {METADATA_FILE}",
+                    # data may be missing. check the database
+                    try:
+                        longcode = longcode_from_tag(k)
+                        so = so_qs.get(longcode=longcode)
+                        so_list.append(so)
+                        msg = (
+                            f"SiteObservation {k} missing from {METADATA_FILE}"
+                            f", fetching from db",
                         )
-                    else:
-                        # this has not, handling it just in case
+                        logger.info(msg)
+                    except SiteObservation.DoesNotExist:
                         self.report.log(
                             logging.ERROR,
-                            f"SiteObservation {k} missing from {METADATA_FILE}",
+                            f"SiteObservation {k} missing from database",
                         )
 
             # tag = val.instance.name.split('+')[0]
@@ -2184,22 +2193,19 @@ class TargetLoader:
                 try:
                     so_list.append(site_observation_objects[k].instance)
                 except KeyError as exc:
-                    # this is something that started happening, people
-                    # removing experiments. check if exists:
-                    # the key looks something like A71EV2A-x4922/A/201/5
-                    exp_code = k.split("/")[0]
-                    if exp_code not in experiment_objects.keys():
-                        # this is the root cause, that's the situation
-                        # that's been happening
-                        self.report.log(
-                            logging.ERROR,
-                            f"Experiment {exp_code} missing from {METADATA_FILE}",
+                    try:
+                        longcode = longcode_from_tag(k)
+                        so = so_qs.get(longcode=longcode)
+                        so_list.append(so)
+                        msg = (
+                            f"SiteObservation {k} missing from {METADATA_FILE}"
+                            f", fetching from db",
                         )
-                    else:
-                        # this has not, handling it just in case
+                        logger.info(msg)
+                    except SiteObservation.DoesNotExist:
                         self.report.log(
                             logging.ERROR,
-                            f"SiteObservation {k} missing from {METADATA_FILE}",
+                            f"SiteObservation {k} missing from database",
                         )
             tag = val.versioned_key
             try:
