@@ -125,7 +125,18 @@ class Target(models.Model):
     upload_datetime = models.DateTimeField(
         null=True, help_text='The datetime the upload was completed'
     )
+    # this is to be deprecated and used as part of the settings
     alias_order = ArrayField(models.TextField(), null=True)
+    short_name = models.TextField(null=True, blank=True)
+    long_name = models.TextField(null=True, blank=True)
+    organism = models.TextField(null=True, blank=True)
+    external_url = models.URLField(null=True, blank=True)
+    external_url_display_name = models.TextField(null=True, blank=True)
+    settings = models.JSONField(
+        encoder=DjangoJSONEncoder,
+        null=True,
+        blank=True,
+    )
 
     def __str__(self) -> str:
         return f"{self.title}"
