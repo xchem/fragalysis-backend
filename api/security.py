@@ -19,6 +19,7 @@ from viewer.models import Project
 
 from .prometheus_metrics import PrometheusMetrics
 from .remote_ispyb_connector import SSHConnector
+from .utils import deployment_mode_is_production
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -35,7 +36,10 @@ def get_restricted_tas_user_proposal(user) -> set[str]:
     assert user
 
     response = set()
-    if settings.RESTRICTED_TAS_USERS_LIST:
+
+    # We ONLY permit the use of RESTRICTED_TAS_USERS
+    # when this is not a production deployment
+    if not deployment_mode_is_production() and settings.RESTRICTED_TAS_USERS:
         for item in settings.RESTRICTED_TAS_USERS_LIST:
             item_username, item_tas = item.split(':')
             if item_username == user.username:

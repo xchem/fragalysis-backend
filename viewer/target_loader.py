@@ -1650,6 +1650,7 @@ class TargetLoader:
             target_dir = sanitize_directory_name(target_dir, self.abs_final_path)  # type: ignore [arg-type]
             self.target.zip_archive = target_dir  # type: ignore [attr-defined]
             self.target.display_name = self.target_name  # type: ignore [attr-defined]
+            self.target.short_name = self.target_name  # type: ignore [attr-defined]
             self.target.save()  # type: ignore [attr-defined]
         else:
             # NB! using existing field zip_archive to point to the

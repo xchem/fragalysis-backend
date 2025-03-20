@@ -221,7 +221,12 @@ class TargetSerializer(serializers.ModelSerializer):
             "metadata",
             "zip_archive",
             "upload_status",
-            "alias_order",
+            "short_name",
+            "long_name",
+            "organism",
+            "external_url",
+            "external_url_display_name",
+            # "settings",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -233,6 +238,12 @@ class TargetSerializer(serializers.ModelSerializer):
             "zip_archive": {"read_only": True},
             "upload_status": {"read_only": True},
             "alias_order": {"read_only": False},
+            "short_name": {"read_only": False},
+            "long_name": {"read_only": False},
+            "organism": {"read_only": False},
+            "external_url": {"read_only": False},
+            "external_url_display_name": {"read_only": False},
+            # "settings": {"read_only": False},
         }
 
 
