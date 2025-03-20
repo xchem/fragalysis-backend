@@ -39,7 +39,7 @@ def get_restricted_tas_user_proposal(user) -> set[str]:
 
     # We ONLY permit the use of RESTRICTED_TAS_USERS
     # when this is not a production deployment
-    if not deployment_mode_is_production() and settings.stack_restricted_tas_users:
+    if not deployment_mode_is_production() and settings.RESTRICTED_TAS_USERS:
         for item in settings.RESTRICTED_TAS_USERS_LIST:
             item_username, item_tas = item.split(':')
             if item_username == user.username:
