@@ -103,7 +103,11 @@ class CachedContent:
                     "Not updating content for '%s' - size is smaller", username
                 )
                 logger.info("Rejected content for '%s': %s", username, content)
-                logger.info("Existing content for '%s': %s", username, content)
+                logger.info(
+                    "Existing content for '%s': %s",
+                    username,
+                    CachedContent.get_content(username),
+                )
                 return
             CachedContent._content[username] = content.copy()
             logger.debug("Set content for '%s': %s", username, content)
