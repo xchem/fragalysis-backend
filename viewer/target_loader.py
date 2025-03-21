@@ -4,6 +4,7 @@ import hashlib
 import logging
 import math
 import os
+import re
 
 # import random
 import shutil
@@ -288,6 +289,13 @@ def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
     # format something like XX01ZVNS2B-x0673/B/501/1
     # remove tailing '<separator>1'
     return s[0 : s.rfind(separator)], int(s[s.rfind(separator) + 1 :])
+
+
+def strip_exp_code(code: str) -> str:
+    try:
+        return re.split(r"-\w{1}", code)[1]
+    except IndexError as exc:
+        raise ValueError(f"Non-standard experiment code {code}") from exc
 
 
 def create_objects(func=None, *, depth=math.inf):
@@ -1956,7 +1964,14 @@ class TargetLoader:
                         # iter_pos = next(suffix)
                         # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
                         # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
-                        code = f"{code_prefix}{so.experiment.code.split('-x')[1]}{next(suffix)}"
+                        try:
+                            exp_code_no = strip_exp_code(so.experiment.code)
+                        except ValueError as exc:
+                            self.report.log(logging.ERROR, exc.args[1])
+                            # error, loading failed, use full code for demo
+                            exp_code_no = so.experiment.code
+
+                        code = f"{code_prefix}{exp_code_no}{next(suffix)}"
 
                         # test uniqueness for target
                         # TODO: this should ideally be solved by db engine, before
