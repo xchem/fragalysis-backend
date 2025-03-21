@@ -29,6 +29,7 @@ from viewer.utils import clean_filename
 
 from .serializers import DownloadStructuresSerializer
 from .tags import get_metadata_fields
+from .target_loader import strip_exp_code
 
 # from urllib.parse import urlsplit
 
@@ -766,8 +767,8 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
                     for f in model_attr:
                         # here the model_attr is already stringified
                         try:
-                            exp_path = so.experiment.code.split('-x')[1]
-                        except IndexError:
+                            exp_path = strip_exp_code(so.experiment.code)
+                        except ValueError:
                             logger.error(
                                 'Unexpected experiment code format: %s',
                                 so.experiment.code,
