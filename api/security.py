@@ -19,6 +19,7 @@ from viewer.models import Project
 
 from .prometheus_metrics import PrometheusMetrics
 from .remote_ispyb_connector import SSHConnector
+from .utils import deployment_mode_is_production
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -35,7 +36,10 @@ def get_restricted_tas_user_proposal(user) -> set[str]:
     assert user
 
     response = set()
-    if settings.RESTRICTED_TAS_USERS_LIST:
+
+    # We ONLY permit the use of RESTRICTED_TAS_USERS
+    # when this is not a production deployment
+    if not deployment_mode_is_production() and settings.RESTRICTED_TAS_USERS:
         for item in settings.RESTRICTED_TAS_USERS_LIST:
             item_username, item_tas = item.split(':')
             if item_username == user.username:
@@ -92,10 +96,27 @@ class CachedContent:
         return content
 
     @staticmethod
-    def set_content(username, content) -> None:
+    def set_content(username, new_content) -> None:
+        """Replace the cached content for the user.
+        Only if the content size does not go down.
+        (The rejection of reduced content is part of #1719 investigation).
+        """
         with CachedContent._cache_lock:
-            CachedContent._content[username] = content.copy()
-            logger.debug("Set content for '%s': %s", username, content)
+            if username in CachedContent._content and len(new_content) < len(
+                CachedContent._content[username]
+            ):
+                logger.warning(
+                    "Not updating content for '%s' - size is smaller", username
+                )
+                logger.info("Rejected content for '%s': %s", username, new_content)
+                logger.info(
+                    "Existing content for '%s': %s",
+                    username,
+                    CachedContent._content[username],
+                )
+                return
+            CachedContent._content[username] = new_content.copy()
+            logger.debug("New content for '%s': %s", username, new_content)
 
 
 def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:

@@ -41,7 +41,11 @@ from viewer.squonk2_agent import (
     Squonk2AgentRv,
     get_squonk2_agent,
 )
-from viewer.target_loader import split_version, validate_data_version
+from viewer.target_loader import (
+    split_version,
+    validate_data_version,
+    validate_upload_version,
+)
 from viewer.utils import (
     CSV_TO_DICT_DOWNLOAD_ROOT,
     create_csv_from_dict,
@@ -1669,10 +1673,44 @@ class UploadExperimentUploadView(viewsets.ViewSet):
                         status=status.HTTP_403_FORBIDDEN,
                     )
 
-        if 'data_version' in serializer.validated_data.keys():
+        validation_response = {
+            'success': True,
+            'message': [],
+        }
+        data_version = serializer.validated_data.get('data_version', None)
+        upload_version = serializer.validated_data.get('upload_version', None)
+        if data_version or upload_version:
+            # go for validation
             try:
-                major, minor = split_version(serializer.validated_data['data_version'])
+                major, minor = split_version(data_version)
             except ValueError as exc:
+                return Response(
+                    {
+                        'success': False,
+                        'message': exc.args[0],
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            try:
+                target_name = serializer.validated_data['target_name']
+            except KeyError:
+                return Response(
+                    {'success': False, 'message': 'Target name not given'},
+                    status=status.HTTP_200_OK,
+                )
+
+            data_val_result, data_val_msg = validate_data_version(
+                major, minor, target_name=target_name, project_name=target_access_string
+            )
+            validation_response['success'] = (
+                validation_response['success'] and data_val_result
+            )
+            validation_response['message'].append(data_val_msg)  # type: ignore[attr-defined]
+
+            try:
+                upload_version = int(serializer.validated_data['upload_version'])
+            except (ValueError, TypeError) as exc:
                 return Response(
                     {
                         'success': False,
@@ -1688,14 +1726,18 @@ class UploadExperimentUploadView(viewsets.ViewSet):
                     status=status.HTTP_200_OK,
                 )
 
-            val_result, msg = validate_data_version(
-                major, minor, target_name=target_name, project_name=target_access_string
+            upload_val_result, upload_val_msg = validate_upload_version(
+                upload_version,
+                target_name=target_name,
+                project_name=target_access_string,
             )
+            validation_response['success'] = (
+                validation_response['success'] and upload_val_result
+            )
+            validation_response['message'].append(upload_val_msg)  # type: ignore[attr-defined]
+
             return Response(
-                {
-                    'success': val_result,
-                    'message': msg,
-                },
+                validation_response,
                 status=status.HTTP_200_OK,
             )
 

@@ -4,6 +4,7 @@ import hashlib
 import logging
 import math
 import os
+import re
 
 # import random
 import shutil
@@ -290,6 +291,13 @@ def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
     return s[0 : s.rfind(separator)], int(s[s.rfind(separator) + 1 :])
 
 
+def strip_exp_code(code: str) -> str:
+    try:
+        return re.split(r"-\w{1}", code)[1]
+    except IndexError as exc:
+        raise ValueError(f"Non-standard experiment code {code}") from exc
+
+
 def create_objects(func=None, *, depth=math.inf):
     """Wrapper function for saving database objects.
 
@@ -492,7 +500,7 @@ def validate_data_version(
             project__title=project_name,
         )
         if previous_uploads.exists():
-            last_upload = previous_uploads.order_by('upload_version').last()
+            last_upload = previous_uploads.order_by("upload_version").last()
             o_major = last_upload.data_version_major
             o_minor = last_upload.data_version_minor
 
@@ -516,7 +524,35 @@ def validate_data_version(
         )
 
     # absolutely nothing went wrong
-    return True, ''
+    return True, ""
+
+
+def validate_upload_version(
+    upload_version: int,
+    previous_version: int | None = None,
+    target_name: str | None = None,
+    project_name: str | None = None,
+) -> Tuple[bool, str]:
+    if not previous_version:
+        previous_uploads = ExperimentUpload.objects.filter(
+            target__title=target_name,
+            project__title=project_name,
+        )
+        if previous_uploads.exists():
+            previous_version = (
+                previous_uploads.order_by("upload_version").last().upload_version
+            )
+        else:
+            previous_version = 0
+
+    if previous_version + 1 != upload_version:  # type: ignore [operator]
+        return False, (
+            f"Upload version {upload_version} is not the expected next version."  # type: ignore [operator]
+            f" The next version should be {previous_version + 1}."  # type: ignore [operator]
+        )
+
+    # absolutely nothing went wrong
+    return True, ""
 
 
 class TargetLoader:
@@ -1622,6 +1658,7 @@ class TargetLoader:
             target_dir = sanitize_directory_name(target_dir, self.abs_final_path)  # type: ignore [arg-type]
             self.target.zip_archive = target_dir  # type: ignore [attr-defined]
             self.target.display_name = self.target_name  # type: ignore [attr-defined]
+            self.target.short_name = self.target_name  # type: ignore [attr-defined]
             self.target.save()  # type: ignore [attr-defined]
         else:
             # NB! using existing field zip_archive to point to the
@@ -1661,22 +1698,36 @@ class TargetLoader:
             project=self.project,
         )
         if previous_uploads.exists():
-            last_upload = previous_uploads.order_by('upload_version').last()
+            last_upload = previous_uploads.order_by("upload_version").last()
 
-            version_validated, ver_val_msg = validate_data_version(
+            data_version_validated, ver_val_msg = validate_data_version(
                 major,
                 minor,
                 o_major=last_upload.data_version_major,
                 o_minor=last_upload.data_version_minor,
             )
+            upload_version_validated, upload_val_msg = validate_upload_version(
+                self.version_number,
+                previous_version=last_upload.upload_version,
+            )
         else:
-            version_validated, ver_val_msg = validate_data_version(major, minor)
+            data_version_validated, ver_val_msg = validate_data_version(major, minor)
+            upload_version_validated, upload_val_msg = validate_upload_version(
+                self.version_number,
+                previous_version=0,  # no previous versions, exploit the +1 check
+            )
 
-        if not version_validated:
+        if not data_version_validated:
             self.report.log(logging.ERROR, ver_val_msg)
 
-        if version_validated and ver_val_msg:
+        if data_version_validated and ver_val_msg:
             self.report.log(logging.WARNING, ver_val_msg)
+
+        if not upload_version_validated:
+            self.report.log(logging.ERROR, upload_val_msg)
+
+        if upload_version_validated and upload_val_msg:
+            self.report.log(logging.WARNING, upload_val_msg)
 
         # TODO: is it here where I can figure out if this has already been uploaded?
         if self._is_already_uploaded(target_created, project_created):
@@ -1913,7 +1964,14 @@ class TargetLoader:
                         # iter_pos = next(suffix)
                         # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
                         # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
-                        code = f"{code_prefix}{so.experiment.code.split('-x')[1]}{next(suffix)}"
+                        try:
+                            exp_code_no = strip_exp_code(so.experiment.code)
+                        except ValueError as exc:
+                            self.report.log(logging.ERROR, exc.args[1])
+                            # error, loading failed, use full code for demo
+                            exp_code_no = so.experiment.code
+
+                        code = f"{code_prefix}{exp_code_no}{next(suffix)}"
 
                         # test uniqueness for target
                         # TODO: this should ideally be solved by db engine, before
