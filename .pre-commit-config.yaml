@@ -62,17 +62,15 @@ repos:
     - types-requests
 
 # Pylint
-# Disabled - 20 Mar 2025 -
-# Because: An unexpected error has occurred: CalledProcessError: command: ('/home/runner/.cache/pre-commit/repo6n5xenp4/py_env-python3.11/bin/python', '-mpip', 'install', '.', 'pylint-django')
-#- repo: https://github.com/pycqa/pylint
-#  rev: v3.0.3
-#  hooks:
-#  - id: pylint
-#    exclude: 'migrations/'
-#    additional_dependencies:
-#    - pylint-django
-#    args:
-#    - --load-plugins
-#    - pylint_django,pylint_django.checkers.migrations
-#    - --django-settings-module
-#    - fragalysis.settings
+- repo: https://github.com/pycqa/pylint
+  rev: v3.0.3
+  hooks:
+  - id: pylint
+    exclude: 'migrations/'
+    additional_dependencies:
+    - pylint-django
+    args:
+    - --load-plugins
+    - pylint_django,pylint_django.checkers.migrations
+    - --django-settings-module
+    - fragalysis.settings
