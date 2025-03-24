@@ -102,7 +102,9 @@ class CachedContent:
         (The rejection of reduced content is part of #1719 investigation).
         """
         with CachedContent._cache_lock:
-            if username in CachedContent._content and len(new_content) < len(CachedContent._content[username]):
+            if username in CachedContent._content and len(new_content) < len(
+                CachedContent._content[username]
+            ):
                 logger.warning(
                     "Not updating content for '%s' - size is smaller", username
                 )
