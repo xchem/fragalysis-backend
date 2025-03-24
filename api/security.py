@@ -96,25 +96,25 @@ class CachedContent:
         return content
 
     @staticmethod
-    def set_content(username, content) -> None:
+    def set_content(username, new_content) -> None:
         """Replace the cached content for the user.
         Only if the content size does not go down.
         (The rejection of reduced content is part of #1719 investigation).
         """
         with CachedContent._cache_lock:
-            if len(content) < len(CachedContent.get_content(username)):
+            if len(new_content) < len(CachedContent._content[username]):
                 logger.warning(
                     "Not updating content for '%s' - size is smaller", username
                 )
-                logger.info("Rejected content for '%s': %s", username, content)
+                logger.info("Rejected content for '%s': %s", username, new_content)
                 logger.info(
                     "Existing content for '%s': %s",
                     username,
-                    CachedContent.get_content(username),
+                    CachedContent._content[username],
                 )
                 return
-            CachedContent._content[username] = content.copy()
-            logger.debug("Set content for '%s': %s", username, content)
+            CachedContent._content[username] = new_content.copy()
+            logger.debug("New content for '%s': %s", username, new_content)
 
 
 def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
