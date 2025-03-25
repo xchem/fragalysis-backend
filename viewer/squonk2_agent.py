@@ -722,13 +722,13 @@ class Squonk2Agent:
         assert user
         target_access_string = self._get_target_access_string(access_id)
         assert target_access_string
-        proposal_list: List[str] = self.__ispyb_safe_query_set.get_proposals_for_user(
+        proposal_set: set[str] = self.__ispyb_safe_query_set.get_proposals_for_user(
             user, restrict_public_to_membership=True
         )
-        if not target_access_string in proposal_list:
+        if not target_access_string in proposal_set:
             msg = (
                 f'The user ({user.username}) cannot modify "{target_access_string}"'
-                f' (access_id={access_id}). Only {proposal_list})'
+                f' (access_id={access_id})'
             )
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)

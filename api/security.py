@@ -5,7 +5,7 @@ import threading
 from datetime import datetime, timedelta
 from functools import cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 from wsgiref.util import FileWrapper
 
 from django.conf import settings
@@ -282,16 +282,16 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         the user has access to. Without a user only 'open' proposals are returned.
         """
         # The list of proposals this user can have
-        proposal_list = self.get_proposals_for_user(self.request.user)
+        proposal_set = self.get_proposals_for_user(self.request.user)
         logger.debug(
             'is_authenticated=%s, proposal_list=%s',
             self.request.user.is_authenticated,
-            proposal_list,
+            proposal_set,
         )
 
         # Must have a foreign key to a Project for this filter to work.
         # get_q_filter() returns a Q expression for filtering
-        q_filter = self._get_q_filter(proposal_list)
+        q_filter = self._get_q_filter(proposal_set)
         return self.queryset.filter(q_filter).distinct()
 
     def get_open_proposals(self):
@@ -462,7 +462,9 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             )
         return is_member
 
-    def get_proposals_for_user(self, user, restrict_public_to_membership=False):
+    def get_proposals_for_user(
+        self, user, restrict_public_to_membership=False
+    ) -> set[str]:
         """
         Returns a list of proposals that the user has access to.
 
@@ -506,16 +508,15 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # Added during debug effort for 1491.
         proposals.update(get_restricted_tas_user_proposal(user))
 
-        # Return the set() as a list()
-        return list(proposals)
+        return proposals
 
-    def _get_q_filter(self, proposal_list):
+    def _get_q_filter(self, proposal_set):
         """Returns a Q expression representing a (potentially complex) table filter."""
         if self.filter_permissions:
             # Q-filter is based on the filter_permissions string
             # whether the resultant Project title in the proposal list
             # OR where the Project is 'open_to_public'
-            return Q(**{self.filter_permissions + "__title__in": proposal_list}) | Q(
+            return Q(**{self.filter_permissions + "__title__in": proposal_set}) | Q(
                 **{self.filter_permissions + "__open_to_public": True}
             )
         else:
