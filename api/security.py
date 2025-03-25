@@ -357,7 +357,9 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             len(cached_prop_ids),
             user.username,
         )
-        return cached_prop_ids
+        # We must return a copy of the set,
+        # the caller may alter it and it's a cached object.
+        return cached_prop_ids.copy()
 
     def _get_proposals_from_connector(self, user, conn):
         """
