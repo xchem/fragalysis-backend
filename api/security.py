@@ -414,9 +414,13 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # Display the collected results for the user.
         # These will be cached.
         logger.info(
-            "%s proposals from %s records for '%s': %s",
+            "Got %s proposals from %s records from query for '%s'",
             len(prop_id_set),
             len(rs),
+            user.username,
+        )
+        logger.debug(
+            "Proposal set for '%s': %s",
             user.username,
             prop_id_set,
         )
