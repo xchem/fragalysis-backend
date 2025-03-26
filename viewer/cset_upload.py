@@ -611,13 +611,17 @@ class MolOps:
             logger.error(msg)
             raise IntegrityError(msg) from exc
 
-        return ComputedSetSubmitter.objects.get_or_create(
-            name=description_mol.GetProp("submitter_name"),
+        submitter, created = ComputedSetSubmitter.objects.get_or_create(
             method=description_mol.GetProp("method"),
             email=description_mol.GetProp("submitter_email"),
-            institution=description_mol.GetProp("submitter_institution"),
-            generation_date=date,
-        )[0]
+        )
+        if created:
+            submitter.name = description_mol.GetProp("submitter_name")
+            submitter.institution = description_mol.GetProp("submitter_institution")
+            submitter.generation_date = date
+            submitter.save()
+
+        return submitter
 
     def process_mol(
         self,
