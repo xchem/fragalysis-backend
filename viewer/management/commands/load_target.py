@@ -40,7 +40,7 @@ class Command(BaseCommand):
                 user_id = settings.ANONYMOUS_USER
         else:
             try:
-                user_id = get_user_model().objects.get(username=username)
+                user_id = get_user_model().objects.get(username=username).pk
             except get_user_model().DoesNotExist:
                 msg = (
                     f'User {username} does not exist in the database.'
