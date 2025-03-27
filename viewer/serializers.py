@@ -1277,7 +1277,6 @@ class SiteObservationQualityStatusSerializer(serializers.ModelSerializer):
             user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
 
         validated_data["user"] = user
-        # return super().create(validated_data)
         instance = super().create(validated_data)
         return self._with_annotations(instance)
 
@@ -1291,13 +1290,12 @@ class SiteObservationQualityStatusSerializer(serializers.ModelSerializer):
             return super().update(instance, {})
 
         # update only allowed for users who created the status
-        # if self.context["user"] != instance.user:
-        #     return super().update(instance, {})
+        if self.context["user"] != instance.user:
+            return super().update(instance, {})
 
         for field in set(validated_data.keys()).difference(updatable_fields):
             validated_data.pop(field, None)
 
-        # return super().update(instance, validated_data)
         instance = super().update(instance, validated_data)
         return self._with_annotations(instance)
 

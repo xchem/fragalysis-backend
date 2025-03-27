@@ -62,7 +62,7 @@ class CachedContent:
     """
 
     _timers: Dict[str, datetime] = {}
-    _content: Dict[str, List[str]] = {}
+    _content: Dict[str, set[str]] = {}
     _cache_period: timedelta = timedelta(
         minutes=settings.SECURITY_CONNECTOR_CACHE_MINUTES
     )
@@ -96,27 +96,59 @@ class CachedContent:
         return content
 
     @staticmethod
-    def set_content(username, new_content) -> None:
+    def set_content(username: str, new_content: set[str]) -> None:
         """Replace the cached content for the user.
         Only if the content size does not go down.
         (The rejection of reduced content is part of #1719 investigation).
         """
         with CachedContent._cache_lock:
-            if username in CachedContent._content and len(new_content) < len(
-                CachedContent._content[username]
-            ):
-                logger.warning(
-                    "Not updating content for '%s' - size is smaller", username
-                )
-                logger.info("Rejected content for '%s': %s", username, new_content)
-                logger.info(
-                    "Existing content for '%s': %s",
-                    username,
-                    CachedContent._content[username],
-                )
-                return
+            if username in CachedContent._content:
+                # We should have exiting content for this user
+                len_new_content = len(new_content)
+                len_existing_content = len(CachedContent._content[username])
+                len_change = len_new_content - len_existing_content
+                if len_change != 0:
+                    logger.info("Content change for '%s' (%+d)", username, len_change)
+                if len_change < 0:
+                    # New content size is less then existing.
+                    # We're trapping this for now (see #1717)
+                    logger.warning(
+                        "Not updating content for '%s' - new content is smaller by %d",
+                        username,
+                        abs(len_change),
+                    )
+                    logger.info(
+                        "Existing content for '%s': %s",
+                        username,
+                        CachedContent._content[username],
+                    )
+                    # What's changed?
+                    missing_from_new = CachedContent._content[username] - new_content
+                    missing_from_existing = (
+                        new_content - CachedContent._content[username]
+                    )
+                    if missing_from_new:
+                        logger.info(
+                            "In existing but not in the new content for '%s' (%d): %s",
+                            username,
+                            len(missing_from_new),
+                            missing_from_new,
+                        )
+                    if missing_from_existing:
+                        logger.info(
+                            "In new content, not in the existing for '%s' (%d): %s",
+                            username,
+                            len(missing_from_existing),
+                            missing_from_existing,
+                        )
+                    return
             CachedContent._content[username] = new_content.copy()
-            logger.debug("New content for '%s': %s", username, new_content)
+            logger.debug(
+                "New content for '%s' (%d) : %s",
+                username,
+                len(new_content),
+                new_content,
+            )
 
 
 def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
@@ -325,7 +357,9 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             len(cached_prop_ids),
             user.username,
         )
-        return cached_prop_ids
+        # We must return a copy of the set,
+        # the caller may alter it and it's a cached object.
+        return cached_prop_ids.copy()
 
     def _get_proposals_from_connector(self, user, conn):
         """

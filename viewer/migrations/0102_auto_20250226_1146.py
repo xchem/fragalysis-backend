@@ -3,17 +3,7 @@
 from django.db import migrations
 
 
-
-refinement_status = (
-    (0, "All Datasets"),
-    (1, "Analysis Pending"),
-    (2, "PANDDA model"),
-    (3, "In Refinement"),
-    (4, "CompChem Ready"),
-    (5, "Deposition Ready"),
-    (6, "Deposited"),
-    (7, "Analysed & Rejected"),
-)
+# contents moved to 0106, forgot to save here..
 
 class Migration(migrations.Migration):
 
@@ -21,21 +11,6 @@ class Migration(migrations.Migration):
         ('viewer', '0101_auto_20250226_1139'),
     ]
 
-    def populate_refinements(apps, schema_editor):
-        RefinementStatusType = apps.get_model("viewer", "RefinementStatusType")
-        for code, description in refinement_status:
-            RefinementStatusType(
-                code=code,
-                description=description,
-            )
-
-
-
-    def depopulate_refinements(apps, schema_editor):
-        RefinementStatusType = apps.get_model("viewer", "RefinementStatusType")
-        RefinementStatusType.objects.all().delete()
-
 
     operations = [
-        migrations.RunPython(populate_refinements, depopulate_refinements)
     ]

@@ -265,10 +265,30 @@ class RefinementStatusType(models.Model):
         )
 
 
+class ExperimentStatusType(models.Model):
+    status_code = models.IntegerField(blank=True, null=True)
+    status = models.TextField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "status_code",
+                ],
+                name="unique_experiment_status",
+            ),
+        ]
+
+
 class Experiment(models.Model):
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
     code = models.TextField(null=True)
-    status = models.IntegerField(null=True)
+    status = models.ForeignKey(
+        ExperimentStatusType,
+        to_field='status_code',
+        on_delete=models.SET_NULL,
+        null=True,
+    )
     pdb_info = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
@@ -979,16 +999,14 @@ class DesignSet(models.Model):
 
 
 class ComputedSetSubmitter(models.Model):
-    name = models.CharField(max_length=50)
-    email = models.CharField(max_length=100)
-    institution = models.CharField(
-        max_length=50,
+    name = models.TextField()
+    email = models.TextField()
+    institution = models.TextField(
         help_text="The institution or organizational affiliation"
         " of the compound set submitter",
     )
-    generation_date = models.DateField()
-    method = models.CharField(
-        max_length=50,
+    generation_date = models.DateField(null=True)
+    method = models.TextField(
         help_text="A name for the method that was used" " to produce the uploaded data",
     )
 
@@ -999,7 +1017,15 @@ class ComputedSetSubmitter(models.Model):
         return "<ComputedSetSubmitter %r %r %r>" % (self.id, self.name, self.email)
 
     class Meta:
-        unique_together = (("name", "method"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "email",
+                    "method",
+                ],
+                name="unique_computedsetsubmitter_email_method",
+            ),
+        ]
 
 
 class CSetKeys(models.Model):

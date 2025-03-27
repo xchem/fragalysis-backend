@@ -1658,12 +1658,16 @@ class UploadExperimentUploadView(viewsets.ViewSet):
             if not user.is_authenticated:
                 return redirect(settings.LOGIN_URL)
             else:
-                if (
-                    target_access_string
-                    not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                        user, restrict_public_to_membership=True
+                proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                    user, restrict_public_to_membership=True
+                )
+                if target_access_string not in proposals:
+                    logger.warning(
+                        '(#1712) User %s does not have access to %s (checked %d proposals)',
+                        user.username,
+                        target_access_string,
+                        len(proposals),
                     )
-                ):
                     return Response(
                         {
                             "target_access_string": [
