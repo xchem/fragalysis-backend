@@ -5,7 +5,7 @@ import threading
 from datetime import datetime, timedelta
 from functools import cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 from wsgiref.util import FileWrapper
 
 from django.conf import settings
