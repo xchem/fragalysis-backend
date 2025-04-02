@@ -8,6 +8,7 @@ import re
 
 # import random
 import shutil
+import subprocess
 import tarfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -2723,13 +2724,11 @@ def load_target(
         target_loader.report.log(logging.INFO, f"Decompressing '{bundle_filename}'")
 
         try:
-            # archive is first extracted to temporary dir and moved later
-            with tarfile.open(target_loader.bundle_path, "r") as archive:
-                msg = f"Extracting bundle: {data_bundle}"
-                logger.info("%s%s", target_loader.report.task_id, msg)
-                archive.extractall(target_loader.raw_data)
-                msg = f"Data extraction complete: {data_bundle}"
-                logger.info("%s%s", target_loader.report.task_id, msg)
+            msg = f"Extracting bundle: {data_bundle}"
+            logger.info("%s%s", target_loader.report.task_id, msg)
+            decompress_tarball(target_loader.bundle_path, target_loader.raw_data)
+            msg = f"Data extraction complete: {data_bundle}"
+            logger.info("%s%s", target_loader.report.task_id, msg)
         except Exception as exc:
             # Handle _any_ underlying problem with the file.
             logger.error('Got an exception opening the file: %s', str(exc))
@@ -2764,6 +2763,33 @@ def load_target(
             return
         else:
             _move_and_save_target_experiment(target_loader)
+
+
+def decompress_tarball(tarball, destination):
+    if shutil.which("pigz"):
+        process = subprocess.run(
+            ["tar", "-I", "pigz", "-xvf", tarball, "-C", destination],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+            check=True,
+        )
+
+        if process.returncode == 0:
+            logger.debug(process.stdout.strip())
+            logger.debug("unpigz successful")
+        else:
+            logger.error(
+                "unpigz failed (exit %s): %s",
+                process.returncode,
+                process.stderr.strip(),
+            )
+
+    else:
+        # error because pigz is explicitly installed in Dockerfile
+        logger.error("pigz not found, using python's zip module")
+        with tarfile.open(tarball, "r") as archive:
+            archive.extractall(destination)
 
 
 def _move_and_save_target_experiment(target_loader):

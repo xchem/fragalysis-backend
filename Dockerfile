@@ -13,6 +13,7 @@ RUN apt-get update -y && \
       texlive-latex-base \
       texlive-latex-recommended \
       lmodern \
+      pigz \
       texlive-fonts-recommended && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
