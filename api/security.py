@@ -55,15 +55,6 @@ class CachedContent:
     Proposals should be collected when has_expired() returns True.
     Content can be written (when the cache for the user has expired)
     and read using the set/get methods.
-
-    For a live stack you can interrogate the cache for a given user
-    with the following, from a 'python manage.py shell': -
-
-    >>> from api.security import CachedContent
-    >>> CachedContent.get_content_size('achristie')
-    0
-    >>> CachedContent.get_content('achristie')
-    set()
     """
 
     _timers: Dict[str, datetime] = {}
@@ -101,13 +92,6 @@ class CachedContent:
         return content
 
     @staticmethod
-    def get_content_size(username):
-        with CachedContent._cache_lock:
-            if username not in CachedContent._content:
-                CachedContent._content[username] = set()
-        return len(CachedContent._content[username])
-
-    @staticmethod
     def set_content(username: str, new_content: set[str]) -> None:
         """Replace the cached content for the user.
         Only if the content size does not go down.
@@ -121,14 +105,6 @@ class CachedContent:
                 len_change = len_new_content - len_existing_content
                 if len_change != 0:
                     logger.info("Content change for '%s' (%+d)", username, len_change)
-                if len_change < 0:
-                    # New content size is less then existing.
-                    # We're trapping this for now (see #1717)
-                    logger.debug(
-                        "Existing content for '%s': %s",
-                        username,
-                        CachedContent._content[username],
-                    )
                     # What's changed?
                     missing_from_new = CachedContent._content[username] - new_content
                     missing_from_existing = (
