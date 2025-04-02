@@ -45,10 +45,6 @@ def get_restricted_tas_user_proposal(user) -> set[str]:
             if item_username == user.username:
                 response.add(item_tas)
 
-    if response:
-        logger.warning(
-            'Returning restricted TAS "%s" for user "%s"', item_tas, user.username
-        )
     return response
 
 
@@ -103,7 +99,7 @@ class CachedContent:
         """
         with CachedContent._cache_lock:
             if username in CachedContent._content:
-                # We should have exiting content for this user
+                # We should have existing content for this user
                 len_new_content = len(new_content)
                 len_existing_content = len(CachedContent._content[username])
                 len_change = len_new_content - len_existing_content
@@ -112,11 +108,6 @@ class CachedContent:
                 if len_change < 0:
                     # New content size is less then existing.
                     # We're trapping this for now (see #1717)
-                    logger.warning(
-                        "Not updating content for '%s' - new content is smaller by %d",
-                        username,
-                        abs(len_change),
-                    )
                     logger.info(
                         "Existing content for '%s': %s",
                         username,
@@ -141,7 +132,8 @@ class CachedContent:
                             len(missing_from_existing),
                             missing_from_existing,
                         )
-                    return
+
+            # Update the cache
             CachedContent._content[username] = new_content.copy()
             logger.debug(
                 "New content for '%s' (%d) : %s",
@@ -276,6 +268,12 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     "mixins" for any additional methods the view needs to support (PATCH, PUT, DELETE).
     """
 
+    def __init__(self):
+        super().__init__()
+        # To reduce some log lines we keep information to avoid repeated messages
+        self._log_last_user: None
+        self._log_last_proposal_count: 0
+
     def get_queryset(self):
         """
         Restricts the returned records to those that belong to proposals
@@ -316,12 +314,16 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             prop_ids.update(
                 Project.objects.filter(user_id=user.pk).values_list("title", flat=True)
             )
-            logger.info(
-                "Got %s proposals for '%s': %s",
-                len(prop_ids),
-                user.username,
-                prop_ids,
-            )
+            count = len(prop_ids)
+            if self._log_last_user != user or self._log_last_proposal_count != count:
+                logger.info(
+                    "Got %s proposals for '%s': %s",
+                    count,
+                    user.username,
+                    prop_ids,
+                )
+                self._log_last_user = user
+                self._log_last_proposal_count = count
         return prop_ids
 
     def _run_query_with_connector(self, conn, user):
@@ -352,11 +354,15 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         # Return what we have for the user. Public (open) proposals
         # will be added to what we return if necessary.
         cached_prop_ids = CachedContent.get_content(user.username)
-        logger.info(
-            "Returning %s cached Proposals for '%s'",
-            len(cached_prop_ids),
-            user.username,
-        )
+        count = len(cached_prop_ids)
+        if self._log_last_user != user or self._log_last_proposal_count != count:
+            logger.info(
+                "Returning %s cached Proposals for '%s'",
+                count,
+                user.username,
+            )
+            self._log_last_user = user
+            self._log_last_proposal_count = count
         # We must return a copy of the set,
         # the caller may alter it and it's a cached object.
         return cached_prop_ids.copy()
@@ -413,13 +419,17 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
 
         # Display the collected results for the user.
         # These will be cached.
-        logger.info(
-            "%s proposals from %s records for '%s': %s",
-            len(prop_id_set),
-            len(rs),
-            user.username,
-            prop_id_set,
-        )
+        count = len(prop_id_set)
+        if self._log_last_user != user or self._log_last_proposal_count != count:
+            logger.info(
+                "%s proposals from %s records for '%s': %s",
+                count,
+                len(rs),
+                user.username,
+                prop_id_set,
+            )
+            self._log_last_user = user
+            self._log_last_proposal_count = count
         CachedContent.set_content(user.username, prop_id_set)
 
     def user_is_member_of_target(
