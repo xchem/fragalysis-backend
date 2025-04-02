@@ -669,6 +669,11 @@ TAS_REGEX_ERROR_MSG: str = os.environ.get(
     "Must begin 'lb' followed by 5 digits, optionally followed by a hyphen and a number.",
 )
 
+# Comma-separated list of TAS (proposal) codes
+# and a corresponding set of the split codes
+TAS_CODES: str = os.environ.get("TAS_CODES", "lb")
+TAS_CODES_SET: set[str] = set(TAS_CODES.split(",")) if TAS_CODES else set()
+
 # Version variables.
 # These are set by the Dockerfile in the fragalysis-stack repository
 # and controlled by the CI process, i.e. they're not normally set by a a user.

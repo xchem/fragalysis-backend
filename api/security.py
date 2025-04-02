@@ -408,14 +408,16 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         #               Proposal
         prop_id_set = set()
         for record in rs:
-            pc_str = ""
-            if "proposalCode" in record and record["proposalCode"]:
+            if (
+                "proposalCode" in record
+                and record["proposalCode"] in settings.TAS_CODES_SET
+            ):
                 pc_str = f'{record["proposalCode"]}'
-            pn_str = f'{record["proposalNumber"]}'
-            sn_str = f'{record["sessionNumber"]}'
-            proposal_str = f'{pc_str}{pn_str}'
-            proposal_visit_str = f'{proposal_str}-{sn_str}'
-            prop_id_set.update([proposal_str, proposal_visit_str])
+                pn_str = f'{record["proposalNumber"]}'
+                sn_str = f'{record["sessionNumber"]}'
+                proposal_str = f'{pc_str}{pn_str}'
+                proposal_visit_str = f'{proposal_str}-{sn_str}'
+                prop_id_set.update([proposal_str, proposal_visit_str])
 
         # Display the collected results for the user.
         # These will be cached.
