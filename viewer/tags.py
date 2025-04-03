@@ -1,5 +1,5 @@
+import hashlib
 import logging
-import re
 from typing import Any
 
 import numpy as np
@@ -211,21 +211,21 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
 
     # add auto-generated names first...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
-        upload_tag = f'upload_tag_{category.category.lower()}'
+        upload_tag = get_ann_tag(category.category)
         values.append(upload_tag)
         header.append(f'{category.category} upload name')
         annotations[upload_tag] = UploadTagSubquery(category.category)
 
     # ... then the short tags, ...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
-        short_tag = f'short_tag_{category.category.lower()}'
+        short_tag = get_ann_tag(category.category)
         values.append(short_tag)
         header.append(f'{category.category} short tag')
         annotations[short_tag] = ShortTagSubquery(category.category)
 
     # ... then aliases, ...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
-        tag = f'tag_{category.category.lower()}'
+        tag = get_ann_tag(category.category)
         values.append(tag)
         header.append(f'{category.category} alias')
         annotations[tag] = TagSubquery(category.category)
@@ -233,13 +233,11 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
     values.append(next(iter(POSE_COL.values())))
     header.append(next(iter(POSE_COL.keys())))
 
-    pattern = re.compile(r'\W+')  # non-alphanumeric characters
     for tag in SiteObservationTag.objects.filter(
         category__in=TagCategory.objects.filter(category__in=CURATED_TAG_CATEGORIES),
         target=target,
     ):
-        # for reasons unknown, mypy thinks tag is a string
-        tagname = f'tag_{pattern.sub("_", tag.tag).strip().lower()}'  # type: ignore[attr-defined]
+        tagname = get_ann_tag(tag.tag)  # type: ignore[attr-defined]
         values.append(tagname)
         header.append(f'[{tag.category}] {tag.tag}')  # type: ignore[attr-defined]
         annotations[tagname] = CuratedTagSubquery(tag)
@@ -254,7 +252,7 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
     ).values_list('name', flat=True)
     header.extend(custom_identifiers)
     for identifier in custom_identifiers:
-        ann_name = pattern.sub('_', identifier).strip().lower() # type: ignore[attr-defined]
+        ann_name = get_ann_tag(identifier)
         values.append(ann_name)
         annotations[ann_name] = CustomIdentifierSubquery(identifier)
 
@@ -592,3 +590,7 @@ def sanitize_boolean_column(column, errors):
             return value
 
     return column.apply(convert_to_boolean, args=(column.name, errors)), errors
+
+
+def get_ann_tag(input_str: str) -> str:
+    return hashlib.md5(input_str.encode()).hexdigest()
