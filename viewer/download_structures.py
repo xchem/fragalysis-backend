@@ -434,7 +434,9 @@ def _metadata_file_zip(ziparchive, target, site_observations):
         target=target,
     ).prefetch_related(
         'cmpd',
-        'siteobservationtags',
+        # this wasn't a problem, until I tried to debug it and split
+        # the qs (values later). why does this break it?
+        # 'siteobservationtags',
     ).annotate(
         downloaded=Exists(
             site_observations.filter(
