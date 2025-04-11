@@ -8,10 +8,12 @@ import re
 
 # import random
 import shutil
+import sqlite3
 import subprocess
 import tarfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -20,6 +22,8 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 import pandas as pd
 import yaml
 from celery import Task
+from dateutil.parser import parse
+from dateutil.parser._parser import ParserError  # type: ignore [import-untyped]
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -1630,6 +1634,14 @@ class TargetLoader:
             self.report.log(logging.ERROR, msg)
             raise StopIteration() from exc
 
+        soakdb_it = Path(upload_dir).joinpath("extra_files").glob("*.sqlite")
+        try:
+            soakdb_path = next(soakdb_it)
+        except StopIteration as exc:
+            msg = f"SoakDB file missing from {Path(upload_dir).joinpath('extra_files')}"
+            self.report.log(logging.ERROR, msg)
+            raise StopIteration() from exc
+
         # load necessary files
         config = self._load_yaml(config_file)
         meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
@@ -2328,6 +2340,8 @@ class TargetLoader:
                     # val.index_data["auto_build_score"],
                 )
 
+        self.process_soakdb(db_file=str(soakdb_path))
+
     def import_compound_identifiers(self, alias_file_path):
         try:
             df = pd.read_csv(alias_file_path)
@@ -2706,6 +2720,607 @@ class TargetLoader:
             main_status=False,
             comment="Created on load",
         ).save()
+
+    def exp_data_from_soakdb(self, row_data):
+        # data structure to map db fields to functions that extract
+        # data from soakdb. dictionary value is most of the time
+        # simple parser that takes a field name as argument. If
+        # argument is None, means it's more complex funciton and it
+        # knows the fields it needs to operate on
+        soakdb_field_resolvers = {
+            "cchalf_high_res_shell": (
+                self._soakdb_float,
+                "DataProcessingCChalfHigh",
+            ),
+            "cchalf_overall": (
+                self._soakdb_float,
+                "DataProcessingCChalfOverall",
+            ),
+            "completeness_high_res_shell": (
+                self._soakdb_float,
+                "DataProcessingCompletenessHigh",
+            ),
+            "completeness_overall": (
+                self._soakdb_float,
+                "DataProcessingCompletenessOverall",
+            ),
+            "crystal_mounting_result": (
+                self._soakdb_text,
+                "MountingResult",
+            ),
+            "data_collection_date": (
+                self._soakdb_datetime,
+                "DataCollectionDate",
+            ),
+            "data_collection_outcome": (
+                self._soakdb_data_collection_outcome,
+                None,
+            ),
+            "dataset": (
+                self._soakdb_text,
+                "CrystalName",
+            ),
+            "date_model_last_updated": (
+                self._soakdb_datetime,
+                "LastUpdated",
+            ),
+            "date_status_updated": (
+                self._soakdb_datetime,
+                "RefinementOutcomeDate",
+            ),
+            "date_refined": (
+                self._soakdb_datetime,
+                "RefinementDate",
+            ),
+            "dimple_rfree": (
+                self._soakdb_float,
+                "DimpleRfree",
+            ),
+            "dimple_rwork": (
+                self._soakdb_float,
+                "DimpleRcryst",
+            ),
+            "experiment_comments": (
+                self._soakdb_text,
+                "SoakDBComments",
+            ),
+            "experiment_status": (
+                self._soakdb_experiment_status,
+                None,
+            ),
+            "experiment_type": (
+                self._soakdb_experiment_type,
+                None,
+            ),
+            "experiment_start_date": (
+                self._soakdb_datetime,
+                "SoakTimestamp",
+            ),
+            "final_compound_concentration_mm": (
+                self._soakdb_float,
+                "CompoundConcentration",
+            ),
+            "high_resolution": (
+                self._soakdb_float,
+                "DataProcessingResolutionHigh",
+            ),
+            "isig_i_overall": (
+                self._soakdb_float,
+                "DataProcessingIsigOverall",
+            ),
+            "isig_i_high_res_shell": (
+                self._soakdb_float,
+                "DataProcessingIsigHigh",
+            ),
+            "library": (
+                self._soakdb_text,
+                "LibraryName",
+            ),
+            "library_plate": (
+                self._soakdb_text,
+                "LibraryPlate",
+            ),
+            "ligand_confidence": (
+                self._soakdb_ligand_confidence,
+                None,
+            ),
+            "ligand_correlation_coefficient": (
+                self._soakdb_text,
+                "RefinementLigandCC",
+            ),
+            "model_last_updated_by": (
+                self._soakdb_user,
+                "LastUpdated_by",
+            ),
+            "modelled_smiles": (
+                self._soakdb_text,
+                "CompoundSMILES",
+            ),
+            "panddarun": (
+                self._soakdb_text,
+                "DimplePANDDApath",
+            ),
+            "pdb_code": (
+                self._soakdb_text,
+                "Deposition_PDB_ID",
+            ),
+            "processing_pipeline": (
+                self._soakdb_text,
+                "DataProcessingProgram",
+            ),
+            "refined_by": (
+                self._soakdb_user,
+                "RefinementRefiner",
+            ),
+            "refinement_comment": (
+                self._soakdb_text,
+                "RefinementComment",
+            ),
+            "refinement_rfree": (
+                self._soakdb_float,
+                "RefinementRfree",
+            ),
+            "refinement_rwork": (
+                self._soakdb_float,
+                "RefinementRcryst",
+            ),
+            "soakdb_entry": (
+                self._soakdb_soakdb_entry,
+                None,
+            ),
+            "soaking_time": (
+                self._soakdb_duration,
+                "SoakingTime",
+            ),
+            "source_well": (
+                self._soakdb_text,
+                "SourceWell",
+            ),
+            "space_group": (
+                self._soakdb_space_group,
+                None,
+            ),
+            "unit_cell_dimensions": (
+                self._soakdb_numeric_array,
+                "DataProcessingUnitCell",
+            ),
+        }
+        exp_data = {}
+        for db_field, (func, soakdb_field) in soakdb_field_resolvers.items():
+            exp_data[db_field] = func(row_data, soakdb_field=soakdb_field)
+
+        return exp_data
+
+        # TODO: add other fields
+
+    def process_soakdb(self, db_file: str) -> None:
+        # fields to fetch from soakdb
+        soakdb_fields = [
+            "CompoundConcentration",
+            "RefinementOutcome",
+            "DataProcessingProgram",
+            "DataProcessingCompletenessHigh",
+            "SoakingTime",
+            "RefinementRfree",
+            "SoakTimestamp",
+            "DataProcessingCChalfHigh",
+            "RefinementRcryst",
+            "LastUpdated_by",
+            "LibraryPlate",
+            "LastUpdated",
+            "RefinementRefiner",
+            "DataCollectionDate",
+            "CrystalName",
+            "DataProcessingIsigOverall",
+            "DataProcessingIsigHigh",
+            "LibraryName",
+            "RefinementDate",
+            "DimplePANDDApath",
+            "Deposition_PDB_ID",
+            "DataProcessingCompletenessOverall",
+            "ID",
+            "MountingResult",
+            "DataProcessingCChalfOverall",
+            "SourceWell",
+            "RefinementSpaceGroup",
+            "DataCollectionOutcome",
+            "DimpleRcryst",
+            "RefinementLigandCC",
+            "RefinementOutcomeDate",
+            "DimpleRfree",
+            "DataProcessingResolutionHigh",
+            "DataProcessingSpaceGroup",
+            "DataProcessingUnitCell",
+            "RefinementComment",
+            "LabVisit",
+            "CompoundSMILES",
+            "SoakDBComments",
+            "RefinementLigandConfidence",
+        ]
+
+        query = f"SELECT {', '.join(soakdb_fields)} from mainTable"
+        logger.info("Processing soakdb")
+        experiments: list[Experiment] = []
+        qs = Experiment.filter_manager.by_target(self.target)
+        with sqlite3.connect(db_file) as conn:
+            conn.row_factory = sqlite3.Row  # This makes rows act like dicts
+            cursor = conn.cursor()
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            logger.debug("Processing soakdb results")
+            for row in rows:
+                exp_data = self.exp_data_from_soakdb(dict(row))
+
+                logger.debug("Extracted data for %s", exp_data["dataset"])
+                # add some fields experiment needs to have
+                exp_data["experiment_upload"] = self.experiment_upload
+                exp_data["code"] = exp_data["dataset"]
+                del exp_data["dataset"]
+
+                exp_qs = qs.filter(code=exp_data["code"])
+                if exp_qs.exists():
+                    logger.debug("updating existing experiment: %s", exp_qs)
+                    exp_qs.update(**exp_data)
+                    exp = exp_qs.first()
+                else:
+                    logger.debug("Creating new experiment: %s", exp_data["code"])
+                    exp = Experiment(**exp_data)
+
+                try:
+                    exp.save()
+                except IntegrityError as exc:
+                    self.report.log(
+                        logging.ERROR,
+                        f"Failed to save experiment {exp_data['code']}: {str(exc)}",
+                    )
+
+                experiments.append(exp_data)
+
+        logger.debug("%s entries from soakdb processed", len(experiments))
+
+    # functions extracting data from SoakDB. All have the same
+    # signature, they take the dictionary of row header:value and
+    # return a single value
+    # CREATE DEFINER=`root`@`%` FUNCTION `soakDB`.`FUNCDataCollectionOutcome`(
+    #     MountingResult VARCHAR(255),
+    #     DataCollectionOutcome VARCHAR(255)
+    # ) RETURNS varchar(255) CHARSET utf8mb4
+    #     DETERMINISTIC
+    # BEGIN
+
+    # 	-- Determine data collection outcome based on the two input columns
+    # 	IF MountingResult LIKE '%FAIL%' THEN
+    # 		RETURN 'Failed - crystal did not survive soak';
+    # 	ELSEIF LOWER(DataCollectionOutcome) LIKE '%none%' THEN
+    # 		RETURN 'Failed - autoprocessing failure';
+    # 	ELSEIF LOWER(DataCollectionOutcome) LIKE '%success%' THEN
+    # 		RETURN 'Success - data collected';
+    # 	ELSEIF LOWER(DataCollectionOutcome) LIKE '%failed - low resolution%' THEN
+    # 		RETURN 'Failed - low resolution';
+    # 	ELSEIF LOWER(DataCollectionOutcome) LIKE '%failed - centring failed%' THEN
+    # 		RETURN 'Failed - centring failed';
+    # 	ELSEIF LOWER(DataCollectionOutcome) LIKE '%failed - processing%' THEN
+    # 		RETURN 'Failed - processing';
+    # 	ELSEIF LOWER(DataCollectionOutcome) LIKE '%failed - no x-rays%' THEN
+    # 		RETURN 'Failed - no X-rays';
+    # 	ELSEIF LOWER(DataCollectionOutcome) LIKE '%failed - loop broken%' THEN
+    # 		RETURN 'Failed - loop broken';
+    # 	ELSEIF LOWER(DataCollectionOutcome) LIKE '%failed - unknown%' THEN
+    # 		RETURN 'Failed - unknown';
+    # 	ELSEIF DataCollectionOutcome IS NULL THEN
+    # 		RETURN 'No data collected';
+    #     ELSE
+    #     	RETURN DataCollectionOutcome;
+    #     END IF;
+
+    # END;
+    def _soakdb_data_collection_outcome(self, row_data, soakdb_field=None):
+        del soakdb_field
+        collection_outcome = row_data["DataCollectionOutcome"]
+        mounting_result = row_data["MountingResult"]
+        if mounting_result and mounting_result.find("FAIL") > -1:
+            return "Failed - crystal did not survive soak"
+        if collection_outcome:
+            if collection_outcome.lower().find("nonw") > -1:
+                return "Failed - autoprocessing failure"
+            if collection_outcome.lower().find("success") > -1:
+                return "Success - data collected"
+            if collection_outcome.lower().find("failed - low resolution") > -1:
+                return "Failed - low resolution"
+            if collection_outcome.lower().find("failed - centring failed") > -1:
+                return "Failed - centring failed"
+            if collection_outcome.lower().find("failed - processing") > -1:
+                return "Failed - processing"
+            if collection_outcome.lower().find("failed - no x-rays") > -1:
+                return "Failed - no X-rays"
+            if collection_outcome.lower().find("failed - loop broken") > -1:
+                return "Failed - loop broken"
+            if collection_outcome.lower().find("failed - unknown") > -1:
+                return "Failed - unknown"
+            else:
+                return collection_outcome
+        else:
+            return "No data collected"
+
+    # CREATE DEFINER=`root`@`%` FUNCTION `soakDB`.`FUNCExperimentStatus`(
+    #     DataCollectionOutcome VARCHAR(255),
+    #     SoakTimestamp VARCHAR(20),
+    #     RefinementOutcome VARCHAR(255)
+    # ) RETURNS varchar(255) CHARSET utf8mb4
+    #     DETERMINISTIC
+    # BEGIN
+
+    # 	-- Determine experiment status based on the three input columns
+    # 	IF LOWER(DataCollectionOutcome) LIKE '%fail%' THEN
+    # 		RETURN 'Data collection failed';
+    # 	ELSEIF LOWER(DataCollectionOutcome) LIKE '%no data collected%' THEN
+    # 		RETURN 'No data collected';
+    # 	ELSEIF RefinementOutcome LIKE '%7 - Analysed & Rejected%' THEN
+    # 		RETURN 'Structure analysed and rejected';
+    # 	ELSEIF RefinementOutcome LIKE '%6 - Deposited%' THEN
+    # 		RETURN 'Structure deposited';
+    # 	ELSEIF RefinementOutcome LIKE '%5 - Deposition ready%' THEN
+    # 		RETURN 'Deposition ready';
+    # 	ELSEIF RefinementOutcome LIKE '%4 - CompChem ready%' THEN
+    # 		RETURN 'CompChem ready';
+    # 	ELSEIF RefinementOutcome LIKE '%3 - In Refinement%' THEN
+    # 		RETURN 'Refinement in progress';
+    # 	ELSEIF RefinementOutcome LIKE '%2 - PANDDA model%' THEN
+    # 		RETURN 'Analysis in progress';
+    # 	ELSEIF RefinementOutcome LIKE '%1 - Analysis Pending%' THEN
+    # 		RETURN 'Analysis pending';
+    # 	ELSEIF RefinementOutcome LIKE '%0 - All datasets%' THEN
+    # 		RETURN 'Data collection failed';
+    # 	ELSEIF RefinementOutcome IS NULL THEN
+    # 		RETURN 'Data collection failed';
+    # 	ELSEIF SoakTimestamp IS NULL THEN
+    # 		RETURN 'Experiment pending';
+    # 	ELSE
+    # 		RETURN NULL;
+    # 	END IF;
+
+    # END;
+    def _soakdb_experiment_status(self, row_data, soakdb_field=None):
+        del soakdb_field
+        collection_outcome = row_data["DataCollectionOutcome"]
+        refinement_outcome = row_data["RefinementOutcome"]
+
+        # this case isn't directly handled in trigger function, maybe
+        # it's caught by final else
+        if not collection_outcome:
+            return None
+        if not refinement_outcome:
+            return "Data collection failed"
+        if collection_outcome.lower().find("fail") > -1:
+            return "Data collection failed"
+        elif collection_outcome.lower().find("no data collected") > -1:
+            return "No data collected"
+        elif refinement_outcome.find("7 - Analysed & Rejecte") > -1:
+            return "Structure analysed and rejected"
+        elif refinement_outcome.find("6 - Deposited") > -1:
+            return "Structure deposited"
+        elif refinement_outcome.find("5 - Deposition ready") > -1:
+            return "Structure deposited"
+        elif refinement_outcome.find("4 - CompChem ready") > -1:
+            return "CompChem ready"
+        elif refinement_outcome.find("3 - In Refinement") > -1:
+            return "Refinement in progress"
+        elif refinement_outcome.find("2 - PANDDA model") > -1:
+            return "Analysis in progress"
+        elif refinement_outcome.find("1 - Analysis Pending") > -1:
+            return "Analysis pending"
+        elif not row_data["SoakTimestamp"]:
+            return "Experiment pending"
+        else:
+            return None
+
+    # CREATE DEFINER=`root`@`%` FUNCTION `soakDB`.`FUNCExperimentType`(SoakDBComments VARCHAR(255)) RETURNS varchar(255) CHARSET utf8mb4
+    #     DETERMINISTIC
+    # BEGIN
+
+    # 	-- Get experiment type
+    # 	IF LOWER(SoakDBComments) IN ('co-crystallisation','cocrystallisation','co-cryst','co-xtal','co-xtallisation','cocrystal') THEN
+    # 		RETURN 'Co-crystallisation';
+    # 	ELSE
+    #         RETURN 'Soak';
+    #     END IF;
+
+    # END;
+    @staticmethod
+    def _soakdb_experiment_type(row_data, soakdb_field=None):
+        del soakdb_field
+        if row_data["SoakDBComments"]:
+            if row_data["SoakDBComments"].lower() in (
+                "co-crystallisation",
+                "cocrystallisation",
+                "co-cryst",
+                "co-xtal",
+                "co-xtallisation",
+                "cocrystal",
+            ):
+                return 'Co-crystallisation'
+            else:
+                return "Soak"
+        else:
+            return None
+
+    # CREATE DEFINER=`root`@`%` FUNCTION `soakDB`.`FUNCLigandConfidence`(
+    #     RefinementLigandConfidence VARCHAR(255)
+    # ) RETURNS varchar(255) CHARSET utf8mb4
+    #     DETERMINISTIC
+    # BEGIN
+
+    # 	-- Determine ligand confidence
+    # 	IF RefinementLigandConfidence LIKE '%0 - no ligand present%' THEN
+    # 		RETURN 'No ligand modelled';
+    # 	ELSEIF RefinementLigandConfidence LIKE '%1 - Low Confidence%' THEN
+    # 		RETURN 'Low confidence';
+    # 	ELSEIF RefinementLigandConfidence LIKE '%2 - Correct ligand, weak density%' THEN
+    # 		RETURN 'Correct ligand, but weak density';
+    # 	ELSEIF RefinementLigandConfidence LIKE '%3 - Clear density, unexpected ligand%' THEN
+    # 		RETURN 'Unexpected ligand';
+    # 	ELSEIF RefinementLigandConfidence LIKE '%4 - High Confidence%' THEN
+    # 		RETURN 'High confidence';
+    # 	ELSE
+    # 		RETURN NULL;
+    # 	END IF;
+
+    # END;
+    @staticmethod
+    def _soakdb_ligand_confidence(row_data, soakdb_field=None):
+        del soakdb_field
+        confidence = row_data["RefinementLigandConfidence"]
+        if confidence:
+            if confidence.lower().find("0 - no ligand present") > -1:
+                return "No ligand modelled"
+            elif confidence.lower().find("1 - Low Confidence") > -1:
+                return "Low confidence"
+            elif confidence.lower().find("2 - Correct ligand, weak density") > -1:
+                return "Correct ligand, but weak density"
+            elif confidence.lower().find("3 - Clear density, unexpected ligand") > -1:
+                return "Unexpected ligand"
+            elif confidence.lower().find("4 - High Confidence") > -1:
+                return "High confidence"
+            else:
+                return None
+        else:
+            return None
+
+    @staticmethod
+    def _soakdb_user(row_data, soakdb_field=None):
+        soakdb_user = row_data[soakdb_field]
+
+        # first check if any of the known unknowns
+        if not soakdb_user or soakdb_user.lower().strip() == "none":
+            return None
+        elif soakdb_user.lower().strip() == "unknown":
+            return get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        try:
+            user = get_user_model().objects.get(username=soakdb_user.strip())
+            return user
+        except get_user_model().DoesNotExist:
+            # create a placeholder
+            placeholder = get_user_model()(
+                username=soakdb_user.strip(),
+                is_superuser=False,
+                is_staff=False,
+            )
+            placeholder.save()
+            return placeholder
+
+    def _soakdb_soakdb_entry(self, row_data, soakdb_field=None):
+        del soakdb_field
+        return f"{row_data['ID']}_{row_data['LabVisit']}"
+
+    # CREATE DEFINER=`root`@`%` FUNCTION `soakDB`.`FUNCSpacegroup`(
+    #     RefinementSpaceGroup VARCHAR(255),
+    #     DataProcessingSpaceGroup VARCHAR(255)
+    # ) RETURNS varchar(255) CHARSET utf8mb4
+    #     DETERMINISTIC
+    # BEGIN
+
+    # 	-- Check if RefinementSpaceGroup is NULL
+    # 	IF RefinementSpaceGroup IS NULL THEN
+    # 		RETURN REPLACE(IFNULL(DataProcessingSpaceGroup, ''), ' ', '');
+    # 	ELSE
+    # 		RETURN REPLACE(RefinementSpaceGroup, ' ', '');
+    # 	END IF;
+
+    # END;
+    def _soakdb_space_group(self, row_data, soakdb_field=None):
+        del soakdb_field
+        if row_data["RefinementSpaceGroup"]:
+            return row_data["RefinementSpaceGroup"].replace(" ", "")
+        else:
+            if row_data["DataProcessingSpaceGroup"]:
+                return row_data["DataProcessingSpaceGroup"].replace(" ", "")
+            else:
+                # not directly handled by trigger code
+                return None
+
+    def _soakdb_float(self, row_data, soakdb_field=None):
+        if row_data[soakdb_field]:
+            try:
+                return float(row_data[soakdb_field])
+            except ValueError:
+                msg = (
+                    f"Expected float on SoakDb ID:{row_data['ID']} {soakdb_field} "
+                    + f"but received {row_data[soakdb_field]}"
+                )
+                self.report.log(logging.WARNING, msg)
+                return None
+        else:
+            return None
+
+    def _soakdb_numeric_array(self, row_data, soakdb_field=None):
+        if row_data[soakdb_field]:
+            try:
+                return [float(k) for k in row_data[soakdb_field].split()]
+            except ValueError:
+                msg = (
+                    f"Expected numeric array on SoakDb ID:{row_data['ID']} {soakdb_field} "
+                    + f"but received {row_data[soakdb_field]}"
+                )
+                self.report.log(logging.WARNING, msg)
+                return None
+        else:
+            return None
+
+    def _soakdb_datetime(self, row_data, soakdb_field=None):
+        if row_data[soakdb_field]:
+            try:
+                return parse(row_data[soakdb_field])
+            except ParserError:
+                # sometimes dates are given as:
+                # 2020-12-02_09-50-12.03
+                # cleanup:
+                s_clean = row_data[soakdb_field].replace('_', ' ')
+                s_clean = s_clean.replace('-', ':')
+                try:
+                    return parse(s_clean)
+                except ParserError:
+                    # still nothing
+                    msg = (
+                        f"Expected datetime on SoakDb ID:{row_data['ID']} {soakdb_field} "
+                        + f"but received {row_data[soakdb_field]}"
+                    )
+                    self.report.log(logging.WARNING, msg)
+                    return None
+        else:
+            return None
+
+    def _soakdb_duration(self, row_data, soakdb_field=None):
+        """Parses a string like '01:09:43' into a timedelta.
+
+        NB! occasionally some incoming values may have 'AM'
+        appended. Strip that.
+        """
+        logger.debug('duraton value: %s', row_data[soakdb_field])
+        if row_data[soakdb_field]:
+            parts = row_data[soakdb_field].split(":")
+            parts = [int(re.sub(r"\D", "", p)) for p in parts]
+
+            # Support HH:MM:SS or MM:SS
+            if len(parts) == 3:
+                hours, minutes, seconds = parts
+            elif len(parts) == 2:
+                hours = 0
+                minutes, seconds = parts
+            else:
+                msg = (
+                    f"Expected timedelta on SoakDb ID:{row_data['ID']} {soakdb_field} "
+                    + f"but received {row_data[soakdb_field]}"
+                )
+                self.report.log(logging.WARNING, msg)
+                return None
+
+            return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+        else:
+            return None
+
+    def _soakdb_text(self, row_data, soakdb_field=None):
+        return row_data[soakdb_field]
 
 
 def load_target(

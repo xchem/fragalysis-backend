@@ -320,6 +320,59 @@ class Experiment(models.Model):
         null=True,
     )
 
+    # new fields from SoakDb (issue 1147)
+    cchalf_high_res_shell = models.FloatField(null=True, blank=True)
+    cchalf_overall = models.FloatField(null=True, blank=True)
+    completeness_high_res_shell = models.FloatField(null=True, blank=True)
+    completeness_overall = models.FloatField(null=True, blank=True)
+    # potential for lookup? seems very standardised
+    crystal_mounting_result = models.TextField(null=True, blank=True)
+    data_collection_date = models.DateTimeField(null=True)
+    data_collection_outcome = models.TextField(null=True, blank=True)
+    # same as code
+    # dataset = models.TextField(null=True, blank=True)
+    date_model_last_updated = models.DateTimeField(null=True)
+    date_status_updated = models.DateTimeField(null=True)
+    date_refined = models.DateTimeField(null=True)
+    dimple_rfree = models.FloatField(null=True, blank=True)
+    dimple_rwork = models.FloatField(null=True, blank=True)
+    experiment_comments = models.TextField(null=True, blank=True)
+    experiment_status = models.TextField(null=True, blank=True)
+    experiment_type = models.TextField(null=True, blank=True)
+    experiment_start_date = models.DateTimeField(null=True)
+    final_compound_concentration_mm = models.FloatField(null=True, blank=True)
+    high_resolution = models.FloatField(null=True, blank=True)
+    isig_i_overall = models.FloatField(null=True, blank=True)
+    isig_i_high_res_shell = models.FloatField(null=True, blank=True)
+    library = models.TextField(null=True, blank=True)
+    library_plate = models.TextField(null=True, blank=True)
+    ligand_confidence = models.TextField(null=True, blank=True)
+    ligand_correlation_coefficient = models.TextField(null=True, blank=True)
+    model_last_updated_by = models.ForeignKey(
+        User,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    modelled_smiles = models.TextField(null=True, blank=True)
+    panddarun = models.TextField(null=True, blank=True)
+    pdb_code = models.TextField(null=True, blank=True)
+    processing_pipeline = models.TextField(null=True, blank=True)
+    refined_by = models.ForeignKey(
+        User,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    refinement_comment = models.TextField(null=True, blank=True)
+    refinement_rfree = models.FloatField(null=True, blank=True)
+    refinement_rwork = models.FloatField(null=True, blank=True)
+    soakdb_entry = models.TextField(null=True, blank=True)
+    soaking_time = models.DurationField(null=True, blank=True)
+    source_well = models.TextField(null=True, blank=True)
+    space_group = models.TextField(null=True, blank=True)
+    unit_cell_dimensions = ArrayField(models.FloatField(), null=True)
+
     objects = models.Manager()
     filter_manager = ExperimentDataManager()
 
