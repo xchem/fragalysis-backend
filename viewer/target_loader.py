@@ -193,6 +193,67 @@ class UploadReport:
             )
 
 
+def _get_xca_tag(yaml_content: dict[str, Any]) -> tuple[list[str], str]:
+    # Initial concern - the loader's git information.
+    # It must not be 'dirty' and must have a valid 'tag'.
+    xca_git_info_key = "xca_git_info"
+    base_error_msg = "Stack is in PRODUCTION mode - and"
+    try:
+        xca_git_info = yaml_content[xca_git_info_key]
+    except KeyError as exc:
+        raise ValueError(
+            f"{base_error_msg} '{xca_git_info_key}' is a required configuration property"
+        ) from exc
+
+    logger.info("%s: %s", xca_git_info_key, xca_git_info)
+
+    if "dirty" not in xca_git_info:
+        raise ValueError(
+            f"{base_error_msg} '{xca_git_info_key}' has no 'dirty' property"
+        )
+    if xca_git_info["dirty"]:
+        raise ValueError(f"{base_error_msg} '{xca_git_info_key}->dirty' must be False")
+
+    if "tag" not in xca_git_info:
+        raise ValueError(f"{base_error_msg} '{xca_git_info_key}' has no 'tag' property")
+    xca_version_tag: str = str(xca_git_info["tag"])
+    tag_parts: List[str] = xca_version_tag.split(".")
+
+    return tag_parts, xca_version_tag
+
+
+def _check_xca_tag(
+    yaml_content: dict[str, Any],
+    min_xca_tag: str,
+) -> bool:
+    if not deployment_mode_is_production():
+        # We're not in production mode - no bundle checks
+        return True
+
+    logger.debug("Checking XCA tag")
+    try:
+        tag_parts, _ = _get_xca_tag(yaml_content)
+    except ValueError as exc:
+        raise ValueError(exc.args[0]) from exc
+
+    min_tag = [int(k) for k in min_xca_tag.split(".")]
+
+    logger.debug("Given tag: %s", tag_parts)
+    logger.debug("Settings min tag: %s", min_xca_tag)
+
+    try:
+        xca_tag: list[int] = [int(k) for k in tag_parts[:2]]
+    except ValueError as exc:
+        raise ValueError(f"{'.'.join(tag_parts)} is not a valid tag") from exc
+
+    for k, v in zip(xca_tag, min_tag):
+        logger.debug("XCA     tag checker: k=%s, v=%s", k, v)
+        if k > v:
+            return False
+
+    return True
+
+
 def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
     """Inspects the meta to ensure it is supported by the MODE this stack is in.
     Mode is (typically) one of DEVELOPER or PRODUCTION.
@@ -203,27 +264,15 @@ def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
         return None
 
     # PRODUCTION mode (strict)
-
-    # Initial concern - the loader's git information.
-    # It must not be 'dirty' and must have a valid 'tag'.
+    # duplicated to produce the error message
+    # TODO: better refactor
     xca_git_info_key = "xca_git_info"
     base_error_msg = "Stack is in PRODUCTION mode - and"
     try:
-        xca_git_info = config_yaml[xca_git_info_key]
-    except KeyError:
-        return f"{base_error_msg} '{xca_git_info_key}' is a required configuration property"
+        tag_parts, xca_version_tag = _get_xca_tag(config_yaml)
+    except ValueError as exc:
+        return exc.args[0]
 
-    logger.info("%s: %s", xca_git_info_key, xca_git_info)
-
-    if "dirty" not in xca_git_info:
-        return f"{base_error_msg} '{xca_git_info_key}' has no 'dirty' property"
-    if xca_git_info["dirty"]:
-        return f"{base_error_msg} '{xca_git_info_key}->dirty' must be False"
-
-    if "tag" not in xca_git_info:
-        return f"{base_error_msg} '{xca_git_info_key}' has no 'tag' property"
-    xca_version_tag: str = str(xca_git_info["tag"])
-    tag_parts: List[str] = xca_version_tag.split(".")
     tag_valid: bool = True
     if len(tag_parts) in {2, 3}:
         for tag_part in tag_parts:
@@ -1634,14 +1683,6 @@ class TargetLoader:
             self.report.log(logging.ERROR, msg)
             raise StopIteration() from exc
 
-        soakdb_it = Path(upload_dir).joinpath("extra_files").glob("*.sqlite")
-        try:
-            soakdb_path = next(soakdb_it)
-        except StopIteration as exc:
-            msg = f"SoakDB file missing from {Path(upload_dir).joinpath('extra_files')}"
-            self.report.log(logging.ERROR, msg)
-            raise StopIteration() from exc
-
         # load necessary files
         config = self._load_yaml(config_file)
         meta = self._load_yaml(Path(upload_dir).joinpath(METADATA_FILE))
@@ -1654,9 +1695,32 @@ class TargetLoader:
 
         # Validate the upload's XCA version information against any MODE-based conditions.
         # An error message is returned if the bundle is not supported.
-        if vb_err_msg := _validate_bundle_against_mode(config):
+        if vb_err_msg := _validate_bundle_against_mode(meta):
             self.report.log(logging.ERROR, vb_err_msg)
             raise AssertionError(vb_err_msg)
+
+        # check that soakdb output exists
+        soakdb_it = Path(upload_dir).joinpath("extra_files").glob("*.sqlite")
+        try:
+            soakdb_path = next(soakdb_it)
+        except StopIteration as exc:
+            soakdb_path = None
+            msg = f"SoakDB file missing from {Path(upload_dir).joinpath('extra_files')}"
+            # does not exist but maybe that's OK?
+            try:
+                tag_ok = _check_xca_tag(meta, settings.XCA_MIN_VERSION)
+                # tag_ok means that the data was compiled with XCA
+                # version greater than that specfiied in settings
+            except ValueError as e:
+                # unsuitable tag
+                tag_ok = False
+                self.report.log(logging.ERROR, e.args[0])
+            if tag_ok:
+                self.report.log(logging.WARNING, msg)
+            else:
+                # version check failed
+                self.report.log(logging.ERROR, msg)
+                raise StopIteration() from exc
 
         # Target (very least) is required
         try:
@@ -2340,7 +2404,8 @@ class TargetLoader:
                     # val.index_data["auto_build_score"],
                 )
 
-        self.process_soakdb(db_file=str(soakdb_path))
+        if soakdb_path:
+            self.process_soakdb(db_file=str(soakdb_path))
 
     def import_compound_identifiers(self, alias_file_path):
         try:

@@ -687,3 +687,6 @@ STACK_VERSION: str = os.environ.get("STACK_VERSION", "undefined")
 
 # XChem Align data format
 XCA_DATA_FORMAT_VERSION = "2.2"
+
+# Minimum allowed XChem Align version
+XCA_MIN_VERSION = "2.2.4"
