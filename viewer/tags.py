@@ -211,21 +211,21 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
 
     # add auto-generated names first...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
-        upload_tag = get_ann_tag(category.category)
+        upload_tag = get_ann_tag(f'{category.category} upload name')
         values.append(upload_tag)
         header.append(f'{category.category} upload name')
         annotations[upload_tag] = UploadTagSubquery(category.category)
 
     # ... then the short tags, ...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
-        short_tag = get_ann_tag(category.category)
+        short_tag = get_ann_tag(f'{category.category} short tag')
         values.append(short_tag)
         header.append(f'{category.category} short tag')
         annotations[short_tag] = ShortTagSubquery(category.category)
 
     # ... then aliases, ...
     for category in TagCategory.objects.filter(category__in=TAG_CATEGORIES):
-        tag = get_ann_tag(category.category)
+        tag = get_ann_tag(f'{category.category} alias')
         values.append(tag)
         header.append(f'{category.category} alias')
         annotations[tag] = TagSubquery(category.category)
