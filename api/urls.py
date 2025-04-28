@@ -135,6 +135,10 @@ router.register(
 #     basename='computedset_download',
 # )
 
+router.register(
+    "assay_data_upload", viewer_views.UploadAssayDataView, basename='assay_data_upload'
+)
+
 # Squonk Jobs
 router.register(
     "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'
