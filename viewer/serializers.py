@@ -1020,11 +1020,6 @@ class SiteObservationReadSerializer(serializers.ModelSerializer):
     compound_code = serializers.StringRelatedField()
     prefix_tooltip = serializers.StringRelatedField()
 
-    ligand_mol_file = serializers.SerializerMethodField()
-
-    def get_ligand_mol_file(self, obj):
-        return obj.get_ligand_mol_file()
-
     class Meta:
         model = models.SiteObservation
         fields = '__all__'
