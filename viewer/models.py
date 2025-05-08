@@ -1928,7 +1928,16 @@ class ResultUpload(models.Model):
     )
 
 
+class ResultProperty(models.Model):
+    """Assay data property name"""
+
+    result_property = models.TextField()
+    unit = models.TextField(null=True)
+
+
 class Result(models.Model):
+    """Model to store assay results data"""
+
     raw_value = models.TextField(null=True)
     data_type = models.ForeignKey(ResultValueDataType, on_delete=models.CASCADE)
     float_value = models.FloatField(null=True)
@@ -1939,7 +1948,6 @@ class Result(models.Model):
         null=True,
     )
     text_value = models.TextField(null=True)
-    unit = models.TextField(null=True)
     compound = models.ForeignKey(Compound, on_delete=models.CASCADE, null=True)
     site_observation = models.ForeignKey(
         SiteObservation,
@@ -1952,6 +1960,7 @@ class Result(models.Model):
         null=True,
     )
     parsing_error = models.BooleanField(default=False, null=False)
+    result_property = models.ForeignKey(ResultProperty, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
         return f"{self.id}: {self.raw_value} {self.data_type}"

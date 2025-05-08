@@ -3,26 +3,18 @@ import re
 
 import numpy as np
 import pandas as pd
-
-# from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
 
 from .models import (
     Compound,
     Result,
+    ResultProperty,
     ResultUpload,
     ResultValueDataType,
     ResultValueModifier,
     SiteObservation,
     Target,
 )
-
-# from celery import Task
-# from django.conf import settings
-
-
-# from pathlib import Path
-
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +42,6 @@ def load_file(filename: str, header_contains_data_types=False):
     return df
 
 
-# def save_file(filename):
-#     directory = Path(settings.MEDIA_ROOT, settings.ASSAY_DATA_MEDIA_DIRECTORY)
-#     if not directory.is_dir():
-#         # first time?
-#         directory.mkdir()
-
-
 def process_float_value(x):
     """Process float value in cell.
 
@@ -64,8 +49,6 @@ def process_float_value(x):
     Return tuple:
     (original value, prefix, float value, error)
     """
-    if str(x) == '21.059':
-        return x, None, None, True, f'Unable to parse {x} to float'
     try:
         groups = re.match(FLOAT_PATTERN, str(x)).groups()  # type: ignore[union-attr]
         return x, groups[0], groups[1], False, np.nan
@@ -118,7 +101,7 @@ def process_text_value(x):
     return x, x, None
 
 
-def process_string(df, column, id_column):
+def process_text(df, column, id_column):
     """Process text value in cell."""
     logger.debug('text column %s processed', column)
     result = df[column].apply(process_text_value).apply(pd.Series)
@@ -200,7 +183,7 @@ def resolve_data(df, id_column):
     df = df.loc[:, (mask_not_whitespace & mask_not_empty & mask_not_na).all(axis=0)]
 
     # and process everything as string
-    result = {k: process_string for k in df.columns if k != id_column}
+    result = {k: process_text for k in df.columns if k != id_column}
 
     return df, result
 
@@ -215,7 +198,6 @@ class AssayData:
         target: Target,
         user,
         header_contains_data_types: bool = False,
-        # task: Task | None = None,
     ):
         self.filename = filename
         self.id_column = id_column
@@ -263,10 +245,17 @@ class AssayData:
                     logger.debug('processing %s with %s', column, proc_func.__name__)
                     unit = get_unit(column)
 
+                    result_property = ResultProperty(
+                        result_property=column,
+                        unit=unit,
+                    )
+                    result_property.save()
+
                     short_df = proc_func(df, column, self.id_column)
                     short_df[self.id_type] = df[self.id_type]
                     short_df['result_upload'] = result_upload
-                    short_df['unit'] = unit
+                    # short_df['unit'] = unit
+                    short_df['result_property'] = result_property
 
                     # extract error column and add it to error list
                     error_df = short_df[short_df[ERROR_COLUMN].notnull()][
