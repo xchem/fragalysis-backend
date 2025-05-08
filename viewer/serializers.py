@@ -1312,4 +1312,4 @@ class AssayDataUploadSerializer(serializers.Serializer):
             ),
         ]
     )
-    # header_contains_data_types = serializers.BooleanField(default=False)
+    header_contains_data_types = serializers.BooleanField(default=False)

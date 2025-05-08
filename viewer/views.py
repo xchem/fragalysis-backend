@@ -2958,6 +2958,9 @@ class UploadAssayDataView(ISPyBSafeQuerySet):
             id_type=serializer.validated_data['identifier_type'],
             target=target,
             user=user,
+            header_contains_data_types=serializer.validated_data[
+                'header_contains_data_types'
+            ],
         )
         errors, warnings = ad.load_assay_data()
         logger.debug("view errors: %s", errors)

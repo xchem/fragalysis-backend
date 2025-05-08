@@ -32,14 +32,16 @@ FLOAT_PATTERN = re.compile(r'(<=|>=|<|>)?\s*([+-]?(?:\d+\.\d*|\.\d+|\d+))')
 ERROR_COLUMN = 'error'
 
 
-def load_file(filename: str):
-    # from viewer.tags import load_tags_from_file; from viewer.models import Target; target = Target.objects.get(pk=1); load_tags_from_file('metadata.csv', target)
+def load_file(filename: str, header_contains_data_types=False):
+    header = [0]
+    if header_contains_data_types:
+        header = [0, 1]
 
     try:
-        df = pd.read_csv(filename, header=[0, 1])
+        df = pd.read_csv(filename, header=header)
     except UnicodeDecodeError:
         try:
-            df = pd.read_excel(filename, header=[0, 1])
+            df = pd.read_excel(filename, header=header)
         except ValueError as exc:
             msg = f'{filename} is not a valid CSV or XLSX file'
             logger.error(msg)
@@ -111,6 +113,22 @@ def process_float(df, column, id_column):
     return result
 
 
+def process_text_value(x):
+    """Process text value in cell."""
+    return x, x, None
+
+
+def process_string(df, column, id_column):
+    """Process text value in cell."""
+    logger.debug('text column %s processed', column)
+    result = df[column].apply(process_text_value).apply(pd.Series)
+    result.columns = ['raw_value', 'text_value', ERROR_COLUMN]
+    result['data_type'] = ResultValueDataType.objects.get(data_type='text')
+    result = result.merge(df[id_column], left_index=True, right_index=True)
+
+    return result
+
+
 def append_object_pk(df, id_column, object_type, target):
     # filter out non-compounds and add object's pk
     # TODO: should I create cmpds?
@@ -173,6 +191,20 @@ def resolve_multiindex(df):
     return df, result
 
 
+def resolve_data(df, id_column):
+    # remove empty columns
+    mask_not_whitespace = ~df.applymap(lambda x: isinstance(x, str) and x.strip() == "")
+    mask_not_empty = df != ""
+    mask_not_na = df.notna()
+
+    df = df.loc[:, (mask_not_whitespace & mask_not_empty & mask_not_na).all(axis=0)]
+
+    # and process everything as string
+    result = {k: process_string for k in df.columns if k != id_column}
+
+    return df, result
+
+
 class AssayData:
     def __init__(
         self,
@@ -182,6 +214,7 @@ class AssayData:
         id_type: str,
         target: Target,
         user,
+        header_contains_data_types: bool = False,
         # task: Task | None = None,
     ):
         self.filename = filename
@@ -189,6 +222,7 @@ class AssayData:
         self.id_type = id_type  # compound or site observation
         self.target = target
         self.user = user
+        self.header_contains_data_types = header_contains_data_types
 
         self.errors: list[str] = []
         self.warnings: list[str] = []
@@ -196,22 +230,24 @@ class AssayData:
     def load_assay_data(
         self,
     ) -> tuple[list[str], list[str]]:  # type: ignore [return]
-        # testing
-        # data_col = 'EVA-71-2A_fluorescence-dose-response_weizmann: IC50 (µM)'
-        # id_column = 'Batch Molecule-Batch ID'
+        logger.debug('load function entered')
 
         try:
-            df = load_file(self.filename)
-            df, data_columns = resolve_multiindex(df)
+            df = load_file(
+                self.filename,
+                header_contains_data_types=self.header_contains_data_types,
+            )
+            if self.header_contains_data_types:
+                df, data_columns = resolve_multiindex(df)
+            else:
+                df, data_columns = resolve_data(df, self.id_column)
             df = append_object_pk(df, self.id_column, self.id_type, self.target)
         except ValueError as exc:
             self.errors.append(exc.args[0])
             return self.errors, self.warnings
 
-        # testing hack
-        # data_columns = {
-        #     data_col: process_float,
-        # }
+        logger.debug('data frame resolved: %s', df.shape)
+        logger.debug('data cols resolved: %s', data_columns)
 
         try:
             with transaction.atomic():
@@ -224,8 +260,7 @@ class AssayData:
                 result_upload.save()
 
                 for column, proc_func in data_columns.items():
-                    # TODO need to select correct function based on data_type
-                    # short_df = process_float(df, column, self.id_column)
+                    logger.debug('processing %s with %s', column, proc_func.__name__)
                     unit = get_unit(column)
 
                     short_df = proc_func(df, column, self.id_column)
