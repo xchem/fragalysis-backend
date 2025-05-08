@@ -1303,4 +1303,13 @@ class AssayDataUploadSerializer(serializers.Serializer):
     target = serializers.CharField()
     target_access_string = serializers.CharField()
     identifier_column = serializers.CharField()
-    identifier_type = serializers.ChoiceField(choices=['Compound', 'Site observation'])
+    identifier_type = serializers.ChoiceField(
+        choices=[
+            ('compound', 'Compound'),
+            (
+                'site_observation',
+                'Site observation',
+            ),
+        ]
+    )
+    # header_contains_data_types = serializers.BooleanField(default=False)

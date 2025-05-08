@@ -1901,3 +1901,57 @@ class Squonk2Project(models.Model):
             self.product_uuid,
             self.unit,
         )
+
+
+class ResultValueDataType(models.Model):
+    data_type = models.TextField(primary_key=True)
+    db_type = models.TextField()
+
+
+class ResultValueModifier(models.Model):
+    modifier = models.TextField(primary_key=True)
+    django_operator = models.TextField()
+
+
+class ResultUpload(models.Model):
+    target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
+    upload_file = models.FileField(upload_to='assay_data/')
+    upload_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        default=timezone.now,
+    )
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        default=settings.ANONYMOUS_USER,
+    )
+
+
+class Result(models.Model):
+    raw_value = models.TextField(null=True)
+    data_type = models.ForeignKey(ResultValueDataType, on_delete=models.CASCADE)
+    float_value = models.FloatField(null=True)
+    int_value = models.IntegerField(null=True)
+    numeric_modifier = models.ForeignKey(
+        ResultValueModifier,
+        on_delete=models.CASCADE,
+        null=True,
+    )
+    text_value = models.TextField(null=True)
+    unit = models.TextField(null=True)
+    compound = models.ForeignKey(Compound, on_delete=models.CASCADE, null=True)
+    site_observation = models.ForeignKey(
+        SiteObservation,
+        on_delete=models.CASCADE,
+        null=True,
+    )
+    result_upload = models.ForeignKey(
+        ResultUpload,
+        on_delete=models.CASCADE,
+        null=True,
+    )
+    parsing_error = models.BooleanField(default=False, null=False)
+
+    def __str__(self) -> str:
+        return f"{self.id}: {self.raw_value} {self.data_type}"

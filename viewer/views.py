@@ -54,6 +54,7 @@ from viewer.utils import (
     save_tmp_file,
 )
 
+from .assay_data import AssayData
 from .discourse import (
     check_discourse_user,
     create_discourse_post,
@@ -2943,9 +2944,37 @@ class UploadAssayDataView(ISPyBSafeQuerySet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # not celerifying it because seems fast enough
-        errors = load_tags_from_file(filename=filename, target=target)
+        logger.debug('User: %s, %s', request.user.pk, request.user)
+        user = request.user
+        if not request.user.pk:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        logger.debug(
+            'identifier_type: %s', serializer.validated_data['identifier_type']
+        )
+        ad = AssayData(
+            filename=filename,
+            id_column=serializer.validated_data['identifier_column'],
+            id_type=serializer.validated_data['identifier_type'],
+            target=target,
+            user=user,
+        )
+        errors, warnings = ad.load_assay_data()
+        logger.debug("view errors: %s", errors)
+
         if errors:
-            return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    'errors': errors,
+                    'warnings': warnings,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         else:
-            return Response({'success': True}, status=status.HTTP_200_OK)
+            return Response(
+                {
+                    'success': True,
+                    'warnings': warnings,
+                },
+                status=status.HTTP_200_OK,
+            )
