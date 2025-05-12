@@ -3333,7 +3333,7 @@ class TargetLoader:
                 return None
 
     def _soakdb_float(self, row_data, soakdb_field=None):
-        if row_data[soakdb_field]:
+        if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             try:
                 return float(row_data[soakdb_field])
             except ValueError:
@@ -3347,7 +3347,7 @@ class TargetLoader:
             return None
 
     def _soakdb_numeric_array(self, row_data, soakdb_field=None):
-        if row_data[soakdb_field]:
+        if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             try:
                 return [float(k) for k in row_data[soakdb_field].split()]
             except ValueError:
@@ -3361,7 +3361,7 @@ class TargetLoader:
             return None
 
     def _soakdb_datetime(self, row_data, soakdb_field=None):
-        if row_data[soakdb_field]:
+        if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             try:
                 return parse(row_data[soakdb_field])
             except ParserError:
@@ -3390,7 +3390,7 @@ class TargetLoader:
         appended. Strip that.
         """
         logger.debug('duraton value: %s', row_data[soakdb_field])
-        if row_data[soakdb_field]:
+        if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             parts = row_data[soakdb_field].split(":")
             parts = [int(re.sub(r"\D", "", p)) for p in parts]
 
