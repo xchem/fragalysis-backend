@@ -654,6 +654,21 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
         )
 
 
+class SnapshotStateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Snapshot
+        fields = (
+            'id',
+            'state',
+        )
+
+
+class SnapshotScreenshotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SnapshotScreenshot
+        fields = '__all__'
+
+
 # (GET, POST, PUT, PATCH)
 class SnapshotActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()

@@ -135,6 +135,17 @@ router.register(
 #     basename='computedset_download',
 # )
 
+
+router.register(
+    "snapshot_screenshots",
+    viewer_views.SnapshotScreenshotView,
+    basename='snapshot_screenshots',
+)
+
+router.register(
+    "snapshot_state", viewer_views.SnapshotStateView, basename='snapshot_state'
+)
+
 # Squonk Jobs
 router.register(
     "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'

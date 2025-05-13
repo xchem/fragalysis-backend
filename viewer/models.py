@@ -964,6 +964,7 @@ class Snapshot(models.Model):
         null=True,
         help_text='Optional JSON field containing name/value pairs for future use',
     )
+    state = models.JSONField(encoder=DjangoJSONEncoder)
 
     objects = models.Manager()
     filter_manager = SnapshotDataManager()
@@ -977,6 +978,12 @@ class Snapshot(models.Model):
     class Meta:
         managed = True
         db_table = 'viewer_snapshot'
+
+
+class SnapshotScreenshot(models.Model):
+    snapshot = models.ForeignKey(Snapshot, null=False, on_delete=models.CASCADE)
+    screenshot = models.TextField(null=True)
+    screenshot_type = models.IntegerField(null=True)
 
 
 class SnapshotActions(models.Model):
