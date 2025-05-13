@@ -1296,3 +1296,20 @@ class SiteObservationQualityStatusSerializer(serializers.ModelSerializer):
 
     def _with_annotations(self, instance):
         return self.Meta.model.filter_manager.annotated_qs().get(pk=instance.pk)
+
+
+class AssayDataUploadSerializer(serializers.Serializer):
+    filename = serializers.FileField()
+    target = serializers.CharField()
+    target_access_string = serializers.CharField()
+    identifier_column = serializers.CharField()
+    identifier_type = serializers.ChoiceField(
+        choices=[
+            ('compound', 'Compound'),
+            (
+                'site_observation',
+                'Site observation',
+            ),
+        ]
+    )
+    header_contains_data_types = serializers.BooleanField(default=False)

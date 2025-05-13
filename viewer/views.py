@@ -54,6 +54,7 @@ from viewer.utils import (
     save_tmp_file,
 )
 
+from .assay_data import AssayData
 from .discourse import (
     check_discourse_user,
     create_discourse_post,
@@ -2888,3 +2889,95 @@ class SiteObservationQualityStatusView(
     serializer_class = serializers.SiteObservationQualityStatusSerializer
     filterset_class = filters.SiteObservationQualityStatusFilter
     filter_permissions = "site_observation__experiment__experiment_upload__project"
+
+
+class UploadAssayDataView(ISPyBSafeQuerySet):
+    serializer_class = serializers.AssayDataUploadSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('post',)
+
+    def get_view_name(self):
+        return "Upload assay data"
+
+    def create(self, request, *args, **kwargs):
+        logger.info("+ UploadAssayDataView.create called")
+        del args, kwargs
+
+        serializer = self.get_serializer_class()(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.debug("Serializer validated_data=%s", serializer.validated_data)
+
+        target_access_string = serializer.validated_data['target_access_string']
+        target_name = serializer.validated_data['target']
+        filename = serializer.validated_data['filename']
+
+        try:
+            project = models.Project.objects.get(title=target_access_string)
+        except models.Project.DoesNotExist:
+            return Response(
+                {
+                    "target_access_string": [
+                        f"Project {target_access_string} does not exist"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+            request.user
+        ):
+            msg = f'User "{request.user.username}" is not a member of {target_access_string}'
+            logger.warning(msg)
+            content = {'message': msg}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        if settings.AUTHENTICATE_UPLOAD and not self.request.user.is_authenticated:
+            return redirect(settings.LOGIN_URL)
+
+        try:
+            target = models.Target.objects.get(title=target_name, project=project)
+        except models.Target.DoesNotExist:
+            return Response(
+                {"target": [f"Target {target_name} does not exist"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        logger.debug('User: %s, %s', request.user.pk, request.user)
+        user = request.user
+        if not request.user.pk:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        logger.debug(
+            'identifier_type: %s', serializer.validated_data['identifier_type']
+        )
+        ad = AssayData(
+            filename=filename,
+            id_column=serializer.validated_data['identifier_column'],
+            id_type=serializer.validated_data['identifier_type'],
+            target=target,
+            user=user,
+            header_contains_data_types=serializer.validated_data[
+                'header_contains_data_types'
+            ],
+        )
+        errors, warnings = ad.load_assay_data()
+        logger.debug("view errors: %s", errors)
+
+        if errors:
+            return Response(
+                {
+                    'errors': errors,
+                    'warnings': warnings,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            return Response(
+                {
+                    'success': True,
+                    'warnings': warnings,
+                },
+                status=status.HTTP_200_OK,
+            )
