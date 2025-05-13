@@ -98,6 +98,11 @@ router.register(
     basename='upload_target_experiments',
 )
 router.register(
+    "validate_target_experiments",
+    viewer_views.UploadExperimentValidateView,
+    basename='validate_target_experiments',
+)
+router.register(
     "download_target_experiments",
     viewer_views.DownloadExperimentUploadView,
     basename='download_target_experiments',
