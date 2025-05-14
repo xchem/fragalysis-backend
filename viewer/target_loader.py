@@ -2101,28 +2101,48 @@ class TargetLoader:
             # instances modified, and will be modified down the line, refresh
             val.instance.refresh_from_db()
 
+        # to be used in tagging, a necessity after the data exclusion (1674)
+        so_qs = SiteObservation.filter_manager.by_target(self.target)
+
         # site_observations_versioned = {}
         # for val in site_observation_objects.values():  # pylint: disable=no-member
         #     site_observations_versioned[val.versioned_key] = val.instance
 
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
-            val.instance.ref_site_observation = site_observation_objects[
-                val.index_data["reference_ligands"]
-            ].instance
-            logger.debug("attaching canon_site_conf: %r", val.instance)
-            logger.debug(
-                "attaching canon_site_conf: %r",
-                site_observation_objects[
+            try:
+                val.instance.ref_site_observation = site_observation_objects[
                     val.index_data["reference_ligands"]
-                ].instance.longcode,
-            )
-            val.instance.save()
+                ].instance
+                logger.debug("attaching canon_site_conf: %r", val.instance)
+                logger.debug(
+                    "attaching canon_site_conf: %r",
+                    site_observation_objects[
+                        val.index_data["reference_ligands"]
+                    ].instance.longcode,
+                )
+                val.instance.save()
+            except KeyError as exc:
+                # data may be missing. check the database
+                try:
+                    longcode = longcode_from_tag(val.index_data["reference_ligands"])
+                    so = so_qs.get(longcode=longcode)
+                    val.instance.ref_site_observation = so
+                    val.instance.save()
+                    msg = (
+                        f"SiteObservation {val.index_data['reference_ligands']}"
+                        + f" missing from {METADATA_FILE}"
+                        + ", fetching from db",
+                    )
+                    logger.info(msg)
+                except SiteObservation.DoesNotExist:
+                    self.report.log(
+                        logging.ERROR,
+                        f"SiteObservation {val.index_data['reference_ligands']}"
+                        + " missing from database",
+                    )
 
         logger.debug("data read and processed, adding tags")
-
-        # to be used in tagging, a necessity after the data exclusion (1674)
-        so_qs = SiteObservation.filter_manager.by_target(self.target)
 
         # tag site observations
         cat_canon = TagCategory.objects.get(category="CanonSites")
@@ -2161,10 +2181,18 @@ class TargetLoader:
             try:
                 short_tag = val.versioned_key.split('-')[1][1:]
                 main_obvs = val.instance.ref_conf_site.ref_site_observation
-                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
-                    "code_prefix"
-                ]
-                short_tag = f"{code_prefix}{short_tag}"
+                try:
+                    code_prefix = experiment_objects[
+                        main_obvs.experiment.code
+                    ].index_data["code_prefix"]
+                    short_tag = f"{code_prefix}{short_tag}"
+                except KeyError as exc:
+                    msg = (
+                        f"Experiment {main_obvs.experiment.code}"
+                        + f" missing from {METADATA_FILE}"
+                    )
+                    self.report.log(logging.ERROR, msg)
+
             except IndexError:
                 short_tag = tag
 
@@ -3305,7 +3333,7 @@ class TargetLoader:
                 return None
 
     def _soakdb_float(self, row_data, soakdb_field=None):
-        if row_data[soakdb_field]:
+        if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             try:
                 return float(row_data[soakdb_field])
             except ValueError:
@@ -3319,7 +3347,7 @@ class TargetLoader:
             return None
 
     def _soakdb_numeric_array(self, row_data, soakdb_field=None):
-        if row_data[soakdb_field]:
+        if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             try:
                 return [float(k) for k in row_data[soakdb_field].split()]
             except ValueError:
@@ -3333,7 +3361,7 @@ class TargetLoader:
             return None
 
     def _soakdb_datetime(self, row_data, soakdb_field=None):
-        if row_data[soakdb_field]:
+        if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             try:
                 return parse(row_data[soakdb_field])
             except ParserError:
@@ -3362,7 +3390,7 @@ class TargetLoader:
         appended. Strip that.
         """
         logger.debug('duraton value: %s', row_data[soakdb_field])
-        if row_data[soakdb_field]:
+        if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             parts = row_data[soakdb_field].split(":")
             parts = [int(re.sub(r"\D", "", p)) for p in parts]
 

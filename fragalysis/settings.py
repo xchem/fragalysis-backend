@@ -489,6 +489,7 @@ if os.environ.get("AUTHENTICATE_UPLOAD") == "False":
     AUTHENTICATE_UPLOAD = False
 
 COMPUTED_SET_MEDIA_DIRECTORY: str = "computed_set_data"
+ASSAY_DATA_MEDIA_DIRECTORY: str = "assay_data"
 
 # The following (part of m2ms-1385) is used to prevent the
 # 'restrict-to-membership' check in security.py - something that is designed to prevent
