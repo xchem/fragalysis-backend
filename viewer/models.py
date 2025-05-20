@@ -964,7 +964,7 @@ class Snapshot(models.Model):
         null=True,
         help_text='Optional JSON field containing name/value pairs for future use',
     )
-    state = models.JSONField(encoder=DjangoJSONEncoder)
+    state = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
     objects = models.Manager()
     filter_manager = SnapshotDataManager()
