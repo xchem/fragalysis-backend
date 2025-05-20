@@ -388,6 +388,8 @@ class Compound(models.Model):
 
     inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
+    # rdkit representation of smiles filed for structure-based search
+    smiles_mol = models.BinaryField(editable=False, null=True)
     compound_code = models.TextField(null=True)
     current_identifier = models.OneToOneField(
         'CompoundIdentifier',
