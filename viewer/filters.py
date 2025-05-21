@@ -15,6 +15,7 @@ from viewer.models import (
     SiteObservation,
     SiteObservationQualityStatus,
     Snapshot,
+    SnapshotScreenshot,
     XtalformSite,
 )
 
@@ -42,6 +43,15 @@ class SnapshotFilter(filters.FilterSet):
             "session_project",
             "parent",
             "children",
+        ]
+
+
+class SnapshotScreenshotFilter(filters.FilterSet):
+    class Meta:
+        model = SnapshotScreenshot
+        fields = [
+            "snapshot",
+            "screenshot_type",
         ]
 
 

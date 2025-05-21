@@ -1016,6 +1016,7 @@ class SnapshotScreenshotView(
     queryset = models.SnapshotScreenshot.objects.all()
     serializer_class = serializers.SnapshotScreenshotSerializer
     filter_permissions = "snapshot__session_project__target__project"
+    filterset_class = filters.SnapshotScreenshotFilter
 
 
 class SnapshotStateView(
