@@ -388,7 +388,8 @@ class Compound(models.Model):
 
     inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
-    # rdkit representation of smiles filed for structure-based search
+    # rdkit representation of smiles field for structure-based
+    # search. Internally rdkit mol type
     smiles_mol = models.BinaryField(editable=False, null=True)
     compound_code = models.TextField(null=True)
     current_identifier = models.OneToOneField(
@@ -672,6 +673,9 @@ class SiteObservation(Versionable, models.Model):
         upload_to="target_loader_data/", null=True, max_length=255
     )
     smiles = models.TextField()
+    # rdkit representation of smiles field for structure-based
+    # search. Internally rdkit mol type
+    smiles_mol = models.BinaryField(editable=False, null=True)
     seq_id = models.IntegerField()
     chain_id = models.CharField(max_length=1)
     ligand_mol = models.FileField(

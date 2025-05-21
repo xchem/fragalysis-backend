@@ -9,11 +9,15 @@ class Migration(migrations.Migration):
         ('viewer', '0127_compound_smiles_mol'),
     ]
 
+    # lots happening here..
     operations = [
-        # models.py add BinaryField, convert to appropriate rdkit mol type
+        # models.py adds BinaryField, convert to appropriate rdkit mol type
         migrations.RunSQL(
             sql="""
                 ALTER TABLE viewer_compound
+                ALTER COLUMN smiles_mol TYPE mol
+                USING mol_from_smiles(smiles::cstring);
+                ALTER TABLE viewer_siteobservation
                 ALTER COLUMN smiles_mol TYPE mol
                 USING mol_from_smiles(smiles::cstring);
             """,
@@ -22,22 +26,44 @@ class Migration(migrations.Migration):
                 ALTER COLUMN smiles_mol DROP DEFAULT,
                 ALTER COLUMN smiles_mol SET DATA TYPE bytea
                 USING NULL;
-            """
+                ALTER TABLE viewer_siteobservation
+                ALTER COLUMN smiles_mol DROP DEFAULT,
+                ALTER COLUMN smiles_mol SET DATA TYPE bytea
+                USING NULL;
+            """,
         ),
         # add rdkit index to the column
         migrations.RunSQL(
-            sql="CREATE INDEX smiles_mol_idx ON viewer_compound USING gist(smiles_mol);",
-            reverse_sql="DROP INDEX smiles_mol_idx;"
+            sql="""
+            CREATE INDEX compound_smiles_mol_idx
+            ON viewer_compound USING gist(smiles_mol);
+            CREATE INDEX siteobservation_smiles_mol_idx
+            ON viewer_siteobservation USING gist(smiles_mol);
+            """,
+            reverse_sql="""
+            DROP INDEX compound_smiles_mol_idx;
+            DROP INDEX siteobservation_smiles_mol_idx;
+            """,
         ),
+        # populate smiles_mol field from existing smiles field
         migrations.RunSQL(
             sql="""
             UPDATE viewer_compound
             SET smiles_mol = mol_from_smiles(smiles::cstring)
             WHERE smiles IS NOT NULL;
+            UPDATE viewer_siteobservation
+            SET smiles_mol = mol_from_smiles(smiles::cstring)
+            WHERE smiles IS NOT NULL;
             """,
-            reverse_sql="UPDATE viewer_compound SET smiles_mol = NULL",
+            reverse_sql="""
+            UPDATE viewer_compound SET smiles_mol = NULL;
+            UPDATE viewer_siteobservation SET smiles_mol = NULL;
+            """,
         ),
-        # function to convert SMILES to rdkit.mol type
+        # function to convert SMILES to rdkit.mol type. This is called
+        # by triggers that automatically add rdkit.mol type to
+        # smiles_mol column in both compound and siteobservation
+        # tables
         migrations.RunSQL(
             """
             CREATE OR REPLACE FUNCTION sync_mol_column()
@@ -63,7 +89,6 @@ class Migration(migrations.Migration):
                     mol := NULL;
                 END IF;
 
-                -- Assign to the mol column explicitly by checking its name
                 IF mol_col = 'smiles_mol' THEN
                     NEW.smiles_mol := mol;
                 ELSIF mol_col = 'another_mol_column' THEN
@@ -79,14 +104,23 @@ class Migration(migrations.Migration):
             """,
             reverse_sql="DROP FUNCTION IF EXISTS sync_mol_column();"
         ),
-        # trigger function for compound table
+        # trigger functions for compound and siteobservation
+        # tables. these call the previous function
         migrations.RunSQL(
             """
             CREATE TRIGGER update_compound_mol_trigger
             BEFORE INSERT OR UPDATE ON viewer_compound
             FOR EACH ROW
             EXECUTE FUNCTION sync_mol_column('smiles', 'smiles_mol');
+            CREATE TRIGGER update_siteobservation_mol_trigger
+            BEFORE INSERT OR UPDATE ON viewer_siteobservation
+            FOR EACH ROW
+            EXECUTE FUNCTION sync_mol_column('smiles', 'smiles_mol');
             """,
-            reverse_sql="DROP TRIGGER IF EXISTS update_compound_mol_trigger ON viewer_compound;"
+            reverse_sql="""
+            DROP TRIGGER IF EXISTS update_compound_mol_trigger ON viewer_compound;
+            DROP TRIGGER IF EXISTS update_siteobservation_mol_trigger
+            ON viewer_siteobservation;
+            """,
         ),
     ]

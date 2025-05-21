@@ -15,4 +15,9 @@ class Migration(migrations.Migration):
             name='smiles_mol',
             field=models.BinaryField(null=True),
         ),
+        migrations.AddField(
+            model_name='siteobservation',
+            name='smiles_mol',
+            field=models.BinaryField(null=True),
+        ),
     ]

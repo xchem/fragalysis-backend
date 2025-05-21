@@ -14,6 +14,60 @@ from django.db.models import (
 logger = logging.getLogger(__name__)
 
 
+class RDKitStructureMatch(Func):
+    """Add RDKit structure filter cpability to queryset.
+
+    Based on RDKit's Cartridge, PostgreSQL extension.  Allows
+    filtering by exact match, substructure search or using SMARTS
+    patterns and considering (or not) chirality.
+
+    Equivalent SQL it adds is something like:
+    select * from viewer_compound.smiles_mol where smiles_mol@>'<pattern>'
+    for SMILES pattern and
+    select * from viewer_compound.smiles_mol where smiles_mol@>'<pattern>'::qmol
+    for SMARTS.
+
+    TODO: Ok, I realised this doesn't work, the operators don't work
+    that way. Chirality is defined by setting set
+    rdkit.do_chiral_sss=true; to true or false, this is per session
+    setting and if I want to enable this, there's quite a bit of work
+    to do with connection pooling
+
+    """
+
+    function = None
+    template = '%(expressions)s %(operator)s %(query_func)s'
+    output_field = BooleanField()
+
+    def __init__(
+        self,
+        field_name,
+        query,
+        *,
+        is_substructure=True,
+        is_smarts=False,
+        use_chirality=False,
+        **extra,
+    ):
+        del use_chirality  # see TODO above
+        self.query = query
+        self.query_func = 'qmol_from_smarts' if is_smarts else 'mol_from_smiles'
+        if is_substructure:
+            self.operator = '@>'
+        else:
+            self.operator = '@='
+
+        expressions = [F(field_name)]
+        super().__init__(*expressions, **extra)
+
+    def as_sql(self, compiler, connection):  # pylint: disable=unused-argument
+        field_sql, field_params = compiler.compile(self.source_expressions[0])
+        query_param = '%s'
+        query_func_expr = f"{self.query_func}({query_param}::cstring)::mol"
+        sql = f"{field_sql} {self.operator} {query_func_expr}"
+        return sql, field_params + [self.query]
+
+
 class SiteObservationQueryset(QuerySet):
     def filter_qs(self):
         SiteObservation = apps.get_model("viewer", "SiteObservation")
@@ -64,38 +118,6 @@ class ExperimentDataManager(Manager):
 
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.id)
-
-
-class RDKitStructureMatch(Func):
-    function = None
-    template = '%(expressions)s %(operator)s %(query_func)s'
-    output_field = BooleanField()
-
-    def __init__(
-        self,
-        field_name,
-        query,
-        *,
-        is_substructure=True,
-        is_smarts=False,
-        use_chirality=False,
-        **extra,
-    ):
-        self.query = query
-        self.query_func = 'qmol_from_smarts' if is_smarts else 'mol_from_smiles'
-        if is_substructure:
-            self.operator = '%%' if use_chirality else '@>'
-        else:
-            self.operator = '@=' if use_chirality else '='
-        expressions = [F(field_name)]
-        super().__init__(*expressions, **extra)
-
-    def as_sql(self, compiler, connection):  # pylint: disable=unused-argument
-        field_sql, field_params = compiler.compile(self.source_expressions[0])
-        query_param = '%s'
-        query_func_expr = f"{self.query_func}({query_param}::cstring)::mol"
-        sql = f"{field_sql} {self.operator} {query_func_expr}"
-        return sql, field_params + [self.query]
 
 
 class CompoundQueryset(QuerySet):
