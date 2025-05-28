@@ -30,6 +30,12 @@ class SnapshotFilter(filters.FilterSet):
         field_name="session_project", lookup_expr="isnull"
     )
 
+    target = django_filters.CharFilter(
+        field_name="session_project__target",
+        lookup_expr="id",
+        label="Target",
+    )
+
     class Meta:
         model = Snapshot
         fields = [
