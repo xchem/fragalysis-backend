@@ -3038,16 +3038,16 @@ class StructureFilterView(ISPyBSafeQuerySet):
             )
 
         if structure_type == 'compound':
-            result = models.Compound.filter_manager
+            manager = models.Compound.filter_manager
         elif structure_type == 'site_observation':
-            result = models.Compound.filter_manager
+            manager = models.SiteObservation.filter_manager
         else:
             return Response(
                 {'error': f'Unknown structure type {structure_type}'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        result = result.structure_search(
+        result: list[int] = manager.structure_search(
             target,
             query,
             is_substructure=is_substructure,
@@ -3058,7 +3058,7 @@ class StructureFilterView(ISPyBSafeQuerySet):
         return Response(
             {
                 'success': True,
-                'result': result.values_list('id', flat=True),
+                'result': result,
             },
             status=status.HTTP_200_OK,
         )

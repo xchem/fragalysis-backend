@@ -10,14 +10,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
+        migrations.AlterField(
             model_name='compound',
             name='smiles_mol',
-            field=models.TextField(null=True),
+            field=models.TextField(editable=False, null=True),
         ),
-        migrations.AddField(
+        migrations.AlterField(
             model_name='siteobservation',
             name='smiles_mol',
-            field=models.TextField(null=True),
+            field=models.TextField(editable=False, null=True),
         ),
     ]
