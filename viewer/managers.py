@@ -1,6 +1,7 @@
 import logging
 
 from django.apps import apps
+from django.db import connection, transaction
 from django.db.models import (
     BooleanField,
     F,
@@ -46,10 +47,8 @@ class RDKitStructureMatch(Func):
         *,
         is_substructure=True,
         is_smarts=False,
-        use_chirality=False,
         **extra,
     ):
-        del use_chirality  # see TODO above
         self.query = query
         self.query_func = 'qmol_from_smarts' if is_smarts else 'mol_from_smiles'
         if is_substructure:
@@ -60,7 +59,9 @@ class RDKitStructureMatch(Func):
         expressions = [F(field_name)]
         super().__init__(*expressions, **extra)
 
-    def as_sql(self, compiler, connection):  # pylint: disable=unused-argument
+    def as_sql(
+        self, compiler, connection
+    ):  # pylint: disable=unused-argument,redefined-outer-name
         field_sql, field_params = compiler.compile(self.source_expressions[0])
         query_param = '%s'
         query_func_expr = f"{self.query_func}({query_param}::cstring)::mol"
@@ -84,6 +85,37 @@ class SiteObservationQueryset(QuerySet):
 
         return qs
 
+    def structure_search(
+        self,
+        target,
+        query,
+        *,
+        is_substructure=True,
+        is_smarts=False,
+        use_chirality=False,
+    ):
+        if not query:
+            return self.none()
+
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                if use_chirality:
+                    cursor.execute('SET LOCAL rdkit.do_chiral_sss = true;')
+
+            match_expr = RDKitStructureMatch(
+                'smiles_mol',
+                query=query,
+                is_smarts=is_smarts,
+                is_substructure=is_substructure,
+            )
+            return (
+                self.filter_qs()
+                .filter(
+                    target=target.id,
+                )
+                .filter(match_expr)
+            )
+
 
 class SiteObservationDataManager(Manager):
     def get_queryset(self):
@@ -94,6 +126,22 @@ class SiteObservationDataManager(Manager):
 
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.id)
+
+    def structure_search(
+        self,
+        target,
+        query,
+        is_substructure=True,
+        is_smarts=False,
+        use_chirality=False,
+    ):
+        return self.get_queryset().structure_search(
+            target,
+            query,
+            is_substructure=is_substructure,
+            is_smarts=is_smarts,
+            use_chirality=use_chirality,
+        )
 
 
 class ExperimentQueryset(QuerySet):
@@ -140,19 +188,35 @@ class CompoundQueryset(QuerySet):
         return qs
 
     def structure_search(
-        self, query, *, is_substructure=True, is_smarts=False, use_chirality=False
+        self,
+        target,
+        query,
+        *,
+        is_substructure=True,
+        is_smarts=False,
+        use_chirality=False,
     ):
         if not query:
             return self.none()
 
-        match_expr = RDKitStructureMatch(
-            'smiles_mol',
-            query=query,
-            is_smarts=is_smarts,
-            is_substructure=is_substructure,
-            use_chirality=use_chirality,
-        )
-        return self.filter(match_expr)
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                if use_chirality:
+                    cursor.execute('SET LOCAL rdkit.do_chiral_sss = true;')
+
+            match_expr = RDKitStructureMatch(
+                'smiles_mol',
+                query=query,
+                is_smarts=is_smarts,
+                is_substructure=is_substructure,
+            )
+            return (
+                self.filter_qs()
+                .filter(
+                    target=target.id,
+                )
+                .filter(match_expr)
+            )
 
 
 class CompoundDataManager(Manager):
@@ -165,10 +229,19 @@ class CompoundDataManager(Manager):
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.pk)
 
-    def structure_search(self, query, is_substructure=True, use_chirality=False):
+    def structure_search(
+        self,
+        target,
+        query,
+        is_substructure=True,
+        is_smarts=False,
+        use_chirality=False,
+    ):
         return self.get_queryset().structure_search(
+            target,
             query,
             is_substructure=is_substructure,
+            is_smarts=is_smarts,
             use_chirality=use_chirality,
         )
 

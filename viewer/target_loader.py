@@ -2087,7 +2087,7 @@ class TargetLoader:
                         logger.debug(
                             'checking code uniq: %s, %s', code, so.experiment.status
                         )
-                        if code_qs.exists() and so.experiment.status == 0:
+                        if code_qs.exists() and so.experiment.status_code == 0:
                             msg = (
                                 f"short code {code} already exists for this target; "
                                 + "specify a code_prefix to resolve this conflict"

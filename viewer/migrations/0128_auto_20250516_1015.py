@@ -6,11 +6,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('viewer', '0127_compound_smiles_mol'),
+        ('viewer', '0127_auto_20250522_1516'),
     ]
 
     # lots happening here..
     operations = [
+        # install extension to postgres
+        migrations.RunSQL('create extension rdkit;'),
         # models.py adds BinaryField, convert to appropriate rdkit mol type
         migrations.RunSQL(
             sql="""
@@ -69,14 +71,10 @@ class Migration(migrations.Migration):
             CREATE OR REPLACE FUNCTION sync_mol_column()
             RETURNS trigger AS $$
             DECLARE
-                smiles_col TEXT := TG_ARGV[0];
-                mol_col TEXT := TG_ARGV[1];
                 smiles TEXT;
                 mol MOL;
             BEGIN
-                EXECUTE format('SELECT ($1).%I', smiles_col)
-                INTO smiles
-                USING NEW;
+                smiles := NEW.smiles;
 
                 IF smiles IS NOT NULL THEN
                     BEGIN
@@ -89,18 +87,11 @@ class Migration(migrations.Migration):
                     mol := NULL;
                 END IF;
 
-                IF mol_col = 'smiles_mol' THEN
-                    NEW.smiles_mol := mol;
-                ELSIF mol_col = 'another_mol_column' THEN
-                    NEW.another_mol_column := mol;
-                ELSE
-                    RAISE WARNING 'Unknown mol column: %', mol_col;
-                END IF;
+                NEW.smiles_mol := mol;
 
                 RETURN NEW;
             END;
             $$ LANGUAGE plpgsql;
-
             """,
             reverse_sql="DROP FUNCTION IF EXISTS sync_mol_column();"
         ),

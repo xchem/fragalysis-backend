@@ -1313,3 +1313,21 @@ class AssayDataUploadSerializer(serializers.Serializer):
         ]
     )
     header_contains_data_types = serializers.BooleanField(default=False)
+
+
+class StructureFilterSerializer(serializers.Serializer):
+    target = serializers.CharField()
+    target_access_string = serializers.CharField()
+    query = serializers.CharField()
+    is_substructure = serializers.BooleanField(default=True)
+    is_smarts = serializers.BooleanField(default=False)
+    use_chirality = serializers.BooleanField(default=False)
+    structure_type = serializers.ChoiceField(
+        choices=[
+            ('compound', 'Compound'),
+            (
+                'site_observation',
+                'Site observation',
+            ),
+        ]
+    )

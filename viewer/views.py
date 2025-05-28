@@ -2981,3 +2981,84 @@ class UploadAssayDataView(ISPyBSafeQuerySet):
                 },
                 status=status.HTTP_200_OK,
             )
+
+
+class StructureFilterView(ISPyBSafeQuerySet):
+    serializer_class = serializers.StructureFilterSerializer
+    permission_class = [permissions.IsAuthenticated]
+    http_method_names = ('post',)
+
+    def get_view_name(self):
+        return "Upload assay data"
+
+    def create(self, request, *args, **kwargs):
+        logger.info("+ StructureFilterView.create called")
+        del args, kwargs
+
+        serializer = self.get_serializer_class()(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.debug("Serializer validated_data=%s", serializer.validated_data)
+
+        target_access_string = serializer.validated_data['target_access_string']
+        is_substructure = serializer.validated_data['is_substructure']
+        is_smarts = serializer.validated_data['is_smarts']
+        query = serializer.validated_data['query']
+        structure_type = serializer.validated_data['structure_type']
+        use_chirality = serializer.validated_data['use_chirality']
+        target_name = serializer.validated_data['target']
+
+        try:
+            project = models.Project.objects.get(title=target_access_string)
+        except models.Project.DoesNotExist:
+            return Response(
+                {
+                    "target_access_string": [
+                        f"Project {target_access_string} does not exist"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+            request.user
+        ):
+            msg = f'User "{request.user.username}" is not a member of {target_access_string}'
+            logger.warning(msg)
+            content = {'message': msg}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            target = models.Target.objects.get(title=target_name, project=project)
+        except models.Target.DoesNotExist:
+            return Response(
+                {"target": [f"Target {target_name} does not exist"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if structure_type == 'compound':
+            result = models.Compound.filter_manager
+        elif structure_type == 'site_observation':
+            result = models.Compound.filter_manager
+        else:
+            return Response(
+                {'error': f'Unknown structure type {structure_type}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = result.structure_search(
+            target,
+            query,
+            is_substructure=is_substructure,
+            is_smarts=is_smarts,
+            use_chirality=use_chirality,
+        )
+
+        return Response(
+            {
+                'success': True,
+                'result': result.values_list('id', flat=True),
+            },
+            status=status.HTTP_200_OK,
+        )
