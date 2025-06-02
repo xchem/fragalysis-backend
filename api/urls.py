@@ -144,6 +144,10 @@ router.register(
     "assay_data_upload", viewer_views.UploadAssayDataView, basename='assay_data_upload'
 )
 
+router.register(
+    "activity_data", viewer_views.ActivityDataView, basename='activity_data'
+)
+
 # Squonk Jobs
 router.register(
     "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'

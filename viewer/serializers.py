@@ -1330,3 +1330,13 @@ class AssayDataUploadSerializer(serializers.Serializer):
         ]
     )
     header_contains_data_types = serializers.BooleanField(default=False)
+
+
+class ActivityResultSerializer(serializers.ModelSerializer):
+    target_name = serializers.CharField()
+    property_name = serializers.CharField()
+    unit = serializers.CharField()
+
+    class Meta:
+        model = models.Result
+        fields = '__all__'

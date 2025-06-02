@@ -3069,3 +3069,16 @@ class UploadAssayDataView(ISPyBSafeQuerySet):
                 },
                 status=status.HTTP_200_OK,
             )
+
+
+class ActivityDataView(
+    ISPyBSafeQuerySet,
+):
+    """Retrieve information about activity data."""
+
+    queryset = models.Result.filter_manager.filter_qs()
+    serializer_class = serializers.ActivityResultSerializer
+    filter_permissions = "result_upload__target__project"
+    permission_classes = [IsObjectProposalMember]
+    # permission_classes = [permissions.IsAuthenticated, IsObjectProposalMember]
+    filterset_class = filters.ActivityResultFilter

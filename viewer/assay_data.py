@@ -245,11 +245,10 @@ class AssayData:
                     logger.debug('processing %s with %s', column, proc_func.__name__)
                     unit = get_unit(column)
 
-                    result_property = ResultProperty(
+                    result_property, _ = ResultProperty.objects.get_or_create(
                         result_property=column,
                         unit=unit,
                     )
-                    result_property.save()
 
                     short_df = proc_func(df, column, self.id_column)
                     short_df[self.id_type] = df[self.id_type]
