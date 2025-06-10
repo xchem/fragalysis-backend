@@ -685,15 +685,15 @@ FE_IMAGE_TAG: str = os.environ.get("FE_IMAGE_TAG", "undefined")
 STACK_NAMESPACE: str = os.environ.get("STACK_NAMESPACE", "undefined")
 STACK_VERSION: str = os.environ.get("STACK_VERSION", "undefined")
 
-# Documentation URLs STack, F/E and B/E.
+# Documentation URLs Stack, F/E and B/E.
 #
-# If provided, the administrator provides a Python format string
-# that allows the b/e to insert the STACK_VERSION into it
+# If the administrator provides a Python format string
+# the B/E will insert the STACK_VERSION into it
 # using a built-in variable it creates ("stack_version").
 # For example if your documentation is version-based at the URL
 # "https://documentation/stack/2025.01.1/docs" you can provide the format string
-# "https://documentation/stack/{stack_version}/docs". You do not have tpo provide
-# a {stack_version} is the documentation is not version based.
+# "https://documentation/stack/{stack_version}/docs". You do not have to provide
+# a {stack_version} if the documentation is not version based.
 # The resultant string is exposed to the F/E via the context variable
 # (e.g. "stack_documentation_url").
 #
@@ -703,6 +703,11 @@ STACK_VERSION: str = os.environ.get("STACK_VERSION", "undefined")
 #   stack_version
 #   fe_image_tag
 #   be_image_tag
+# And are exposed via the context variables: -
+#
+#   stack_documentation_url
+#   fe_documentation_url
+#   be_documentation_url
 STACK_DOCUMENTATION_URL_FORMAT_STRING: str = os.environ.get(
     "STACK_DOCUMENTATION_URL_FORMAT_STRING", ""
 )
