@@ -27,7 +27,10 @@
          user_present_on_discourse: {{ user_present_on_discourse|default:"false" }},
          discourse_host: '{{ discourse_host }}',
          squonk_available: {{ squonk_available }},
-         squonk_ui_url: '{{ squonk_ui_url }}'
+         squonk_ui_url: '{{ squonk_ui_url }}',
+         stack_documentation_url: '{{ stack_documentation_url }}',
+         fe_documentation_url: '{{ fe_documentation_url }}',
+         be_documentation_url: '{{ be_documentation_url }}'
      }
  {% else %}
      var DJANGO_CONTEXT = {
@@ -40,7 +43,10 @@
          pk: undefined,
          authenticated: false,
          discourse_available: {{ discourse_available }},
-         squonk_available: {{ squonk_available }}
+         squonk_available: {{ squonk_available }},
+         stack_documentation_url: '{{ stack_documentation_url }}',
+         fe_documentation_url: '{{ fe_documentation_url }}',
+         be_documentation_url: '{{ be_documentation_url }}'
      }
  {% endif %}
 

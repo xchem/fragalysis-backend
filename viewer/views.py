@@ -147,6 +147,30 @@ def react(request):
 
     context['target_warning_message'] = settings.TARGET_WARNING_MESSAGE
 
+    # If a DOCUMENTATION_URLs are defined
+    # add a URL to the context using the appropriate version.
+    context['stack_documentation_url'] = ''
+    context['fe_documentation_url'] = ''
+    context['be_documentation_url'] = ''
+    if settings.STACK_DOCUMENTATION_URL_FORMAT_STRING:
+        context[
+            'stack_documentation_url'
+        ] = settings.STACK_DOCUMENTATION_URL_FORMAT_STRING.format(
+            stack_version=settings.STACK_VERSION
+        )
+    if settings.FE_DOCUMENTATION_URL_FORMAT_STRING:
+        context[
+            'fe_documentation_url'
+        ] = settings.FE_DOCUMENTATION_URL_FORMAT_STRING.format(
+            fe_image_tag=settings.FE_IMAGE_TAG
+        )
+    if settings.STACK_DOCUMENTATION_URL_FORMAT_STRING:
+        context[
+            'be_documentation_url'
+        ] = settings.BE_DOCUMENTATION_URL_FORMAT_STRING.format(
+            be_image_tag=settings.BE_IMAGE_TAG
+        )
+
     render_template = "viewer/react_temp.html"
     logger.debug("Rendering %s with context=%s...", render_template, context)
     return render(request, render_template, context)
