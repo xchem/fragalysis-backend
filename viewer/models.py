@@ -15,6 +15,7 @@ from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
 
 from .managers import (
+    AssayResultDataManager,
     CanonSiteConfDataManager,
     CanonSiteDataManager,
     CompoundDataManager,
@@ -1934,6 +1935,17 @@ class ResultProperty(models.Model):
     result_property = models.TextField()
     unit = models.TextField(null=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "result_property",
+                    "unit",
+                ],
+                name="unique_result_property_and_unit",
+            ),
+        ]
+
 
 class Result(models.Model):
     """Model to store assay results data"""
@@ -1961,6 +1973,9 @@ class Result(models.Model):
     )
     parsing_error = models.BooleanField(default=False, null=False)
     result_property = models.ForeignKey(ResultProperty, on_delete=models.CASCADE)
+
+    objects = models.Manager()
+    filter_manager = AssayResultDataManager()
 
     def __str__(self) -> str:
         return f"{self.id}: {self.raw_value} {self.data_type}"

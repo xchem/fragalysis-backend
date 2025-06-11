@@ -970,6 +970,24 @@ class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSeri
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
     file = serializers.FileField(required=False)
+
+    def validate(self, data):
+        """Verify TAS is correctly formed."""
+        success, error_msg = validate_tas(data['target_access_string'])
+        if not success:
+            raise serializers.ValidationError({"target_access_string": error_msg})
+        return data
+
+    class Meta:
+        model = models.ExperimentUpload
+        fields = (
+            'target_access_string',
+            'file',
+        )
+
+
+class TargetExperimentValidateSerializer(serializers.ModelSerializer):
+    target_access_string = serializers.CharField(label='Target Access String')
     data_version = serializers.CharField(required=False)
     target_name = serializers.CharField(required=False)
     upload_version = serializers.CharField(required=False)
@@ -985,7 +1003,6 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
         model = models.ExperimentUpload
         fields = (
             'target_access_string',
-            'file',
             'data_version',
             'target_name',
             'upload_version',
@@ -1313,3 +1330,13 @@ class AssayDataUploadSerializer(serializers.Serializer):
         ]
     )
     header_contains_data_types = serializers.BooleanField(default=False)
+
+
+class ActivityResultSerializer(serializers.ModelSerializer):
+    target_name = serializers.CharField()
+    property_name = serializers.CharField()
+    unit = serializers.CharField()
+
+    class Meta:
+        model = models.Result
+        fields = '__all__'

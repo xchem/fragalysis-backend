@@ -379,7 +379,7 @@ def create_objects(func=None, *, depth=math.inf):
     def wrapper_create_objects(
         self, *args, yaml_data: dict, **kwargs
     ) -> dict[int | str | tuple[str, str], MetadataObject]:
-        # logger.debug("+ wrapper_service_query")
+        logger.debug("+wrapper_create_objects")
         # logger.debug("args passed: %s", args)
         # logger.debug("kwargs passed: %s", kwargs)
 
@@ -446,6 +446,13 @@ def create_objects(func=None, *, depth=math.inf):
                 failed = failed + 1
 
             if obj:
+                # NB!! this is a hack to prevent overwriting
+                # experiment_upload value in experiment objects. this
+                # only works because no other object passing through
+                # here has a field called 'experiment_upload'
+                # Alternative: allow NULL and fill later. would that be better?
+                instance_data.defaults.pop("experiment_upload", None)
+
                 # update any additional fields
                 instance_qs = instance_data.model_class.objects.filter(pk=obj.pk)
                 instance_qs.update(**instance_data.defaults)
@@ -983,17 +990,8 @@ class TargetLoader:
 
         dstatus = extract(key="status")
 
-        # status_codes = {
-        #     "new": 0,
-        #     "deprecated": 1,
-        #     "superseded": 2,
-        #     "unchanged": 3,
-        # }
-
         try:
-            # status = status_codes[dstatus]
             status = ExperimentStatusType.objects.get(status=dstatus)
-        # except KeyError:
         except ExperimentStatusType.DoesNotExist:
             status = -1
             self.report.log(
@@ -1016,6 +1014,8 @@ class TargetLoader:
             map_info_paths = [str(self._get_final_path(k)) for k in map_info_files]
 
         defaults = {
+            # overwrites exp upload in old instances, there's a hack
+            # in create_objects method to prevent that
             "experiment_upload": self.experiment_upload,
             "status": status,
             "type": exp_type,
@@ -1079,6 +1079,7 @@ class TargetLoader:
             experiment_name, _, _, _, ligand_key, data = item_data
         except ValueError:
             # wrong data item
+            logger.debug("wrong data item")
             return None
 
         # more validation
@@ -1086,8 +1087,13 @@ class TargetLoader:
             item_data[1] != "crystallographic_files"
             or item_data[2] != "ligand_cif"
             or item_data[3] != "ligands"
-            or not experiments[experiment_name].new  # remove already saved objects
         ):
+            logger.debug(
+                "wrong data item: %s; %s; %s",
+                item_data[1],
+                item_data[2],
+                item_data[3],
+            )
             return None
 
         smiles = data.get("smiles", None)
@@ -1095,6 +1101,7 @@ class TargetLoader:
 
         if smiles is None and compound_code is None:
             # gotta have at least something
+            logger.debug("no smiles and compound_code")
             return None
 
         modeled_smiles_soakdb = data.get("modeled_smiles_soakdb", None)
@@ -1112,9 +1119,36 @@ class TargetLoader:
             "soaked_smiles_canon": soaked_smiles_canon,
         }
 
+        fields = {}
+
+        if not experiments[experiment_name].new:
+            logger.debug("old experiment: %s", experiment_name)
+
+            try:
+                exp = Experiment.filter_manager.by_target(
+                    self.target,
+                ).get(
+                    code=experiment_name,
+                    status__isnull=False,
+                )
+                logger.debug("found old experiment: %s", experiment_name)
+                exp_compounds = exp.compounds.all()
+
+                try:
+                    cmpd = exp_compounds.get(smiles=smiles)
+                    fields = {"id": cmpd.id}
+                    logger.debug("found compounds for old experiment: %s", cmpd.pk)
+                except Compound.DoesNotExist:
+                    logger.debug("did not find compounds for old experiment")
+            except Experiment.DoesNotExist:
+                logger.debug(
+                    "did not find old experiment: %s, it's likely from soqkdb",
+                    experiment_name,
+                )
+
         return ProcessedObject(
             model_class=Compound,
-            fields={},
+            fields=fields,
             defaults=defaults,
             key=(experiment_name, ligand_key),
             versioned_key=(experiment_name, ligand_key),
@@ -1914,6 +1948,12 @@ class TargetLoader:
         experiment_objects = self.process_experiment(
             yaml_data=crystals, prefix_tooltips=prefix_tooltips
         )
+        # for val in experiment_objects.values():  # pylint: disable=no-member
+        #     if val.new:
+        #         val.instance.experiment_upload = self.experiment_upload
+        #         val.instance.save()
+        #         val.instance.refresh_from_db()
+
         compound_objects = self.process_compound(
             yaml_data=crystals, experiments=experiment_objects
         )
@@ -2671,23 +2711,27 @@ class TargetLoader:
 
         for val in site_observation_objects.values():  # pylint: disable=no-member
             if val.new:
-                qs = (
-                    SiteObservation.filter_manager.by_target(
-                        self.target,
-                    )
-                    .filter(
-                        experiment=val.instance.experiment,
-                        cmpd=val.instance.cmpd,
-                        xtalform_site=val.instance.xtalform_site,
-                        canon_site_conf=val.instance.canon_site_conf,
-                        seq_id=val.instance.seq_id,
-                        chain_id=val.instance.chain_id,
-                        superseded=True,
-                    )
-                    .order_by(
-                        "-version",
-                    )
+                logger.debug(
+                    "processing poses for observation %s, %s, %s",
+                    val.instance.pk,
+                    val.instance.code,
+                    val.instance.longcode,
                 )
+                # fmt: off
+                qs = SiteObservation.filter_manager.by_target(
+                    self.target,
+                ).filter(
+                    experiment=val.instance.experiment,
+                    cmpd=val.instance.cmpd,
+                    xtalform_site=val.instance.xtalform_site,
+                    canon_site_conf=val.instance.canon_site_conf,
+                    seq_id=val.instance.seq_id,
+                    chain_id=val.instance.chain_id,
+                    superseded=True,
+                ).order_by(
+                    "-version",
+                )
+                # fmt: on
                 # older version(s) exist
                 if qs.exists():
                     previous_main = qs.first()
@@ -3032,7 +3076,7 @@ class TargetLoader:
         ]
 
         query = f"SELECT {', '.join(soakdb_fields)} from mainTable"
-        logger.info("Processing soakdb")
+        self.report.log(logging.INFO, "Processing soakdb")
         experiments: list[Experiment] = []
         qs = Experiment.filter_manager.by_target(self.target)
         with sqlite3.connect(db_file) as conn:
@@ -3046,7 +3090,6 @@ class TargetLoader:
 
                 logger.debug("Extracted data for %s", exp_data["dataset"])
                 # add some fields experiment needs to have
-                exp_data["experiment_upload"] = self.experiment_upload
                 exp_data["code"] = exp_data["dataset"]
                 del exp_data["dataset"]
 
@@ -3057,6 +3100,7 @@ class TargetLoader:
                     exp = exp_qs.first()
                 else:
                     logger.debug("Creating new experiment: %s", exp_data["code"])
+                    exp_data["experiment_upload"] = self.experiment_upload
                     exp = Experiment(**exp_data)
 
                 try:
@@ -3069,7 +3113,9 @@ class TargetLoader:
 
                 experiments.append(exp_data)
 
-        logger.debug("%s entries from soakdb processed", len(experiments))
+        self.report.log(
+            logging.INFO, f"Processed {len(experiments)} entries from soakdb"
+        )
 
     # functions extracting data from SoakDB. All have the same
     # signature, they take the dictionary of row header:value and

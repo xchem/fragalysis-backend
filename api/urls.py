@@ -98,6 +98,11 @@ router.register(
     basename='upload_target_experiments',
 )
 router.register(
+    "validate_target_experiments",
+    viewer_views.UploadExperimentValidateView,
+    basename='validate_target_experiments',
+)
+router.register(
     "download_target_experiments",
     viewer_views.DownloadExperimentUploadView,
     basename='download_target_experiments',
@@ -137,6 +142,10 @@ router.register(
 
 router.register(
     "assay_data_upload", viewer_views.UploadAssayDataView, basename='assay_data_upload'
+)
+
+router.register(
+    "activity_data", viewer_views.ActivityDataView, basename='activity_data'
 )
 
 # Squonk Jobs
