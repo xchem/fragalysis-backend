@@ -1340,3 +1340,69 @@ class ActivityResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Result
         fields = '__all__'
+
+
+class AssayDataCurationSerializer(serializers.ModelSerializer):
+    target_access_string = serializers.ChoiceField(choices=[], required=False)
+    upload_file_name = serializers.ChoiceField(
+        choices=[], required=False, label='Upload batch'
+    )
+    column = serializers.ChoiceField(choices=[], required=False)
+    new_data_type = serializers.ChoiceField(choices=[], required=False)
+
+    class Meta:
+        model = models.ResultUpload
+        fields = (
+            'target_access_string',
+            'upload_file',
+            'upload_date',
+            'uploaded_by',
+            'upload_file_name',
+            'column',
+            'new_data_type',
+        )
+        extra_kwargs = {
+            "upload_file": {"read_only": True},
+            "upload_date": {"read_only": True},
+            "uploaded_by": {"read_only": True},
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        logger.debug('self: %s', self)
+        logger.debug('self.context: %s', self.context)
+        logger.debug('self.context.request: %s', self.context.get('request', None))
+        logger.debug('self.context.request.user: %s', self.context['request'].user)
+
+        user = self.context['request'].user
+        # I don't need to do this here, do I? This happens in the view
+        if user.pk is None or settings.DEPLOYMENT_MODE == 'DEVELOPMENT':
+            targets = models.Target.objects.all()
+        else:
+            proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                user, restrict_public_to_membership=True
+            )
+            targets = models.Target.objects.filter(project__title__in=proposals)
+
+        uploads = models.ResultUpload.objects.filter(target__in=targets)
+        logger.debug('uploads: %s', uploads)
+        self.fields['upload_file_name'].choices = [
+            (f.pk, f'{f.target.title}:: {Path(f.upload_file.name).name}')
+            for f in uploads
+        ]
+
+        columns = models.ResultProperty.objects.filter(
+            pk__in=models.Result.objects.filter(result_upload__in=uploads).values(
+                'result_property'
+            ),
+        )
+
+        self.fields['column'].choices = [(f.pk, f.result_property) for f in columns]
+
+        self.fields['new_data_type'].choices = [
+            k.data_type for k in models.ResultValueDataType.objects.all()
+        ]
+
+        self.fields['target_access_string'].choices = [
+            k.title for k in models.Project.objects.all()
+        ]

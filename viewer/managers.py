@@ -513,3 +513,20 @@ class AssayResultDataManager(Manager):
 
     def by_target(self, target):
         return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class ResultUploadQueryset(QuerySet):
+    def annotated_qs(self):
+        ResultUpload = apps.get_model("viewer", "ResultUpload")
+        return ResultUpload.objects.all()
+
+
+class ResultUploadDataManager(Manager):
+    def get_queryset(self):
+        return ResultUploadQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().annotated_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target)

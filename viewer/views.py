@@ -54,7 +54,7 @@ from viewer.utils import (
     save_tmp_file,
 )
 
-from .assay_data import AssayData
+from .assay_data import AssayData, convert
 from .discourse import (
     check_discourse_user,
     create_discourse_post,
@@ -3082,3 +3082,81 @@ class ActivityDataView(
     permission_classes = [IsObjectProposalMember]
     # permission_classes = [permissions.IsAuthenticated, IsObjectProposalMember]
     filterset_class = filters.ActivityResultFilter
+
+
+class ActivityDataCurationView(ISPyBSafeQuerySet):
+    """Change activity data types."""
+
+    queryset = models.ResultUpload.filter_manager.filter_qs()
+    serializer_class = serializers.AssayDataCurationSerializer
+    filter_permissions = "target__project"
+    permission_classes = [IsObjectProposalMember]
+    http_method_names = ('post', 'get')
+
+    def create(self, request, *args, **kwargs):
+        del args, kwargs
+        logger.info("+ ActivityDataCurationView.create called")
+
+        logger.debug('request.data: %s', request.data)
+        serializer = self.get_serializer_class()(
+            data=request.data, context={'request': request}
+        )
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.debug('serializer.data: %s', serializer.data)
+
+        logger.debug('serializer.validated_data: %s', serializer.validated_data)
+
+        target_access_string = serializer.validated_data['target_access_string']
+
+        try:
+            project = models.Project.objects.get(title=target_access_string)
+        except models.Project.DoesNotExist:
+            return Response(
+                {
+                    "target_access_string": [
+                        f"Project {target_access_string} does not exist"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+            request.user
+        ):
+            msg = f'User "{request.user.username}" is not a member of {target_access_string}'
+            logger.warning(msg)
+            content = {'message': msg}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        if settings.AUTHENTICATE_UPLOAD and not self.request.user.is_authenticated:
+            return redirect(settings.LOGIN_URL)
+
+        upload_pk = serializer.validated_data['upload_file_name']
+        property_id = serializer.validated_data['column']
+        new_type = serializer.validated_data['new_data_type']
+
+        upload = models.ResultUpload.objects.get(pk=upload_pk)
+
+        errors, warnings = convert(upload, property_id, new_type)
+
+        logger.debug("view errors: %s", errors)
+
+        if errors:
+            return Response(
+                {
+                    'errors': errors,
+                    'warnings': warnings,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            return Response(
+                {
+                    'success': True,
+                    'warnings': warnings,
+                },
+                status=status.HTTP_200_OK,
+            )
