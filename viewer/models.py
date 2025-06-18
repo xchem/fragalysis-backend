@@ -25,6 +25,7 @@ from .managers import (
     ExperimentUploadDataManager,
     PoseDataManager,
     QuatAssemblyDataManager,
+    ResultUploadDataManager,
     SessionActionsDataManager,
     SiteObservationDataManager,
     SiteObservationQualityStatusDataManager,
@@ -1928,12 +1929,21 @@ class ResultUpload(models.Model):
         default=settings.ANONYMOUS_USER,
     )
 
+    objects = models.Manager()
+    filter_manager = ResultUploadDataManager()
+
+    # def __str__(self) -> str:
+    #     return f"{self.target.title}: {self.upload_file}"
+
 
 class ResultProperty(models.Model):
     """Assay data property name"""
 
     result_property = models.TextField()
     unit = models.TextField(null=True)
+
+    def __str__(self) -> str:
+        return f"{self.result_property}"
 
     class Meta:
         constraints = [
