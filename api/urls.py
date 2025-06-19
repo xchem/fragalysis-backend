@@ -141,6 +141,12 @@ router.register(
 # )
 
 router.register(
+    "assay_data_property",
+    viewer_views.ResultPropertyView,
+    basename='assay_data_property',
+)
+
+router.register(
     "assay_data_upload", viewer_views.UploadAssayDataView, basename='assay_data_upload'
 )
 

@@ -1941,6 +1941,7 @@ class ResultProperty(models.Model):
 
     result_property = models.TextField()
     unit = models.TextField(null=True)
+    target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
         return f"{self.result_property}"
@@ -1951,8 +1952,9 @@ class ResultProperty(models.Model):
                 fields=[
                     "result_property",
                     "unit",
+                    "target",
                 ],
-                name="unique_result_property_and_unit",
+                name="unique_result_property_target_unit",
             ),
         ]
 

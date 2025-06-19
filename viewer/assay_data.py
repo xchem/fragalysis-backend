@@ -302,6 +302,7 @@ class AssayData:
                     result_property, _ = ResultProperty.objects.get_or_create(
                         result_property=column,
                         unit=unit,
+                        target=self.target,
                     )
 
                     short_df = proc_func(df, column, self.id_column)
