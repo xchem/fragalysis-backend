@@ -1406,3 +1406,9 @@ class AssayDataCurationSerializer(serializers.ModelSerializer):
         self.fields['target_access_string'].choices = [
             k.title for k in models.Project.objects.all()
         ]
+
+
+class ResultPropertySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ResultProperty
+        fields = '__all__'

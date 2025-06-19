@@ -3160,3 +3160,12 @@ class ActivityDataCurationView(ISPyBSafeQuerySet):
                 },
                 status=status.HTTP_200_OK,
             )
+
+
+class ResultPropertyView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
+    """Edit/update result properties."""
+
+    queryset = models.ResultProperty.objects.all()
+    serializer_class = serializers.ResultPropertySerializer
+    filter_permissions = "target__project"
+    permission_classes = [IsObjectProposalMember]
