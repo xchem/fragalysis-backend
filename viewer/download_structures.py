@@ -23,6 +23,7 @@ from django.conf import settings
 from django.db.models import Exists, F, OuterRef, Value
 from django.db.models.fields import CharField
 from django.db.models.functions import Concat
+from rdkit import Chem
 
 from viewer.models import DownloadLinks, SiteObservation
 from viewer.utils import clean_filename
@@ -112,6 +113,7 @@ zip_template = {
     },
     'metadata_info': None,
     'trans_matrix_info': None,
+    'compound_sets': None,
 }
 
 
@@ -552,6 +554,29 @@ def _yaml_files_zip(ziparchive, target, transforms_requested: bool = False) -> N
             ziparchive.write(file, str(Path(archive_path).joinpath(file.name)))
 
 
+def _compound_sets_zip(ziparchive, target) -> None:
+    """Add compound sets to download"""
+
+    logger.info('Processing computed sets')
+    for cset in target.computedset_set.all():
+        archive_path = Path('virtual_hits').joinpath(cset.submitted_sdf.name)
+        buff = StringIO()
+        writer = Chem.SDWriter(buff)
+        for cmol in cset.computed_molecules.all():
+            logger.debug('Processing computed molecule (%s)...', cmol.name)
+            mol = Chem.MolFromMolBlock(cmol.sdf_info)
+            logger.debug('mol: %s', mol)
+            mol.SetProp('_Name', cmol.name)
+            for prop in cmol.numericalscorevalues_set.all():
+                mol.SetProp(prop.score.name, str(prop.value))
+            for prop in cmol.textscorevalues_set.all():
+                mol.SetProp(prop.score.name, prop.value)
+
+            writer.write(mol)
+
+        ziparchive.writestr(str(Path(archive_path)), buff.getvalue())
+
+
 def _document_file_zip(ziparchive, download_path, original_search, host):
     """Create the document file
     This consists of a template plus an added contents description.
@@ -690,6 +715,9 @@ def _create_structures_zip(
         _document_file_zip(ziparchive, download_path, original_search, host)
 
         _additional_scripts_zip(ziparchive, _SCRIPTS)
+
+        if zip_contents['compound_sets']:
+            _compound_sets_zip(ziparchive, target)
 
         error_file.close()
         if errors > 0:
@@ -923,6 +951,7 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
 
     # Add the trans matrix files
     zip_contents['trans_matrix_info'] = other_params['trans_matrix_info']
+    zip_contents['compound_sets'] = other_params['compound_sets']
 
     return zip_contents
 
@@ -966,6 +995,7 @@ def get_download_params(request):
         'metadata_info': serializer.validated_data['metadata_info'],
         'smiles_info': serializer.validated_data['all_aligned_structures'],
         'trans_matrix_info': serializer.validated_data['trans_matrix_info'],
+        'compound_sets': serializer.validated_data['compound_sets'],
     }
 
     static_link = serializer.validated_data['static_link']

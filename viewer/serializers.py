@@ -861,6 +861,7 @@ class DownloadStructuresSerializer(serializers.Serializer):
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
     trans_matrix_info = serializers.BooleanField(default=False)
+    compound_sets = serializers.BooleanField(default=False)
 
 
 # Start of Serializers for Squonk Jobs
