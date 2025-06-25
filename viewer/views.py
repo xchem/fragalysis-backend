@@ -2864,7 +2864,10 @@ class UploadMetadataView(ISPyBSafeQuerySet):
             )
 
         # not celerifying it because seems fast enough
-        errors = load_tags_from_file(filename=filename, target=target)
+        user = request.user
+        if not request.user.pk:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+        errors = load_tags_from_file(filename=filename, target=target, user=user)
         if errors:
             return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
