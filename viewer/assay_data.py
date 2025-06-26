@@ -295,14 +295,17 @@ class AssayData:
 
                 result_upload.save()
 
+                order = 0
                 for column, proc_func in data_columns.items():
                     logger.debug('processing %s with %s', column, proc_func.__name__)
+                    order = order + 1
                     unit = get_unit(column)
 
                     result_property, _ = ResultProperty.objects.get_or_create(
                         result_property=column,
                         unit=unit,
                         target=self.target,
+                        order=order,
                     )
 
                     short_df = proc_func(df, column, self.id_column)
