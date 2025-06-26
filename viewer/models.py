@@ -1942,6 +1942,8 @@ class ResultProperty(models.Model):
     result_property = models.TextField()
     unit = models.TextField(null=True)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
+    visible = models.BooleanField(default=True, null=False)
+    order = models.PositiveSmallIntegerField(null=False, default=0, blank=True)
 
     def __str__(self) -> str:
         return f"{self.result_property}"
