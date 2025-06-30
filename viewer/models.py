@@ -25,6 +25,7 @@ from .managers import (
     ExperimentUploadDataManager,
     PoseDataManager,
     QuatAssemblyDataManager,
+    ResultUploadDataManager,
     SessionActionsDataManager,
     SiteObservationDataManager,
     SiteObservationQualityStatusDataManager,
@@ -1928,12 +1929,24 @@ class ResultUpload(models.Model):
         default=settings.ANONYMOUS_USER,
     )
 
+    objects = models.Manager()
+    filter_manager = ResultUploadDataManager()
+
+    # def __str__(self) -> str:
+    #     return f"{self.target.title}: {self.upload_file}"
+
 
 class ResultProperty(models.Model):
     """Assay data property name"""
 
     result_property = models.TextField()
     unit = models.TextField(null=True)
+    target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
+    visible = models.BooleanField(default=True, null=False)
+    order = models.PositiveSmallIntegerField(null=False, default=0, blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.result_property}"
 
     class Meta:
         constraints = [
@@ -1941,8 +1954,9 @@ class ResultProperty(models.Model):
                 fields=[
                     "result_property",
                     "unit",
+                    "target",
                 ],
-                name="unique_result_property_and_unit",
+                name="unique_result_property_target_unit",
             ),
         ]
 

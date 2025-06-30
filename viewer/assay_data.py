@@ -112,6 +112,60 @@ def process_text(df, column, id_column):
     return result
 
 
+def process_int_value(x):
+    """Process float value in cell.
+
+    Understands values with <,>,=< and >= prefix.
+    Return tuple:
+    (original value, prefix, float value, error)
+    """
+    try:
+        groups = re.match(INT_PATTERN, str(x)).groups()  # type: ignore[union-attr]
+        return x, groups[0], groups[1], False, np.nan
+    except AttributeError:
+        # fully string value probably
+        return x, None, None, True, f'Unable to parse {x} to int'
+
+
+def process_integer(df, column, id_column):
+    """Process integer value in cell.
+
+    Understands values with <,>,=< and >= prefix.
+    Return tuple:
+    (original value, prefix, int value, error)
+    """
+    result = df[column].apply(process_int_value).apply(pd.Series)
+    result.columns = [
+        'raw_value',
+        'modifier',
+        'int_value',
+        'parsing_error',
+        ERROR_COLUMN,
+    ]
+    result['data_type'] = ResultValueDataType.objects.get(data_type='integer')
+
+    code_to_obj = {obj.modifier: obj for obj in ResultValueModifier.objects.all()}
+
+    result['numeric_modifier'] = result['modifier'].map(code_to_obj)
+
+    result['numeric_modifier'] = result['numeric_modifier'].where(
+        pd.notna(result['numeric_modifier']), None
+    )
+
+    result.drop(
+        [
+            'modifier',
+        ],
+        axis=1,
+        inplace=True,
+    )
+
+    # I'm otherwise good with the result df except it's missing id col
+    result = result.merge(df[id_column], left_index=True, right_index=True)
+
+    return result
+
+
 def append_object_pk(df, id_column, object_type, target):
     # filter out non-compounds and add object's pk
     # TODO: should I create cmpds?
@@ -241,13 +295,17 @@ class AssayData:
 
                 result_upload.save()
 
+                order = 0
                 for column, proc_func in data_columns.items():
                     logger.debug('processing %s with %s', column, proc_func.__name__)
+                    order = order + 1
                     unit = get_unit(column)
 
                     result_property, _ = ResultProperty.objects.get_or_create(
                         result_property=column,
                         unit=unit,
+                        target=self.target,
+                        order=order,
                     )
 
                     short_df = proc_func(df, column, self.id_column)
@@ -283,3 +341,111 @@ class AssayData:
             return self.errors, self.warnings
 
         return self.errors, self.warnings
+
+
+def convert(upload, property_id, new_type):
+    errors = []
+    warnings: list[str] = []
+    result_property = ResultProperty.objects.get(pk=property_id)
+
+    qs = Result.objects.filter(
+        result_property=result_property,
+        result_upload=upload,
+    )
+
+    try:
+        qs, old_cols = _clear_old_value(qs)
+    except TypeError as exc:
+        errors.append(exc.args[0])
+        return errors, warnings
+
+    if new_type == 'float':
+        df_proc_func = process_float
+        qs_proc_func = _to_float
+    elif new_type == 'text':
+        df_proc_func = process_text
+        qs_proc_func = _to_text
+    elif new_type == 'integer':
+        df_proc_func = process_integer
+        qs_proc_func = _to_integer
+    else:
+        errors.append(f'Unknown data type: {new_type}')
+        return errors, warnings
+
+    # TODO: maybe select only necessary columns, memory
+    df = pd.DataFrame.from_records(qs.values())
+
+    proc_df = df_proc_func(df, 'raw_value', 'id')
+
+    # extract error column and add it to error list
+    error_df = proc_df[proc_df[ERROR_COLUMN].notnull()][['id', ERROR_COLUMN]]
+    # id is needed as value in error_df
+    proc_df = proc_df.set_index('id')
+    obj_dicts = proc_df.to_dict(orient='dict')
+    logger.debug('obj_dicts: %s', obj_dicts.keys())
+
+    err_dicts = error_df.to_dict(orient='records')
+
+    warnings.extend([f'{k["id"]}: {k[ERROR_COLUMN]}' for k in err_dicts])
+
+    qs, cols = qs_proc_func(qs, obj_dicts)
+
+    try:
+        with transaction.atomic():
+            Result.objects.bulk_update(
+                qs,
+                cols + old_cols,
+            )
+    except IntegrityError:
+        return errors, warnings
+
+    return errors, warnings
+
+
+def _clear_old_value(qs):
+    old_type = qs.values('data_type').distinct()
+    if old_type.count() != 1:
+        raise ValueError('Multiple data types in single column')
+
+    old_type = old_type.first()
+    if old_type['data_type'] == 'float':
+        cols = ['float_value', 'numeric_modifier']
+    elif old_type['data_type'] == 'text':
+        cols = ['text_value']
+    elif old_type['data_type'] == 'integer':
+        cols = ['int_value']
+    else:
+        cols = []
+
+    for obj in qs:
+        for field in cols:
+            setattr(obj, field, None)
+
+    return qs, cols
+
+
+def _to_float(qs, obj_dicts):
+    for obj in qs:
+        obj.float_value = obj_dicts['float_value'][obj.id]
+        obj.numeric_modifier = obj_dicts['numeric_modifier'][obj.id]
+        obj.parsing_error = obj_dicts['parsing_error'][obj.id]
+        obj.data_type = obj_dicts['data_type'][obj.id]
+
+    return qs, ['float_value', 'numeric_modifier', 'parsing_error', 'data_type']
+
+
+def _to_text(qs, obj_dicts):
+    for obj in qs:
+        obj.text_value = obj_dicts['text_value'][obj.id]
+        obj.data_type = obj_dicts['data_type'][obj.id]
+
+    return qs, ['text_value', 'parsing_error', 'data_type']
+
+
+def _to_integer(qs, obj_dicts):
+    for obj in qs:
+        obj.int_value = obj_dicts['int_value'][obj.id]
+        obj.parsing_error = obj_dicts['parsing_error'][obj.id]
+        obj.data_type = obj_dicts['data_type'][obj.id]
+
+    return qs, ['int_value', 'parsing_error', 'data_type']
