@@ -72,8 +72,6 @@ def process_float(df, column, id_column):
         'parsing_error',
         ERROR_COLUMN,
     ]
-    result['data_type'] = ResultValueDataType.objects.get(data_type='float')
-
     code_to_obj = {obj.modifier: obj for obj in ResultValueModifier.objects.all()}
 
     result['numeric_modifier'] = result['modifier'].map(code_to_obj)
@@ -93,7 +91,7 @@ def process_float(df, column, id_column):
     # I'm otherwise good with the result df except it's missing id col
     result = result.merge(df[id_column], left_index=True, right_index=True)
 
-    return result
+    return result, ResultValueDataType.objects.get(data_type='float')
 
 
 def process_text_value(x):
@@ -106,10 +104,9 @@ def process_text(df, column, id_column):
     logger.debug('text column %s processed', column)
     result = df[column].apply(process_text_value).apply(pd.Series)
     result.columns = ['raw_value', 'text_value', ERROR_COLUMN]
-    result['data_type'] = ResultValueDataType.objects.get(data_type='text')
     result = result.merge(df[id_column], left_index=True, right_index=True)
 
-    return result
+    return result, ResultValueDataType.objects.get(data_type='text')
 
 
 def process_int_value(x):
@@ -142,7 +139,6 @@ def process_integer(df, column, id_column):
         'parsing_error',
         ERROR_COLUMN,
     ]
-    result['data_type'] = ResultValueDataType.objects.get(data_type='integer')
 
     code_to_obj = {obj.modifier: obj for obj in ResultValueModifier.objects.all()}
 
@@ -163,7 +159,7 @@ def process_integer(df, column, id_column):
     # I'm otherwise good with the result df except it's missing id col
     result = result.merge(df[id_column], left_index=True, right_index=True)
 
-    return result
+    return result, ResultValueDataType.objects.get(data_type='integer')
 
 
 def append_object_pk(df, id_column, object_type, target):
@@ -301,17 +297,18 @@ class AssayData:
                     order = order + 1
                     unit = get_unit(column)
 
+                    short_df, data_type = proc_func(df, column, self.id_column)
+
                     result_property, _ = ResultProperty.objects.get_or_create(
                         result_property=column,
                         unit=unit,
                         target=self.target,
                         order=order,
+                        data_type=data_type,
                     )
 
-                    short_df = proc_func(df, column, self.id_column)
                     short_df[self.id_type] = df[self.id_type]
                     short_df['result_upload'] = result_upload
-                    # short_df['unit'] = unit
                     short_df['result_property'] = result_property
 
                     # extract error column and add it to error list
@@ -347,6 +344,7 @@ def convert(upload, property_id, new_type):
     errors = []
     warnings: list[str] = []
     result_property = ResultProperty.objects.get(pk=property_id)
+    data_type = ResultValueDataType.objects.get(data_type=new_type)
 
     qs = Result.objects.filter(
         result_property=result_property,
@@ -354,8 +352,9 @@ def convert(upload, property_id, new_type):
     )
 
     try:
-        qs, old_cols = _clear_old_value(qs)
+        qs, old_cols = _clear_old_value(qs, result_property.data_type)
     except TypeError as exc:
+        logger.error(exc.args[0])
         errors.append(exc.args[0])
         return errors, warnings
 
@@ -375,7 +374,7 @@ def convert(upload, property_id, new_type):
     # TODO: maybe select only necessary columns, memory
     df = pd.DataFrame.from_records(qs.values())
 
-    proc_df = df_proc_func(df, 'raw_value', 'id')
+    proc_df, _ = df_proc_func(df, 'raw_value', 'id')
 
     # extract error column and add it to error list
     error_df = proc_df[proc_df[ERROR_COLUMN].notnull()][['id', ERROR_COLUMN]]
@@ -396,23 +395,22 @@ def convert(upload, property_id, new_type):
                 qs,
                 cols + old_cols,
             )
-    except IntegrityError:
+            result_property.data_type = data_type
+            result_property.save()
+    except IntegrityError as exc:
+        logger.error(exc.args[0])
+        errors.append(exc.args[0])
         return errors, warnings
 
     return errors, warnings
 
 
-def _clear_old_value(qs):
-    old_type = qs.values('data_type').distinct()
-    if old_type.count() != 1:
-        raise ValueError('Multiple data types in single column')
-
-    old_type = old_type.first()
-    if old_type['data_type'] == 'float':
+def _clear_old_value(qs, old_type):
+    if old_type.data_type == 'float':
         cols = ['float_value', 'numeric_modifier']
-    elif old_type['data_type'] == 'text':
+    elif old_type.data_type == 'text':
         cols = ['text_value']
-    elif old_type['data_type'] == 'integer':
+    elif old_type.data_type == 'integer':
         cols = ['int_value']
     else:
         cols = []
@@ -429,23 +427,23 @@ def _to_float(qs, obj_dicts):
         obj.float_value = obj_dicts['float_value'][obj.id]
         obj.numeric_modifier = obj_dicts['numeric_modifier'][obj.id]
         obj.parsing_error = obj_dicts['parsing_error'][obj.id]
-        obj.data_type = obj_dicts['data_type'][obj.id]
 
-    return qs, ['float_value', 'numeric_modifier', 'parsing_error', 'data_type']
+    return qs, ['float_value', 'numeric_modifier', 'parsing_error']
 
 
 def _to_text(qs, obj_dicts):
     for obj in qs:
         obj.text_value = obj_dicts['text_value'][obj.id]
-        obj.data_type = obj_dicts['data_type'][obj.id]
 
-    return qs, ['text_value', 'parsing_error', 'data_type']
+    return qs, [
+        'text_value',
+    ]
 
 
 def _to_integer(qs, obj_dicts):
     for obj in qs:
         obj.int_value = obj_dicts['int_value'][obj.id]
+        obj.numeric_modifier = obj_dicts['numeric_modifier'][obj.id]
         obj.parsing_error = obj_dicts['parsing_error'][obj.id]
-        obj.data_type = obj_dicts['data_type'][obj.id]
 
-    return qs, ['int_value', 'parsing_error', 'data_type']
+    return qs, ['float_value', 'numeric_modifier', 'parsing_error']
