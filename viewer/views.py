@@ -3172,3 +3172,4 @@ class ResultPropertyView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     serializer_class = serializers.ResultPropertySerializer
     filter_permissions = "target__project"
     permission_classes = [IsObjectProposalMember]
+    filterset_fields = ('target',)
