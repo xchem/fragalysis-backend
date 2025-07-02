@@ -497,6 +497,7 @@ class AssayResultQueryset(QuerySet):
             target_name=F("result_upload__target__title"),
             target_id=F("result_upload__target__id"),
             property_name=F("result_property__result_property"),
+            data_type=F("result_property__data_type"),
             unit=F("result_property__unit"),
             uploaded_by=F("result_upload__uploaded_by__username"),
         )

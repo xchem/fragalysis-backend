@@ -1944,6 +1944,7 @@ class ResultProperty(models.Model):
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
     visible = models.BooleanField(default=True, null=False)
     order = models.PositiveSmallIntegerField(null=False, default=0, blank=True)
+    data_type = models.ForeignKey(ResultValueDataType, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
         return f"{self.result_property}"
@@ -1965,7 +1966,6 @@ class Result(models.Model):
     """Model to store assay results data"""
 
     raw_value = models.TextField(null=True)
-    data_type = models.ForeignKey(ResultValueDataType, on_delete=models.CASCADE)
     float_value = models.FloatField(null=True)
     int_value = models.IntegerField(null=True)
     numeric_modifier = models.ForeignKey(
