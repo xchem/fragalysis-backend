@@ -3173,3 +3173,17 @@ class ResultPropertyView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     filter_permissions = "target__project"
     permission_classes = [IsObjectProposalMember]
     filterset_fields = ('target',)
+
+
+class PlotDataView(
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    ISPyBSafeQuerySet,
+):
+    """Create/update plots."""
+
+    queryset = models.PlotData.objects.all()
+    serializer_class = serializers.PlotDataSerializer
+    filter_permissions = "project"
+    permission_classes = [IsObjectProposalMember]
+    filterset_fields = ('target',)

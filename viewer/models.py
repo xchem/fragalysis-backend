@@ -1993,3 +1993,32 @@ class Result(models.Model):
 
     def __str__(self) -> str:
         return f"{self.id}: {self.raw_value} {self.data_type}"
+
+
+class PlotDataIdentifierType(models.Model):
+    identifier = models.TextField(primary_key=True)
+
+
+class PlotData(models.Model):
+    """Store uploaded plotly plot data"""
+
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        default=settings.ANONYMOUS_USER,
+    )
+    title = models.TextField()
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    identifier = models.ForeignKey(PlotDataIdentifierType, on_delete=models.CASCADE)
+    upload_time = models.DateTimeField(
+        blank=True,
+        default=timezone.now,
+    )
+    plotly_data = models.JSONField(
+        encoder=DjangoJSONEncoder,
+        null=True,
+        blank=True,
+    )
+    notebook_path = models.TextField(null=True)
+    squonk_project_id = models.TextField(null=True)

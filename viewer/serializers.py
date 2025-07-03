@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import Count
+from django.utils import timezone
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
 from rdkit import Chem
@@ -1413,3 +1414,42 @@ class ResultPropertySerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ResultProperty
         fields = '__all__'
+
+
+class PlotDataSerializer(serializers.ModelSerializer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.method in ['PUT', 'PATCH']:
+            self.fields['target'].read_only = True
+            self.fields['project'].read_only = True
+
+    def create(self, validated_data):
+        logger.debug('validated_data: %s', validated_data)
+        user = self.context["request"].user
+
+        # fragalysis has its own anonymous user
+        if user.is_anonymous:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        validated_data["author"] = user
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        user = self.context["request"].user
+
+        if user.is_anonymous:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        validated_data["author"] = user
+        validated_data["upload_time"] = timezone.now()
+
+        return super().update(instance, validated_data)
+
+    class Meta:
+        model = models.PlotData
+        fields = '__all__'
+        extra_kwargs = {
+            "author": {"read_only": True},
+            "upload_time": {"read_only": True},
+        }
