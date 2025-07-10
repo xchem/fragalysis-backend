@@ -296,8 +296,15 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
         ).values('status')
     )
 
-
-
+    # and finally-finally-finally refinementresolution from soakdb
+    header.append('RefinementResolution')
+    values.append('refinementresolution')
+    annotations['refinementresolution'] = F('experiment__refinement_resolution')
+    # annotations['refinementresolution'] = Subquery(
+    #     SiteObservation.objects.filter(
+    #         pk=OuterRef('pk'),
+    #     ).values('experiment__refinement_resolution')
+    # )
 
     return header, annotations, values
 

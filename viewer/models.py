@@ -374,6 +374,7 @@ class Experiment(models.Model):
     source_well = models.TextField(null=True, blank=True)
     space_group = models.TextField(null=True, blank=True)
     unit_cell_dimensions = ArrayField(models.FloatField(), null=True)
+    refinement_resolution = models.FloatField(null=True, blank=True)
 
     objects = models.Manager()
     filter_manager = ExperimentDataManager()
