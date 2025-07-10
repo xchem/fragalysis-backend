@@ -3021,6 +3021,10 @@ class TargetLoader:
                 self._soakdb_numeric_array,
                 "DataProcessingUnitCell",
             ),
+            "refinement_resolution": (
+                self._soakdb_float,
+                "RefinementResolution",
+            ),
         }
         exp_data = {}
         for db_field, (func, soakdb_field) in soakdb_field_resolvers.items():
@@ -3073,6 +3077,7 @@ class TargetLoader:
             "CompoundSMILES",
             "SoakDBComments",
             "RefinementLigandConfidence",
+            "RefinementResolution",
         ]
 
         query = f"SELECT {', '.join(soakdb_fields)} from mainTable"
