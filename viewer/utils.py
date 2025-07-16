@@ -644,3 +644,10 @@ def change_target_project(
     # given in target.zip_archive and while the project name in path
     # is incorrect, the backend knows how to find it. It may be worth
     # finding better system though..
+
+
+def flattened_inchi_from_smiles(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    Chem.RemoveStereochemistry(mol)
+    flat_inchi = Chem.inchi.MolToInchi(mol)
+    return flat_inchi

@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import functools
 import hashlib
 import logging
@@ -32,6 +33,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Model
 from django.db.models.base import ModelBase
 from django.utils import timezone
+from rdkit import Chem
 
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
@@ -42,6 +44,7 @@ from viewer.models import (
     Compound,
     CompoundIdentifier,
     CompoundIdentifierType,
+    ComputedMolecule,
     Experiment,
     ExperimentStatusType,
     ExperimentUpload,
@@ -2475,6 +2478,9 @@ class TargetLoader:
         if soakdb_path:
             self.process_soakdb(db_file=str(soakdb_path))
 
+        if self.version_number > 1:
+            self.link_compounds_to_computedmolecules(site_observation_objects)
+
     def import_compound_identifiers(self, alias_file_path):
         try:
             df = pd.read_csv(alias_file_path)
@@ -2857,6 +2863,115 @@ class TargetLoader:
             main_status=False,
             comment="Created on load",
         ).save()
+
+    def link_compounds_to_computedmolecules(
+        self, site_observation_objects: dict[str, MetadataObject]
+    ) -> None:
+        """
+        If it's an upload_1, do nothing
+        For every new molecule, check for a RHS design with the same chemical structure of the soaked compound (compare flattened inchikeys)
+        If there are multiple matching RHS molecules take the one with the most similar conformation (lowest RMSD)
+        If the matching RHS molecule has inspiration fragments, these will also need to be associated with the new LHS dataset and stored in the DB
+
+
+
+        Please only look for connections within the Target scope
+        LHS compounds could have multiple RHS connections
+        No need to add an extra inspirations link to the LHS Compound model
+
+
+
+            I suppose for the b/e it would be linking compound objects referenced by LHS observations to all RHS computed molecules with the same ligand structure
+
+            The relevant LHS scope will always be SiteObservation, so their coordinates should be used for comparison.
+
+            I think the backend should enumerate all possible LHS-RHS compound links, but annotate them with an RMSD
+
+        """
+        # looks like i need site observations instead..
+        logger.debug('linking compounds')
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            if not val.new:
+                continue
+
+            logger.debug('new observation: %s', val.instance)
+
+            # NB! files have not been moved yet, need the tempdir location
+            molpath = Path(settings.MEDIA_ROOT).joinpath(
+                self.raw_data,
+                *Path(val.instance.ligand_mol.name).parts[2:],
+            )
+            # logger.debug('molpath: %s', molpath)
+            if not molpath.exists():
+                continue
+
+            # logger.debug('molpath still going: %s', molpath)
+            mol = Chem.MolFromMolFile(str(molpath))
+            flattened_mol = copy.deepcopy(mol)
+            Chem.RemoveStereochemistry(flattened_mol)
+            flat_inchi = Chem.inchi.MolToInchiKey(flattened_mol)
+
+            # mmm... this is an inchi, not inchi key.. how does it
+            # work in cset upload?? shouldn't it also be inchikey??
+
+            # right.. something just occurred to me.. mols don't have coordinates
+            # Compounds should be only from this target
+            # siteobvs__experiment__exp_upl__target.compound
+            compounds = (
+                Compound.filter_manager.by_target(
+                    self.target,
+                )
+                .filter(
+                    # inchi=flat_inchi, # testing
+                )
+                .exclude(
+                    # pk=val.instance.pk, # testing
+                )
+            )
+
+            logger.debug('flat inchi: %s', flat_inchi)
+            logger.debug('potential compounds: %s', compounds)
+
+            best_rmsd = math.inf
+            best_rms_cmpd = None
+
+            for cmpd in compounds:
+                logger.debug('compound: %s', cmpd)
+                # for compmol in cmpd.computedmolecule_set.all():
+                for compmol in ComputedMolecule.objects.all():
+                    logger.debug('compmol: %s', compmol)
+                    cmol = Chem.MolFromMolBlock(compmol.sdf_info)
+                    try:
+                        rmsd = Chem.rdMolAlign.GetBestRMS(mol, cmol)
+                        logger.debug('rmsd: %s', rmsd)
+                    except RuntimeError as exc:
+                        rmsd = best_rmsd
+                        msg = (
+                            f"Failed to find alignment between {compmol.molecule_name} "
+                            + f'and {val.instance.code}'
+                        )
+                        logger.error(msg)
+                        logger.error(exc)
+                        # raise IntegrityError(msg) from exc
+                    if rmsd < best_rmsd:
+                        best_rmsd = rmsd
+                        best_rms_cmpd = compmol
+
+            if best_rms_cmpd:
+                # do something with it, connect to compound
+                # but why compound and not observation?
+                # and why observation and not compound?
+                pass
+
+            logger.info(
+                'best vcomp for %s: %s; %s',
+                val.instance.code,
+                best_rmsd,
+                best_rms_cmpd.molecule_name,
+            )
+
+        # print(asdf)
+        self.report.log(logging.ERROR, 'just stop')
 
     def exp_data_from_soakdb(self, row_data):
         # data structure to map db fields to functions that extract
