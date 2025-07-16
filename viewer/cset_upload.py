@@ -390,7 +390,8 @@ class MolOps:
 
         flattened_copy = copy.deepcopy(mol)
         Chem.RemoveStereochemistry(mol)
-        flat_inchi = Chem.inchi.MolToInchi(flattened_copy)
+        flat_inchi = Chem.inchi.MolToInchiKey(flattened_copy)
+        logger.debug('flattened inchi key: %s', flat_inchi)
 
         compound, number = self.create_mol(
             inchi, compound_set.target, name=molecule_name
