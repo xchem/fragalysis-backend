@@ -59,11 +59,6 @@ bcrypt = "4.0.1"
 # Simply changing to django 4 results in errors
 # like "CSRF Failed: Origin checking failed"
 django = "3.2.25"
-# We're stuck on ISPyB 4.x to avoid the error: -
-#   ImportError: cannot import name 'ISPyBNoResultException' from 'ispyb.connector.mysqlsp.main'
-ispyb = "4.13.2"
-# ispyb (4.13.2) depends on mysql-connector (<2.2.3)
-mysql-connector = "2.1.7"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
