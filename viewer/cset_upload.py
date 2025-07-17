@@ -717,7 +717,6 @@ class MolOps:
                 "ref_pdb",
                 "index",
                 "Name",
-                "original SMILES",
             ]:
                 description, _ = ScoreDescription.objects.get_or_create(
                     computed_set=computed_set,
