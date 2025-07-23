@@ -61,7 +61,7 @@ django = "3.2.25"
 # Attempt to avoid the error:
 # 'django_prometheus.db.backends.postgresql' isn't an available database backend
 # Recent prometheus versions may break the build
-django-prometheus = "2.1.0"
+django-prometheus = "2.3.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
