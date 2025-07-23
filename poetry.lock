@@ -56,13 +56,13 @@ test = ["astroid (>=2,<4)", "pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
 name = "authlib"
-version = "1.6.0"
+version = "1.6.1"
 description = "The ultimate Python library in building OAuth and OpenID Connect servers and clients."
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "authlib-1.6.0-py2.py3-none-any.whl", hash = "sha256:91685589498f79e8655e8a8947431ad6288831d643f11c55c2143ffcc738048d"},
-    {file = "authlib-1.6.0.tar.gz", hash = "sha256:4367d32031b7af175ad3a323d571dc7257b7099d55978087ceae4a0d88cd3210"},
+    {file = "authlib-1.6.1-py2.py3-none-any.whl", hash = "sha256:e9d2031c34c6309373ab845afc24168fe9e93dc52d252631f52642f21f5ed06e"},
+    {file = "authlib-1.6.1.tar.gz", hash = "sha256:4dffdbb1460ba6ec8c17981a4c67af7d8af131231b5a36a88a1e8c80c111cdfd"},
 ]
 
 [package.dependencies]
@@ -650,13 +650,13 @@ profile = ["gprof2dot (>=2022.7.29)"]
 
 [[package]]
 name = "distlib"
-version = "0.3.9"
+version = "0.4.0"
 description = "Distribution utilities"
 optional = false
 python-versions = "*"
 files = [
-    {file = "distlib-0.3.9-py2.py3-none-any.whl", hash = "sha256:47f8c22fd27c27e25a65601af709b38e4f0a45ea4fc2e710f65755fa8caaaf87"},
-    {file = "distlib-0.3.9.tar.gz", hash = "sha256:a60f20dea646b8a33f3e7772f74dc0b2d0772d2837ee1342a00645c81edf9403"},
+    {file = "distlib-0.4.0-py2.py3-none-any.whl", hash = "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16"},
+    {file = "distlib-0.4.0.tar.gz", hash = "sha256:feec40075be03a04501a973d81f633735b4b69f98b05450592310c0f401a4e0d"},
 ]
 
 [[package]]
@@ -782,13 +782,13 @@ Django = ">=2.2"
 
 [[package]]
 name = "django-prometheus"
-version = "2.4.0"
+version = "2.3.1"
 description = "Django middlewares to monitor your application with Prometheus.io."
 optional = false
 python-versions = "*"
 files = [
-    {file = "django_prometheus-2.4.0-py2.py3-none-any.whl", hash = "sha256:5b46b5f07b02ba8dd7abdb03a3c39073e8fd9120e2293a1ecb949bbb865378ac"},
-    {file = "django_prometheus-2.4.0.tar.gz", hash = "sha256:67da5c73d8e859aa73f6e11f52341c482691b17f8bd9844157cff6cdf51ce9bc"},
+    {file = "django-prometheus-2.3.1.tar.gz", hash = "sha256:f9c8b6c780c9419ea01043c63a437d79db2c33353451347894408184ad9c3e1e"},
+    {file = "django_prometheus-2.3.1-py2.py3-none-any.whl", hash = "sha256:cf9b26f7ba2e4568f08f8f91480a2882023f5908579681bcf06a4d2465f12168"},
 ]
 
 [package.dependencies]
@@ -3021,13 +3021,13 @@ files = [
 
 [[package]]
 name = "virtualenv"
-version = "20.31.2"
+version = "20.32.0"
 description = "Virtual Python Environment builder"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "virtualenv-20.31.2-py3-none-any.whl", hash = "sha256:36efd0d9650ee985f0cad72065001e66d49a6f24eb44d98980f630686243cf11"},
-    {file = "virtualenv-20.31.2.tar.gz", hash = "sha256:e10c0a9d02835e592521be48b332b6caee6887f332c111aa79a09b9e79efc2af"},
+    {file = "virtualenv-20.32.0-py3-none-any.whl", hash = "sha256:2c310aecb62e5aa1b06103ed7c2977b81e042695de2697d01017ff0f1034af56"},
+    {file = "virtualenv-20.32.0.tar.gz", hash = "sha256:886bf75cadfdc964674e6e33eb74d787dff31ca314ceace03ca5810620f4ecf0"},
 ]
 
 [package.dependencies]
@@ -3156,4 +3156,4 @@ test = ["coverage"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11.3"
-content-hash = "ea709ecfa1cf41d6641c10b8b8e15c18fa3b17057ac318a0b513212a97a85210"
+content-hash = "e59aea12627ea9324e9dc7c2e878a06115dcaf008fd86d206f432ef4b379bc36"
