@@ -24,7 +24,6 @@ django-cleanup = "^8.0.0"
 django-extensions = "^3.2.3"
 django-filter = "^23.2"
 django-guardian = "^2.4.0"
-django-prometheus = "^2.3.1"
 django-simple-history = "^3.3.0"
 django-webpack-loader = "^0.7.0"
 django-rest-swagger = "^2.2.0"
@@ -59,6 +58,10 @@ bcrypt = "4.0.1"
 # Simply changing to django 4 results in errors
 # like "CSRF Failed: Origin checking failed"
 django = "3.2.25"
+# Attempt to avoid the error:
+# 'django_prometheus.db.backends.postgresql' isn't an available database backend
+# Recent prometheus versions may break the build
+django-prometheus = "2.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
