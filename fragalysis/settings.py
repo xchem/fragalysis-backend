@@ -651,7 +651,7 @@ TAS_REGEX_ERROR_MSG: str = os.environ.get(
 # that provides /ping, /version and /target-access/{username} endpoints.
 # This is typically a kubernetes service like "auth.tas-authenticator.svc"
 TAS_AUTH_SERVICE: str = os.environ.get(
-    "TAS_AUTH_SERVICE", "auth.tas-authenticator.svc"
+    "TAS_AUTH_SERVICE", "auth.ta-authenticator.svc"
 ).lower()
 TAS_AUTH_QUERY_KEY: str = os.environ.get("TAS_AUTH_QUERY_KEY", "")
 
