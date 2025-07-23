@@ -41,6 +41,10 @@ def get_auth_version() -> TasAuthVersionGetResponse:
         return TasAuthVersionGetResponse(
             version='', kind='SERVICE_NOT_PRESENT', name=''
         )
+    if not settings.TAS_AUTH_QUERY_KEY:
+        return TasAuthVersionGetResponse(
+            version='', kind='SERVICE_QUERY_KEY_NOT_DEFINED', name=''
+        )
 
     url: str = f"{settings.TAS_AUTH_SERVICE}/version/"
     resp: requests.Response | None = None
@@ -119,6 +123,10 @@ def get_auth_target_access(username: str) -> set[str]:
     assert username
 
     empty_target_access: set[str] = set()
+
+    if not settings.TAS_AUTH_QUERY_KEY:
+        logger.debug('Skipping query - query key is not set (TAS_AUTH_QUERY_KEY)')
+        return empty_target_access
 
     url: str = f"{settings.TAS_AUTH_SERVICE}/version/{quote(username)}"
     resp: requests.Response | None = None
