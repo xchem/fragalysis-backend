@@ -4,12 +4,12 @@ import os
 from pathlib import Path
 from wsgiref.util import FileWrapper
 
-import tas_auth_connector
 from django.conf import settings
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from rest_framework import viewsets
 
+import api.ta_auth_connector as ta_auth_connector
 from viewer.models import Project
 
 from .utils import deployment_mode_is_production
@@ -46,7 +46,7 @@ def ping_configured_connector() -> bool:
     The ping simply provides a way to check the credentials are valid and
     a connection can be made.
     """
-    return tas_auth_connector.get_auth_ping().ping == 'OK'
+    return ta_auth_connector.get_auth_ping().ping == 'OK'
 
 
 class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
@@ -172,7 +172,7 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
                 logger.debug(
                     "Getting proposals from TAS authenticator (%s)...", tas_auth_service
                 )
-                proposals = tas_auth_connector.get_auth_target_access(user.username)
+                proposals = ta_auth_connector.get_auth_target_access(user.username)
             else:
                 logger.debug("User is not authenticated")
         else:
