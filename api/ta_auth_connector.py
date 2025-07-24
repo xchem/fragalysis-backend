@@ -77,7 +77,7 @@ def get_auth_version() -> TasAuthVersionGetResponse:
             version='', kind='ERROR_INTERNAL', name='(no version property)'
         )
 
-    logger.info('TA:GET:%s [OK]', url)
+    logger.info('TA:GET:%s [%s]', url, resp.json())
 
     return TasAuthVersionGetResponse(
         version=resp.json()['version'],
@@ -113,9 +113,10 @@ def get_auth_ping() -> TasAuthPingGetResponse:
         logger.warning('TA:GET:%s (no ping property)', url)
         return TasAuthPingGetResponse('PING response has no ping property')
 
-    logger.info('TA:GET:%s [OK]', url)
+    ping: str = resp.json()['ping']
+    logger.info('TA:GET:%s [%s]', url, ping)
 
-    return TasAuthPingGetResponse(ping=resp.json()['ping'])
+    return TasAuthPingGetResponse(ping=ping)
 
 
 def get_auth_target_access(username: str) -> set[str]:
@@ -154,4 +155,7 @@ def get_auth_target_access(username: str) -> set[str]:
         logger.warning('TA:GET:%s (no target_access)', url)
         return empty_target_access
 
-    return set(resp.json()['target_access'])
+    target_access: set[str] = set(resp.json()['target_access'])
+    logger.info('TA:GET:%s (got %d for %s)', url, len(target_access), username)
+
+    return target_access
