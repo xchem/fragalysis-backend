@@ -14,7 +14,7 @@ import requests
 from django.conf import settings
 
 _URL_TIMEOUT: int = 3
-_QUERY_HEADERS: dict[str, str] = {'X-TAAQueryKey': settings.TAS_AUTH_QUERY_KEY}
+_QUERY_HEADERS: dict[str, str] = {'X-TAAQueryKey': settings.TA_AUTH_QUERY_KEY}
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -37,16 +37,16 @@ class TasAuthPingGetResponse:
 
 def get_auth_version() -> TasAuthVersionGetResponse:
     """Returns the version reported by the TAS authentication service."""
-    if not settings.TAS_AUTH_SERVICE:
+    if not settings.TA_AUTH_SERVICE:
         return TasAuthVersionGetResponse(
             version='', kind='SERVICE_NOT_PRESENT', name=''
         )
-    if not settings.TAS_AUTH_QUERY_KEY:
+    if not settings.TA_AUTH_QUERY_KEY:
         return TasAuthVersionGetResponse(
             version='', kind='SERVICE_QUERY_KEY_NOT_DEFINED', name=''
         )
 
-    url: str = f"{settings.TAS_AUTH_SERVICE}/version/"
+    url: str = f"{settings.TA_AUTH_SERVICE}/version/"
     resp: requests.Response | None = None
     try:
         resp = requests.get(url, timeout=_URL_TIMEOUT)
@@ -87,10 +87,10 @@ def get_auth_version() -> TasAuthVersionGetResponse:
 
 def get_auth_ping() -> TasAuthPingGetResponse:
     """Returns the ping reported by the TAS authentication service."""
-    if not settings.TAS_AUTH_SERVICE:
+    if not settings.TA_AUTH_SERVICE:
         return TasAuthPingGetResponse(ping='SERVICE_NOT_PRESENT')
 
-    url: str = f"{settings.TAS_AUTH_SERVICE}/ping/"
+    url: str = f"{settings.TA_AUTH_SERVICE}/ping/"
     resp: requests.Response | None = None
     try:
         resp = requests.get(url, timeout=_URL_TIMEOUT)
@@ -124,11 +124,11 @@ def get_auth_target_access(username: str) -> set[str]:
 
     empty_target_access: set[str] = set()
 
-    if not settings.TAS_AUTH_QUERY_KEY:
-        logger.debug('Skipping query - query key is not set (TAS_AUTH_QUERY_KEY)')
+    if not settings.TA_AUTH_QUERY_KEY:
+        logger.debug('Skipping query - query key is not set (TA_AUTH_QUERY_KEY)')
         return empty_target_access
 
-    url: str = f"{settings.TAS_AUTH_SERVICE}/version/{quote(username)}"
+    url: str = f"{settings.TA_AUTH_SERVICE}/version/{quote(username)}"
     resp: requests.Response | None = None
     try:
         resp = requests.get(url, headers=_QUERY_HEADERS, timeout=_URL_TIMEOUT)
