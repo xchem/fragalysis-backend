@@ -166,11 +166,11 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         assert user
 
         proposals = set()
-        tas_auth_service = settings.TAS_AUTH_SERVICE
-        if tas_auth_service:
+        ta_auth_service = settings.TA_AUTH_SERVICE
+        if ta_auth_service:
             if user.is_authenticated:
                 logger.debug(
-                    "Getting proposals from TAS authenticator (%s)...", tas_auth_service
+                    "Getting proposals from TA authenticator (%s)...", ta_auth_service
                 )
                 proposals = ta_auth_connector.get_auth_target_access(user.username)
             else:
