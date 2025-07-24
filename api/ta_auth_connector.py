@@ -128,7 +128,7 @@ def get_auth_target_access(username: str) -> set[str]:
         logger.debug('Skipping query - query key is not set (TA_AUTH_QUERY_KEY)')
         return empty_target_access
 
-    url: str = f"{settings.TA_AUTH_SERVICE}/version/{quote(username)}"
+    url: str = f"{settings.TA_AUTH_SERVICE}/target-access/{quote(username)}"
     resp: requests.Response | None = None
     try:
         resp = requests.get(url, headers=_QUERY_HEADERS, timeout=_URL_TIMEOUT)
