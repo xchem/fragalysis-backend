@@ -2925,7 +2925,7 @@ class TargetLoader:
                     # inchi=flat_inchi, # testing
                 )
                 .exclude(
-                    # pk=val.instance.pk, # testing
+                    pk=val.instance.pk,  # testing
                 )
             )
 
@@ -2941,6 +2941,11 @@ class TargetLoader:
                 for compmol in ComputedMolecule.objects.all():
                     logger.debug('compmol: %s', compmol)
                     cmol = Chem.MolFromMolBlock(compmol.sdf_info)
+                    flattened_cmol = copy.deepcopy(cmol)
+                    Chem.RemoveStereochemistry(flattened_cmol)
+                    cmol_flat_inchi = Chem.inchi.MolToInchiKey(flattened_cmol)
+                    if flat_inchi == cmol_flat_inchi:
+                        logger.debug('potential match: %s', flat_inchi)
                     try:
                         rmsd = Chem.rdMolAlign.GetBestRMS(mol, cmol)
                         logger.debug('rmsd: %s', rmsd)
@@ -2967,7 +2972,7 @@ class TargetLoader:
                 'best vcomp for %s: %s; %s',
                 val.instance.code,
                 best_rmsd,
-                best_rms_cmpd.molecule_name,
+                best_rms_cmpd,
             )
 
         # print(asdf)
