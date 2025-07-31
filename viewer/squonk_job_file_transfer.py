@@ -124,8 +124,6 @@ def validate_file_transfer_files(
         list of validated computed molecules
     """
     assert 'target' in request.data
-    assert 'proteins' in request.data
-    assert 'compounds' in request.data
 
     logger.info('+ Validating file transfer files ()...')
 
@@ -134,7 +132,7 @@ def validate_file_transfer_files(
     protein_files: List[Path] = []
     compound_files: List[Path] = []
 
-    if request.data['proteins']:
+    if request.data.get('proteins', None):
         # Get first part of protein code
         protein_paths_and_files = [
             unquote(p.strip()) for p in request.data['proteins'].split(',')
@@ -167,7 +165,7 @@ def validate_file_transfer_files(
             len(protein_files),
         )
 
-    if request.data['compounds']:
+    if request.data.get('compounds', None):
         compound_paths_and_files = [
             unquote(p.strip()) for p in request.data['compounds'].split(',')
         ]
