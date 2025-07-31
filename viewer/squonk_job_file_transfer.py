@@ -105,11 +105,13 @@ def validate_file_transfer_files(
     """Check the request and return a list of proteins and/or computed molecule file
     path references (paths relative to the media directory).
 
-    We're given a request that contains comma-separated URL-encoded "proteins", and "compounds",
-    and "target access", "target", "snapshot" and "session_project" record IDs.
-    Each protein and compound is a full path to a file relative to the media directory.
-    We just need to ensure that a SiteObservation exists (there should only be one)
-    and it belongs to the given target.
+    We're given a request that contains potentially empty strings that
+    consist of comma-separated URL-encoded "proteins", and "compounds",
+    and a "target" (target ID).
+
+    Each protein and compound is a path and file to a file that is relative to the media
+    directory. We just need to ensure that a SiteObservation exists for each
+    (there should only be one) and it belongs to the given target.
 
     The user is already validated against the Target so here we check the given
     protein and compound references exist, and they belong to the Target.
@@ -117,9 +119,9 @@ def validate_file_transfer_files(
     Args:
         request
     Returns
-        error dict
-        list of validated proteins (SiteObservation)
-        list of validated computed molecules (ComputedMolecule)
+        error dictionary
+        list of validated proteins
+        list of validated computed molecules
     """
     assert 'target' in request.data
     assert 'proteins' in request.data
