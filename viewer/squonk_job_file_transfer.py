@@ -141,15 +141,18 @@ def validate_file_transfer_files(
                     ).first()
                 ):
                     return tfr_validation_error(
-                        f'Unknown Protein: {protein_path_and_file}',
+                        f'Unknown Protein: "{protein_path_and_file}"',
                         status.HTTP_404_NOT_FOUND,
                     )
 
-                if s_ob.experiment.experiment_upload.target.id == target_id:
+                s_ob_target_id = s_ob.experiment.experiment_upload.target.id
+                if s_ob_target_id == target_id:
                     protein_files.append(Path(protein_path_and_file))
                 else:
                     return tfr_validation_error(
-                        f'Protein does not belong to Target: {protein_path_and_file}',
+                        f'Protein does not belong to Target: "{protein_path_and_file}"'
+                        f' SiteObservation target={s_ob_target_id} (type={type(s_ob_target_id)})'
+                        f' Given target={target_id} (type {type(target_id)})',
                         status.HTTP_400_BAD_REQUEST,
                     )
 
