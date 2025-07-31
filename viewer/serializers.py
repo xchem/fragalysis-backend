@@ -227,6 +227,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "organism",
             "external_url",
             "external_url_display_name",
+            "alias_order",
             # "settings",
         )
         extra_kwargs = {
