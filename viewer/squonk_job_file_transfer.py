@@ -170,15 +170,18 @@ def validate_file_transfer_files(
                 ligand_mol=compound_path_and_file
             ).first():
                 return tfr_validation_error(
-                    f'Unknown Compound: {compound_path_and_file}',
+                    f'Unknown Compound: "{compound_path_and_file}"',
                     status.HTTP_404_NOT_FOUND,
                 )
 
-            if s_ob.experiment.experiment_upload.target.id == target_id:
+            s_ob_target_id = s_ob.experiment.experiment_upload.target.id
+            if s_ob_target_id == target_id:
                 compound_files.append(Path(compound_path_and_file))
             else:
                 return tfr_validation_error(
-                    f'Compound does not belong to Target: {compound_path_and_file}',
+                    f'Compound does not belong to Target: "{compound_path_and_file}"'
+                    f' SiteObservation target={s_ob_target_id} (type={type(s_ob_target_id)})'
+                    f' Given target={target_id} (type {type(target_id)})',
                     status.HTTP_400_BAD_REQUEST,
                 )
 
