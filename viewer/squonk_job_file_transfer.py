@@ -121,9 +121,13 @@ def validate_file_transfer_files(
         list of validated proteins (SiteObservation)
         list of validated computed molecules (ComputedMolecule)
     """
+    assert 'target' in request.data
+    assert 'proteins' in request.data
+    assert 'compounds' in request.data
 
-    target_id = request.data['target']
     logger.info('+ Validating file transfer files ()...')
+
+    target_id = int(request.data['target'])
 
     protein_files: List[Path] = []
     compound_files: List[Path] = []
@@ -151,8 +155,8 @@ def validate_file_transfer_files(
                 else:
                     return tfr_validation_error(
                         f'Protein does not belong to Target: "{protein_path_and_file}"'
-                        f' SiteObservation target={s_ob_target_id} (type={type(s_ob_target_id)})'
-                        f' Given target={target_id} (type {type(target_id)})',
+                        f' SiteObservation target={s_ob_target_id}'
+                        f' Given target={target_id}',
                         status.HTTP_400_BAD_REQUEST,
                     )
 
@@ -180,8 +184,8 @@ def validate_file_transfer_files(
             else:
                 return tfr_validation_error(
                     f'Compound does not belong to Target: "{compound_path_and_file}"'
-                    f' SiteObservation target={s_ob_target_id} (type={type(s_ob_target_id)})'
-                    f' Given target={target_id} (type {type(target_id)})',
+                    f' SiteObservation target={s_ob_target_id}'
+                    f' Given target={target_id}',
                     status.HTTP_400_BAD_REQUEST,
                 )
 
