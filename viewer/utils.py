@@ -644,3 +644,29 @@ def change_target_project(
     # given in target.zip_archive and while the project name in path
     # is incorrect, the backend knows how to find it. It may be worth
     # finding better system though..
+
+
+def profile(output_file='profile.prof'):
+    """Function profiler decorator.
+
+    Usage: just add the decorator
+    @profile(<filename>)
+    """
+    import functools
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            import cProfile
+
+            profiler = cProfile.Profile()
+            profiler.enable()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                profiler.disable()
+                profiler.dump_stats(output_file)
+
+        return wrapper
+
+    return decorator

@@ -20,15 +20,15 @@ from typing import Any, Dict
 import pandoc
 import requests
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db.models import Exists, F, OuterRef, Value
 from django.db.models.fields import CharField
 from django.db.models.functions import Concat
 from rdkit import Chem
 
-from viewer.models import DownloadLinks, SiteObservation
+from viewer.models import DownloadLinks, SiteObservation, Target
 from viewer.utils import clean_filename
 
-from .serializers import DownloadStructuresSerializer
 from .tags import get_metadata_fields
 from .target_loader import strip_exp_code
 
@@ -726,20 +726,6 @@ def _create_structures_zip(
         os.remove(error_filename)
 
 
-def _protein_garbage_filter(proteins):
-    """Garbage filter. It seems that Mpro has had some 'references_' added
-    that are not being cleared up properly. Will look at this in future
-    epic, but for now remove them from the download.
-
-    Args:
-        proteins
-
-    Returns:
-        [list]: [update protein list]
-    """
-    return proteins.exclude(code__startswith=r'references_')
-
-
 def _create_structures_dict(site_obvs, protein_params, other_params):
     """Write a ZIP file containing data from an input dictionary
 
@@ -956,54 +942,62 @@ def _create_structures_dict(site_obvs, protein_params, other_params):
     return zip_contents
 
 
-def get_download_params(request):
-    """Check whether structures have been previously downloaded
-
-    Args:
-        request
-
-    Returns:
-        protein_params, other_params
-    """
-
-    serializer = DownloadStructuresSerializer(data=request.data)
-    valid = serializer.is_valid()
-    logger.debug('serializer validated data: %s, %s', valid, serializer.validated_data)
-    if not valid:
-        logger.error('serializer errors: %s', serializer.errors)
-
+def get_download_params(validated_data):
+    """Extract download flags from serializer's validated data"""
     protein_params = {
-        'pdb_info': serializer.validated_data['pdb_info'],
-        'apo_file': serializer.validated_data['all_aligned_structures'],
-        'bound_file': serializer.validated_data['all_aligned_structures'],
-        'apo_solv_file': serializer.validated_data['all_aligned_structures'],
-        'apo_desolv_file': serializer.validated_data['all_aligned_structures'],
-        'ligand_pdb': serializer.validated_data['all_aligned_structures'],
-        'ligand_sdf': serializer.validated_data['all_aligned_structures'],
-        'ligand_smiles': serializer.validated_data['all_aligned_structures'],
-        'cif_info': serializer.validated_data['cif_info'],
-        'mtz_info': serializer.validated_data['mtz_info'],
-        'map_info': serializer.validated_data['map_info'],
-        'event_file': serializer.validated_data['event_file'],
-        'sigmaa_file': serializer.validated_data['sigmaa_file'],
-        'diff_file': serializer.validated_data['diff_file'],
+        'pdb_info': validated_data['pdb_info'],
+        'apo_file': validated_data['all_aligned_structures'],
+        'bound_file': validated_data['all_aligned_structures'],
+        'apo_solv_file': validated_data['all_aligned_structures'],
+        'apo_desolv_file': validated_data['all_aligned_structures'],
+        'ligand_pdb': validated_data['all_aligned_structures'],
+        'ligand_sdf': validated_data['all_aligned_structures'],
+        'ligand_smiles': validated_data['all_aligned_structures'],
+        'cif_info': validated_data['cif_info'],
+        'mtz_info': validated_data['mtz_info'],
+        'map_info': validated_data['map_info'],
+        'event_file': validated_data['event_file'],
+        'sigmaa_file': validated_data['sigmaa_file'],
+        'diff_file': validated_data['diff_file'],
     }
 
     other_params = {
-        'sdf_info': serializer.validated_data['all_aligned_structures'],
-        'single_sdf_file': serializer.validated_data['single_sdf_file'],
-        'metadata_info': serializer.validated_data['metadata_info'],
-        'smiles_info': serializer.validated_data['all_aligned_structures'],
-        'trans_matrix_info': serializer.validated_data['trans_matrix_info'],
-        'compound_sets': serializer.validated_data['compound_sets'],
+        'sdf_info': validated_data['all_aligned_structures'],
+        'single_sdf_file': validated_data['single_sdf_file'],
+        'metadata_info': validated_data['metadata_info'],
+        'smiles_info': validated_data['all_aligned_structures'],
+        'trans_matrix_info': validated_data['trans_matrix_info'],
+        'compound_sets': validated_data['compound_sets'],
     }
 
-    static_link = serializer.validated_data['static_link']
+    static_link = validated_data['static_link']
 
     return protein_params, other_params, static_link
 
 
-def create_or_return_download_link(request, target, site_observations):
+def profile(output_file='profile.prof'):
+    import functools
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            import cProfile
+
+            profiler = cProfile.Profile()
+            profiler.enable()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                profiler.disable()
+                profiler.dump_stats(output_file)
+
+        return wrapper
+
+    return decorator
+
+
+@profile('long_api_call.prof')
+def _obs_create_or_return_download_link(request, target, site_observations):
     """Check/create a download zip file.
 
     Downloads are located in <MEDIA_ROOT>/downloads/ using a subdirectory
@@ -1036,7 +1030,7 @@ def create_or_return_download_link(request, target, site_observations):
     logger.debug('static_link: %s', static_link)
 
     # Remove 'references_' from protein list if present.
-    site_observations = _protein_garbage_filter(site_observations)
+    # site_observations = _protein_garbage_filter(site_observations)
     if num_given_site_obs > site_observations.count():
         logger.warning(
             'Removed %d "references_" proteins from download',
@@ -1112,6 +1106,180 @@ def create_or_return_download_link(request, target, site_observations):
     download_link.keep_zip_until = download_link.create_date + KEEP_UNTIL_DURATION
     download_link.save()
 
+    logger.info('- Handled new record (file_url=%s)', file_url)
+    return file_url
+
+
+def return_download_link(
+    validated_data,
+    target,
+    site_observations,
+):
+    """Return a link to existing downloadable zip file.
+
+    Downloads are located in <MEDIA_ROOT>/downloads/ using a subdirectory
+    using a UUID-4 value, with the file located in it, using the target title.
+    For example: "/code/media/downloads/4c3afc69-bca9-4fb1-a76e-56c85a85899f/XX01ZVNS2B.zip".
+
+    Returns:
+        [file]: [URL to the file in the media directory]
+    """
+    logger.info('+ Handling download for Target "%s"', target.title)
+
+    # Log the provided SiteObservations
+    num_given_site_obs = site_observations.count()
+    site_ob_repr = "".join(
+        # & syntax copies the queryset without evaluating it. this way
+        # I have an unsliced queryset for later for protein_garbage
+        # filter method (this is what gave sliced queryset error)
+        "%r " % site_ob
+        for site_ob in site_observations & site_observations
+    )
+    logger.debug(
+        'Given %s SiteObservation records: %r', num_given_site_obs, site_ob_repr
+    )
+
+    protein_params, other_params, static_link = get_download_params(validated_data)
+    logger.debug('proteins_params: %s', protein_params)
+    logger.debug('other_params: %s', other_params)
+    logger.debug('static_link: %s', static_link)
+
+    # Save the list of protein codes - this is the ispybsafe set for this user.
+    proteins_list = list(site_observations.values_list('code', flat=True))
+    logger.debug('proteins_list: %s', proteins_list)
+
+    try:
+        existing_link = DownloadLinks.objects.get(
+            target_id=target.id,
+            proteins=proteins_list,
+            protein_params=protein_params,
+            other_params=other_params,
+        )
+    except DownloadLinks.DoesNotExist as exc:
+        raise ValueError() from exc
+
+    # Dynamic to static?
+    # Static link records are never removed.
+    if static_link and not existing_link.static_link:
+        logger.info(
+            'Converting dynamic link to static link (%s)', existing_link.file_url
+        )
+        existing_link.static_link = True
+        existing_link.save()
+    # Now return the file...
+    file_url = existing_link.file_url
+    assert os.path.isfile(file_url)
+    logger.info('- Handled existing download (file_url=%s)', file_url)
+    return file_url
+
+
+def create_download_link(
+    *,
+    original_search,
+    validated_data,
+    target_id,
+    site_observation_ids,
+    host,
+    user_id,
+    task,
+):
+    """Check/create a download zip file.
+
+    This function is being ran inside a celery task, hence the object
+    ids instead of objects themselves.
+
+    Downloads are located in <MEDIA_ROOT>/downloads/ using a subdirectory
+    using a UUID-4 value, with the file located in it, using the target title.
+    For example: "/code/media/downloads/4c3afc69-bca9-4fb1-a76e-56c85a85899f/XX01ZVNS2B.zip".
+
+    This function constructs the download file or returns a download form an exiting record.
+
+    Returns:
+        [file]: [URL to the file in the media directory]
+
+    """
+    logger.info('+ Handling download for Target "%s"', target_id)
+    logger.debug('site observations "%s"', site_observation_ids)
+
+    # error checking is not necessary because all these objects are
+    # already resolved in the view and then passed through task
+    target = Target.objects.get(pk=target_id)
+    site_observations = SiteObservation.objects.filter(pk__in=site_observation_ids)
+    user = get_user_model().objects.get(pk=user_id)
+
+    task.update_state(
+        state='PROCESSING',
+        meta={
+            "proposal_ref": "lb18145-1",
+            "description": 'Start processing',
+        },
+    )
+
+    logger.debug(
+        'Given %s SiteObservation records: %r',
+        site_observations.count(),
+        site_observation_ids,
+    )
+
+    protein_params, other_params, static_link = get_download_params(validated_data)
+    logger.debug('proteins_params: %s', protein_params)
+    logger.debug('other_params: %s', other_params)
+    logger.debug('static_link: %s', static_link)
+
+    # No existing Download record - create one,
+    # which requires construction of the file prior to creating the record.
+    # A record indicates the file is present. It is removed
+    # when "out of date".
+    filename = f'{target.title}.zip'
+    file_url = os.path.join(
+        settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
+    )
+    logger.info('Creating new download (file_url=%s)...', file_url)
+
+    zip_contents = _create_structures_dict(
+        site_observations, protein_params, other_params
+    )
+    _create_structures_zip(
+        target,
+        zip_contents,
+        file_url,
+        original_search,
+        host,
+        site_observations,
+    )
+
+    task.update_state(
+        state='RUNNING',
+        meta={
+            "proposal_ref": "lb18145-1",
+            "description": 'File created',
+        },
+    )
+
+    download_link = DownloadLinks()
+    # Note: 'zip_file' and 'zip_contents' record properties are no longer used.
+    download_link.file_url = file_url
+    download_link.user = user
+    download_link.target = target
+    download_link.proteins = list(site_observations.values_list('code', flat=True))
+    download_link.protein_params = protein_params
+    download_link.other_params = other_params
+    download_link.static_link = static_link
+    download_link.create_date = datetime.now(timezone.utc)
+    download_link.original_search = original_search
+    # We've just created the file, so the download is valid now...
+    # Dynamic files are typically removed on the next download request
+    # that occurs after the KEEP_UNTIL_DURATION.
+    download_link.keep_zip_until = download_link.create_date + KEEP_UNTIL_DURATION
+    download_link.save()
+
+    task.update_state(
+        state='SUCCESS',
+        meta={
+            "proposal_ref": "lb18145-1",
+            "description": file_url,
+        },
+    )
     logger.info('- Handled new record (file_url=%s)', file_url)
     return file_url
 

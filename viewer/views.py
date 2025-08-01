@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import os
@@ -60,9 +61,9 @@ from .discourse import (
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import (
-    create_or_return_download_link,
+from .download_structures import (  # create_or_return_download_link,
     erase_out_of_date_download_records,
+    return_download_link,
 )
 from .forms import CSetForm
 from .squonk_job_file_transfer import validate_file_transfer_files
@@ -76,6 +77,7 @@ from .tags import load_tags_from_file
 from .tasks import (
     process_compound_set,
     process_job_file_transfer,
+    task_create_download_link,
     task_load_target,
     validate_compound_set,
 )
@@ -1474,6 +1476,11 @@ class DownloadStructuresView(
         content = {'message': 'Please provide file_url parameter from post response'}
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
+    # @action(detail=True, methods=['get'])
+    # def download(self, request, pk=None):
+    #     """Download a specific ComputedSet by ID."""
+    #     pass
+
     def create(self, request):
         """Method to handle POST requests that are used to initiate a target download.
 
@@ -1486,9 +1493,18 @@ class DownloadStructuresView(
 
         erase_out_of_date_download_records()
 
+        serializer = self.serializer_class(data=request.data)
+        if not serializer.is_valid():
+            logger.debug("serializer not valid: %s", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.debug('serializer validated data: %s', serializer.validated_data)
+
         # Static files (i.e. links not removed)
-        if request.data['file_url']:
-            file_url = request.data['file_url']
+        # I don't understand this bit.. what is it doing?
+        # in any case, can I move it to DownloadLinks instance method?
+        if serializer.validated_data['file_url']:
+            file_url = serializer.validated_data['file_url']
             logger.info('Given file_url "%s"', file_url)
             existing_link = models.DownloadLinks.objects.filter(
                 file_url=file_url
@@ -1510,20 +1526,20 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         # Dynamic files
-        if 'target_access_string' not in request.data:
+        if 'target_access_string' not in serializer.validated_data.keys():
             content = {
                 'message': 'If no file_url, a target_access_string must be provided'
             }
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
-        if 'target_name' not in request.data:
+        if 'target_name' not in serializer.validated_data.keys():
             content = {
                 'message': 'If no file_url, a target_name (title) must be provided'
             }
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
-        target_name = request.data['target_name']
-        project_name = request.data['target_access_string']
+        target_name = serializer.validated_data['target_name']
+        project_name = serializer.validated_data['target_access_string']
         target = None
         logger.info('Given target_name "%s"', target_name)
 
@@ -1594,9 +1610,37 @@ class DownloadStructuresView(
             content = {'message': f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD})'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        filename_url = create_or_return_download_link(request, target, site_obvs)
-        assert filename_url is not None
-        return Response({"file_url": filename_url})
+        # filename_url = create_or_return_download_link(request, target, site_obvs)
+
+        try:
+            filename_url = return_download_link(
+                serializer.validated_data, target, site_obvs
+            )
+            return Response({"file_url": filename_url})
+        except ValueError:
+            # download with these parameters does not exist, launch a
+            # task to create it
+            original_search = copy.deepcopy(request.data)
+            original_search.pop('csrfmiddlewaretoken', None)
+            host = request.get_host()
+
+            task = task_create_download_link.delay(
+                original_search=original_search,
+                validated_data=serializer.validated_data,
+                host=host,
+                target_id=target.pk,
+                site_observation_ids=list(site_obvs.values_list('id', flat=True)),
+                user_id=request.user.pk
+                if request.user.is_authenticated
+                else settings.ANONYMOUS_USER,
+            )
+            logger.info(
+                "+ UploadTargetExperiments.create got Celery id %s", task.task_id
+            )
+
+            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+            # as it launches task, I think 202 is more appropriate
+            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):
@@ -1897,6 +1941,7 @@ class TaskStatusView(APIView):
         # (if it has an info attribute)
         messages = []
         if hasattr(result, 'info'):
+            messages = result.info
             if isinstance(result.info, dict):
                 # check if user is allowed to view task info
                 proposal = result.info.get('proposal_ref', '')
@@ -1919,6 +1964,7 @@ class TaskStatusView(APIView):
                 )
                 # messages = result.info
 
+        logger.debug("task_id=%s, got through messages: %s", task_id, result.info)
         started = result.state != 'PENDING'
         finished = result.ready()
         task_status = "UNKNOWN"
