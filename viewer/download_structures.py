@@ -975,28 +975,6 @@ def get_download_params(validated_data):
     return protein_params, other_params, static_link
 
 
-def profile(output_file='profile.prof'):
-    import functools
-
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            import cProfile
-
-            profiler = cProfile.Profile()
-            profiler.enable()
-            try:
-                return func(*args, **kwargs)
-            finally:
-                profiler.disable()
-                profiler.dump_stats(output_file)
-
-        return wrapper
-
-    return decorator
-
-
-@profile('long_api_call.prof')
 def _obs_create_or_return_download_link(request, target, site_observations):
     """Check/create a download zip file.
 
