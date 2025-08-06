@@ -688,10 +688,10 @@ def task_create_download_link(
     *,
     original_search,
     validated_data,
-    host,
     target_id,
     site_observation_ids,
     user_id,
+    target_access_string,
 ):
     logger.info(
         'TASK %s create_download_link launched, target_zip=%s',
@@ -701,10 +701,10 @@ def task_create_download_link(
     create_download_link(
         original_search=original_search,
         validated_data=validated_data,
-        host=host,
         target_id=target_id,
         site_observation_ids=site_observation_ids,
         user_id=user_id,
         task=self,
+        target_access_string=target_access_string,
     )
-    logger.info('TASK %s load_target completed', self.request.id)
+    logger.info('TASK %s create_download_link completed', self.request.id)

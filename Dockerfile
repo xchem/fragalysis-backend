@@ -14,6 +14,8 @@ RUN apt-get update -y && \
       texlive-latex-recommended \
       lmodern \
       pigz \
+      p7zip-full \
+      rsync \
       texlive-fonts-recommended && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

@@ -1476,11 +1476,6 @@ class DownloadStructuresView(
         content = {'message': 'Please provide file_url parameter from post response'}
         return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-    # @action(detail=True, methods=['get'])
-    # def download(self, request, pk=None):
-    #     """Download a specific ComputedSet by ID."""
-    #     pass
-
     def create(self, request):
         """Method to handle POST requests that are used to initiate a target download.
 
@@ -1610,8 +1605,6 @@ class DownloadStructuresView(
             content = {'message': f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD})'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        # filename_url = create_or_return_download_link(request, target, site_obvs)
-
         try:
             filename_url = return_download_link(
                 serializer.validated_data, target, site_obvs
@@ -1622,24 +1615,21 @@ class DownloadStructuresView(
             # task to create it
             original_search = copy.deepcopy(request.data)
             original_search.pop('csrfmiddlewaretoken', None)
-            host = request.get_host()
 
             task = task_create_download_link.delay(
                 original_search=original_search,
                 validated_data=serializer.validated_data,
-                host=host,
                 target_id=target.pk,
                 site_observation_ids=list(site_obvs.values_list('id', flat=True)),
                 user_id=request.user.pk
                 if request.user.is_authenticated
                 else settings.ANONYMOUS_USER,
+                target_access_string=project_name,
             )
             logger.info(
                 "+ UploadTargetExperiments.create got Celery id %s", task.task_id
             )
-
             url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
-            # as it launches task, I think 202 is more appropriate
             return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
