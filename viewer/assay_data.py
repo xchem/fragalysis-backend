@@ -184,8 +184,7 @@ def append_object_pk(df, id_column, object_type, target):
         df = df[df[id_column].isin(existing_ids)]
 
         code_to_obj = {
-            obj.compound_code: obj
-            for obj in existing_objects.filter(code__in=df[id_column])
+            obj.code: obj for obj in existing_objects.filter(code__in=df[id_column])
         }
     else:
         raise ValueError(f'Wrong identifier submitted: {object_type}')
