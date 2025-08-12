@@ -27,7 +27,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Exists, F, OuterRef, Value
 from django.db.models.fields import CharField
-from django.db.models.functions import Concat
+from django.db.models.functions import Concat, Replace
 from rdkit import Chem
 
 from viewer.models import DownloadLinks, SiteObservation, Target
@@ -35,9 +35,7 @@ from viewer.utils import clean_filename
 
 from .tags import get_metadata_fields
 from .target_loader import strip_exp_code
-
-# from urllib.parse import urlsplit
-
+from .utils import profile
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +163,98 @@ class DownloadStructures:
     @property
     def error_file(self) -> Path:
         return self._error_file
+
+    def create_tarball2(
+        self,
+        *,
+        site_observations,
+        protein_params,
+        other_params,
+        original_search,
+    ):
+        del other_params
+        del original_search
+        import timeit
+
+        # after torturing chatgpt i got something useful:
+        # prefetch = Prefetch(
+        #     "cmpd__all_identifiers",
+        #     queryset=CompoundIdentifier.objects.annotate(
+        #         substituted_name=Replace(
+        #             F("name"),
+        #             Value("the_"),
+        #             Value("a___"),
+        #             output_field=CharField(),
+        #         ),
+        #     ),
+        #     to_attr="annotated_name"
+        # )
+        # qs is already pre-filtered so qs
+        # aqn = qs.prefetch_related(prefetch)
+        # annotates map files like this
+        # In [61]: so.cmpd.annotated_name
+        # Out[61]:
+        # [<CompoundIdentifier 1 'the_first_smth' <CompoundIdentifierType 'something'>>,
+        #  <CompoundIdentifier 2 'the_first_noth' <CompoundIdentifierType 'not_a_thing'>>]
+        # don't know if it's going to be all that useful, but using
+        # prefetch objects is interesting
+
+        site_observations = site_observations.annotate(
+            # this is the key to use later for name substitutions
+            longlongcode=Concat(
+                F('experiment__code'),
+                Value('_'),
+                F('chain_id'),
+                Value('_'),
+                F('seq_id'),
+                Value('_'),
+                F('version'),
+                Value('_'),
+                F('canon_site_conf__canon_site__name'),
+                Value('+'),
+                F('canon_site_conf__canon_site__version'),
+                output_field=CharField(),
+            ),
+        )
+
+        annotations = {}
+        ann_keys = []
+        testkey = 'bound_file'
+        if protein_params[testkey]:
+            ann_keys.append(testkey)
+            # annotations['pdb_info_filepath'] = F('experiment__pdb_info')
+            annotations['pdb_info_filepath'] = F('experiment__pdb_info')
+            annotations['pdb_info_archive_path'] = (
+                Replace(
+                    # hmm... i really should to extract the filename only
+                    F('experiment__pdb_info'),
+                    F('longlongcode'),
+                    F('code'),
+                    output_field=CharField(),
+                ),
+            )
+
+        site_observations.annotate(**annotations).values(annotations.keys())
+
+        for so in site_observations:
+            for key in ann_keys:
+                filepath = f'{key}_filepath'
+                archive_path = f'{key}_archive_path'
+                self.write_symlink(getattr(so, filepath), getattr(so, archive_path))
+
+        if self.use_zip:
+            filename = f'{self.target.title}.zip'
+        else:
+            filename = f'{self.target.title}.tar.gz'
+        file_url = os.path.join(
+            settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
+        )
+        logger.info('Creating new download (file_url=%s)...', file_url)
+
+        t_0 = timeit.default_timer()
+        self.compress_directory(self.temp_path, file_url)
+        t_end = timeit.default_timer()
+        logger.debug('timings, compression time: %s', t_end - t_0)
 
     def create_content_dict(
         self,
@@ -1152,6 +1242,7 @@ def return_download_link(
     return file_url
 
 
+@profile('profile_after_ext_proc.prof')
 def create_download_link(
     *,
     original_search,
@@ -1230,14 +1321,20 @@ def create_download_link(
             use_zip=validated_data['use_zip'],
             target_access_string=target_access_string,
         )
-        zip_contents = downloader.create_content_dict(
-            site_obvs=site_observations,
+        # zip_contents = downloader.create_content_dict(
+        #     site_obvs=site_observations,
+        #     protein_params=protein_params,
+        #     other_params=other_params,
+        # )
+        # downloader.create_tarball(
+        #     zip_contents=zip_contents,
+        #     file_url=file_url,
+        #     original_search=original_search,
+        #     site_observations=site_observations,
+        # )
+        downloader.create_tarball2(
             protein_params=protein_params,
             other_params=other_params,
-        )
-        downloader.create_tarball(
-            zip_contents=zip_contents,
-            file_url=file_url,
             original_search=original_search,
             site_observations=site_observations,
         )
