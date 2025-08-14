@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import functools
 import hashlib
 import logging
@@ -29,9 +30,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Model
+from django.db.models import Count, F, Model, Q
 from django.db.models.base import ModelBase
 from django.utils import timezone
+from rdkit import Chem
 
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
@@ -42,6 +44,7 @@ from viewer.models import (
     Compound,
     CompoundIdentifier,
     CompoundIdentifierType,
+    ComputedMolecule,
     Experiment,
     ExperimentStatusType,
     ExperimentUpload,
@@ -50,6 +53,7 @@ from viewer.models import (
     QualityStatusType,
     QuatAssembly,
     SiteObservation,
+    SiteObservationComputedMolecule,
     SiteObservationQualityStatus,
     SiteObservationTag,
     TagCategory,
@@ -2475,6 +2479,9 @@ class TargetLoader:
         if soakdb_path:
             self.process_soakdb(db_file=str(soakdb_path))
 
+        if self.version_number > 1 and self.target.computedset_set.exists():
+            self.link_compounds_to_computedmolecules(site_observation_objects)
+
     def import_compound_identifiers(self, alias_file_path):
         try:
             df = pd.read_csv(alias_file_path)
@@ -2857,6 +2864,101 @@ class TargetLoader:
             main_status=False,
             comment="Created on load",
         ).save()
+
+    def link_compounds_to_computedmolecules(
+        self, site_observation_objects: dict[str, MetadataObject]
+    ) -> None:
+        """Link incoming SiteObservations to existing ComputedMolecules.
+
+        Spec (scraped from github (
+        issue https://github.com/m2ms/fragalysis-frontend/issues/1591)).
+
+        - on upload_1, do nothing
+        - subsequent uploads, fFor every new molecule, check for a RHS
+          design with the same chemical structure of the soaked
+          compound (compare flattened inchikeys)
+        - when match found, enumerate all possible LHS-RHS compound
+          links, but annotate them with an RMSD
+        - look only for ComputedMolecules within the target scope
+
+        In practice, there's now a model
+        SiteObservationComputedMolecule, effectively a m2m table
+        between SiteObservation and ComputedMolecule that also
+        captures an alignment RMSD value.
+        """
+        logger.debug('+linking observations to computed molecules')
+
+        compounds = Compound.filter_manager.by_target(self.target)
+
+        # ComputedMolecules can come from two places:
+        # - linked to a previously uploaded Compound
+        # - linked to a previously uploaded ComputedSet
+        computed_molecules = ComputedMolecule.objects.filter(
+            Q(computed_set__target=self.target) | Q(compound__in=compounds),
+        )
+
+        logger.debug('computed_molecules: %s', computed_molecules)
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            if not val.new:
+                continue
+
+            logger.debug('new observation: %s', val.instance)
+
+            # NB! files have not been moved yet, need the tempdir location
+            molpath = Path(settings.MEDIA_ROOT).joinpath(
+                self.raw_data,
+                *Path(val.instance.ligand_mol.name).parts[2:],
+            )
+            if not molpath.exists():
+                continue
+
+            logger.debug('molpath still going: %s', molpath)
+            mol = Chem.MolFromMolFile(str(molpath))
+            flattened_mol = copy.deepcopy(mol)
+            Chem.RemoveStereochemistry(flattened_mol)
+            flat_inchi = Chem.inchi.MolToInchiKey(flattened_mol)
+
+            logger.debug('flat inchi: %s', flat_inchi)
+
+            # the way the cset_loader is set up, the linked compound
+            # is guaranteed to have a flattened inchi key. This is
+            # explicitly used to .get() the compound instance and if
+            # not found, new one is created. Which isn't really ideal,
+            # just a missing inchi key may lead to duplicates. TODO
+            # new issue and iron this out?
+            logger.debug(
+                'compmol set: %s',
+                computed_molecules.filter(compound__inchi_key=flat_inchi),
+            )
+            for compmol in computed_molecules.filter(compound__inchi_key=flat_inchi):
+                logger.debug('compmol: %s', compmol)
+
+                cmol = Chem.MolFromMolBlock(compmol.sdf_info)
+                Chem.RemoveStereochemistry(cmol)
+
+                rmsd = None
+                try:
+                    rmsd = Chem.rdMolAlign.GetBestRMS(mol, cmol)
+                    logger.debug('rmsd: %s', rmsd)
+                except RuntimeError as exc:
+                    # protection against rdkit internal errors
+                    msg = (
+                        f"Failed to find alignment between {compmol.molecule_name} "
+                        + f'and {val.instance.code}'
+                    )
+                    # log an error, but don't stop processing
+                    logger.error(msg)
+                    logger.error(exc)
+
+                # there is a unique constraint on this model, but only
+                # new observations are being linked, so cannot clash
+                # with any existing ones here
+                SiteObservationComputedMolecule(
+                    site_observation=val.instance,
+                    computed_molecule=compmol,
+                    rmsd=rmsd,
+                ).save()
+                logger.debug('saved connection')
 
     def exp_data_from_soakdb(self, row_data):
         # data structure to map db fields to functions that extract
