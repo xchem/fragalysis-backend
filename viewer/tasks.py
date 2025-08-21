@@ -31,10 +31,8 @@ from .sdf_check import (  # check_refmol,
     check_blank_mol_props,
     check_blank_prop,
     check_compound_set,
-    check_field_populated,
     check_mol_props,
     check_name_characters,
-    check_SMILES,
     check_ver_name,
 )
 from .squonk_job_file_transfer import process_file_transfer
@@ -307,10 +305,6 @@ def validate_compound_set(task_params):
             if m.HasProp('_Name'):
                 molecule_name = m.GetProp('_Name')
             validate_dict = check_name_characters(molecule_name, validate_dict)
-            # validate_dict = check_pdb(m, validate_dict, target, zfile)
-            # validate_dict = check_refmol(m, validate_dict, target)
-            validate_dict = check_field_populated(m, validate_dict)
-            validate_dict = check_SMILES(m, validate_dict)
 
     len_validate_dict = len(validate_dict['molecule_name'])
     if len_validate_dict != 0:

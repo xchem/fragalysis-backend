@@ -4,8 +4,6 @@
 # Run like:
 # sudo docker compose -f docker-compose.yml -f docker-compose.celery.yml up
 
-version: '3'
-
 services:
 
   # The stack backend

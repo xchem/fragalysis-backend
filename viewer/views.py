@@ -54,7 +54,7 @@ from viewer.utils import (
     save_tmp_file,
 )
 
-from .assay_data import AssayData
+from .assay_data import AssayData, convert
 from .discourse import (
     check_discourse_user,
     create_discourse_post,
@@ -1678,13 +1678,122 @@ class UploadExperimentUploadView(viewsets.ViewSet):
                         status=status.HTTP_403_FORBIDDEN,
                     )
 
+        filename = serializer.validated_data['file']
+
+        # memo to self: cannot use TemporaryDirectory here because task
+        temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
+        temp_path.mkdir(exist_ok=True)
+        target_file = temp_path.joinpath(filename.name)
+        handle_uploaded_file(target_file, filename)
+
+        celery_app = Celery("fragalysis")
+        celery_app.config_from_object("django.conf:settings", namespace="CELERY")
+        inspect = celery_app.control.inspect()
+        ping = inspect.ping()
+
+        if not ping:
+            # celery not active in local development. log a warning
+            # and try to run the task anyway
+            logger.warning('Celery not running!')
+
+        task = task_load_target.delay(
+            data_bundle=str(target_file),
+            proposal_ref=target_access_string,
+            user_id=request.user.pk,
+        )
+        logger.info("+ UploadTargetExperiments.create got Celery id %s", task.task_id)
+
+        url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+        # as it launches task, I think 202 is more appropriate
+        return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+
+
+class UploadExperimentValidateView(viewsets.ViewSet):
+    http_method_names = ('post',)
+    serializer_class = serializers.TargetExperimentValidateSerializer
+
+    def get_view_name(self):
+        return "Validate LHS upload"
+
+    def create(self, request, *args, **kwargs):
+        logger.info("+ UploadTargetExperimentsValidate called")
+        logger.debug('request.data :%s', request.data)
+
+        # logger.debug('request.POST :%s', request.POST)
+        logger.debug('request.user :%s', request.user)
+
+        del args, kwargs
+
+        serializer = self.serializer_class(data=request.data)
+        if not serializer.is_valid():
+            logger.debug("serializer not valid: %s", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.debug("Serializer validated_data=%s", serializer.validated_data)
+        logger.debug("User=%s", self.request.user)
+
+        target_access_string = serializer.validated_data['target_access_string']
+
+        if settings.AUTHENTICATE_UPLOAD:
+            if self.request.user.username == 'asap-service':
+                logger.warning(
+                    'Upload attempted with "%s" service account, trying uploader-supplied user',
+                    self.request.user.username,
+                )
+                if 'django-user' in request.headers.keys():
+                    try:
+                        user = get_user_model().objects.get(
+                            username=request.headers['django-user']
+                        )
+                    except get_user_model().DoesNotExist:
+                        msg = (
+                            f'Upload from "{self.request.user.username}" '
+                            + 'service account but fragalysis user not found'
+                        )
+                        logger.error(msg)
+                        return Response(
+                            {'error': msg}, status=status.HTTP_403_FORBIDDEN
+                        )
+                else:
+                    msg = (
+                        f'Upload from "{self.request.user.username}" service '
+                        'account but fragalysis user not supplied'
+                    )
+                    logger.error(msg)
+                    return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
+
+            else:
+                user = self.request.user
+
+            if not user.is_authenticated:
+                return redirect(settings.LOGIN_URL)
+            else:
+                proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                    user, restrict_public_to_membership=True
+                )
+                if target_access_string not in proposals:
+                    logger.warning(
+                        '(#1712) User %s does not have access to %s (checked %d proposals)',
+                        user.username,
+                        target_access_string,
+                        len(proposals),
+                    )
+                    return Response(
+                        {
+                            "target_access_string": [
+                                f"You are not authorized to upload data to '{target_access_string}'"
+                            ]
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
         validation_response = {
             'success': True,
             'message': [],
         }
         data_version = serializer.validated_data.get('data_version', None)
         upload_version = serializer.validated_data.get('upload_version', None)
-        if data_version or upload_version:
+        if data_version and upload_version:
             # go for validation
             try:
                 major, minor = split_version(data_version)
@@ -1745,35 +1854,14 @@ class UploadExperimentUploadView(viewsets.ViewSet):
                 validation_response,
                 status=status.HTTP_200_OK,
             )
-
-        filename = serializer.validated_data['file']
-
-        # memo to self: cannot use TemporaryDirectory here because task
-        temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
-        temp_path.mkdir(exist_ok=True)
-        target_file = temp_path.joinpath(filename.name)
-        handle_uploaded_file(target_file, filename)
-
-        celery_app = Celery("fragalysis")
-        celery_app.config_from_object("django.conf:settings", namespace="CELERY")
-        inspect = celery_app.control.inspect()
-        ping = inspect.ping()
-
-        if not ping:
-            # celery not active in local development. log a warning
-            # and try to run the task anyway
-            logger.warning('Celery not running!')
-
-        task = task_load_target.delay(
-            data_bundle=str(target_file),
-            proposal_ref=target_access_string,
-            user_id=request.user.pk,
-        )
-        logger.info("+ UploadTargetExperiments.create got Celery id %s", task.task_id)
-
-        url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
-        # as it launches task, I think 202 is more appropriate
-        return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+        else:
+            return Response(
+                {
+                    'success': False,
+                    'message': '"data_version" or "upload_version" attributes missing',
+                },
+                status=status.HTTP_200_OK,
+            )
 
 
 class TaskStatusView(APIView):
@@ -2776,7 +2864,10 @@ class UploadMetadataView(ISPyBSafeQuerySet):
             )
 
         # not celerifying it because seems fast enough
-        errors = load_tags_from_file(filename=filename, target=target)
+        user = request.user
+        if not request.user.pk:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+        errors = load_tags_from_file(filename=filename, target=target, user=user)
         if errors:
             return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -3029,6 +3120,9 @@ class StructureFilterView(ISPyBSafeQuerySet):
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
+        if settings.AUTHENTICATE_UPLOAD and not self.request.user.is_authenticated:
+            return redirect(settings.LOGIN_URL)
+
         try:
             target = models.Target.objects.get(title=target_name, project=project)
         except models.Target.DoesNotExist:
@@ -3062,3 +3156,118 @@ class StructureFilterView(ISPyBSafeQuerySet):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class ActivityDataView(
+    ISPyBSafeQuerySet,
+):
+    """Retrieve information about activity data."""
+
+    queryset = models.Result.filter_manager.filter_qs()
+    serializer_class = serializers.ActivityResultSerializer
+    filter_permissions = "result_upload__target__project"
+    permission_classes = [IsObjectProposalMember]
+    # permission_classes = [permissions.IsAuthenticated, IsObjectProposalMember]
+    filterset_class = filters.ActivityResultFilter
+
+
+class ActivityDataCurationView(ISPyBSafeQuerySet):
+    """Change activity data types."""
+
+    queryset = models.ResultUpload.filter_manager.filter_qs()
+    serializer_class = serializers.AssayDataCurationSerializer
+    filter_permissions = "target__project"
+    permission_classes = [IsObjectProposalMember]
+    http_method_names = ('post', 'get')
+
+    def create(self, request, *args, **kwargs):
+        del args, kwargs
+        logger.info("+ ActivityDataCurationView.create called")
+
+        logger.debug('request.data: %s', request.data)
+        serializer = self.get_serializer_class()(
+            data=request.data, context={'request': request}
+        )
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.debug('serializer.data: %s', serializer.data)
+
+        logger.debug('serializer.validated_data: %s', serializer.validated_data)
+
+        target_access_string = serializer.validated_data['target_access_string']
+
+        try:
+            project = models.Project.objects.get(title=target_access_string)
+        except models.Project.DoesNotExist:
+            return Response(
+                {
+                    "target_access_string": [
+                        f"Project {target_access_string} does not exist"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+            request.user
+        ):
+            msg = f'User "{request.user.username}" is not a member of {target_access_string}'
+            logger.warning(msg)
+            content = {'message': msg}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        if settings.AUTHENTICATE_UPLOAD and not self.request.user.is_authenticated:
+            return redirect(settings.LOGIN_URL)
+
+        upload_pk = serializer.validated_data['upload_file_name']
+        property_id = serializer.validated_data['column']
+        new_type = serializer.validated_data['new_data_type']
+
+        upload = models.ResultUpload.objects.get(pk=upload_pk)
+
+        errors, warnings = convert(upload, property_id, new_type)
+
+        logger.debug("view errors: %s", errors)
+
+        if errors:
+            return Response(
+                {
+                    'errors': errors,
+                    'warnings': warnings,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            return Response(
+                {
+                    'success': True,
+                    'warnings': warnings,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+
+class ResultPropertyView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
+    """Edit/update result properties."""
+
+    queryset = models.ResultProperty.objects.all()
+    serializer_class = serializers.ResultPropertySerializer
+    filter_permissions = "target__project"
+    permission_classes = [IsObjectProposalMember]
+    filterset_fields = ('target',)
+
+
+class PlotDataView(
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    ISPyBSafeQuerySet,
+):
+    """Create/update plots."""
+
+    queryset = models.PlotData.objects.all()
+    serializer_class = serializers.PlotDataSerializer
+    filter_permissions = "project"
+    permission_classes = [IsObjectProposalMember]
+    filterset_fields = ('target',)

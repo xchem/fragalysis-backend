@@ -15,6 +15,7 @@ from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
 
 from .managers import (
+    AssayResultDataManager,
     CanonSiteConfDataManager,
     CanonSiteDataManager,
     CompoundDataManager,
@@ -24,6 +25,7 @@ from .managers import (
     ExperimentUploadDataManager,
     PoseDataManager,
     QuatAssemblyDataManager,
+    ResultUploadDataManager,
     SessionActionsDataManager,
     SiteObservationDataManager,
     SiteObservationQualityStatusDataManager,
@@ -372,6 +374,7 @@ class Experiment(models.Model):
     source_well = models.TextField(null=True, blank=True)
     space_group = models.TextField(null=True, blank=True)
     unit_cell_dimensions = ArrayField(models.FloatField(), null=True)
+    refinement_resolution = models.FloatField(null=True, blank=True)
 
     objects = models.Manager()
     filter_manager = ExperimentDataManager()
@@ -690,6 +693,12 @@ class SiteObservation(Versionable, models.Model):
     ligand_sdf = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    computed_molecules = models.ManyToManyField(
+        "ComputedMolecule",
+        through="SiteObservationComputedMolecule",
+        through_fields=("site_observation", "computed_molecule"),
+    )
+
     objects = models.Manager()
     # causes problems with trigger func and don't really need it in
     # history anyway
@@ -1336,6 +1345,31 @@ class ComputedSetComputedMolecule(models.Model):
         ]
 
 
+class SiteObservationComputedMolecule(models.Model):
+    site_observation = models.ForeignKey(
+        SiteObservation,
+        null=False,
+        on_delete=models.CASCADE,
+    )
+    computed_molecule = models.ForeignKey(
+        ComputedMolecule,
+        null=False,
+        on_delete=models.CASCADE,
+    )
+    rmsd = models.FloatField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "site_observation",
+                    "computed_molecule",
+                ],
+                name="unique_siteobservation_computedmolecule",
+            ),
+        ]
+
+
 class ScoreDescription(models.Model):
     """The names and descriptions of scores that the user uploads with each computed set molecule."""
 
@@ -1935,19 +1969,43 @@ class ResultUpload(models.Model):
         default=settings.ANONYMOUS_USER,
     )
 
+    objects = models.Manager()
+    filter_manager = ResultUploadDataManager()
+
+    # def __str__(self) -> str:
+    #     return f"{self.target.title}: {self.upload_file}"
+
 
 class ResultProperty(models.Model):
     """Assay data property name"""
 
     result_property = models.TextField()
     unit = models.TextField(null=True)
+    target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
+    visible = models.BooleanField(default=True, null=False)
+    order = models.PositiveSmallIntegerField(null=False, default=0, blank=True)
+    data_type = models.ForeignKey(ResultValueDataType, on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return f"{self.result_property}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "result_property",
+                    "unit",
+                    "target",
+                ],
+                name="unique_result_property_target_unit",
+            ),
+        ]
 
 
 class Result(models.Model):
     """Model to store assay results data"""
 
     raw_value = models.TextField(null=True)
-    data_type = models.ForeignKey(ResultValueDataType, on_delete=models.CASCADE)
     float_value = models.FloatField(null=True)
     int_value = models.IntegerField(null=True)
     numeric_modifier = models.ForeignKey(
@@ -1970,5 +2028,37 @@ class Result(models.Model):
     parsing_error = models.BooleanField(default=False, null=False)
     result_property = models.ForeignKey(ResultProperty, on_delete=models.CASCADE)
 
+    objects = models.Manager()
+    filter_manager = AssayResultDataManager()
+
     def __str__(self) -> str:
         return f"{self.id}: {self.raw_value} {self.data_type}"
+
+
+class PlotDataIdentifierType(models.Model):
+    identifier = models.TextField(primary_key=True)
+
+
+class PlotData(models.Model):
+    """Store uploaded plotly plot data"""
+
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        default=settings.ANONYMOUS_USER,
+    )
+    title = models.TextField()
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    identifier = models.ForeignKey(PlotDataIdentifierType, on_delete=models.CASCADE)
+    upload_time = models.DateTimeField(
+        blank=True,
+        default=timezone.now,
+    )
+    plotly_data = models.JSONField(
+        encoder=DjangoJSONEncoder,
+        null=True,
+        blank=True,
+    )
+    notebook_path = models.TextField(null=True)
+    squonk_project_id = models.TextField(null=True)

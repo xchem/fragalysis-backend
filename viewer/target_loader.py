@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import functools
 import hashlib
 import logging
@@ -29,9 +30,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Model
+from django.db.models import Count, F, Model, Q
 from django.db.models.base import ModelBase
 from django.utils import timezone
+from rdkit import Chem
 
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
@@ -42,6 +44,7 @@ from viewer.models import (
     Compound,
     CompoundIdentifier,
     CompoundIdentifierType,
+    ComputedMolecule,
     Experiment,
     ExperimentStatusType,
     ExperimentUpload,
@@ -50,6 +53,7 @@ from viewer.models import (
     QualityStatusType,
     QuatAssembly,
     SiteObservation,
+    SiteObservationComputedMolecule,
     SiteObservationQualityStatus,
     SiteObservationTag,
     TagCategory,
@@ -379,7 +383,7 @@ def create_objects(func=None, *, depth=math.inf):
     def wrapper_create_objects(
         self, *args, yaml_data: dict, **kwargs
     ) -> dict[int | str | tuple[str, str], MetadataObject]:
-        # logger.debug("+ wrapper_service_query")
+        logger.debug("+wrapper_create_objects")
         # logger.debug("args passed: %s", args)
         # logger.debug("kwargs passed: %s", kwargs)
 
@@ -446,6 +450,13 @@ def create_objects(func=None, *, depth=math.inf):
                 failed = failed + 1
 
             if obj:
+                # NB!! this is a hack to prevent overwriting
+                # experiment_upload value in experiment objects. this
+                # only works because no other object passing through
+                # here has a field called 'experiment_upload'
+                # Alternative: allow NULL and fill later. would that be better?
+                instance_data.defaults.pop("experiment_upload", None)
+
                 # update any additional fields
                 instance_qs = instance_data.model_class.objects.filter(pk=obj.pk)
                 instance_qs.update(**instance_data.defaults)
@@ -983,17 +994,8 @@ class TargetLoader:
 
         dstatus = extract(key="status")
 
-        # status_codes = {
-        #     "new": 0,
-        #     "deprecated": 1,
-        #     "superseded": 2,
-        #     "unchanged": 3,
-        # }
-
         try:
-            # status = status_codes[dstatus]
             status = ExperimentStatusType.objects.get(status=dstatus)
-        # except KeyError:
         except ExperimentStatusType.DoesNotExist:
             status = -1
             self.report.log(
@@ -1016,6 +1018,8 @@ class TargetLoader:
             map_info_paths = [str(self._get_final_path(k)) for k in map_info_files]
 
         defaults = {
+            # overwrites exp upload in old instances, there's a hack
+            # in create_objects method to prevent that
             "experiment_upload": self.experiment_upload,
             "status": status,
             "type": exp_type,
@@ -1079,6 +1083,7 @@ class TargetLoader:
             experiment_name, _, _, _, ligand_key, data = item_data
         except ValueError:
             # wrong data item
+            logger.debug("wrong data item")
             return None
 
         # more validation
@@ -1086,8 +1091,13 @@ class TargetLoader:
             item_data[1] != "crystallographic_files"
             or item_data[2] != "ligand_cif"
             or item_data[3] != "ligands"
-            or not experiments[experiment_name].new  # remove already saved objects
         ):
+            logger.debug(
+                "wrong data item: %s; %s; %s",
+                item_data[1],
+                item_data[2],
+                item_data[3],
+            )
             return None
 
         smiles = data.get("smiles", None)
@@ -1095,6 +1105,7 @@ class TargetLoader:
 
         if smiles is None and compound_code is None:
             # gotta have at least something
+            logger.debug("no smiles and compound_code")
             return None
 
         modeled_smiles_soakdb = data.get("modeled_smiles_soakdb", None)
@@ -1112,9 +1123,36 @@ class TargetLoader:
             "soaked_smiles_canon": soaked_smiles_canon,
         }
 
+        fields = {}
+
+        if not experiments[experiment_name].new:
+            logger.debug("old experiment: %s", experiment_name)
+
+            try:
+                exp = Experiment.filter_manager.by_target(
+                    self.target,
+                ).get(
+                    code=experiment_name,
+                    status__isnull=False,
+                )
+                logger.debug("found old experiment: %s", experiment_name)
+                exp_compounds = exp.compounds.all()
+
+                try:
+                    cmpd = exp_compounds.get(smiles=smiles)
+                    fields = {"id": cmpd.id}
+                    logger.debug("found compounds for old experiment: %s", cmpd.pk)
+                except Compound.DoesNotExist:
+                    logger.debug("did not find compounds for old experiment")
+            except Experiment.DoesNotExist:
+                logger.debug(
+                    "did not find old experiment: %s, it's likely from soqkdb",
+                    experiment_name,
+                )
+
         return ProcessedObject(
             model_class=Compound,
-            fields={},
+            fields=fields,
             defaults=defaults,
             key=(experiment_name, ligand_key),
             versioned_key=(experiment_name, ligand_key),
@@ -1914,6 +1952,12 @@ class TargetLoader:
         experiment_objects = self.process_experiment(
             yaml_data=crystals, prefix_tooltips=prefix_tooltips
         )
+        # for val in experiment_objects.values():  # pylint: disable=no-member
+        #     if val.new:
+        #         val.instance.experiment_upload = self.experiment_upload
+        #         val.instance.save()
+        #         val.instance.refresh_from_db()
+
         compound_objects = self.process_compound(
             yaml_data=crystals, experiments=experiment_objects
         )
@@ -2435,6 +2479,9 @@ class TargetLoader:
         if soakdb_path:
             self.process_soakdb(db_file=str(soakdb_path))
 
+        if self.version_number > 1 and self.target.computedset_set.exists():
+            self.link_compounds_to_computedmolecules(site_observation_objects)
+
     def import_compound_identifiers(self, alias_file_path):
         try:
             df = pd.read_csv(alias_file_path)
@@ -2671,23 +2718,27 @@ class TargetLoader:
 
         for val in site_observation_objects.values():  # pylint: disable=no-member
             if val.new:
-                qs = (
-                    SiteObservation.filter_manager.by_target(
-                        self.target,
-                    )
-                    .filter(
-                        experiment=val.instance.experiment,
-                        cmpd=val.instance.cmpd,
-                        xtalform_site=val.instance.xtalform_site,
-                        canon_site_conf=val.instance.canon_site_conf,
-                        seq_id=val.instance.seq_id,
-                        chain_id=val.instance.chain_id,
-                        superseded=True,
-                    )
-                    .order_by(
-                        "-version",
-                    )
+                logger.debug(
+                    "processing poses for observation %s, %s, %s",
+                    val.instance.pk,
+                    val.instance.code,
+                    val.instance.longcode,
                 )
+                # fmt: off
+                qs = SiteObservation.filter_manager.by_target(
+                    self.target,
+                ).filter(
+                    experiment=val.instance.experiment,
+                    cmpd=val.instance.cmpd,
+                    xtalform_site=val.instance.xtalform_site,
+                    canon_site_conf=val.instance.canon_site_conf,
+                    seq_id=val.instance.seq_id,
+                    chain_id=val.instance.chain_id,
+                    superseded=True,
+                ).order_by(
+                    "-version",
+                )
+                # fmt: on
                 # older version(s) exist
                 if qs.exists():
                     previous_main = qs.first()
@@ -2813,6 +2864,101 @@ class TargetLoader:
             main_status=False,
             comment="Created on load",
         ).save()
+
+    def link_compounds_to_computedmolecules(
+        self, site_observation_objects: dict[str, MetadataObject]
+    ) -> None:
+        """Link incoming SiteObservations to existing ComputedMolecules.
+
+        Spec (scraped from github (
+        issue https://github.com/m2ms/fragalysis-frontend/issues/1591)).
+
+        - on upload_1, do nothing
+        - subsequent uploads, fFor every new molecule, check for a RHS
+          design with the same chemical structure of the soaked
+          compound (compare flattened inchikeys)
+        - when match found, enumerate all possible LHS-RHS compound
+          links, but annotate them with an RMSD
+        - look only for ComputedMolecules within the target scope
+
+        In practice, there's now a model
+        SiteObservationComputedMolecule, effectively a m2m table
+        between SiteObservation and ComputedMolecule that also
+        captures an alignment RMSD value.
+        """
+        logger.debug('+linking observations to computed molecules')
+
+        compounds = Compound.filter_manager.by_target(self.target)
+
+        # ComputedMolecules can come from two places:
+        # - linked to a previously uploaded Compound
+        # - linked to a previously uploaded ComputedSet
+        computed_molecules = ComputedMolecule.objects.filter(
+            Q(computed_set__target=self.target) | Q(compound__in=compounds),
+        )
+
+        logger.debug('computed_molecules: %s', computed_molecules)
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            if not val.new:
+                continue
+
+            logger.debug('new observation: %s', val.instance)
+
+            # NB! files have not been moved yet, need the tempdir location
+            molpath = Path(settings.MEDIA_ROOT).joinpath(
+                self.raw_data,
+                *Path(val.instance.ligand_mol.name).parts[2:],
+            )
+            if not molpath.exists():
+                continue
+
+            logger.debug('molpath still going: %s', molpath)
+            mol = Chem.MolFromMolFile(str(molpath))
+            flattened_mol = copy.deepcopy(mol)
+            Chem.RemoveStereochemistry(flattened_mol)
+            flat_inchi = Chem.inchi.MolToInchiKey(flattened_mol)
+
+            logger.debug('flat inchi: %s', flat_inchi)
+
+            # the way the cset_loader is set up, the linked compound
+            # is guaranteed to have a flattened inchi key. This is
+            # explicitly used to .get() the compound instance and if
+            # not found, new one is created. Which isn't really ideal,
+            # just a missing inchi key may lead to duplicates. TODO
+            # new issue and iron this out?
+            logger.debug(
+                'compmol set: %s',
+                computed_molecules.filter(compound__inchi_key=flat_inchi),
+            )
+            for compmol in computed_molecules.filter(compound__inchi_key=flat_inchi):
+                logger.debug('compmol: %s', compmol)
+
+                cmol = Chem.MolFromMolBlock(compmol.sdf_info)
+                Chem.RemoveStereochemistry(cmol)
+
+                rmsd = None
+                try:
+                    rmsd = Chem.rdMolAlign.GetBestRMS(mol, cmol)
+                    logger.debug('rmsd: %s', rmsd)
+                except RuntimeError as exc:
+                    # protection against rdkit internal errors
+                    msg = (
+                        f"Failed to find alignment between {compmol.molecule_name} "
+                        + f'and {val.instance.code}'
+                    )
+                    # log an error, but don't stop processing
+                    logger.error(msg)
+                    logger.error(exc)
+
+                # there is a unique constraint on this model, but only
+                # new observations are being linked, so cannot clash
+                # with any existing ones here
+                SiteObservationComputedMolecule(
+                    site_observation=val.instance,
+                    computed_molecule=compmol,
+                    rmsd=rmsd,
+                ).save()
+                logger.debug('saved connection')
 
     def exp_data_from_soakdb(self, row_data):
         # data structure to map db fields to functions that extract
@@ -2977,6 +3123,10 @@ class TargetLoader:
                 self._soakdb_numeric_array,
                 "DataProcessingUnitCell",
             ),
+            "refinement_resolution": (
+                self._soakdb_float,
+                "RefinementResolution",
+            ),
         }
         exp_data = {}
         for db_field, (func, soakdb_field) in soakdb_field_resolvers.items():
@@ -3029,10 +3179,11 @@ class TargetLoader:
             "CompoundSMILES",
             "SoakDBComments",
             "RefinementLigandConfidence",
+            "RefinementResolution",
         ]
 
         query = f"SELECT {', '.join(soakdb_fields)} from mainTable"
-        logger.info("Processing soakdb")
+        self.report.log(logging.INFO, "Processing soakdb")
         experiments: list[Experiment] = []
         qs = Experiment.filter_manager.by_target(self.target)
         with sqlite3.connect(db_file) as conn:
@@ -3046,7 +3197,6 @@ class TargetLoader:
 
                 logger.debug("Extracted data for %s", exp_data["dataset"])
                 # add some fields experiment needs to have
-                exp_data["experiment_upload"] = self.experiment_upload
                 exp_data["code"] = exp_data["dataset"]
                 del exp_data["dataset"]
 
@@ -3057,6 +3207,7 @@ class TargetLoader:
                     exp = exp_qs.first()
                 else:
                     logger.debug("Creating new experiment: %s", exp_data["code"])
+                    exp_data["experiment_upload"] = self.experiment_upload
                     exp = Experiment(**exp_data)
 
                 try:
@@ -3069,7 +3220,9 @@ class TargetLoader:
 
                 experiments.append(exp_data)
 
-        logger.debug("%s entries from soakdb processed", len(experiments))
+        self.report.log(
+            logging.INFO, f"Processed {len(experiments)} entries from soakdb"
+        )
 
     # functions extracting data from SoakDB. All have the same
     # signature, they take the dictionary of row header:value and

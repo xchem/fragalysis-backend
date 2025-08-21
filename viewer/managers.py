@@ -607,3 +607,46 @@ class SiteObservationQualityStatusDataManager(Manager):
 
     def annotated_qs(self):
         return self.get_queryset().annotated_qs()
+
+
+class AssayResultQueryset(QuerySet):
+    def annotated_qs(self):
+        Result = apps.get_model("viewer", "Result")
+        qs = Result.objects.annotate(
+            target_name=F("result_upload__target__title"),
+            target_id=F("result_upload__target__id"),
+            property_name=F("result_property__result_property"),
+            data_type=F("result_property__data_type"),
+            unit=F("result_property__unit"),
+            uploaded_by=F("result_upload__uploaded_by__username"),
+        )
+
+        return qs
+
+
+class AssayResultDataManager(Manager):
+    def get_queryset(self):
+        return AssayResultQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().annotated_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class ResultUploadQueryset(QuerySet):
+    def annotated_qs(self):
+        ResultUpload = apps.get_model("viewer", "ResultUpload")
+        return ResultUpload.objects.all()
+
+
+class ResultUploadDataManager(Manager):
+    def get_queryset(self):
+        return ResultUploadQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().annotated_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target)

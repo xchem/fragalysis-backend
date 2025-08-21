@@ -9,11 +9,8 @@
 # Where you should then find the back end at http://localhost:8080/api/
 # and logs in /code/logs/backend.log and on your local machine in ../data/logs/backend.log
 
-version: '3'
-
 services:
 
-  # The database
   database:
     # image: postgres:15.12-alpine3.21
     image: informaticsmatters/rdkit-cartridge-debian:Release_2024_03_6
@@ -33,20 +30,10 @@ services:
       retries: 5
       start_period: 10s
 
-  # Redis (Celery/Worker Broker)
   redis:
-    image: redis:7.2.3-alpine3.18
-    container_name: redis
-    volumes:
-    - ./data/redis/data:/data
-    ports:
-    - "6379:6379"
-    healthcheck:
-      test: redis-cli ping
-      interval: 10s
-      timeout: 2s
-      retries: 5
-      start_period: 10s
+    extends:
+      file: common-services.yml
+      service: redis
 
   # The graph
   graph:
@@ -91,7 +78,7 @@ services:
       AUTHENTICATE_UPLOAD: ${AUTHENTICATE_UPLOAD:-True}
       DEPLOYMENT_MODE: 'development'
       POSTGRESQL_USER: postgres
-      # Comma-separated dforced errors (infections?)
+      # Comma-separated forced errors (infections?)
       INFECTIONS: ''
       # Celery tasks need to run synchronously
       CELERY_TASK_ALWAYS_EAGER: 'True'
