@@ -6,12 +6,10 @@ import logging
 import math
 import os
 import re
-
-# import random
 import shutil
 import sqlite3
 import subprocess
-import tarfile
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -3569,6 +3567,90 @@ class TargetLoader:
         return row_data[soakdb_field]
 
 
+def check_decompress_progress(process, archive_path, update, frequency=1.0):
+    """Track decompression progress of tar+pigz.
+
+    Following whichever process is actually reading the archive file.
+    If anything goes wrong (proc not accessible, fd disappears, etc.),
+    progress falls back to 0% without interfering with decompression.
+    """
+    try:
+        total = os.path.getsize(archive_path)
+    except OSError:
+        total = 1  # avoid div-by-zero if file unreadable
+
+    archive_real = os.path.realpath(archive_path)
+    pid = process.pid
+    fd_to_watch = None
+
+    while process.poll() is None:
+        pos = 0  # fallback default
+
+        try:
+            # if no fd yet, search /proc/<pid>/fd for one
+            if fd_to_watch is None:
+                try:
+                    for fd in os.listdir(f"/proc/{pid}/fd"):
+                        try:
+                            link = os.readlink(f"/proc/{pid}/fd/{fd}")
+                            if os.path.realpath(link) == archive_real:
+                                fd_to_watch = fd
+                                break
+                        except OSError:
+                            continue
+                except FileNotFoundError:
+                    pass  # /proc/<pid> might have disappeared
+
+            # still nothing, maybe pigz is the one reading, not tar
+            if fd_to_watch is None:
+                try:
+                    with open(f"/proc/{pid}/cmdline", "rb") as f:
+                        cmdline = f.read().decode(errors="ignore")
+                    if "tar" in cmdline and "-I" in cmdline:
+                        # find child process (likely pigz)
+                        for child in os.listdir("/proc"):
+                            if not child.isdigit():
+                                continue
+                            try:
+                                with open(  # pylint: disable=unspecified-encoding
+                                    f"/proc/{child}/stat"
+                                ) as f:
+                                    parts = f.read().split()
+                                    ppid = int(parts[3])
+                                if ppid == pid:
+                                    pid = int(child)  # switch to child process
+                                    break
+                            except Exception:
+                                continue
+                except Exception:
+                    pass
+
+            # got fd, read its position
+            if fd_to_watch is not None:
+                try:
+                    with open(  # pylint: disable=unspecified-encoding
+                        f"/proc/{pid}/fdinfo/{fd_to_watch}"
+                    ) as f:
+                        for line in f:
+                            if line.startswith("pos:"):
+                                pos = int(line.split()[1])
+                                break
+                except FileNotFoundError:
+                    pos = 0  # fd vanished between checks
+        except Exception:
+            pos = 0  # catch-all, never crash
+
+        # avoid division by 0 in progress computation
+        progress = min(pos / total, 1.0) if total > 0 else 0.0
+        try:
+            update(progress)
+        except Exception:
+            # another catch-all, avoid crashing the decompression process
+            pass
+
+        time.sleep(frequency)
+
+
 def load_target(
     data_bundle,
     proposal_ref=None,
@@ -3587,7 +3669,30 @@ def load_target(
         try:
             msg = f"Extracting bundle: {data_bundle}"
             logger.info("%s%s", target_loader.report.task_id, msg)
-            decompress_tarball(target_loader.bundle_path, target_loader.raw_data)
+
+            process = subprocess.Popen(
+                [
+                    "tar",
+                    "-I",
+                    "pigz",
+                    "-xf",
+                    target_loader.bundle_path,
+                    "-C",
+                    target_loader.raw_data,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            check_decompress_progress(
+                process,
+                target_loader.bundle_path,
+                lambda p: target_loader.report.log(
+                    logging.INFO, f"Decompressing: {p:.1%}"
+                ),
+                frequency=5.0,
+            )
+            process.wait()
+
             msg = f"Data extraction complete: {data_bundle}"
             logger.info("%s%s", target_loader.report.task_id, msg)
         except Exception as exc:
@@ -3624,33 +3729,6 @@ def load_target(
             return
         else:
             _move_and_save_target_experiment(target_loader)
-
-
-def decompress_tarball(tarball, destination):
-    if shutil.which("pigz"):
-        process = subprocess.run(
-            ["tar", "-I", "pigz", "-xvf", tarball, "-C", destination],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            text=True,
-            check=True,
-        )
-
-        if process.returncode == 0:
-            logger.debug(process.stdout.strip())
-            logger.debug("unpigz successful")
-        else:
-            logger.error(
-                "unpigz failed (exit %s): %s",
-                process.returncode,
-                process.stderr.strip(),
-            )
-
-    else:
-        # error because pigz is explicitly installed in Dockerfile
-        logger.error("pigz not found, using python's zip module")
-        with tarfile.open(tarball, "r") as archive:
-            archive.extractall(destination)
 
 
 def _move_and_save_target_experiment(target_loader):
