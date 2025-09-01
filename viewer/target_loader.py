@@ -1111,8 +1111,15 @@ class TargetLoader:
         soaked_smiles_soakdb = data.get("soaked_smiles_soakdb", None)
         soaked_smiles_canon = data.get("soaked_smiles_canon", None)
 
+        inchi_key = ""
+        mol = Chem.MolFromSmiles(smiles, sanitize=True)
+        if mol:
+            Chem.RemoveStereochemistry(mol)
+            inchi_key = Chem.inchi.MolToInchiKey(mol)
+
         defaults = {
             "smiles": smiles,
+            "inchi_key": inchi_key,
             "compound_code": compound_code,
             "ligand_name": ligand_key,
             "modeled_smiles_soakdb": modeled_smiles_soakdb,
@@ -2886,6 +2893,9 @@ class TargetLoader:
         """
         logger.debug('+linking observations to computed molecules')
 
+        # NB! see comment about filter_manager in managers.py for
+        # compound only fetching LHS upload compounds. I believe here
+        # this is the desired behaviour
         compounds = Compound.filter_manager.by_target(self.target)
 
         # ComputedMolecules can come from two places:
