@@ -249,6 +249,9 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
     # and finally custom identifiers
     custom_identifiers = CompoundIdentifierType.objects.filter(
         name__in=CompoundIdentifier.objects.filter(
+            # NB! see comment about filter_manager in managers.py for
+            # compound only fetching LHS upload compounds. not
+            # convinced it's the desired behaviour here
             compound__in=Compound.filter_manager.by_target(target=target),
         ).values('type'),
     ).values_list('name', flat=True)
