@@ -687,6 +687,12 @@ class SiteObservation(Versionable, models.Model):
     ligand_sdf = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    computed_molecules = models.ManyToManyField(
+        "ComputedMolecule",
+        through="SiteObservationComputedMolecule",
+        through_fields=("site_observation", "computed_molecule"),
+    )
+
     objects = models.Manager()
     history = HistoricalRecords()
     filter_manager = SiteObservationDataManager()
@@ -1327,6 +1333,31 @@ class ComputedSetComputedMolecule(models.Model):
                     "computed_molecule",
                 ],
                 name="unique_computedsetcomputedmolecule",
+            ),
+        ]
+
+
+class SiteObservationComputedMolecule(models.Model):
+    site_observation = models.ForeignKey(
+        SiteObservation,
+        null=False,
+        on_delete=models.CASCADE,
+    )
+    computed_molecule = models.ForeignKey(
+        ComputedMolecule,
+        null=False,
+        on_delete=models.CASCADE,
+    )
+    rmsd = models.FloatField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "site_observation",
+                    "computed_molecule",
+                ],
+                name="unique_siteobservation_computedmolecule",
             ),
         ]
 

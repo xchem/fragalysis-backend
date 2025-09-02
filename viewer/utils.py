@@ -670,3 +670,10 @@ def profile(output_file='profile.prof'):
         return wrapper
 
     return decorator
+
+
+def flattened_inchi_from_smiles(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    Chem.RemoveStereochemistry(mol)
+    flat_inchi = Chem.inchi.MolToInchi(mol)
+    return flat_inchi

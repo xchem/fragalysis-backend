@@ -61,18 +61,12 @@ class ExperimentDataManager(Manager):
 class CompoundQueryset(QuerySet):
     def filter_qs(self):
         Compound = apps.get_model("viewer", "Compound")
-        SiteObservation = apps.get_model("viewer", "SiteObservation")
-
-        so_qs = SiteObservation.filter_manager.filter_qs()
-
+        # this works, but it won't get all the compounds connected to
+        # target, only the ones from LHS upload. The ones created on
+        # ComputedSet upload won't be linked this way. is that
+        # something i need to fix?
         qs = Compound.objects.annotate(
-            target=Subquery(
-                so_qs.filter(
-                    cmpd=OuterRef("pk"),
-                ).values(
-                    "target"
-                )[:1],
-            ),
+            target=F('experimentcompound__experiment__experiment_upload__target'),
         )
 
         return qs
