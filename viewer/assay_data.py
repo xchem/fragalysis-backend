@@ -208,12 +208,13 @@ def get_unit(title: str) -> str:
 def resolve_multiindex(df):
     data_types = {
         'float': process_float,
+        'text': process_text,
     }
     result = {}
     # data type is given in second row
     for first, second in df.columns:
         try:
-            result[first] = data_types[second]
+            result[first] = data_types[second.lower()]
         except KeyError:
             pass
 
@@ -282,6 +283,10 @@ class AssayData:
 
         logger.debug('data frame resolved: %s', df.shape)
         logger.debug('data cols resolved: %s', data_columns)
+
+        if not data_columns:
+            self.errors.append('No data columns found')
+            return self.errors, self.warnings
 
         try:
             with transaction.atomic():
