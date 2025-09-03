@@ -1908,12 +1908,6 @@ class TaskStatusView(APIView):
 
         logger.debug("task_id=%s", task_id)
 
-        if not request.user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
-            content: Dict[str, Any] = {
-                'error': 'Only authenticated users can check the task status'
-            }
-            return Response(content, status=status.HTTP_403_FORBIDDEN)
-
         # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
         result = None
@@ -1931,30 +1925,42 @@ class TaskStatusView(APIView):
         # (if it has an info attribute)
         messages = []
         if hasattr(result, 'info'):
-            messages = result.info
             if isinstance(result.info, dict):
                 # check if user is allowed to view task info
                 proposal = result.info.get('proposal_ref', '')
-
-                if proposal not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                    request.user
-                ):
-                    return Response(
-                        {'error': 'You are not a member of the proposal f"proposal"'},
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-
                 messages = result.info.get('description', [])
-            elif isinstance(result.info, list):
+
+            else:
                 # this path should never materialize
-                logger.error('result.info attribute list instead of dict')
+                logger.error(
+                    'result.info attribute %s instead of dict', type(result.info)
+                )
+                return Response(
+                    {'error': f'Unexpected messages format: {result.info}'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            error = {'error': 'Task messages not found. Try again later'}
+            return Response(error, status=status.HTTP_404_NOT_FOUND)
+
+        project = models.Project.objects.get(title=proposal)
+        logger.debug("project found: %s", project.title)
+
+        if not project.open_to_public:
+            if not request.user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+                content: Dict[str, Any] = {
+                    'error': 'Only authenticated users can check the task status'
+                }
+                return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+            if proposal not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                request.user
+            ):
                 return Response(
                     {'error': 'You are not a member of the proposal f"proposal"'},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-                # messages = result.info
 
-        logger.debug("task_id=%s, got through messages: %s", task_id, result.info)
         started = result.state != 'PENDING'
         finished = result.ready()
         task_status = "UNKNOWN"
