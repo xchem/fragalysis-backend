@@ -584,6 +584,12 @@ RESTRICTED_TAS_USERS_LIST: List[str] = (
     RESTRICTED_TAS_USERS.split(",") if RESTRICTED_TAS_USERS else []
 )
 
+# A "see also" message. Used initially as part of #1878 to provide a message
+# directing the stack user to an alternative stack (i.e. production).
+# This is not expected to be employed ini n a production deployment.
+# You must expect this message to contain HTML.
+SEE_ALSO_MESSAGE: str = os.environ.get("SEE_ALSO_MESSAGE", "")
+
 # The maximum length of the 'slug' used for names this Fragalysis will create.
 #
 # Squonk2 variables are generally used by the 'squonk2_agent.py' module
