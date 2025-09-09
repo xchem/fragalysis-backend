@@ -584,6 +584,12 @@ RESTRICTED_TAS_USERS_LIST: List[str] = (
     RESTRICTED_TAS_USERS.split(",") if RESTRICTED_TAS_USERS else []
 )
 
+# A "see also" message. Used initially as part of #1878 to provide a message
+# directing the stack user to an alternative stack (i.e. production).
+# This is not expected to be employed ini n a production deployment.
+# You must expect this message to contain HTML.
+SEE_ALSO_MESSAGE: str = os.environ.get("SEE_ALSO_MESSAGE", "")
+
 # The maximum length of the 'slug' used for names this Fragalysis will create.
 #
 # Squonk2 variables are generally used by the 'squonk2_agent.py' module
@@ -637,13 +643,12 @@ TARGET_WARNING_MESSAGE: str = os.environ.get("TARGET_WARNING_MESSAGE", "")
 # The Target Access String (TAS) Python regular expression.
 # The Project title (the TAS) must match this expression to be valid.
 # See api/utils.py validate_tas() for the current implementation.
-# To simplify error messages when the match fails you can also
-# add an error message.
-TAS_REGEX: str = os.environ.get("TAS_REGEX", r"^(lb\d{5})(-(\d+)){0,1}$")
-
+# To humanise the error message when the match fails you can also
+# add a custom error message.
+TAS_REGEX: str = os.environ.get("TAS_REGEX", r"^(lb|sw)\d{5}-\d+$")
 TAS_REGEX_ERROR_MSG: str = os.environ.get(
     "TAS_REGEX_ERROR_MSG",
-    "Must begin 'lb' followed by 5 digits, optionally followed by a hyphen and a number.",
+    "Must begin 'lb' or 'sw' followed by a 5 digit proposal a hyphen and a visit number.",
 )
 
 # The service name for the Target Access Authenticator Service.
