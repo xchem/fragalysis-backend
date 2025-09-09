@@ -173,7 +173,7 @@ class ActivityResultFilter(filters.FilterSet):
         model = Result
         fields = (
             "result_upload__target",
-            "data_type",
+            "result_property__data_type__data_type",
             "result_property__result_property",
             "result_property__unit",
             "compound",

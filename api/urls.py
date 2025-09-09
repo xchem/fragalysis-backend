@@ -160,6 +160,8 @@ router.register(
     basename='activity_data_curation',
 )
 
+router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')
+#
 # Squonk Jobs
 router.register(
     "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'

@@ -7,7 +7,7 @@ import pandas as pd
 from django.contrib.auth.models import User
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import CharField, Count, Exists, F, OuterRef, Subquery, Value
+from django.db.models import CharField, Count, Exists, F, OuterRef, Q, Subquery, Value
 from django.db.models.functions import Concat
 
 from scoring.models import SiteObservationGroup
@@ -249,6 +249,9 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
     # and finally custom identifiers
     custom_identifiers = CompoundIdentifierType.objects.filter(
         name__in=CompoundIdentifier.objects.filter(
+            # NB! see comment about filter_manager in managers.py for
+            # compound only fetching LHS upload compounds. not
+            # convinced it's the desired behaviour here
             compound__in=Compound.filter_manager.by_target(target=target),
         ).values('type'),
     ).values_list('name', flat=True)
@@ -278,26 +281,27 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
         ).values('status')
     )
     annotations['count_good'] = Count(
-        SiteObservationQualityStatus.objects.filter(
-            site_observation=OuterRef('pk'),
-            status__status='GOOD',
-        ).values('status')
+        'siteobservationqualitystatus',
+        filter=Q(siteobservationqualitystatus__status__status='GOOD'),
     )
     annotations['count_mediocre'] = Count(
-        SiteObservationQualityStatus.objects.filter(
-            site_observation=OuterRef('pk'),
-            status__status='MEDIOCRE',
-        ).values('status')
+        'siteobservationqualitystatus',
+        filter=Q(siteobservationqualitystatus__status__status='MEDIOCRE'),
     )
     annotations['count_bad'] = Count(
-        SiteObservationQualityStatus.objects.filter(
-            site_observation=OuterRef('pk'),
-            status__status='BAD',
-        ).values('status')
+        'siteobservationqualitystatus',
+        filter=Q(siteobservationqualitystatus__status__status='BAD'),
     )
 
-
-
+    # and finally-finally-finally refinementresolution from soakdb
+    header.append('RefinementResolution')
+    values.append('refinementresolution')
+    annotations['refinementresolution'] = F('experiment__refinement_resolution')
+    # annotations['refinementresolution'] = Subquery(
+    #     SiteObservation.objects.filter(
+    #         pk=OuterRef('pk'),
+    #     ).values('experiment__refinement_resolution')
+    # )
 
     return header, annotations, values
 

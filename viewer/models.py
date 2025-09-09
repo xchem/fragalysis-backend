@@ -374,6 +374,7 @@ class Experiment(models.Model):
     source_well = models.TextField(null=True, blank=True)
     space_group = models.TextField(null=True, blank=True)
     unit_cell_dimensions = ArrayField(models.FloatField(), null=True)
+    refinement_resolution = models.FloatField(null=True, blank=True)
 
     objects = models.Manager()
     filter_manager = ExperimentDataManager()
@@ -686,6 +687,12 @@ class SiteObservation(Versionable, models.Model):
     ligand_sdf = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
+    computed_molecules = models.ManyToManyField(
+        "ComputedMolecule",
+        through="SiteObservationComputedMolecule",
+        through_fields=("site_observation", "computed_molecule"),
+    )
+
     objects = models.Manager()
     history = HistoricalRecords()
     filter_manager = SiteObservationDataManager()
@@ -1330,6 +1337,31 @@ class ComputedSetComputedMolecule(models.Model):
         ]
 
 
+class SiteObservationComputedMolecule(models.Model):
+    site_observation = models.ForeignKey(
+        SiteObservation,
+        null=False,
+        on_delete=models.CASCADE,
+    )
+    computed_molecule = models.ForeignKey(
+        ComputedMolecule,
+        null=False,
+        on_delete=models.CASCADE,
+    )
+    rmsd = models.FloatField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "site_observation",
+                    "computed_molecule",
+                ],
+                name="unique_siteobservation_computedmolecule",
+            ),
+        ]
+
+
 class ScoreDescription(models.Model):
     """The names and descriptions of scores that the user uploads with each computed set molecule."""
 
@@ -1944,6 +1976,7 @@ class ResultProperty(models.Model):
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
     visible = models.BooleanField(default=True, null=False)
     order = models.PositiveSmallIntegerField(null=False, default=0, blank=True)
+    data_type = models.ForeignKey(ResultValueDataType, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
         return f"{self.result_property}"
@@ -1965,7 +1998,6 @@ class Result(models.Model):
     """Model to store assay results data"""
 
     raw_value = models.TextField(null=True)
-    data_type = models.ForeignKey(ResultValueDataType, on_delete=models.CASCADE)
     float_value = models.FloatField(null=True)
     int_value = models.IntegerField(null=True)
     numeric_modifier = models.ForeignKey(
@@ -1993,3 +2025,32 @@ class Result(models.Model):
 
     def __str__(self) -> str:
         return f"{self.id}: {self.raw_value} {self.data_type}"
+
+
+class PlotDataIdentifierType(models.Model):
+    identifier = models.TextField(primary_key=True)
+
+
+class PlotData(models.Model):
+    """Store uploaded plotly plot data"""
+
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        default=settings.ANONYMOUS_USER,
+    )
+    title = models.TextField()
+    target = models.ForeignKey(Target, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    identifier = models.ForeignKey(PlotDataIdentifierType, on_delete=models.CASCADE)
+    upload_time = models.DateTimeField(
+        blank=True,
+        default=timezone.now,
+    )
+    plotly_data = models.JSONField(
+        encoder=DjangoJSONEncoder,
+        null=True,
+        blank=True,
+    )
+    notebook_path = models.TextField(null=True)
+    squonk_project_id = models.TextField(null=True)

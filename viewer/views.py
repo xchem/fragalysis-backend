@@ -145,6 +145,7 @@ def react(request):
         if sq2_rv.success and check_squonk_active(request):
             context['squonk_ui_url'] = _SQ2A.get_ui_url()
 
+    context['see_also_message'] = settings.SEE_ALSO_MESSAGE
     context['target_warning_message'] = settings.TARGET_WARNING_MESSAGE
 
     render_template = "viewer/react_temp.html"
@@ -3172,3 +3173,18 @@ class ResultPropertyView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     serializer_class = serializers.ResultPropertySerializer
     filter_permissions = "target__project"
     permission_classes = [IsObjectProposalMember]
+    filterset_fields = ('target',)
+
+
+class PlotDataView(
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    ISPyBSafeQuerySet,
+):
+    """Create/update plots."""
+
+    queryset = models.PlotData.objects.all()
+    serializer_class = serializers.PlotDataSerializer
+    filter_permissions = "project"
+    permission_classes = [IsObjectProposalMember]
+    filterset_fields = ('target',)

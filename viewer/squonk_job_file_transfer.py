@@ -105,11 +105,13 @@ def validate_file_transfer_files(
     """Check the request and return a list of proteins and/or computed molecule file
     path references (paths relative to the media directory).
 
-    We're given a request that contains comma-separated URL-encoded "proteins", and "compounds",
-    and "target access", "target", "snapshot" and "session_project" record IDs.
-    Each protein and compound is a full path to a file relative to the media directory.
-    We just need to ensure that a SiteObservation exists (there should only be one)
-    and it belongs to the given target.
+    We're given a request that contains potentially empty strings that
+    consist of comma-separated URL-encoded "proteins", and "compounds",
+    and a "target" (target ID).
+
+    Each protein and compound is a path and file to a file that is relative to the media
+    directory. We just need to ensure that a SiteObservation exists for each
+    (there should only be one) and it belongs to the given target.
 
     The user is already validated against the Target so here we check the given
     protein and compound references exist, and they belong to the Target.
@@ -117,13 +119,17 @@ def validate_file_transfer_files(
     Args:
         request
     Returns
-        error dict
-        list of validated proteins (SiteObservation)
-        list of validated computed molecules (ComputedMolecule)
+        error dictionary
+        list of validated proteins
+        list of validated computed molecules
     """
+    assert 'target' in request.data
+    assert 'proteins' in request.data
+    assert 'compounds' in request.data
 
-    target_id = request.data['target']
     logger.info('+ Validating file transfer files ()...')
+
+    target_id = int(request.data['target'])
 
     protein_files: List[Path] = []
     compound_files: List[Path] = []
@@ -141,15 +147,18 @@ def validate_file_transfer_files(
                     ).first()
                 ):
                     return tfr_validation_error(
-                        f'Unknown Protein: {protein_path_and_file}',
+                        f'Unknown Protein: "{protein_path_and_file}"',
                         status.HTTP_404_NOT_FOUND,
                     )
 
-                if s_ob.experiment.experiment_upload.target.id == target_id:
+                s_ob_target_id = s_ob.experiment.experiment_upload.target.id
+                if s_ob_target_id == target_id:
                     protein_files.append(Path(protein_path_and_file))
                 else:
                     return tfr_validation_error(
-                        f'Protein does not belong to Target: {protein_path_and_file}',
+                        f'Protein does not belong to Target: "{protein_path_and_file}"'
+                        f' SiteObservation target={s_ob_target_id}'
+                        f' Given target={target_id}',
                         status.HTTP_400_BAD_REQUEST,
                     )
 
@@ -167,15 +176,18 @@ def validate_file_transfer_files(
                 ligand_mol=compound_path_and_file
             ).first():
                 return tfr_validation_error(
-                    f'Unknown Compound: {compound_path_and_file}',
+                    f'Unknown Compound: "{compound_path_and_file}"',
                     status.HTTP_404_NOT_FOUND,
                 )
 
-            if s_ob.experiment.experiment_upload.target.id == target_id:
+            s_ob_target_id = s_ob.experiment.experiment_upload.target.id
+            if s_ob_target_id == target_id:
                 compound_files.append(Path(compound_path_and_file))
             else:
                 return tfr_validation_error(
-                    f'Compound does not belong to Target: {compound_path_and_file}',
+                    f'Compound does not belong to Target: "{compound_path_and_file}"'
+                    f' SiteObservation target={s_ob_target_id}'
+                    f' Given target={target_id}',
                     status.HTTP_400_BAD_REQUEST,
                 )
 
