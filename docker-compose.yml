@@ -12,7 +12,6 @@
 services:
 
   database:
-    # image: postgres:15.12-alpine3.21
     image: informaticsmatters/rdkit-cartridge-debian:Release_2024_03_6
     container_name: database
     volumes:
