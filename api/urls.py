@@ -151,6 +151,12 @@ router.register(
 )
 
 router.register(
+    "structure_filter",
+    viewer_views.StructureFilterView,
+    basename='structure_filter',
+)
+
+router.register(
     "activity_data", viewer_views.ActivityDataView, basename='activity_data'
 )
 
@@ -161,7 +167,7 @@ router.register(
 )
 
 router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')
-#
+
 # Squonk Jobs
 router.register(
     "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'
