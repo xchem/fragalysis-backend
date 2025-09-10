@@ -25,6 +25,7 @@ from viewer.models import Compound, DesignSet
 from viewer.target_loader import load_target
 
 from .cset_upload import MolOps, PdbOps, blank_mol_vals
+from .download_structures import create_download_link
 from .models import ComputedSet, JobFileTransfer, JobRequest, SiteObservation
 from .sdf_check import (  # check_refmol,
     add_warning,
@@ -679,3 +680,31 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
 
     # Always erase uploaded data
     delete_media_sub_directory(get_upload_sub_directory(job_request))
+
+
+@celery_app.task(bind=True)
+def task_create_download_link(
+    self,
+    *,
+    original_search,
+    validated_data,
+    target_id,
+    site_observation_ids,
+    user_id,
+    target_access_string,
+):
+    logger.info(
+        'TASK %s create_download_link launched, target_zip=%s',
+        self.request.id,
+        validated_data,
+    )
+    create_download_link(
+        original_search=original_search,
+        validated_data=validated_data,
+        target_id=target_id,
+        site_observation_ids=site_observation_ids,
+        user_id=user_id,
+        task=self,
+        target_access_string=target_access_string,
+    )
+    logger.info('TASK %s create_download_link completed', self.request.id)

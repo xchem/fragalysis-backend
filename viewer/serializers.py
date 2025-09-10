@@ -860,10 +860,11 @@ class DownloadStructuresSerializer(serializers.Serializer):
     map_info = serializers.BooleanField(default=False)
     single_sdf_file = serializers.BooleanField(default=False)
     metadata_info = serializers.BooleanField(default=False)
-    static_link = serializers.BooleanField(default=False)
-    file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
     trans_matrix_info = serializers.BooleanField(default=False)
     compound_sets = serializers.BooleanField(default=True)
+    static_link = serializers.BooleanField(default=False)
+    file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
+    use_zip = serializers.BooleanField(default=False, label='Use ZIP format (slower)')
 
 
 # Start of Serializers for Squonk Jobs

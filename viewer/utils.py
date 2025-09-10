@@ -646,6 +646,32 @@ def change_target_project(
     # finding better system though..
 
 
+def profile(output_file='profile.prof'):
+    """Function profiler decorator.
+
+    Usage: just add the decorator
+    @profile(<filename>)
+    """
+    import functools
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            import cProfile
+
+            profiler = cProfile.Profile()
+            profiler.enable()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                profiler.disable()
+                profiler.dump_stats(output_file)
+
+        return wrapper
+
+    return decorator
+
+
 def flattened_inchi_from_smiles(smiles: str):
     mol = Chem.MolFromSmiles(smiles)
     Chem.RemoveStereochemistry(mol)
