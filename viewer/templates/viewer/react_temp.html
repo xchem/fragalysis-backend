@@ -18,6 +18,9 @@
          {% if target_warning_message %}
          target_warning_message: '{{ target_warning_message }}',
          {% endif %}
+         {% if see_also_message %}
+         see_also_message: '{{ see_also_message }}',
+         {% endif %}
          legacy_url: '{{ legacy_url }}',
          username: '{{ user.username }}',
          email: '{{ user.email|default:"noemail" }}',
@@ -33,6 +36,9 @@
      var DJANGO_CONTEXT = {
          {% if target_warning_message %}
          target_warning_message: '{{ target_warning_message }}',
+         {% endif %}
+         {% if see_also_message %}
+         see_also_message: '{{ see_also_message }}',
          {% endif %}
          legacy_url: '{{ legacy_url }}',
          username: 'NOT_LOGGED_IN',
