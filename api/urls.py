@@ -98,6 +98,11 @@ router.register(
     basename='upload_target_experiments',
 )
 router.register(
+    "validate_target_experiments",
+    viewer_views.UploadExperimentValidateView,
+    basename='validate_target_experiments',
+)
+router.register(
     "download_target_experiments",
     viewer_views.DownloadExperimentUploadView,
     basename='download_target_experiments',
@@ -145,6 +150,34 @@ router.register(
 router.register(
     "snapshot_state", viewer_views.SnapshotStateView, basename='snapshot_state'
 )
+
+router.register(
+    "assay_data_property",
+    viewer_views.ResultPropertyView,
+    basename='assay_data_property',
+)
+
+router.register(
+    "assay_data_upload", viewer_views.UploadAssayDataView, basename='assay_data_upload'
+)
+
+router.register(
+    "structure_filter",
+    viewer_views.StructureFilterView,
+    basename='structure_filter',
+)
+
+router.register(
+    "activity_data", viewer_views.ActivityDataView, basename='activity_data'
+)
+
+router.register(
+    "activity_data_curation",
+    viewer_views.ActivityDataCurationView,
+    basename='activity_data_curation',
+)
+
+router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')
 
 # Squonk Jobs
 router.register(

@@ -4,9 +4,10 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from django.contrib.auth.models import User
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import CharField, Count, Exists, F, OuterRef, Subquery, Value
+from django.db.models import CharField, Count, Exists, F, OuterRef, Q, Subquery, Value
 from django.db.models.functions import Concat
 
 from scoring.models import SiteObservationGroup
@@ -16,6 +17,7 @@ from .models import (
     CompoundIdentifier,
     CompoundIdentifierType,
     Pose,
+    QualityStatusType,
     SiteObservation,
     SiteObservationQualityStatus,
     SiteObservationTag,
@@ -247,6 +249,9 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
     # and finally custom identifiers
     custom_identifiers = CompoundIdentifierType.objects.filter(
         name__in=CompoundIdentifier.objects.filter(
+            # NB! see comment about filter_manager in managers.py for
+            # compound only fetching LHS upload compounds. not
+            # convinced it's the desired behaviour here
             compound__in=Compound.filter_manager.by_target(target=target),
         ).values('type'),
     ).values_list('name', flat=True)
@@ -276,31 +281,32 @@ def get_metadata_fields(target: Target) -> tuple[list[str], dict[str, Any], list
         ).values('status')
     )
     annotations['count_good'] = Count(
-        SiteObservationQualityStatus.objects.filter(
-            site_observation=OuterRef('pk'),
-            status__status='GOOD',
-        ).values('status')
+        'siteobservationqualitystatus',
+        filter=Q(siteobservationqualitystatus__status__status='GOOD'),
     )
     annotations['count_mediocre'] = Count(
-        SiteObservationQualityStatus.objects.filter(
-            site_observation=OuterRef('pk'),
-            status__status='MEDIOCRE',
-        ).values('status')
+        'siteobservationqualitystatus',
+        filter=Q(siteobservationqualitystatus__status__status='MEDIOCRE'),
     )
     annotations['count_bad'] = Count(
-        SiteObservationQualityStatus.objects.filter(
-            site_observation=OuterRef('pk'),
-            status__status='BAD',
-        ).values('status')
+        'siteobservationqualitystatus',
+        filter=Q(siteobservationqualitystatus__status__status='BAD'),
     )
 
-
-
+    # and finally-finally-finally refinementresolution from soakdb
+    header.append('RefinementResolution')
+    values.append('refinementresolution')
+    annotations['refinementresolution'] = F('experiment__refinement_resolution')
+    # annotations['refinementresolution'] = Subquery(
+    #     SiteObservation.objects.filter(
+    #         pk=OuterRef('pk'),
+    #     ).values('experiment__refinement_resolution')
+    # )
 
     return header, annotations, values
 
 
-def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ignore [return]
+def load_tags_from_file(filename: str, target: Target, user: User | None = None) -> list[str]:  # type: ignore [return]
     # from viewer.tags import load_tags_from_file; from viewer.models import Target; target = Target.objects.get(pk=1); load_tags_from_file('metadata.csv', target)
 
     errors: list[str] = []
@@ -531,6 +537,52 @@ def load_tags_from_file(filename: str, target: Target) -> list[str]:  # type: ig
                 if so_from_db != so_from_df:
                     so_group.site_observation.add(*site_observations)
                     so_tag.site_observations.add(*site_observations)
+
+            # tags done, read quality as well
+            qual_column = 'Main status'
+            qual_states = []
+            for status_type in QualityStatusType.objects.exclude(status='NONE'):
+                codes = df.loc[df[qual_column] == status_type.status][
+                    'Long code'
+                ].unique()
+                for code in codes:
+                    try:
+                        so = qs.get(longcode=code)
+                    except SiteObservation.DoesNotExist:
+                        msg = (
+                            f'SiteObservation {code} does not exist for {target.title}'
+                        )
+                        logger.error(msg)
+                        errors.append(msg)
+                        continue
+
+                    # only add status if current main exists and is
+                    # something else
+                    add_status = False
+                    try:
+                        main_status = so.siteobservationqualitystatus_set.get(
+                            main_status=True
+                        )
+                        if main_status.status == status_type:
+                            add_status = True
+                    except SiteObservationQualityStatus.DoesNotExist:
+                        add_status = True
+
+                    # there's a constraint in the model, so I don't
+                    # think multiple objects needs to be handled here
+
+                    if add_status:
+                        qual_states.append(
+                            SiteObservationQualityStatus(
+                                site_observation=so,
+                                status=status_type,
+                                user=user,
+                                main_status=True,
+                                comment='Loaded from metadata.csv',
+                            )
+                        )
+
+            SiteObservationQualityStatus.objects.bulk_create(qual_states)
 
             if errors:
                 # log all errors

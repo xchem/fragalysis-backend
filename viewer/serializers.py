@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import Count
+from django.utils import timezone
 from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from frag.network.query import get_full_graph
 from rdkit import Chem
@@ -226,6 +227,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "organism",
             "external_url",
             "external_url_display_name",
+            "alias_order",
             # "settings",
         )
         extra_kwargs = {
@@ -873,9 +875,11 @@ class DownloadStructuresSerializer(serializers.Serializer):
     map_info = serializers.BooleanField(default=False)
     single_sdf_file = serializers.BooleanField(default=False)
     metadata_info = serializers.BooleanField(default=False)
+    trans_matrix_info = serializers.BooleanField(default=False)
+    compound_sets = serializers.BooleanField(default=True)
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
-    trans_matrix_info = serializers.BooleanField(default=False)
+    use_zip = serializers.BooleanField(default=False, label='Use ZIP format (slower)')
 
 
 # Start of Serializers for Squonk Jobs
@@ -985,6 +989,24 @@ class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSeri
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
     file = serializers.FileField(required=False)
+
+    def validate(self, data):
+        """Verify TAS is correctly formed."""
+        success, error_msg = validate_tas(data['target_access_string'])
+        if not success:
+            raise serializers.ValidationError({"target_access_string": error_msg})
+        return data
+
+    class Meta:
+        model = models.ExperimentUpload
+        fields = (
+            'target_access_string',
+            'file',
+        )
+
+
+class TargetExperimentValidateSerializer(serializers.ModelSerializer):
+    target_access_string = serializers.CharField(label='Target Access String')
     data_version = serializers.CharField(required=False)
     target_name = serializers.CharField(required=False)
     upload_version = serializers.CharField(required=False)
@@ -1000,7 +1022,6 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
         model = models.ExperimentUpload
         fields = (
             'target_access_string',
-            'file',
             'data_version',
             'target_name',
             'upload_version',
@@ -1311,3 +1332,159 @@ class SiteObservationQualityStatusSerializer(serializers.ModelSerializer):
 
     def _with_annotations(self, instance):
         return self.Meta.model.filter_manager.annotated_qs().get(pk=instance.pk)
+
+
+class AssayDataUploadSerializer(serializers.Serializer):
+    filename = serializers.FileField()
+    target = serializers.CharField()
+    target_access_string = serializers.CharField()
+    identifier_column = serializers.CharField()
+    identifier_type = serializers.ChoiceField(
+        choices=[
+            ('compound', 'Compound'),
+            (
+                'site_observation',
+                'Site observation',
+            ),
+        ]
+    )
+    header_contains_data_types = serializers.BooleanField(default=False)
+
+
+class StructureFilterSerializer(serializers.Serializer):
+    target = serializers.CharField()
+    target_access_string = serializers.CharField()
+    query = serializers.CharField()
+    is_substructure = serializers.BooleanField(default=True)
+    is_smarts = serializers.BooleanField(default=False)
+    use_chirality = serializers.BooleanField(default=False)
+    structure_type = serializers.ChoiceField(
+        choices=[
+            ('compound', 'Compound'),
+            (
+                'site_observation',
+                'Site observation',
+            ),
+        ]
+    )
+
+
+class ActivityResultSerializer(serializers.ModelSerializer):
+    target_name = serializers.CharField()
+    property_name = serializers.CharField()
+    unit = serializers.CharField()
+
+    class Meta:
+        model = models.Result
+        fields = '__all__'
+
+
+class AssayDataCurationSerializer(serializers.ModelSerializer):
+    target_access_string = serializers.ChoiceField(choices=[], required=False)
+    upload_file_name = serializers.ChoiceField(
+        choices=[], required=False, label='Upload batch'
+    )
+    column = serializers.ChoiceField(choices=[], required=False)
+    new_data_type = serializers.ChoiceField(choices=[], required=False)
+
+    class Meta:
+        model = models.ResultUpload
+        fields = (
+            'target_access_string',
+            'upload_file',
+            'upload_date',
+            'uploaded_by',
+            'upload_file_name',
+            'column',
+            'new_data_type',
+        )
+        extra_kwargs = {
+            "upload_file": {"read_only": True},
+            "upload_date": {"read_only": True},
+            "uploaded_by": {"read_only": True},
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        logger.debug('self: %s', self)
+        logger.debug('self.context: %s', self.context)
+        logger.debug('self.context.request: %s', self.context.get('request', None))
+        logger.debug('self.context.request.user: %s', self.context['request'].user)
+
+        user = self.context['request'].user
+        # I don't need to do this here, do I? This happens in the view
+        if user.pk is None or settings.DEPLOYMENT_MODE == 'DEVELOPMENT':
+            targets = models.Target.objects.all()
+        else:
+            proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                user, restrict_public_to_membership=True
+            )
+            targets = models.Target.objects.filter(project__title__in=proposals)
+
+        uploads = models.ResultUpload.objects.filter(target__in=targets)
+        logger.debug('uploads: %s', uploads)
+        self.fields['upload_file_name'].choices = [
+            (f.pk, f'{f.target.title}:: {Path(f.upload_file.name).name}')
+            for f in uploads
+        ]
+
+        columns = models.ResultProperty.objects.filter(
+            pk__in=models.Result.objects.filter(result_upload__in=uploads).values(
+                'result_property'
+            ),
+        )
+
+        self.fields['column'].choices = [(f.pk, f.result_property) for f in columns]
+
+        self.fields['new_data_type'].choices = [
+            k.data_type for k in models.ResultValueDataType.objects.all()
+        ]
+
+        self.fields['target_access_string'].choices = [
+            k.title for k in models.Project.objects.all()
+        ]
+
+
+class ResultPropertySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ResultProperty
+        fields = '__all__'
+
+
+class PlotDataSerializer(serializers.ModelSerializer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.method in ['PUT', 'PATCH']:
+            self.fields['target'].read_only = True
+            self.fields['project'].read_only = True
+
+    def create(self, validated_data):
+        logger.debug('validated_data: %s', validated_data)
+        user = self.context["request"].user
+
+        # fragalysis has its own anonymous user
+        if user.is_anonymous:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        validated_data["author"] = user
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        user = self.context["request"].user
+
+        if user.is_anonymous:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        validated_data["author"] = user
+        validated_data["upload_time"] = timezone.now()
+
+        return super().update(instance, validated_data)
+
+    class Meta:
+        model = models.PlotData
+        fields = '__all__'
+        extra_kwargs = {
+            "author": {"read_only": True},
+            "upload_time": {"read_only": True},
+        }

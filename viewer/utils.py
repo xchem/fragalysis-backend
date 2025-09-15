@@ -26,6 +26,11 @@ from rdkit import Chem
 from scoring.models import SiteObservationGroup, SiteObvsSiteObservationGroup
 
 from .models import (
+    Compound,
+    ExperimentUpload,
+    JobRequest,
+    PlotData,
+    Project,
     SiteObservation,
     SiteObservationTag,
     SiteObvsSiteObservationTag,
@@ -575,3 +580,100 @@ def clean_object_id(name: str) -> str:
         return f"{splits[0]}-x{splits[1].replace('+', '/').replace('_', '/')}"
     else:
         return name.replace('+', '/').replace('_', '/')
+
+
+def change_target_project(
+    target_name: str, old_project_name: str, new_project_name: str
+) -> None:
+    try:
+        old_project = Project.objects.get(title=old_project_name)
+    except Project.DoesNotExist as exc:
+        raise ValueError(f'No project called {old_project_name}') from exc
+
+    try:
+        target = Target.objects.get(title=target_name, project=old_project)
+    except Target.DoesNotExist as exc:
+        raise ValueError(
+            f'No target called {target_name} in {old_project_name}'
+        ) from exc
+
+    try:
+        project = Project.objects.get(title=new_project_name)
+    except Project.DoesNotExist as exc:
+        raise ValueError(f'No project called {new_project_name}') from exc
+
+    exp_uploads = ExperimentUpload.objects.filter(
+        pk__in=target.experimentupload_set.values('pk'),
+    )
+
+    comps = Compound.objects.filter(
+        pk__in=SiteObservation.objects.filter(
+            # experiment__in=target.experiment_set.values('pk'),
+            experiment__experiment_upload__in=exp_uploads,
+        ).values('compound'),
+    )
+
+    logger.debug('objects resolved, going for the save')
+    # got all objects that need to be changed. run the changes
+    try:
+        with transaction.atomic():
+            for obj in PlotData.objects.filter(target=target, project=target.project):
+                obj.project = project
+                obj.save()
+
+            for obj in JobRequest.objects.filter(target=target, project=target.project):
+                obj.project = project
+                obj.save()
+
+            for obj in exp_uploads:
+                obj.project = project
+                obj.save()
+
+            for compound in comps:
+                compound.project_id.add(project)
+                compound.project_id.remove(project)
+                compound.save()
+
+            target.project = project
+            target.save()
+
+    except IntegrityError as exc:
+        raise ValueError('Failed to save changes') from exc
+
+    # I *think* it's not necessary to edit any paths, the location is
+    # given in target.zip_archive and while the project name in path
+    # is incorrect, the backend knows how to find it. It may be worth
+    # finding better system though..
+
+
+def profile(output_file='profile.prof'):
+    """Function profiler decorator.
+
+    Usage: just add the decorator
+    @profile(<filename>)
+    """
+    import functools
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            import cProfile
+
+            profiler = cProfile.Profile()
+            profiler.enable()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                profiler.disable()
+                profiler.dump_stats(output_file)
+
+        return wrapper
+
+    return decorator
+
+
+def flattened_inchi_from_smiles(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    Chem.RemoveStereochemistry(mol)
+    flat_inchi = Chem.inchi.MolToInchi(mol)
+    return flat_inchi

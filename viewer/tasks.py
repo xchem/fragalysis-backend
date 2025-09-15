@@ -25,16 +25,15 @@ from viewer.models import Compound, DesignSet
 from viewer.target_loader import load_target
 
 from .cset_upload import MolOps, PdbOps, blank_mol_vals
+from .download_structures import create_download_link
 from .models import ComputedSet, JobFileTransfer, JobRequest, SiteObservation
 from .sdf_check import (  # check_refmol,
     add_warning,
     check_blank_mol_props,
     check_blank_prop,
     check_compound_set,
-    check_field_populated,
     check_mol_props,
     check_name_characters,
-    check_SMILES,
     check_ver_name,
 )
 from .squonk_job_file_transfer import process_file_transfer
@@ -307,10 +306,6 @@ def validate_compound_set(task_params):
             if m.HasProp('_Name'):
                 molecule_name = m.GetProp('_Name')
             validate_dict = check_name_characters(molecule_name, validate_dict)
-            # validate_dict = check_pdb(m, validate_dict, target, zfile)
-            # validate_dict = check_refmol(m, validate_dict, target)
-            validate_dict = check_field_populated(m, validate_dict)
-            validate_dict = check_SMILES(m, validate_dict)
 
     len_validate_dict = len(validate_dict['molecule_name'])
     if len_validate_dict != 0:
@@ -685,3 +680,31 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
 
     # Always erase uploaded data
     delete_media_sub_directory(get_upload_sub_directory(job_request))
+
+
+@celery_app.task(bind=True)
+def task_create_download_link(
+    self,
+    *,
+    original_search,
+    validated_data,
+    target_id,
+    site_observation_ids,
+    user_id,
+    target_access_string,
+):
+    logger.info(
+        'TASK %s create_download_link launched, target_zip=%s',
+        self.request.id,
+        validated_data,
+    )
+    create_download_link(
+        original_search=original_search,
+        validated_data=validated_data,
+        target_id=target_id,
+        site_observation_ids=site_observation_ids,
+        user_id=user_id,
+        task=self,
+        target_access_string=target_access_string,
+    )
+    logger.info('TASK %s create_download_link completed', self.request.id)

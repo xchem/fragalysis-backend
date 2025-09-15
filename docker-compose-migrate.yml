@@ -9,28 +9,13 @@
 # Then run the migrations with: -
 #   python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
 
-version: '3'
-
 services:
 
   # The database
   database:
-    image: postgres:12.16-alpine3.18
-    container_name: database
-    volumes:
-    - ./data/postgresql/data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_PASSWORD: fragalysis
-      POSTGRES_DB: frag
-      PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-    - "5432:5432"
-    healthcheck:
-      test: pg_isready -U postgres -d frag
-      interval: 10s
-      timeout: 2s
-      retries: 5
-      start_period: 10s
+    extends:
+      file: common-services.yml
+      service: database
 
   # The stack backend
   backend:

@@ -1,12 +1,131 @@
 import logging
 
 from django.apps import apps
-from django.db.models import F, Manager, OuterRef, QuerySet, Subquery
+from django.db import connection, transaction
+from django.db.models import (
+    BooleanField,
+    F,
+    Func,
+    Manager,
+    OuterRef,
+    QuerySet,
+    Subquery,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class SiteObservationQueryset(QuerySet):
+class RDKitStructureMatch(Func):
+    """Add RDKit structure filter cpability to queryset.
+
+    Based on RDKit's Cartridge, PostgreSQL extension.  Allows
+    filtering by exact match, substructure search or using SMARTS
+    patterns and considering (or not) chirality.
+
+    Equivalent SQL it adds is something like:
+    select * from viewer_compound.smiles_mol where smiles_mol@>'<pattern>'
+    for SMILES pattern and
+    select * from viewer_compound.smiles_mol where smiles_mol@>'<pattern>'::qmol
+    for SMARTS.
+
+    TODO: Ok, I realised this doesn't work, the operators don't work
+    that way. Chirality is defined by setting set
+    rdkit.do_chiral_sss=true; to true or false, this is per session
+    setting and if I want to enable this, there's quite a bit of work
+    to do with connection pooling
+
+    """
+
+    function = None
+    template = '%(expressions)s %(operator)s %(query_func)s'
+    output_field = BooleanField()
+
+    def __init__(
+        self,
+        field_name,
+        query,
+        *,
+        is_substructure=True,
+        is_smarts=False,
+        **extra,
+    ):
+        self.query = query
+        self.query_func = 'qmol_from_smarts' if is_smarts else 'mol_from_smiles'
+        if is_substructure:
+            self.operator = '@>'
+        else:
+            self.operator = '@='
+
+        expressions = [F(field_name)]
+        super().__init__(*expressions, **extra)
+
+    def as_sql(
+        self, compiler, connection
+    ):  # pylint: disable=unused-argument,redefined-outer-name
+        field_sql, field_params = compiler.compile(self.source_expressions[0])
+        query_param = '%s'
+        query_func_expr = f"{self.query_func}({query_param}::cstring)::mol"
+        sql = f"{field_sql} {self.operator} {query_func_expr}"
+        logger.debug('sql: %s', sql)
+        return sql, field_params + [self.query]
+
+
+# NB! using this queryset and data manager assumes rdkit mol type is
+# always in smiles_mol field, meaning you can only have one smiles col
+# per table
+class StructureFilterQueryset(QuerySet):
+    def structure_search(
+        self,
+        target,
+        query,
+        *,
+        is_substructure=True,
+        is_smarts=False,
+        use_chirality=False,
+    ) -> list[int]:
+        if not query:
+            return self.none()
+
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                if use_chirality:
+                    # SET LOCAL means effect only within transaction
+                    # and whatever the outcome it will be reversed
+                    # after
+                    cursor.execute('SET LOCAL rdkit.do_chiral_sss = true;')
+
+            match_expr = RDKitStructureMatch(
+                'smiles_mol',
+                query=query,
+                is_smarts=is_smarts,
+                is_substructure=is_substructure,
+            )
+            qs = self.filter_qs().filter(target=target.id).filter(match_expr)
+            # SET LOCAL also means I have to evaluate queryset within
+            # transaction, otherwise it will be evaluated when the
+            # variable has already reverted
+            return list(qs.values_list('id', flat=True))
+
+
+class StructureFilterDataManager(Manager):
+    def structure_search(
+        self,
+        target,
+        query,
+        is_substructure=True,
+        is_smarts=False,
+        use_chirality=False,
+    ) -> list[int]:
+        return self.get_queryset().structure_search(
+            target,
+            query,
+            is_substructure=is_substructure,
+            is_smarts=is_smarts,
+            use_chirality=use_chirality,
+        )
+
+
+class SiteObservationQueryset(StructureFilterQueryset):
     def filter_qs(self):
         SiteObservation = apps.get_model("viewer", "SiteObservation")
         qs = SiteObservation.objects.prefetch_related(
@@ -23,7 +142,7 @@ class SiteObservationQueryset(QuerySet):
         return qs
 
 
-class SiteObservationDataManager(Manager):
+class SiteObservationDataManager(StructureFilterDataManager):
     def get_queryset(self):
         return SiteObservationQueryset(self.model, using=self._db)
 
@@ -58,27 +177,21 @@ class ExperimentDataManager(Manager):
         return self.get_queryset().filter_qs().filter(target=target.id)
 
 
-class CompoundQueryset(QuerySet):
+class CompoundQueryset(StructureFilterQueryset):
     def filter_qs(self):
         Compound = apps.get_model("viewer", "Compound")
-        SiteObservation = apps.get_model("viewer", "SiteObservation")
-
-        so_qs = SiteObservation.filter_manager.filter_qs()
-
+        # this works, but it won't get all the compounds connected to
+        # target, only the ones from LHS upload. The ones created on
+        # ComputedSet upload won't be linked this way. is that
+        # something i need to fix?
         qs = Compound.objects.annotate(
-            target=Subquery(
-                so_qs.filter(
-                    cmpd=OuterRef("pk"),
-                ).values(
-                    "target"
-                )[:1],
-            ),
+            target=F('experimentcompound__experiment__experiment_upload__target'),
         )
 
         return qs
 
 
-class CompoundDataManager(Manager):
+class CompoundDataManager(StructureFilterDataManager):
     def get_queryset(self):
         return CompoundQueryset(self.model, using=self._db)
 
@@ -488,3 +601,46 @@ class SiteObservationQualityStatusDataManager(Manager):
 
     def annotated_qs(self):
         return self.get_queryset().annotated_qs()
+
+
+class AssayResultQueryset(QuerySet):
+    def annotated_qs(self):
+        Result = apps.get_model("viewer", "Result")
+        qs = Result.objects.annotate(
+            target_name=F("result_upload__target__title"),
+            target_id=F("result_upload__target__id"),
+            property_name=F("result_property__result_property"),
+            data_type=F("result_property__data_type"),
+            unit=F("result_property__unit"),
+            uploaded_by=F("result_upload__uploaded_by__username"),
+        )
+
+        return qs
+
+
+class AssayResultDataManager(Manager):
+    def get_queryset(self):
+        return AssayResultQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().annotated_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target.id)
+
+
+class ResultUploadQueryset(QuerySet):
+    def annotated_qs(self):
+        ResultUpload = apps.get_model("viewer", "ResultUpload")
+        return ResultUpload.objects.all()
+
+
+class ResultUploadDataManager(Manager):
+    def get_queryset(self):
+        return ResultUploadQueryset(self.model, using=self._db)
+
+    def filter_qs(self):
+        return self.get_queryset().annotated_qs()
+
+    def by_target(self, target):
+        return self.get_queryset().filter_qs().filter(target=target)

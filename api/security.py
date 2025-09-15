@@ -1,24 +1,17 @@
 # pylint: skip-file
 import logging
 import os
-import threading
-from datetime import datetime, timedelta
-from functools import cache
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
 from wsgiref.util import FileWrapper
 
 from django.conf import settings
 from django.db.models import Q
 from django.http import Http404, HttpResponse
-from ispyb.connector.mysqlsp.main import ISPyBMySQLSPConnector as Connector
-from ispyb.exception import ISPyBConnectionException, ISPyBNoResultException
 from rest_framework import viewsets
 
+import api.ta_auth_connector as ta_auth_connector
 from viewer.models import Project
 
-from .prometheus_metrics import PrometheusMetrics
-from .remote_ispyb_connector import SSHConnector
 from .utils import deployment_mode_is_production
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -48,203 +41,12 @@ def get_restricted_tas_user_proposal(user) -> set[str]:
     return response
 
 
-@cache
-class CachedContent:
-    """
-    A static class managing caches proposals/visits for each user.
-    Proposals should be collected when has_expired() returns True.
-    Content can be written (when the cache for the user has expired)
-    and read using the set/get methods.
-    """
-
-    _timers: Dict[str, datetime] = {}
-    _content: Dict[str, set[str]] = {}
-    _cache_period: timedelta = timedelta(
-        minutes=settings.SECURITY_CONNECTOR_CACHE_MINUTES
-    )
-    _cache_lock: threading.Lock = threading.Lock()
-
-    @staticmethod
-    def has_expired(username) -> bool:
-        assert username
-        with CachedContent._cache_lock:
-            has_expired = False
-            now = datetime.now()
-            if username not in CachedContent._timers:
-                # User's not known,
-                # initialise an entry that will automatically expire
-                CachedContent._timers[username] = now
-            if CachedContent._timers[username] <= now:
-                has_expired = True
-                # Expired, reset the expiry time
-                CachedContent._timers[username] = now + CachedContent._cache_period
-        if has_expired:
-            logger.debug("Content expired for '%s'", username)
-        return has_expired
-
-    @staticmethod
-    def get_content(username):
-        with CachedContent._cache_lock:
-            if username not in CachedContent._content:
-                CachedContent._content[username] = set()
-        content = CachedContent._content[username]
-        logger.debug("Got content for '%s': %s", username, content)
-        return content
-
-    @staticmethod
-    def set_content(username: str, new_content: set[str]) -> None:
-        """Replace the cached content for the user.
-        Only if the content size does not go down.
-        (The rejection of reduced content is part of #1719 investigation).
-        """
-        with CachedContent._cache_lock:
-            if username in CachedContent._content:
-                # We should have existing content for this user
-                len_new_content = len(new_content)
-                len_existing_content = len(CachedContent._content[username])
-                len_change = len_new_content - len_existing_content
-                if len_change != 0:
-                    logger.info("Content change for '%s' (%+d)", username, len_change)
-                    # What's changed?
-                    missing_from_new = CachedContent._content[username] - new_content
-                    missing_from_existing = (
-                        new_content - CachedContent._content[username]
-                    )
-                    if missing_from_new:
-                        logger.info(
-                            "In existing but not in the new content for '%s' (%d): %s",
-                            username,
-                            len(missing_from_new),
-                            missing_from_new,
-                        )
-                    if missing_from_existing:
-                        logger.info(
-                            "In new content, not in the existing for '%s' (%d): %s",
-                            username,
-                            len(missing_from_existing),
-                            missing_from_existing,
-                        )
-
-            # Update the cache
-            CachedContent._content[username] = new_content.copy()
-            logger.debug(
-                "New content for '%s' (%d) : %s",
-                username,
-                len(new_content),
-                new_content,
-            )
-
-
-def get_remote_conn(force_error_display=False) -> Optional[SSHConnector]:
-    credentials: Dict[str, Any] = {
-        "user": settings.ISPYB_USER,
-        "pw": settings.ISPYB_PASSWORD,
-        "host": settings.ISPYB_HOST,
-        "port": settings.ISPYB_PORT,
-        "db": "ispyb",
-        "conn_inactivity": 360,
-    }
-
-    ssh_credentials: Dict[str, Any] = {
-        'ssh_host': settings.SSH_HOST,
-        'ssh_user': settings.SSH_USER,
-        'ssh_password': settings.SSH_PASSWORD,
-        "ssh_private_key_filename": settings.SSH_PRIVATE_KEY_FILENAME,
-        'remote': True,
-    }
-
-    credentials.update(**ssh_credentials)
-
-    # Caution: Credentials may not be set in the environment.
-    #          Assume the credentials are invalid if there is no host.
-    #          If a host is not defined other properties are useless.
-    if not credentials["host"]:
-        if logging.DEBUG >= logger.level or force_error_display:
-            logger.debug("No ISPyB host - cannot return a connector")
-        return None
-
-    # Try to get an SSH connection (aware that it might fail)
-    logger.debug("Creating remote connector with credentials: %s", credentials)
-    conn: Optional[SSHConnector] = None
-    try:
-        conn = SSHConnector(**credentials)
-    except ISPyBConnectionException:
-        # The ISPyB connection failed.
-        # Nothing else to do here, metrics are already updated
-        pass
-    except Exception:
-        # Any other exception will be a problem with the SSH tunnel connection
-        PrometheusMetrics.failed_tunnel()
-        if logging.DEBUG >= logger.level or force_error_display:
-            logger.info("credentials=%s", credentials)
-            logger.exception("Got the following exception creating Connector...")
-
-    if conn:
-        logger.debug("Got remote ISPyB connector")
-    else:
-        logger.debug("Failed to get a remote ISPyB connector")
-
-    return conn
-
-
-def get_conn(force_error_display=False) -> Optional[Connector]:
-    credentials: Dict[str, Any] = {
-        "user": settings.ISPYB_USER,
-        "pw": settings.ISPYB_PASSWORD,
-        "host": settings.ISPYB_HOST,
-        "port": settings.ISPYB_PORT,
-        "db": "ispyb",
-        "conn_inactivity": 360,
-    }
-    # Caution: Credentials may not have been set in the environment.
-    #          Assume the credentials are invalid if there is no host.
-    #          If a host is not defined other properties are useless.
-    if not credentials["host"]:
-        if logging.DEBUG >= logger.level or force_error_display:
-            logger.info("No ISPyB host - cannot return a connector")
-        return None
-
-    logger.debug("Creating connector with credentials: %s", credentials)
-    conn: Optional[Connector] = None
-    try:
-        conn = Connector(**credentials)
-    except Exception:
-        # Log the exception if DEBUG level or lower/finer?
-        # The following will not log if the level is set to INFO for example.
-        if logging.DEBUG >= logger.level or force_error_display:
-            logger.info("credentials=%s", credentials)
-            logger.exception("Got the following exception creating Connector...")
-    if conn:
-        logger.debug("Got connector")
-        PrometheusMetrics.new_ispyb_connection()
-    else:
-        logger.debug("Did not get a connector")
-        PrometheusMetrics.failed_ispyb_connection()
-
-    return conn
-
-
-def get_configured_connector() -> Optional[Union[Connector, SSHConnector]]:
-    if settings.SECURITY_CONNECTOR == 'ispyb':
-        return get_conn()
-    elif settings.SECURITY_CONNECTOR == 'ssh_ispyb':
-        return get_remote_conn()
-    return None
-
-
 def ping_configured_connector() -> bool:
     """Pings the connector. If a connection can be obtained it is immediately closed.
     The ping simply provides a way to check the credentials are valid and
     a connection can be made.
     """
-    conn: Optional[Union[Connector, SSHConnector]] = None
-    if settings.SECURITY_CONNECTOR == 'ispyb':
-        conn = get_conn()
-    elif settings.SECURITY_CONNECTOR == 'ssh_ispyb':
-        conn = get_remote_conn()
-        if conn is not None:
-            conn.stop()
-    return conn is not None
+    return ta_auth_connector.get_auth_ping().ping == 'OK'
 
 
 class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
@@ -309,107 +111,6 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             )
         return prop_ids
 
-    def _run_query_with_connector(self, conn, user):
-        core = conn.core
-        try:
-            rs = core.retrieve_sessions_for_person_login(user.username)
-            if conn.server:
-                conn.server.stop()
-        except ISPyBNoResultException:
-            logger.warning("No results for user=%s", user.username)
-            rs = []
-            if conn.server:
-                conn.server.stop()
-        return rs
-
-    def _get_proposals_for_user_from_ispyb(self, user):
-        if CachedContent.has_expired(user.username):
-            PrometheusMetrics.new_proposal_cache_miss()
-            if conn := get_configured_connector():
-                self._get_proposals_from_connector(user, conn)
-            else:
-                logger.warning("Failed to get a connector for '%s'", user.username)
-        else:
-            PrometheusMetrics.new_proposal_cache_hit()
-
-        # The cache has either been updated, has not changed or is empty.
-        # Return what we have for the user. Public (open) proposals
-        # will be added to what we return if necessary.
-        cached_prop_ids = CachedContent.get_content(user.username)
-        if count := len(cached_prop_ids):
-            logger.debug(
-                "Returning %s cached Proposals for '%s'",
-                count,
-                user.username,
-            )
-        # We must return a copy of the set,
-        # the caller may alter it and it's a cached object.
-        return cached_prop_ids.copy()
-
-    def _get_proposals_from_connector(self, user, conn):
-        """
-        Updates the user's proposal cache with the results of a query
-        """
-        assert user
-        assert conn
-
-        rs = self._run_query_with_connector(conn=conn, user=user)
-
-        # Typically you'll find the following fields in each item
-        # in the rs response: -
-        #
-        #    'id': 0000000,
-        #    'proposalId': 00000,
-        #    'startDate': datetime.datetime(2022, 12, 1, 15, 56, 30)
-        #    'endDate': datetime.datetime(2022, 12, 3, 18, 34, 9)
-        #    'beamline': 'i00-0'
-        #    'proposalCode': 'lb'
-        #    'proposalNumber': '12345'
-        #    'sessionNumber': 1
-        #    'comments': None
-        #    'personRoleOnSession': 'Data Access'
-        #    'personRemoteOnSession': 1
-        #
-        # Iterate through the response and return the 'proposalNumber' (proposals)
-        # and one with the 'proposalNumber' and 'sessionNumber' (visits), each
-        # prefixed by the `proposalCode` (if present).
-        #
-        # Codes are expected to consist of 2 letters.
-        # Typically: lb, mx, nt, nr, bi
-        #
-        # These strings should correspond to a title value in a Project record.
-        # and should get this sort of list: -
-        #
-        # ["lb12345", "lb12345-1"]
-        #              --      -
-        #              | ----- |
-        #           Code   |   Session
-        #               Proposal
-        prop_id_set = set()
-        for record in rs:
-            if (
-                "proposalCode" in record
-                and record["proposalCode"] in settings.TAS_CODES_SET
-            ):
-                pc_str = f'{record["proposalCode"]}'
-                pn_str = f'{record["proposalNumber"]}'
-                sn_str = f'{record["sessionNumber"]}'
-                proposal_str = f'{pc_str}{pn_str}'
-                proposal_visit_str = f'{proposal_str}-{sn_str}'
-                prop_id_set.update([proposal_str, proposal_visit_str])
-
-        # Display the collected results for the user.
-        # These will be cached.
-        count = len(prop_id_set)
-        logger.debug(
-            "%s proposals from %s records for '%s': %s",
-            count,
-            len(rs),
-            user.username,
-            prop_id_set,
-        )
-        CachedContent.set_content(user.username, prop_id_set)
-
     def user_is_member_of_target(
         self, user, target, restrict_public_to_membership=True
     ):
@@ -465,20 +166,19 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
         assert user
 
         proposals = set()
-        ispyb_user = settings.ISPYB_USER
-        logger.debug(
-            "ispyb_user=%s restrict_public_to_membership=%s (DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP=%s)",
-            ispyb_user,
-            restrict_public_to_membership,
-            settings.DISABLE_RESTRICT_PROPOSALS_TO_MEMBERSHIP,
-        )
-        if ispyb_user:
+        ta_auth_service = settings.TA_AUTH_SERVICE
+        if ta_auth_service:
             if user.is_authenticated:
-                logger.debug("Getting proposals from ISPyB...")
-                proposals = self._get_proposals_for_user_from_ispyb(user)
+                logger.debug(
+                    "Getting proposals from TA authenticator (%s)...", ta_auth_service
+                )
+                proposals = ta_auth_connector.get_auth_target_access(user.username)
+            else:
+                logger.debug("User is not authenticated")
         else:
-            logger.debug("Getting proposals from Django...")
+            logger.debug("Getting proposals from django...")
             proposals = self._get_proposals_for_user_from_django(user)
+        logger.debug("Got %d proposals", len(proposals))
 
         # We have all the proposals where the user has authority.
         # Add open/public proposals?

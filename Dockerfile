@@ -1,7 +1,7 @@
 FROM python:3.11.9-slim-bullseye  AS python-base
 
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 USER root
 
@@ -14,6 +14,8 @@ RUN apt-get update -y && \
       texlive-latex-recommended \
       lmodern \
       pigz \
+      p7zip-full \
+      rsync \
       texlive-fonts-recommended && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -51,3 +53,5 @@ COPY proxy_params /etc/nginx/frag_proxy_params
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled
 
 COPY . ./
+
+CMD ["./docker-entrypoint.sh"]

@@ -12,6 +12,7 @@ from viewer.models import (
     ExperimentUpload,
     Pose,
     QuatAssembly,
+    Result,
     SiteObservation,
     SiteObservationQualityStatus,
     Snapshot,
@@ -180,4 +181,17 @@ class SiteObservationQualityStatusFilter(filters.FilterSet):
             "timestamp",
             "auto_assigned",
             "main_status",
+        )
+
+
+class ActivityResultFilter(filters.FilterSet):
+    class Meta:
+        model = Result
+        fields = (
+            "result_upload__target",
+            "result_property__data_type__data_type",
+            "result_property__result_property",
+            "result_property__unit",
+            "compound",
+            "site_observation",
         )

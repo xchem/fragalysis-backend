@@ -319,30 +319,41 @@ class MolOps:
         inchi = Chem.inchi.MolToInchi(sanitized_mol)
         inchi_key = Chem.InchiToInchiKey(inchi)
 
-        qs = Compound.objects.filter(
-            computedmolecule__computed_set__target=target,
+        # look for *all* compounds under this target, both LHS and RHS
+        # uploads
+        lhs_qs = Compound.filter_manager.by_target(target)
+        rhs_qs = Compound.objects.filter(
+            pk__in=ComputedMolecule.objects.filter(
+                computed_set__target=target,
+            ).values('compound')
         )
+
         cpd_number = "1"
         try:
-            # NB! Max said there could be thousands of compounds per
-            # target so this distinct() here may become a problem
-            cpd = qs.distinct().get(inchi_key=inchi_key)
-
+            cpd = rhs_qs.get(inchi_key=inchi_key)
             # memo to self: I'm not setting cpd_number here, because
             # it's read from computedmol name
         except Compound.DoesNotExist:
-            cpd = Compound(
-                smiles=Chem.MolToSmiles(sanitized_mol),
-                inchi=inchi,
-                inchi_key=inchi_key,
-                description=name,
-            )
-            # This is a new compound.
-            cpd.save()
-            # This is a new compound.
-            # We must now set relationships to the Proposal that it applies to.
-            cpd.project_id.add(target.project)
-            cpd_number = str(qs.count() + 1)
+            # RHS didn't work out, try LHS. here, duplicates are possible
+            cpd = lhs_qs.filter(inchi_key=inchi_key).first()
+
+            if not cpd:
+                # still no compound, create new
+                cpd = Compound(
+                    smiles=Chem.MolToSmiles(sanitized_mol),
+                    inchi=inchi,
+                    inchi_key=inchi_key,
+                    description=name,
+                )
+                # This is a new compound.
+                cpd.save()
+                # This is a new compound.
+                # We must now set relationships to the Proposal that it applies to.
+                cpd.project_id.add(target.project)
+                qs = Compound.objects.filter(
+                    computedmolecule__computed_set__target=target,
+                )
+                cpd_number = str(qs.count())
         except MultipleObjectsReturned as exc:
             # NB! when processing new uploads, Compound is always
             # fetched by inchi_key, so this shouldn't ever create
@@ -390,7 +401,8 @@ class MolOps:
 
         flattened_copy = copy.deepcopy(mol)
         Chem.RemoveStereochemistry(mol)
-        flat_inchi = Chem.inchi.MolToInchi(flattened_copy)
+        flat_inchi = Chem.inchi.MolToInchiKey(flattened_copy)
+        logger.debug('flattened inchi key: %s', flat_inchi)
 
         compound, number = self.create_mol(
             inchi, compound_set.target, name=molecule_name
@@ -716,7 +728,6 @@ class MolOps:
                 "ref_pdb",
                 "index",
                 "Name",
-                "original SMILES",
             ]:
                 description, _ = ScoreDescription.objects.get_or_create(
                     computed_set=computed_set,

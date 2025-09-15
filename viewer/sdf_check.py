@@ -8,9 +8,6 @@ Script to check sdf file format for Fragalysis upload
 import logging
 
 import validators
-from rdkit import Chem
-
-from viewer.models import SiteObservation, Target
 
 logger = logging.getLogger(__name__)
 
@@ -68,117 +65,6 @@ def check_sdf(sdf_file, validate_dict):
             molecule_name='File error',
             field='_File_name',
             warning_string=f"Illegal filename: {str(sdf_file)} found",
-            validate_dict=validate_dict,
-        )
-
-    return validate_dict
-
-
-def check_refmol(mol, validate_dict, target=None):
-    if target:
-        try:
-            ref_mols = mol.GetProp('ref_mols').split(',')
-        except KeyError:
-            validate_dict = add_warning(
-                molecule_name=mol.GetProp('_Name'),
-                field='ref_mols',
-                warning_string="Molecule has no 'ref_mols' property",
-                validate_dict=validate_dict,
-            )
-            return validate_dict
-
-        for ref_mol in ref_mols:
-            ref_strip = ref_mol.strip()
-            query = SiteObservation.objects.filter(
-                code=ref_strip,
-                experiment__experiment_upload__target__pk=target,
-            )
-            if len(query) == 0:
-                msg = f"No SiteObservation code contains '{ref_strip}'"
-                validate_dict = add_warning(
-                    molecule_name=mol.GetProp('_Name'),
-                    field='ref_mol',
-                    warning_string=msg,
-                    validate_dict=validate_dict,
-                )
-                logger.warning(msg)
-
-    return validate_dict
-
-
-def check_pdb(mol, validate_dict, target=None, zfile=None):
-    """
-    Checks if .pdb file can be read
-
-    :mol: rdkit mol read from SD file
-    :return: Updates validate dictionary with pass/fail message
-    """
-
-    pdb_fn = mol.GetProp('ref_pdb').split('/')[-1]
-
-    # No support for PDB atm
-    # Check if pdb filename given and exists
-    #    if zfile:
-    #        pdb_code = pdb_fn.replace('.pdb', '')
-    # if pdb_code not in zfile:
-    #     validate_dict = add_warning(molecule_name=mol.GetProp('_Name'),
-    #                                 field='ref_pdb',
-    #                                 warning_string="path " + str(pdb_fn) + " can't be found in uploaded zip file",
-    #                                 validate_dict=validate_dict)
-
-    # Custom pdb added but no zfile - double check if pdb does exist before throwing error
-    if pdb_fn.endswith(".pdb") and not zfile:
-        validate_dict = add_warning(
-            molecule_name=mol.GetProp('_Name'),
-            field='ref_pdb',
-            warning_string="Custom PDB '"
-            + str(pdb_fn)
-            + "' used with no zip PDB file uploaded. Please upload zip PDB file.",
-            validate_dict=validate_dict,
-        )
-
-    # If anything else given example x1408
-    if target and not pdb_fn.endswith(".pdb"):
-        target_name = Target.objects.gte(pk=target).title
-        query = SiteObservation.objects.filter(
-            code__contains=str(f'{target_name}-' + pdb_fn.split(':')[0].split('_')[0])
-        )
-        if len(query) == 0:
-            validate_dict = add_warning(
-                molecule_name=mol.GetProp('_Name'),
-                field='ref_pdb',
-                warning_string=f"PDB for {str(pdb_fn)} does not exist",
-                validate_dict=validate_dict,
-            )
-
-    return validate_dict
-
-
-def check_SMILES(mol, validate_dict):
-    """
-    Checks if SMILES can be read by rdkit
-
-    :mol: rdkit mol read from SD file
-    :return: Updates validate dictionary with pass/fail message
-    """
-    # Check SMILES
-    try:
-        smi_check = mol.GetProp('original SMILES')
-    except KeyError:
-        validate_dict = add_warning(
-            molecule_name=mol.GetProp('_Name'),
-            field='original SMILES',
-            warning_string="Molecule has no 'original SMILES' property",
-            validate_dict=validate_dict,
-        )
-        return validate_dict
-
-    m = Chem.MolFromSmiles(smi_check, sanitize=False)
-    if m is None:
-        validate_dict = add_warning(
-            molecule_name=mol.GetProp('_Name'),
-            field='original SMILES',
-            warning_string=f"Invalid SMILES {smi_check}",
             validate_dict=validate_dict,
         )
 
@@ -256,36 +142,6 @@ def check_blank_prop(blank_mol, validate_dict):
     return validate_dict
 
 
-def check_field_populated(mol, validate_dict):
-    """
-    Checks if all compulsory fields are populated:
-        1. ref_mols - a comma separated list of the fragments
-        2. ref_pdb - either (a) a filepath (relative to the sdf file)
-            to an uploaded pdb file
-        3. original SMILES - the original smiles of the compound
-            before any computation was carried out
-
-    :mol: rdkit mol other than blank_mol
-    :return: Updates validate dictionary with pass/fail message
-    """
-
-    # Compuslory fields (after 1589)
-    # compulsory_fields = ['ref_pdb', 'ref_mols', 'original SMILES']
-    compulsory_fields = ['original SMILES']
-
-    property_dict = mol.GetPropsAsDict()
-    for key, value in property_dict.items():
-        if value == '' and key in compulsory_fields:
-            validate_dict = add_warning(
-                molecule_name=mol.GetProp('_Name'),
-                field=key,
-                warning_string=f'Value for {key} missing',
-                validate_dict=validate_dict,
-            )
-
-    return validate_dict
-
-
 def check_url(value):
     """
     Checks if url provided exists. No internet connection required.
@@ -329,7 +185,7 @@ def missing_field_check(mol, field, validate_dict):
 
 def check_mol_props(mol, validate_dict):
     # Check for (mandatory, isolated) missing fields
-    fields = ['ref_mols', 'original SMILES']
+    fields = ['ref_mols']
     for field in fields:
         validate_dict = missing_field_check(mol, field, validate_dict)
     # More complex checks?
