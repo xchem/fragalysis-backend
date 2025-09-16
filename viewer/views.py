@@ -1006,6 +1006,39 @@ class SnapshotView(
         return serializers.SnapshotWriteSerializer
 
 
+class SnapshotScreenshotView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
+    """Get or set snapshot screenshot.
+
+    URL: api/snapshot_screenshots
+    """
+
+    queryset = models.SnapshotScreenshot.objects.all()
+    serializer_class = serializers.SnapshotScreenshotSerializer
+    filter_permissions = "snapshot__session_project__target__project"
+    filterset_class = filters.SnapshotScreenshotFilter
+
+
+class SnapshotStateView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
+    """Get or set snapshot state
+
+    URL: api/snapshot_state
+    """
+
+    queryset = models.Snapshot.filter_manager.filter_qs()
+    serializer_class = serializers.SnapshotStateSerializer
+    filter_permissions = "session_project__target__project"
+
+
 class SnapshotActionsView(
     mixins.UpdateModelMixin,
     mixins.CreateModelMixin,

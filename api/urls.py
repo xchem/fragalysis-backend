@@ -140,6 +140,17 @@ router.register(
 #     basename='computedset_download',
 # )
 
+
+router.register(
+    "snapshot_screenshots",
+    viewer_views.SnapshotScreenshotView,
+    basename='snapshot_screenshots',
+)
+
+router.register(
+    "snapshot_state", viewer_views.SnapshotStateView, basename='snapshot_state'
+)
+
 router.register(
     "assay_data_property",
     viewer_views.ResultPropertyView,
