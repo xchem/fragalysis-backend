@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     # lots happening here..
     operations = [
         # install extension to postgres
-        migrations.RunSQL('create extension rdkit;'),
+        migrations.RunSQL('create extension if not exists rdkit;'),
         # models.py adds BinaryField, convert to appropriate rdkit mol type
         migrations.RunSQL(
             sql="""
