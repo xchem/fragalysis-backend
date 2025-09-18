@@ -11,6 +11,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+from pgvector.django import HalfVectorField
 from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
 
@@ -770,6 +771,18 @@ class SiteObservationQualityStatus(models.Model):
                 name="unique_main_status_per_site_observation",
             )
         ]
+
+
+class AtomCoordinates(models.Model):
+    """Store ligand atom coordinates"""
+
+    site_observation = models.ForeignKey(
+        SiteObservation,
+        on_delete=models.CASCADE,
+        related_name="atom_coordinates",
+    )
+    atom_number = models.SmallIntegerField(null=False)
+    coords = HalfVectorField(dimensions=3)
 
 
 class CompoundIdentifierType(models.Model):
