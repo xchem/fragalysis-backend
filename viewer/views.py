@@ -3152,7 +3152,6 @@ class UploadAssayDataView(ISPyBSafeQuerySet):
 
 class StructureFilterView(ISPyBSafeQuerySet):
     serializer_class = serializers.StructureFilterSerializer
-    permission_class = [permissions.IsAuthenticated]
     http_method_names = ('post',)
 
     def get_view_name(self):
@@ -3188,16 +3187,20 @@ class StructureFilterView(ISPyBSafeQuerySet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-            request.user
-        ):
-            msg = f'User "{request.user.username}" is not a member of {target_access_string}'
-            logger.warning(msg)
-            content = {'message': msg}
-            return Response(content, status=status.HTTP_404_NOT_FOUND)
+        if not project.open_to_public:
+            if not request.user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+                content: Dict[str, Any] = {
+                    'error': 'Only authenticated users can use molecular filter on closed targets'
+                }
+                return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-        if settings.AUTHENTICATE_UPLOAD and not self.request.user.is_authenticated:
-            return redirect(settings.LOGIN_URL)
+            if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                request.user
+            ):
+                msg = f'User "{request.user.username}" is not a member of {target_access_string}'
+                logger.warning(msg)
+                content = {'message': msg}
+                return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         try:
             target = models.Target.objects.get(title=target_name, project=project)
