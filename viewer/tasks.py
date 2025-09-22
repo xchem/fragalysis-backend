@@ -12,12 +12,15 @@ import django
 django.setup()
 
 import zipfile
+from contextlib import contextmanager
+from io import StringIO
 
 import numpy as np
+import rdkit
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
-from rdkit import Chem
+from rdkit import Chem, rdBase
 from rdkit.Chem import Descriptors
 
 from fragalysis.celery import app as celery_app
@@ -47,6 +50,33 @@ if settings.CELERY_TASK_ALWAYS_EAGER:
     logger = logging.getLogger(__name__)
 else:
     logger = get_task_logger(__name__)
+
+
+@contextmanager
+def capture_rdkit_logs():
+    """Capture rdkit logs to pass on to user"""
+    # Enable Python logging
+    rdBase.LogToPythonLogger()
+
+    # Save old handlers
+    old_handlers = list(rdkit.logger.handlers)
+
+    # Prepare capture
+    sio = StringIO()
+    hdlr = logging.StreamHandler(sio)
+    fmt = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+    hdlr.setFormatter(fmt)
+
+    rdkit.logger.handlers.clear()
+    rdkit.logger.addHandler(hdlr)
+
+    try:
+        yield sio  # let the caller run RDKit code
+    finally:
+        # Restore old handlers
+        rdkit.logger.handlers.clear()
+        for h in old_handlers:
+            rdkit.logger.addHandler(h)
 
 
 @shared_task
@@ -206,11 +236,12 @@ def validate_compound_set(task_params):
         )
         return 'validate', validate_dict, validated, outbound_params
 
-    suppl = Chem.SDMolSupplier(sdf_file)
-    # print('%d mols detected (including blank mol)' % (len(suppl),))
-    blank_mol = suppl[0]
+    with capture_rdkit_logs() as log_buffer:
+        suppl = Chem.SDMolSupplier(sdf_file)
+        blank_mol = suppl[0]
 
     if blank_mol is None:
+        logs = log_buffer.getvalue()
         validate_dict = add_warning(
             molecule_name='Blank Mol',
             field='N/A',
@@ -220,24 +251,20 @@ def validate_compound_set(task_params):
             ' No other checks were done',
             validate_dict=validate_dict,
         )
+        for line in logs.split('\n'):
+            validate_dict = add_warning(
+                molecule_name='Blank Mol',
+                field='N/A',
+                warning_string=line,
+                validate_dict=validate_dict,
+            )
         validated = False
         logger.warning(
             'validate_compound_set() EXIT user_id=%s sdf_file=%s validated=False',
             user_id,
             sdf_file,
         )
-        # Can't get submitter name or method when there is now mol
-        submitter_name = ''
-        submitter_method = ''
-        return (
-            validate_dict,
-            validated,
-            sdf_file,
-            target,
-            zfile,
-            submitter_name,
-            submitter_method,
-        )
+        return 'validate', validate_dict, validated, outbound_params
 
     if not update or update == 'None':
         validate_dict = check_compound_set(blank_mol, validate_dict)
