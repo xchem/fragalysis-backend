@@ -16,6 +16,7 @@ from viewer.models import (
     SiteObservation,
     SiteObservationQualityStatus,
     Snapshot,
+    SnapshotScreenshot,
     XtalformSite,
 )
 
@@ -28,6 +29,12 @@ class SnapshotFilter(filters.FilterSet):
     )
     session_project__isnull = django_filters.BooleanFilter(
         field_name="session_project", lookup_expr="isnull"
+    )
+
+    target = django_filters.CharFilter(
+        field_name="session_project__target",
+        lookup_expr="id",
+        label="Target",
     )
 
     class Meta:
@@ -43,6 +50,15 @@ class SnapshotFilter(filters.FilterSet):
             "session_project",
             "parent",
             "children",
+        ]
+
+
+class SnapshotScreenshotFilter(filters.FilterSet):
+    class Meta:
+        model = SnapshotScreenshot
+        fields = [
+            "snapshot",
+            "screenshot_type",
         ]
 
 

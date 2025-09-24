@@ -656,6 +656,21 @@ class SnapshotWriteSerializer(serializers.ModelSerializer):
         )
 
 
+class SnapshotStateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Snapshot
+        fields = (
+            'id',
+            'state',
+        )
+
+
+class SnapshotScreenshotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SnapshotScreenshot
+        fields = '__all__'
+
+
 # (GET, POST, PUT, PATCH)
 class SnapshotActionsSerializer(serializers.ModelSerializer):
     actions = serializers.JSONField()
@@ -860,10 +875,11 @@ class DownloadStructuresSerializer(serializers.Serializer):
     map_info = serializers.BooleanField(default=False)
     single_sdf_file = serializers.BooleanField(default=False)
     metadata_info = serializers.BooleanField(default=False)
-    static_link = serializers.BooleanField(default=False)
-    file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
     trans_matrix_info = serializers.BooleanField(default=False)
     compound_sets = serializers.BooleanField(default=True)
+    static_link = serializers.BooleanField(default=False)
+    file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
+    use_zip = serializers.BooleanField(default=False, label='Use ZIP format (slower)')
 
 
 # Start of Serializers for Squonk Jobs
@@ -1333,6 +1349,24 @@ class AssayDataUploadSerializer(serializers.Serializer):
         ]
     )
     header_contains_data_types = serializers.BooleanField(default=False)
+
+
+class StructureFilterSerializer(serializers.Serializer):
+    target = serializers.CharField()
+    target_access_string = serializers.CharField()
+    query = serializers.CharField()
+    is_substructure = serializers.BooleanField(default=True)
+    is_smarts = serializers.BooleanField(default=False)
+    use_chirality = serializers.BooleanField(default=False)
+    structure_type = serializers.ChoiceField(
+        choices=[
+            ('compound', 'Compound'),
+            (
+                'site_observation',
+                'Site observation',
+            ),
+        ]
+    )
 
 
 class ActivityResultSerializer(serializers.ModelSerializer):

@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import os
@@ -60,9 +61,9 @@ from .discourse import (
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import (
-    create_or_return_download_link,
+from .download_structures import (  # create_or_return_download_link,
     erase_out_of_date_download_records,
+    return_download_link,
 )
 from .forms import CSetForm
 from .squonk_job_file_transfer import validate_file_transfer_files
@@ -76,6 +77,7 @@ from .tags import load_tags_from_file
 from .tasks import (
     process_compound_set,
     process_job_file_transfer,
+    task_create_download_link,
     task_load_target,
     validate_compound_set,
 )
@@ -1004,6 +1006,39 @@ class SnapshotView(
         return serializers.SnapshotWriteSerializer
 
 
+class SnapshotScreenshotView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
+    """Get or set snapshot screenshot.
+
+    URL: api/snapshot_screenshots
+    """
+
+    queryset = models.SnapshotScreenshot.objects.all()
+    serializer_class = serializers.SnapshotScreenshotSerializer
+    filter_permissions = "snapshot__session_project__target__project"
+    filterset_class = filters.SnapshotScreenshotFilter
+
+
+class SnapshotStateView(
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
+    """Get or set snapshot state
+
+    URL: api/snapshot_state
+    """
+
+    queryset = models.Snapshot.filter_manager.filter_qs()
+    serializer_class = serializers.SnapshotStateSerializer
+    filter_permissions = "session_project__target__project"
+
+
 class SnapshotActionsView(
     mixins.UpdateModelMixin,
     mixins.CreateModelMixin,
@@ -1487,9 +1522,18 @@ class DownloadStructuresView(
 
         erase_out_of_date_download_records()
 
+        serializer = self.serializer_class(data=request.data)
+        if not serializer.is_valid():
+            logger.debug("serializer not valid: %s", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.debug('serializer validated data: %s', serializer.validated_data)
+
         # Static files (i.e. links not removed)
-        if request.data['file_url']:
-            file_url = request.data['file_url']
+        # I don't understand this bit.. what is it doing?
+        # in any case, can I move it to DownloadLinks instance method?
+        if serializer.validated_data['file_url']:
+            file_url = serializer.validated_data['file_url']
             logger.info('Given file_url "%s"', file_url)
             existing_link = models.DownloadLinks.objects.filter(
                 file_url=file_url
@@ -1511,20 +1555,20 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         # Dynamic files
-        if 'target_access_string' not in request.data:
+        if 'target_access_string' not in serializer.validated_data.keys():
             content = {
                 'message': 'If no file_url, a target_access_string must be provided'
             }
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
-        if 'target_name' not in request.data:
+        if 'target_name' not in serializer.validated_data.keys():
             content = {
                 'message': 'If no file_url, a target_name (title) must be provided'
             }
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
-        target_name = request.data['target_name']
-        project_name = request.data['target_access_string']
+        target_name = serializer.validated_data['target_name']
+        project_name = serializer.validated_data['target_access_string']
         target = None
         logger.info('Given target_name "%s"', target_name)
 
@@ -1595,9 +1639,32 @@ class DownloadStructuresView(
             content = {'message': f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD})'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        filename_url = create_or_return_download_link(request, target, site_obvs)
-        assert filename_url is not None
-        return Response({"file_url": filename_url})
+        try:
+            filename_url = return_download_link(
+                serializer.validated_data, target, site_obvs
+            )
+            return Response({"file_url": filename_url})
+        except ValueError:
+            # download with these parameters does not exist, launch a
+            # task to create it
+            original_search = copy.deepcopy(request.data)
+            original_search.pop('csrfmiddlewaretoken', None)
+
+            task = task_create_download_link.delay(
+                original_search=original_search,
+                validated_data=serializer.validated_data,
+                target_id=target.pk,
+                site_observation_ids=list(site_obvs.values_list('id', flat=True)),
+                user_id=request.user.pk
+                if request.user.is_authenticated
+                else settings.ANONYMOUS_USER,
+                target_access_string=project_name,
+            )
+            logger.info(
+                "+ UploadTargetExperiments.create got Celery id %s", task.task_id
+            )
+            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):
@@ -1875,12 +1942,6 @@ class TaskStatusView(APIView):
 
         logger.debug("task_id=%s", task_id)
 
-        if not request.user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
-            content: Dict[str, Any] = {
-                'error': 'Only authenticated users can check the task status'
-            }
-            return Response(content, status=status.HTTP_403_FORBIDDEN)
-
         # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
         result = None
@@ -1901,24 +1962,38 @@ class TaskStatusView(APIView):
             if isinstance(result.info, dict):
                 # check if user is allowed to view task info
                 proposal = result.info.get('proposal_ref', '')
-
-                if proposal not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                    request.user
-                ):
-                    return Response(
-                        {'error': 'You are not a member of the proposal f"proposal"'},
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-
                 messages = result.info.get('description', [])
-            elif isinstance(result.info, list):
+
+            else:
                 # this path should never materialize
-                logger.error('result.info attribute list instead of dict')
+                logger.error(
+                    'result.info attribute %s instead of dict', type(result.info)
+                )
+                return Response(
+                    {'error': f'Unexpected messages format: {result.info}'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            error = {'error': 'Task messages not found. Try again later'}
+            return Response(error, status=status.HTTP_404_NOT_FOUND)
+
+        project = models.Project.objects.get(title=proposal)
+        logger.debug("project found: %s", project.title)
+
+        if not project.open_to_public:
+            if not request.user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+                content: Dict[str, Any] = {
+                    'error': 'Only authenticated users can check the task status'
+                }
+                return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+            if proposal not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                request.user
+            ):
                 return Response(
                     {'error': 'You are not a member of the proposal f"proposal"'},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-                # messages = result.info
 
         started = result.state != 'PENDING'
         finished = result.ready()
@@ -3073,6 +3148,93 @@ class UploadAssayDataView(ISPyBSafeQuerySet):
                 },
                 status=status.HTTP_200_OK,
             )
+
+
+class StructureFilterView(ISPyBSafeQuerySet):
+    serializer_class = serializers.StructureFilterSerializer
+    http_method_names = ('post',)
+
+    def get_view_name(self):
+        return "Upload assay data"
+
+    def create(self, request, *args, **kwargs):
+        logger.info("+ StructureFilterView.create called")
+        del args, kwargs
+
+        serializer = self.get_serializer_class()(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.debug("Serializer validated_data=%s", serializer.validated_data)
+
+        target_access_string = serializer.validated_data['target_access_string']
+        is_substructure = serializer.validated_data['is_substructure']
+        is_smarts = serializer.validated_data['is_smarts']
+        query = serializer.validated_data['query']
+        structure_type = serializer.validated_data['structure_type']
+        use_chirality = serializer.validated_data['use_chirality']
+        target_name = serializer.validated_data['target']
+
+        try:
+            project = models.Project.objects.get(title=target_access_string)
+        except models.Project.DoesNotExist:
+            return Response(
+                {
+                    "target_access_string": [
+                        f"Project {target_access_string} does not exist"
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not project.open_to_public:
+            if not request.user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
+                content: Dict[str, Any] = {
+                    'error': 'Only authenticated users can use molecular filter on closed targets'
+                }
+                return Response(content, status=status.HTTP_403_FORBIDDEN)
+
+            if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+                request.user
+            ):
+                msg = f'User "{request.user.username}" is not a member of {target_access_string}'
+                logger.warning(msg)
+                content = {'message': msg}
+                return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            target = models.Target.objects.get(title=target_name, project=project)
+        except models.Target.DoesNotExist:
+            return Response(
+                {"target": [f"Target {target_name} does not exist"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if structure_type == 'compound':
+            manager = models.Compound.filter_manager
+        elif structure_type == 'site_observation':
+            manager = models.SiteObservation.filter_manager
+        else:
+            return Response(
+                {'error': f'Unknown structure type {structure_type}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result: list[int] = manager.structure_search(
+            target,
+            query,
+            is_substructure=is_substructure,
+            is_smarts=is_smarts,
+            use_chirality=use_chirality,
+        )
+
+        return Response(
+            {
+                'success': True,
+                'result': result,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class ActivityDataView(

@@ -391,6 +391,9 @@ class Compound(models.Model):
 
     inchi = models.TextField(unique=False, db_index=True)
     smiles = models.CharField(max_length=255, db_index=True)
+    # rdkit representation of smiles field for structure-based
+    # search. Internally rdkit mol type
+    smiles_mol = models.TextField(editable=False, null=True)
     compound_code = models.TextField(null=True)
     current_identifier = models.OneToOneField(
         'CompoundIdentifier',
@@ -673,6 +676,9 @@ class SiteObservation(Versionable, models.Model):
         upload_to="target_loader_data/", null=True, max_length=255
     )
     smiles = models.TextField()
+    # rdkit representation of smiles field for structure-based
+    # search. Internally rdkit mol type
+    smiles_mol = models.TextField(editable=False, null=True)
     seq_id = models.IntegerField()
     chain_id = models.CharField(max_length=1)
     ligand_mol = models.FileField(
@@ -694,7 +700,9 @@ class SiteObservation(Versionable, models.Model):
     )
 
     objects = models.Manager()
-    history = HistoricalRecords()
+    # causes problems with trigger func and don't really need it in
+    # history anyway
+    history = HistoricalRecords(excluded_fields=['smiles_mol'])
     filter_manager = SiteObservationDataManager()
 
     def __str__(self) -> str:
@@ -973,6 +981,8 @@ class Snapshot(models.Model):
         null=True,
         help_text='Optional JSON field containing name/value pairs for future use',
     )
+    # NB! this field is accessed from a different serializer/endpoint
+    state = models.JSONField(encoder=DjangoJSONEncoder, null=True)
 
     objects = models.Manager()
     filter_manager = SnapshotDataManager()
@@ -986,6 +996,12 @@ class Snapshot(models.Model):
     class Meta:
         managed = True
         db_table = 'viewer_snapshot'
+
+
+class SnapshotScreenshot(models.Model):
+    snapshot = models.ForeignKey(Snapshot, null=False, on_delete=models.CASCADE)
+    screenshot = models.TextField(null=True)
+    screenshot_type = models.IntegerField(null=True)
 
 
 class SnapshotActions(models.Model):

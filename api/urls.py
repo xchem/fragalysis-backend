@@ -140,6 +140,17 @@ router.register(
 #     basename='computedset_download',
 # )
 
+
+router.register(
+    "snapshot_screenshots",
+    viewer_views.SnapshotScreenshotView,
+    basename='snapshot_screenshots',
+)
+
+router.register(
+    "snapshot_state", viewer_views.SnapshotStateView, basename='snapshot_state'
+)
+
 router.register(
     "assay_data_property",
     viewer_views.ResultPropertyView,
@@ -148,6 +159,12 @@ router.register(
 
 router.register(
     "assay_data_upload", viewer_views.UploadAssayDataView, basename='assay_data_upload'
+)
+
+router.register(
+    "structure_filter",
+    viewer_views.StructureFilterView,
+    basename='structure_filter',
 )
 
 router.register(
@@ -161,7 +178,7 @@ router.register(
 )
 
 router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')
-#
+
 # Squonk Jobs
 router.register(
     "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'
