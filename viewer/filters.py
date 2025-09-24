@@ -1,9 +1,13 @@
 import logging
 
 import django_filters
+from django.core.exceptions import ValidationError
+from django.db.models import Exists, F, OuterRef
 from django_filters import rest_framework as filters
+from pgvector.django import L2Distance
 
 from viewer.models import (
+    AtomCoordinates,
     CanonSite,
     CanonSiteConf,
     Compound,
@@ -17,6 +21,7 @@ from viewer.models import (
     SiteObservationQualityStatus,
     Snapshot,
     SnapshotScreenshot,
+    Target,
     XtalformSite,
 )
 
@@ -70,9 +75,110 @@ class TargetFilterMixin(filters.FilterSet):
 
 
 class SiteObservationFilter(TargetFilterMixin):
+    # adding these as fields, but they're not in the model, hence the no-op method
+    xorigin = django_filters.NumberFilter(method="noop", label="X origin")
+    yorigin = django_filters.NumberFilter(method="noop", label="Y origin")
+    zorigin = django_filters.NumberFilter(method="noop", label="Z origin")
+    radius = django_filters.NumberFilter(method="noop", label="Radius")
+
     class Meta:
         model = SiteObservation
-        fields = ("target",)
+        fields = ("target", "xorigin", "yorigin", "zorigin", "radius")
+
+    # I feel like this isn't the correct method in FilterSet class to
+    # override for this functionality. but given the sparse
+    # documentation of django_filter I can't find a better one either
+
+    # Update: ok this is clearly not the correct place to update. I
+    # want to add coords to be the last step, so it would already be
+    # filtered by target, otherwise cannot guarantee consistent
+    # behaviour
+    def filter_queryset(self, queryset):
+        qs = super().filter_queryset(queryset)
+        qs = self.filter_by_radius(queryset)
+        return qs
+
+    def noop(self, queryset):
+        return queryset
+
+    def filter_by_radius(self, queryset):
+        params = self.data
+        logger.debug('params: %s', params)
+        logger.debug('queryset count: %s', queryset.count())
+
+        x_str = params.get("xorigin", None)
+        y_str = params.get("yorigin", None)
+        z_str = params.get("zorigin", None)
+        r_str = params.get("radius", None)
+        target_id = params.get("target", None)
+
+        if not all([x_str, y_str, z_str, r_str, target_id]):
+            # none of the coordinate filter parameters defined, it's
+            # clear the user is not trying to filter by coordinate
+            return queryset
+
+        try:
+            x = float(x_str)
+        except TypeError as exc:
+            raise ValidationError("xorigin is not a valid float value") from exc
+
+        try:
+            y = float(y_str)
+        except TypeError as exc:
+            raise ValidationError("yorigin is not a valid float value") from exc
+
+        try:
+            z = float(z_str)
+        except TypeError as exc:
+            raise ValidationError("zorigin is not a valid float value") from exc
+
+        try:
+            r = float(r_str)
+        except TypeError as exc:
+            raise ValidationError("Radius is not a valid float value") from exc
+
+        if r < 0:
+            raise ValidationError("Radius must be non-negative")
+
+        try:
+            target = Target.objects.get(pk=target_id)
+        except Target.DoesNotExist as exc:
+            raise ValidationError(f"Target with pk {target_id} not found") from exc
+
+        logger.debug('x: %s', x)
+        logger.debug('y: %s', y)
+        logger.debug('z: %s', z)
+        logger.debug('r: %s', r)
+        logger.debug('target: %s', target)
+
+        # all params present and valid, continue to filter. when target is defined
+
+        # return filter_by_radius(queryset, params)
+        target_so = SiteObservation.filter_manager.by_target(target)
+        qs = (
+            SiteObservation.objects.annotate(
+                coords_in_r=Exists(
+                    AtomCoordinates.objects.filter(
+                        site_observation=OuterRef('pk'),
+                        site_observation__in=target_so,
+                    )
+                    .annotate(
+                        dist=L2Distance(F('coords'), [x, y, z]),
+                    )
+                    .filter(
+                        dist__lte=r,
+                    ),
+                ),
+            )
+            .filter(
+                coords_in_r=True,
+            )
+            .distinct()
+        )
+
+        logger.debug('filtered qs: %s', qs.count())
+
+        return qs
 
 
 class CanonSiteFilter(TargetFilterMixin):

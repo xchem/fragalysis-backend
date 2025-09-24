@@ -11,7 +11,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
-from pgvector.django import HalfVectorField
+from pgvector.django import HalfVectorField, HnswIndex
 from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
 
@@ -783,6 +783,17 @@ class AtomCoordinates(models.Model):
     )
     atom_number = models.SmallIntegerField(null=False)
     coords = HalfVectorField(dimensions=3)
+
+    class Meta:
+        indexes = [
+            HnswIndex(
+                name='pgvector_coord_index',
+                fields=['coords'],
+                m=16,
+                ef_construction=64,
+                opclasses=['halfvec_l2_ops'],
+            ),
+        ]
 
 
 class CompoundIdentifierType(models.Model):

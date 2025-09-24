@@ -1680,12 +1680,13 @@ class TargetLoader:
             "smiles": smiles,
         }
 
+        mol = None
         if ligand_mol:
             molpath = Path(settings.MEDIA_ROOT).joinpath(
                 self.raw_data,
-                *Path(ligand_mol).parts[2:],
+                Path(ligand_mol),
             )
-            mol = Chem.MolFromMolFile(molpath)
+            mol = Chem.MolFromMolFile(str(molpath))
 
         return ProcessedObject(
             model_class=SiteObservation,
@@ -2975,16 +2976,19 @@ class TargetLoader:
                 logger.debug('saved connection')
 
     def mol_coords_to_db(self, site_observation_objects):
+        logger.debug('+mol_coords_to_db')
         for val in site_observation_objects.values():  # pylint: disable=no-member
             if val.new and val.index_data['mol']:
-                conf = val.index_data['mol'].GetConformer()
+                logger.debug('coords for %s, %s', val.instance.pk, val.instance.code)
+                mol = val.index_data['mol']
+                conf = mol.GetConformer()
 
-                for atom in conf.GetAtoms():
+                for atom in mol.GetAtoms():
                     pos = conf.GetAtomPosition(atom.GetIdx())
                     atom = AtomCoordinates(
                         site_observation=val.instance,
                         coords=list(pos),
-                        atom=atom.GetAtomicNum(),
+                        atom_number=atom.GetAtomicNum(),
                     )
                     atom.save()
 
