@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             name='AtomCoordinates',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('atom_number', models.SmallIntegerField(default=0), preserve_default=False),
+                ('atom_number', models.SmallIntegerField(default=0)),
                 ('coords', pgvector.django.halfvec.HalfVectorField(dimensions=3)),
                 ('site_observation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='atom_coordinates', to='viewer.siteobservation')),
             ],
