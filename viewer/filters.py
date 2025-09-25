@@ -98,7 +98,8 @@ class SiteObservationFilter(TargetFilterMixin):
         qs = self.filter_by_radius(queryset)
         return qs
 
-    def noop(self, queryset):
+    def noop(self, queryset, name, value):
+        del name, value
         return queryset
 
     def filter_by_radius(self, queryset):

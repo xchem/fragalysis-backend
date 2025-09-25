@@ -2119,15 +2119,6 @@ class SiteObservationView(ISPyBSafeQuerySet):
     filterset_class = filters.SiteObservationFilter
     filter_permissions = "experiment__experiment_upload__project"
 
-    def list(self, request):
-        import time
-
-        start = time.time()
-        result = super().list(request)
-        end = time.time()
-        logger.debug('filter time: %s', end - start)
-        return result
-
 
 class CanonSiteView(ISPyBSafeQuerySet):
     queryset = models.CanonSite.filter_manager.filter_qs().filter(superseded=False)
