@@ -2,7 +2,6 @@ import logging
 
 import django_filters
 from django.core.exceptions import ValidationError
-from django.db.models import Exists, F, OuterRef
 from django_filters import rest_framework as filters
 from pgvector.django import L2Distance
 
@@ -154,28 +153,17 @@ class SiteObservationFilter(TargetFilterMixin):
 
         # all params present and valid, continue to filter. when target is defined
 
-        # return filter_by_radius(queryset, params)
-        target_so = SiteObservation.filter_manager.by_target(target)
-        qs = (
-            SiteObservation.objects.annotate(
-                coords_in_r=Exists(
-                    AtomCoordinates.objects.filter(
-                        site_observation=OuterRef('pk'),
-                        site_observation__in=target_so,
-                    )
-                    .annotate(
-                        dist=L2Distance(F('coords'), [x, y, z]),
-                    )
-                    .filter(
-                        dist__lte=r,
-                    ),
-                ),
-            )
-            .filter(
-                coords_in_r=True,
-            )
-            .distinct()
+        # fmt: off
+        qs = SiteObservation.filter_manager.by_target(target).filter(
+            pk__in=AtomCoordinates.objects.alias(
+                distance=L2Distance('coords', [x, y, z]),
+            ).filter(
+                distance__lte=r,
+            ).values(
+                'site_observation',
+            ),
         )
+        # fmt: on
 
         logger.debug('filtered qs: %s', qs.count())
 
