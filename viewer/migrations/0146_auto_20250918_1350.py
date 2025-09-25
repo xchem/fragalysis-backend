@@ -16,10 +16,7 @@ class Migration(migrations.Migration):
 
         for so in SiteObservation.objects.all():
             if so.ligand_mol:
-                molpath = Path(settings.MEDIA_ROOT).joinpath(
-                    str(so.experiment.experiment_upload.target.zip_archive),
-                    so.ligand_mol.name,
-                )
+                molpath = Path(settings.MEDIA_ROOT).joinpath(so.ligand_mol.name)
                 print(molpath)
             if not molpath.exists():
                 continue
