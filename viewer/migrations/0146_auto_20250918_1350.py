@@ -17,7 +17,6 @@ class Migration(migrations.Migration):
         for so in SiteObservation.objects.all():
             if so.ligand_mol:
                 molpath = Path(settings.MEDIA_ROOT).joinpath(so.ligand_mol.name)
-                print(molpath)
             if not molpath.exists():
                 continue
 
@@ -27,7 +26,7 @@ class Migration(migrations.Migration):
             for atom in mol.GetAtoms():
                 pos = conf.GetAtomPosition(atom.GetIdx())
                 atom = AtomCoordinates(
-                    site_observation=val.instance,
+                    site_observation=so,
                     coords=list(pos),
                     atom_number=atom.GetAtomicNum(),
                 )

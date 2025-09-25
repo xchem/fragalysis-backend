@@ -16,8 +16,13 @@ class Migration(migrations.Migration):
             name='AtomCoordinates',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('atom_number', models.SmallIntegerField(default=0), preserve_default=False),
                 ('coords', pgvector.django.halfvec.HalfVectorField(dimensions=3)),
                 ('site_observation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='atom_coordinates', to='viewer.siteobservation')),
             ],
+        ),
+        migrations.AddIndex(
+            model_name='atomcoordinates',
+            index=pgvector.django.indexes.HnswIndex(ef_construction=64, fields=['coords'], m=16, name='pgvector_coord_index', opclasses=['halfvec_l2_ops']),
         ),
     ]
