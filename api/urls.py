@@ -118,6 +118,11 @@ router.register(
     "site_observations", viewer_views.SiteObservationView, basename='site_observations'
 )
 router.register(
+    "site_observation_ids",
+    viewer_views.SiteObservationIDView,
+    basename='site_observation_ids',
+)
+router.register(
     "site_observation_quality",
     viewer_views.SiteObservationQualityStatusView,
     basename='site_observation_quality',

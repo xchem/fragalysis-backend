@@ -2120,6 +2120,15 @@ class SiteObservationView(ISPyBSafeQuerySet):
     filter_permissions = "experiment__experiment_upload__project"
 
 
+class SiteObservationIDView(ISPyBSafeQuerySet):
+    queryset = models.SiteObservation.filter_manager.filter_qs().filter(
+        superseded=False
+    )
+    serializer_class = serializers.SiteObservationIDSerializer
+    filterset_class = filters.SiteObservationCoordinateFilter
+    filter_permissions = "experiment__experiment_upload__project"
+
+
 class CanonSiteView(ISPyBSafeQuerySet):
     queryset = models.CanonSite.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.CanonSiteReadSerializer

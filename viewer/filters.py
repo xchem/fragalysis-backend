@@ -74,6 +74,12 @@ class TargetFilterMixin(filters.FilterSet):
 
 
 class SiteObservationFilter(TargetFilterMixin):
+    class Meta:
+        model = SiteObservation
+        fields = ("target",)
+
+
+class SiteObservationCoordinateFilter(TargetFilterMixin):
     # adding these as fields, but they're not in the model, hence the no-op method
     xorigin = django_filters.NumberFilter(method="noop", label="X origin")
     yorigin = django_filters.NumberFilter(method="noop", label="Y origin")
