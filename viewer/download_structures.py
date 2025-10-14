@@ -5,6 +5,7 @@ Methods for downloading a Target Zip file used by the download_structure API.
 """
 
 import copy
+import csv
 import json
 import logging
 import os
@@ -21,6 +22,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict
 
+import pandas as pd
 import pandoc
 import requests
 from django.conf import settings
@@ -781,27 +783,31 @@ class DownloadStructures:
             )
         ).annotate(
             **annotations
-        ).values_list(
+        ).values(
             *values
         )
         # fmt: on
 
-        buff = StringIO()
-        buff.write(','.join(header))
-        buff.write('\n')
-        for so_values in qs:
-            buff.write(
-                ','.join(
-                    [
-                        str(k) if k else 'False' if isinstance(k, bool) else ''
-                        for k in so_values
-                    ]
-                )
-            )
-            buff.write('\n')
+        df = pd.DataFrame(qs)
+        logger.debug('qs: %s', qs)
+        logger.debug('annotations: %s', annotations.keys())
+        logger.debug('values: %s', values)
 
+        columns = [header[values.index(k)] for k in df.columns]
+        df.columns = columns
+
+        buff = StringIO()
+        df.to_csv(
+            buff,
+            header=True,
+            index=False,
+            encoding='utf-8',
+            quoting=csv.QUOTE_NONNUMERIC,
+            lineterminator="\n",
+        )
+        buff.seek(0)
         self.write_file(buff.getvalue(), _METADATA_FILE)
-        logger.info('+ Processing metadata')
+        logger.info('- Processing metadata')
 
     def _extra_files_zip(self, target):
         """If an extra info folder exists at the target root level, then

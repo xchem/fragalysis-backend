@@ -5,6 +5,10 @@
 # -o (for option) pipefail exits on command pipe failures
 set -eo pipefail
 
+# part of debugging issue 1609, missing template protein
+echo "Starting media deletion watcher..."
+/code/filewatcher.sh &
+
 echo "Running migrations..."
 cd /code
 python manage.py migrate
@@ -57,7 +61,7 @@ gunicorn fragalysis.wsgi:application \
 
 # NB! this is probably a workaround for some other issue we haven't
 # discovered yet. It suddenly broke but right now seems to work in
-# firefox. Hopefully won't be necessary soon
+# firefox. 12Hopefully won't be necessary soon
 echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER:-https};"  >> /etc/nginx/frag_proxy_params
 
 echo "Testing nginx config..."

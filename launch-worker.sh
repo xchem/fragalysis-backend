@@ -5,6 +5,10 @@
 # -o (for option) pipefail exits on command pipe failures
 set -eo pipefail
 
+# part of debugging issue 1609, missing template protein
+echo "Starting media deletion watcher..."
+/code/filewatcher.sh &
+
 CONCURRENCY=${WORKER_CONCURRENCY:-4}
 
 echo "Running celery (CONCURRENCY=${CONCURRENCY})..."
