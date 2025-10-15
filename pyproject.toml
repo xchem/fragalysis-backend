@@ -57,7 +57,7 @@ bcrypt = "4.0.1"
 # Django will (probably) need work in the code to support v4.
 # Simply changing to django 4 results in errors
 # like "CSRF Failed: Origin checking failed"
-django = "3.2.25"
+django = "5.2.7"
 # Attempt to avoid the error:
 # 'django_prometheus.db.backends.postgresql' isn't an available database backend
 # Recent prometheus versions may break the build

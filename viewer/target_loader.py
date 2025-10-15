@@ -2201,7 +2201,7 @@ class TargetLoader:
             pk__in=[k.instance.pk for k in canon_site_objects.values() ], # pylint: disable=no-member
         ).annotate(
             # obvs=Count("canonsiteconf_set__siteobservation_set", default=0),
-            obvs=Count("canonsiteconf__siteobservation", default=0),
+            obvs=Count("canonsiteconf__siteobservation", empty_result_set_value=0),
         ).order_by("-obvs", "name")
         # ordering by name is not strictly necessary, but
         # makes the sorting consistent
@@ -2354,7 +2354,7 @@ class TargetLoader:
         xtls_sort_qs = XtalformSite.objects.filter(
             pk__in=[k.instance.pk for k in xtalform_sites_objects.values() ], # pylint: disable=no-member
         ).annotate(
-            obvs=Count("canon_site__canonsiteconf__siteobservation", default=0),
+            obvs=Count("canon_site__canonsiteconf__siteobservation", empty_result_set_value=0),
         ).order_by("-obvs", "xtalform_site_id")
         # ordering by xtalform_site_id is not strictly necessary, but
         # makes the sorting consistent
