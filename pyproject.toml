@@ -8,13 +8,14 @@ readme = "README.md"
 packages = [{include = "fragalysis_backend"}]
 
 [tool.poetry.dependencies]
-python = "^3.11.3"
+python = "^3.13.7"
 
 # Specific (critical dependency) packages...
 # Do not change these without careful thought!
-rdkit = "2023.3.2"
+rdkit = "2025.03.6"
 xchem-db = "0.1.26b0"
-djangorestframework = "3.14.0"
+# djangorestframework = "3.14.0"
+djangorestframework = "3.16.1"
 
 # Less strict (flexible dependency) packages...
 celery = "^5.4"
@@ -34,7 +35,7 @@ im-squonk2-client = "^1.22.2"
 mozilla_django_oidc = "^3.0.0"
 mysql-connector-python = "^8.1.0"
 openpyxl = "^3.1.2"
-pandas = "^1.5.3"
+pandas = "^2.3.2"
 pandoc = "^2.3"
 psutil = "^5.9.5"
 psycopg2-binary = "^2.9.6"
@@ -48,8 +49,10 @@ urllib3 = "^2.0.4"
 validators = "^0.20.0"
 django-celery-beat = "^2.6.0"
 django-celery-results = "^2.5.1"
-numpy = "^1.23"
+numpy = "^2.3.3"
 python-dateutil = "^2"
+setuptools = "^80.9.0"
+legacy-cgi = "^2.6.3"   # required by djangorestframwork
 
 # Blocked packages...
 #
