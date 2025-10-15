@@ -179,6 +179,8 @@ router.register(
 
 router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')
 
+router.register("tas_stats", viewer_views.TASStatsView, basename='tas_stats')
+
 # Squonk Jobs
 router.register(
     "job_file_transfer", viewer_views.JobFileTransferView, basename='job_file_transfer'
