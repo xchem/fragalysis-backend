@@ -22,11 +22,12 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 @dataclass
 class TasAuthVersionGetResponse:
-    """The TA authenticator version response."""
+    """The TA authenticator version response (including the base URL)."""
 
     version: str
     kind: str
     name: str
+    location: str = _URL_BASE
 
 
 @dataclass

@@ -3377,7 +3377,12 @@ class TASStatsView(viewsets.ViewSet):
 
         result = {
             "user": user.username,
-            "version": auth_version.kind,
+            "version": {
+                "kind": auth_version.kind,
+                "name": auth_version.name,
+                "version": auth_version.version,
+                "location": auth_version.location,
+            },
             "ping": ping.ping,
             "target_access": list(tas_set),
         }
