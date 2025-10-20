@@ -3377,7 +3377,8 @@ class TASStatsView(viewsets.ViewSet):
 
         result = {
             "user": user.username,
-            "version": {
+            "user_id": user.pk,
+            "authenticator": {
                 "kind": auth_version.kind,
                 "name": auth_version.name,
                 "version": auth_version.version,

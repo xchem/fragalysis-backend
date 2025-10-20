@@ -179,7 +179,7 @@ router.register(
 
 router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')
 
-router.register("tas_stats", viewer_views.TASStatsView, basename='tas_stats')
+router.register("user", viewer_views.TASStatsView, basename='user')
 
 # Squonk Jobs
 router.register(
