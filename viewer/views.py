@@ -29,6 +29,11 @@ from rest_framework.views import APIView
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
 from api.security import ISPyBSafeQuerySet
+from api.ta_auth_connector import (
+    get_auth_ping,
+    get_auth_target_access,
+    get_auth_version,
+)
 from api.utils import get_highlighted_diffs, get_img_from_smiles, pretty_request
 from service_status.models import Service
 from viewer import filters, models, serializers
@@ -3350,3 +3355,37 @@ class PlotDataView(
     filter_permissions = "project"
     permission_classes = [IsObjectProposalMember]
     filterset_fields = ('target',)
+
+
+class TASStatsView(viewsets.ViewSet):
+    # memo: there's no need for enforcing authentication, the logged
+    # in user is fetched from the request. If not logged in, it
+    # defaults to anonymous user
+
+    def list(self, request, *args, **kwargs):
+        del args, kwargs
+
+        user = request.user
+
+        # fragalysis has its own anonymous user
+        if user.is_anonymous:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        tas_set = get_auth_target_access(user.username)
+        ping = get_auth_ping()
+        auth_version = get_auth_version()
+
+        result = {
+            "user": user.username,
+            "user_id": user.pk,
+            "authenticator": {
+                "kind": auth_version.kind,
+                "name": auth_version.name,
+                "version": auth_version.version,
+                "location": auth_version.location,
+            },
+            "ping": ping.ping,
+            "target_access": list(tas_set),
+        }
+
+        return JsonResponse(result)
