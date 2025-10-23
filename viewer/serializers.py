@@ -1061,6 +1061,12 @@ class SiteObservationReadSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class SiteObservationIDSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SiteObservation
+        fields = ('id',)
+
+
 class CanonSiteReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.CanonSite
