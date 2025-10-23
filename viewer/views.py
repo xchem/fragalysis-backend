@@ -1982,7 +1982,14 @@ class TaskStatusView(APIView):
             error = {'error': 'Task messages not found. Try again later'}
             return Response(error, status=status.HTTP_404_NOT_FOUND)
 
-        project = models.Project.objects.get(title=proposal)
+        try:
+            project = models.Project.objects.get(title=proposal)
+        except models.Project.DoesNotExist:
+            return Response(
+                {'error': f'Proposal {proposal} not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         logger.debug("project found: %s", project.title)
 
         if not project.open_to_public:
@@ -2115,6 +2122,15 @@ class SiteObservationView(ISPyBSafeQuerySet):
     )
     serializer_class = serializers.SiteObservationReadSerializer
     filterset_class = filters.SiteObservationFilter
+    filter_permissions = "experiment__experiment_upload__project"
+
+
+class SiteObservationIDView(ISPyBSafeQuerySet):
+    queryset = models.SiteObservation.filter_manager.filter_qs().filter(
+        superseded=False
+    )
+    serializer_class = serializers.SiteObservationIDSerializer
+    filterset_class = filters.SiteObservationCoordinateFilter
     filter_permissions = "experiment__experiment_upload__project"
 
 
