@@ -61,7 +61,11 @@ router.register("viewscene", score_views.ViewSceneView)
 router.register("siteobservationgroup", score_views.SiteObservationGroupView)
 
 # Get the information
-router.register("siteobservationannotation", score_views.SiteObservationAnnotationView)
+router.register(
+    "siteobservationannotation",
+    score_views.SiteObservationAnnotationView,
+    basename="siteobservationannotation",
+)
 
 # discourse posts
 router.register(
