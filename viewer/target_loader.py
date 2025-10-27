@@ -1686,7 +1686,8 @@ class TargetLoader:
                 self.raw_data,
                 Path(ligand_mol),
             )
-            mol = Chem.MolFromMolFile(str(molpath))
+            if molpath.exists():
+                mol = Chem.MolFromMolFile(str(molpath))
 
         return ProcessedObject(
             model_class=SiteObservation,
