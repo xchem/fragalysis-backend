@@ -172,9 +172,11 @@ def validate_file_transfer_files(
             unquote(p.strip()) for p in request.data['compounds'].split(',')
         ]
         for compound_path_and_file in compound_paths_and_files:
-            if not SiteObservation.objects.filter(
-                ligand_mol=compound_path_and_file
-            ).first():
+            if not (
+                s_ob := SiteObservation.objects.filter(
+                    ligand_mol=compound_path_and_file
+                ).first()
+            ):
                 return tfr_validation_error(
                     f'Unknown Compound: "{compound_path_and_file}"',
                     status.HTTP_404_NOT_FOUND,
