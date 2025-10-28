@@ -131,6 +131,7 @@ zip_template = {
     'metadata_info': None,
     'trans_matrix_info': None,
     'compound_sets': None,
+    'soakdb_files': None,
 }
 
 
@@ -432,6 +433,7 @@ class DownloadStructures:
         # Add the trans matrix files
         zip_contents['trans_matrix_info'] = other_params['trans_matrix_info']
         zip_contents['compound_sets'] = other_params['compound_sets']
+        zip_contents['soakdb_files'] = other_params['soakdb_files']
 
         return zip_contents
 
@@ -504,7 +506,7 @@ class DownloadStructures:
             self._trans_matrix_files_zip(self.target)
 
         self.update_task(ProcessState.PROCESSING, 'Adding extra files...')
-        self._extra_files_zip(self.target)
+        self._extra_files_zip(self.target, soakdb_files=zip_contents['soakdb_files'])
 
         self.update_task(ProcessState.PROCESSING, 'Adding YAMLs...')
         self._yaml_files_zip(
@@ -809,7 +811,7 @@ class DownloadStructures:
         self.write_file(buff.getvalue(), _METADATA_FILE)
         logger.info('- Processing metadata')
 
-    def _extra_files_zip(self, target):
+    def _extra_files_zip(self, target, soakdb_files=True):
         """If an extra info folder exists at the target root level, then
         copy the contents to the output file as is.
         Note that this will always be the latest information - even for
@@ -840,14 +842,17 @@ class DownloadStructures:
             for dirpath, _, files in os.walk(extra_files):
                 for file in files:
                     filepath = os.path.join(dirpath, file)
-                    logger.info('Adding extra file "%s"...', filepath)
-                    self.write_symlink(
-                        filepath,
-                        os.path.join(
-                            f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
-                        ),
-                    )
-                    num_processed += 1
+                    if soakdb_files or (
+                        not soakdb_files and filepath.find('soakdb_') < 0
+                    ):
+                        logger.info('Adding extra file "%s"...', filepath)
+                        self.write_symlink(
+                            filepath,
+                            os.path.join(
+                                f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
+                            ),
+                        )
+                        num_processed += 1
         else:
             logger.info('Directory does not exist (%s)...', extra_files)
 
@@ -1132,6 +1137,7 @@ def get_download_params(validated_data):
         'smiles_info': validated_data['all_aligned_structures'],
         'trans_matrix_info': validated_data['trans_matrix_info'],
         'compound_sets': validated_data['compound_sets'],
+        'soakdb_files': validated_data['soakdb_files'],
     }
 
     static_link = validated_data['static_link']
