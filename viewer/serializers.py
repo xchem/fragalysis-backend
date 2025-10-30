@@ -877,6 +877,7 @@ class DownloadStructuresSerializer(serializers.Serializer):
     metadata_info = serializers.BooleanField(default=False)
     trans_matrix_info = serializers.BooleanField(default=False)
     compound_sets = serializers.BooleanField(default=True)
+    soakdb_files = serializers.BooleanField(default=True)
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
     use_zip = serializers.BooleanField(default=False, label='Use ZIP format (slower)')
@@ -1059,6 +1060,12 @@ class SiteObservationReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.SiteObservation
         fields = '__all__'
+
+
+class SiteObservationIDSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SiteObservation
+        fields = ('id',)
 
 
 class CanonSiteReadSerializer(serializers.ModelSerializer):

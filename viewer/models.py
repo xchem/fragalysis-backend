@@ -11,6 +11,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+from pgvector.django import HalfVectorField, HnswIndex
 from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
 
@@ -769,6 +770,29 @@ class SiteObservationQualityStatus(models.Model):
                 condition=models.Q(main_status=True),
                 name="unique_main_status_per_site_observation",
             )
+        ]
+
+
+class AtomCoordinates(models.Model):
+    """Store ligand atom coordinates"""
+
+    site_observation = models.ForeignKey(
+        SiteObservation,
+        on_delete=models.CASCADE,
+        related_name="atom_coordinates",
+    )
+    atom_number = models.SmallIntegerField(null=False)
+    coords = HalfVectorField(dimensions=3)
+
+    class Meta:
+        indexes = [
+            HnswIndex(
+                name='pgvector_coord_index',
+                fields=['coords'],
+                m=16,
+                ef_construction=64,
+                opclasses=['halfvec_l2_ops'],
+            ),
         ]
 
 

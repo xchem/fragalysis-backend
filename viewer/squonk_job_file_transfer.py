@@ -4,15 +4,14 @@ Fragalysis to Squonk.
 import os
 import urllib.parse
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Tuple
 from urllib.parse import unquote
 
 from celery.utils.log import get_task_logger
 from django.conf import settings
-from rest_framework import status
 from squonk2.dm_api import DmApi
 
-from viewer.models import JobFileTransfer, SiteObservation
+from viewer.models import JobFileTransfer, SiteObservation, Target
 
 logger = get_task_logger(__name__)
 
@@ -100,8 +99,10 @@ def process_file_transfer(auth_token, job_transfer_id):
 
 
 def validate_file_transfer_files(
-    request,
-) -> Tuple[Optional[Dict[str, str]], Optional[List[Path]], Optional[List[Path]]]:
+    target: Target,
+    proteins: str,
+    compounds: str,
+) -> Tuple[list[Path], list[Path]]:
     """Check the request and return a list of proteins and/or computed molecule file
     path references (paths relative to the media directory).
 
@@ -117,28 +118,22 @@ def validate_file_transfer_files(
     protein and compound references exist, and they belong to the Target.
 
     Args:
-        request
+        target object
+        comma-separated string of proteins
+        comma-separated string of compounds
     Returns
         error dictionary
         list of validated proteins
         list of validated computed molecules
     """
-    assert 'target' in request.data
-    assert 'proteins' in request.data
-    assert 'compounds' in request.data
-
     logger.info('+ Validating file transfer files ()...')
-
-    target_id = int(request.data['target'])
 
     protein_files: List[Path] = []
     compound_files: List[Path] = []
 
-    if request.data['proteins']:
+    if proteins:
         # Get first part of protein code
-        protein_paths_and_files = [
-            unquote(p.strip()) for p in request.data['proteins'].split(',')
-        ]
+        protein_paths_and_files = [unquote(p.strip()) for p in proteins.split(',')]
         for protein_path_and_file in protein_paths_and_files:
             if protein_path_and_file.endswith('_apo-desolv.pdb'):
                 if not (
@@ -146,50 +141,48 @@ def validate_file_transfer_files(
                         apo_desolv_file=protein_path_and_file
                     ).first()
                 ):
-                    return tfr_validation_error(
-                        f'Unknown Protein: "{protein_path_and_file}"',
-                        status.HTTP_404_NOT_FOUND,
+                    raise TfrFileNotFoundError(
+                        f'Unknown Protein: "{protein_path_and_file}"'
                     )
 
-                s_ob_target_id = s_ob.experiment.experiment_upload.target.id
-                if s_ob_target_id == target_id:
+                s_ob_target = s_ob.experiment.experiment_upload.target
+                if s_ob_target == target:
                     protein_files.append(Path(protein_path_and_file))
                 else:
-                    return tfr_validation_error(
+                    msg = (
                         f'Protein does not belong to Target: "{protein_path_and_file}"'
-                        f' SiteObservation target={s_ob_target_id}'
-                        f' Given target={target_id}',
-                        status.HTTP_400_BAD_REQUEST,
+                        f' SiteObservation target={s_ob_target.id}'
+                        f' Given target={target.id}',
                     )
+                    raise TfrValidationError(msg)
 
         logger.info(
             "- Validated proteins (SiteObservations) [%d]",
             len(protein_files),
         )
 
-    if request.data['compounds']:
-        compound_paths_and_files = [
-            unquote(p.strip()) for p in request.data['compounds'].split(',')
-        ]
+    if compounds:
+        compound_paths_and_files = [unquote(p.strip()) for p in compounds.split(',')]
         for compound_path_and_file in compound_paths_and_files:
-            if not SiteObservation.objects.filter(
-                ligand_mol=compound_path_and_file
-            ).first():
-                return tfr_validation_error(
-                    f'Unknown Compound: "{compound_path_and_file}"',
-                    status.HTTP_404_NOT_FOUND,
+            if not (
+                s_ob := SiteObservation.objects.filter(
+                    ligand_mol=compound_path_and_file
+                ).first()
+            ):
+                raise TfrFileNotFoundError(
+                    f'Unknown Compound: "{compound_path_and_file}"'
                 )
 
-            s_ob_target_id = s_ob.experiment.experiment_upload.target.id
-            if s_ob_target_id == target_id:
+            s_ob_target = s_ob.experiment.experiment_upload.target
+            if s_ob_target == target:
                 compound_files.append(Path(compound_path_and_file))
             else:
-                return tfr_validation_error(
+                msg = (
                     f'Compound does not belong to Target: "{compound_path_and_file}"'
-                    f' SiteObservation target={s_ob_target_id}'
-                    f' Given target={target_id}',
-                    status.HTTP_400_BAD_REQUEST,
+                    f' SiteObservation target={s_ob_target.id}'
+                    f' Given target={target.id}',
                 )
+                raise TfrValidationError(msg)
 
         logger.info(
             "- Validated compounds (SiteObservations) [%d]",
@@ -197,9 +190,9 @@ def validate_file_transfer_files(
         )
 
     if not protein_files and not compound_files:
-        return tfr_validation_error(
-            'A valid set of protein codes and/or a list of valid compound names must be provided',
-            status.HTTP_400_BAD_REQUEST,
+        raise TfrValidationError(
+            'A valid set of protein codes and/or a list of'
+            + ' valid compound names must be provided',
         )
 
     logger.info(
@@ -207,11 +200,12 @@ def validate_file_transfer_files(
         len(protein_files),
         len(compound_files),
     )
-    return None, protein_files, compound_files
+    return protein_files, compound_files
 
 
-def tfr_validation_error(
-    error: str, status_code: int
-) -> Tuple[Dict[str, Any], None, None]:
-    """Returns the error and HTTP status code as a tuple for a response."""
-    return {'message': error, 'status': status_code}, None, None
+class TfrValidationError(Exception):
+    pass
+
+
+class TfrFileNotFoundError(Exception):
+    pass

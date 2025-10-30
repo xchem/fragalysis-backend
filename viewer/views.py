@@ -71,7 +71,11 @@ from .download_structures import (  # create_or_return_download_link,
     return_download_link,
 )
 from .forms import CSetForm
-from .squonk_job_file_transfer import validate_file_transfer_files
+from .squonk_job_file_transfer import (
+    TfrFileNotFoundError,
+    TfrValidationError,
+    validate_file_transfer_files,
+)
 from .squonk_job_request import (
     check_squonk_active,
     create_squonk_job,
@@ -1982,7 +1986,14 @@ class TaskStatusView(APIView):
             error = {'error': 'Task messages not found. Try again later'}
             return Response(error, status=status.HTTP_404_NOT_FOUND)
 
-        project = models.Project.objects.get(title=proposal)
+        try:
+            project = models.Project.objects.get(title=proposal)
+        except models.Project.DoesNotExist:
+            return Response(
+                {'error': f'Proposal {proposal} not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         logger.debug("project found: %s", project.title)
 
         if not project.open_to_public:
@@ -2118,6 +2129,15 @@ class SiteObservationView(ISPyBSafeQuerySet):
     filter_permissions = "experiment__experiment_upload__project"
 
 
+class SiteObservationIDView(ISPyBSafeQuerySet):
+    queryset = models.SiteObservation.filter_manager.filter_qs().filter(
+        superseded=False
+    )
+    serializer_class = serializers.SiteObservationIDSerializer
+    filterset_class = filters.SiteObservationCoordinateFilter
+    filter_permissions = "experiment__experiment_upload__project"
+
+
 class CanonSiteView(ISPyBSafeQuerySet):
     queryset = models.CanonSite.filter_manager.filter_qs().filter(superseded=False)
     serializer_class = serializers.CanonSiteReadSerializer
@@ -2213,12 +2233,21 @@ class JobFileTransferView(viewsets.ModelViewSet):
             content = {'error': f'You cannot do this ({sq2a_rv.msg})'}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
+        target = models.Target.objects.get(id=target_id)
+        proteins = request.data.get('proteins', '')
+        compounds = request.data.get('compounds', '')
+
         # Check the existence of the files that are expected to be transferred
-        error, protein_files, compound_files = validate_file_transfer_files(request)
-        if error:
-            return Response(error['message'], status=error['status'])
-        assert protein_files
-        assert compound_files
+        try:
+            protein_files, compound_files = validate_file_transfer_files(
+                target,
+                proteins,
+                compounds,
+            )
+        except TfrValidationError as exc:
+            return Response(exc.args[0], status=status.HTTP_400_BAD_REQUEST)
+        except TfrFileNotFoundError as exc:
+            return Response(exc.args[0], status=status.HTTP_404_NOT_FOUND)
 
         # Create new file transfer job
         logger.info('+ Calling ensure_project() to get the Squonk2 Project...')

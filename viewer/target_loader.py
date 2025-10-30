@@ -37,6 +37,7 @@ from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 from scoring.models import SiteObservationGroup
 from viewer.models import (
+    AtomCoordinates,
     CanonSite,
     CanonSiteConf,
     Compound,
@@ -1679,9 +1680,14 @@ class TargetLoader:
             "smiles": smiles,
         }
 
-        # index_data = {
-        #     "auto_build_score": random.random(),
-        # }
+        mol = None
+        if ligand_mol:
+            molpath = Path(settings.MEDIA_ROOT).joinpath(
+                self.raw_data,
+                Path(ligand_mol),
+            )
+            if molpath.exists():
+                mol = Chem.MolFromMolFile(str(molpath))
 
         return ProcessedObject(
             model_class=SiteObservation,
@@ -1689,7 +1695,7 @@ class TargetLoader:
             defaults=defaults,
             key=key,
             versioned_key=v_key,
-            index_data={},
+            index_data={'mol': mol},
         )
 
     def process_bundle(self):
@@ -2487,6 +2493,8 @@ class TargetLoader:
         if self.version_number > 1 and self.target.computedset_set.exists():
             self.link_compounds_to_computedmolecules(site_observation_objects)
 
+        self.mol_coords_to_db(site_observation_objects)
+
     def import_compound_identifiers(self, alias_file_path):
         try:
             df = pd.read_csv(alias_file_path)
@@ -2967,6 +2975,23 @@ class TargetLoader:
                     rmsd=rmsd,
                 ).save()
                 logger.debug('saved connection')
+
+    def mol_coords_to_db(self, site_observation_objects):
+        logger.debug('+mol_coords_to_db')
+        for val in site_observation_objects.values():  # pylint: disable=no-member
+            if val.new and val.index_data['mol']:
+                logger.debug('coords for %s, %s', val.instance.pk, val.instance.code)
+                mol = val.index_data['mol']
+                conf = mol.GetConformer()
+
+                for atom in mol.GetAtoms():
+                    pos = conf.GetAtomPosition(atom.GetIdx())
+                    atom = AtomCoordinates(
+                        site_observation=val.instance,
+                        coords=list(pos),
+                        atom_number=atom.GetAtomicNum(),
+                    )
+                    atom.save()
 
     def exp_data_from_soakdb(self, row_data):
         # data structure to map db fields to functions that extract
