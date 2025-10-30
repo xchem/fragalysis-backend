@@ -2064,7 +2064,7 @@ class Result(models.Model):
     filter_manager = AssayResultDataManager()
 
     def __str__(self) -> str:
-        return f"{self.id}: {self.raw_value} {self.data_type}"
+        return f"{self.id}: {self.raw_value} {self.result_property.data_type}"
 
 
 class PlotDataIdentifierType(models.Model):
