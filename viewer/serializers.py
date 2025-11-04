@@ -1459,6 +1459,8 @@ class ResultPropertySerializer(serializers.ModelSerializer):
 
 
 class PlotDataSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
@@ -1493,5 +1495,9 @@ class PlotDataSerializer(serializers.ModelSerializer):
         fields = '__all__'
         extra_kwargs = {
             "author": {"read_only": True},
+            "username": {"read_only": True},
+            "email": {"read_only": True},
+            "first_name": {"read_only": True},
+            "last_name": {"read_only": True},
             "upload_time": {"read_only": True},
         }
