@@ -24,6 +24,10 @@ FLOAT_PATTERN = re.compile(r'(<=|>=|<|>)?\s*([+-]?(?:\d+\.\d*|\.\d+|\d+))')
 ERROR_COLUMN = 'error'
 
 
+class NoObjectsFoundError(Exception):
+    pass
+
+
 def load_file(filename: str, header_contains_data_types=False):
     header = [0]
     if header_contains_data_types:
@@ -169,6 +173,10 @@ def append_object_pk(df, id_column, object_type, target):
         existing_objects = Compound.objects.filter(
             compound_code__in=df[id_column],
         )
+        if not existing_objects:
+            raise NoObjectsFoundError(
+                f'No compounds found for codes {",".join(df[id_column])}'
+            )
         existing_ids = existing_objects.values_list('compound_code', flat=True)
         df = df[df[id_column].isin(existing_ids)]
 
@@ -180,6 +188,10 @@ def append_object_pk(df, id_column, object_type, target):
         existing_objects = SiteObservation.filter_manager.by_target(target).filter(
             code__in=df[id_column],
         )
+        if not existing_objects:
+            raise NoObjectsFoundError(
+                f'No site observations found for codes {",".join(df[id_column])}'
+            )
         existing_ids = existing_objects.values_list('code', flat=True)
         df = df[df[id_column].isin(existing_ids)]
 
@@ -276,7 +288,12 @@ class AssayData:
                 # header values. non-issue with multiindex
                 df = df.loc[:, ~df.columns.str.startswith('Unnamed: ')]
                 df, data_columns = resolve_data(df, self.id_column)
-            df = append_object_pk(df, self.id_column, self.id_type, self.target)
+            try:
+                df = append_object_pk(df, self.id_column, self.id_type, self.target)
+            except NoObjectsFoundError as exc:
+                self.errors.append(exc.args[0])
+                return self.errors, self.warnings
+
         except ValueError as exc:
             self.errors.append(exc.args[0])
             return self.errors, self.warnings
