@@ -637,12 +637,16 @@ class Pose(models.Model):
 
 
 class SiteObservation(Versionable, models.Model):
+    SHORT_UUID_LENGTH: int = 4
+
     code = models.TextField(null=True)
     longcode = models.TextField(null=True)
-    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
+    experiment = models.ForeignKey(Experiment, null=True, on_delete=models.CASCADE)
     cmpd = models.ForeignKey(Compound, null=True, on_delete=models.CASCADE)
-    xtalform_site = models.ForeignKey(XtalformSite, on_delete=models.CASCADE)
-    canon_site_conf = models.ForeignKey(CanonSiteConf, on_delete=models.CASCADE)
+    xtalform_site = models.ForeignKey(XtalformSite, null=True, on_delete=models.CASCADE)
+    canon_site_conf = models.ForeignKey(
+        CanonSiteConf, null=True, on_delete=models.CASCADE
+    )
     pose = models.ForeignKey(
         Pose,
         on_delete=models.SET_NULL,
@@ -680,8 +684,8 @@ class SiteObservation(Versionable, models.Model):
     # rdkit representation of smiles field for structure-based
     # search. Internally rdkit mol type
     smiles_mol = models.TextField(editable=False, null=True)
-    seq_id = models.IntegerField()
-    chain_id = models.CharField(max_length=1)
+    seq_id = models.IntegerField(null=True)
+    chain_id = models.CharField(max_length=1, null=True)
     ligand_mol = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
@@ -699,6 +703,72 @@ class SiteObservation(Versionable, models.Model):
         through="SiteObservationComputedMolecule",
         through_fields=("site_observation", "computed_molecule"),
     )
+
+    # from the former ComputedMolecule
+    # commented out fields will not be moved
+    # compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
+    # not doing the 'keep files in the db' again
+    # sdf_info = models.TextField(help_text="The 3D coordinates for the molecule")
+
+    # the next 2 sound slightly different but in practice they're always the same
+    # site_observation_code = models.TextField(
+    #     help_text="The LHS SiteObservation (the corresponding lhs_pdb value if it has one)",
+    #     null=True,
+    #     blank=True,
+    # )
+    # reference_code = models.TextField(
+    #     help_text="The computed reference SiteObservation (the corresponding ref_pdb value if it has one)",
+    #     null=True,
+    #     blank=True,
+    # )
+    # name is like 'v1a'
+    # name generated for the virtual observation at upload
+    virtual_name = models.TextField(null=True)
+
+    # Set from the _Name property of the underlying Molecule
+    virtual_molecule_name = models.TextField(null=True, blank=True)
+    # smiles = models.CharField(max_length=255)
+
+    # A four character string of non-confusing uppercase letters and
+    # digits for easy reference. This is combined with the Target to
+    # form the ComputedMolecule's name",
+    virtual_identifier = ShortUUIDField(
+        length=SHORT_UUID_LENGTH,
+        alphabet="ACDEFGHJKLMNPRSTUVWXYZ345679",
+        null=True,
+        blank=True,
+    )
+    computed_inspirations = models.ManyToManyField('self', blank=True)
+
+    # An optional url linking to the reference for this molecule
+    virtual_ref_url = models.TextField(null=True, blank=True)
+
+    # An optional rationale for this molecule
+    virtual_rationale = models.TextField(null=True, blank=True)
+
+    # pdb = models.ForeignKey(
+    #     SiteObservation,
+    #     related_name="pdb",
+    #     on_delete=models.PROTECT,
+    #     null=True,
+    #     help_text="SiteObservation object user referenced in upload (if given)",
+    # )
+
+    # Link to user-uploaded pdb file
+    # NB! only uploaded pdb, not link to experiment.pdb_info, like before
+    virtual_pdb_info = models.FileField(
+        upload_to="computed_set_data/",
+        null=True,
+        max_length=255,
+    )
+    virtual_ligand_mol = models.FileField(
+        upload_to="computed_set_data/", null=True, max_length=255
+    )
+    virtual_ref_observation = models.ForeignKey(
+        'self', null=True, on_delete=models.CASCADE
+    )
+
+    computed_observations = models.ManyToManyField('self', blank=True)
 
     objects = models.Manager()
     # causes problems with trigger func and don't really need it in
@@ -1247,6 +1317,12 @@ class ComputedSet(models.Model):
         through_fields=("computed_set", "computed_molecule"),
         related_name="computed_set",
     )
+    site_observations = models.ManyToManyField(
+        SiteObservation,
+        through="ComputedSetSiteObservation",
+        through_fields=("computed_set", "site_observation"),
+        related_name="computed_set",
+    )
 
     objects = models.Manager()
     filter_manager = ComputedSetDataManager()
@@ -1359,6 +1435,7 @@ class ComputedMolecule(models.Model):
             return fname
 
 
+# to be obsoleted
 class ComputedSetComputedMolecule(models.Model):
     computed_set = models.ForeignKey(ComputedSet, null=False, on_delete=models.CASCADE)
     computed_molecule = models.ForeignKey(
@@ -1377,6 +1454,26 @@ class ComputedSetComputedMolecule(models.Model):
         ]
 
 
+# to be obsoleted
+class ComputedSetSiteObservation(models.Model):
+    computed_set = models.ForeignKey(ComputedSet, null=False, on_delete=models.CASCADE)
+    site_observation = models.ForeignKey(
+        SiteObservation, null=False, on_delete=models.CASCADE
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "computed_set",
+                    "site_observation",
+                ],
+                name="unique_computedsetsiteobservation",
+            ),
+        ]
+
+
+# to be obsoleted
 class SiteObservationComputedMolecule(models.Model):
     site_observation = models.ForeignKey(
         SiteObservation,
@@ -1398,6 +1495,41 @@ class SiteObservationComputedMolecule(models.Model):
                     "computed_molecule",
                 ],
                 name="unique_siteobservation_computedmolecule",
+            ),
+        ]
+
+
+class SiteObservationComputedSiteObservation(models.Model):
+    """Store alignment matches between experimental and computed observations.
+
+    On upload, look for uploaded ComputedSets and observations
+    (formerly ComputedMolecules, RHS compounds), compare the
+    alignments and store the matches found along with the RMSD.
+
+    """
+
+    site_observation = models.ForeignKey(
+        SiteObservation,
+        null=False,
+        on_delete=models.CASCADE,
+        related_name="lhs_site_observations",
+    )
+    computed_site_observation = models.ForeignKey(
+        SiteObservation,
+        null=False,
+        on_delete=models.CASCADE,
+        related_name="rhs_site_observations",
+    )
+    rmsd = models.FloatField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "site_observation",
+                    "computed_site_observation",
+                ],
+                name="unique_siteobservation_computedsiteobservation",
             ),
         ]
 

@@ -28,7 +28,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Model, Q
+from django.db.models import Count, F, Model
 from django.db.models.base import ModelBase
 from django.utils import timezone
 from rdkit import Chem
@@ -36,14 +36,13 @@ from rdkit import Chem
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 from scoring.models import SiteObservationGroup
-from viewer.models import (
+from viewer.models import (  # ComputedMolecule,; SiteObservationComputedMolecule,
     AtomCoordinates,
     CanonSite,
     CanonSiteConf,
     Compound,
     CompoundIdentifier,
     CompoundIdentifierType,
-    ComputedMolecule,
     Experiment,
     ExperimentStatusType,
     ExperimentUpload,
@@ -52,7 +51,7 @@ from viewer.models import (
     QualityStatusType,
     QuatAssembly,
     SiteObservation,
-    SiteObservationComputedMolecule,
+    SiteObservationComputedSiteObservation,
     SiteObservationQualityStatus,
     SiteObservationTag,
     TagCategory,
@@ -2901,19 +2900,29 @@ class TargetLoader:
         """
         logger.debug('+linking observations to computed molecules')
 
+        sdf_root = Path(settings.MEDIA_ROOT).joinpath(
+            settings.COMPUTED_SET_MEDIA_DIRECTORY
+        )
+
         # NB! see comment about filter_manager in managers.py for
         # compound only fetching LHS upload compounds. I believe here
         # this is the desired behaviour
-        compounds = Compound.filter_manager.by_target(self.target)
+        # compounds = Compound.filter_manager.by_target(self.target)
 
         # ComputedMolecules can come from two places:
         # - linked to a previously uploaded Compound
         # - linked to a previously uploaded ComputedSet
-        computed_molecules = ComputedMolecule.objects.filter(
-            Q(computed_set__target=self.target) | Q(compound__in=compounds),
+        # computed_molecules = ComputedMolecule.objects.filter(
+        #     Q(computed_set__target=self.target) | Q(compound__in=compounds),
+        # )
+        computed_so = SiteObservation.objects.filter(
+            xtalform_site__xtalform__in=Experiment.objects.filter(
+                experiment_upload__target=self.target,
+            ).values('xtalform'),
+            experiment__isnull=True,
         )
 
-        logger.debug('computed_molecules: %s', computed_molecules)
+        logger.debug('computed_siteobservations: %s', computed_so)
         for val in site_observation_objects.values():  # pylint: disable=no-member
             if not val.new:
                 continue
@@ -2944,13 +2953,26 @@ class TargetLoader:
             # new issue and iron this out?
             logger.debug(
                 'compmol set: %s',
-                computed_molecules.filter(compound__inchi_key=flat_inchi),
+                computed_so.filter(cmpd__inchi_key=flat_inchi),
             )
-            for compmol in computed_molecules.filter(compound__inchi_key=flat_inchi):
+            for compmol in computed_so.filter(cmpd__inchi_key=flat_inchi):
                 logger.debug('compmol: %s', compmol)
 
-                cmol = Chem.MolFromMolBlock(compmol.sdf_info)
-                Chem.RemoveStereochemistry(cmol)
+                # this can't be right. I need to compare 3D structures
+                # but whatevs, going to be obsoleted
+                # https://github.com/m2ms/fragalysis-frontend/issues/1748#issuecomment-3517491215
+
+                # pr is it? did he mean the atom distance calc in cset_uplo?
+                # cmol = Chem.MolFromMolBlock(compmol.sdf_info)
+                # Chem.RemoveStereochemistry(cmol)
+
+                logger.debug(
+                    'cmol_path: %s', sdf_root.joinpath(str(compmol.virtual_ligand_mol))
+                )
+                cmol = Chem.MolFromMolFile(
+                    sdf_root.joinpath(str(compmol.virtual_ligand_mol))
+                )
+                logger.debug('compmol_obj: %s', cmol)
 
                 rmsd = None
                 try:
@@ -2959,7 +2981,7 @@ class TargetLoader:
                 except RuntimeError as exc:
                     # protection against rdkit internal errors
                     msg = (
-                        f"Failed to find alignment between {compmol.molecule_name} "
+                        f"Failed to find alignment between {compmol.virtual_molecule_name} "
                         + f'and {val.instance.code}'
                     )
                     # log an error, but don't stop processing
@@ -2969,9 +2991,9 @@ class TargetLoader:
                 # there is a unique constraint on this model, but only
                 # new observations are being linked, so cannot clash
                 # with any existing ones here
-                SiteObservationComputedMolecule(
+                SiteObservationComputedSiteObservation(
                     site_observation=val.instance,
-                    computed_molecule=compmol,
+                    computed_site_observation=compmol,
                     rmsd=rmsd,
                 ).save()
                 logger.debug('saved connection')

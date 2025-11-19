@@ -902,13 +902,19 @@ class DownloadStructures:
         """Add compound sets to download"""
 
         logger.info('Processing computed sets')
+        sdf_root = Path(settings.MEDIA_ROOT).joinpath(
+            settings.COMPUTED_SET_MEDIA_DIRECTORY
+        )
         for cset in target.computedset_set.all():
             archive_path = Path('virtual_hits').joinpath(cset.submitted_sdf.name)
             buff = StringIO()
             writer = Chem.SDWriter(buff)
             for cmol in cset.computed_molecules.all():
                 logger.debug('Processing computed molecule (%s)...', cmol.name)
-                mol = Chem.MolFromMolBlock(cmol.sdf_info)
+                # mol = Chem.MolFromMolBlock(cmol.sdf_info)
+                mol = Chem.MolFromMolFile(
+                    sdf_root.joinpath(str(cmol.virtual_ligand_mol))
+                )
                 logger.debug('mol: %s', mol)
                 mol.SetProp('_Name', cmol.name)
                 for prop in cmol.numericalscorevalues_set.all():
