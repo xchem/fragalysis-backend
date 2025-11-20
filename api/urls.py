@@ -23,13 +23,13 @@ router.register("compound-identifiers", viewer_views.CompoundIdentifierView)
 
 # Compounds sets
 router.register("compound-sets", viewer_views.ComputedSetView)
-router.register("compound-molecules", viewer_views.ComputedMoleculesView)
-router.register("numerical-scores", viewer_views.NumericalScoreValuesView)
-router.register("text-scores", viewer_views.TextScoresView)
-router.register("compound-scores", viewer_views.CompoundScoresView, "compound-scores")
-router.register(
-    "compound-mols-scores", viewer_views.ComputedMolAndScoreView, "compound-mols-scores"
-)
+# router.register("compound-molecules", viewer_views.ComputedMoleculesView)
+# router.register("numerical-scores", viewer_views.NumericalScoreValuesView)
+# router.register("text-scores", viewer_views.TextScoresView)
+# router.register("compound-scores", viewer_views.CompoundScoresView, "compound-scores")
+# router.register(
+#     "compound-mols-scores", viewer_views.ComputedMolAndScoreView, "compound-mols-scores"
+# )
 
 # Get the derived data
 router.register("molimg", viewer_views.MolImageView, "molimg")
