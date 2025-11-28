@@ -699,6 +699,7 @@ class SiteObservation(Versionable, models.Model):
         through="SiteObservationComputedMolecule",
         through_fields=("site_observation", "computed_molecule"),
     )
+    altloc = models.PositiveSmallIntegerField(default=0, null=True)
 
     objects = models.Manager()
     # causes problems with trigger func and don't really need it in

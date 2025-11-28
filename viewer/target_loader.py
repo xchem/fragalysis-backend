@@ -1504,19 +1504,23 @@ class TargetLoader:
             index_data=index_data,
         )
 
-    @create_objects(depth=6)
+    @create_objects(depth=7)
     def process_site_observation(
         self,
         experiments: dict[int | str, MetadataObject],
         compounds: dict[int | str, MetadataObject],
         xtalform_sites: dict[str, Model],
         canon_site_confs: dict[int | str, MetadataObject],
-        item_data: tuple[str, str, str, int | str, int, str, dict] | None = None,
-        # chain: str,
-        # ligand: str,
-        # version: int,
-        # idx: int | str,
-        # data: dict,
+        item_data: tuple[str, str, str, int | str, int, int, str, dict] | None = None,
+        # item data structure:
+        # 1: crystal name: str
+        # 2: aligned_files: const
+        # 3: chain: str,
+        # 4: ligand: str,
+        # 5: altloc: int
+        # 6: version: int,
+        # 7: idx: int | str,
+        # 8: data: dict,
         validate_files: bool = True,
         **kwargs,
     ) -> ProcessedObject | None:
@@ -1540,10 +1544,20 @@ class TargetLoader:
         del kwargs
         assert item_data
         try:
-            experiment_id, _, chain, ligand, version, v_idx, data = item_data
+            experiment_id, _, chain, ligand, altloc, version, v_idx, data = item_data
         except ValueError:
             # wrong data item
             return None
+
+        logger.debug(
+            'incoming_data: %s; %s; %s; %s; %s; %s',
+            experiment_id,
+            chain,
+            ligand,
+            altloc,
+            version,
+            v_idx,
+        )
 
         extract = functools.partial(
             self._extract,
@@ -1557,10 +1571,11 @@ class TargetLoader:
 
         longcode = (
             # f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
-            f"{experiment.code}_{chain}_{str(ligand)}_v{str(version)}"
+            # f"{experiment.code}_{chain}_{str(ligand)}_v{str(version)}"
+            f"{experiment.code}_{chain}_{str(ligand)}_{altloc}_v{str(version)}"
         )
-        key = f"{experiment.code}/{chain}/{str(ligand)}"
-        v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
+        key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}"
+        v_key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}/{version}"
 
         smiles = extract(key="ligand_smiles_string")
         ligand_name = extract(key="ligand_name")
@@ -1678,6 +1693,7 @@ class TargetLoader:
             "ligand_sdf": str(self._get_final_path(ligand_sdf)),
             "pdb_header_file": None,
             "smiles": smiles,
+            "altloc": altloc,
         }
 
         mol = None
