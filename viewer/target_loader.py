@@ -77,7 +77,7 @@ METADATA_FILE = "meta_aligner.yaml"
 
 # transformation matrices
 TRANS_NEIGHBOURHOOD = "neighbourhood_transforms.yaml"
-TRANS_CONF_SITE = "conformer_site_transforms.yaml"
+# TRANS_CONF_SITE = "conformer_site_transforms.yaml"
 TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
 
 CUSTOM_IDENTIFIER_FILE = "compounds_manual.csv"
@@ -1903,7 +1903,7 @@ class TargetLoader:
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
             trans_neighbourhood,
-            trans_conf_site,
+            # trans_conf_site,
             trans_ref_struct,
         ) = self.validate_files(
             obj_identifier="trans_matrices",
@@ -1911,14 +1911,18 @@ class TargetLoader:
             # can get away with compiling them as strings here
             file_struct={
                 TRANS_NEIGHBOURHOOD: f"{self.version_dir}/{TRANS_NEIGHBOURHOOD}",
-                TRANS_CONF_SITE: f"{self.version_dir}/{TRANS_CONF_SITE}",
+                # TRANS_CONF_SITE: f"{self.version_dir}/{TRANS_CONF_SITE}",
                 TRANS_REF_STRUCT: f"{self.version_dir}/{TRANS_REF_STRUCT}",
             },
-            required=(TRANS_NEIGHBOURHOOD, TRANS_CONF_SITE, TRANS_REF_STRUCT),
+            required=(
+                TRANS_NEIGHBOURHOOD,
+                # TRANS_CONF_SITE,
+                TRANS_REF_STRUCT,
+            ),
         )
 
         trans_neighbourhood = trans_neighbourhood[0]
-        trans_conf_site = trans_conf_site[0]
+        # trans_conf_site = trans_conf_site[0]
         trans_ref_struct = trans_ref_struct[0]
 
         self.experiment_upload.project = self.project
@@ -1927,9 +1931,9 @@ class TargetLoader:
         self.experiment_upload.neighbourhood_transforms = str(
             self._get_final_path(trans_neighbourhood)
         )
-        self.experiment_upload.conformer_site_transforms = str(
-            self._get_final_path(trans_conf_site)
-        )
+        # self.experiment_upload.conformer_site_transforms = str(
+        #     self._get_final_path(trans_conf_site)
+        # )
         self.experiment_upload.reference_structure_transforms = str(
             self._get_final_path(trans_ref_struct)
         )
