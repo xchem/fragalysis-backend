@@ -79,6 +79,7 @@ METADATA_FILE = "meta_aligner.yaml"
 TRANS_NEIGHBOURHOOD = "neighbourhood_transforms.yaml"
 # TRANS_CONF_SITE = "conformer_site_transforms.yaml"
 TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
+TRANS_ASSEMBLY = "assembly_transforms.yaml"
 
 CUSTOM_IDENTIFIER_FILE = "compounds_manual.csv"
 
@@ -1014,7 +1015,9 @@ class TargetLoader:
 
         map_info_paths = []
         if map_info_files:
-            map_info_paths = [str(self._get_final_path(k)) for k in map_info_files]
+            map_info_paths = list(
+                set([str(self._get_final_path(k)) for k in map_info_files])
+            )
 
         defaults = {
             # overwrites exp upload in old instances, there's a hack
@@ -1029,7 +1032,7 @@ class TargetLoader:
             "mtz_info_source_file": mtz_info_source_file,
             "cif_info_source_file": cif_info_source_file,
             "map_info": map_info_paths,
-            "map_info_source_files": map_info_source_files,
+            "map_info_source_files": list(set(map_info_source_files)),
             "prefix_tooltip": prefix_tooltip,
             "code_prefix": code_prefix,
             # this doesn't seem to be present
@@ -1511,13 +1514,13 @@ class TargetLoader:
         compounds: dict[int | str, MetadataObject],
         xtalform_sites: dict[str, Model],
         canon_site_confs: dict[int | str, MetadataObject],
-        item_data: tuple[str, str, str, int | str, int, int, str, dict] | None = None,
+        item_data: tuple[str, str, str, int | str, str, int, str, dict] | None = None,
         # item data structure:
         # 1: crystal name: str
         # 2: aligned_files: const
         # 3: chain: str,
         # 4: ligand: str,
-        # 5: altloc: int
+        # 5: altloc: str
         # 6: version: int,
         # 7: idx: int | str,
         # 8: data: dict,
@@ -1905,6 +1908,7 @@ class TargetLoader:
             trans_neighbourhood,
             # trans_conf_site,
             trans_ref_struct,
+            trans_assembly,
         ) = self.validate_files(
             obj_identifier="trans_matrices",
             # since the paths are given if file as strings, I think I
@@ -1913,11 +1917,13 @@ class TargetLoader:
                 TRANS_NEIGHBOURHOOD: f"{self.version_dir}/{TRANS_NEIGHBOURHOOD}",
                 # TRANS_CONF_SITE: f"{self.version_dir}/{TRANS_CONF_SITE}",
                 TRANS_REF_STRUCT: f"{self.version_dir}/{TRANS_REF_STRUCT}",
+                TRANS_ASSEMBLY: f"{self.version_dir}/{TRANS_ASSEMBLY}",
             },
             required=(
                 TRANS_NEIGHBOURHOOD,
                 # TRANS_CONF_SITE,
                 TRANS_REF_STRUCT,
+                TRANS_ASSEMBLY,
             ),
         )
 
@@ -1936,6 +1942,9 @@ class TargetLoader:
         # )
         self.experiment_upload.reference_structure_transforms = str(
             self._get_final_path(trans_ref_struct)
+        )
+        self.experiment_upload.assembly_transforms = str(
+            self._get_final_path(trans_assembly)
         )
         self.experiment_upload.upload_data_dir = self.version_dir
         self.experiment_upload.upload_version = self.version_number

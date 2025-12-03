@@ -78,11 +78,14 @@ class Migration(migrations.Migration):
                 model_attr = getattr(so, f)
                 if model_attr and model_attr != 'None':
                     path = Path(model_attr.name)
+                    oldpath = Path(*path.parts[:-1], f'{path.stem}_crystallographic{path.suffix}')
                     newname = path.parts[-1].replace(so.oldname, so.newname)
                     newpath = Path(newname)
                     newname = f'{newpath.stem}_crystallographic{newpath.suffix}'
                     newpath = Path(*path.parts[:-1], newname)
-                    # TODO: rename file, DO NOT set attribute
+                    Path(settings.MEDIA_ROOT, oldpath).rename(
+                        Path(settings.MEDIA_ROOT, newpath)
+                    )
 
 
         for xs in XtalformSite.objects.all():

@@ -13,16 +13,37 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='historicalsiteobservation',
             name='altloc',
-            field=models.PositiveSmallIntegerField(default=0, null=True),
+            field=models.CharField(blank=True, max_length=1, default='x'),
         ),
         migrations.AddField(
             model_name='siteobservation',
             name='altloc',
-            field=models.PositiveSmallIntegerField(default=0, null=True),
+            field=models.CharField(blank=True, max_length=1, default='x'),
         ),
         migrations.AlterField(
             model_name='atomcoordinates',
             name='atom_number',
             field=models.SmallIntegerField(),
         ),
+        migrations.AddField(
+            model_name='experimentupload',
+            name='assembly_transforms',
+            field=models.FileField(max_length=255, null=True, upload_to='experiment-upload/'),
+        ),
+        migrations.AlterField(
+            model_name='experimentupload',
+            name='conformer_site_transforms',
+            field=models.FileField(max_length=255, null=True, upload_to='experiment-upload/'),
+        ),
+        migrations.AlterField(
+            model_name='experimentupload',
+            name='neighbourhood_transforms',
+            field=models.FileField(max_length=255, null=True, upload_to='experiment-upload/'),
+        ),
+        migrations.AlterField(
+            model_name='experimentupload',
+            name='reference_structure_transforms',
+            field=models.FileField(max_length=255, null=True, upload_to='experiment-upload/'),
+        ),
+
     ]
