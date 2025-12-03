@@ -77,7 +77,6 @@ METADATA_FILE = "meta_aligner.yaml"
 
 # transformation matrices
 TRANS_NEIGHBOURHOOD = "neighbourhood_transforms.yaml"
-# TRANS_CONF_SITE = "conformer_site_transforms.yaml"
 TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
 TRANS_ASSEMBLY = "assembly_transforms.yaml"
 
@@ -1572,11 +1571,7 @@ class TargetLoader:
 
         experiment = experiments[experiment_id].instance
 
-        longcode = (
-            # f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
-            # f"{experiment.code}_{chain}_{str(ligand)}_v{str(version)}"
-            f"{experiment.code}_{chain}_{str(ligand)}_{altloc}_v{str(version)}"
-        )
+        longcode = f"{experiment.code}_{chain}_{str(ligand)}_{altloc}_v{str(version)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}"
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}/{version}"
 
@@ -1671,7 +1666,6 @@ class TargetLoader:
             "cmpd": compound,
             "xtalform_site": xtalform_site,
             "canon_site_conf": canon_site_conf,
-            # "smiles": smiles,
             "seq_id": ligand,
             "chain_id": chain,
         }
@@ -1906,7 +1900,6 @@ class TargetLoader:
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
             trans_neighbourhood,
-            # trans_conf_site,
             trans_ref_struct,
             trans_assembly,
         ) = self.validate_files(
@@ -1915,21 +1908,19 @@ class TargetLoader:
             # can get away with compiling them as strings here
             file_struct={
                 TRANS_NEIGHBOURHOOD: f"{self.version_dir}/{TRANS_NEIGHBOURHOOD}",
-                # TRANS_CONF_SITE: f"{self.version_dir}/{TRANS_CONF_SITE}",
                 TRANS_REF_STRUCT: f"{self.version_dir}/{TRANS_REF_STRUCT}",
                 TRANS_ASSEMBLY: f"{self.version_dir}/{TRANS_ASSEMBLY}",
             },
             required=(
                 TRANS_NEIGHBOURHOOD,
-                # TRANS_CONF_SITE,
                 TRANS_REF_STRUCT,
                 TRANS_ASSEMBLY,
             ),
         )
 
         trans_neighbourhood = trans_neighbourhood[0]
-        # trans_conf_site = trans_conf_site[0]
         trans_ref_struct = trans_ref_struct[0]
+        trans_assembly = trans_assembly[0]
 
         self.experiment_upload.project = self.project
         self.experiment_upload.target = self.target
@@ -1937,9 +1928,6 @@ class TargetLoader:
         self.experiment_upload.neighbourhood_transforms = str(
             self._get_final_path(trans_neighbourhood)
         )
-        # self.experiment_upload.conformer_site_transforms = str(
-        #     self._get_final_path(trans_conf_site)
-        # )
         self.experiment_upload.reference_structure_transforms = str(
             self._get_final_path(trans_ref_struct)
         )
@@ -1957,7 +1945,6 @@ class TargetLoader:
             xtalform_assemblies,
         ) = self._get_yaml_blocks(
             yaml_data=xtalforms_yaml,
-            # blocks=("assemblies", "xtalforms"),
             blocks=("assemblies", "crystalforms"),
         )
 

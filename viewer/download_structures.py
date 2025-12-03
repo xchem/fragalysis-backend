@@ -750,7 +750,7 @@ class DownloadStructures:
 
         trans_matrix_files = (
             experiment_upload.neighbourhood_transforms,
-            # experiment_upload.conformer_site_transforms,
+            experiment_upload.assembly_transforms,
             experiment_upload.reference_structure_transforms,
         )
         for tmf in trans_matrix_files:
@@ -877,7 +877,7 @@ class DownloadStructures:
             transforms = [
                 Path(f.name).name
                 for f in (
-                    # experiment_upload.conformer_site_transforms,
+                    experiment_upload.assembly_transforms,
                     experiment_upload.neighbourhood_transforms,
                     experiment_upload.reference_structure_transforms,
                 )
