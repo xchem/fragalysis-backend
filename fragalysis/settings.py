@@ -672,7 +672,7 @@ STACK_NAMESPACE: str = os.environ.get("STACK_NAMESPACE", "undefined")
 STACK_VERSION: str = os.environ.get("STACK_VERSION", "undefined")
 
 # XChem Align data format
-XCA_DATA_FORMAT_VERSION = "2.2"
+XCA_DATA_FORMAT_VERSION = "3.0"
 
 # Minimum allowed XChem Align version
 XCA_MIN_VERSION = "2.2.4"

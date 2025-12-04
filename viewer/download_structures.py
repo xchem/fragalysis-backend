@@ -242,6 +242,8 @@ class DownloadStructures:
                 Value('_'),
                 F('seq_id'),
                 Value('_'),
+                F('altloc'),
+                Value('_'),
                 F('version'),
                 Value('_'),
                 F('canon_site_conf__canon_site__name'),
@@ -748,7 +750,7 @@ class DownloadStructures:
 
         trans_matrix_files = (
             experiment_upload.neighbourhood_transforms,
-            experiment_upload.conformer_site_transforms,
+            experiment_upload.assembly_transforms,
             experiment_upload.reference_structure_transforms,
         )
         for tmf in trans_matrix_files:
@@ -875,7 +877,7 @@ class DownloadStructures:
             transforms = [
                 Path(f.name).name
                 for f in (
-                    experiment_upload.conformer_site_transforms,
+                    experiment_upload.assembly_transforms,
                     experiment_upload.neighbourhood_transforms,
                     experiment_upload.reference_structure_transforms,
                 )
@@ -1039,6 +1041,7 @@ class DownloadStructures:
                     [
                         "tar",
                         "--dereference",
+                        "--hard-dereference",
                         "-C",
                         data_path.absolute(),
                         "-cf",
