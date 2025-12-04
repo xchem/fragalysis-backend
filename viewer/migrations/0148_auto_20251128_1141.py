@@ -67,9 +67,12 @@ class Migration(migrations.Migration):
                     newname = path.parts[-1].replace(so.oldname, so.newname)
 
                     newpath = Path(*path.parts[:-1], newname)
-                    Path(settings.MEDIA_ROOT, model_attr.name).rename(
-                        Path(settings.MEDIA_ROOT, newpath)
-                    )
+                    try:
+                        Path(settings.MEDIA_ROOT, model_attr.name).rename(
+                            Path(settings.MEDIA_ROOT, newpath)
+                        )
+                    except FileNotFoundError:
+                        print(newpath, 'not found')
                     setattr(so, f, str(newpath))
 
             so.save()
@@ -83,9 +86,10 @@ class Migration(migrations.Migration):
                     newpath = Path(newname)
                     newname = f'{newpath.stem}_crystallographic{newpath.suffix}'
                     newpath = Path(*path.parts[:-1], newname)
-                    Path(settings.MEDIA_ROOT, oldpath).rename(
-                        Path(settings.MEDIA_ROOT, newpath)
-                    )
+                    if newpath.exists():
+                        Path(settings.MEDIA_ROOT, oldpath).rename(
+                            Path(settings.MEDIA_ROOT, newpath)
+                        )
 
 
         for xs in XtalformSite.objects.all():
