@@ -748,11 +748,16 @@ class DownloadStructures:
             'commit_datetime'
         ).last()
 
-        trans_matrix_files = (
-            experiment_upload.neighbourhood_transforms,
-            experiment_upload.assembly_transforms,
-            experiment_upload.reference_structure_transforms,
-        )
+        trans_matrix_files = [
+            f
+            for f in (
+                experiment_upload.neighbourhood_transforms,
+                experiment_upload.conformer_site_transforms,
+                experiment_upload.assembly_transforms,
+                experiment_upload.reference_structure_transforms,
+            )
+            if f.name is not None
+        ]
         for tmf in trans_matrix_files:
             filepath = Path(settings.MEDIA_ROOT).joinpath(str(tmf))
             archive_path = os.path.join(
@@ -879,8 +884,10 @@ class DownloadStructures:
                 for f in (
                     experiment_upload.assembly_transforms,
                     experiment_upload.neighbourhood_transforms,
+                    experiment_upload.conformer_site_transforms,
                     experiment_upload.reference_structure_transforms,
                 )
+                if f.name is not None
             ]
 
             archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
