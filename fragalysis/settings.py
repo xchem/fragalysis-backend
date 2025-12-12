@@ -519,6 +519,12 @@ DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX: str = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", "")
 
+# The period of time allowed to elapse before recreating a Target download file.
+# This is used by download_structures.py as the length of time to keep records of dynamic links.
+DOWNLOAD_KEEP_UNTIL_DURATION_M: int = int(
+    os.environ.get("DOWNLOAD_KEEP_UNTIL_DURATION_M", "90")
+)
+
 # Some Squonk2 developer/debug variables.
 # Unused in production.
 DUMMY_TARGET_TITLE: str = os.environ.get("DUMMY_TARGET_TITLE", "")

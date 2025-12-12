@@ -42,7 +42,7 @@ from .utils import profile
 logger = logging.getLogger(__name__)
 
 # Length of time to keep records of dynamic links.
-KEEP_UNTIL_DURATION = timedelta(minutes=90)
+KEEP_UNTIL_DURATION = timedelta(minutes=settings.DOWNLOAD_KEEP_UNTIL_DURATION_M)
 
 # Filepaths mapping for writing associated files to the zip archive.
 # Note that if this is set to 'aligned' then the files will be placed in
