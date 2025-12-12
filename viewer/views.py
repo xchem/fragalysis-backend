@@ -2126,7 +2126,10 @@ class SiteObservationView(ISPyBSafeQuerySet):
     )
     serializer_class = serializers.SiteObservationReadSerializer
     filterset_class = filters.SiteObservationFilter
-    filter_permissions = "experiment__experiment_upload__project"
+    filter_permissions = (
+        "experiment__experiment_upload__project",
+        "computed_set__target__project",
+    )
 
 
 class SiteObservationIDView(ISPyBSafeQuerySet):

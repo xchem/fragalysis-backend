@@ -1454,7 +1454,6 @@ class ComputedSetComputedMolecule(models.Model):
         ]
 
 
-# to be obsoleted
 class ComputedSetSiteObservation(models.Model):
     computed_set = models.ForeignKey(ComputedSet, null=False, on_delete=models.CASCADE)
     site_observation = models.ForeignKey(

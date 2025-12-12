@@ -4,12 +4,14 @@ from django.apps import apps
 from django.db import connection, transaction
 from django.db.models import (
     BooleanField,
+    Case,
     F,
     Func,
     Manager,
     OuterRef,
     QuerySet,
     Subquery,
+    When,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,7 +136,14 @@ class SiteObservationQueryset(StructureFilterQueryset):
             "experiment__experiment_upload__target",
             "cmpd",
         ).annotate(
-            target=F("experiment__experiment_upload__target"),
+            # target=F("experiment__experiment_upload__target"),
+            target=Case(
+                When(experiment__isnull=True, then=F("computed_set__target")),
+                When(
+                    experiment__isnull=False,
+                    then=F("experiment__experiment_upload__target"),
+                ),
+            ),
             compound_code=F("cmpd__compound_code"),
             prefix_tooltip=F("experiment__prefix_tooltip"),
         )
