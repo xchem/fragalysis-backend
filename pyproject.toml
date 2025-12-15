@@ -8,69 +8,66 @@ readme = "README.md"
 packages = [{include = "fragalysis_backend"}]
 
 [tool.poetry.dependencies]
-python = "^3.11.3"
+python = "^3.13.9"
+django = "^5.2"
+celery = "^5.5"
+django-bootstrap3 = "^25.2"
+django-cleanup = "^8.1"
+django-extensions = "^4.1"
+django-filter = "^25.2"
+django-guardian = "^3.2"
+django-simple-history = "^3.10"
+fragalysis = "^1.1.0"
+gunicorn = "^23.0"
+mozilla_django_oidc = "^4.0"
+openpyxl = "^3.1"
+pandas = "^2.3"
+pandoc = "^2.3"
+psycopg = { version = "^3.2", extras = ["binary", "pool"] }
+redis = "^7.0"
+sentry-sdk = "^2.4"
+shortuuid = "^1.0"
+sshtunnel = "^0.4"
+urllib3 = "^2.5"
+validators = "^0.35"
+django-celery-beat = "^2.8"
+django-celery-results = "^2.6"
+numpy = "^2.3"
+python-dateutil = "^2"
+pgvector = "^0.4"
+setuptools = "^80.9.0"
+bcrypt = "^5.0"
+djangorestframework = "^3.16.1"
+legacy-cgi = "^2.6.3"   # required by djangorestframwork
+django-prometheus = "^2.4"
+
 
 # Specific (critical dependency) packages...
 # Do not change these without careful thought!
-rdkit = "2023.3.2"
+rdkit = "2025.03.6"
 xchem-db = "0.1.26b0"
-djangorestframework = "3.14.0"
-
-# Less strict (flexible dependency) packages...
-celery = "^5.4"
-deepdiff = "^6.2.0"
-django-bootstrap3 = "^23.4"
-django-cleanup = "^8.0.0"
-django-extensions = "^3.2.3"
-django-filter = "^23.2"
-django-guardian = "^2.4.0"
-django-simple-history = "^3.3.0"
-django-webpack-loader = "^0.7.0"
-django-rest-swagger = "^2.2.0"
-fragalysis = "^1.1.0"
-graphene-django = "^3.1.3"
-gunicorn = "^21.2.0"
 im-squonk2-client = "^1.22.2"
-mozilla_django_oidc = "^3.0.0"
-mysql-connector-python = "^8.1.0"
-openpyxl = "^3.1.2"
-pandas = "^1.5.3"
-pandoc = "^2.3"
-psutil = "^5.9.5"
-psycopg2-binary = "^2.9.6"
-pydiscourse = "^1.3.0"
-pymysql = "^1.1.0"
-redis = "^4.6.0"
-sentry-sdk = "^1.29.2"
-shortuuid = "^1.0.11"
-sshtunnel = "^0.4.0"
-urllib3 = "^2.0.4"
-validators = "^0.20.0"
-django-celery-beat = "^2.6.0"
-django-celery-results = "^2.5.1"
-numpy = "^1.23"
-python-dateutil = "^2"
-pgvector = "^0.4.1"
+django-webpack-loader = "^0.7.0"   # v3.2 fails to load
 
-# Blocked packages...
-#
-bcrypt = "4.0.1"
-# Django will (probably) need work in the code to support v4.
-# Simply changing to django 4 results in errors
-# like "CSRF Failed: Origin checking failed"
-django = "3.2.25"
-# Attempt to avoid the error:
-# 'django_prometheus.db.backends.postgresql' isn't an available database backend
-# Recent prometheus versions may break the build
-django-prometheus = "2.3.1"
+
+# unused/to be deprecated
+# deepdiff = "^6.2.0"
+graphene-django = "^3.1.3"
+# mysql-connector-python = "^8.1.0"
+# pymysql = "^1.1"   # where is mysql used?
+# psutil = "^5.9.5"
+pydiscourse = "^1.3.0"
+# django-rest-swagger = "^2.2.0"
+
+
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3.3.3"
-pylint = "^3.0.3"
-pylint-django = "^2.5.5"
-httpie = "^3.2.2"
-black = "^24.3.0"
-mypy = "^1.7.1"
+pre-commit = "^4.3"
+pylint = "^3.0"  # held back by pylint-django
+pylint-django = "^2.6"
+httpie = "^3.2"
+black = "^25.9"
+mypy = "^1.18"
 
 [build-system]
 requires = ["poetry-core"]

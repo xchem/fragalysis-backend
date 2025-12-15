@@ -155,7 +155,6 @@ INSTALLED_APPS = [
     "django_extensions",
     "rest_framework",
     "rest_framework.authtoken",
-    "rest_framework_swagger",
     "webpack_loader",
     "django_cleanup",
     "simple_history",
@@ -164,7 +163,6 @@ INSTALLED_APPS = [
 
 LANGUAGE_CODE = "en-us"
 
-# Swagger logging / logout
 LOGIN_URL = "/accounts/login/"
 LOGOUT_URL = "/accounts/logout/"
 # LOGIN_REDIRECT_URL = "<URL path to redirect to after login>"

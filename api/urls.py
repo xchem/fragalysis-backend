@@ -61,7 +61,11 @@ router.register("viewscene", score_views.ViewSceneView)
 router.register("siteobservationgroup", score_views.SiteObservationGroupView)
 
 # Get the information
-router.register("siteobservationannotation", score_views.SiteObservationAnnotationView)
+router.register(
+    "siteobservationannotation",
+    score_views.SiteObservationAnnotationView,
+    basename="siteobservationannotation",
+)
 
 # discourse posts
 router.register(
@@ -196,22 +200,9 @@ router.register("job_override", viewer_views.JobOverrideView, basename='job_over
 router.register("job_request", viewer_views.JobRequestView, basename="job_request")
 router.register("job_access", viewer_views.JobAccessView, basename="job_access")
 
-from rest_framework import response, schemas
-from rest_framework.decorators import api_view, renderer_classes
-from rest_framework_swagger.renderers import OpenAPIRenderer, SwaggerUIRenderer
-
-
-@api_view()
-@renderer_classes([SwaggerUIRenderer, OpenAPIRenderer])
-def schema_view(request):
-    _ = request.build_absolute_uri()
-    generator = schemas.SchemaGenerator(title="Fragalysis API")
-    return response.Response(generator.get_schema(request=request))
-
 
 urlpatterns = [
     path("", include(router.urls)),
     path("auth/", drf_views.obtain_auth_token, name="auth"),
-    path("swagger/", schema_view),
     path('token/', viewer_views.TokenView.as_view(), name="token_view"),
 ]

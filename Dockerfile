@@ -1,4 +1,4 @@
-FROM python:3.11.9-slim-bullseye  AS python-base
+FROM python:3.13.9-slim-bookworm  AS python-base
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -16,6 +16,7 @@ RUN apt-get update -y && \
       pigz \
       p7zip-full \
       rsync \
+      build-essential \
       texlive-fonts-recommended && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -24,7 +25,7 @@ RUN apt-get update -y && \
 # up in final image where it's not needed
 FROM python-base AS poetry-base
 
-ARG POETRY_VERSION=1.7.1
+ARG POETRY_VERSION=2.1.4
 RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
 
 WORKDIR /
@@ -40,7 +41,7 @@ FROM python-base as final
 
 COPY --from=poetry-base /.venv /.venv
 
-ENV PYTHONPATH="${PYTHONPATH}:/.venv/lib/python3.11/site-packages/"
+ENV PYTHONPATH="${PYTHONPATH}:/.venv/lib/python3.13/site-packages/"
 ENV PATH=/.venv/bin:$PATH
 
 WORKDIR /srv/logs
