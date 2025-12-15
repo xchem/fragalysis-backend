@@ -231,7 +231,8 @@ class DownloadStructures:
 
         # Read through zip_params to compile the parameters
         zip_contents: Dict[str, Any] = copy.deepcopy(zip_template)
-        site_obvs = site_obvs.annotate(
+        # cannot add files for virtual observations, they don't exist
+        site_obvs = site_obvs.exclude(experiment__isnull=True).annotate(
             # would there be any point in
             # a) adding a method to SiteObservation model_attr
             # b) adding the value to database directly?
@@ -251,6 +252,7 @@ class DownloadStructures:
             ),
         )
         for so in site_obvs:
+            logger.debug('Processing so: %s: %s', so.pk, so.code)
             for param in protein_params:
                 if protein_params[param] is True:
                     if param in ['pdb_info', 'mtz_info', 'cif_info', 'map_info']:

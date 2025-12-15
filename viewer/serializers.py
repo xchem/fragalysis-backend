@@ -881,6 +881,7 @@ class DownloadStructuresSerializer(serializers.Serializer):
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
     use_zip = serializers.BooleanField(default=False, label='Use ZIP format (slower)')
+    include_virtual_observations = serializers.BooleanField(default=False)
 
 
 # Start of Serializers for Squonk Jobs

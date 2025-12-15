@@ -1632,9 +1632,11 @@ class DownloadStructuresView(
         else:
             logger.info('Request had no Proteins')
             logger.info('Looking for Protein records for %r...', target)
-            site_obvs = models.SiteObservation.objects.filter(
-                experiment__experiment_upload__target=target
-            )
+            site_obvs = models.SiteObservation.filter_manager.by_target(target)
+            include_virtual = serializer.validated_data['include_virtual_observations']
+            logger.debug('removing virtuals: %s', include_virtual)
+            if not include_virtual:
+                site_obvs = site_obvs.exclude(experiment__isnull=True)
 
         if not site_obvs.exists():
             content = {
