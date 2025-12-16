@@ -94,7 +94,7 @@ jobs:
         chmod +x osv-scanner
         ./osv-scanner scan image ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }} \
             --format markdown --output scan.md
-        cat scan.md >> >> $GITHUB_STEP_SUMMARY
+        cat scan.md >> $GITHUB_STEP_SUMMARY
     - name: Test (docker compose)
       uses: hoverkraft-tech/compose-action@v2.0.1
       with:
