@@ -85,6 +85,11 @@ jobs:
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+    - name: Vulnerability Scan (OSV)
+      run: |
+        wget https://github.com/google/osv-scanner/releases/download/v2.3.1/osv-scanner-linux-amd64 -O osv-scanner
+        chmod +x osv-scanner
+        osv-scanner scan image ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
     - name: Test (docker compose)
       uses: hoverkraft-tech/compose-action@v2.0.1
       with:
