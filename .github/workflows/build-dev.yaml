@@ -92,11 +92,12 @@ jobs:
       with:
         image-ref: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
         version: latest
-        format: table
-        hide-progress: true
         vuln-type: library
         scanners: vuln
         severity: CRITICAL,HIGH
+        format: template
+        template: "@trivy/github-markdown.tpl"
+        output: ${{ github.step_summary }}
     - name: Test (docker compose)
       uses: hoverkraft-tech/compose-action@v2.0.1
       with:
