@@ -85,12 +85,19 @@ jobs:
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+    - name: Display
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
     - name: Run Trivy vulnerability scanner
       # Here we scan for library problems only,
       # we're not interested in 'os' issues.
-      # We also use a custom template
-      # (located in our repository's 'trivy/templates' directory)
-      # to get markdown results, which the next step outputs to the GitHub step summary.
+      #
+      # We also use a custom 'markdown.tpl' template because trivy
+      # cannot output markdown (!). The template is located in our repository's
+      # 'trivy/templates' directory. The next step outputs this markdown
+      # to the GitHub step summary.
       # (see https://teknologi.nl/posts/proactivesecuritytrivy/)
       uses: aquasecurity/trivy-action@0.33.1
       with:
@@ -100,7 +107,7 @@ jobs:
         scanners: vuln
         severity: CRITICAL,HIGH
         format: template
-        template: "@/github/workspace/software/trivy/templates/markdown.tpl"
+        template: "@${{ github.workspace }}/trivy/templates/markdown.tpl"
         output: trivy-results.md
     - name: Output Trivy Results to step summary
       run: |
