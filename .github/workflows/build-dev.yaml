@@ -95,9 +95,7 @@ jobs:
         vuln-type: library
         scanners: vuln
         severity: CRITICAL,HIGH
-        format: template
-        template: "@trivy/github-markdown.tpl"
-        output: ${{ github.step_summary }}
+        format: table
     - name: Test (docker compose)
       uses: hoverkraft-tech/compose-action@v2.0.1
       with:
