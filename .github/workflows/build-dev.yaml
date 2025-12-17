@@ -110,7 +110,7 @@ jobs:
         scanners: vuln
         severity: CRITICAL,HIGH
         format: template
-        template: "@${{ github.workspace }}/trivy/templates/markdown.tpl"
+        template: "@trivy/templates/markdown.tpl"
         output: trivy-results.md
     - name: Output Trivy Results to step summary
       run: |
