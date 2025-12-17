@@ -109,12 +109,6 @@ jobs:
         vuln-type: library
         scanners: vuln
         severity: CRITICAL,HIGH
-        format: template
-        template: "@$HOME/trivy/templates/markdown.tpl"
-        output: trivy-results.md
-    - name: Output Trivy Results to step summary
-      run: |
-        cat trivy-results.md >> $GITHUB_STEP_SUMMARY
     - name: Test (docker compose)
       uses: hoverkraft-tech/compose-action@v2.0.1
       with:
