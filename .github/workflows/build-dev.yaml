@@ -78,7 +78,7 @@ jobs:
         python-version: '3.11'
     - name: Display path
       run: |
-        ls -l ${{ github.workspace }}
+        ls -l ${{ github.workspace }}/trivy/templates
     - name: Run pre-commit (all files)
       run: |
         pip install --requirement build-requirements.txt
