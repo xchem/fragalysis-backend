@@ -87,7 +87,10 @@ jobs:
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
     - name: Run Trivy vulnerability scanner
       # Here we scan for library problems only,
-      # we're not interested in 'os' issues
+      # we're not interested in 'os' issues.
+      # We also use a custom template  to get markdown results
+      # ant then ruin anotehr step to output these to the GitHub step summary.
+      # (see https://teknologi.nl/posts/proactivesecuritytrivy/)
       uses: aquasecurity/trivy-action@0.33.1
       with:
         image-ref: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
@@ -95,7 +98,12 @@ jobs:
         vuln-type: library
         scanners: vuln
         severity: CRITICAL,HIGH
-        format: table
+        format: template
+        template: "@/github/workspace/trivy/templates/markdown.tpl"
+        output: trivy-results.md
+    - name: Output Trivy Results to step summary
+      run: |
+        cat trivy-results.md >> $GITHUB_STEP_SUMMARY
     - name: Test (docker compose)
       uses: hoverkraft-tech/compose-action@v2.0.1
       with:
