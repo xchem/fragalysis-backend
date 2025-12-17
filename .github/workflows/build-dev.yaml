@@ -86,12 +86,16 @@ jobs:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
     - name: Run Trivy vulnerability scanner
+      # Here we scan for library problems only,
+      # we're not interested in 'os' issues
       uses: aquasecurity/trivy-action@0.33.1
       with:
         image-ref: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+        version: '0.68.2'
         format: table
-        ignore-unfixed: true
+        hide-progress: true
         vuln-type: library
+        scanners: vuln
         severity: CRITICAL,HIGH
     - name: Test (docker compose)
       uses: hoverkraft-tech/compose-action@v2.0.1
