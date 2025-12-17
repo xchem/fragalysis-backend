@@ -91,7 +91,7 @@ jobs:
       uses: aquasecurity/trivy-action@0.33.1
       with:
         image-ref: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
-        version: '0.68.2'
+        version: latest
         format: table
         hide-progress: true
         vuln-type: library
