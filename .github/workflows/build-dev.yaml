@@ -90,6 +90,22 @@ jobs:
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+    - name: Display trivy templates
+      run: |
+        ls -l "${{ github.workspace }}/trivy/templates"
+        cat "${{ github.workspace }}/trivy/templates/markdown.tpl"
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.33.1
+      with:
+        image-ref: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+        version: latest
+        vuln-type: library
+        scanners: vuln
+        severity: CRITICAL,HIGH
+        format: template
+        template: "@${{ github.workspace }}/trivy/templates/markdown.tpl"
+        output: trivy-results.md
+
     - name: Vulnerability Scan (OSV)
       # The vulnerability scan (using Google's OSV)
       # Allowed to fail (we force true) as it's used for information only
