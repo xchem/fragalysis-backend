@@ -1,4 +1,4 @@
-FROM python:3.13.9-slim-bookworm  AS python-base
+FROM python:3.13.11-slim-trixie  AS python-base
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -26,7 +26,8 @@ RUN apt-get update -y && \
 FROM python-base AS poetry-base
 
 ARG POETRY_VERSION=2.1.4
-RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir poetry==${POETRY_VERSION}
 
 WORKDIR /
 COPY poetry.lock pyproject.toml /
@@ -37,7 +38,7 @@ RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no
 
 # final stage. only copy the venv with installed packages and point
 # paths to it
-FROM python-base as final
+FROM python-base AS final
 
 COPY --from=poetry-base /.venv /.venv
 
