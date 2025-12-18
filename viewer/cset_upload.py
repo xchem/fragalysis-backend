@@ -322,7 +322,7 @@ class MolOps:
 
         return site_obvs
 
-    def create_mol(self, inchi, target, name=None) -> tuple[Compound, str]:
+    def create_mol(self, inchi, target, name=None) -> Compound:
         # check for an existing compound, returning a Compound
 
         sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
@@ -330,11 +330,13 @@ class MolOps:
         inchi = Chem.inchi.MolToInchi(sanitized_mol)
         inchi_key = Chem.InchiToInchiKey(inchi)
 
-        cpd_number = "1"
+        # cpd_number = "1"
         qs = Compound.filter_manager.by_target(target)
+        logger.debug('compounds by target: %s', qs.count())
 
         # duplicates possible
         cpd = qs.filter(inchi_key=inchi_key).first()
+        logger.debug('cpd found: %s', cpd.pk if cpd else None)
         if not cpd:
             # no compound, create new
             cpd = Compound(
@@ -343,17 +345,17 @@ class MolOps:
                 inchi_key=inchi_key,
                 description=name,
             )
-            # This is a new compound.
             cpd.save()
+            logger.debug('cpd not found, created new: %s', cpd.pk)
             # This is a new compound.
             # We must now set relationships to the Proposal that it applies to.
             cpd.project_id.add(target.project)
-            qs = Compound.objects.filter(
-                computedmolecule__computed_set__target=target,
-            )
-            cpd_number = str(qs.count())
 
-        return cpd, cpd_number
+        return cpd
+
+        # what i need for the number:
+        # - it shows the number of COMPOUNDS that virtual observations attach themselves to
+        # - 1, if this is the fir
 
         # # look for *all* compounds under this target, both LHS and RHS
         # # uploads
@@ -406,9 +408,9 @@ class MolOps:
     # def set_props(self, cpd, props, score_descriptions) -> List[ResultProperty]:
     def set_props(self, cpd, props, score_descriptions, computed_set) -> None:
         for property_name, val in score_descriptions.items():
-            logger.debug("score_descriptions: %s", score_descriptions)
-            logger.debug("property_name: %s", property_name)
-            logger.debug("props: %s", props)
+            # logger.debug("score_descriptions: %s", score_descriptions)
+            # logger.debug("property_name: %s", property_name)
+            # logger.debug("props: %s", props)
             # logger.debug("sd.name, val: %s: %s", sd.name, val)
 
             data_type = self.data_type_dict.get(
@@ -466,9 +468,10 @@ class MolOps:
         flat_inchi = Chem.inchi.MolToInchiKey(flattened_copy)
         logger.debug('flattened inchi key: %s', flat_inchi)
 
-        compound, number = self.create_mol(
-            inchi, compound_set.target, name=molecule_name
-        )
+        # compound, number = self.create_mol(
+        #     inchi, compound_set.target, name=molecule_name
+        # )
+        compound = self.create_mol(inchi, compound_set.target, name=molecule_name)
 
         insp = mol.GetProp("ref_mols")
         insp = insp.split(",")
@@ -543,30 +546,48 @@ class MolOps:
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
 
-        # I think, realistically, I only need to check compound
-        # update: I used to annotate name components, with the new
-        # format, this is not necessary. or possible
         qs = SiteObservation.objects.filter(
             cmpd=compound,
-            virtual_name__isnull=False,  # get only virtual observations
+            experiment__isnull=True,  # get only virtual observations
         ).order_by("virtual_name")
+        # memo to self: ordering is fine because they all should have
+        # the same number component
 
         if qs.exists():
+            # logger.debug('found existing connected compound: %s', qs)
             # not actually latest, just last according to sorting above
             latest = qs.last()
             # regex pattern - split name like 'v1a'
             # ('(letters)(digits)(letters)' to components
-            groups = re.search(r"()(\d+)(\D+)", qs.last().virtual_name)
+            groups = re.search(r"()(\d+)(\D+)", latest.virtual_name)
             if groups is None or len(groups.groups()) != 3:
                 # just a quick sanity check
                 raise IntegrityError(f"Non-standard virtual_name: {latest.name}")
             number = groups.groups()[1]  # type: ignore [index]
             suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
+            # this is getting a wrong count somehow
+            # count_qs = SiteObservation.objects.filter(
+            #     computed_set__isnull=False,
+            # ).values(
+            #     'cmpd',
+            # )
+            # logger.debug('did not find existing connected compound: %s', count_qs.count())
             suffix = "a"
-            # number = 1
+            number = (
+                SiteObservation.objects.filter(
+                    computed_set__isnull=False,
+                )
+                .values(
+                    'cmpd',
+                )
+                .distinct()
+                .count()
+                + 1
+            )
+            # logger.debug('but number is: %s', number)
 
-        name = f"v{number}{suffix}"
+        name = f"v{str(number)}{suffix}"
 
         if isinstance(ref_so, SiteObservation):
             # code = ref_so.code
@@ -717,7 +738,7 @@ class MolOps:
         other_props = mol.GetPropsAsDict()
         skip_mol = False
 
-        logger.debug('other_props: %s', other_props)
+        # logger.debug('other_props: %s', other_props)
 
         # if ref_mols or ref_pdb is missing skip the molecule
         for prop in ["ref_mols", "ref_pdb"]:
