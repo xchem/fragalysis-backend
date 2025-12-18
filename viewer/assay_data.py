@@ -4,6 +4,7 @@ import re
 import numpy as np
 import pandas as pd
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 
 from .models import (
     Compound,
@@ -169,6 +170,7 @@ def process_integer(df, column, id_column):
 def append_object_pk(df, id_column, object_type, target):
     # filter out non-compounds and add object's pk
     # TODO: should I create cmpds?
+
     if object_type == 'compound':
         existing_objects = Compound.objects.filter(
             compound_code__in=df[id_column],
@@ -185,24 +187,34 @@ def append_object_pk(df, id_column, object_type, target):
             for obj in existing_objects.filter(compound_code__in=df[id_column])
         }
     elif object_type == 'site_observation':
+        # NB! this assumes code and virtual_name to be mutually exclusive
         existing_objects = SiteObservation.filter_manager.by_target(target).filter(
-            code__in=df[id_column],
+            Q(code__in=df[id_column]) | Q(virtual_name__in=df[id_column])
         )
         if not existing_objects:
             raise NoObjectsFoundError(
                 f'No site observations found for codes {",".join(df[id_column])}'
             )
-        existing_ids = existing_objects.values_list('code', flat=True)
+
+        existing_ids1 = existing_objects.values_list('code', flat=True)
+        existing_ids2 = existing_objects.values_list('virtual_name', flat=True)
+        existing_ids = [k for k in list(existing_ids1) + list(existing_ids2) if k]
+
         df = df[df[id_column].isin(existing_ids)]
+        logger.debug('df1: %s', df)
 
         code_to_obj = {
             obj.code: obj for obj in existing_objects.filter(code__in=df[id_column])
         }
+        for obj in existing_objects.filter(virtual_name__in=df[id_column]):
+            code_to_obj[obj.virtual_name] = obj
+
     else:
         raise ValueError(f'Wrong identifier submitted: {object_type}')
 
     # pandas warning on this row.. shoul i change it?
     df[object_type] = df[id_column].map(code_to_obj)
+    logger.debug('df final: %s', df)
 
     return df
 
