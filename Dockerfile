@@ -26,7 +26,7 @@ RUN apt-get update -y && \
 FROM python-base AS poetry-base
 
 ARG POETRY_VERSION=2.1.4
-RUN pip install --upgrade pip && \
+RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir poetry==${POETRY_VERSION}
 
 WORKDIR /
