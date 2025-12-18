@@ -38,7 +38,7 @@ RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no
 
 # final stage. only copy the venv with installed packages and point
 # paths to it
-FROM python-base as final
+FROM python-base AS final
 
 COPY --from=poetry-base /.venv /.venv
 
