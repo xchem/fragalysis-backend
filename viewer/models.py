@@ -2171,6 +2171,7 @@ class Result(models.Model):
     raw_value = models.TextField(null=True)
     float_value = models.FloatField(null=True)
     int_value = models.IntegerField(null=True)
+    link_value = models.TextField(null=True)
     numeric_modifier = models.ForeignKey(
         ResultValueModifier,
         on_delete=models.CASCADE,
@@ -2183,6 +2184,7 @@ class Result(models.Model):
         on_delete=models.CASCADE,
         null=True,
     )
+    experiment = models.ForeignKey(Experiment, null=True, on_delete=models.CASCADE)
     result_upload = models.ForeignKey(
         ResultUpload,
         on_delete=models.CASCADE,

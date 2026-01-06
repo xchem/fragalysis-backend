@@ -1349,6 +1349,7 @@ class AssayDataUploadSerializer(serializers.Serializer):
     identifier_column = serializers.CharField()
     identifier_type = serializers.ChoiceField(
         choices=[
+            ('experiment', 'Experiment'),
             ('compound', 'Compound'),
             (
                 'site_observation',
