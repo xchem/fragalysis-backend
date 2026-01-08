@@ -35,8 +35,7 @@ from rdkit import Chem
 
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
-from scoring.models import SiteObservationGroup
-from viewer.models import (  # ComputedMolecule,; SiteObservationComputedMolecule,
+from viewer.models import (
     AtomCoordinates,
     CanonSite,
     CanonSiteConf,
@@ -53,14 +52,15 @@ from viewer.models import (  # ComputedMolecule,; SiteObservationComputedMolecul
     SiteObservation,
     SiteObservationComputedSiteObservation,
     SiteObservationQualityStatus,
-    SiteObservationTag,
     TagCategory,
     Target,
     Xtalform,
     XtalformQuatAssembly,
     XtalformSite,
 )
-from viewer.utils import alphanumerator, clean_object_id, sanitize_directory_name
+from viewer.utils import alphanumerator, longcode_from_tag, sanitize_directory_name
+
+from .tags import TagManager
 
 logger = logging.getLogger(__name__)
 
@@ -346,14 +346,6 @@ def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
     # format something like XX01ZVNS2B-x0673/B/501/1
     # remove tailing '<separator>1'
     return s[0 : s.rfind(separator)], int(s[s.rfind(separator) + 1 :])
-
-
-def longcode_from_tag(tag: str, separator: str = '/') -> str:
-    splits = tag.split(separator)
-    if splits:
-        splits[-1] = f"v{splits[-1]}"
-        return "_".join(splits)
-    return tag
 
 
 def strip_exp_code(code: str) -> str:
@@ -2007,7 +1999,34 @@ class TargetLoader:
             quat_assemblies=quat_assembly_objects,
         )
 
+        # generate canon site objects and enumerate them starting from
+        # where it was left off in the db. This is only needed for
+        # tagging, but doing this here because don't want to pollute
+        # tag module code with processed object dicts, trying to get
+        # rid of them entirely
         canon_site_objects = self.process_canon_site(yaml_data=canon_sites)
+        canon_sort_qs = (
+            CanonSite.objects.filter(
+                pk__in=[
+                    k.instance.pk for k in canon_site_objects.values()
+                ]  # pylint: disable=no-member
+            )
+            .annotate(
+                # obvs=Count("canonsiteconf_set__siteobservation_set", default=0),
+                obvs=Count("canonsiteconf__siteobservation", empty_result_set_value=0),
+            )
+            .order_by("-obvs", "name")
+        )
+        _canon_site_objects = {}
+        for site in canon_sort_qs:
+            key = f"{site.name}+{site.version}"
+            _canon_site_objects[key] = canon_site_objects[
+                key
+            ]  # pylint: disable=no-member
+        self._enumerate_objects(_canon_site_objects, "canon_site_num")
+        for val in canon_site_objects.values():  # pylint: disable=no-member
+            # instances modified, and will be modified down the line, refresh
+            val.instance.refresh_from_db()
 
         # NB! missing fk's:
         # - ref_conf_site
@@ -2195,160 +2214,7 @@ class TargetLoader:
                         f"SiteObservation {val.index_data['reference_ligands']}"
                         + " missing from database",
                     )
-
-        logger.debug("data read and processed, adding tags")
-
-        # tag site observations
-        cat_canon = TagCategory.objects.get(category="CanonSites")
-        # sort canon sites by number of observations
-        # fmt: off
-        canon_sort_qs = CanonSite.objects.filter(
-            pk__in=[k.instance.pk for k in canon_site_objects.values() ], # pylint: disable=no-member
-        ).annotate(
-            # obvs=Count("canonsiteconf_set__siteobservation_set", default=0),
-            obvs=Count("canonsiteconf__siteobservation", empty_result_set_value=0),
-        ).order_by("-obvs", "name")
-        # ordering by name is not strictly necessary, but
-        # makes the sorting consistent
-
-        # fmt: on
-
-        logger.debug('canon_site_order')
-        for site in canon_sort_qs:
-            logger.debug('%s: %s', site.name, site.obvs)
-
-        _canon_site_objects = {}
-        for site in canon_sort_qs:
-            key = f"{site.name}+{site.version}"
-            _canon_site_objects[key] = canon_site_objects[
-                key
-            ]  # pylint: disable=no-member
-
-        self._enumerate_objects(_canon_site_objects, "canon_site_num")
-        for val in _canon_site_objects.values():  # pylint: disable=no-member
-            prefix = val.instance.canon_site_num
-            # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
-            so_list = SiteObservation.objects.filter(
-                canon_site_conf__canon_site=val.instance
-            )
-            tag = val.versioned_key
-            try:
-                short_tag = val.versioned_key.split('-')[1][1:]
-                main_obvs = val.instance.ref_conf_site.ref_site_observation
-                try:
-                    code_prefix = experiment_objects[
-                        main_obvs.experiment.code
-                    ].index_data["code_prefix"]
-                    short_tag = f"{code_prefix}{short_tag}"
-                except KeyError as exc:
-                    msg = (
-                        f"Experiment {main_obvs.experiment.code}"
-                        + f" missing from {METADATA_FILE}"
-                    )
-                    self.report.log(logging.ERROR, msg)
-
-            except IndexError:
-                short_tag = tag
-
-            self._tag_observations(
-                tag,
-                prefix,
-                category=cat_canon,
-                site_observations=so_list,
-                short_tag=short_tag,
-            )
-
-        logger.debug("canon_site objects tagged")
-
-        numerators = {}
-        cat_conf = TagCategory.objects.get(category="ConformerSites")
-        for val in canon_site_conf_objects.values():  # pylint:
-            # disable=no-member problem introduced with the sorting of
-            # canon sites (issue 1498). objects somehow go out of sync
             val.instance.refresh_from_db()
-            if val.instance.canon_site.canon_site_num not in numerators.keys():
-                numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
-            prefix = (
-                f"{val.instance.canon_site.canon_site_num}"
-                + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
-            )
-
-            so_list = []
-            for k in val.index_data["members"]:
-                try:
-                    so_list.append(site_observation_objects[k].instance)
-                except KeyError as exc:
-                    # data may be missing. check the database
-                    try:
-                        longcode = longcode_from_tag(k)
-                        so = so_qs.get(longcode=longcode)
-                        so_list.append(so)
-                        msg = (
-                            f"SiteObservation {k} missing from {METADATA_FILE}"
-                            f", fetching from db",
-                        )
-                        logger.info(msg)
-                    except SiteObservation.DoesNotExist:
-                        self.report.log(
-                            logging.ERROR,
-                            f"SiteObservation {k} missing from database",
-                        )
-
-            # tag = val.instance.name.split('+')[0]
-            tag = val.instance.name
-            try:
-                short_tag = val.instance.name.split('-')[1][1:]
-                main_obvs = val.instance.ref_site_observation
-                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
-                    "code_prefix"
-                ]
-                short_tag = f"{code_prefix}{short_tag}"
-            except IndexError:
-                short_tag = tag
-
-            self._tag_observations(
-                tag,
-                prefix,
-                category=cat_conf,
-                site_observations=so_list,
-                hidden=True,
-                short_tag=short_tag,
-            )
-
-        logger.debug("conf_site objects tagged")
-
-        cat_quat = TagCategory.objects.get(category="Quatassemblies")
-        for val in quat_assembly_objects.values():  # pylint: disable=no-member
-            prefix = f"A{val.instance.assembly_num}"
-            tag = val.instance.name
-            so_list = SiteObservation.objects.filter(
-                xtalform_site__xtalform__in=XtalformQuatAssembly.objects.filter(
-                    quat_assembly=val.instance
-                ).values("xtalform")
-            )
-            self._tag_observations(
-                tag, prefix, category=cat_quat, site_observations=so_list
-            )
-
-        logger.debug("quat_assembly objects tagged")
-
-        cat_xtal = TagCategory.objects.get(category="Crystalforms")
-        for val in xtalform_objects.values():  # pylint: disable=no-member
-            prefix = f"F{val.instance.xtalform_num}"
-            so_list = SiteObservation.objects.filter(
-                xtalform_site__xtalform=val.instance
-            )
-            tag = val.instance.name
-
-            self._tag_observations(
-                tag,
-                prefix,
-                category=cat_xtal,
-                site_observations=so_list,
-                clean_ids=False,
-            )
-
-        logger.debug("xtalform objects tagged")
 
         # enumerate xtalform_sites. a bit trickier than others because
         # requires alphabetic enumeration starting from the letter of
@@ -2402,63 +2268,46 @@ class TargetLoader:
                 val.instance.xtalform_site_num = next(xtnum)
                 val.instance.save()
 
-        cat_xtalsite = TagCategory.objects.get(category="CrystalformSites")
-        for val in _xtalform_sites_objects.values():  # pylint: disable=no-member
-            prefix = (
-                f"F{val.instance.xtalform.xtalform_num}"
-                + f"{val.instance.xtalform_site_num}"
-            )
-
-            so_list = []
-            for k in val.index_data["residues"]:
-                try:
-                    so_list.append(site_observation_objects[k].instance)
-                except KeyError as exc:
-                    try:
-                        longcode = longcode_from_tag(k)
-                        so = so_qs.get(longcode=longcode)
-                        so_list.append(so)
-                        msg = (
-                            f"SiteObservation {k} missing from {METADATA_FILE}"
-                            f", fetching from db",
-                        )
-                        logger.info(msg)
-                    except SiteObservation.DoesNotExist:
-                        self.report.log(
-                            logging.ERROR,
-                            f"SiteObservation {k} missing from database",
-                        )
-            tag = val.versioned_key
-            try:
-                # remove protein name and 'x'
-                short_tag = val.instance.xtalform_site_id.split('-')[1][1:]
-                main_obvs = val.instance.canon_site.ref_conf_site.ref_site_observation
-                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
-                    "code_prefix"
-                ]
-                short_tag = f"{code_prefix}{short_tag}"
-            except IndexError:
-                short_tag = tag
-
-            self._tag_observations(
-                tag,
-                prefix,
-                category=cat_xtalsite,
-                site_observations=so_list,
-                hidden=True,
-                short_tag=short_tag,
-            )
-
-        logger.debug("xtalform_sites objects tagged")
-
+        logger.debug("data read and processed, adding tags")
+        tagger = TagManager(self.target)
+        tagger.add_tags_to_canon_sites(
+            canon_site_pks=[
+                k.instance.pk
+                for k in canon_site_objects.values()  # pylint: disable=no-member
+            ]
+        )
+        tagger.add_tags_to_conformer_sites(
+            canon_site_conf_pks=[
+                k.instance.pk
+                for k in canon_site_conf_objects.values()  # pylint: disable=no-member
+            ]
+        )
+        tagger.add_tags_to_quatassemblies(
+            quatassembly_pks=[
+                k.instance.pk
+                for k in quat_assembly_objects.values()  # pylint: disable=no-member
+            ]
+        )
+        tagger.add_tags_to_xtalforms(
+            xtalform_pks=[
+                k.instance.pk
+                for k in xtalform_objects.values()  # pylint: disable=no-member
+            ]
+        )
+        tagger.add_tags_to_xtalformsites(
+            xtalformsite_pks=[
+                k.instance.pk
+                for k in _xtalform_sites_objects.values()  # pylint: disable=no-member
+            ]
+        )
         # tag all new observations, so that the curator can find and
         # re-pose them
         datestr = timezone.now().date().strftime('%Y-%m-%d')
-        self._tag_observations(
+        tagger.tag_observations(
             f"{self.version_dir} {datestr}",
             "",
-            TagCategory.objects.get(category="Other"),
-            [
+            category=TagCategory.objects.get(category="Other"),
+            site_observations=[
                 k.instance
                 for k in site_observation_objects.values()  # pylint: disable=no-member
                 if k.new
@@ -2771,75 +2620,6 @@ class TargetLoader:
         # and nothing after that saves the instances so that's fine,
         # but if something else needs to edit the observations,
         # refresh_from_db needs to be called
-
-    def _tag_observations(
-        self,
-        tag: str,
-        prefix: str,
-        category: TagCategory,
-        site_observations: list,
-        hidden: bool = False,
-        short_tag: str | None = None,
-        clean_ids: bool = True,
-    ) -> None:
-        try:
-            # memo to self: description is set to tag, but there's
-            # no fk to tag, instead, tag has a fk to
-            # group. There's no uniqueness requirement on
-            # description so there's no certainty that this will
-            # be unique (or remain searchable at all because user
-            # is allowed to change the tag name). this feels like
-            # poor design but I don't understand the principles of
-            # this system to know if that's indeed the case or if
-            # it is in fact a truly elegant solution
-            so_group = SiteObservationGroup.objects.get(
-                target=self.target, description=tag
-            )
-        except SiteObservationGroup.DoesNotExist:
-            assert self.target
-            so_group = SiteObservationGroup(target=self.target)
-            so_group.save()
-        except MultipleObjectsReturned:
-            SiteObservationGroup.objects.filter(
-                target=self.target, description=tag
-            ).delete()
-            assert self.target
-            so_group = SiteObservationGroup(target=self.target)
-            so_group.save()
-
-        name = f"{prefix} - {tag}" if prefix else tag
-        tag = tag if short_tag is None else short_tag
-        short_name = name if short_tag is None else f"{prefix} - {short_tag}"
-
-        if clean_ids:
-            tag = clean_object_id(tag)
-            name = clean_object_id(name)
-            short_name = clean_object_id(short_name)
-
-        try:
-            so_tag = SiteObservationTag.objects.get(
-                upload_name=name, target=self.target
-            )
-            # Tag already exists
-            # Apart from the new mol_group and molecules, we shouldn't be
-            # changing anything.
-            so_tag.mol_group = so_group
-        except SiteObservationTag.DoesNotExist:
-            so_tag = SiteObservationTag(
-                tag=tag,
-                tag_prefix=prefix,
-                upload_name=name,
-                category=category,
-                target=self.target,
-                mol_group=so_group,
-                hidden=hidden,
-                short_tag=short_name,
-            )
-
-        so_tag.save()
-
-        so_group.site_observation.add(*site_observations)
-        so_tag.site_observations.add(*site_observations)
 
     def _is_already_uploaded(self, target_created, project_created):
         if target_created or project_created:

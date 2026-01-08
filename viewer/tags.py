@@ -1,6 +1,6 @@
 import hashlib
 import logging
-from typing import Any
+from typing import Any, Generator
 
 import numpy as np
 import pandas as pd
@@ -13,18 +13,25 @@ from django.db.models.functions import Concat
 from scoring.models import SiteObservationGroup
 
 from .models import (
+    CanonSite,
+    CanonSiteConf,
     Compound,
     CompoundIdentifier,
     CompoundIdentifierType,
     Pose,
     QualityStatusType,
+    QuatAssembly,
     SiteObservation,
     SiteObservationQualityStatus,
     SiteObservationTag,
     SiteObvsSiteObservationTag,
     TagCategory,
     Target,
+    Xtalform,
+    XtalformQuatAssembly,
+    XtalformSite,
 )
+from .utils import alphanumerator, clean_object_id
 
 logger = logging.getLogger(__name__)
 
@@ -646,3 +653,236 @@ def sanitize_boolean_column(column, errors):
 
 def get_ann_tag(input_str: str) -> str:
     return hashlib.md5(input_str.encode()).hexdigest()
+
+
+class TagManager:
+    def __init__(self, target):
+        self.target = target
+
+    def add_tags_to_canon_sites(self, canon_site_pks: list[int]):
+        cat = TagCategory.objects.get(category="CanonSites")
+        qs = CanonSite.objects.filter(
+            pk__in=canon_site_pks,
+        ).annotate(
+            code_prefix=F(
+                'ref_conf_site__ref_site_observation__experiment__code_prefix'
+            ),
+        )
+
+        for instance in qs:
+            prefix = instance.canon_site_num
+            # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
+            so_list = SiteObservation.objects.filter(
+                canon_site_conf__canon_site=instance
+            )
+
+            # tag = val.versioned_key
+            tag = f"{instance.name}+{instance.version}"
+            try:
+                short_tag = tag.split('-')[1][1:]
+                short_tag = f"{instance.code_prefix}{short_tag}"
+
+                # memo to self: there was an elaborate shcme here to
+                # catch an error if the experiment code wasn't found
+                # in the metadata file. if I remember correctly, this
+                # was a manifestation of a different issue altogether
+                # (corrupt data?) and included here only for reporting
+                # purposes
+
+            except IndexError:
+                # non-standard tag
+                short_tag = tag
+
+            self.tag_observations(
+                tag,
+                prefix,
+                category=cat,
+                site_observations=so_list,
+                short_tag=short_tag,
+            )
+
+        logger.debug("canon_site objects tagged")
+
+    def add_tags_to_conformer_sites(self, canon_site_conf_pks: list[int]):
+        numerators: dict[str, Generator[str, None, None]] = {}
+        cat = TagCategory.objects.get(category="ConformerSites")
+        qs = CanonSiteConf.objects.filter(
+            pk__in=canon_site_conf_pks,
+        ).annotate(
+            code_prefix=F(
+                'canon_site__ref_conf_site__ref_site_observation__experiment__code_prefix'
+            ),
+        )
+
+        for instance in qs:
+            if instance.canon_site.canon_site_num not in numerators.keys():
+                numerators[instance.canon_site.canon_site_num] = alphanumerator()
+
+            prefix = (
+                f"{instance.canon_site.canon_site_num}"
+                + f"{next(numerators[instance.canon_site.canon_site_num])}"
+            )
+
+            so_list = instance.siteobservation_set.all()
+            # same comment as for canon sites, there was a lot of
+            # error handling for when observations were'f found, but
+            # I'm pretty sure that was broken data
+
+            tag = instance.name
+            try:
+                short_tag = instance.name.split('-')[1][1:]
+                short_tag = f"{instance.code_prefix}{short_tag}"
+            except IndexError:
+                short_tag = tag
+
+            self.tag_observations(
+                tag,
+                prefix,
+                category=cat,
+                site_observations=so_list,
+                hidden=True,
+                short_tag=short_tag,
+            )
+
+        logger.debug("conf_site objects tagged")
+
+    def add_tags_to_quatassemblies(self, quatassembly_pks: list[int]):
+        cat = TagCategory.objects.get(category="Quatassemblies")
+        qs = QuatAssembly.objects.filter(pk__in=quatassembly_pks)
+
+        for instance in qs:
+            prefix = f"A{instance.assembly_num}"
+            tag = instance.name
+            so_list = SiteObservation.objects.filter(
+                xtalform_site__xtalform__in=XtalformQuatAssembly.objects.filter(
+                    quat_assembly=instance
+                ).values("xtalform")
+            )
+            self.tag_observations(
+                tag,
+                prefix,
+                category=cat,
+                site_observations=so_list,
+            )
+
+        logger.debug("quat_assembly objects tagged")
+
+    def add_tags_to_xtalforms(self, xtalform_pks: list[int]):
+        cat = TagCategory.objects.get(category="Crystalforms")
+        qs = Xtalform.objects.filter(pk__in=xtalform_pks)
+
+        for instance in qs:
+            prefix = f"F{instance.xtalform_num}"
+            so_list = SiteObservation.objects.filter(xtalform_site__xtalform=instance)
+            tag = instance.name
+
+            self.tag_observations(
+                tag,
+                prefix,
+                category=cat,
+                site_observations=so_list,
+                clean_ids=False,
+            )
+
+        logger.debug("xtalform objects tagged")
+
+    def add_tags_to_xtalformsites(self, xtalformsite_pks: list[int]):
+        cat = TagCategory.objects.get(category="CrystalformSites")
+        qs = XtalformSite.objects.filter(
+            pk__in=xtalformsite_pks,
+        ).annotate(
+            code_prefix=F(
+                'canon_site__ref_conf_site__ref_site_observation__experiment__code_prefix'
+            ),
+        )
+        for instance in qs:
+            prefix = (
+                f"F{instance.xtalform.xtalform_num}" + f"{instance.xtalform_site_num}"
+            )
+
+            so_list = instance.siteobservation_set.all()
+            tag = f"{instance.xtalform_site_id}/{instance.version}"
+            try:
+                # remove protein name and 'x'
+                short_tag = instance.xtalform_site_id.split('-')[1][1:]
+                short_tag = f"{instance.code_prefix}{short_tag}"
+            except IndexError:
+                short_tag = tag
+
+            self.tag_observations(
+                tag,
+                prefix,
+                category=cat,
+                site_observations=so_list,
+                hidden=True,
+                short_tag=short_tag,
+            )
+
+        logger.debug("xtalform_sites objects tagged")
+
+    def tag_observations(
+        self,
+        tag: str,
+        prefix: str,
+        category: TagCategory,
+        site_observations: list,
+        hidden: bool = False,
+        short_tag: str | None = None,
+        clean_ids: bool = True,
+    ) -> None:
+        try:
+            # memo to self: description is set to tag, but there's
+            # no fk to tag, instead, tag has a fk to
+            # group. There's no uniqueness requirement on
+            # description so there's no certainty that this will
+            # be unique (or remain searchable at all because user
+            # is allowed to change the tag name). this feels like
+            # poor design but I don't understand the principles of
+            # this system to know if that's indeed the case or if
+            # it is in fact a truly elegant solution
+            so_group = SiteObservationGroup.objects.get(
+                target=self.target, description=tag
+            )
+        except SiteObservationGroup.DoesNotExist:
+            so_group = SiteObservationGroup(target=self.target)
+            so_group.save()
+        except MultipleObjectsReturned:
+            SiteObservationGroup.objects.filter(
+                target=self.target, description=tag
+            ).delete()
+            so_group = SiteObservationGroup(target=self.target)
+            so_group.save()
+
+        name = f"{prefix} - {tag}" if prefix else tag
+        tag = tag if short_tag is None else short_tag
+        short_name = name if short_tag is None else f"{prefix} - {short_tag}"
+
+        if clean_ids:
+            tag = clean_object_id(tag)
+            name = clean_object_id(name)
+            short_name = clean_object_id(short_name)
+
+        try:
+            so_tag = SiteObservationTag.objects.get(
+                upload_name=name, target=self.target
+            )
+            # Tag already exists
+            # Apart from the new mol_group and molecules, we shouldn't be
+            # changing anything.
+            so_tag.mol_group = so_group
+        except SiteObservationTag.DoesNotExist:
+            so_tag = SiteObservationTag(
+                tag=tag,
+                tag_prefix=prefix,
+                upload_name=name,
+                category=category,
+                target=self.target,
+                mol_group=so_group,
+                hidden=hidden,
+                short_tag=short_name,
+            )
+
+        so_tag.save()
+
+        so_group.site_observation.add(*site_observations)
+        so_tag.site_observations.add(*site_observations)

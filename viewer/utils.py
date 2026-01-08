@@ -677,3 +677,11 @@ def flattened_inchi_from_smiles(smiles: str):
     Chem.RemoveStereochemistry(mol)
     flat_inchi = Chem.inchi.MolToInchi(mol)
     return flat_inchi
+
+
+def longcode_from_tag(tag: str, separator: str = '/') -> str:
+    splits = tag.split(separator)
+    if splits:
+        splits[-1] = f"v{splits[-1]}"
+        return "_".join(splits)
+    return tag
