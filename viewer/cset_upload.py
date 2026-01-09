@@ -11,25 +11,18 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from dateutil.parser import parse
-from openpyxl.utils import get_column_letter
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
-import django
-from django.db import IntegrityError, transaction
-
-django.setup()
-
 from django.conf import settings
-
-# from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.validators import validate_email
+from django.db import IntegrityError, transaction
 from django.db.models import F
+from django.utils import timezone
+from openpyxl.utils import get_column_letter
 from rdkit import Chem
 
-from viewer.models import (  # ComputedMolecule,; NumericalScoreValues,; ScoreDescription,; TextScoreValues,
+from viewer.models import (
     Compound,
     ComputedSet,
     ComputedSetSubmitter,
@@ -43,6 +36,7 @@ from viewer.models import (  # ComputedMolecule,; NumericalScoreValues,; ScoreDe
 from viewer.utils import add_props_to_sdf_molecule, alphanumerator, is_url, word_count
 
 from .sdf_check import add_warning
+from .tags import TagManager
 
 logger = logging.getLogger(__name__)
 
@@ -731,7 +725,7 @@ class MolOps:
         score_descriptions,
         zfile=None,
         zfile_hashvals=None,
-    ) -> None:
+    ) -> int | None:
         molecule_name = mol.GetProp("_Name")
         logger.debug("+ process_mol %s", molecule_name)
 
@@ -780,11 +774,14 @@ class MolOps:
 
         if skip_mol:
             logger.warning("Skipping molecule '%s'", molecule_name)
+            return None
         else:
             cpd = self.set_mol(
                 mol, target, compound_set, filename, zfile, zfile_hashvals
             )
             self.set_props(cpd, other_props, score_descriptions, compound_set)
+
+            return cpd.pk
 
     def set_descriptions(
         self, filename, computed_set: ComputedSet
@@ -956,11 +953,12 @@ class MolOps:
 
                 # Process the molecules
                 logger.info("%s mols_to_process=%s", computed_set, len(mols_to_process))
+                so_ids = []
                 for i in range(len(mols_to_process)):
                     logger.debug(
                         "processing mol %s: %s", i, mols_to_process[i].GetProp("_Name")
                     )
-                    self.process_mol(
+                    so_pk = self.process_mol(
                         mols_to_process[i],
                         self.target_id,
                         computed_set,
@@ -969,6 +967,15 @@ class MolOps:
                         self.zfile,
                         self.zfile_hashvals,
                     )
+                    so_ids.append(so_pk)
+
+                tagger = TagManager(computed_set.target)
+                so_qs = SiteObservation.objects.filter(pk__in=so_ids)
+                datestr = timezone.now().date().strftime('%Y-%m-%d')
+                tagger.tag_new_site_observations(
+                    site_observations=so_qs,
+                    new_observation_tag=f"{computed_set.name} {datestr}",
+                )
 
         except IntegrityError as exc:
             # clean up previously written files. this is not ideal,

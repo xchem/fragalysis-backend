@@ -7,7 +7,17 @@ import pandas as pd
 from django.contrib.auth.models import User
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import CharField, Count, Exists, F, OuterRef, Q, Subquery, Value
+from django.db.models import (
+    CharField,
+    Count,
+    Exists,
+    F,
+    OuterRef,
+    Q,
+    QuerySet,
+    Subquery,
+    Value,
+)
 from django.db.models.functions import Concat
 
 from scoring.models import SiteObservationGroup
@@ -659,11 +669,9 @@ class TagManager:
     def __init__(self, target):
         self.target = target
 
-    def add_tags_to_canon_sites(self, canon_site_pks: list[int]):
+    def add_tags_to_canon_sites(self, qs: QuerySet[CanonSite]):
         cat = TagCategory.objects.get(category="CanonSites")
-        qs = CanonSite.objects.filter(
-            pk__in=canon_site_pks,
-        ).annotate(
+        qs = qs.annotate(
             code_prefix=F(
                 'ref_conf_site__ref_site_observation__experiment__code_prefix'
             ),
@@ -682,7 +690,7 @@ class TagManager:
                 short_tag = tag.split('-')[1][1:]
                 short_tag = f"{instance.code_prefix}{short_tag}"
 
-                # memo to self: there was an elaborate shcme here to
+                # memo to self: there was an elaborate scheme here to
                 # catch an error if the experiment code wasn't found
                 # in the metadata file. if I remember correctly, this
                 # was a manifestation of a different issue altogether
@@ -703,12 +711,10 @@ class TagManager:
 
         logger.debug("canon_site objects tagged")
 
-    def add_tags_to_conformer_sites(self, canon_site_conf_pks: list[int]):
+    def add_tags_to_conformer_sites(self, qs: QuerySet[CanonSiteConf]):
         numerators: dict[str, Generator[str, None, None]] = {}
         cat = TagCategory.objects.get(category="ConformerSites")
-        qs = CanonSiteConf.objects.filter(
-            pk__in=canon_site_conf_pks,
-        ).annotate(
+        qs = qs.annotate(
             code_prefix=F(
                 'canon_site__ref_conf_site__ref_site_observation__experiment__code_prefix'
             ),
@@ -746,9 +752,8 @@ class TagManager:
 
         logger.debug("conf_site objects tagged")
 
-    def add_tags_to_quatassemblies(self, quatassembly_pks: list[int]):
+    def add_tags_to_quatassemblies(self, qs: QuerySet[QuatAssembly]):
         cat = TagCategory.objects.get(category="Quatassemblies")
-        qs = QuatAssembly.objects.filter(pk__in=quatassembly_pks)
 
         for instance in qs:
             prefix = f"A{instance.assembly_num}"
@@ -767,9 +772,8 @@ class TagManager:
 
         logger.debug("quat_assembly objects tagged")
 
-    def add_tags_to_xtalforms(self, xtalform_pks: list[int]):
+    def add_tags_to_xtalforms(self, qs: QuerySet[Xtalform]):
         cat = TagCategory.objects.get(category="Crystalforms")
-        qs = Xtalform.objects.filter(pk__in=xtalform_pks)
 
         for instance in qs:
             prefix = f"F{instance.xtalform_num}"
@@ -786,11 +790,9 @@ class TagManager:
 
         logger.debug("xtalform objects tagged")
 
-    def add_tags_to_xtalformsites(self, xtalformsite_pks: list[int]):
+    def add_tags_to_xtalformsites(self, qs: QuerySet[XtalformSite]):
         cat = TagCategory.objects.get(category="CrystalformSites")
-        qs = XtalformSite.objects.filter(
-            pk__in=xtalformsite_pks,
-        ).annotate(
+        qs = qs.annotate(
             code_prefix=F(
                 'canon_site__ref_conf_site__ref_site_observation__experiment__code_prefix'
             ),
@@ -820,6 +822,85 @@ class TagManager:
 
         logger.debug("xtalform_sites objects tagged")
 
+    # took a shortcut that seems to be the long way around in hindsight
+    # TODO:
+    # - change the methods to accept querysets instead of pk list
+    # - add umbrella method to be called from target_loader
+    # - I THINK it should only accept so qs. and not just that, but new ones
+    # - this way it doesn't retag existing observations
+    # (although that doesn't have seem to have been a problem)
+
+    # wasn't a problem because checked if tag exists
+
+    def tag_new_site_observations(
+        self, site_observations: QuerySet[SiteObservation], new_observation_tag: str
+    ):
+        cs_qs = CanonSite.objects.filter(
+            pk__in=site_observations.values('canon_site_conf__canon_site')
+        )
+        self.add_tags_to_canon_sites(qs=cs_qs)
+
+        cf_qs = CanonSiteConf.objects.filter(
+            pk__in=site_observations.values('canon_site_conf')
+        )
+        self.add_tags_to_conformer_sites(qs=cf_qs)
+
+        qa_qs = QuatAssembly.objects.filter(
+            pk__in=XtalformQuatAssembly.objects.filter(
+                xtalform__in=site_observations.values('xtalform_site__xtalform')
+            ).values('quat_assembly')
+        )
+
+        self.add_tags_to_quatassemblies(qs=qa_qs)
+
+        xf_qs = Xtalform.objects.filter(
+            pk__in=site_observations.values('xtalform_site__xtalform')
+        )
+        self.add_tags_to_xtalforms(qs=xf_qs)
+
+        xs_qs = XtalformSite.objects.filter(
+            pk__in=site_observations.values('xtalform_site')
+        )
+        self.add_tags_to_xtalformsites(qs=xs_qs)
+
+        self.tag_observations(
+            new_observation_tag,
+            "",
+            category=TagCategory.objects.get(category="Other"),
+            site_observations=site_observations,
+            clean_ids=False,
+        )
+
+    # def tag_virtual_observations(self, site_observations: QuerySet[SiteObservation]):
+    #     logger.debug('incoming virtual observations for tagging: %s, %s', site_observations.count(), site_observations)
+    #     cs_qs = CanonSite.objects.filter(
+    #         pk__in=site_observations.values('canon_site_conf__canon_site')
+    #     )
+    #     self.add_tags_to_canon_sites(qs=cs_qs)
+
+    #     cf_qs = CanonSiteConf.objects.filter(
+    #         pk__in=site_observations.values('canon_site_conf')
+    #     )
+    #     self.add_tags_to_conformer_sites(qs=cf_qs)
+
+    #     qa_qs = QuatAssembly.objects.filter(
+    #         pk__in=XtalformQuatAssembly.objects.filter(
+    #             xtalform__in=site_observations.values('xtalform_site__xtalform')
+    #         ).values('quat_assembly')
+    #     )
+
+    #     self.add_tags_to_quatassemblies(qs=qa_qs)
+
+    #     xf_qs = Xtalform.objects.filter(
+    #         pk__in=site_observations.values('xtalform_site__xtalform')
+    #     )
+    #     self.add_tags_to_xtalforms(qs=xf_qs)
+
+    #     xs_qs = XtalformSite.objects.filter(
+    #         pk__in=site_observations.values('xtalform_site')
+    #     )
+    #     self.add_tags_to_xtalformsites(qs=xs_qs)
+
     def tag_observations(
         self,
         tag: str,
@@ -830,6 +911,7 @@ class TagManager:
         short_tag: str | None = None,
         clean_ids: bool = True,
     ) -> None:
+        """Tag observations directly with the given tag."""
         try:
             # memo to self: description is set to tag, but there's
             # no fk to tag, instead, tag has a fk to

@@ -35,7 +35,7 @@ from rdkit import Chem
 
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
-from viewer.models import (
+from viewer.models import (  # TagCategory,
     AtomCoordinates,
     CanonSite,
     CanonSiteConf,
@@ -52,7 +52,6 @@ from viewer.models import (
     SiteObservation,
     SiteObservationComputedSiteObservation,
     SiteObservationQualityStatus,
-    TagCategory,
     Target,
     Xtalform,
     XtalformQuatAssembly,
@@ -2269,50 +2268,20 @@ class TargetLoader:
                 val.instance.save()
 
         logger.debug("data read and processed, adding tags")
-        tagger = TagManager(self.target)
-        tagger.add_tags_to_canon_sites(
-            canon_site_pks=[
+
+        site_observations = SiteObservation.objects.filter(
+            pk__in=[
                 k.instance.pk
-                for k in canon_site_objects.values()  # pylint: disable=no-member
-            ]
-        )
-        tagger.add_tags_to_conformer_sites(
-            canon_site_conf_pks=[
-                k.instance.pk
-                for k in canon_site_conf_objects.values()  # pylint: disable=no-member
-            ]
-        )
-        tagger.add_tags_to_quatassemblies(
-            quatassembly_pks=[
-                k.instance.pk
-                for k in quat_assembly_objects.values()  # pylint: disable=no-member
-            ]
-        )
-        tagger.add_tags_to_xtalforms(
-            xtalform_pks=[
-                k.instance.pk
-                for k in xtalform_objects.values()  # pylint: disable=no-member
-            ]
-        )
-        tagger.add_tags_to_xtalformsites(
-            xtalformsite_pks=[
-                k.instance.pk
-                for k in _xtalform_sites_objects.values()  # pylint: disable=no-member
-            ]
-        )
-        # tag all new observations, so that the curator can find and
-        # re-pose them
-        datestr = timezone.now().date().strftime('%Y-%m-%d')
-        tagger.tag_observations(
-            f"{self.version_dir} {datestr}",
-            "",
-            category=TagCategory.objects.get(category="Other"),
-            site_observations=[
-                k.instance
                 for k in site_observation_objects.values()  # pylint: disable=no-member
                 if k.new
             ],
-            clean_ids=False,
+        )
+
+        datestr = timezone.now().date().strftime('%Y-%m-%d')
+        tagger = TagManager(self.target)
+        tagger.tag_new_site_observations(
+            site_observations=site_observations,
+            new_observation_tag=f"{self.version_dir} {datestr}",
         )
 
         # see comment in method body if anything needs to be further
