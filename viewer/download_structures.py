@@ -1181,7 +1181,9 @@ def return_download_link(
     logger.debug('static_link: %s', static_link)
 
     # Save the list of protein codes - this is the ispybsafe set for this user.
-    proteins_list = list(site_observations.values_list('code', flat=True))
+    proteins_list = ','.join(
+        list(site_observations.order_by('code').values_list('code', flat=True)),
+    )
     logger.debug('proteins_list: %s', proteins_list)
 
     try:
@@ -1315,7 +1317,9 @@ def create_download_link(
     download_link.file_url = file_url
     download_link.user = user
     download_link.target = target
-    download_link.proteins = list(site_observations.values_list('code', flat=True))
+    download_link.proteins = ','.join(
+        list(site_observations.order_by('code').values_list('code', flat=True)),
+    )
     download_link.protein_params = protein_params
     download_link.other_params = other_params
     download_link.static_link = static_link

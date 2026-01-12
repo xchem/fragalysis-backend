@@ -1666,11 +1666,11 @@ class DownloadLinks(models.Model):
     target = models.ForeignKey(
         Target, null=True, on_delete=models.CASCADE, db_index=True
     )
-    proteins = models.JSONField(
-        encoder=DjangoJSONEncoder,
-        null=True,
-        help_text="Contains a sorted list of the protein codes in the search",
-    )
+    # list of sorted observation shortcodes. Changed in 1982, used to
+    # be JSONfield but this didn't work with .get(). The same fate may
+    # wait for the other json fields, they're only needed for
+    # comparison and the content's isn't really used.
+    proteins = models.TextField(null=True)
     protein_params = models.JSONField(
         encoder=DjangoJSONEncoder,
         null=True,
