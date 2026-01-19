@@ -228,7 +228,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "external_url",
             "external_url_display_name",
             "alias_order",
-            # "settings",
+            "settings",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -245,7 +245,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "organism": {"read_only": False},
             "external_url": {"read_only": False},
             "external_url_display_name": {"read_only": False},
-            # "settings": {"read_only": False},
+            "settings": {"read_only": False},
         }
 
 
