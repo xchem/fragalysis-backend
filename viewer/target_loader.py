@@ -1668,6 +1668,7 @@ class TargetLoader:
             "canon_site_conf": canon_site_conf,
             "seq_id": ligand,
             "chain_id": chain,
+            "altloc": altloc,
         }
 
         # smiles removed from check fields aand removed to defaults as
@@ -1690,7 +1691,6 @@ class TargetLoader:
             "ligand_sdf": str(self._get_final_path(ligand_sdf)),
             "pdb_header_file": None,
             "smiles": smiles,
-            "altloc": altloc,
         }
 
         mol = None
