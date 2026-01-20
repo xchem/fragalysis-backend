@@ -34,8 +34,7 @@ services:
       POSTGRESQL_USER: postgres
       # Celery tasks need to run synchronously
       CELERY_TASK_ALWAYS_EAGER: 'True'
-      # Error reporting and default/root log-level
-      FRAGALYSIS_BACKEND_SENTRY_DNS: ${FRAGALYSIS_BACKEND_SENTRY_DNS}
+      # Default/root log-level
       LOGGING_FRAMEWORK_ROOT_LEVEL: ${LOGGING_FRAMEWORK_ROOT_LEVEL:-INFO}
       # Keycloak configuration
       OIDC_KEYCLOAK_REALM: ${OIDC_KEYCLOAK_REALM}

@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "fragalysis_backend"}]
 
 [tool.poetry.dependencies]
-python = "^3.13.5"
+python = ">3.12,<4.0"
 django = "^5.2"
 celery = "^5.5"
 django-bootstrap3 = "^25.2"
@@ -25,7 +25,6 @@ pandas = "^2.3"
 pandoc = "^2.3"
 psycopg = { version = "^3.2", extras = ["binary", "pool"] }
 redis = "^7.0"
-sentry-sdk = "^2.4"
 shortuuid = "^1.0"
 sshtunnel = "^0.4"
 urllib3 = "^2.5"
