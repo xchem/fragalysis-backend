@@ -101,4 +101,19 @@ class Migration(migrations.Migration):
             name='written_sdf_filename',
             field=models.TextField(help_text='The written ComputedSet filename', null=True),
         ),
+        migrations.AlterField(
+            model_name='computedset',
+            name='spec_version',
+            field=models.FloatField(help_text='The version of the SDF file format specification', null=True),
+        ),
+        migrations.AlterField(
+            model_name='historicalcomputedset',
+            name='method',
+            field=models.TextField(blank=True, help_text='The name of the algorithmic method used to generate the compounds (e.g. Fragmenstein)', null=True),
+        ),
+        migrations.AlterField(
+            model_name='historicalcomputedset',
+            name='spec_version',
+            field=models.FloatField(help_text='The version of the SDF file format specification', null=True),
+        ),
     ]

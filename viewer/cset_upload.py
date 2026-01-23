@@ -431,6 +431,7 @@ class MolOps:
                 raw_value=value,
                 site_observation=cpd,
                 result_property=result_property,
+                computed_set=computed_set,
             )
 
             if data_type.data_type == 'float':
@@ -852,23 +853,26 @@ class MolOps:
 
     def task(self) -> tuple[ComputedSet, dict]:
         # Truncate submitted method (lower-case)?
-        truncated_submitter_method: str = "unspecified"
+        # truncated_submitter_method: str = "unspecified"
         try:
             with transaction.atomic():
+                submitter_method: str = self.submitter_method
                 if self.submitter_method:
-                    truncated_submitter_method = self.submitter_method[
-                        : ComputedSet.LENGTH_METHOD_IN_NAME
-                    ]
-                    if len(self.submitter_method) > len(truncated_submitter_method):
-                        logger.warning(
-                            'ComputedSet submitter method is too long (%s). Truncated to "%s"',
-                            self.submitter_method,
-                            truncated_submitter_method,
-                        )
+                    submitter_method = self.submitter_method
+                    # truncated_submitter_method = self.submitter_method[
+                    #     : ComputedSet.LENGTH_METHOD_IN_NAME
+                    # ]
+                    # if len(self.submitter_method) > len(truncated_submitter_method):
+                    #     logger.warning(
+                    #         'ComputedSet submitter method is too long (%s). Truncated to "%s"',
+                    #         self.submitter_method,
+                    #         truncated_submitter_method,
+                    #     )
                 else:
+                    submitter_method = "unspecified"
                     logger.warning(
                         'ComputedSet submitter method is not set. Using "%s"',
-                        truncated_submitter_method,
+                        submitter_method,
                     )
 
                 # Do we have any existing ComputedSets?
@@ -895,7 +899,7 @@ class MolOps:
                         raise IntegrityError(msg) from exc
 
                     cs_name: str = (
-                        f"{truncated_submitter_method}-{str(today)}-"
+                        f"{submitter_method}-{str(today)}-"
                         + f"{get_column_letter(new_ordinal)}"
                     )
 
@@ -923,7 +927,8 @@ class MolOps:
                             name=cs_name,
                             md_ordinal=new_ordinal,
                             upload_date=today,
-                            method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
+                            # method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
+                            method=self.submitter_method,
                             target=target,
                             spec_version=float(self.version.strip('ver_')),
                         )

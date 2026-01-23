@@ -622,12 +622,12 @@ class AssayResultQueryset(QuerySet):
     def annotated_qs(self):
         Result = apps.get_model("viewer", "Result")
         qs = Result.objects.annotate(
-            target_name=F("result_upload__target__title"),
-            target_id=F("result_upload__target__id"),
+            target_name=F("computed_set__target__title"),
+            target_id=F("computed_set__target__id"),
             property_name=F("result_property__result_property"),
             data_type=F("result_property__data_type"),
             unit=F("result_property__unit"),
-            uploaded_by=F("result_upload__uploaded_by__username"),
+            uploaded_by=F("computed_set__owner_user__username"),
         )
 
         return qs

@@ -1227,45 +1227,47 @@ class ComputedSet(models.Model):
     and uploaded by a user
     """
 
-    PENDING = "PENDING"
-    STARTED = "STARTED"
-    SUCCESS = "SUCCESS"
-    FAILURE = "FAILURE"
-    RETRY = "RETRY"
-    REVOKED = "REVOKED"
-    STATUS = (
-        (PENDING, 'PENDING'),  # Initial state when queued
-        (STARTED, 'STARTED'),  # File transfer started
-        (SUCCESS, 'SUCCESS'),  # File transfer finished successfully
-        (FAILURE, 'FAILURE'),  # File transfer failed
-        (RETRY, 'RETRY'),
-        (REVOKED, 'REVOKED'),
-    )
+    # PENDING = "PENDING"
+    # STARTED = "STARTED"
+    # SUCCESS = "SUCCESS"
+    # FAILURE = "FAILURE"
+    # RETRY = "RETRY"
+    # REVOKED = "REVOKED"
+    # STATUS = (
+    #     (PENDING, 'PENDING'),  # Initial state when queued
+    #     (STARTED, 'STARTED'),  # File transfer started
+    #     (SUCCESS, 'SUCCESS'),  # File transfer finished successfully
+    #     (FAILURE, 'FAILURE'),  # File transfer failed
+    #     (RETRY, 'RETRY'),
+    #     (REVOKED, 'REVOKED'),
+    # )
 
-    LENGTH_SUBMITTER_NAME: int = 50
-    LENGTH_METHOD: int = 50
-    LENGTH_METHOD_URL: int = 1000
-    LENGTH_SUBMITTED_SDF: int = 255
+    # LENGTH_SUBMITTER_NAME: int = 50
+    # LENGTH_METHOD: int = 50
+    # LENGTH_METHOD_URL: int = 1000
+    # LENGTH_SUBMITTED_SDF: int = 255
 
-    LENGTH_METHOD_IN_NAME: int = 20
+    # LENGTH_METHOD_IN_NAME: int = 20
 
-    name = models.TextField(null=False)
+    # if null, then resultupload
+    name = models.TextField(null=True)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
+    # RU: upload_file
     submitted_sdf = models.FileField(
         upload_to='computed_set_data/',
-        max_length=LENGTH_SUBMITTED_SDF,
+        # max_length=LENGTH_SUBMITTED_SDF,
         help_text="The original SDF containing the ComputedSet",
     )
     written_sdf_filename = models.TextField(
-        max_length=LENGTH_METHOD_URL,
+        # max_length=LENGTH_METHOD_URL,
         null=True,
         help_text="The written ComputedSet filename",
     )
     spec_version = models.FloatField(
-        help_text="The version of the SDF file format specification"
+        null=True, help_text="The version of the SDF file format specification"
     )
     method_url = models.TextField(
-        max_length=LENGTH_METHOD_URL,
+        # max_length=LENGTH_METHOD_URL,
         null=True,
         help_text="A url linking to a write-up of the methodology used to create the"
         " computed set",
@@ -1273,8 +1275,8 @@ class ComputedSet(models.Model):
     submitter = models.ForeignKey(
         ComputedSetSubmitter, null=True, on_delete=models.CASCADE
     )
-    method = models.CharField(
-        max_length=LENGTH_METHOD,
+    method = models.TextField(
+        # max_length=LENGTH_METHOD,
         null=True,
         blank=True,
         help_text="The name of the algorithmic method used to generate the compounds (e.g. Fragmenstein)",
@@ -1289,27 +1291,32 @@ class ComputedSet(models.Model):
         blank=True,
         help_text="The ordinal distinguishing between uploads using the same method and date",
     )
+    # RU: uploaded_by. this is confusing, submitter sounds like it
+    # could be better, but it has it's own model
     owner_user = models.ForeignKey(
         User, on_delete=models.CASCADE, default=settings.ANONYMOUS_USER
     )
     # The following fields will be used to track the computed set upload
-    upload_task_id = models.CharField(
-        null=True, max_length=50, help_text="The task ID of the upload Celery task"
-    )
-    upload_status = models.CharField(
-        choices=STATUS,
-        null=True,
-        max_length=7,
-        help_text="Status of the upload. Only be updated at the end of the process",
-    )
-    upload_progress = models.DecimalField(
-        null=True,
-        max_digits=5,
-        decimal_places=2,
-        help_text="Intended to be used as an indication of progress (0 to 100%)",
-    )
+    # upload_task_id = models.CharField(
+    #     null=True, max_length=50, help_text="The task ID of the upload Celery task"
+    # )
+    # upload_status = models.CharField(
+    #     choices=STATUS,
+    #     null=True,
+    #     max_length=7,
+    #     help_text="Status of the upload. Only be updated at the end of the process",
+    # )
+    # upload_progress = models.DecimalField(
+    #     null=True,
+    #     max_digits=5,
+    #     decimal_places=2,
+    #     help_text="Intended to be used as an indication of progress (0 to 100%)",
+    # )
+    # RU: upload_date
     upload_datetime = models.DateTimeField(
-        null=True, help_text="The datetime the upload was completed"
+        null=True,
+        blank=True,
+        default=timezone.now,
     )
     computed_molecules = models.ManyToManyField(
         "ComputedMolecule",
@@ -2135,9 +2142,6 @@ class ResultUpload(models.Model):
     objects = models.Manager()
     filter_manager = ResultUploadDataManager()
 
-    # def __str__(self) -> str:
-    #     return f"{self.target.title}: {self.upload_file}"
-
 
 class ResultProperty(models.Model):
     """Assay data property name"""
@@ -2187,6 +2191,12 @@ class Result(models.Model):
     experiment = models.ForeignKey(Experiment, null=True, on_delete=models.CASCADE)
     result_upload = models.ForeignKey(
         ResultUpload,
+        on_delete=models.CASCADE,
+        null=True,
+    )
+    # replacing result_upload with computed_set
+    computed_set = models.ForeignKey(
+        ComputedSet,
         on_delete=models.CASCADE,
         null=True,
     )

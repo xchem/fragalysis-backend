@@ -10,12 +10,12 @@ from django.core.validators import URLValidator
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 
-from .models import (
+from .models import (  # ResultUpload,
     Compound,
+    ComputedSet,
     Experiment,
     Result,
     ResultProperty,
-    ResultUpload,
     ResultValueDataType,
     ResultValueModifier,
     SiteObservation,
@@ -397,13 +397,23 @@ class AssayData:
 
         try:
             with transaction.atomic():
-                result_upload = ResultUpload(
+                # result_upload = ResultUpload(
+                #     target=self.target,
+                #     upload_file=self.filename,
+                #     uploaded_by=self.user,
+                # )
+
+                # result_upload.save()
+
+                computed_set = ComputedSet(
                     target=self.target,
-                    upload_file=self.filename,
-                    uploaded_by=self.user,
+                    submitted_sdf=self.filename,
+                    owner_user=self.user,
                 )
 
-                result_upload.save()
+                computed_set.save()
+
+                logger.debug('computedset saved %s', computed_set)
 
                 order = 0
                 for column, proc_func in data_columns.items():
@@ -413,17 +423,32 @@ class AssayData:
 
                     short_df, data_type = proc_func(df, column, self.id_column)
 
-                    result_property, _ = ResultProperty.objects.get_or_create(
-                        result_property=column,
-                        unit=unit,
-                        target=self.target,
-                        order=order,
-                        data_type=data_type,
-                    )
+                    # ResultProperty defines these 3 fields as a
+                    # uniqueconstraint, but order and data_type must
+                    # not be null. hence there's no
+                    # get_or_create. maybe this should be changed
+                    try:
+                        result_property = ResultProperty.objects.get(
+                            result_property=column,
+                            unit=unit,
+                            target=self.target,
+                        )
+                    except ResultProperty.DoesNotExist:
+                        result_property = ResultProperty(
+                            result_property=column,
+                            unit=unit,
+                            target=self.target,
+                            order=order,
+                            data_type=data_type,
+                        )
+                        result_property.save()
 
                     short_df[self.id_type] = df[self.id_type]
-                    short_df['result_upload'] = result_upload
+                    # short_df['result_upload'] = result_upload
+                    short_df['computed_set'] = computed_set
                     short_df['result_property'] = result_property
+
+                    logger.debug('short_df %s', short_df)
 
                     # extract error column and add it to error list
                     error_df = short_df[short_df[ERROR_COLUMN].notnull()][
@@ -454,7 +479,7 @@ class AssayData:
         return self.errors, self.warnings
 
 
-def convert(upload, property_id, new_type):
+def convert(computed_set, property_id, new_type):
     errors = []
     warnings: list[str] = []
     result_property = ResultProperty.objects.get(pk=property_id)
@@ -462,7 +487,8 @@ def convert(upload, property_id, new_type):
 
     qs = Result.objects.filter(
         result_property=result_property,
-        result_upload=upload,
+        # result_upload=upload,
+        computed_set=computed_set,
     )
 
     try:

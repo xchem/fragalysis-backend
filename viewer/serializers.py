@@ -1397,20 +1397,21 @@ class AssayDataCurationSerializer(serializers.ModelSerializer):
     new_data_type = serializers.ChoiceField(choices=[], required=False)
 
     class Meta:
-        model = models.ResultUpload
+        # model = models.ResultUpload
+        model = models.ComputedSet
         fields = (
             'target_access_string',
-            'upload_file',
-            'upload_date',
-            'uploaded_by',
+            'submitted_sdf',
+            'upload_datetime',
+            'owner_user',
             'upload_file_name',
             'column',
             'new_data_type',
         )
         extra_kwargs = {
-            "upload_file": {"read_only": True},
-            "upload_date": {"read_only": True},
-            "uploaded_by": {"read_only": True},
+            "submitted_sdf": {"read_only": True, 'label': 'Uploaded file'},
+            "upload_datetime": {"read_only": True},
+            "owner_user": {"read_only": True},
         }
 
     def __init__(self, *args, **kwargs):
@@ -1430,15 +1431,22 @@ class AssayDataCurationSerializer(serializers.ModelSerializer):
             )
             targets = models.Target.objects.filter(project__title__in=proposals)
 
-        uploads = models.ResultUpload.objects.filter(target__in=targets)
+        # uploads = models.ResultUpload.objects.filter(target__in=targets)
+        uploads = models.ComputedSet.objects.filter(
+            target__in=targets,
+            # limit only to assay uploads
+            # potential TODO:  possibly not the best solution
+            name__isnull=True,
+        )
         logger.debug('uploads: %s', uploads)
         self.fields['upload_file_name'].choices = [
-            (f.pk, f'{f.target.title}:: {Path(f.upload_file.name).name}')
+            (f.pk, f'{f.target.title}:: {Path(f.submitted_sdf.name).name}')
             for f in uploads
         ]
 
         columns = models.ResultProperty.objects.filter(
-            pk__in=models.Result.objects.filter(result_upload__in=uploads).values(
+            # pk__in=models.Result.objects.filter(result_upload__in=uploads).values(
+            pk__in=models.Result.objects.filter(computed_set__in=uploads).values(
                 'result_property'
             ),
         )

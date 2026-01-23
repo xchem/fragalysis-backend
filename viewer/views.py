@@ -3283,7 +3283,8 @@ class ActivityDataView(
 
     queryset = models.Result.filter_manager.filter_qs()
     serializer_class = serializers.ActivityResultSerializer
-    filter_permissions = "result_upload__target__project"
+    # filter_permissions = "result_upload__target__project"
+    filter_permissions = "computed_set__target__project"
     permission_classes = [IsObjectProposalMember]
     # permission_classes = [permissions.IsAuthenticated, IsObjectProposalMember]
     filterset_class = filters.ActivityResultFilter
@@ -3339,13 +3340,15 @@ class ActivityDataCurationView(ISPyBSafeQuerySet):
         if settings.AUTHENTICATE_UPLOAD and not self.request.user.is_authenticated:
             return redirect(settings.LOGIN_URL)
 
-        upload_pk = serializer.validated_data['upload_file_name']
+        # upload_pk = serializer.validated_data['upload_file_name']
+        computedset_pk = serializer.validated_data['upload_file_name']
         property_id = serializer.validated_data['column']
         new_type = serializer.validated_data['new_data_type']
 
-        upload = models.ResultUpload.objects.get(pk=upload_pk)
+        # upload = models.ResultUpload.objects.get(pk=upload_pk)
+        computed_set = models.ComputedSet.objects.get(pk=computedset_pk)
 
-        errors, warnings = convert(upload, property_id, new_type)
+        errors, warnings = convert(computed_set, property_id, new_type)
 
         logger.debug("view errors: %s", errors)
 
