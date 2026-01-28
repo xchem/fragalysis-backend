@@ -135,6 +135,8 @@ class ProcessedObject:
     key: str | tuple[str, str]
     defaults: dict = field(default_factory=dict)
     index_data: dict = field(default_factory=dict)
+    # fields used to search for an instance to supersede
+    supersede_fields: dict = field(default_factory=dict)
     versioned_key: Optional[str | tuple[str, str]] = ""
 
 
@@ -475,10 +477,9 @@ def create_objects(func=None, *, depth=math.inf):
             if new:
                 created = created + 1
                 # check if old versions exist and mark them as superseded
-                if "version" in instance_data.fields.keys():
-                    del instance_data.fields["version"]
+                if instance_data.supersede_fields:
                     superseded = instance_data.model_class.objects.filter(
-                        **instance_data.fields,
+                        **instance_data.supersede_fields,
                     ).exclude(
                         pk=obj.pk,
                     )
@@ -1374,6 +1375,7 @@ class TargetLoader:
             index_data=index_data,
             key=canon_site_id,
             versioned_key=v_canon_site_id,
+            supersede_fields=fields,
             defaults=defaults,
         )
 
@@ -1418,6 +1420,11 @@ class TargetLoader:
             "version": version,
         }
 
+        supersede_fields = {
+            "name": conf_site_name,
+            "canon_site": canon_site,
+        }
+
         defaults = {
             "residues": residues,
         }
@@ -1437,6 +1444,7 @@ class TargetLoader:
             index_data=index_fields,
             key=conf_site_name,
             versioned_key=v_conf_site_name,
+            supersede_fields=supersede_fields,
             defaults=defaults,
         )
 
@@ -1488,6 +1496,12 @@ class TargetLoader:
             "version": version,
         }
 
+        supersede_fields = {
+            "xtalform_site_id": xtalform_site_name,
+            "xtalform": xtalform,
+            "canon_site": canon_site,
+        }
+
         defaults = {
             "lig_chain": lig_chain,
             "residues": residues,
@@ -1503,6 +1517,7 @@ class TargetLoader:
             defaults=defaults,
             key=xtalform_site_name,
             versioned_key=v_xtalform_site_name,
+            supersede_fields=supersede_fields,
             index_data=index_data,
         )
 
@@ -1671,6 +1686,14 @@ class TargetLoader:
             "altloc": altloc,
         }
 
+        supersede_fields = {
+            "experiment": experiment,
+            "cmpd": compound,
+            "canon_site_conf": canon_site_conf,
+            "seq_id": ligand,
+            "chain_id": chain,
+        }
+
         # smiles removed from check fields aand removed to defaults as
         # part of 1670
         # longcode removed as part of 1672, because broke superseding
@@ -1708,6 +1731,7 @@ class TargetLoader:
             defaults=defaults,
             key=key,
             versioned_key=v_key,
+            supersede_fields=supersede_fields,
             index_data={'mol': mol},
         )
 
@@ -2100,6 +2124,10 @@ class TargetLoader:
                 obvs=ArrayAgg('id'),
             ).order_by(
                 "-sites",
+                # adding these 2 seems to be taking care of 2003, wrong shortcodes
+                # is this sufficient?
+                'chain_id',
+                'seq_id'
             ).values_list("obvs", flat=True)
             # fmt: on
 
