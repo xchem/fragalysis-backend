@@ -1689,7 +1689,7 @@ class TargetLoader:
         supersede_fields = {
             "experiment": experiment,
             "cmpd": compound,
-            "canon_site_conf": canon_site_conf,
+            # "canon_site_conf": canon_site_conf,
             "seq_id": ligand,
             "chain_id": chain,
         }
