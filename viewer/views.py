@@ -3375,6 +3375,7 @@ class ResultPropertyView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
 class PlotDataView(
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
     ISPyBSafeQuerySet,
 ):
     """Create/update plots."""

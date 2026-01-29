@@ -262,6 +262,7 @@ class MolOps:
             site_obvs = SiteObservation.objects.get(
                 code__contains=name,
                 experiment__experiment_upload__target__pk=target,
+                superseded=False,
             )
         except SiteObservation.DoesNotExist:
             # Initial SiteObservation lookup failed.
@@ -368,7 +369,7 @@ class MolOps:
 
         return cpd, cpd_number
 
-    def set_props(self, cpd, props, score_descriptions) -> List[ScoreDescription]:
+    def set_props(self, cpd, props, score_descriptions):
         for sd, val in score_descriptions.items():
             logger.debug("sd: %s", sd)
             logger.debug("sd.name, val: %s: %s", sd.name, val)
@@ -376,6 +377,11 @@ class MolOps:
                 score_value = TextScoreValues()
             else:
                 score_value = NumericalScoreValues()
+
+            try:
+                float(val)
+            except ValueError:
+                return None
 
             if sd.name in HEADER_MOL_FIELDS:
                 score_value.value = val
@@ -386,7 +392,7 @@ class MolOps:
             score_value.score = sd
             score_value.save()
 
-        return score_descriptions
+        return None
 
     def set_mol(
         self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
@@ -414,10 +420,12 @@ class MolOps:
         insp_frags = []
         for i in insp:
             # try exact match first
+            logger.debug('looking for so code %s', str(i))
             try:
                 site_obvs = SiteObservation.objects.get(
                     code=str(i),
                     experiment__experiment_upload__target=compound_set.target,
+                    superseded=False,
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:

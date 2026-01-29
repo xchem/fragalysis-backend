@@ -42,7 +42,7 @@ from .utils import profile
 logger = logging.getLogger(__name__)
 
 # Length of time to keep records of dynamic links.
-KEEP_UNTIL_DURATION = timedelta(minutes=90)
+KEEP_UNTIL_DURATION = timedelta(minutes=settings.DOWNLOAD_KEEP_UNTIL_DURATION_M)
 
 # Filepaths mapping for writing associated files to the zip archive.
 # Note that if this is set to 'aligned' then the files will be placed in
@@ -241,6 +241,8 @@ class DownloadStructures:
                 F('chain_id'),
                 Value('_'),
                 F('seq_id'),
+                Value('_'),
+                F('altloc'),
                 Value('_'),
                 F('version'),
                 Value('_'),
@@ -746,11 +748,16 @@ class DownloadStructures:
             'commit_datetime'
         ).last()
 
-        trans_matrix_files = (
-            experiment_upload.neighbourhood_transforms,
-            experiment_upload.conformer_site_transforms,
-            experiment_upload.reference_structure_transforms,
-        )
+        trans_matrix_files = [
+            f
+            for f in (
+                experiment_upload.neighbourhood_transforms,
+                experiment_upload.conformer_site_transforms,
+                experiment_upload.assembly_transforms,
+                experiment_upload.reference_structure_transforms,
+            )
+            if f.name is not None
+        ]
         for tmf in trans_matrix_files:
             filepath = Path(settings.MEDIA_ROOT).joinpath(str(tmf))
             archive_path = os.path.join(
@@ -875,10 +882,12 @@ class DownloadStructures:
             transforms = [
                 Path(f.name).name
                 for f in (
-                    experiment_upload.conformer_site_transforms,
+                    experiment_upload.assembly_transforms,
                     experiment_upload.neighbourhood_transforms,
+                    experiment_upload.conformer_site_transforms,
                     experiment_upload.reference_structure_transforms,
                 )
+                if f.name is not None
             ]
 
             archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
@@ -1039,6 +1048,7 @@ class DownloadStructures:
                     [
                         "tar",
                         "--dereference",
+                        "--hard-dereference",
                         "-C",
                         data_path.absolute(),
                         "-cf",
